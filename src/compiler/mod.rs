@@ -1,11 +1,5 @@
 
-use crate::Logger;
-
-
-pub fn compile(datex_script:&str) -> &str {
-	let logger:Logger = Logger::new("DATEX WASM Compiler");
-
-	logger.info(&format!("Compiling Script: {datex_script}"));
+pub fn compile(_datex_script:&str) -> &str {
 
 	"\x01\x64\x01\x00\x00"
 }

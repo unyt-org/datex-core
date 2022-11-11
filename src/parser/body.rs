@@ -1,7 +1,6 @@
 use std::ops::{Generator, GeneratorState};
 use std::pin::Pin;
 
-use crate::{Logger, datex_values};
 use crate::global::binary_codes::BinaryCode;
 use crate::datex_values::{PrimitiveValue, SlotIdentifier};
 use crate::utils::buffers;
@@ -25,7 +24,6 @@ fn extract_slot_identifier(dxb_body:&[u8], index: &mut usize) -> SlotIdentifier 
 pub fn parse_loop(dxb_body:&[u8]) -> GeneratorIteratorAdapter<impl Generator<Yield = Instruction, Return = ()> + '_> {
 
 	return GeneratorIteratorAdapter::new(|| {
-		let logger:Logger = Logger::new("DATEX WASM Parser");
 
 		let mut index = 0;
 		let max = dxb_body.len();
@@ -33,8 +31,6 @@ pub fn parse_loop(dxb_body:&[u8]) -> GeneratorIteratorAdapter<impl Generator<Yie
 		// iterate over bytes
 		while index < max {
 			let token = buffers::read_u8(dxb_body, &mut index);
-
-			logger.info(&format!("token: {token}"));
 
 			// integers
 			if token == BinaryCode::INT_8 as u8 {
