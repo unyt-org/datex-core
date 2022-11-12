@@ -14,6 +14,8 @@ default = ["console_error_panic_hook"]
 regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"
+lazy_static = "1.4.0"
+gen-iter = "0.2.1"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

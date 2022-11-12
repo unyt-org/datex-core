@@ -12,7 +12,10 @@ pub enum Color {
 	NUMBER,
 	BUFFER,
 	PRIMITIVE_CONSTANT,
+	TYPE,
+
 	DEFAULT,
+	DEFAULT_LIGHT,
 	RESERVED
 }
 
@@ -30,9 +33,11 @@ impl Color {
 			Color::NUMBER => ansi_rgb(253,139,25),
 			Color::PRIMITIVE_CONSTANT => ansi_rgb(219,45,129),
 			Color::BUFFER => ansi_rgb(238,95,95),
+			Color::TYPE => ansi_rgb(50,153,220),
 
             Color::RESERVED => ansi_rgb(65,102,238),
-			Color::DEFAULT => AnsiCodes::COLOR_DEFAULT.to_string()
+			Color::DEFAULT => AnsiCodes::COLOR_DEFAULT.to_string(),
+			Color::DEFAULT_LIGHT => ansi_rgb(187,187,187)
         }
     }
 
@@ -62,6 +67,9 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::FALSE => Color::PRIMITIVE_CONSTANT,
 		BinaryCode::NULL => Color::PRIMITIVE_CONSTANT,
 		BinaryCode::VOID => Color::PRIMITIVE_CONSTANT,
+
+		BinaryCode::TYPE => Color::TYPE,
+		BinaryCode::EXTENDED_TYPE => Color::TYPE,
 
 		BinaryCode::RETURN=> Color::RESERVED,
 		BinaryCode::TEMPLATE=> Color::RESERVED,
@@ -99,6 +107,9 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::DO=> Color::RESERVED,
 		BinaryCode::DEFAULT=> Color::RESERVED,
 		BinaryCode::COLLAPSE=> Color::RESERVED,
+
+		BinaryCode::ELEMENT_WITH_KEY=> Color::DEFAULT_LIGHT,
+		BinaryCode::ELEMENT_WITH_INT_KEY=> Color::DEFAULT_LIGHT,
 
 		_ => Color::DEFAULT
 	}
