@@ -63,17 +63,17 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			if token == BinaryCode::INT_8 as u8 {
 				let value = buffers::read_i8(&dxb_body, index);
 				_index.set(*index); // TODO better way
-				yield Instruction {code:BinaryCode::INT_8, slot: None, primitive_value: Some(PrimitiveValue::INT_8(value)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::INT_8, slot: None, primitive_value: Some(PrimitiveValue::INT_64(value as i64)), value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::INT_16 as u8 {
 				let value = buffers::read_i16(&dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::INT_16, slot: None, primitive_value: Some(PrimitiveValue::INT_16(value)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::INT_16, slot: None, primitive_value: Some(PrimitiveValue::INT_64(value as i64)), value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::INT_32 as u8 {
 				let value = buffers::read_i32(&dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::INT_32, slot: None, primitive_value: Some(PrimitiveValue::INT_32(value)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::INT_32, slot: None, primitive_value: Some(PrimitiveValue::INT_64(value as i64)), value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::INT_64 as u8 {
 				let value = buffers::read_i64(&dxb_body, index);
@@ -184,6 +184,15 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::STD_TYPE_MAP as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Map".to_string(), variation:None})), subscope_continue:false}
 			}
+			else if token == BinaryCode::STD_TYPE_TEXT as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"text".to_string(), variation:None})), subscope_continue:false}
+			}
+			else if token == BinaryCode::STD_TYPE_INT as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"integer".to_string(), variation:None})), subscope_continue:false}
+			}
+			else if token == BinaryCode::STD_TYPE_FLOAT as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"decimal".to_string(), variation:None})), subscope_continue:false}
+			}
 
 			// commands
 			else if token == BinaryCode::COPY as u8 {
@@ -258,8 +267,10 @@ pub struct Instruction {
 
 impl Instruction {
     pub fn to_string(&self) -> String {
-		if self.primitive_value.is_some() {return format!("{} #{:X} [{}]", self.code, self.code as u8, self.primitive_value.as_ref().unwrap())}
-		else {return format!("{} #{:X}", self.code, self.code as u8,)}
+		if self.primitive_value.is_some() && self.value.is_some() {return format!("{} [{:X}] {} {}", self.code, self.code as u8, self.primitive_value.as_ref().unwrap(), self.value.as_ref().unwrap())}
+		else if self.primitive_value.is_some() {return format!("{} [{:X}] {}", self.code, self.code as u8, self.primitive_value.as_ref().unwrap())}
+		else if self.value.is_some() {return format!("{} [{:X}] {}", self.code, self.code as u8, self.value.as_ref().unwrap())}
+		else {return format!("{} [{:X}]", self.code, self.code as u8,)}
     }
 }
 

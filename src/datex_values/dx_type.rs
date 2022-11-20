@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::global::binary_codes::BinaryCode;
 
 use super::{Value, ValueResult};
@@ -34,6 +36,11 @@ impl Value for Type {
     fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
         todo!()
     }
+
+    fn cast(&self, dx_type: Type) -> ValueResult {
+        todo!()
+    }
+
 }
 
 
@@ -47,3 +54,9 @@ pub mod std_types {
 	}
 }
 
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", Value::to_string(self))
+    }
+}

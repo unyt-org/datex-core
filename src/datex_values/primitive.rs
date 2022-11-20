@@ -83,8 +83,12 @@ impl Value for PrimitiveValue {
 
 			return match 
 				match code {
-					BinaryCode::ADD => self.sum(other_prim),
-					BinaryCode::SUBTRACT => self.difference(other_prim),
+					BinaryCode::ADD 		=> self.sum(other_prim),
+					BinaryCode::SUBTRACT 	=> self.difference(other_prim),
+					BinaryCode::MULTIPLY	=> self.product(other_prim),
+					BinaryCode::DIVIDE 		=> self.quotient(other_prim),
+					BinaryCode::MODULO 		=> self.modulo(other_prim),
+					BinaryCode::POWER 		=> self.power(other_prim),
 
 					_ => Err(Error {message:"invalid binary operation".to_string()})
 				} 
@@ -96,6 +100,16 @@ impl Value for PrimitiveValue {
 		}
 
 		return Err(Error {message:"invalid binary operation".to_string()})
+    }
+
+	fn cast(&self, dx_type: super::Type) -> ValueResult {
+
+		// TODO: type check
+		if dx_type.name == "text" { 
+			Ok(Box::new(PrimitiveValue::TEXT(Value::to_string(self))))
+		}
+		
+		else {Err(Error {message:format!("cannot cast to {dx_type}")})}
     }
 
 }
@@ -113,6 +127,11 @@ impl PrimitiveValue {
 				_ => Err(Error {message:"cannot perform an add operation".to_string()})
 			}
 		}
+
+		else if self.is_text() && other.is_text() {
+			return Ok(PrimitiveValue::TEXT(self.get_as_text().to_owned() + other.get_as_text()));
+		}
+
 		else {return Err(Error {message:"cannot perform an add operation".to_string()})}
 	}
 
@@ -130,6 +149,63 @@ impl PrimitiveValue {
 		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
 	}
 
+
+	fn product(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
+		if self.is_number() && other.is_number() {
+			match self {
+				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val * other.get_as_integer() as i8)),
+				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val * other.get_as_integer() as i16)),
+				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val * other.get_as_integer() as i32)),
+				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val * other.get_as_integer() as i64)),
+				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val * other.get_as_float())),
+				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
+			}
+		}
+		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
+	}
+
+	fn quotient(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
+		if self.is_number() && other.is_number() {
+			match self {
+				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val / other.get_as_integer() as i8)),
+				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val / other.get_as_integer() as i16)),
+				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val / other.get_as_integer() as i32)),
+				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val / other.get_as_integer() as i64)),
+				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val / other.get_as_float())),
+				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
+			}
+		}
+		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
+	}
+
+	fn modulo(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
+		if self.is_number() && other.is_number() {
+			match self {
+				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val % other.get_as_integer() as i8)),
+				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val % other.get_as_integer() as i16)),
+				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val % other.get_as_integer() as i32)),
+				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val % other.get_as_integer() as i64)),
+				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val % other.get_as_float())),
+				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
+			}
+		}
+		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
+	}
+
+	fn power(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
+		if self.is_number() && other.is_number() {
+			match self {
+				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val.powf(other.get_as_integer() as f64))),
+				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
+			}
+		}
+		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
+	}
+
 	fn is_number(&self) -> bool {
 		match &self {
 			PrimitiveValue::INT_8(_) => true,
@@ -138,6 +214,20 @@ impl PrimitiveValue {
 			PrimitiveValue::INT_64(_) => true,
 			PrimitiveValue::FLOAT_64(_) => true,
 			_ => false
+		}
+	}
+
+	fn is_text(&self) -> bool {
+		match &self {
+			PrimitiveValue::TEXT(_) => true,
+			_ => false
+		}
+	}
+
+	fn get_as_text(&self) -> &str {
+		match &self {
+			PrimitiveValue::TEXT(value) => value,
+			_ => ""
 		}
 	}
 

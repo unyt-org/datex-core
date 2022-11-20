@@ -2,6 +2,7 @@ use std::cell::Cell;
 
 use crate::datex_values::Error;
 use crate::datex_values::PrimitiveValue;
+use crate::datex_values::Type;
 use crate::datex_values::Value;
 
 use crate::datex_values::ValueResult;
@@ -10,6 +11,9 @@ use crate::parser::header;
 use crate::parser::body;
 use crate::utils::logger::Logger;
 use crate::utils::logger::LoggerContext;
+
+mod stack;
+use self::stack::Stack;
 
 // lazy_static!{
 // 	static ref logger:Logger = Logger::new_for_development("DATEX Runtime");
@@ -36,14 +40,11 @@ pub fn execute_body(ctx: &LoggerContext, dxb_body:&[u8]) -> ValueResult {
 	return execute_loop(ctx, dxb_body, &Cell::from(0));
 }
 
-type Stack = Vec<Box<dyn Value>>;
-
 fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> ValueResult {
 
 	let logger = Logger::new_for_development(ctx, "DATEX Runtime");
 
-	let mut stack:Stack = Vec::new();
-
+	let mut stack:Stack = Stack::new(&logger);
 
 	let instruction_iterator = body::iterate_instructions(dxb_body, index);
 
@@ -68,6 +69,9 @@ fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> Val
 			BinaryCode::POWER 		=> binary_operation(code, &mut stack, &logger),
 			BinaryCode::AND 		=> binary_operation(code, &mut stack, &logger),
 			BinaryCode::OR 			=> binary_operation(code, &mut stack, &logger),
+
+
+			BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack, &logger),
 
 			_ => {
 
@@ -110,48 +114,61 @@ fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> Val
 
 	}
 
-
-	let result = stack.pop();
-	if result.is_some() {
-		return Ok(result.unwrap());
-	}
-	else {
-		return Ok(Box::new(PrimitiveValue::VOID));
-	}
+	return Ok(stack.pop_or_void());
 	
 
 }
 
 
-fn print_stack(stack: &Stack, logger:&Logger) {
-	logger.plain("[CURRENT STACK]");
-	for item in stack {
-		logger.plain(&item.to_string())
-	}
-}
+// reset stack 
+// clear from end and set final value as first stack value of new stack
+fn clear_stack(stack: &mut Stack, logger:&Logger) -> Option<Error> {
 
-fn pop_stack(stack: &mut Stack) -> Result<Box<dyn Value>, Error> {
-	let value = stack.pop();
-	if value.is_some() {
-		return Ok(value.unwrap())
+	if stack.size() == 0 {return None}; // nothing to clear
+
+	let mut current: Box<dyn Value> = stack.pop_or_void(); // get last stack value
+
+	while stack.size() != 0 {
+		let next = stack.pop_or_void();
+
+		// type cast
+		if next.is::<Type>() {
+			logger.debug(&format!("cast {next} {current}"));
+			let dx_type = next.downcast::<Type>();
+			if dx_type.is_ok() {
+				let res = current.cast(*dx_type.ok().unwrap());
+ 				if res.is_ok() {
+					current = res.ok().unwrap();
+				}
+				else {return res.err()}
+			}
+			else {return Some(Error { message: "rust downcasting error".to_string() })}
+			
+		}
+
+		// other apply
+		else {
+			logger.debug(&format!("apply {next} {current}"));
+		}
 	}
-	else {
-		return Err(Error { message: "stack error".to_string() })
-	}
+
+	stack.push(current);
+
+	return None;
 }
 
 // operator handlers
 
 
-fn binary_operation(code: BinaryCode, mut stack: &mut Stack, logger:&Logger) -> Option<Error> {
-	print_stack(&stack, &logger);
+fn binary_operation(code: BinaryCode, stack: &mut Stack, logger:&Logger) -> Option<Error> {
+	stack.print();
 
 	// pop 2 operands from stack
-	let _s1 = pop_stack(&mut stack);
+	let _s1 = stack.pop();
 	if _s1.is_err() {return _s1.err()}
 	let s1 = _s1.ok().unwrap();
 
-	let _s2 = pop_stack(&mut stack);
+	let _s2 = stack.pop();
 	if _s2.is_err() {return _s2.err()}
 	let s2 = _s2.ok().unwrap();
 

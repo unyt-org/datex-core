@@ -16,6 +16,10 @@ impl Value for Error {
     fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
         todo!()
     }
+
+    fn cast(&self, dx_type: super::Type) -> ValueResult {
+        todo!()
+    }
 }
 
 impl fmt::Display for Error {
