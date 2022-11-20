@@ -108,7 +108,9 @@ fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> Val
 			}
 			// push subscope result to stack
 			else {
-				stack.push(sub_result.ok().unwrap());
+				let res = sub_result.ok().unwrap();
+				logger.success(&format!("sub result: {}", res));
+				stack.push(res);
 			}
 		}
 
@@ -175,7 +177,7 @@ fn binary_operation(code: BinaryCode, stack: &mut Stack, logger:&Logger) -> Opti
 	// binary operation
 	match s2.binary_operation(code, s1) {
 		Ok(result) => {
-			logger.success(&format!("result: {}", result));
+			logger.success(&format!("binary op result: {}", result));
 			stack.push(result);
 			return None;
 		},
