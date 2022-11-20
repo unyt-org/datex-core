@@ -5,28 +5,29 @@ use std::cell::Cell;
 use std::ops::Generator;
 
 use constants::tokens::get_code_token;
-use constants::color::get_code_color;
+use crate::utils::color::get_code_color;
+use crate::utils::logger::Logger;
+use crate::utils::logger::LoggerContext;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 
 use crate::global::binary_codes::BinaryCode;
-use crate::parser::body::Instruction;
 use crate::parser::header;
 use crate::parser::body;
 
 lazy_static!{
 	static ref NEW_LINE:Regex = Regex::new(r"\r\n").unwrap();
 	static ref LAST_LINE:Regex = Regex::new(r"   (.)$").unwrap();
-
 	static ref INDENT:String ="\r\n   ".to_string();
+
 }
 
 
 /**
  * Converts DXB (with or without header) to DATEX Script
  */
-pub fn decompile(dxb:&[u8], formatted:bool, colorized:bool) -> String {
+pub fn decompile(ctx: &LoggerContext, dxb:&[u8], formatted:bool, colorized:bool) -> String {
 
 	// header?
 	if dxb[0] == 0x01 && dxb[1] == 0x64 {
@@ -51,11 +52,18 @@ fn decompile_loop(dxb_body:&[u8], index: &Cell<usize>, formatted:bool, colorized
 	// flags
 	let mut element_comma = false;
 	let mut element_comma_skip = false;
+	let mut last_was_value = false;
 
 	for instruction in instruction_iterator {
 		
 		let code = instruction.code;
 
+		// space between
+		if last_was_value && (!element_comma||element_comma_skip) && !(code == BinaryCode::CLOSE_AND_STORE) {
+			out += " ";
+		}
+		last_was_value = true;
+		
 		// coloring
 		if colorized {
 			out += &get_code_color(&code).as_ansi_rgb();
@@ -125,6 +133,15 @@ fn decompile_loop(dxb_body:&[u8], index: &Cell<usize>, formatted:bool, colorized
 			BinaryCode::ELEMENT_WITH_KEY	=> {element_comma = true; element_comma_skip = true;}, // skip next element, then insert
 			BinaryCode::ELEMENT_WITH_INT_KEY	=> {element_comma = true; element_comma_skip = true;}, // skip next element, then insert
 			BinaryCode::ELEMENT_WITH_DYNAMIC_KEY	=> {element_comma = true; element_comma_skip = true;}, // skip next element, then insert
+			
+			BinaryCode::CLOSE_AND_STORE => {last_was_value = false}, // no space afterwards
+			BinaryCode::SUBSCOPE_END => {last_was_value = false}, // no space afterwards
+			BinaryCode::ARRAY_END => {last_was_value = false}, // no space afterwards
+			BinaryCode::OBJECT_END => {last_was_value = false}, // no space afterwards
+			BinaryCode::TUPLE_END => {last_was_value = false}, // no space afterwards
+			BinaryCode::SET_INTERNAL_VAR => {last_was_value = false}, // no space afterwards
+			BinaryCode::SET_INTERNAL_VAR_REFERENCE => {last_was_value = false}, // no space afterwards
+			BinaryCode::INIT_INTERNAL_VAR => {last_was_value = false}, // no space afterwards
 
 			_ => ()
 		}

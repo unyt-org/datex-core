@@ -9,3 +9,6 @@ pub use slot::*;
 
 mod value;
 pub use value::*;
+
+mod error;
+pub use error::*;

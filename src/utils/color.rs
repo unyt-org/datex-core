@@ -2,12 +2,59 @@ use crate::global::binary_codes::BinaryCode;
 
 
 
-struct AnsiCodes {}
+pub struct AnsiCodes {}
 impl AnsiCodes {
-    const COLOR_DEFAULT: &'static str = "\x1b[39m";
+    pub const COLOR_DEFAULT: &'static str = "\x1b[39m";
+
+	pub const CLEAR: &'static str =       "\x1b[2J"; // clear screen
+
+    pub const RESET: &'static str =       "\x1b[0m";
+    pub const BOLD: &'static str =        "\x1b[1m";
+    pub const DEFAULT: &'static str =     "\x1b[2m";
+    pub const ITALIC: &'static str =      "\x1b[3m";
+    pub const UNDERLINE: &'static str =  "\x1b[4m";
+    pub const INVERSE: &'static str =     "\x1b[7m";
+    pub const HIDDEN: &'static str =      "\x1b[8m";
+
+    pub const RESET_UNDERLINE: &'static str =  "\x1b[24m";
+    pub const RESET_INVERSE: &'static str =     "\x1b[27m";
+
+    pub const BLACK: &'static str =       "\x1b[30m";
+    pub const RED: &'static str =         "\x1b[31m";
+    pub const GREEN: &'static str =       "\x1b[32m";
+    pub const YELLOW: &'static str =      "\x1b[33m";
+    pub const BLUE: &'static str =        "\x1b[34m";
+    pub const MAGENTA: &'static str =     "\x1b[35m";
+    pub const CYAN: &'static str =        "\x1b[36m";
+    pub const WHITE: &'static str =       "\x1b[37m";
+    pub const GREY: &'static str =        "\x1b[90m";
+
+    pub const BG_BLACK: &'static str =    "\x1b[40m";
+    pub const BG_RED: &'static str =      "\x1b[41m";
+    pub const BG_GREEN: &'static str =    "\x1b[42m";
+    pub const BG_YELLOW: &'static str =   "\x1b[43m";
+    pub const BG_BLUE: &'static str =     "\x1b[44m";
+    pub const BG_MAGENTA: &'static str =  "\x1b[45m";
+    pub const BG_CYAN: &'static str =     "\x1b[46m";
+    pub const BG_WHITE: &'static str =    "\x1b[47m";
+    pub const BG_GREY: &'static str =     "\x1b[100m";
+    pub const BG_COLOR_DEFAULT: &'static str =  "\x1b[49m";
+
 }
 
 pub enum Color {
+
+	RED,
+    GREEN,
+    BLUE,
+    YELLOW,
+    MAGENTA,
+    CYAN,
+    BLACK,
+    WHITE,
+    GREY,
+
+
 	TEXT,
 	NUMBER,
 	BUFFER,
@@ -29,6 +76,16 @@ impl Color {
 
     pub fn as_ansi_rgb(&self) -> String {
         match self {
+			Color::RED => ansi_rgb(234,43,81),
+            Color::GREEN => ansi_rgb(30,218,109),
+            Color::BLUE => ansi_rgb(6,105,193),
+            Color::YELLOW => ansi_rgb(235,182,38),
+            Color::MAGENTA => ansi_rgb(196,112,222),
+            Color::CYAN => ansi_rgb(79,169,232),
+            Color::BLACK => ansi_rgb(5,5,5),
+            Color::WHITE => ansi_rgb(250,250,250),
+            Color::GREY => ansi_rgb(150,150,150),
+
             Color::TEXT => ansi_rgb(183,129,227),
 			Color::NUMBER => ansi_rgb(253,139,25),
 			Color::PRIMITIVE_CONSTANT => ansi_rgb(219,45,129),
@@ -41,7 +98,7 @@ impl Color {
         }
     }
 
-	pub fn as_ansi_8_bit(&self) -> &'static str {
+	pub fn as_ansi_4_bit(&self) -> &'static str {
         match self {
             _ => ""
         }

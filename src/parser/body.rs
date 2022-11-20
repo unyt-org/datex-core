@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::fmt;
 
 use crate::global::binary_codes::BinaryCode;
 use crate::datex_values::{PrimitiveValue, SlotIdentifier, Type, Value, std_types};
@@ -257,7 +258,13 @@ pub struct Instruction {
 
 impl Instruction {
     pub fn to_string(&self) -> String {
-		if self.primitive_value.is_some() {return format!("[{:X}, {}]", self.code as u8, self.primitive_value.as_ref().unwrap())}
-		else {return format!("[{:X}]", self.code as u8)}
+		if self.primitive_value.is_some() {return format!("{} #{:X} [{}]", self.code, self.code as u8, self.primitive_value.as_ref().unwrap())}
+		else {return format!("{} #{:X}", self.code, self.code as u8,)}
+    }
+}
+
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", Instruction::to_string(self))
     }
 }

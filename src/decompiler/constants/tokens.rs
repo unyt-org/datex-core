@@ -20,20 +20,20 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 		BinaryCode::POWER => "^".to_string(),
 		BinaryCode::MODULO => "%".to_string(),
 
-		BinaryCode::AND => " and ".to_string(),
-		BinaryCode::OR => " or ".to_string(),
-		BinaryCode::NOT => " no ".to_string(),
+		BinaryCode::AND => "and".to_string(),
+		BinaryCode::OR => "or".to_string(),
+		BinaryCode::NOT => "no".to_string(),
 
 		BinaryCode::INCREMENT => "++".to_string(),
 		BinaryCode::DECREMENT => "--".to_string(),
 
-		BinaryCode::RUN => "run ".to_string(),
-		BinaryCode::AWAIT => "await ".to_string(),
-		BinaryCode::COPY => "copy ".to_string(),
-		BinaryCode::CLONE => "clone ".to_string(),
-		BinaryCode::CREATE_POINTER => "$$ ".to_string(),
-		BinaryCode::KEYS => "keys ".to_string(),
-		BinaryCode::GET_TYPE => "type ".to_string(),
+		BinaryCode::RUN => "run".to_string(),
+		BinaryCode::AWAIT => "await".to_string(),
+		BinaryCode::COPY => "copy".to_string(),
+		BinaryCode::CLONE => "clone".to_string(),
+		BinaryCode::CREATE_POINTER => "$$".to_string(),
+		BinaryCode::KEYS => "keys".to_string(),
+		BinaryCode::GET_TYPE => "type".to_string(),
 
 		
 		_ => format!("[{:X}]", *code as u8).to_string()

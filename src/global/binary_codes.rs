@@ -1,6 +1,7 @@
 use num_enum::TryFromPrimitive;
+use strum::Display;
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Copy, Clone, Display)]
 #[repr(u8)]
 pub enum BinaryCode {
 	// flow instructions 0x00 - 0x0f

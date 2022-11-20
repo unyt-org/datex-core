@@ -1,4 +1,6 @@
-use super::Value;
+use crate::global::binary_codes::BinaryCode;
+
+use super::{Value, ValueResult};
 
 pub struct Type {
 
@@ -27,6 +29,10 @@ impl Value for Type {
 				return format!("<{}:{}>", self.namespace, self.name);
 			}
 		}
+    }
+
+    fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
+        todo!()
     }
 }
 

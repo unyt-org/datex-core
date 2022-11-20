@@ -4,7 +4,9 @@ use std::fmt;
 use regex::Regex;
 use lazy_static::lazy_static;
 
-use super::Value;
+use crate::global::binary_codes::BinaryCode;
+
+use super::{Value, Error, ValueResult};
 
 #[derive(Clone)]
 pub enum PrimitiveValue {
@@ -74,9 +76,94 @@ impl Value for PrimitiveValue {
 		}
     }
 
+
+	fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
+		if other.is::<PrimitiveValue>() {
+			let other_prim = other.downcast_ref::<PrimitiveValue>().expect("error casting stack value to primitive");
+
+			return match 
+				match code {
+					BinaryCode::ADD => self.sum(other_prim),
+					BinaryCode::SUBTRACT => self.difference(other_prim),
+
+					_ => Err(Error {message:"invalid binary operation".to_string()})
+				} 
+			{
+				Ok(result) => Ok(Box::new(result)),
+				Err(err) => Err(err)
+			}
+	
+		}
+
+		return Err(Error {message:"invalid binary operation".to_string()})
+    }
+
 }
 
 impl PrimitiveValue {
+
+	fn sum(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
+		if self.is_number() && other.is_number() {
+			match self {
+				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val + other.get_as_integer() as i8)),
+				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val + other.get_as_integer() as i16)),
+				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val + other.get_as_integer() as i32)),
+				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val + other.get_as_integer() as i64)),
+				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val + other.get_as_float())),
+				_ => Err(Error {message:"cannot perform an add operation".to_string()})
+			}
+		}
+		else {return Err(Error {message:"cannot perform an add operation".to_string()})}
+	}
+
+	fn difference(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
+		if self.is_number() && other.is_number() {
+			match self {
+				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val - other.get_as_integer() as i8)),
+				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val - other.get_as_integer() as i16)),
+				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val - other.get_as_integer() as i32)),
+				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val - other.get_as_integer() as i64)),
+				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val - other.get_as_float())),
+				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
+			}
+		}
+		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
+	}
+
+	fn is_number(&self) -> bool {
+		match &self {
+			PrimitiveValue::INT_8(_) => true,
+			PrimitiveValue::INT_16(_) => true,
+			PrimitiveValue::INT_32(_) => true,
+			PrimitiveValue::INT_64(_) => true,
+			PrimitiveValue::FLOAT_64(_) => true,
+			_ => false
+		}
+	}
+
+	
+	fn get_as_integer(&self) -> isize {
+		match &self {
+			PrimitiveValue::INT_8(value) => *value as isize,
+			PrimitiveValue::INT_16(value) => *value as isize,
+			PrimitiveValue::INT_32(value) => *value as isize,
+			PrimitiveValue::INT_64(value) => *value as isize,
+			PrimitiveValue::FLOAT_64(value) => *value as isize,
+			_ => 0
+		}
+	}
+
+	fn get_as_float(&self) -> f64 {
+		match &self {
+			PrimitiveValue::INT_8(value) => *value as f64,
+			PrimitiveValue::INT_16(value) => *value as f64,
+			PrimitiveValue::INT_32(value) => *value as f64,
+			PrimitiveValue::INT_64(value) => *value as f64,
+			PrimitiveValue::FLOAT_64(value) => *value as f64,
+			_ => 0.0
+		}
+	}
+
 	// returns a string, omits quotes if possible (for keys)
 	pub fn to_key_string(&self) -> String  {
 
