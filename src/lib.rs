@@ -5,6 +5,8 @@
 #[macro_use]
 extern crate mopa;
 
+extern crate num_integer;
+
 pub mod compiler;
 pub mod decompiler;
 pub mod runtime;

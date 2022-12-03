@@ -120,13 +120,14 @@ pub enum BinaryCode {
 	HAS                 = 0x70, // x has y
 	KEYS                = 0x71, // keys x
 	GET_TYPE            = 0x72, // type $aa
-	GET                 = 0x73, // request file://..., request @user::34
+	GET                 = 0x73, // get file://..., get @user::34
 	RANGE               = 0x74, // ..
 	RESOLVE_RELATIVE_PATH =
 						0x75, // ./abc
 	DO                  = 0x76, // do xy;
 	DEFAULT             = 0x77, // x default y
 	COLLAPSE            = 0x78, // collapse x
+    RESPONSE            = 0x79, // response x
 
 	// comparators 0x80 - 0x8f
 	EQUAL_VALUE         = 0x80, // ==
@@ -193,7 +194,7 @@ pub enum BinaryCode {
 	NULL                = 0xc8,
 	VOID                = 0xc9,
 	BUFFER              = 0xca,
-	SCOPE_BLOCK         = 0xcb,
+	SCOPE_BLOCK_START         = 0xcb,
 	QUANTITY            = 0xcc,
 	FLOAT_AS_INT        = 0xcd,
 	SHORT_TEXT          = 0xce, // string with max. 255 characters

@@ -94,7 +94,7 @@ impl Color {
 
             Color::RESERVED => ansi_rgb(65,102,238),
 			Color::DEFAULT => AnsiCodes::COLOR_DEFAULT.to_string(),
-			Color::DEFAULT_LIGHT => ansi_rgb(187,187,187)
+			Color::DEFAULT_LIGHT => ansi_rgb(157,157,157)
         }
     }
 
@@ -119,6 +119,7 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::INT_64 => Color::NUMBER,
 		BinaryCode::FLOAT_64 => Color::NUMBER,
 		BinaryCode::FLOAT_AS_INT => Color::NUMBER,
+		BinaryCode::QUANTITY => Color::NUMBER,
 
 		BinaryCode::TRUE => Color::PRIMITIVE_CONSTANT,
 		BinaryCode::FALSE => Color::PRIMITIVE_CONSTANT,
@@ -164,6 +165,8 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::DO=> Color::RESERVED,
 		BinaryCode::DEFAULT=> Color::RESERVED,
 		BinaryCode::COLLAPSE=> Color::RESERVED,
+		BinaryCode::CREATE_POINTER=> Color::RESERVED,
+		BinaryCode::POINTER => Color::RESERVED,
 
 		BinaryCode::ELEMENT_WITH_KEY=> Color::DEFAULT_LIGHT,
 		BinaryCode::ELEMENT_WITH_INT_KEY=> Color::DEFAULT_LIGHT,

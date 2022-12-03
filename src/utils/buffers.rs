@@ -66,3 +66,40 @@ pub fn read_slice(buffer: &[u8], index: &mut usize, size: usize) -> Vec<u8> {
 	*index += size;
 	return slice.to_vec();
 }
+
+
+
+// // get hex string id from buffer
+// fn buffer2hex(buffer:Uint8Array|ArrayBuffer, seperator?:string, pad_size_bytes?:number, x_shorthand = false):string {
+//     if (buffer instanceof ArrayBuffer) buffer = new Uint8Array(buffer);
+
+//     // first pad buffer
+//     if (pad_size_bytes) buffer = buffer.slice(0, pad_size_bytes);
+
+//     let array:string[] = <string[]> Array.prototype.map.call(buffer, x => ('00' + x.toString(16).toUpperCase()).slice(-2))
+//     let skipped_bytes = 0;
+
+//     // collapse multiple 0s to x...
+//     if (x_shorthand) {
+//         array = array.slice(0,pad_size_bytes).reduce((previous, current) => {
+//             if (current == '00') {
+//                 if (previous.endsWith('00')) {
+//                     skipped_bytes++;
+//                     return previous.slice(0, -2) + "x2"; // add to existing 00
+//                 }
+//                 else if (previous[previous.length-2] == 'x') {
+//                     const count = (parseInt(previous[previous.length-1],16)+1);
+//                     if (count <= 0xf) {
+//                         skipped_bytes++;
+//                         return previous.slice(0, -1) + count.toString(16).toUpperCase()  // add to existing x... max 15
+//                     }
+//                 }
+//             }
+//             return previous + current;
+//         }).split(/(..)/g).filter(s=>!!s);
+//     }
+
+//     if (pad_size_bytes != undefined) array = Array.from({...array, length: pad_size_bytes-skipped_bytes}, x=>x==undefined?'00':x); // pad
+
+//     return array.join(seperator??'');
+// }

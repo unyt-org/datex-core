@@ -6,11 +6,12 @@ use lazy_static::lazy_static;
 
 use crate::global::binary_codes::BinaryCode;
 
-use super::{Value, Error, ValueResult};
+use super::{Value, Error, ValueResult, Quantity};
 
 #[derive(Clone)]
 pub enum PrimitiveValue {
 	INT_8(i8),
+	UINT_8(u8),
 	INT_16(i16),
 	INT_32(i32),
 	UINT_32(u32),
@@ -19,6 +20,7 @@ pub enum PrimitiveValue {
 	TEXT(String),
 	BUFFER(Vec<u8>),
 	BOOLEAN(bool),
+	QUANTITY(Quantity),
 	NULL,
 	VOID
 }
@@ -45,6 +47,7 @@ impl Value for PrimitiveValue {
 	fn to_string(&self) -> String {
 		match &self {
 			PrimitiveValue::INT_8(value) => value.to_string(),
+			PrimitiveValue::UINT_8(value) => value.to_string(),
 			PrimitiveValue::INT_16(value) => value.to_string(),
 			PrimitiveValue::INT_32(value) => value.to_string(),
 			PrimitiveValue::UINT_32(value) => value.to_string(),
@@ -72,7 +75,9 @@ impl Value for PrimitiveValue {
 			},
 			PrimitiveValue::BOOLEAN(value) => value.to_string(),
 			PrimitiveValue::VOID => "void".to_string(),
-			PrimitiveValue::NULL => "null".to_string()
+			PrimitiveValue::NULL => "null".to_string(),
+			PrimitiveValue::QUANTITY(value) => value.numerator.to_string(),
+
 		}
     }
 
@@ -206,7 +211,7 @@ impl PrimitiveValue {
 		else {return Err(Error {message:"cannot perform a subtract operation".to_string()})}
 	}
 
-	fn is_number(&self) -> bool {
+	pub fn is_number(&self) -> bool {
 		match &self {
 			PrimitiveValue::INT_8(_) => true,
 			PrimitiveValue::INT_16(_) => true,
@@ -217,37 +222,47 @@ impl PrimitiveValue {
 		}
 	}
 
-	fn is_text(&self) -> bool {
+	pub fn is_text(&self) -> bool {
 		match &self {
 			PrimitiveValue::TEXT(_) => true,
 			_ => false
 		}
 	}
 
-	fn get_as_text(&self) -> &str {
+	pub fn get_as_text(&self) -> &str {
 		match &self {
 			PrimitiveValue::TEXT(value) => value,
 			_ => ""
 		}
 	}
 
+	pub fn get_as_buffer(&self) -> Vec<u8> {
+		match &self {
+			PrimitiveValue::BUFFER(value) => value.to_vec(),
+			_ => Vec::new()
+		}
+	}
 	
-	fn get_as_integer(&self) -> isize {
+	pub fn get_as_integer(&self) -> isize {
 		match &self {
 			PrimitiveValue::INT_8(value) => *value as isize,
+			PrimitiveValue::UINT_8(value) => *value as isize,
 			PrimitiveValue::INT_16(value) => *value as isize,
 			PrimitiveValue::INT_32(value) => *value as isize,
+			PrimitiveValue::UINT_32(value) => *value as isize,
 			PrimitiveValue::INT_64(value) => *value as isize,
 			PrimitiveValue::FLOAT_64(value) => *value as isize,
 			_ => 0
 		}
 	}
 
-	fn get_as_float(&self) -> f64 {
+	pub fn get_as_float(&self) -> f64 {
 		match &self {
 			PrimitiveValue::INT_8(value) => *value as f64,
+			PrimitiveValue::UINT_8(value) => *value as f64,
 			PrimitiveValue::INT_16(value) => *value as f64,
 			PrimitiveValue::INT_32(value) => *value as f64,
+			PrimitiveValue::UINT_32(value) => *value as f64,
 			PrimitiveValue::INT_64(value) => *value as f64,
 			PrimitiveValue::FLOAT_64(value) => *value as f64,
 			_ => 0.0
@@ -258,7 +273,7 @@ impl PrimitiveValue {
 	pub fn to_key_string(&self) -> String  {
 
 		lazy_static! {
-			static ref KEY_CAN_OMIT_QUOTES:Regex = Regex::new(r"^[A-Za-z_][A-Za-z_0-9]?$").unwrap();
+			static ref KEY_CAN_OMIT_QUOTES:Regex = Regex::new(r"^[A-Za-z_][A-Za-z_0-9]*$").unwrap();
 		}
 
 		match &self {
@@ -273,6 +288,5 @@ impl PrimitiveValue {
 			}
 			_ => Value::to_string(self)
 		}
-		// [A-Za-z_][A-Za-z_0-9]?
 	}
 }

@@ -116,8 +116,9 @@ fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> Val
 
 	}
 
+	clear_stack(&mut stack, &logger);
+
 	return Ok(stack.pop_or_void());
-	
 
 }
 

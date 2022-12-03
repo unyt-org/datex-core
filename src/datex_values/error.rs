@@ -1,7 +1,5 @@
 use std::fmt;
-
 use crate::global::binary_codes::BinaryCode;
-
 use super::{Value, ValueResult};
 
 pub struct Error {

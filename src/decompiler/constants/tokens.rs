@@ -28,14 +28,24 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 		BinaryCode::DECREMENT => "--".to_string(),
 
 		BinaryCode::RUN => "run".to_string(),
+		BinaryCode::DO => "do".to_string(),
+		BinaryCode::FUNCTION => "function".to_string(),
 		BinaryCode::AWAIT => "await".to_string(),
 		BinaryCode::COPY => "copy".to_string(),
 		BinaryCode::CLONE => "clone".to_string(),
 		BinaryCode::CREATE_POINTER => "$$".to_string(),
 		BinaryCode::KEYS => "keys".to_string(),
 		BinaryCode::GET_TYPE => "type".to_string(),
+		BinaryCode::GET => "get".to_string(),
+		BinaryCode::PLAIN_SCOPE => "scope".to_string(),
+		BinaryCode::ASSERT => "assert".to_string(),
+		BinaryCode::MATCHES => "matches".to_string(),
+		BinaryCode::TRANSFORM => "always".to_string(),
 
-		
+		BinaryCode::CHILD_GET => ".".to_string(),
+		BinaryCode::CHILD_GET_REF => "->".to_string(),
+		BinaryCode::CHILD_ACTION => ".".to_string(),
+
 		_ => format!("[{:X}]", *code as u8).to_string()
 	}
 }
