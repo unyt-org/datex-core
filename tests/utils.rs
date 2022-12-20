@@ -1,6 +1,9 @@
 use datex_core::utils::{buffers::{buffer_to_hex, buffer_to_hex_advanced, hex_to_buffer, hex_to_buffer_advanced}};
 
 
+/**
+ * test byte array to hex string conversion, including seperator characters and fixed length padding
+ */
 #[test]
 pub fn buffer_to_hex_tests() {
 
@@ -19,6 +22,9 @@ pub fn buffer_to_hex_tests() {
 
 }
 
+/**
+ * test hex string to byte array conversion, and conversion back to hex string
+ */
 #[test]
 pub fn hex_to_buffer_tests() {
 

@@ -5,6 +5,9 @@ use datex_core::generator::header::generate_dxb_header;
 
 // const CTX:&LoggerContext = &LoggerContext {log_redirect:None};
 
+/**
+ * test if dxb header is correctly parsed into a DXBHeader struct
+ */
 #[test]
 pub fn parse_header() {
 	// dxb -> header
@@ -20,6 +23,9 @@ pub fn parse_header() {
 	println!("{:#?}", header);
 }
 
+/**
+ * test if a DXBHeader struct is correctly converted into a DXB buffer, and correctly converted back to a DXBHeader
+ */
 #[test]
 pub fn generate_header() {
 	// dxb -> header -> dxb

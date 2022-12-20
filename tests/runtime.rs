@@ -1,6 +1,9 @@
 use datex_core::{runtime::Runtime, utils::{logger::LoggerContext, buffers::{buffer_to_hex, hex_to_buffer, hex_to_buffer_advanced}}};
 
 
+/**
+ * test if the DATEX Runtime is initialized correctly
+ */
 #[test]
 pub fn init_runtime() {
     let runtime = Runtime::new();
@@ -8,6 +11,9 @@ pub fn init_runtime() {
 }
 
 
+/**
+ * test if a DXB block is executed correctly in the Runtime
+ */
 #[test]
 pub fn execute_block() {
     // let runtime = Runtime::new();
