@@ -1,4 +1,6 @@
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use itertools::Itertools;
+use core::fmt::Write;
 
 /*
 read functions for primitive data types on a u8 array, also increments the index
@@ -69,37 +71,195 @@ pub fn read_slice(buffer: &[u8], index: &mut usize, size: usize) -> Vec<u8> {
 
 
 
-// // get hex string id from buffer
-// fn buffer2hex(buffer:Uint8Array|ArrayBuffer, seperator?:string, pad_size_bytes?:number, x_shorthand = false):string {
-//     if (buffer instanceof ArrayBuffer) buffer = new Uint8Array(buffer);
+/*
+write functions: set value at specific index in byte vector, vector length must be big enough
+append functions: appends the value at the end of the byte vector, automatically increases size
+ */
 
-//     // first pad buffer
-//     if (pad_size_bytes) buffer = buffer.slice(0, pad_size_bytes);
 
-//     let array:string[] = <string[]> Array.prototype.map.call(buffer, x => ('00' + x.toString(16).toUpperCase()).slice(-2))
-//     let skipped_bytes = 0;
+pub fn write_u8(mut buffer: Vec<u8>, index: &mut usize, val: u8) {
+	buffer[*index] = val;
+	*index += 1;
+}
+pub fn append_u8(buffer: &mut Vec<u8>, val: u8) {
+	buffer.extend_from_slice(&[val]);
+}
+pub fn write_i8(buffer: &mut Vec<u8>, index: &mut usize, val: i8) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_i8(buffer: &mut Vec<u8>, val: i8) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
 
-//     // collapse multiple 0s to x...
-//     if (x_shorthand) {
-//         array = array.slice(0,pad_size_bytes).reduce((previous, current) => {
-//             if (current == '00') {
-//                 if (previous.endsWith('00')) {
-//                     skipped_bytes++;
-//                     return previous.slice(0, -2) + "x2"; // add to existing 00
-//                 }
-//                 else if (previous[previous.length-2] == 'x') {
-//                     const count = (parseInt(previous[previous.length-1],16)+1);
-//                     if (count <= 0xf) {
-//                         skipped_bytes++;
-//                         return previous.slice(0, -1) + count.toString(16).toUpperCase()  // add to existing x... max 15
-//                     }
-//                 }
-//             }
-//             return previous + current;
-//         }).split(/(..)/g).filter(s=>!!s);
-//     }
+pub fn write_u16(buffer: &mut Vec<u8>, index: &mut usize, val: u16) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_u16(buffer: &mut Vec<u8>, val: u16) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
+pub fn write_i16(buffer: &mut Vec<u8>, index: &mut usize, val: i16) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_i16(buffer: &mut Vec<u8>, val: i16) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
 
-//     if (pad_size_bytes != undefined) array = Array.from({...array, length: pad_size_bytes-skipped_bytes}, x=>x==undefined?'00':x); // pad
+pub fn write_u32(buffer: &mut Vec<u8>, index: &mut usize, val: u32) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_u32(buffer: &mut Vec<u8>, val: u32) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
+pub fn write_i32(buffer: &mut Vec<u8>, index: &mut usize, val: i32) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_i32(buffer: &mut Vec<u8>, val: i32) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
 
-//     return array.join(seperator??'');
-// }
+pub fn write_u64(buffer: &mut Vec<u8>, index: &mut usize, val: u64) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_u64(buffer: &mut Vec<u8>, val: u64) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
+pub fn write_i64(buffer: &mut Vec<u8>, index: &mut usize, val: i64) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_i64(buffer: &mut Vec<u8>, val: i64) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
+
+pub fn write_f64(buffer: &mut Vec<u8>, index: &mut usize, val: f64) {
+	let bytes = val.to_be_bytes();
+	for b in bytes {
+		buffer[*index] = b;
+		*index += 1;
+	}
+}
+pub fn append_f64(buffer: &mut Vec<u8>, val: f64) {
+	buffer.extend_from_slice(&val.to_be_bytes());
+}
+
+
+
+// hex - buffer conversions
+
+pub fn buffer_to_hex(buffer:Vec<u8>) -> String {
+	let n = buffer.len();
+
+	let mut s = String::with_capacity(2 * n);
+	for byte in buffer {
+		write!(s, "{:02X}", byte).expect("could not parse buffer")
+	}
+	return s;
+}
+
+/**
+ * seperator: char sequence inserted between each byte
+ * pad_size_bytes: if 0, it is ignored
+ * x_shorthand: collapse multiple 0 bytes to "xC", with C being the number of zero bytes
+ */
+pub fn buffer_to_hex_advanced(buffer:Vec<u8>, seperator:&str, pad_size_bytes:usize, x_shorthand:bool) -> String {
+	let n = if pad_size_bytes==0 {buffer.len()} else {pad_size_bytes};
+
+	let buf_len = buffer.len();
+
+	let mut s = String::with_capacity(2 * n);
+	let mut i = 0;
+	while i < n {
+		// next byte
+		let byte = if i<buf_len {buffer[i]} else {0};
+		i += 1;
+		// multiple (>=2) zero bytes - x shorthand
+		if x_shorthand && byte == 0 && i < n && if i<buf_len {buffer[i]} else {0} == 0 {
+			let mut zero_count:u8 = 2;
+			let initial_i = i;
+			while i+1 < n && buffer[i+1] == 0 {
+				i += 1;
+				zero_count += 1;
+			}
+			// 0 count, max 15
+			if zero_count <= 0xf {
+				i += 1;
+				write!(s, "x{:01X}", zero_count).expect("could not parse buffer");
+			}
+			else {
+				i = initial_i;
+				write!(s, "{:02X}", byte).expect("could not parse buffer");
+			}
+
+		}
+		// normal
+		else {
+			write!(s, "{:02X}", byte).expect("could not parse buffer");
+		}
+
+		// seperator?
+		if seperator.len()!=0 && i<n {
+			s += seperator;
+		}
+	}
+
+	return s;
+}
+
+
+pub fn hex_to_buffer(hex:String) -> Vec<u8> {
+	let mut buffer = Vec::<u8>::new();
+
+	for chunk in &hex.chars().chunks(2) {
+		buffer.push(u8::from_str_radix(&String::from_iter(chunk), 16).expect("invalid hex buffer"));
+    };
+
+	return buffer;
+}
+
+pub fn hex_to_buffer_advanced(hex:String, seperator:&str) -> Vec<u8> {
+	let mut buffer = Vec::<u8>::new();
+
+	let raw_hex = hex.replace(seperator, "");
+
+	for chunk in &raw_hex.chars().chunks(2) {
+		let part = &String::from_iter(chunk);
+		if part.starts_with("x") {
+			let count = u8::from_str_radix(part.split_at(1).1, 16).expect("invalid x shortcut");
+			for _i in 0..count {
+				buffer.push(0);
+			}
+		}
+		else {
+			buffer.push(u8::from_str_radix(part, 16).expect("invalid hex buffer"));
+		}
+    };
+
+	return buffer;
+}

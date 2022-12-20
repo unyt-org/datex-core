@@ -45,7 +45,7 @@ impl Stack<'_> {
 			return value.unwrap()
 		}
 		else {
-			return Box::new(PrimitiveValue::VOID);
+			return Box::new(PrimitiveValue::Void);
 		}
 	}
 

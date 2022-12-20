@@ -1,5 +1,3 @@
-use std::ops::Div;
-
 use num_bigint::BigUint;
 use num_integer::Integer;
 
@@ -18,6 +16,11 @@ pub struct Quantity {
 }
 
 impl Quantity {
+
+    pub fn to_string(&self, _colorized:bool) -> String {
+        return format!("{}x", self.numerator);
+    }
+
 	fn has_finite_decimal_rep(mut denominator:&mut BigUint) -> bool {
         while denominator.mod_floor(&BigUint::from(2u8)).eq(&BigUint::from(0u8)) {
             *denominator /= BigUint::from(2u8);

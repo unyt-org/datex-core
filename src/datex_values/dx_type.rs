@@ -33,11 +33,11 @@ impl Value for Type {
 		}
     }
 
-    fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
+    fn binary_operation(&self, _code: BinaryCode, _other: Box<dyn Value>) -> ValueResult {
         todo!()
     }
 
-    fn cast(&self, dx_type: Type) -> ValueResult {
+    fn cast(&self, _dx_type: Type) -> ValueResult {
         todo!()
     }
 

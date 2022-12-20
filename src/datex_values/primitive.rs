@@ -6,27 +6,31 @@ use lazy_static::lazy_static;
 
 use crate::global::binary_codes::BinaryCode;
 
-use super::{Value, Error, ValueResult, Quantity};
+use super::{Value, Error, ValueResult, Quantity, Endpoint, primitives::time::Time, Url};
 
 #[derive(Clone)]
 pub enum PrimitiveValue {
-	INT_8(i8),
-	UINT_8(u8),
-	INT_16(i16),
-	INT_32(i32),
-	UINT_32(u32),
-	INT_64(i64),
-	FLOAT_64(f64),
-	TEXT(String),
-	BUFFER(Vec<u8>),
-	BOOLEAN(bool),
-	QUANTITY(Quantity),
-	NULL,
-	VOID
+	Int8(i8),
+	Uint8(u8),
+	Int16(i16),
+	Int32(i32),
+	UInt16(u16),
+	UInt32(u32),
+	Int64(i64),
+	Float64(f64),
+	Text(String),
+	Buffer(Vec<u8>),
+	Boolean(bool),
+	Quantity(Quantity),
+	Time(Time),
+	Endpoint(Endpoint),
+	Url(Url),
+	Null,
+	Void
 }
 
 impl Default for PrimitiveValue {
-    fn default() -> Self { PrimitiveValue::VOID }
+    fn default() -> Self { PrimitiveValue::Void }
 }
 
 impl fmt::Display for PrimitiveValue {
@@ -36,7 +40,7 @@ impl fmt::Display for PrimitiveValue {
 }
 
 fn escape_string(value:&String) -> String {
-	let mut string = str::replace(
+	let string = str::replace(
 		&str::replace(value, "\\", "\\\\"),
 	 "\"", "\\\"");
 	// TODO: only if formatted
@@ -46,13 +50,14 @@ fn escape_string(value:&String) -> String {
 impl Value for PrimitiveValue {
 	fn to_string(&self) -> String {
 		match &self {
-			PrimitiveValue::INT_8(value) => value.to_string(),
-			PrimitiveValue::UINT_8(value) => value.to_string(),
-			PrimitiveValue::INT_16(value) => value.to_string(),
-			PrimitiveValue::INT_32(value) => value.to_string(),
-			PrimitiveValue::UINT_32(value) => value.to_string(),
-			PrimitiveValue::INT_64(value) => value.to_string(),
-			PrimitiveValue::FLOAT_64(value) => {
+			PrimitiveValue::Int8(value) => value.to_string(),
+			PrimitiveValue::Uint8(value) => value.to_string(),
+			PrimitiveValue::Int16(value) => value.to_string(),
+			PrimitiveValue::UInt16(value) => value.to_string(),
+			PrimitiveValue::Int32(value) => value.to_string(),
+			PrimitiveValue::UInt32(value) => value.to_string(),
+			PrimitiveValue::Int64(value) => value.to_string(),
+			PrimitiveValue::Float64(value) => {
 				if value.is_infinite() {
 					if value.is_sign_negative() {return "-infinity".to_string()}
 					else {return "infinity".to_string()}
@@ -60,11 +65,11 @@ impl Value for PrimitiveValue {
 				else if value.is_nan() {return "nan".to_string()}
 				else {return value.to_string()}
 			},
-			PrimitiveValue::TEXT(value) => {
+			PrimitiveValue::Text(value) => {
 				let string = escape_string(value);
 				return format!("\"{string}\"");
 			}
-			PrimitiveValue::BUFFER(value) => {
+			PrimitiveValue::Buffer(value) => {
 				let n = value.len();
 
 				let mut s = String::with_capacity(2 * n);
@@ -73,11 +78,13 @@ impl Value for PrimitiveValue {
 				}
 				return format!("`{s}`");
 			},
-			PrimitiveValue::BOOLEAN(value) => value.to_string(),
-			PrimitiveValue::VOID => "void".to_string(),
-			PrimitiveValue::NULL => "null".to_string(),
-			PrimitiveValue::QUANTITY(value) => value.numerator.to_string(),
-
+			PrimitiveValue::Boolean(value) => value.to_string(),
+			PrimitiveValue::Void => "void".to_string(),
+			PrimitiveValue::Null => "null".to_string(),
+			PrimitiveValue::Quantity(value) => value.to_string(false),
+			PrimitiveValue::Endpoint(value) => value.to_string(false),
+			PrimitiveValue::Time(value) => value.to_string(),
+			PrimitiveValue::Url(value) => value.to_string()
 		}
     }
 
@@ -111,7 +118,7 @@ impl Value for PrimitiveValue {
 
 		// TODO: type check
 		if dx_type.name == "text" { 
-			Ok(Box::new(PrimitiveValue::TEXT(Value::to_string(self))))
+			Ok(Box::new(PrimitiveValue::Text(Value::to_string(self))))
 		}
 		
 		else {Err(Error {message:format!("cannot cast to {dx_type}")})}
@@ -121,20 +128,30 @@ impl Value for PrimitiveValue {
 
 impl PrimitiveValue {
 
+	// special colorized form
+	pub fn to_string_colorized(&self) -> String {
+		match &self {
+			PrimitiveValue::Quantity(value) => value.to_string(true),
+			PrimitiveValue::Endpoint(value) => value.to_string(true),
+			_ => Value::to_string(self)
+		}
+	}
+	
+
 	fn sum(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
 		if self.is_number() && other.is_number() {
 			match self {
-				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val + other.get_as_integer() as i8)),
-				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val + other.get_as_integer() as i16)),
-				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val + other.get_as_integer() as i32)),
-				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val + other.get_as_integer() as i64)),
-				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val + other.get_as_float())),
+				PrimitiveValue::Int8(val) 	=> Ok(PrimitiveValue::Int8   (val + other.get_as_integer() as i8)),
+				PrimitiveValue::Int16(val) 	=> Ok(PrimitiveValue::Int16  (val + other.get_as_integer() as i16)),
+				PrimitiveValue::Int32(val) 	=> Ok(PrimitiveValue::Int32  (val + other.get_as_integer() as i32)),
+				PrimitiveValue::Int64(val) 	=> Ok(PrimitiveValue::Int64  (val + other.get_as_integer() as i64)),
+				PrimitiveValue::Float64(val) => Ok(PrimitiveValue::Float64(val + other.get_as_float())),
 				_ => Err(Error {message:"cannot perform an add operation".to_string()})
 			}
 		}
 
 		else if self.is_text() && other.is_text() {
-			return Ok(PrimitiveValue::TEXT(self.get_as_text().to_owned() + other.get_as_text()));
+			return Ok(PrimitiveValue::Text(self.get_as_text().to_owned() + other.get_as_text()));
 		}
 
 		else {return Err(Error {message:"cannot perform an add operation".to_string()})}
@@ -143,11 +160,11 @@ impl PrimitiveValue {
 	fn difference(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
 		if self.is_number() && other.is_number() {
 			match self {
-				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val - other.get_as_integer() as i8)),
-				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val - other.get_as_integer() as i16)),
-				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val - other.get_as_integer() as i32)),
-				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val - other.get_as_integer() as i64)),
-				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val - other.get_as_float())),
+				PrimitiveValue::Int8(val) 	=> Ok(PrimitiveValue::Int8   (val - other.get_as_integer() as i8)),
+				PrimitiveValue::Int16(val) 	=> Ok(PrimitiveValue::Int16  (val - other.get_as_integer() as i16)),
+				PrimitiveValue::Int32(val) 	=> Ok(PrimitiveValue::Int32  (val - other.get_as_integer() as i32)),
+				PrimitiveValue::Int64(val) 	=> Ok(PrimitiveValue::Int64  (val - other.get_as_integer() as i64)),
+				PrimitiveValue::Float64(val) => Ok(PrimitiveValue::Float64(val - other.get_as_float())),
 				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
 			}
 		}
@@ -158,11 +175,11 @@ impl PrimitiveValue {
 	fn product(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
 		if self.is_number() && other.is_number() {
 			match self {
-				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val * other.get_as_integer() as i8)),
-				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val * other.get_as_integer() as i16)),
-				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val * other.get_as_integer() as i32)),
-				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val * other.get_as_integer() as i64)),
-				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val * other.get_as_float())),
+				PrimitiveValue::Int8(val) 	=> Ok(PrimitiveValue::Int8   (val * other.get_as_integer() as i8)),
+				PrimitiveValue::Int16(val) 	=> Ok(PrimitiveValue::Int16  (val * other.get_as_integer() as i16)),
+				PrimitiveValue::Int32(val) 	=> Ok(PrimitiveValue::Int32  (val * other.get_as_integer() as i32)),
+				PrimitiveValue::Int64(val) 	=> Ok(PrimitiveValue::Int64  (val * other.get_as_integer() as i64)),
+				PrimitiveValue::Float64(val) => Ok(PrimitiveValue::Float64(val * other.get_as_float())),
 				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
 			}
 		}
@@ -172,11 +189,11 @@ impl PrimitiveValue {
 	fn quotient(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
 		if self.is_number() && other.is_number() {
 			match self {
-				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val / other.get_as_integer() as i8)),
-				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val / other.get_as_integer() as i16)),
-				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val / other.get_as_integer() as i32)),
-				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val / other.get_as_integer() as i64)),
-				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val / other.get_as_float())),
+				PrimitiveValue::Int8(val) 	=> Ok(PrimitiveValue::Int8   (val / other.get_as_integer() as i8)),
+				PrimitiveValue::Int16(val) 	=> Ok(PrimitiveValue::Int16  (val / other.get_as_integer() as i16)),
+				PrimitiveValue::Int32(val) 	=> Ok(PrimitiveValue::Int32  (val / other.get_as_integer() as i32)),
+				PrimitiveValue::Int64(val) 	=> Ok(PrimitiveValue::Int64  (val / other.get_as_integer() as i64)),
+				PrimitiveValue::Float64(val) => Ok(PrimitiveValue::Float64(val / other.get_as_float())),
 				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
 			}
 		}
@@ -186,11 +203,11 @@ impl PrimitiveValue {
 	fn modulo(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
 		if self.is_number() && other.is_number() {
 			match self {
-				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val % other.get_as_integer() as i8)),
-				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val % other.get_as_integer() as i16)),
-				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val % other.get_as_integer() as i32)),
-				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val % other.get_as_integer() as i64)),
-				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val % other.get_as_float())),
+				PrimitiveValue::Int8(val) 	=> Ok(PrimitiveValue::Int8   (val % other.get_as_integer() as i8)),
+				PrimitiveValue::Int16(val) 	=> Ok(PrimitiveValue::Int16  (val % other.get_as_integer() as i16)),
+				PrimitiveValue::Int32(val) 	=> Ok(PrimitiveValue::Int32  (val % other.get_as_integer() as i32)),
+				PrimitiveValue::Int64(val) 	=> Ok(PrimitiveValue::Int64  (val % other.get_as_integer() as i64)),
+				PrimitiveValue::Float64(val) => Ok(PrimitiveValue::Float64(val % other.get_as_float())),
 				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
 			}
 		}
@@ -200,11 +217,11 @@ impl PrimitiveValue {
 	fn power(&self, other: &PrimitiveValue) -> Result<PrimitiveValue,Error> {
 		if self.is_number() && other.is_number() {
 			match self {
-				PrimitiveValue::INT_8(val) 	=> Ok(PrimitiveValue::INT_8   (val.pow(other.get_as_integer() as u32))),
-				PrimitiveValue::INT_16(val) 	=> Ok(PrimitiveValue::INT_16  (val.pow(other.get_as_integer() as u32))),
-				PrimitiveValue::INT_32(val) 	=> Ok(PrimitiveValue::INT_32  (val.pow(other.get_as_integer() as u32))),
-				PrimitiveValue::INT_64(val) 	=> Ok(PrimitiveValue::INT_64  (val.pow(other.get_as_integer() as u32))),
-				PrimitiveValue::FLOAT_64(val) => Ok(PrimitiveValue::FLOAT_64(val.powf(other.get_as_integer() as f64))),
+				PrimitiveValue::Int8(val) 	=> Ok(PrimitiveValue::Int8   (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::Int16(val) 	=> Ok(PrimitiveValue::Int16  (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::Int32(val) 	=> Ok(PrimitiveValue::Int32  (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::Int64(val) 	=> Ok(PrimitiveValue::Int64  (val.pow(other.get_as_integer() as u32))),
+				PrimitiveValue::Float64(val) => Ok(PrimitiveValue::Float64(val.powf(other.get_as_integer() as f64))),
 				_ => Err(Error {message:"cannot perform a subtract operation".to_string()})
 			}
 		}
@@ -213,71 +230,86 @@ impl PrimitiveValue {
 
 	pub fn is_number(&self) -> bool {
 		match &self {
-			PrimitiveValue::INT_8(_) => true,
-			PrimitiveValue::INT_16(_) => true,
-			PrimitiveValue::INT_32(_) => true,
-			PrimitiveValue::INT_64(_) => true,
-			PrimitiveValue::FLOAT_64(_) => true,
+			PrimitiveValue::Int8(_) => true,
+			PrimitiveValue::Int16(_) => true,
+			PrimitiveValue::Int32(_) => true,
+			PrimitiveValue::Int64(_) => true,
+			PrimitiveValue::Float64(_) => true,
 			_ => false
 		}
 	}
 
 	pub fn is_text(&self) -> bool {
 		match &self {
-			PrimitiveValue::TEXT(_) => true,
+			PrimitiveValue::Text(_) => true,
 			_ => false
 		}
 	}
 
 	pub fn get_as_text(&self) -> &str {
 		match &self {
-			PrimitiveValue::TEXT(value) => value,
+			PrimitiveValue::Text(value) => value,
 			_ => ""
 		}
 	}
 
 	pub fn get_as_buffer(&self) -> Vec<u8> {
 		match &self {
-			PrimitiveValue::BUFFER(value) => value.to_vec(),
+			PrimitiveValue::Buffer(value) => value.to_vec(),
 			_ => Vec::new()
 		}
 	}
 	
 	pub fn get_as_integer(&self) -> isize {
 		match &self {
-			PrimitiveValue::INT_8(value) => *value as isize,
-			PrimitiveValue::UINT_8(value) => *value as isize,
-			PrimitiveValue::INT_16(value) => *value as isize,
-			PrimitiveValue::INT_32(value) => *value as isize,
-			PrimitiveValue::UINT_32(value) => *value as isize,
-			PrimitiveValue::INT_64(value) => *value as isize,
-			PrimitiveValue::FLOAT_64(value) => *value as isize,
+			PrimitiveValue::Int8(value) => *value as isize,
+			PrimitiveValue::Uint8(value) => *value as isize,
+			PrimitiveValue::UInt16(value) => *value as isize,
+			PrimitiveValue::Int16(value) => *value as isize,
+			PrimitiveValue::Int32(value) => *value as isize,
+			PrimitiveValue::UInt32(value) => *value as isize,
+			PrimitiveValue::Int64(value) => *value as isize,
+			PrimitiveValue::Float64(value) => *value as isize,
+			_ => 0
+		}
+	}
+
+	pub fn get_as_unsigned_integer(&self) -> usize {
+		match &self {
+			PrimitiveValue::Int8(value) => *value as usize,
+			PrimitiveValue::Uint8(value) => *value as usize,
+			PrimitiveValue::UInt16(value) => *value as usize,
+			PrimitiveValue::Int16(value) => *value as usize,
+			PrimitiveValue::Int32(value) => *value as usize,
+			PrimitiveValue::UInt32(value) => *value as usize,
+			PrimitiveValue::Int64(value) => *value as usize,
+			PrimitiveValue::Float64(value) => *value as usize,
 			_ => 0
 		}
 	}
 
 	pub fn get_as_float(&self) -> f64 {
 		match &self {
-			PrimitiveValue::INT_8(value) => *value as f64,
-			PrimitiveValue::UINT_8(value) => *value as f64,
-			PrimitiveValue::INT_16(value) => *value as f64,
-			PrimitiveValue::INT_32(value) => *value as f64,
-			PrimitiveValue::UINT_32(value) => *value as f64,
-			PrimitiveValue::INT_64(value) => *value as f64,
-			PrimitiveValue::FLOAT_64(value) => *value as f64,
+			PrimitiveValue::Int8(value) => *value as f64,
+			PrimitiveValue::Uint8(value) => *value as f64,
+			PrimitiveValue::UInt16(value) => *value as f64,
+			PrimitiveValue::Int16(value) => *value as f64,
+			PrimitiveValue::Int32(value) => *value as f64,
+			PrimitiveValue::UInt32(value) => *value as f64,
+			PrimitiveValue::Int64(value) => *value as f64,
+			PrimitiveValue::Float64(value) => *value as f64,
 			_ => 0.0
 		}
 	}
 
+	
 	// returns a string, omits quotes if possible (for keys)
 	pub fn to_key_string(&self) -> String  {
 
-		lazy_static! {
-			static ref KEY_CAN_OMIT_QUOTES:Regex = Regex::new(r"^[A-Za-z_][A-Za-z_0-9]*$").unwrap();
-		}
+	
 
 		match &self {
-			PrimitiveValue::TEXT(value) => {
+			PrimitiveValue::Text(value) => {
 				let string = escape_string(value);
 				// key:
 				if KEY_CAN_OMIT_QUOTES.is_match(&string) {
@@ -289,4 +321,16 @@ impl PrimitiveValue {
 			_ => Value::to_string(self)
 		}
 	}
+
+	// returns true if not a text, or if the text only contains A-Z,0-9...
+	pub fn can_omit_quotes(&self) -> bool  {
+		match &self {
+			PrimitiveValue::Text(value) =>  KEY_CAN_OMIT_QUOTES.is_match(&escape_string(value)),
+			_ => true
+		}
+	}
+}
+
+lazy_static! {
+	static ref KEY_CAN_OMIT_QUOTES:Regex = Regex::new(r"^[A-Za-z_][A-Za-z_0-9]*$").unwrap();
 }

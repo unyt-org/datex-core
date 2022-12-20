@@ -15,6 +15,9 @@ pub use error::*;
 
 mod primitives;
 pub use primitives::quantity::*;
+pub use primitives::endpoint::*;
+pub use primitives::time::*;
+pub use primitives::url::*;
 
 mod pointer;
 pub use pointer::*;

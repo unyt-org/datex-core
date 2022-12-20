@@ -1,6 +1,7 @@
 use num_enum::TryFromPrimitive;
 use strum::Display;
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive, Copy, Clone, Display)]
 #[repr(u8)]
 pub enum BinaryCode {
@@ -128,6 +129,7 @@ pub enum BinaryCode {
 	DEFAULT             = 0x77, // x default y
 	COLLAPSE            = 0x78, // collapse x
     RESPONSE            = 0x79, // response x
+    CLONE_COLLAPSE      = 0x88, // collapse
 
 	// comparators 0x80 - 0x8f
 	EQUAL_VALUE         = 0x80, // ==
@@ -194,7 +196,7 @@ pub enum BinaryCode {
 	NULL                = 0xc8,
 	VOID                = 0xc9,
 	BUFFER              = 0xca,
-	SCOPE_BLOCK_START         = 0xcb,
+	SCOPE_BLOCK_START   = 0xcb,
 	QUANTITY            = 0xcc,
 	FLOAT_AS_INT        = 0xcd,
 	SHORT_TEXT          = 0xce, // string with max. 255 characters
@@ -235,6 +237,7 @@ pub enum BinaryCode {
 						0xe8,  // for object elements with dynamic key
 	KEY_PERMISSION      = 0xe9,  // for object elements with permission prefix
 	ELEMENT             = 0xea,  // for array elements
+    INTERNAL_OBJECT_SLOT= 0xef,  // for object internal slots
 
 	// special instructions 0xf0 - 0xff
 
