@@ -1,4 +1,4 @@
-use datex_core::{runtime::Runtime, utils::{logger::LoggerContext, buffers::{buffer_to_hex, hex_to_buffer, hex_to_buffer_advanced}}};
+use datex_core::{runtime::Runtime, utils::{logger::LoggerContext, buffers::{buffer_to_hex, hex_to_buffer, hex_to_buffer_advanced}, crypto::Crypto}};
 
 
 /**

@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use crate::{utils::logger::{LoggerContext, Logger}, datex_values::{ValueResult, PrimitiveValue, Error, Value, Type}, parser::{header, body}, global::binary_codes::BinaryCode};
+use crate::{utils::logger::{LoggerContext, Logger}, datex_values::{ValueResult, PrimitiveValue, Error, Value, Type}, parser::{header::{self, has_dxb_magic_number}, body}, global::binary_codes::BinaryCode};
 
 use super::stack::Stack;
 
@@ -13,7 +13,7 @@ pub fn execute(ctx: &LoggerContext, dxb:&[u8])  -> ValueResult {
 	let mut body = dxb;
 
 	// header?
-	if dxb[0] == 0x01 && dxb[1] == 0x64 {
+	if has_dxb_magic_number(dxb) {
 		let (header, _body) = header::parse_dxb_header(dxb);
 		body = _body;
 	}

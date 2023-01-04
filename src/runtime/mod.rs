@@ -1,4 +1,4 @@
-use crate::utils::logger::LoggerContext;
+use crate::utils::{logger::LoggerContext, crypto::Crypto, rust_crypto::RustCrypto};
 
 mod stack;
 use self::execution::execute;
@@ -6,23 +6,24 @@ use self::execution::execute;
 mod execution;
 
 
-pub struct Runtime {
+pub struct Runtime<'a> {
     pub version: i8,
-	pub ctx: LoggerContext
+	pub logger: LoggerContext,
+	pub crypto: &'a dyn Crypto
 }
 
-impl Runtime {
+impl Runtime<'_> {
 	
-	pub fn new_with_ctx(ctx: LoggerContext) -> Runtime {
-		return Runtime { version: 1, ctx: ctx }
+	pub fn new_with_crypto_and_logger(crypto: &dyn Crypto, ctx: LoggerContext) -> Runtime {
+		return Runtime { version: 1, crypto, logger: ctx }
 	}
 
-	pub fn new() -> Runtime {
-		return Runtime { version: 1, ctx: LoggerContext { log_redirect: None } }
+	pub fn new() -> Runtime<'static> {
+		return Runtime { version: 1, crypto: &RustCrypto{}, logger: LoggerContext { log_redirect: None } }
 	}
 
 	pub fn execute(&self, dxb: &[u8]) {
-		execute(&self.ctx, dxb);
+		execute(&self.logger, dxb);
 	}
 
 }

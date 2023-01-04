@@ -85,88 +85,88 @@ pub fn append_u8(buffer: &mut Vec<u8>, val: u8) {
 	buffer.extend_from_slice(&[val]);
 }
 pub fn write_i8(buffer: &mut Vec<u8>, index: &mut usize, val: i8) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_i8(buffer: &mut Vec<u8>, val: i8) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 
 pub fn write_u16(buffer: &mut Vec<u8>, index: &mut usize, val: u16) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_u16(buffer: &mut Vec<u8>, val: u16) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 pub fn write_i16(buffer: &mut Vec<u8>, index: &mut usize, val: i16) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_i16(buffer: &mut Vec<u8>, val: i16) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 
 pub fn write_u32(buffer: &mut Vec<u8>, index: &mut usize, val: u32) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_u32(buffer: &mut Vec<u8>, val: u32) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 pub fn write_i32(buffer: &mut Vec<u8>, index: &mut usize, val: i32) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_i32(buffer: &mut Vec<u8>, val: i32) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 
 pub fn write_u64(buffer: &mut Vec<u8>, index: &mut usize, val: u64) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_u64(buffer: &mut Vec<u8>, val: u64) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 pub fn write_i64(buffer: &mut Vec<u8>, index: &mut usize, val: i64) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_i64(buffer: &mut Vec<u8>, val: i64) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 
 pub fn write_f64(buffer: &mut Vec<u8>, index: &mut usize, val: f64) {
-	let bytes = val.to_be_bytes();
+	let bytes = val.to_le_bytes();
 	for b in bytes {
 		buffer[*index] = b;
 		*index += 1;
 	}
 }
 pub fn append_f64(buffer: &mut Vec<u8>, val: f64) {
-	buffer.extend_from_slice(&val.to_be_bytes());
+	buffer.extend_from_slice(&val.to_le_bytes());
 }
 
 

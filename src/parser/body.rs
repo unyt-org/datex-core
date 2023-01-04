@@ -103,19 +103,20 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 		instance = &buffers::read_string_utf8(dxb_body, index, instance_length as usize);  // get instance
 	}
 	
+	// TODO: new instance format, without length
 	return if endpoint_type == BinaryCode::PERSON_ALIAS {
-		Endpoint::new_person_alias(name, subspaces)
+		Endpoint::new_person_alias(&name, Endpoint::ANY_INSTANCE, Some(subspaces))
 	}
 	else if endpoint_type == BinaryCode::INSTITUTION_ALIAS {
-		Endpoint::new_institution_alias(name, subspaces)
+		Endpoint::new_institution_alias(&name, Endpoint::ANY_INSTANCE, Some(subspaces))
 	}
 	else if endpoint_type == BinaryCode::ENDPOINT {
-		Endpoint::new(&name_binary, subspaces)
+		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE, Some(subspaces))
 	}
 
 	// should never get here
 	else {
-		Endpoint::new(&name_binary, subspaces)
+		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE, Some(subspaces))
 	}
 	
 }

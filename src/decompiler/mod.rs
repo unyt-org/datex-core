@@ -8,6 +8,7 @@ use std::vec;
 
 use constants::tokens::get_code_token;
 use crate::datex_values::SlotIdentifier;
+use crate::parser::header::has_dxb_magic_number;
 use crate::utils::color::Color;
 use crate::utils::logger::LoggerContext;
 use lazy_static::lazy_static;
@@ -36,7 +37,7 @@ pub fn decompile(ctx: &LoggerContext, dxb:&[u8], formatted:bool, colorized:bool,
 	let mut body = dxb;
 
 	// header?
-	if dxb[0] == 0x01 && dxb[1] == 0x64 {
+	if has_dxb_magic_number(dxb) {
 		let (header, _body) = header::parse_dxb_header(dxb);
 		body = _body;
 	}

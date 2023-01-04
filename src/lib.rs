@@ -15,3 +15,4 @@ pub mod global;
 pub mod utils;
 pub mod datex_values;
 pub mod generator;
+pub mod network;
