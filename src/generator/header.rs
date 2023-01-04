@@ -63,13 +63,15 @@ fn generate_pre_header(header:&DXBHeader) -> Vec<u8> {
 	}
 	// no sender - anonymous
 	else {
-		append_u16(pre_header, std::u16::MAX); // 0xffff
+		append_u8(pre_header, std::u8::MAX); // 0xff
 	}
 
-	// // no receiver - flood
+	// TODO: 
+	// no receiver - flood
 	// else {
 	// 	append_u16(dxb, std::u16::MAX); // 0xffff
 	// }
+	append_u16(pre_header, std::u16::MAX); // 0xffff
 
 	return pre_header.to_vec()
 }

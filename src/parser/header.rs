@@ -27,6 +27,7 @@ pub fn parse_dxb_header<'a>(dxb:&'a [u8]) -> (DXBHeader, &'a [u8]) {
 	let signed = signed_encrypted == 1 || signed_encrypted == 2; // is signed?
 	let encrypted = signed_encrypted == 2 || signed_encrypted == 3; // is encrypted?
 	let sender = get_dxb_header_sender(dxb, index);
+	let receivers = get_dxb_header_receivers(dxb, index);
 
 	// block header
 	let scope_id = read_u32(dxb, index);
@@ -59,11 +60,22 @@ pub fn parse_dxb_header<'a>(dxb:&'a [u8]) -> (DXBHeader, &'a [u8]) {
 
 fn get_dxb_header_sender(dxb:&[u8], index: &mut usize) -> Option<Endpoint> {
 
+	if read_u8(dxb, index) == std::u8::MAX {
+		return None;
+	}
+	else {
+		*index -= 1;
+		return Some(Endpoint::new_from_binary(&read_slice(dxb, index, 21)))
+	}
+}
+
+
+fn get_dxb_header_receivers(dxb:&[u8], index: &mut usize) -> Option<Endpoint> {
 	if read_u16(dxb, index) == std::u16::MAX {
 		return None;
 	}
 	else {
-		*index -= 2;
-		return Some(Endpoint::new_from_binary(&read_slice(dxb, index, 21)))
+		// TODO:
+		return None;
 	}
 }

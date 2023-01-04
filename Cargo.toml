@@ -8,6 +8,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+websocket = "0.24.0"
 regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"

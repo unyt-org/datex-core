@@ -13,7 +13,7 @@ use datex_core::generator::header::append_dxb_header;
 #[test]
 pub fn parse_header() {
 	// dxb -> header
-    let dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 00 ff ff 03 00 00 00 04 00 05 00 00 01 09 00 00 00 00 00 00 00".to_string(), " ");
+    let dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 00 ff ff ff 03 00 00 00 04 00 05 00 00 01 09 00 00 00 00 00 00 00".to_string(), " ");
     let (header, body) = parse_dxb_header(&dxb);
 
 	assert_eq!(header.version, 2);
@@ -51,7 +51,7 @@ pub fn generate_header() {
 
 	// header -> dxb -> header
 	let header = DXBHeader {
-		version: 1,
+		version: 2,
 		size: 65535,
 		signed: true,
 		encrypted: true,
