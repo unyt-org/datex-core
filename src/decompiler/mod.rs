@@ -214,7 +214,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			open_element_comma = false;
 			// no comma after last element
 			if code != BinaryCode::ARRAY_END && code != BinaryCode::OBJECT_END && code != BinaryCode::TUPLE_END {
-				out += &Color::DEFAULT.as_ansi_rgb(); // light grey color for property keys
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();} // light grey color for property keys
 				out += if state.formatted {",\r\n"} else {","}
 			}
 		}
@@ -258,24 +258,24 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			// slot based
 			BinaryCode::INTERNAL_VAR 			    => out += &format!("{variable_name}"),
 			BinaryCode::SET_INTERNAL_VAR 			=> {
-				out += &Color::RESERVED.as_ansi_rgb();
+				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
 				if variable_prefix.len()!=0 {out += " "};
-				out += &get_code_color(&code).as_ansi_rgb();
+				if state.colorized {out += &get_code_color(&code).as_ansi_rgb();}
 				out += &format!("{variable_name} = ");
 			},
 			BinaryCode::INIT_INTERNAL_VAR 		    => {
-				out += &Color::RESERVED.as_ansi_rgb();
+				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
 				if variable_prefix.len()!=0 {out += " "};
-				out += &get_code_color(&code).as_ansi_rgb();
+				if state.colorized {out += &get_code_color(&code).as_ansi_rgb();}
 				out += &format!("{variable_name} := ");
 			},
 			BinaryCode::SET_INTERNAL_VAR_REFERENCE 	=> {
-				out += &Color::RESERVED.as_ansi_rgb();
+				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
 				if variable_prefix.len()!=0 {out += " "};
-				out += &get_code_color(&code).as_ansi_rgb();
+				if state.colorized {out += &get_code_color(&code).as_ansi_rgb();}
 				out += &format!("{variable_name} $= ");
 			},
 
@@ -311,7 +311,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			BinaryCode::JMP	=> {
 				let label = state.get_insert_label(primitive_value.get_as_unsigned_integer());
 				out += &format!("jmp {}", label);
-				out += &Color::DEFAULT.as_ansi_rgb();
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
 				out += ";";
 			},
 			BinaryCode::JTR	=> {
