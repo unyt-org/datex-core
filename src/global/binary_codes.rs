@@ -252,4 +252,7 @@ pub enum BinaryCode {
 	YEET         		= 0xf5,  // !
 
 	REMOTE              = 0xf6, // ::
+
+	_SYNC_SILENT        = 0xf7, // <==:
+
 }

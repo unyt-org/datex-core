@@ -2,7 +2,7 @@ use crate::{global::binary_codes::BinaryCode, utils::color::Color};
 
 pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 	match code {
-		BinaryCode::CLOSE_AND_STORE => if formatted  {";\r\n".to_string()} else {";".to_string()},
+		BinaryCode::CLOSE_AND_STORE => ";".to_string(),
 		
 		BinaryCode::ARRAY_START => "[".to_string(),
 		BinaryCode::ARRAY_END => if formatted {"\r\n]".to_string()} else {"]".to_string()},
@@ -63,6 +63,8 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 
 		BinaryCode::SYNC => "<==".to_string(),
 		BinaryCode::STOP_SYNC => "</=".to_string(),
+		BinaryCode::_SYNC_SILENT => "<==:".to_string(),
+
 
 		BinaryCode::STREAM => "<<".to_string(),
 		BinaryCode::STOP_STREAM => "</".to_string(),

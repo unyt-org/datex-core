@@ -348,6 +348,14 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 				yield Instruction {code:BinaryCode::POINTER, slot: None, primitive_value: None, value:Some(Box::new(pointer)), subscope_continue:false}
 			}
 
+			else if token == BinaryCode::INIT_POINTER as u8 {
+				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
+				let pointer = Pointer::from_id(id);
+				let jmp_index = buffers::read_u32(dxb_body, index);
+				_index.set(*index);
+				yield Instruction {code:BinaryCode::INIT_POINTER, slot: None, primitive_value: Some(PrimitiveValue::UInt32(jmp_index)), value:Some(Box::new(pointer)), subscope_continue:false}
+			}
+
 			// actions
 			else if token == BinaryCode::CHILD_ACTION as u8 {
 				let code = buffers::read_u8(&dxb_body, index);

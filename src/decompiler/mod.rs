@@ -239,7 +239,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 				out += &get_code_color(&BinaryCode::ELEMENT_WITH_KEY).as_ansi_rgb(); // light grey color for property keys
 			}
 			// normal coloring
-			else {
+			else if code != BinaryCode::CLOSE_AND_STORE { // color is added later for CLOSE_AND_STORE
 				let color = get_code_color(&code);
 				if color == Color::_UNKNOWN && has_primitive_value {
 					custom_primitive_color = true;
@@ -257,26 +257,40 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 		match code {
 			// slot based
 			BinaryCode::INTERNAL_VAR 			    => out += &format!("{variable_name}"),
-			BinaryCode::SET_INTERNAL_VAR 			=> {
+			BinaryCode::SET_INTERNAL_VAR => {
 				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
 				if variable_prefix.len()!=0 {out += " "};
 				if state.colorized {out += &get_code_color(&code).as_ansi_rgb();}
-				out += &format!("{variable_name} = ");
+				out += &variable_name;
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
+				out += " = ";
 			},
-			BinaryCode::INIT_INTERNAL_VAR 		    => {
+			BinaryCode::INIT_INTERNAL_VAR => {
 				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
 				if variable_prefix.len()!=0 {out += " "};
 				if state.colorized {out += &get_code_color(&code).as_ansi_rgb();}
-				out += &format!("{variable_name} := ");
+				out += &variable_name;
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
+				out += " := ";
 			},
 			BinaryCode::SET_INTERNAL_VAR_REFERENCE 	=> {
 				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
 				if variable_prefix.len()!=0 {out += " "};
 				if state.colorized {out += &get_code_color(&code).as_ansi_rgb();}
-				out += &format!("{variable_name} $= ");
+				out += &variable_name;
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
+				out += " $= ";
+			},
+
+			// pointer
+			BinaryCode::INIT_POINTER => {
+				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
+				out += &instruction.value.unwrap().to_string();
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
+				out += " := ";
 			},
 
 			// assign actions (override primitive value default behaviour)
@@ -348,6 +362,16 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 					out += scope;
 				}
 			},
+
+			BinaryCode::CLOSE_AND_STORE => {
+				// newline+spaces before, remove, add ';' and add newline afterwards
+				let empty: &[_] = &['\r', '\n', ' '];
+				out = out.trim_end_matches(empty).to_string();
+				if state.colorized {out += &get_code_color(&code).as_ansi_rgb()}
+				out += &get_code_token(&code, state.formatted);
+				// newline 
+				if state.formatted {out += "\r\n"}
+			}
 
 			_ => {
 				// primitive value default
@@ -441,6 +465,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			BinaryCode::SET_INTERNAL_VAR => {last_was_value = false}, // no space afterwards
 			BinaryCode::SET_INTERNAL_VAR_REFERENCE => {last_was_value = false}, // no space afterwards
 			BinaryCode::INIT_INTERNAL_VAR => {last_was_value = false}, // no space afterwards
+			BinaryCode::INIT_POINTER => {last_was_value = false}, // no space afterwards
 			BinaryCode::NOT => {last_was_value = false}, // no space afterwards
 			BinaryCode::CHILD_GET => {last_was_property_access = true}, // enable property key formatting for next
 			BinaryCode::CHILD_GET_REF => {last_was_property_access = true}, // enable property key formatting for next
@@ -459,10 +484,10 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 		// insert label
 		for label in &state.labels {
 			if *label.0 == state.index.get() {
-				out += &Color::RESERVED.as_ansi_rgb();
+				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += "\r\nlbl ";
 				out += &label.1;
-				out += &Color::DEFAULT.as_ansi_rgb();
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
 				out += ";";
 			}
 		}
