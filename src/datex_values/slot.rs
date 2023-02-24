@@ -20,6 +20,8 @@ pub mod internal_slot {
 	pub const ENV:SlotIdentifier        = SlotIdentifier {index: 0xff07};
 	pub const RESULT:SlotIdentifier     = SlotIdentifier {index: 0xff08};
 	pub const SUB_RESULT:SlotIdentifier = SlotIdentifier {index: 0xff09};
+	pub const ENTRYPOINT:SlotIdentifier = SlotIdentifier {index: 0xff0a};
+	pub const STD:SlotIdentifier        = SlotIdentifier {index: 0xff0b};
 
 	pub const OBJ_WRITE:SlotIdentifier  = SlotIdentifier {index: 0xfef0};
 	pub const OBJ_READ:SlotIdentifier   = SlotIdentifier {index: 0xfef1};
@@ -71,6 +73,8 @@ impl SlotIdentifier {
 			internal_slot::ENV => {"#env".to_string()},
 			internal_slot::RESULT => {"#result".to_string()},
 			internal_slot::SUB_RESULT => {"#sub_result".to_string()},
+			internal_slot::ENTRYPOINT => {"#entrypoint".to_string()},
+			internal_slot::STD => {"#std".to_string()},
 
 			internal_slot::OBJ_READ => {"#read".to_string()},
 			internal_slot::OBJ_WRITE => {"#write".to_string()},

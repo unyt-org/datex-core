@@ -1,3 +1,5 @@
+use regex::Regex;
+
 pub struct AnsiCodes {}
 impl AnsiCodes {
     pub const COLOR_DEFAULT: &'static str = "\x1b[39m";
@@ -78,6 +80,10 @@ pub fn ansi_rgb(r:u8, g:u8, b:u8) -> String {
 
 impl Color {
 
+    pub fn as_ansi_rgb_bg(&self) -> String {
+        self.as_ansi_rgb().as_str().replacen("38", "48", 1).to_string()
+    }
+
     pub fn as_ansi_rgb(&self) -> String {
         match self {
 			Color::RED => ansi_rgb(234,43,81),
@@ -109,6 +115,14 @@ impl Color {
         }
     }
 
+    // TODO:
+    pub fn as_ansi_4_bit_bg(&self) -> &'static str {
+        match self {
+            _ => ""
+        }
+    }
+
+    // TODO:
 	pub fn as_ansi_4_bit(&self) -> &'static str {
         match self {
             _ => ""

@@ -34,7 +34,7 @@ fn extract_type<'a>(dxb_body:&'a [u8], index: &'a mut usize, is_extended: bool) 
 	let mut _has_parameters = false; // TODO:get params
 
 	if is_extended {
-		variation_length = buffers::read_u8(dxb_body,  index);
+		variation_length = buffers::read_u8(dxb_body, index);
 		_has_parameters = if buffers::read_u8(dxb_body,index) == 0 {false} else {true};
 	}
 
@@ -105,18 +105,18 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 	
 	// TODO: new instance format, without length
 	return if endpoint_type == BinaryCode::PERSON_ALIAS {
-		Endpoint::new_person_alias(&name, Endpoint::ANY_INSTANCE, Some(subspaces))
+		Endpoint::new_person(&name, Endpoint::ANY_INSTANCE)
 	}
 	else if endpoint_type == BinaryCode::INSTITUTION_ALIAS {
-		Endpoint::new_institution_alias(&name, Endpoint::ANY_INSTANCE, Some(subspaces))
+		Endpoint::new_institution(&name, Endpoint::ANY_INSTANCE)
 	}
 	else if endpoint_type == BinaryCode::ENDPOINT {
-		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE, Some(subspaces))
+		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE)
 	}
 
 	// should never get here
 	else {
-		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE, Some(subspaces))
+		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE)
 	}
 	
 }
@@ -274,9 +274,9 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			}
 			else if token == BinaryCode::INIT_INTERNAL_VAR as u8 {
 				let slot = extract_slot_identifier(&dxb_body, index);
-				let jmp_index = buffers::read_u32(dxb_body, index);
+				let init_block_length = buffers::read_u32(dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::INIT_INTERNAL_VAR, slot: Some(slot), primitive_value: Some(PrimitiveValue::UInt32(jmp_index)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::INIT_INTERNAL_VAR, slot: Some(slot), primitive_value: Some(PrimitiveValue::UInt32(init_block_length)), value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::INTERNAL_VAR as u8 {
 				let slot = extract_slot_identifier(&dxb_body, index);
@@ -288,6 +288,12 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			// internal slots
 			else if token == BinaryCode::VAR_PUBLIC as u8 {
 				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::PUBLIC), primitive_value: None, value:None, subscope_continue:false}
+			}
+			else if token == BinaryCode::VAR_STD as u8 {
+				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::STD), primitive_value: None, value:None, subscope_continue:false}
+			}
+			else if token == BinaryCode::VAR_ENTRYPOINT as u8 {
+				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::ENTRYPOINT), primitive_value: None, value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::VAR_THIS as u8 {
 				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::THIS), primitive_value: None, value:None, subscope_continue:false}
@@ -325,35 +331,45 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 
 			// jmp instructions
 			else if token == BinaryCode::JMP as u8 {
-				let jmp_index = buffers::read_u32(&dxb_body, index);
+				let init_block_length = buffers::read_u32(&dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::JMP, slot:None, primitive_value: Some(PrimitiveValue::UInt32(jmp_index)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::JMP, slot:None, primitive_value: Some(PrimitiveValue::UInt32(init_block_length)), value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::JFA as u8 {
-				let jmp_index = buffers::read_u32(&dxb_body, index);
+				let init_block_length = buffers::read_u32(&dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::JFA, slot:None, primitive_value: Some(PrimitiveValue::UInt32(jmp_index)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::JFA, slot:None, primitive_value: Some(PrimitiveValue::UInt32(init_block_length)), value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::JTR as u8 {
-				let jmp_index = buffers::read_u32(&dxb_body, index);
+				let init_block_length = buffers::read_u32(&dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::JTR, slot:None, primitive_value: Some(PrimitiveValue::UInt32(jmp_index)), value:None, subscope_continue:false}
+				yield Instruction {code:BinaryCode::JTR, slot:None, primitive_value: Some(PrimitiveValue::UInt32(init_block_length)), value:None, subscope_continue:false}
 			}
 
 			// pointer
 			else if token == BinaryCode::POINTER as u8 {
 				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
+				let flags = buffers::read_u8(&dxb_body, index); // TODO: flags
 				_index.set(*index);
 				let pointer = Pointer::from_id(id);
 				yield Instruction {code:BinaryCode::POINTER, slot: None, primitive_value: None, value:Some(Box::new(pointer)), subscope_continue:false}
 			}
 
+			else if token == BinaryCode::SET_POINTER as u8 {
+				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
+				let flags = buffers::read_u8(&dxb_body, index); // TODO: flags
+				_index.set(*index);
+				let pointer = Pointer::from_id(id);
+				yield Instruction {code:BinaryCode::SET_POINTER, slot: None, primitive_value: None, value:Some(Box::new(pointer)), subscope_continue:false}
+			}
+
 			else if token == BinaryCode::INIT_POINTER as u8 {
 				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
+				let flags = buffers::read_u8(&dxb_body, index); // TODO: flags
 				let pointer = Pointer::from_id(id);
-				let jmp_index = buffers::read_u32(dxb_body, index);
+				let init_block_length = buffers::read_u32(dxb_body, index);
 				_index.set(*index);
-				yield Instruction {code:BinaryCode::INIT_POINTER, slot: None, primitive_value: Some(PrimitiveValue::UInt32(jmp_index)), value:Some(Box::new(pointer)), subscope_continue:false}
+				yield Instruction {code:BinaryCode::INIT_POINTER, slot: None, primitive_value: Some(PrimitiveValue::UInt32(init_block_length)), value:Some(Box::new(pointer)), subscope_continue:false}
 			}
 
 			// actions
@@ -442,8 +458,11 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::STD_TYPE_FUNCTION as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Function".to_string(), variation:None})), subscope_continue:false}
 			}
-				else if token == BinaryCode::STD_TYPE_ITERATOR as u8 {
+			else if token == BinaryCode::STD_TYPE_ITERATOR as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Iterator".to_string(), variation:None})), subscope_continue:false}
+			}
+			else if token == BinaryCode::STD_TYPE_ANY as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Any".to_string(), variation:None})), subscope_continue:false}
 			}
 
 			// commands

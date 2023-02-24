@@ -71,7 +71,7 @@ pub fn generate_header() {
 		routing: RoutingInfo {
 			ttl: 14,
 			priority: 40,
-			sender: Some(Endpoint::new_person_alias("@theo", Endpoint::ANY_INSTANCE, None))
+			sender: Some(Endpoint::new_person("@theo", Endpoint::ANY_INSTANCE))
 		}
 	};
 	let dxb = &hex_to_buffer_advanced("01 02 03".to_string(), " ");

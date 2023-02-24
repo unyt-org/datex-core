@@ -76,15 +76,14 @@ pub enum BinaryCode {
 	VAR_REMOTE_ACTION   = 0x45,
 	VAR_SENDER          = 0x46,
 	VAR_CURRENT         = 0x47,
-	// VAR_ENCRYPTED       = 0x48,
-	// VAR_SIGNED          = 0x49,
+	VAR_ENTRYPOINT      = 0x48,
+	VAR_STD             = 0x49,
 	// VAR_TIMESTAMP       = 0x4a,
 	VAR_META            = 0x4b,
 	VAR_PUBLIC          = 0x4c,
 	VAR_THIS            = 0x4d,
 	VAR_LOCATION        = 0x4e,
 	VAR_ENV             = 0x4f,
-	VAR_DEFAULT         = 0x48,
 
 	// runtime commands 0x50 - 0x7f
 

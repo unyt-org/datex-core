@@ -1,3 +1,5 @@
+use regex::Regex;
+
 use crate::{utils::{buffers::{self, append_u8, append_u16, read_u8, read_string_utf8, read_slice, read_u16, buffer_to_hex, buffer_to_hex_advanced}, color::Color}};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,7 +14,6 @@ pub enum EndpointType {
 pub struct Endpoint {
 	name: String,
 	endpoint_type: EndpointType,
-	subspaces: Option<Vec<String>>,
 	instance: u16,
 	binary: Vec<u8> // 1 byte type, 18 bytes name, 2 bytes instance
 }
@@ -21,36 +22,37 @@ impl Endpoint {
 	
 	pub const ANY_INSTANCE:u16 = 0;
 
-	// create default id endpoint (@@1234567890)
-	pub fn new(name_binary:&Vec<u8>, instance: u16, subspaces:Option<Vec<String>>) -> Endpoint {
-		let name = buffers::buffer_to_hex(name_binary.to_vec());
+	// create default id endpoint (@@1234567890, @@local)
+	pub fn new(name_binary:&Vec<u8>, instance: u16) -> Endpoint {
+		let mut name = buffers::buffer_to_hex(name_binary.to_vec()); 
+		name = Regex::new(r"(00)*$").unwrap().replace_all(&name, "").to_string();
+		if name == "" { name = "local".to_string() }
+		else if name == "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"  { name = "any".to_string() }
+
 		Endpoint {
 			name,
 			endpoint_type: EndpointType::Id,
 			instance,
-			subspaces,
 			binary: Self::to_binary(EndpointType::Id, name_binary, instance)
 		}
 	}
 
 	// create alias endpoint (@person)
-	pub fn new_person_alias(name:&str, instance: u16, subspaces:Option<Vec<String>>) -> Endpoint {
+	pub fn new_person(name:&str, instance: u16) -> Endpoint {
 		Endpoint {
 			name: name.to_string(),
 			endpoint_type: EndpointType::PersonAlias,
 			instance,
-			subspaces,
 			binary: Self::to_binary(EndpointType::PersonAlias, &Self::encode_name_binary(name.to_string()), instance)
 		}
 	}
 
 	// create institution endpoint (@+institution)
-	pub fn new_institution_alias(name:&str, instance: u16, subspaces:Option<Vec<String>>) -> Endpoint {
+	pub fn new_institution(name:&str, instance: u16) -> Endpoint {
 		Endpoint {
 			name: name.to_string(),
 			endpoint_type: EndpointType::InstitutionAlias,
 			instance,
-			subspaces,
 			binary: Self::to_binary(EndpointType::InstitutionAlias, &Self::encode_name_binary(name.to_string()), instance)
 		}
 	}
@@ -68,9 +70,9 @@ impl Endpoint {
 		let instance = read_u16(binary, index);
 
 		match endpoint_type {
-			EndpointType::InstitutionAlias => Self::new_institution_alias(&Self::decode_name_binary(name), instance, None),
-			EndpointType::PersonAlias => Self::new_person_alias(&Self::decode_name_binary(name), instance, None),
-			EndpointType::Id => Self::new(name, instance, None)
+			EndpointType::InstitutionAlias => Self::new_institution(&Self::decode_name_binary(name), instance),
+			EndpointType::PersonAlias => Self::new_person(&Self::decode_name_binary(name), instance),
+			EndpointType::Id => Self::new(name, instance)
 		}
 
 	}
@@ -133,14 +135,14 @@ impl Endpoint {
 			EndpointType::PersonAlias => format!("{}@{}", 			(if colorized {Color::EndpointPerson.as_ansi_rgb()} else {"".to_string()}), self.name),
 			EndpointType::InstitutionAlias => format!("{}@+{}", 	(if colorized {Color::EndpointInstitution.as_ansi_rgb()} else {"".to_string()}), self.name)
 		};
-		if self.subspaces.is_some() {
-			for subspace in self.subspaces.as_ref().unwrap() {
-				if colorized {main += &Color::DEFAULT.as_ansi_rgb()}
-				main += ".";
-				if colorized {main += &Color::DefaultLight.as_ansi_rgb()}
-				main += &subspace;
-			}
-		}
+		// if self.subspaces.is_some() {
+		// 	for subspace in self.subspaces.as_ref().unwrap() {
+		// 		if colorized {main += &Color::DEFAULT.as_ansi_rgb()}
+		// 		main += ".";
+		// 		if colorized {main += &Color::DefaultLight.as_ansi_rgb()}
+		// 		main += &subspace;
+		// 	}
+		// }
 
 		if self.instance != Endpoint::ANY_INSTANCE {
 			main += &format!("/{:X}", self.instance);

@@ -94,7 +94,7 @@ impl Logger<'_> {
         // start tag
         if esc_tag {
 			let end = if self.formatting == LogFormatting::ColorRGB {AnsiCodes::BOLD.to_string()} else {"".to_string()};
-            tag += &format!("{}{}{}{}", AnsiCodes::INVERSE, AnsiCodes::UNDERLINE, color_esc, end);
+			tag += &format!("{}{}{}{}{}", AnsiCodes::INVERSE, AnsiCodes::UNDERLINE, self.get_formatting_color_bg(Color::BLACK), color_esc, end);
         }
 
 		if self.formatting == LogFormatting::PlainText {tag += &format!("[{}]", self.name)}
@@ -118,6 +118,13 @@ impl Logger<'_> {
 	fn get_formatting_color(&self, color:Color) -> String {
         if self.formatting == LogFormatting::Color4Bit {return color.as_ansi_4_bit().to_string()}
         else if self.formatting == LogFormatting::ColorRGB {return color.as_ansi_rgb()}
+        else if self.formatting == LogFormatting::PlainText {return "".to_string()}
+        else {return AnsiCodes::COLOR_DEFAULT.to_string()}
+    }
+
+	fn get_formatting_color_bg(&self, color:Color) -> String {
+        if self.formatting == LogFormatting::Color4Bit {return color.as_ansi_4_bit_bg().to_string()}
+        else if self.formatting == LogFormatting::ColorRGB {return color.as_ansi_rgb_bg()}
         else if self.formatting == LogFormatting::PlainText {return "".to_string()}
         else {return AnsiCodes::COLOR_DEFAULT.to_string()}
     }
