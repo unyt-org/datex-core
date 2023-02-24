@@ -40,7 +40,7 @@ impl Endpoint {
 	// create alias endpoint (@person)
 	pub fn new_person(name:&str, instance: u16) -> Endpoint {
 		Endpoint {
-			name: name.to_string(),
+			name: name.trim_matches(char::from(0)).to_string(),
 			endpoint_type: EndpointType::PersonAlias,
 			instance,
 			binary: Self::to_binary(EndpointType::PersonAlias, &Self::encode_name_binary(name.to_string()), instance)
@@ -50,7 +50,7 @@ impl Endpoint {
 	// create institution endpoint (@+institution)
 	pub fn new_institution(name:&str, instance: u16) -> Endpoint {
 		Endpoint {
-			name: name.to_string(),
+			name: name.trim_matches(char::from(0)).to_string(),
 			endpoint_type: EndpointType::InstitutionAlias,
 			instance,
 			binary: Self::to_binary(EndpointType::InstitutionAlias, &Self::encode_name_binary(name.to_string()), instance)
