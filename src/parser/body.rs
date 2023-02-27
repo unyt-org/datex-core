@@ -301,10 +301,10 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::VAR_IT as u8 {
 				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::IT), primitive_value: None, value:None, subscope_continue:false}
 			}
-			else if token == BinaryCode::VAR_SENDER as u8 {
-				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::FROM), primitive_value: None, value:None, subscope_continue:false}
+			else if token == BinaryCode::VAR_ORIGIN as u8 {
+				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::ORIGIN), primitive_value: None, value:None, subscope_continue:false}
 			}
-			else if token == BinaryCode::VAR_CURRENT as u8 {
+			else if token == BinaryCode::VAR_ENDPOINT as u8 {
 				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(internal_slot::ENDPOINT), primitive_value: None, value:None, subscope_continue:false}
 			}
 			else if token == BinaryCode::VAR_LOCATION as u8 {

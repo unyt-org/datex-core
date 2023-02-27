@@ -13,7 +13,7 @@ pub mod internal_slot {
 	pub const THIS:SlotIdentifier       = SlotIdentifier {index: 0xff00};
 	pub const IT:SlotIdentifier         = SlotIdentifier {index: 0xff01};
 	pub const PUBLIC:SlotIdentifier     = SlotIdentifier {index: 0xff02};
-	pub const FROM:SlotIdentifier       = SlotIdentifier {index: 0xff03};
+	pub const ORIGIN:SlotIdentifier     = SlotIdentifier {index: 0xff03};
 	pub const ENDPOINT:SlotIdentifier   = SlotIdentifier {index: 0xff04};
 	pub const LOCATION:SlotIdentifier   = SlotIdentifier {index: 0xff05};
 	pub const META:SlotIdentifier       = SlotIdentifier {index: 0xff06};
@@ -66,7 +66,7 @@ impl SlotIdentifier {
 			internal_slot::THIS => {"#this".to_string()},
 			internal_slot::IT => {"#it".to_string()},
 			internal_slot::PUBLIC => {"#public".to_string()},
-			internal_slot::FROM => {"#from".to_string()},
+			internal_slot::ORIGIN => {"#origin".to_string()},
 			internal_slot::ENDPOINT => {"#endpoint".to_string()},
 			internal_slot::LOCATION => {"#location".to_string()},
 			internal_slot::META => {"#meta".to_string()},

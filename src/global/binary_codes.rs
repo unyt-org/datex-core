@@ -60,11 +60,11 @@ pub enum BinaryCode {
 						0x3a,
 	VAR_VOID_ACTION     = 0x3b,
 
-	VAR_ORIGIN          = 0x3c,
-	SET_VAR_ORIGIN      = 0x3d,
-	SET_VAR_ORIGIN_REFERENCE = 
+	_VAR_ORIGIN          = 0x3c,
+	_SET_VAR_ORIGIN      = 0x3d,
+	_SET_VAR_ORIGIN_REFERENCE = 
 						0x3e,
-	VAR_ORIGIN_ACTION   = 0x3f,
+	_VAR_ORIGIN_ACTION   = 0x3f,
 
 	VAR_IT              = 0x40,
 	SET_VAR_IT          = 0x41,
@@ -74,8 +74,8 @@ pub enum BinaryCode {
 	VAR_REMOTE          = 0x44,
 
 	VAR_REMOTE_ACTION   = 0x45,
-	VAR_SENDER          = 0x46,
-	VAR_CURRENT         = 0x47,
+	VAR_ORIGIN          = 0x46,
+	VAR_ENDPOINT        = 0x47,
 	VAR_ENTRYPOINT      = 0x48,
 	VAR_STD             = 0x49,
 	// VAR_TIMESTAMP       = 0x4a,
