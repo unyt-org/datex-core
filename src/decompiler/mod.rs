@@ -4,6 +4,7 @@ mod constants;
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::vec;
 
 use constants::tokens::get_code_token;
@@ -59,6 +60,7 @@ pub fn decompile_body(ctx: &LoggerContext, dxb_body:&[u8], formatted:bool, color
 
 		current_label: 0,
 		labels: HashMap::new(),
+		inserted_labels: HashSet::new(),
 		variables: HashMap::new(),
 	};
 
@@ -106,6 +108,7 @@ struct DecompilerGlobalState<'a> {
 	// state
 	current_label: i32,
 	labels: HashMap<usize, String>,
+	inserted_labels: HashSet<usize>,
 	variables: HashMap<u16, String>
 }
 
@@ -482,13 +485,15 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 
 
 		// insert label
-		for label in &state.labels {
-			if *label.0 == state.index.get() {
+		for label in &mut state.labels {
+			// only add if at right index and not yet inserted
+			if *label.0 == state.index.get() && !state.inserted_labels.contains(label.0) {
 				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += "\r\nlbl ";
 				out += &label.1;
 				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
 				out += ";";
+				state.inserted_labels.insert(*label.0);
 			}
 		}
 
