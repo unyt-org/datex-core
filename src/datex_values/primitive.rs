@@ -65,7 +65,11 @@ impl Value for PrimitiveValue {
 					else {return "infinity".to_string()}
 				}
 				else if value.is_nan() {return "nan".to_string()}
-				else {return value.to_string()}
+				else {
+					let mut string = value.to_string();
+					if !string.contains('.') {string += ".0";}
+					return string;
+				}
 			},
 			PrimitiveValue::Text(value) => {
 				let string = escape_string(value);
@@ -89,7 +93,6 @@ impl Value for PrimitiveValue {
 			PrimitiveValue::Url(value) => value.to_string()
 		}
     }
-
 
 	fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
 		if other.is::<PrimitiveValue>() {

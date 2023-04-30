@@ -161,8 +161,13 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 				_index.set(*index);
 				yield Instruction {code:BinaryCode::FLOAT_64, slot: None, primitive_value: Some(PrimitiveValue::Float64(value)), value:None, subscope_continue:false}
 			}
-			else if token == BinaryCode::FLOAT_AS_INT as u8 {
+			else if token == BinaryCode::FLOAT_AS_INT_32 as u8 {
 				let value = buffers::read_i32(&dxb_body, index) as f64;
+				_index.set(*index);
+				yield Instruction {code:BinaryCode::FLOAT_64, slot: None, primitive_value: Some(PrimitiveValue::Float64(value)), value:None, subscope_continue:false}
+			}
+			else if token == BinaryCode::FLOAT_AS_INT_8 as u8 {
+				let value = buffers::read_i8(&dxb_body, index) as f64;
 				_index.set(*index);
 				yield Instruction {code:BinaryCode::FLOAT_64, slot: None, primitive_value: Some(PrimitiveValue::Float64(value)), value:None, subscope_continue:false}
 			}
@@ -440,6 +445,9 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::STD_TYPE_FLOAT as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"decimal".to_string(), variation:None})), subscope_continue:false}
 			}
+			else if token == BinaryCode::STD_TYPE_BOOLEAN as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"boolean".to_string(), variation:None})), subscope_continue:false}
+			}
 			else if token == BinaryCode::STD_TYPE_TIME as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"time".to_string(), variation:None})), subscope_continue:false}
 			}
@@ -464,7 +472,15 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::STD_TYPE_ANY as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Any".to_string(), variation:None})), subscope_continue:false}
 			}
-
+			else if token == BinaryCode::STD_TYPE_ASSERTION as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Assertion".to_string(), variation:None})), subscope_continue:false}
+			}
+			else if token == BinaryCode::STD_TYPE_TASK as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Task".to_string(), variation:None})), subscope_continue:false}
+			}
+			else if token == BinaryCode::STD_TYPE_STREAM as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"Stream".to_string(), variation:None})), subscope_continue:false}
+			}
 			// commands
 			else if token == BinaryCode::COPY as u8 {
 				yield Instruction {code:BinaryCode::COPY, slot: None, primitive_value: None, value:None, subscope_continue:false}

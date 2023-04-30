@@ -197,7 +197,8 @@ pub enum BinaryCode {
 	BUFFER              = 0xca,
 	SCOPE_BLOCK_START   = 0xcb,
 	QUANTITY            = 0xcc,
-	FLOAT_AS_INT        = 0xcd,
+	FLOAT_AS_INT_32     = 0xcd,
+	FLOAT_AS_INT_8      = 0xde,
 	SHORT_TEXT          = 0xce, // string with max. 255 characters
 
 	PERSON_ALIAS        = 0xcf,

@@ -1,5 +1,5 @@
 [package]
-name = "datex_core"
+name = "datex-core"
 version = "0.1.0"
 authors = ["Benedikt Strehle <benedikt@unyt.org>"]
 edition = "2021"
@@ -18,7 +18,7 @@ mopa = "0.2.2"
 num-bigint = "0.4"
 num-integer = "0.1"
 default-args = "1.0.0"
-wasm-bindgen = "0.2.63"
+wasm-bindgen = "0.2.81"
 itertools = "0.10.5"
 
 [profile.release]
