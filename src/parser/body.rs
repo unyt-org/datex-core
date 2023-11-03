@@ -494,6 +494,9 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::RUN as u8 {
 				yield Instruction {code:BinaryCode::RUN, slot: None, primitive_value: None, value:None, subscope_continue:false}
 			}
+			else if token == BinaryCode::DEFER as u8 {
+				yield Instruction {code:BinaryCode::DEFER, slot: None, primitive_value: None, value:None, subscope_continue:false}
+			}
 			else if token == BinaryCode::AWAIT as u8 {
 				yield Instruction {code:BinaryCode::AWAIT, slot: None, primitive_value: None, value:None, subscope_continue:false}
 			}

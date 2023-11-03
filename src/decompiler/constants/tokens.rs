@@ -29,6 +29,7 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 
 		BinaryCode::RUN => "run".to_string(),
 		BinaryCode::DO => "do".to_string(),
+		BinaryCode::DEFER => "defer".to_string(),
 		BinaryCode::FUNCTION => "function".to_string(),
 		BinaryCode::AWAIT => "await".to_string(),
 		BinaryCode::COPY => "copy".to_string(),
@@ -138,7 +139,7 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::OBSERVE=> Color::RESERVED,
 		BinaryCode::RUN=> Color::RESERVED,
 		BinaryCode::AWAIT=> Color::RESERVED,
-		BinaryCode::MAYBE=> Color::RESERVED,
+		BinaryCode::DEFER=> Color::RESERVED,
 		BinaryCode::FUNCTION=> Color::RESERVED,
 		BinaryCode::ASSERT=> Color::RESERVED,
 		BinaryCode::ITERATOR=> Color::RESERVED,

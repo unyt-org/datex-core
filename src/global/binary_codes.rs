@@ -14,7 +14,7 @@ pub enum BinaryCode {
 	CACHE_RESET         = 0x05, // reset dxb scope cache
 
 	// primitive / fundamental types 0x10 - 0x2f
-	STD_TYPE_TEXT     = 0x10,
+	STD_TYPE_TEXT       = 0x10,
 	STD_TYPE_INT        = 0x11,
 	STD_TYPE_FLOAT      = 0x12,
 	STD_TYPE_BOOLEAN    = 0x13,
@@ -110,7 +110,7 @@ pub enum BinaryCode {
 	OBSERVE             = 0x66, // observe x ()=>()
 	RUN                 = 0x67, // run xy;
 	AWAIT               = 0x68, // await xy;
-	MAYBE               = 0x69, // maybe xy;
+	DEFER               = 0x69, // maybe xy;
 	FUNCTION            = 0x6a, // function ()
 	ASSERT              = 0x6b, // assert
 	ITERATOR            = 0x6c, // iterator ()
@@ -184,7 +184,7 @@ pub enum BinaryCode {
 
 	// values 0xc0 - 0xdf
 
-	TEXT              = 0xc0,
+	TEXT                = 0xc0,
 	INT_8               = 0xc1, // byte
 	INT_16              = 0xc2, 
 	INT_32              = 0xc3,

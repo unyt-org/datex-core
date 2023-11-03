@@ -8,7 +8,7 @@ use super::stack::Stack;
 /**
  * Converts DXB (with or without header) to DATEX Script
 */
-pub fn execute(ctx: &LoggerContext, dxb:&[u8])  -> ValueResult {
+pub fn execute(ctx: &LoggerContext, dxb:&[u8]) -> ValueResult {
 
 	let mut body = dxb;
 

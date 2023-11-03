@@ -344,7 +344,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			BinaryCode::SCOPE_BLOCK_START => {
 				let scope = &mut decompile_body(&state.ctx, &primitive_value.get_as_buffer(), state.formatted, state.colorized, state.resolve_slots);
 				
-				// multi line scope TODO: ceck multiline (problem cannot check scope.contains(";"), because escape codes can contain ";")
+				// multi line scope TODO: check multiline (problem cannot check scope.contains(";"), because escape codes can contain ";")
 				if true {
 					*scope += ")";
 					out += "(";
