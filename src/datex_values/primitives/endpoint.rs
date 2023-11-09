@@ -145,7 +145,7 @@ impl Endpoint {
 		// }
 
 		if self.instance != Endpoint::ANY_INSTANCE {
-			main += &format!("/{:X}", self.instance);
+			main += &format!("/{:04X}", self.instance);
 		}
 		
 		return main;

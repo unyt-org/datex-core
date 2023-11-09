@@ -67,14 +67,11 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 
 	let name_is_binary = endpoint_type == BinaryCode::ENDPOINT || endpoint_type == BinaryCode::ENDPOINT_WILDCARD;
 
-	let mut instance:&str = "";
+	let mut instance:u16 = 0;
 
 	let name_length = buffers::read_u8(dxb_body, index); // get name length
 	let subspace_number = buffers::read_u8(dxb_body, index); // get subspace number
 	let mut instance_length = buffers::read_u8(dxb_body, index); // get instance length
-
-	if instance_length == 0 {instance = "*"}
-	else if instance_length == 255 {instance_length = 0};
 
 	// get name
 	let mut name:String = "".to_string();
@@ -99,19 +96,20 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 		}
 	}
 	
-	if instance_length !=0 && instance.len()==0 {
-		instance = &buffers::read_string_utf8(dxb_body, index, instance_length as usize);  // get instance
+	// TODO: new instance format, number instead of string
+	if instance_length != 0 {
+		let instance_string = &buffers::read_string_utf8(dxb_body, index, instance_length as usize);  // get instance
+		instance = u16::from_str_radix(instance_string, 16).map_err(|_| {0}).unwrap();
 	}
 	
-	// TODO: new instance format, without length
 	return if endpoint_type == BinaryCode::PERSON_ALIAS {
-		Endpoint::new_person(&name, Endpoint::ANY_INSTANCE)
+		Endpoint::new_person(&name, instance)
 	}
 	else if endpoint_type == BinaryCode::INSTITUTION_ALIAS {
-		Endpoint::new_institution(&name, Endpoint::ANY_INSTANCE)
+		Endpoint::new_institution(&name, instance)
 	}
 	else if endpoint_type == BinaryCode::ENDPOINT {
-		Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE)
+		Endpoint::new(&name_binary, instance)
 	}
 
 	// should never get here
