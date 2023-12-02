@@ -67,11 +67,15 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 
 	let name_is_binary = endpoint_type == BinaryCode::ENDPOINT || endpoint_type == BinaryCode::ENDPOINT_WILDCARD;
 
-	let mut instance:u16 = 0;
+	let mut instance:u16 = Endpoint::ANY_INSTANCE;
+	let mut instance_set = false;
 
 	let name_length = buffers::read_u8(dxb_body, index); // get name length
 	let subspace_number = buffers::read_u8(dxb_body, index); // get subspace number
 	let mut instance_length = buffers::read_u8(dxb_body, index); // get instance length
+
+	if instance_length == 0 {instance_set = true}
+	else if instance_length == 255 {instance_length = 0}
 
 	// get name
 	let mut name:String = "".to_string();
@@ -97,7 +101,7 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 	}
 	
 	// TODO: new instance format, number instead of string
-	if instance_length != 0 {
+	if !instance_set {
 		let instance_string = &buffers::read_string_utf8(dxb_body, index, instance_length as usize);  // get instance
 		instance = u16::from_str_radix(instance_string, 16).map_err(|_| {0}).unwrap();
 	}
@@ -457,6 +461,9 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			}
 			else if token == BinaryCode::STD_TYPE_UNIT as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"quantity".to_string(), variation:None})), subscope_continue:false}
+			}
+			else if token == BinaryCode::STD_TYPE_URL as u8 {
+				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"url".to_string(), variation:None})), subscope_continue:false}
 			}
 			else if token == BinaryCode::STD_TYPE_BUFFER as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"buffer".to_string(), variation:None})), subscope_continue:false}
