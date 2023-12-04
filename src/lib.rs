@@ -1,6 +1,6 @@
 #![feature(generator_trait)]
 #![feature(generators)]
-#![feature(anonymous_lifetime_in_impl_trait)]
+// #![feature(anonymous_lifetime_in_impl_trait)]
 
 #[macro_use]
 extern crate mopa;

@@ -11,7 +11,7 @@ pub fn tcp_client_interface() {
 pub fn ws_client_interface() {
 	let runtime = Runtime::new();
 
-	let mut interface = WebSocketClientInterface::new("wss://1.central.europe.unyt.cc");
+	let mut interface = WebSocketClientInterface::new("wss://relay1.unyt.cc");
 
 
 	// send block

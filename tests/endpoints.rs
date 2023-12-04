@@ -20,7 +20,7 @@ pub fn create_endpoints() {
 	assert_eq!(person_endpoint.get_binary().len(), 21);
 	assert_eq!(buffer_to_hex_advanced(person_endpoint.get_binary().to_vec()," ", 0, false), "01 74 68 65 6F 64 6F 72 65 5F 72 6F 6F 73 65 76 65 6C 74 02 00");
 	// string repr
-	assert_eq!(person_endpoint.to_string(false), "@theodore_roosevelt/2");
+	assert_eq!(person_endpoint.to_string(false), "@theodore_roosevelt/0002");
 	// instance
 	assert_eq!(person_endpoint.get_instance(), 2);
 }

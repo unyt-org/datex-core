@@ -12,7 +12,7 @@ regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"
 lazy_static = "1.4.0"
-gen-iter = "0.2.1"
+gen-iter = "0.3.0"
 strum = { version = "0.24", features = ["derive"] }
 mopa = "0.2.2"
 num-bigint = "0.4"
@@ -20,6 +20,9 @@ num-integer = "0.1"
 default-args = "1.0.0"
 wasm-bindgen = "0.2.81"
 itertools = "0.10.5"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+websocket = "0.24.0"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
