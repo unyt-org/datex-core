@@ -295,6 +295,12 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
 				out += " := ";
 			},
+			BinaryCode::SET_POINTER => {
+				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
+				out += &instruction.value.unwrap().to_string();
+				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();}
+				out += " =";
+			},
 
 			// assign actions (override primitive value default behaviour)
 			BinaryCode::CHILD_ACTION => out += &get_code_token(&BinaryCode::CHILD_ACTION, state.formatted),

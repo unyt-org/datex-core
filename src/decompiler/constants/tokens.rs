@@ -2,6 +2,7 @@ use crate::{global::binary_codes::BinaryCode, utils::color::Color};
 
 pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 	match code {
+		BinaryCode::EXIT => "exit".to_string(),
 		BinaryCode::CLOSE_AND_STORE => ";".to_string(),
 		
 		BinaryCode::ARRAY_START => "[".to_string(),
@@ -50,6 +51,8 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 		BinaryCode::EXTENDS => "extends".to_string(),
 		BinaryCode::IMPLEMENTS => "implements".to_string(),
 		BinaryCode::NEXT => "next".to_string(),
+		BinaryCode::DEFAULT => "default".to_string(),
+
 		BinaryCode::REMOTE => "::".to_string(),
 
 		BinaryCode::GREATER => ">".to_string(),

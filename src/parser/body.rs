@@ -424,6 +424,13 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 				yield Instruction {code:BinaryCode::RESOLVE_RELATIVE_PATH, slot: None, primitive_value: Some(PrimitiveValue::Text(path)), value:None, subscope_continue:false}
 			}
 
+			// default
+			else if token == BinaryCode::DEFAULT as u8 {
+				let init_size = buffers::read_u32(&dxb_body, index);
+				_index.set(*index);
+				yield Instruction {code:BinaryCode::DEFAULT, slot: None, primitive_value: None, value:None, subscope_continue:false}
+			}
+
 			// std types
 			else if token == BinaryCode::STD_TYPE_SET as u8 {
 				// TODO : Some(Box::new(std_types::SET))
