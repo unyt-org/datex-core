@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::datex_values::Endpoint;
@@ -21,6 +23,7 @@ use pest::Parser;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
+use regex::Regex;
 
 pub fn compile(datex_script:&str) -> Result<Vec<u8>, pest::error::Error<Rule>> {
 
@@ -94,8 +97,10 @@ impl<'a> CompilationScope<'a> {
 	}
 
 	fn insert_string(&mut self, string: &str) {
+
+		let unescaped_string = self.unescape_string(string);
 		
-		let bytes = string.as_bytes();
+		let bytes = unescaped_string.as_bytes();
 		let len = bytes.len();
 
 		if len < 256 {
@@ -110,6 +115,21 @@ impl<'a> CompilationScope<'a> {
 
 		self.append_buffer(bytes);
 
+	}
+
+	fn unescape_string(&mut self, string: &str) -> String {
+		let re = Regex::new(r"\\(.)").unwrap();
+		
+		// TODO: escape, unicode, hex, octal?
+		re.replace_all(
+			&string
+				.replace("\\b", "\u{0008}")
+				.replace("\\f", "\u{000c}")
+				.replace("\\r", "\r")
+				.replace("\\t", "\t")
+				.replace("\\v", "\u{000b}")
+				.replace("\\n", "\n"),
+		 "$1").into_owned()
 	}
 
 	fn insert_float64(&mut self, float64: f64) {

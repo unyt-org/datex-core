@@ -6,10 +6,13 @@ pub fn compile_literals() {
 	compare_with_decompiled("42;");
 	compare_with_decompiled("4200000000000;");
 	compare_with_decompiled("1.23;");
-	compare_with_decompiled("\"Hello World\";");
-	compare_with_decompiled("\"#ölz1中文\";");
-	compare_with_decompiled("\"\\\\\";");
-	// compare_with_decompiled("\"\\\"\";");
+	compare_with_decompiled(r#""Hello World";"#);
+	compare_with_decompiled(r#""ölz1中文";"#);
+	compare_with_decompiled(r#""\\";"#);
+	compare_with_decompiled(r#""\\\"";"#);
+	compare_with_decompiled(r#""\n";"#);
+	// compare_with_decompiled(r#""\r\n";"#);
+	// compare_with_decompiled(r#""\t";"#);
 }
 
 fn compare_with_decompiled(datex_script: &str) {
