@@ -43,11 +43,10 @@ impl fmt::Display for PrimitiveValue {
 }
 
 fn escape_string(value:&String) -> String {
-	let string = str::replace(
-		&str::replace(value, "\\", "\\\\"),
-	 "\"", "\\\"");
-	// TODO: only if formatted?
-	string
+	// TODO: \n only if formatted?
+	value
+		.replace("\\", "\\\\")
+		.replace("\"", "\\\"")
 		.replace("\n", "\\n")
 		.replace("\r", "\\r")
 		.replace("\t", "\\t")

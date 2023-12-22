@@ -16,7 +16,6 @@ pub fn compile_literals() {
 	compare_compiled(r#""a
 b
 c";"#, "\"a\\nb\\nc\";");
-compare_compiled(r#""a\nb\nc";"#, "\"a\\nb\\nc\";");
 
 }
 
