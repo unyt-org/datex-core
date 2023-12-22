@@ -77,7 +77,7 @@ append functions: appends the value at the end of the byte vector, automatically
  */
 
 
-pub fn write_u8(mut buffer: Vec<u8>, index: &mut usize, val: u8) {
+pub fn write_u8(buffer: &mut Vec<u8>, index: &mut usize, val: u8) {
 	buffer[*index] = val;
 	*index += 1;
 }

@@ -1,0 +1,54 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+value = _{ 
+	object | 
+	array | 
+	string | 
+	integer |
+	decimal |
+	boolean | 
+	null | 
+	void 
+}
+
+boolean = { "true" | "false" }
+
+null = { "null" }
+void = { "void" }
+
+object = {
+    "{" ~ "}" |
+    "{" ~ pair ~ ("," ~ pair)* ~ "}"
+}
+pair = { string ~ ":" ~ value }
+
+array = {
+    "[" ~ "]" |
+    "[" ~ value ~ ("," ~ value)* ~ "]"
+}
+
+integer = @{
+    "-"?
+    ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+}
+
+decimal = @{
+    "-"?
+    ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+    ~ ("." ~ ASCII_DIGIT*)?
+    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+
+
+string = ${ "\"" ~ inner ~ "\"" }
+inner = @{ char* }
+char = {
+    !("\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+statement = { value }
+statements = _{ statement ~ (";" ~ statement)* ~ (";")? }
+
+datex = _{ SOI ~ statements ~ EOI }

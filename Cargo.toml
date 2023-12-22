@@ -20,6 +20,8 @@ num-integer = "0.1"
 default-args = "1.0.0"
 wasm-bindgen = "0.2.81"
 itertools = "0.10.5"
+pest = "2.6"
+pest_derive = "2.6"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 websocket = "0.24.0"

@@ -10,6 +10,7 @@ use std::vec;
 use constants::tokens::get_code_token;
 use crate::datex_values::SlotIdentifier;
 use crate::parser::header::has_dxb_magic_number;
+use crate::utils::color::AnsiCodes;
 use crate::utils::color::Color;
 use crate::utils::logger::LoggerContext;
 use lazy_static::lazy_static;
@@ -513,7 +514,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			let len = connective_size_stack.len()-1;
 			connective_size_stack[len] -= 1;
 
-			out += &Color::DEFAULT.as_ansi_rgb();
+			if state.colorized  {out += &Color::DEFAULT.as_ansi_rgb()};
 
 			// connective_size_stack finished
 			if connective_size_stack[len] == 0 {
@@ -531,6 +532,8 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 	
 	
 	}
+
+	if state.colorized {out += AnsiCodes::RESET};
 
 	return out;
 }

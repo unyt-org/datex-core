@@ -40,6 +40,6 @@ pub fn ws_client_interface() {
 		}
 	};
 	let dxb = &hex_to_buffer_advanced("00".to_string(), " ");
-	let block = append_dxb_header(runtime, &header, dxb);
+	let block = append_dxb_header( &header, dxb);
 	interface.send_block(&block)
 }

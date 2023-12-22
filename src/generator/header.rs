@@ -2,7 +2,7 @@
 use crate::{global::dxb_block::DXBHeader, utils::buffers::{write_u8, append_u8, append_u16, append_u32, append_u64}, runtime::Runtime};
 
 
-pub fn append_dxb_header<'a>(runtime:Runtime, header:&DXBHeader, dxb: &[u8]) -> Vec<u8> {
+pub fn append_dxb_header<'a>(header:&DXBHeader, dxb: &[u8]) -> Vec<u8> {
 
 	let pre_header = &mut generate_pre_header(header);
 	let block_header = generate_block_header(header);

@@ -13,6 +13,7 @@ pub struct Type {
 }
 
 
+
 impl Value for Type {
     fn to_string(&self) -> String {
 		if self.namespace.len() == 0 || self.namespace == "std" {
@@ -59,4 +60,8 @@ impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", Value::to_string(self))
     }
+}
+
+pub trait DatexTypedStruct {
+	fn get_type() -> String;
 }

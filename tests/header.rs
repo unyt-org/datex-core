@@ -75,6 +75,6 @@ pub fn generate_header() {
 		}
 	};
 	let dxb = &hex_to_buffer_advanced("01 02 03".to_string(), " ");
-	assert_eq!(parse_dxb_header(&append_dxb_header(runtime, &header, dxb)).0, header);
+	assert_eq!(parse_dxb_header(&append_dxb_header(&header, dxb)).0, header);
 
 }
