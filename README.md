@@ -16,3 +16,7 @@ rustup default nightly-2022-12-12
 ## Testing
 
 The integration tests in the test/ directory can be run with `cargo test -- --show-output`
+
+```
+cargo test --package datex-core --test compiler -- compile_literals --exact --nocapture 
+```

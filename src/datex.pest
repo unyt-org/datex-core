@@ -4,8 +4,8 @@ value = _{
 	object | 
 	array | 
 	string | 
-	integer |
 	decimal |
+    integer |
 	boolean | 
 	null | 
 	void 
@@ -35,7 +35,7 @@ integer = @{
 decimal = @{
     "-"?
     ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
-    ~ ("." ~ ASCII_DIGIT*)?
+    ~ ("." ~ ASCII_DIGIT*)
     ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
 }
 

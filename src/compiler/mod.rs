@@ -1,5 +1,3 @@
-use std::num;
-
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::datex_values::Endpoint;
@@ -9,17 +7,14 @@ use crate::global::dxb_block::DXBBlockType;
 use crate::global::dxb_block::DXBHeader;
 use crate::global::dxb_block::HeaderFlags;
 use crate::global::dxb_block::RoutingInfo;
-use crate::runtime::Runtime;
+use crate::utils::buffers::append_f64;
 use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
 use crate::utils::buffers::append_i64;
 use crate::utils::buffers::append_i8;
+use crate::utils::buffers::append_string_utf8;
+use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
-use crate::utils::buffers::write_i16;
-use crate::utils::buffers::write_i32;
-use crate::utils::buffers::write_i64;
-use crate::utils::buffers::write_i8;
-use crate::utils::buffers::write_u8;
 
 pub mod parser;
 use pest::Parser;
@@ -86,8 +81,42 @@ impl<'a> CompilationScope<'a> {
 	const UINT_16_BYTES: u8 = 2;
 	const UINT_32_BYTES: u8 = 4;
 	const UINT_64_BYTES: u8 = 8;
+	const FLOAT_64_BYTES: u8 = 8;
 
 	// value insert functions
+	fn insert_boolean(&mut self, boolean: bool) {
+		if boolean {
+			self.append_binary_code(BinaryCode::TRUE);
+		}
+		else {
+			self.append_binary_code(BinaryCode::FALSE);
+		}
+	}
+
+	fn insert_string(&mut self, string: &str) {
+		
+		let bytes = string.as_bytes();
+		let len = bytes.len();
+
+		if len < 256 {
+			self.append_binary_code(BinaryCode::SHORT_TEXT);
+			self.append_u8(len as u8);
+		}
+
+		else {
+			self.append_binary_code(BinaryCode::TEXT);
+			self.append_u32(len as u32);
+		}
+
+		self.append_buffer(bytes);
+
+	}
+
+	fn insert_float64(&mut self, float64: f64) {
+		self.append_binary_code(BinaryCode::FLOAT_64);
+		self.append_f64(float64);
+	}
+
 	fn insert_int(&mut self, int: i64) {
 		if int<=CompilationScope::MAX_INT_8 && int>= CompilationScope::MIN_INT_8 {self.insert_int8(int as i8)}
 		else if int<=CompilationScope::MAX_INT_16 && int>=CompilationScope::MIN_INT_16 {self.insert_int16(int as i16)}
@@ -118,6 +147,10 @@ impl<'a> CompilationScope<'a> {
 		append_u8(self.buffer, u8);
 		self.index += CompilationScope::UINT_8_BYTES as usize;
 	}
+	fn append_u32(&mut self, u32: u32) {
+		append_u32(self.buffer, u32);
+		self.index += CompilationScope::UINT_32_BYTES as usize;
+	}
 	fn append_i8(&mut self, i8: i8) {
 		append_i8(self.buffer, i8);
 		self.index += CompilationScope::INT_8_BYTES as usize;
@@ -133,6 +166,19 @@ impl<'a> CompilationScope<'a> {
 	fn append_i64(&mut self, i64: i64) {
 		append_i64(self.buffer, i64);
 		self.index += CompilationScope::INT_64_BYTES as usize;
+	}
+	fn append_f64(&mut self, f64: f64) {
+		append_f64(self.buffer, f64);
+		self.index += CompilationScope::FLOAT_64_BYTES as usize;
+	}
+	fn append_string_utf8(&mut self, string: &str) {
+		let bytes = string.as_bytes();
+		self.buffer.extend_from_slice(bytes);
+		self.index += bytes.len()
+	}
+	fn append_buffer(&mut self, buffer: &[u8]) {
+		self.buffer.extend_from_slice(buffer);
+		self.index += buffer.len()
 	}
 
 	fn append_binary_code(&mut self, binary_code: BinaryCode) {
@@ -185,44 +231,18 @@ fn parse(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
 			let int = pair.as_str().parse::<i64>().unwrap();
 			compilation_scope.insert_int(int);
 		}
+		Rule::decimal => {
+			let decimal = pair.as_str().parse::<f64>().unwrap();
+			compilation_scope.insert_float64(decimal);
+		}
+		Rule::string => {
+			let string = pair.as_str();
+			let inner_string = &string[1..string.len()-1];
+			compilation_scope.insert_string(inner_string);
+		}
 		_ => {
 			panic!("Rule not implemented")
 		}
 	}
 
 }
-
-
-
-// fn parse_value(pair: Pair<Rule>) -> JSONValue {
-// 	match pair.as_rule() {
-// 		Rule::object => JSONValue::Object(
-// 			pair.into_inner()
-// 				.map(|pair| {
-// 					let mut inner_rules = pair.into_inner();
-// 					let name = inner_rules
-// 						.next()
-// 						.unwrap()
-// 						.into_inner()
-// 						.next()
-// 						.unwrap()
-// 						.as_str();
-// 					let value = parse_value(inner_rules.next().unwrap());
-// 					(name, value)
-// 				})
-// 				.collect(),
-// 		),
-// 		Rule::array => JSONValue::Array(pair.into_inner().map(parse_value).collect()),
-// 		Rule::string => JSONValue::String(pair.into_inner().next().unwrap().as_str()),
-// 		Rule::number => JSONValue::Number(pair.as_str().parse().unwrap()),
-// 		Rule::boolean => JSONValue::Boolean(pair.as_str().parse().unwrap()),
-// 		Rule::null => JSONValue::Null,
-// 		Rule::json
-// 		| Rule::EOI
-// 		| Rule::pair
-// 		| Rule::value
-// 		| Rule::inner
-// 		| Rule::char
-// 		| Rule::WHITESPACE => unreachable!(),
-// 	}
-// }
