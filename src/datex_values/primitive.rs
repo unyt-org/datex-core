@@ -46,8 +46,14 @@ fn escape_string(value:&String) -> String {
 	let string = str::replace(
 		&str::replace(value, "\\", "\\\\"),
 	 "\"", "\\\"");
-	// TODO: only if formatted
-	return str::replace(&string, "\n", "\\n");
+	// TODO: only if formatted?
+	string
+		.replace("\n", "\\n")
+		.replace("\r", "\\r")
+		.replace("\t", "\\t")
+		.replace("\u{0008}", "\\b")
+		.replace("\u{000c}", "\\f")
+		.replace("\u{000b}", "\\v")
 }
 
 impl Value for PrimitiveValue {
