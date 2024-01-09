@@ -160,6 +160,8 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::CREATE_POINTER=> Color::RESERVED,
 		BinaryCode::POINTER => Color::RESERVED,
 
+		BinaryCode::WILDCARD => Color::PrimitiveConstant,
+
 		BinaryCode::ELEMENT_WITH_KEY=> Color::DefaultLight,
 		BinaryCode::ELEMENT_WITH_INT_KEY=> Color::DefaultLight,
 
