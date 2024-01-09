@@ -78,6 +78,7 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 		BinaryCode::CHILD_ACTION => ".".to_string(),
 		BinaryCode::CHILD_SET => ".".to_string(),
 		BinaryCode::CHILD_SET_REFERENCE => ".".to_string(),
+		BinaryCode::WILDCARD => "*".to_string(),
 
 		_ => format!("⎣{:X}⎤", *code as u8).to_string()
 	}
