@@ -217,9 +217,9 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			else if token == BinaryCode::BIG_INT as u8 {
 				let sign = if buffers::read_u8(&dxb_body, index) == 0 {Sign::Minus} else {Sign::Plus};
 
-				let num_size = buffers::read_u16(&dxb_body, index);
-				let num_buffer = buffers::read_slice(&dxb_body, index, num_size as usize);
-				let bigint = BigInt::from_bytes_le(sign, &num_buffer);
+				let size = buffers::read_u16(&dxb_body, index);
+				let buffer = buffers::read_slice(&dxb_body, index, size as usize);
+				let bigint = BigInt::from_bytes_be(sign, &buffer);
 
 				_index.set(*index);
 				yield Instruction {code:BinaryCode::BIG_INT, slot: None, primitive_value: Some(PrimitiveValue::BigInt(bigint)), value:None, subscope_continue:false}
