@@ -100,6 +100,7 @@ pub fn get_code_color(code: &BinaryCode) -> Color {
 		BinaryCode::FLOAT_64 => Color::NUMBER,
 		BinaryCode::FLOAT_AS_INT_32 => Color::NUMBER,
 		BinaryCode::FLOAT_AS_INT_8 => Color::NUMBER,
+		BinaryCode::BIG_INT => Color::NUMBER,
 		BinaryCode::QUANTITY => Color::_UNKNOWN,
 		BinaryCode::TIME => Color::TIME,
 		BinaryCode::URL => Color::DEFAULT,

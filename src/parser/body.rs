@@ -5,7 +5,7 @@ use crate::global::binary_codes::BinaryCode;
 use crate::datex_values::{PrimitiveValue, SlotIdentifier, Type, Value, internal_slot, Quantity, Time, Pointer, Endpoint, Url};
 use crate::utils::buffers;
 use gen_iter::gen_iter;
-use num_bigint::BigUint;
+use num_bigint::{BigUint, BigInt, Sign};
 
 
 fn extract_slot_identifier(dxb_body:&[u8], index: &mut usize) -> SlotIdentifier {
@@ -213,6 +213,17 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 				yield Instruction {code:BinaryCode::URL, slot: None, primitive_value: Some(PrimitiveValue::Url(url)), value:None, subscope_continue:false}
 			}
 			
+			// bigint
+			else if token == BinaryCode::BIG_INT as u8 {
+				let sign = if buffers::read_u8(&dxb_body, index) == 0 {false} else {true};
+
+				let num_size = buffers::read_u16(&dxb_body, index);
+				let num_buffer = buffers::read_slice(&dxb_body, index, num_size as usize);
+				let bigint = BigInt::from_bytes_le(if sign {Sign::Minus} else {Sign::Plus}, &num_buffer);
+
+				_index.set(*index);
+				yield Instruction {code:BinaryCode::BIG_INT, slot: None, primitive_value: Some(PrimitiveValue::BigInt(bigint)), value:None, subscope_continue:false}
+			}
 
 			// quantity
 			else if token == BinaryCode::QUANTITY as u8 {

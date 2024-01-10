@@ -1,6 +1,7 @@
 use core::fmt::Write;
 use std::fmt;
 
+use num_bigint::BigInt;
 use regex::Regex;
 use lazy_static::lazy_static;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -19,6 +20,7 @@ pub enum PrimitiveValue {
 	UInt32(u32),
 	Int64(i64),
 	Float64(f64),
+	BigInt(BigInt),
 	Text(String),
 	Buffer(Vec<u8>),
 	Boolean(bool),
@@ -65,6 +67,7 @@ impl Value for PrimitiveValue {
 			PrimitiveValue::Int32(value) => value.to_string(),
 			PrimitiveValue::UInt32(value) => value.to_string(),
 			PrimitiveValue::Int64(value) => value.to_string(),
+			PrimitiveValue::BigInt(value) => value.to_string(),
 			PrimitiveValue::Float64(value) => {
 				if value.is_infinite() {
 					if value.is_sign_negative() {return "-infinity".to_string()}
@@ -246,6 +249,7 @@ impl PrimitiveValue {
 			PrimitiveValue::Int32(_) => true,
 			PrimitiveValue::Int64(_) => true,
 			PrimitiveValue::Float64(_) => true,
+			PrimitiveValue::BigInt(_) => true,
 			_ => false
 		}
 	}
@@ -316,9 +320,6 @@ impl PrimitiveValue {
 	
 	// returns a string, omits quotes if possible (for keys)
 	pub fn to_key_string(&self) -> String  {
-
-	
-
 		match &self {
 			PrimitiveValue::Text(value) => {
 				let string = escape_string(value);

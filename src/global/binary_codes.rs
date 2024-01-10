@@ -199,6 +199,8 @@ pub enum BinaryCode {
 	QUANTITY            = 0xcc,
 	FLOAT_AS_INT_32     = 0xcd,
 	FLOAT_AS_INT_8      = 0xde,
+	BIG_INT             = 0xdf,
+
 	SHORT_TEXT          = 0xce, // string with max. 255 characters
 
 	PERSON_ALIAS        = 0xcf,
