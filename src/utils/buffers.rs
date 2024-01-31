@@ -11,6 +11,8 @@ pub fn read_u8(buffer: &[u8], index: &mut usize) -> u8 {
 	*index += 1;
 	return val;
 }
+
+
 pub fn read_i8(buffer: &[u8], index: &mut usize) -> i8 {
 	let mut slice = &buffer[*index..*index+1];
 	*index += 1;

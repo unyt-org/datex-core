@@ -123,7 +123,8 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 	
 }
 
-pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -> impl Iterator<Item = Instruction>  + 'a {
+// TODO: refactor: pass a ParserState struct instead of individual parameters
+pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, is_end_instruction: &'a Cell<bool>) -> impl Iterator<Item = Instruction>  + 'a {
 
 	return gen_iter!(move {
 
@@ -132,7 +133,7 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 		// iterate over bytes
 		while _index.get() < max {
 			let index = &mut _index.get();
-			let token = buffers::read_u8(dxb_body, index);
+			let token = buffers::read_u8(dxb_body, index);		
 			_index.set(*index);
 
 			// integers
@@ -529,32 +530,62 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 				yield Instruction {code:BinaryCode::ARRAY_START, slot: None, primitive_value: None, value:None, subscope_continue: true}
 			}
 			else if token == BinaryCode::ARRAY_END as u8 {
-				yield Instruction {code:BinaryCode::ARRAY_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
-				break;
+				// 2. parent scope: handle end instruction
+				if is_end_instruction.get() {
+					yield Instruction {code:BinaryCode::ARRAY_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
+					is_end_instruction.set(false);
+				}
+				// 1. in inner scope, break immediately and reset index, parent scope handles end instruction in next iteration
+				else {
+					is_end_instruction.set(true);
+					_index.set(*index-1);
+					break;
+				}
 			}
 
 			else if token == BinaryCode::OBJECT_START as u8 {
 				yield Instruction {code:BinaryCode::OBJECT_START, slot: None, primitive_value: None, value:None, subscope_continue: true}
 			}
 			else if token == BinaryCode::OBJECT_END as u8 {
-				yield Instruction {code:BinaryCode::OBJECT_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
-				break;
+				if is_end_instruction.get() {
+					yield Instruction {code:BinaryCode::OBJECT_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
+					is_end_instruction.set(false);
+				}
+				else {
+					is_end_instruction.set(true);
+					_index.set(*index-1);
+					break;
+				}
 			}
 
 			else if token == BinaryCode::TUPLE_START as u8 {
 				yield Instruction {code:BinaryCode::TUPLE_START, slot: None, primitive_value: None, value:None, subscope_continue: true}
 			}
 			else if token == BinaryCode::TUPLE_END as u8 {
-				yield Instruction {code:BinaryCode::TUPLE_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
-				break;
+				if is_end_instruction.get() {
+					yield Instruction {code:BinaryCode::TUPLE_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
+					is_end_instruction.set(false);
+				}
+				else {
+					is_end_instruction.set(true);
+					_index.set(*index-1);
+					break;
+				}
 			}
 
 			else if token == BinaryCode::SUBSCOPE_START as u8 {
 				yield Instruction {code:BinaryCode::SUBSCOPE_START, slot: None, primitive_value: None, value:None, subscope_continue: true}
 			}
 			else if token == BinaryCode::SUBSCOPE_END as u8 {
-				yield Instruction {code:BinaryCode::SUBSCOPE_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
-				break;
+				if is_end_instruction.get() {
+					yield Instruction {code:BinaryCode::SUBSCOPE_END, slot: None, primitive_value: None, value:None, subscope_continue:false};
+					is_end_instruction.set(false);
+				}
+				else {
+					is_end_instruction.set(true);
+					_index.set(*index-1);
+					break;
+				}
 			}
 
 
@@ -584,13 +615,10 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>) -
 			}
 
 
-
-
 			// default
 			else {
 				yield Instruction {code:BinaryCode::try_from(token).expect("Could not parse DXB, invalid instruction"), slot: None, primitive_value:None, value:None, subscope_continue:false}
-			}
-
+			}			
 		}
 
 	});

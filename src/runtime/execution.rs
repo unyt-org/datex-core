@@ -24,16 +24,16 @@ pub fn execute(ctx: &LoggerContext, dxb:&[u8]) -> ValueResult {
 
 fn execute_body(ctx: &LoggerContext, dxb_body:&[u8]) -> ValueResult {
 	
-	return execute_loop(ctx, dxb_body, &Cell::from(0));
+	return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));
 }
 
-fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> ValueResult {
+fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>, is_end_instruction: &Cell<bool>) -> ValueResult {
 
 	let logger = Logger::new_for_development(ctx, "DATEX Runtime");
 
 	let mut stack:Stack = Stack::new(&logger);
 
-	let instruction_iterator = body::iterate_instructions(dxb_body, index);
+	let instruction_iterator = body::iterate_instructions(dxb_body, index, is_end_instruction);
 
 	for instruction in instruction_iterator {
 		
@@ -87,7 +87,7 @@ fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>) -> Val
 
 		// enter new subscope - continue at index?
 		if instruction.subscope_continue {
-			let sub_result = execute_loop(ctx, dxb_body, index);
+			let sub_result = execute_loop(ctx, dxb_body, index, is_end_instruction);
 
 			// propagate error from subscope
 			if sub_result.is_err() {

@@ -54,6 +54,7 @@ pub fn decompile_body(ctx: &LoggerContext, dxb_body:&[u8], formatted:bool, color
 		ctx,
 		dxb_body,
 		index: &Cell::from(0),
+		is_end_instruction: &Cell::from(false),
 
 		formatted, 
 		colorized,
@@ -100,6 +101,7 @@ struct DecompilerGlobalState<'a> {
 	// dxb
 	dxb_body:&'a [u8], 
 	index: &'a Cell<usize>,
+	is_end_instruction: &'a Cell<bool>,
 
 	// options
 	formatted: bool,
@@ -156,7 +158,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 
 	// let logger = Logger::new_for_development(&state.ctx, "Decompiler");
 
-	let instruction_iterator = body::iterate_instructions(state.dxb_body, state.index);
+	let instruction_iterator = body::iterate_instructions(state.dxb_body, state.index, state.is_end_instruction);
 
 	// flags - initial values
 	let mut open_element_comma = false;
@@ -356,13 +358,13 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 					*scope += ")";
 					out += "(";
 					// ----------
-					if state.formatted {out += &INDENT};
-					out += &LAST_LINE.replace_all(     // remove spaces in last line
-						&NEW_LINE.replace_all(   // add spaces to every new line
+					if state.formatted {
+						out += &INDENT;
+						out += &NEW_LINE.replace_all(   // add spaces to every new line
 							&scope, 
 							&INDENT.to_string()
-						), 
-					"$1"); 
+						);
+					};
 					// ----------
 				}
 				else {
@@ -411,12 +413,10 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 			// only if content inside brackets, and multiple lines
 			if state.formatted && !is_empty && newline_count>1 {
 				out += &INDENT;
-				out += &LAST_LINE.replace_all(     // remove spaces in last line
-					&NEW_LINE.replace_all(   // add spaces to every new line
-						&inner, 
-						&INDENT.to_string()
-					), 
-				"$1").trim_end(); 
+				out += &NEW_LINE.replace_all(   // add spaces to every new line
+					&inner, 
+					&INDENT.to_string()
+				);
 			}
 
 			// no content inside brackets or single line
