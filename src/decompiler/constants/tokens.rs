@@ -6,13 +6,13 @@ pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
 		BinaryCode::CLOSE_AND_STORE => ";".to_string(),
 		
 		BinaryCode::ARRAY_START => "[".to_string(),
-		BinaryCode::ARRAY_END => if formatted {"\r\n]".to_string()} else {"]".to_string()},
+		BinaryCode::ARRAY_END => "]".to_string(),
 		BinaryCode::OBJECT_START => "{".to_string(),
-		BinaryCode::OBJECT_END => if formatted {"\r\n}".to_string()} else {"}".to_string()},
+		BinaryCode::OBJECT_END => "}".to_string(),
 		BinaryCode::TUPLE_START => "(".to_string(),
-		BinaryCode::TUPLE_END => if formatted {"\r\n)".to_string()} else {")".to_string()},
+		BinaryCode::TUPLE_END => ")".to_string(),
 		BinaryCode::SUBSCOPE_START => "(".to_string(),
-		BinaryCode::SUBSCOPE_END => if formatted {"\r\n)".to_string()} else {")".to_string()},
+		BinaryCode::SUBSCOPE_END => ")".to_string(),
 
 		BinaryCode::ADD => "+".to_string(),
 		BinaryCode::SUBTRACT => "-".to_string(),

@@ -208,7 +208,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 		let add_comma = open_element_comma && is_new_element; // comma still has to be closed, possible when the next code starts a new element
 
 		// space between
-		if last_was_value && !add_comma && !no_space_around && !is_indexed_element && !is_closing {
+		if state.formatted && last_was_value && !add_comma && !no_space_around && !is_indexed_element && !is_closing {
 			out += " ";
 		}
 		last_was_value = true;
@@ -218,11 +218,8 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 		// comma
 		if add_comma {
 			open_element_comma = false;
-			// no comma after last element
-			if code != BinaryCode::ARRAY_END && code != BinaryCode::OBJECT_END && code != BinaryCode::TUPLE_END {
-				if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();} // light grey color for property keys
-				out += if state.formatted {",\r\n"} else {","}
-			}
+			if state.colorized {out += &Color::DEFAULT.as_ansi_rgb();} // light grey color for property keys
+			out += if state.formatted {",\r\n"} else {","}
 		}
 
 		
@@ -407,16 +404,17 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 		// enter new subscope - continue at index?
 		if instruction.subscope_continue {
 			let inner = Cow::from(decompile_loop(state));
-			let is_empty = inner.len() == 8; // only closing ')', ']', ...
+			let is_empty = inner.len() == 0;
 			let newline_count = inner.chars().filter(|c| *c == '\n').count();
 
 			// only if content inside brackets, and multiple lines
-			if state.formatted && !is_empty && newline_count>1 {
+			if state.formatted && !is_empty && newline_count>0 {
 				out += &INDENT;
 				out += &NEW_LINE.replace_all(   // add spaces to every new line
 					&inner, 
 					&INDENT.to_string()
 				);
+				out += "\r\n";
 			}
 
 			// no content inside brackets or single line
@@ -463,7 +461,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 
 		// ) ] } end
 		if is_closing {
-			open_element_comma = false; // no more commas required 
+			// open_element_comma = false; // no more commas required 
 			last_was_value = false; // no space afterwards
 		} 
 
