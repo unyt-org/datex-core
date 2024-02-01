@@ -103,7 +103,7 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 	// TODO: new instance format, number instead of string
 	if !instance_set {
 		let instance_string = &buffers::read_string_utf8(dxb_body, index, instance_length as usize);  // get instance
-		instance = u16::from_str_radix(instance_string, 16).map_err(|_| {0}).unwrap();
+		instance = u16::from_str_radix(instance_string, 16).unwrap_or(0);
 	}
 	
 	return if endpoint_type == BinaryCode::PERSON_ALIAS {
@@ -301,6 +301,12 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 				let slot = extract_slot_identifier(&dxb_body, index);
 				_index.set(*index);
 				yield Instruction {code:BinaryCode::INTERNAL_VAR, slot: Some(slot), primitive_value: None, value:None, subscope_continue:false}
+			}
+
+			else if token == BinaryCode::LABEL as u8 {
+				let slot = extract_slot_identifier(&dxb_body, index);
+				_index.set(*index);
+				yield Instruction {code:BinaryCode::LABEL, slot: Some(slot), primitive_value: None, value:None, subscope_continue:false}
 			}
 
 

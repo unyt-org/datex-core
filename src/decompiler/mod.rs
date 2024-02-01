@@ -260,6 +260,8 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 		match code {
 			// slot based
 			BinaryCode::INTERNAL_VAR 			    => out += &format!("{variable_name}"),
+			// only for backwards compatibility
+			BinaryCode::LABEL 			    => out += &format!("$_{variable_name}"),
 			BinaryCode::SET_INTERNAL_VAR => {
 				if state.colorized {out += &Color::RESERVED.as_ansi_rgb();}
 				out += &variable_prefix;
@@ -378,8 +380,10 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 				out = out.trim_end_matches(empty).to_string();
 				if state.colorized {out += &get_code_color(&code).as_ansi_rgb()}
 				out += &get_code_token(&code, state.formatted);
-				// newline 
-				if state.formatted {out += "\r\n"}
+				// newline if not end of file
+				if state.formatted && state.index.get() < state.dxb_body.len() {
+					out += "\r\n";
+				}
 			}
 
 			_ => {

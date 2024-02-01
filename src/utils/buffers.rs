@@ -60,9 +60,11 @@ pub fn read_f64(buffer: &[u8], index: &mut usize) -> f64 {
 
 
 pub fn read_string_utf8(buffer: &[u8], index: &mut usize, size: usize) -> String {
-	let slice = &buffer[*index..*index+size];
-	*index += size;
-	return String::from_utf8(slice.to_vec()).expect("could not read string");
+	// end is min(index+size, buffer len)
+	let end = if *index+size > buffer.len() {buffer.len()} else {*index+size};
+	let slice = &buffer[*index..end];
+	*index = end;
+	return String::from_utf8(slice.to_vec()).unwrap_or("⎣INVALID UTF8 STRING⎤".to_string());
 }
 
 pub fn read_slice(buffer: &[u8], index: &mut usize, size: usize) -> Vec<u8> {

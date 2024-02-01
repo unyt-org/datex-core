@@ -3,7 +3,7 @@ use crate::{utils::{buffers::{read_u8, read_u16, read_slice, read_u32, read_u64}
 
 // checks magic number
 pub fn has_dxb_magic_number(dxb:&[u8]) -> bool {
-	dxb[0] == 0x01 && dxb[1] == 0x64
+	dxb.len() >= 2 && dxb[0] == 0x01 && dxb[1] == 0x64
 }
 
 pub fn parse_dxb_header<'a>(dxb:&'a [u8]) -> (DXBHeader, &'a [u8]) {
