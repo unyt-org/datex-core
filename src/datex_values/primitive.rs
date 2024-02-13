@@ -46,6 +46,12 @@ impl fmt::Display for PrimitiveValue {
 
 fn escape_string(value:&String) -> String {
 	// TODO: \n only if formatted?
+
+	// TODO:
+	// name = Regex::new(r"[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u2000-\u200F\u2028-\u202F\u205F-\u206F\u3000\uFEFF\u{E0100}-\u{E01EF}]").
+	// 	unwrap().
+	// 	replace_all(&name, "").to_string();
+
 	value
 		.replace("\\", "\\\\")
 		.replace("\"", "\\\"")
@@ -54,7 +60,7 @@ fn escape_string(value:&String) -> String {
 		.replace("\t", "\\t")
 		.replace("\u{0008}", "\\b")
 		.replace("\u{000c}", "\\f")
-		.replace("\u{000b}", "\\v")
+		.replace("\u{001b}", "\\u001b")
 }
 
 impl Value for PrimitiveValue {
