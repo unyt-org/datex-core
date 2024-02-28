@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::fmt;
 
 use crate::global::binary_codes::BinaryCode;
-use crate::datex_values::{PrimitiveValue, SlotIdentifier, Type, Value, internal_slot, Quantity, Time, Pointer, Endpoint, Url};
+use crate::datex_values::{internal_slot, BaseUnit, Endpoint, Pointer, PrimitiveValue, Quantity, SlotIdentifier, Time, Type, Url, Value};
 use crate::utils::buffers;
 use gen_iter::gen_iter;
 use num_bigint::{BigUint, BigInt, Sign};
@@ -236,16 +236,19 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 				let den_buffer = buffers::read_slice(&dxb_body, index, den_size as usize);
 
 				let factor_count = buffers::read_u8(&dxb_body, index);
-				let mut unit:Vec<(u8, i8)> = Vec::new();
+				let mut unit:Vec<(BaseUnit, i8)> = Vec::new();
 				for _i in 0..factor_count {
 					let code = buffers::read_u8(&dxb_body, index);
+					// TODO: handle invalid enum values?
+					let code_as_base_unit = unsafe { ::std::mem::transmute(code) };
 					let exponent = buffers::read_i8(&dxb_body, index);
-					unit.push((code, exponent));
+					unit.push((code_as_base_unit, exponent));
 				}
 
 				let quantity = Quantity {
 					sign, 
 					unit,
+					short_divisor: BigUint::from(1u8),
 					numerator:BigUint::from_bytes_le(&num_buffer), 
 					denominator:BigUint::from_bytes_le(&den_buffer),
 				};
@@ -484,7 +487,7 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 			else if token == BinaryCode::STD_TYPE_VOID as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"void".to_string(), variation:None})), subscope_continue:false}
 			}
-			else if token == BinaryCode::STD_TYPE_UNIT as u8 {
+			else if token == BinaryCode::STD_TYPE_QUANTITY as u8 {
 				yield Instruction {code:BinaryCode::TYPE, slot: None, primitive_value: None, value:Some(Box::new(Type {namespace:"".to_string(), name:"quantity".to_string(), variation:None})), subscope_continue:false}
 			}
 			else if token == BinaryCode::STD_TYPE_URL as u8 {

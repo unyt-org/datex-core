@@ -22,7 +22,7 @@ pub enum BinaryCode {
 	STD_TYPE_VOID       = 0x15,
 	STD_TYPE_BUFFER     = 0x16,
 	STD_TYPE_CODE_BLOCK = 0x17,
-	STD_TYPE_UNIT       = 0x18,
+	STD_TYPE_QUANTITY       = 0x18,
 	STD_TYPE_TIME       = 0x19,
 	STD_TYPE_URL        = 0x1a,
 
