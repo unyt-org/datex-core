@@ -9,7 +9,7 @@ impl ComInterface for TCPClientInterface {
 	const GLOBAL: bool = true;
 	const VIRTUAL: bool = false;
 
-	fn send_block(&mut self, block: &[u8]) -> () {
+	fn send_block(&mut self, _block: &[u8]) -> () {
         todo!()
     }
 	

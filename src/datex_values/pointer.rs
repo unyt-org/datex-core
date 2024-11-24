@@ -1,5 +1,5 @@
 use std::fmt;
-use crate::{global::binary_codes::BinaryCode, utils::buffers::{buffer_to_hex, buffer_to_hex_advanced}};
+use crate::{global::binary_codes::BinaryCode, utils::buffers::{buffer_to_hex_advanced}};
 use super::{Value, ValueResult};
 
 pub struct Pointer {

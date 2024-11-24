@@ -14,7 +14,7 @@ pub fn execute(ctx: &LoggerContext, dxb:&[u8]) -> ValueResult {
 
 	// header?
 	if has_dxb_magic_number(dxb) {
-		let (header, _body) = header::parse_dxb_header(dxb);
+		let (_header, _body) = header::parse_dxb_header(dxb);
 		body = _body;
 	}
 
@@ -42,7 +42,7 @@ fn execute_loop(ctx: &LoggerContext, dxb_body:&[u8], index: &Cell<usize>, is_end
 		let code = instruction.code;
 
 
-		let slot = instruction.slot.unwrap_or_default();
+		let _slot = instruction.slot.unwrap_or_default();
 		let has_primitive_value = instruction.primitive_value.is_some();
 		let has_value = instruction.value.is_some();
 

@@ -40,7 +40,7 @@ pub fn decompile(ctx: &LoggerContext, dxb:&[u8], formatted:bool, colorized:bool,
 
 	// header?
 	if has_dxb_magic_number(dxb) {
-		let (header, _body) = header::parse_dxb_header(dxb);
+		let (_header, _body) = header::parse_dxb_header(dxb);
 		body = _body;
 	}
 

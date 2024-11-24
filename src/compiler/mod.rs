@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+
 
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
@@ -14,7 +14,7 @@ use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
 use crate::utils::buffers::append_i64;
 use crate::utils::buffers::append_i8;
-use crate::utils::buffers::append_string_utf8;
+
 use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 

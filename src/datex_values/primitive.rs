@@ -4,7 +4,7 @@ use std::fmt;
 use num_bigint::BigInt;
 use regex::Regex;
 use lazy_static::lazy_static;
-use wasm_bindgen::prelude::wasm_bindgen;
+
 
 use crate::global::binary_codes::BinaryCode;
 

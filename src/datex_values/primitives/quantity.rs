@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::{Div, Mul}};
+use std::{collections::HashMap, ops::{Div}};
 
 use num_bigint::{BigInt, BigUint, Sign};
 use num_integer::Integer;
@@ -161,7 +161,7 @@ impl Quantity {
     pub fn get_unit_string(&self) -> String {
         let mut formatted = String::new();
         let mut is_first = true;
-        let format_divisor = 1;
+        let _format_divisor = 1;
 
         for encoded in &self.unit {
             if is_first {
@@ -191,7 +191,7 @@ impl Quantity {
         UNIT_SYMBOLS.get(&base_unit).unwrap().to_string()
     }
 
-	fn has_finite_decimal_rep(mut denominator:&mut BigUint) -> bool {
+	fn has_finite_decimal_rep(denominator:&mut BigUint) -> bool {
         while denominator.mod_floor(&BigUint::from(2u8)).eq(&BigUint::from(0u8)) {
             *denominator /= BigUint::from(2u8);
         }

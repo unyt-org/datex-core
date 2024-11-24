@@ -11,11 +11,11 @@ impl Value for Error {
 		return format!("!{}", self.message);
     }
 
-    fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult {
+    fn binary_operation(&self, _code: BinaryCode, _other: Box<dyn Value>) -> ValueResult {
         todo!()
     }
 
-    fn cast(&self, dx_type: super::Type) -> ValueResult {
+    fn cast(&self, _dx_type: super::Type) -> ValueResult {
         todo!()
     }
 }

@@ -377,7 +377,7 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 			// pointer
 			else if token == BinaryCode::POINTER as u8 {
 				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
-				let flags = buffers::read_u8(&dxb_body, index); // TODO: flags
+				let _flags = buffers::read_u8(&dxb_body, index); // TODO: flags
 				_index.set(*index);
 				let pointer = Pointer::from_id(id);
 				yield Instruction {code:BinaryCode::POINTER, slot: None, primitive_value: None, value:Some(Box::new(pointer)), subscope_continue:false}
@@ -385,7 +385,7 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 
 			else if token == BinaryCode::SET_POINTER as u8 {
 				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
-				let flags = buffers::read_u8(&dxb_body, index); // TODO: flags
+				let _flags = buffers::read_u8(&dxb_body, index); // TODO: flags
 				_index.set(*index);
 				let pointer = Pointer::from_id(id);
 				yield Instruction {code:BinaryCode::SET_POINTER, slot: None, primitive_value: None, value:Some(Box::new(pointer)), subscope_continue:false}
@@ -393,7 +393,7 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 
 			else if token == BinaryCode::INIT_POINTER as u8 {
 				let id = buffers::read_slice(&dxb_body, index, Pointer::MAX_POINTER_ID_SIZE);
-				let flags = buffers::read_u8(&dxb_body, index); // TODO: flags
+				let _flags = buffers::read_u8(&dxb_body, index); // TODO: flags
 				let pointer = Pointer::from_id(id);
 				let init_block_length = buffers::read_u32(dxb_body, index);
 				_index.set(*index);
@@ -447,7 +447,7 @@ pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, i
 
 			// default
 			else if token == BinaryCode::DEFAULT as u8 {
-				let init_size = buffers::read_u32(&dxb_body, index);
+				let _init_size = buffers::read_u32(&dxb_body, index);
 				_index.set(*index);
 				yield Instruction {code:BinaryCode::DEFAULT, slot: None, primitive_value: None, value:None, subscope_continue:false}
 			}

@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::{utils::{buffers::{self, append_u8, append_u16, read_u8, read_string_utf8, read_slice, read_u16, buffer_to_hex, buffer_to_hex_advanced}, color::Color}};
+use crate::{utils::{buffers::{self, append_u8, append_u16, read_u8, read_slice, read_u16}, color::Color}};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EndpointType {

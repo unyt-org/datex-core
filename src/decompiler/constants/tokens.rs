@@ -1,6 +1,6 @@
 use crate::{global::binary_codes::BinaryCode, utils::color::Color};
 
-pub fn get_code_token(code: &BinaryCode, formatted:bool) -> String {
+pub fn get_code_token(code: &BinaryCode, _formatted:bool) -> String {
 	match code {
 		BinaryCode::EXIT => "exit".to_string(),
 		BinaryCode::CLOSE_AND_STORE => ";".to_string(),

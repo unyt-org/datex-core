@@ -1,6 +1,6 @@
 extern crate websocket;
 
-use std::{net::TcpStream, borrow::Cow, cell::{RefCell, Cell}, rc::Rc};
+use std::{net::TcpStream};
 
 use websocket::{ClientBuilder, Message, sync::{Client, stream::TlsStream}};
 

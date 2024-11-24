@@ -27,14 +27,14 @@ pub fn parse_dxb_header<'a>(dxb:&'a [u8]) -> (DXBHeader, &'a [u8]) {
 	let signed = signed_encrypted == 1 || signed_encrypted == 2; // is signed?
 	let encrypted = signed_encrypted == 2 || signed_encrypted == 3; // is encrypted?
 	let sender = get_dxb_header_sender(dxb, index);
-	let receivers = get_dxb_header_receivers(dxb, index);
+	let _receivers = get_dxb_header_receivers(dxb, index);
 
 	// block header
 	let scope_id = read_u32(dxb, index);
 	let block_index = read_u16(dxb, index);
 	let block_increment = read_u16(dxb, index);
 	let block_type = DXBBlockType::try_from(read_u8(dxb, index)).expect("Invalid DXB block type");
-	let flags = read_u8(dxb, index); // TODO: parse
+	let _flags = read_u8(dxb, index); // TODO: parse
 	let timestamp = read_u64(dxb, index);
 
 

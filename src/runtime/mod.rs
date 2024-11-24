@@ -1,4 +1,4 @@
-use crate::{utils::{logger::{LoggerContext, self, Logger}, crypto::Crypto, rust_crypto::RustCrypto}, datex_values::ValueResult};
+use crate::{utils::{logger::{LoggerContext, Logger}, crypto::Crypto, rust_crypto::RustCrypto}, datex_values::ValueResult};
 
 mod stack;
 mod execution;
@@ -9,7 +9,7 @@ use self::{execution::execute, memory::Memory};
 
 
 pub struct Runtime<'a> {
-    pub version: i8,
+    pub version: String,
 	pub ctx: &'a LoggerContext,
 	pub crypto: &'a dyn Crypto,
 	pub memory: Memory
