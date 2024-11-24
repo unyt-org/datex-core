@@ -1,22 +1,18 @@
 # DATEX Core
 
+[![Twitter badge][]][Twitter link] [![Discord badge][]][Discord link]
+
+<img align="right" src="./assets/datex-logo-light.svg" height="150px">
+
 This repository contains a full DATEX Runtime & Compiler/Decompiler, written in Rust.
 
-## Building
+## Contributing
 
-Required rust version: nightly-2022-12-12
-Required for generators feature (renamed to coroutines in newer nightly versions, but not yet updated in gen-iter)
+We welcome every contribution!<br>
+Please take a look at the [development guidelines](./DEVELOP.md) and the unyt.org [contribution guidlines](https://github.com/unyt-org/.github/blob/main/CONTRIBUTING.md).
 
 
-```
-rustup install nightly-2022-12-12
-rustup default nightly-2022-12-12
-```
-
-## Testing
-
-The integration tests in the test/ directory can be run with `cargo test -- --show-output`
-
-```
-cargo test --package datex-core --test compiler -- compile_literals --exact --nocapture 
-```
+[Twitter badge]: https://img.shields.io/twitter/follow/unytorg.svg?style=social&label=Follow
+[Twitter link]: https://twitter.com/intent/follow?screen_name=unytorg
+[Discord badge]: https://img.shields.io/discord/928247036770390016?logo=discord&style=social
+[Discord link]: https://unyt.org/discord
