@@ -6,6 +6,7 @@ mod memory;
 
 use self::{execution::execute, memory::Memory};
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 
 pub struct Runtime<'a> {
@@ -21,7 +22,7 @@ impl Runtime<'_> {
 		let logger = Logger::new_for_development(&ctx, "DATEX");
     	logger.success("initialized!");
 		return Runtime { 
-			version: 1,
+			version: VERSION.to_string(),
 			crypto, 
 			ctx, 
 			memory: Memory::new() 
@@ -30,7 +31,7 @@ impl Runtime<'_> {
 
 	pub fn new() -> Runtime<'static> {
 		return Runtime { 
-			version: 1, 
+			version: VERSION.to_string(), 
 			crypto: &RustCrypto{},
 			ctx: &LoggerContext { log_redirect: None},
 			memory: Memory::new() 

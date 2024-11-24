@@ -1,5 +1,5 @@
-#![feature(generator_trait)]
-#![feature(generators)]
+#![feature(coroutines)]
+#![feature(iter_from_coroutine)]
 // #![feature(anonymous_lifetime_in_impl_trait)]
 
 #[macro_use]

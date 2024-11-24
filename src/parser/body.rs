@@ -4,7 +4,6 @@ use std::fmt;
 use crate::global::binary_codes::BinaryCode;
 use crate::datex_values::{internal_slot, BaseUnit, Endpoint, Pointer, PrimitiveValue, Quantity, SlotIdentifier, Time, Type, Url, Value};
 use crate::utils::buffers;
-use gen_iter::gen_iter;
 use num_bigint::{BigUint, BigInt, Sign};
 
 
@@ -126,7 +125,7 @@ fn extract_endpoint(dxb_body:&[u8], index: &mut usize, endpoint_type:BinaryCode)
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(dxb_body:&'a[u8], mut _index: &'a Cell<usize>, is_end_instruction: &'a Cell<bool>) -> impl Iterator<Item = Instruction>  + 'a {
 
-	return gen_iter!(move {
+	return std::iter::from_coroutine(#[coroutine] move || {
 
 		let max = dxb_body.len();
 

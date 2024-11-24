@@ -1,12 +1,10 @@
 ## Building
 
-Required rust version: nightly-2022-12-12
-Required for generators feature (renamed to coroutines in newer nightly versions, but not yet updated in gen-iter)
+Rust nightly is required for coroutines.
 
-
-```
-rustup install nightly-2022-12-12
-rustup default nightly-2022-12-12
+```sh
+rustup install nightly
+rustup default nightly
 ```
 
 ## Testing
