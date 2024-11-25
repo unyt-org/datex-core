@@ -1,3 +1,5 @@
+use std::env;
+
 use datex_core::{runtime::Runtime, utils::{logger::LoggerContext, buffers::{buffer_to_hex, hex_to_buffer, hex_to_buffer_advanced}, crypto::Crypto}};
 
 
@@ -7,7 +9,7 @@ use datex_core::{runtime::Runtime, utils::{logger::LoggerContext, buffers::{buff
 #[test]
 pub fn init_runtime() {
     let runtime = Runtime::new();
-    assert_eq!(runtime.version, 1);
+    assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
 }
 
 
