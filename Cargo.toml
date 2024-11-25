@@ -1,8 +1,12 @@
 [package]
 name = "datex-core"
 version = "0.0.1"
+description = "The DATEX Core Rust implementation"
 authors = ["Benedikt Strehle <benedikt@unyt.org>"]
 edition = "2021"
+license = "MIT"
+license-file = "LICENSE"
+
 
 [lib]
 crate-type = ["cdylib", "rlib"]
