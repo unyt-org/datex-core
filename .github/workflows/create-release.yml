@@ -1,0 +1,55 @@
+name: Create release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Select the type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  version_bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Bump version using Deno
+        run: deno run --allow-read --allow-write update_version.ts ${{ inputs.bump_type }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create a new branch
+        env:
+            NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
+        run: |
+          NEW_BRANCH="release/${NEW_VERSION}"
+          git checkout -b $NEW_BRANCH
+          git add Cargo.toml
+          git commit -m "Bump version to ${NEW_VERSION} by GitHub Actions"
+          git push origin $NEW_BRANCH
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        env:
+            NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Bump version to ${{ env.NEW_VERSION }}"
+          title: "Release (${{ env.NEW_VERSION }})"
+          body: "This PR bumps the Cargo.toml version to ${{ env.NEW_VERSION }}."
+          branch: "release/${{ env.NEW_VERSION }}"
