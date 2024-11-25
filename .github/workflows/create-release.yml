@@ -26,6 +26,7 @@ jobs:
           deno-version: v2.x
 
       - name: Bump version using Deno
+        id: bump_version
         run: deno run -A .github/tools/create-release.ts ${{ inputs.bump_type }}
 
       - name: Configure Git
@@ -35,7 +36,7 @@ jobs:
 
       - name: Create a new branch
         env:
-            NEW_VERSION: ${{ steps.version_bump.outputs.NEW_VERSION }}
+            NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
         run: |
           NEW_BRANCH="release/$NEW_VERSION"
           git checkout -b $NEW_BRANCH
@@ -46,7 +47,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         env:
-            NEW_VERSION: ${{ steps.version_bump.outputs.NEW_VERSION }}
+            NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Bump version to ${{ env.NEW_VERSION }}"
