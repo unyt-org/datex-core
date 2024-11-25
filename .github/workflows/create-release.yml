@@ -29,10 +29,10 @@ jobs:
         id: bump_version
         run: deno run -A .github/tools/create-release.ts ${{ inputs.bump_type }}
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      # - name: Configure Git
+      #   run: |
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
