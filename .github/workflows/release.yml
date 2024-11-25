@@ -39,3 +39,4 @@ jobs:
                 title: "Release version ${{ env.version }}"
                 body: "This PR updates the project to version ${{ env.version }}."
                 branch: "release-v${{ env.version }}"
+                draft: true
