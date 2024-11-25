@@ -7,12 +7,33 @@ jobs:
         runs-on: ubuntu-latest
         name: Release
         steps:
-            - uses: actions/checkout@v3
-            - uses: actions-rs/toolchain@v1
+            - name: Extract version from Cargo.toml
+              id: get_version
+              run: |
+                VERSION=$(grep -E '^version\s*=\s*".*"' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+                echo "Version found: $VERSION"
+                echo "version=$VERSION" >> $GITHUB_ENV
+
+            - name: Create Tag
+              id: create_tag
+              run: |
+                git config user.name "github-actions"
+                git config user.email "github-actions@github.com"
+                git tag "v${{ env.version }}"
+                git push origin "v${{ env.version }}"
+
+            - name: Generate Release Notes
+              uses: ncipollo/release-action@v1
               with:
-                  toolchain: nightly
-                  override: true
-            - uses: katyo/publish-crates@v2
+                token: ${{ secrets.GITHUB_TOKEN }}
+                tag: "v${{ env.version }}"
+                generateReleaseNotes: true
+
+            - name: Create Pull Request
+              uses: peter-evans/create-pull-request@v5
               with:
-                  registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      
+                token: ${{ secrets.GITHUB_TOKEN }}
+                commit-message: "Release version ${{ env.version }}"
+                title: "Release version ${{ env.version }}"
+                body: "This PR updates the project to version ${{ env.version }}."
+                branch: "release-v${{ env.version }}"
