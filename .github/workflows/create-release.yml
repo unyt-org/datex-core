@@ -55,4 +55,3 @@ jobs:
           commit-message: "Bump version to ${{ env.NEW_VERSION }}"
           title: "Release (${{ env.NEW_VERSION }})"
           body: "This PR bumps the Cargo.toml version to ${{ env.NEW_VERSION }}."
-          branch: "release/${{ env.NEW_VERSION }}"
