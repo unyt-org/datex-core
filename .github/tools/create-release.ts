@@ -44,6 +44,6 @@ const updatedCargoToml = cargoToml.replace(
     `version = "${newVersion}"`,
 );
 await Deno.writeTextFile(cargoTomlPath, updatedCargoToml);
-await Deno.writeTextFile(ghOutput, `NEW_VERSION=${newVersion}`);
+await Deno.writeTextFile(ghOutput, `NEW_VERSION=${newVersion}`, { append: true });
 
 console.log(`Version updated to ${newVersion}`, ghOutput);
