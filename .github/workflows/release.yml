@@ -30,13 +30,4 @@ jobs:
                 token: ${{ secrets.GITHUB_TOKEN }}
                 tag: "v${{ env.version }}"
                 generateReleaseNotes: true
-
-            - name: Create Pull Request
-              uses: peter-evans/create-pull-request@v5
-              with:
-                token: ${{ secrets.GITHUB_TOKEN }}
-                commit-message: "Release version ${{ env.version }}"
-                title: "Release version ${{ env.version }}"
-                body: "This PR updates the project to version ${{ env.version }}."
-                branch: "release-v${{ env.version }}"
                 draft: true
