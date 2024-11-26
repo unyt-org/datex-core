@@ -4,13 +4,14 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
-        name: Release
+        name: Test
         steps:
             - uses: actions/checkout@v4
 
             - uses: actions-rs/toolchain@v1
               with:
                 toolchain: nightly
+                override: true
 
             - name: Run tests
               run: |
@@ -21,12 +22,11 @@ jobs:
               uses: innoq/action-cargo-test-report@v1
               with: 
                 cargo-test-report-json: 'results.json'
-            
+
             - name: Publish Test Report
               uses: mikepenz/action-junit-report@main
               if: always()
               with:
-                check_name: Test Report
                 fail_on_failure: true
                 require_tests: true
                 summary: ${{ steps.cargo_reporter.outputs.summary }}
