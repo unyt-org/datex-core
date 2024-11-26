@@ -22,6 +22,9 @@ jobs:
               with: 
                 cargo-test-report-json: 'results.json'
             
+            - name: print report
+              run: cat junit-reports/TEST-all.xml
+            
             - name: Publish Test Report
               uses: mikepenz/action-junit-report@main
               if: always()
