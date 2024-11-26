@@ -2,7 +2,7 @@
 
 [![Twitter badge][]][Twitter link] [![Discord badge][]][Discord link]
 
-<img align="right" src="./assets/datex-logo-light.svg" height="150px">
+<img align="right" src="./.github/assets/datex-logo-light.svg" height="150px">
 
 This repository contains a full DATEX Runtime & Compiler/Decompiler, written in Rust.
 
