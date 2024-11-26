@@ -13,3 +13,7 @@ This document describes the process of releasing a new version of the Datex Core
 	```
 3. Create a Pull Request to merge the branch into the release branch when ready
 4. When all features are merged into the release branch, close the Pull Request to merge the release branch into the main branch. 
+5. A new draft release will be created in the Github repository. 
+ * Review the release notes and make any necessary changes
+ * Publish the release
+ * A crates.io release will automatically be published
