@@ -6,7 +6,7 @@ jobs:
         runs-on: ubuntu-latest
         name: Release
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
 
             - uses: actions-rs/toolchain@v1
               with:
@@ -18,7 +18,7 @@ jobs:
             
             - name: Prepare junit report
               id: cargo_reporter 
-              uses:  innoq/action-cargo-test-report
+              uses: innoq/action-cargo-test-report@v1
               with: 
                 cargo-test-report-json: 'results.json'
             
