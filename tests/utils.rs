@@ -40,11 +40,3 @@ pub fn hex_to_buffer_tests() {
     assert_eq!(hex_to_buffer_advanced("AABB1122".to_string(), ""),vec![0xAA,0xBB,0x11,0x22] );
 
 }
-
-/**
- * demo test that fails
- */
-#[test]
-pub fn failing_test() {
-    assert_eq!(1,2);
-}
