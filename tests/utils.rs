@@ -46,5 +46,5 @@ pub fn hex_to_buffer_tests() {
  */
 #[test]
 pub fn failing_test() {
-    assert_eq!(1,2);
+    assert_eq!(1,3);
 }
