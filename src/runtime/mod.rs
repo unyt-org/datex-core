@@ -1,12 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    datex_values::ValueResult,
-    utils::{
+    datex_values::ValueResult, network::com_hub::ComHub, utils::{
         crypto::Crypto,
         logger::{Logger, LoggerContext},
         rust_crypto::RustCrypto,
-    },
+    }
 };
 
 mod execution;
@@ -22,6 +21,7 @@ pub struct Runtime<'a> {
     pub ctx: &'a LoggerContext,
     pub crypto: &'a dyn Crypto,
     pub memory: Rc<RefCell<Memory>>,
+    pub com_hub: ComHub,
 }
 
 impl Runtime<'_> {
@@ -36,16 +36,15 @@ impl Runtime<'_> {
             crypto,
             ctx,
             memory: Rc::new(RefCell::new(Memory::new())),
+            com_hub: ComHub::new(),
         };
     }
 
     pub fn new() -> Runtime<'static> {
-        return Runtime {
-            version: VERSION.to_string(),
-            crypto: &RustCrypto {},
-            ctx: &LoggerContext { log_redirect: None },
-            memory: Rc::new(RefCell::new(Memory::new())),
-        };
+        return Runtime::new_with_crypto_and_logger(
+            &RustCrypto {},
+            &LoggerContext { log_redirect: None },
+        );
     }
 
     pub fn execute(&self, dxb: &[u8]) -> ValueResult {
