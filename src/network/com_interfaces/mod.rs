@@ -1,7 +1,7 @@
-pub mod com_interface;
-pub mod com_interface_socket;
 pub mod com_hub;
+pub mod com_interface;
 mod com_interface_properties;
+pub mod com_interface_socket;
 
 #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
 pub mod default_com_interfaces;

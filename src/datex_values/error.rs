@@ -1,14 +1,14 @@
-use std::fmt;
-use crate::global::binary_codes::BinaryCode;
 use super::{Value, ValueResult};
+use crate::global::binary_codes::BinaryCode;
+use std::fmt;
 
 pub struct Error {
-	pub message: String
+    pub message: String,
 }
 
 impl Value for Error {
     fn to_string(&self) -> String {
-		return format!("!{}", self.message);
+        return format!("!{}", self.message);
     }
 
     fn binary_operation(&self, _code: BinaryCode, _other: Box<dyn Value>) -> ValueResult {

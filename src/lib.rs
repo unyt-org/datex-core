@@ -8,11 +8,11 @@ extern crate mopa;
 extern crate num_integer;
 
 pub mod compiler;
-pub mod decompiler;
-pub mod runtime;
-pub mod parser;
-pub mod global;
-pub mod utils;
 pub mod datex_values;
+pub mod decompiler;
 pub mod generator;
+pub mod global;
 pub mod network;
+pub mod parser;
+pub mod runtime;
+pub mod utils;

@@ -1,7 +1,13 @@
 use std::env;
 
-use datex_core::{runtime::Runtime, utils::{logger::LoggerContext, buffers::{buffer_to_hex, hex_to_buffer, hex_to_buffer_advanced}, crypto::Crypto}};
-
+use datex_core::{
+    runtime::Runtime,
+    utils::{
+        buffers::{buffer_to_hex, hex_to_buffer, hex_to_buffer_advanced},
+        crypto::Crypto,
+        logger::LoggerContext,
+    },
+};
 
 /**
  * test if the DATEX Runtime is initialized correctly
@@ -12,13 +18,12 @@ pub fn init_runtime() {
     assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
 }
 
-
 /**
  * test if a DXB block is executed correctly in the Runtime
  */
 #[test]
 pub fn execute_block() {
-    assert_eq!(1,1)
+    assert_eq!(1, 1)
     // let runtime = Runtime::new();
     // let dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 02".to_string(), " ");
     // runtime.execute(&dxb)

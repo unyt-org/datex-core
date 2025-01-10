@@ -5,10 +5,10 @@ use crate::global::binary_codes::BinaryCode;
 use super::{Error, Type};
 
 pub trait Value: mopa::Any {
-	fn to_string(&self) -> String;
+    fn to_string(&self) -> String;
 
-	fn cast(&self, dx_type: Type) -> ValueResult;
-	fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult;
+    fn cast(&self, dx_type: Type) -> ValueResult;
+    fn binary_operation(&self, code: BinaryCode, other: Box<dyn Value>) -> ValueResult;
 }
 
 impl fmt::Display for dyn Value {
