@@ -4,7 +4,9 @@ use std::{net::TcpStream};
 
 use websocket::{ClientBuilder, Message, sync::{Client, stream::TlsStream}};
 
-use crate::network::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface_properties::{InterfaceDirection, InterfaceProperties};
+
+use super::super::com_interface::ComInterface;
 
 
 type WSSClient = Client<TlsStream<TcpStream>>;
@@ -31,15 +33,22 @@ impl WebSocketClientInterface {
 }
 
 impl ComInterface for WebSocketClientInterface {
-    const NAME: &'static str = "ws_client";
-    const IN: bool = true;
-    const OUT: bool = true;
-	const GLOBAL: bool = true;
-	const VIRTUAL: bool = false;
 
 	fn send_block(&mut self, block: &[u8]) -> () {
 		let message = Message::binary(block);
 		self.client.send_message(&message).unwrap();
     }
 	
+	fn get_properties() -> InterfaceProperties {
+		InterfaceProperties {
+			channel: "websocket".to_string(),
+			name: None,
+			direction: InterfaceDirection::IN_OUT,
+			reconnect_interval: None,
+			latency: 0,
+			bandwidth: 1000,
+			continuous_connection: true,
+			allow_redirects: true
+		}
+	}
 }

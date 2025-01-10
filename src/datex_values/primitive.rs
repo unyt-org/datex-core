@@ -11,6 +11,7 @@ use crate::global::binary_codes::BinaryCode;
 use super::{Value, Error, ValueResult, Quantity, Endpoint, primitives::time::Time, Url};
 
 #[derive(Clone)]
+// Native values (array, object)
 pub enum PrimitiveValue {
 	Int8(i8),
 	Uint8(u8),

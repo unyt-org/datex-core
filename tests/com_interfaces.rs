@@ -1,4 +1,4 @@
-use datex_core::{network::{default_com_interfaces::{tcp_client::TCPClientInterface, websocket_client::WebSocketClientInterface}, com_interface::ComInterface}, utils::buffers::hex_to_buffer_advanced, datex_values::Endpoint, global::dxb_block::{RoutingInfo, HeaderFlags, DXBBlockType, DXBHeader}, parser::header::parse_dxb_header, generator::header::append_dxb_header, runtime::Runtime};
+use datex_core::{datex_values::Endpoint, generator::header::append_dxb_header, global::dxb_block::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo}, network::com_interfaces::{com_interface::ComInterface, default_com_interfaces::{tcp_client::TCPClientInterface, websocket_client::WebSocketClientInterface}}, parser::header::parse_dxb_header, runtime::Runtime, utils::buffers::hex_to_buffer_advanced};
 
 #[test]
 pub fn tcp_client_interface() {
