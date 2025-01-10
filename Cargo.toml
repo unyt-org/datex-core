@@ -26,7 +26,8 @@ pest = "2.6"
 pest_derive = "2.6"
 pad = "0.1"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))'.dependencies]
 websocket = "0.24.0"
 
 [profile.release]
