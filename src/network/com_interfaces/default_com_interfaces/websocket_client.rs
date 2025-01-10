@@ -7,8 +7,12 @@ use websocket::{
     ClientBuilder, Message,
 };
 
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
+use crate::network::{
+    com_hub::ComHub,
+    com_interfaces::{
+        com_interface::ComInterfaceHandler,
+        com_interface_properties::{InterfaceDirection, InterfaceProperties},
+    },
 };
 
 use super::super::com_interface::ComInterface;
@@ -17,10 +21,11 @@ type WSSClient = Client<TlsStream<TcpStream>>;
 
 pub struct WebSocketClientInterface {
     client: WSSClient,
+    handler: ComInterfaceHandler,
 }
 
 impl WebSocketClientInterface {
-    pub fn new(address: &str) -> WebSocketClientInterface {
+    pub fn new(handler: ComInterfaceHandler, address: &str) -> WebSocketClientInterface {
         let client = ClientBuilder::new(address)
             .unwrap()
             .connect_secure(None)
@@ -30,7 +35,10 @@ impl WebSocketClientInterface {
         // 	println!("Recv: {:?}", message.unwrap());
         // }
 
-        return WebSocketClientInterface { client: client };
+        return WebSocketClientInterface {
+            handler,
+            client: client,
+        };
     }
 }
 
@@ -51,5 +59,9 @@ impl ComInterface for WebSocketClientInterface {
             continuous_connection: true,
             allow_redirects: true,
         }
+    }
+
+    fn get_com_interface_handler(&self) -> &ComInterfaceHandler {
+        &self.handler
     }
 }

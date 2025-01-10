@@ -1,7 +1,10 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use super::com_interfaces::{
+    com_interface::{ComInterface, ComInterfaceTrait},
+    com_interface_socket::ComInterfaceSocket,
+};
 use crate::datex_values::Endpoint;
-use super::com_interfaces::{com_interface::{ComInterface, ComInterfaceTrait}, com_interface_socket::ComInterfaceSocket};
 
 struct DynamicEndpointProperties {
     known_since: u64,
@@ -15,11 +18,11 @@ pub struct ComHub {
 use std::collections::HashSet;
 
 impl ComHub {
-    pub fn new() -> ComHub {
-        return ComHub {
+    pub fn new() -> Rc<RefCell<ComHub>> {
+        return Rc::new(RefCell::new(ComHub {
             interfaces: HashSet::new(),
             endpoint_sockets: HashMap::new(),
-        };
+        }));
     }
 
     pub fn add_interface(&mut self, interface: ComInterfaceTrait) -> bool {
@@ -30,6 +33,9 @@ impl ComHub {
         self.interfaces.remove(&interface)
     }
 
+    pub(crate) fn receive_block(&mut self, block: &[u8]) {
+        todo!()
+    }
     /*/
     fn iterate_endpoint_sockets(&self) -> Vec<ComInterfaceSocket> {
 
