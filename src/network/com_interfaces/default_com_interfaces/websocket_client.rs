@@ -7,7 +7,10 @@ use websocket::{
     ClientBuilder, Message,
 };
 
-use crate::network::com_interfaces::{com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket};
+use crate::network::com_interfaces::{
+    com_interface_properties::{InterfaceDirection, InterfaceProperties},
+    com_interface_socket::ComInterfaceSocket,
+};
 
 use super::super::com_interface::ComInterface;
 
@@ -25,12 +28,10 @@ impl WebSocketClientInterface {
             .unwrap();
 
         for message in client.incoming_messages() {
-        	println!("Recv: {:?}", message.unwrap());
+            println!("Recv: {:?}", message.unwrap());
         }
-        
-        return WebSocketClientInterface {
-            client
-        };
+
+        return WebSocketClientInterface { client };
     }
 }
 
@@ -52,8 +53,11 @@ impl ComInterface for WebSocketClientInterface {
             allow_redirects: true,
         }
     }
-    
-    fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
+
+    fn get_receive_queue(
+        &mut self,
+        socket: ComInterfaceSocket,
+    ) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
         todo!()
     }
 }

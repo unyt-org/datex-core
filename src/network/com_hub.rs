@@ -1,5 +1,5 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use std::collections::HashSet;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::com_interfaces::{
     com_interface::{ComInterface, ComInterfaceTrait},
@@ -40,16 +40,12 @@ impl ComHub {
     pub fn receive_slice(&mut self, slice: &[u8], socket: &ComInterfaceSocket) {
         self.receive_block(slice, socket);
     }
-    
+
     /*/
     fn iterate_endpoint_sockets(&self) -> Vec<ComInterfaceSocket> {
 
     }
     */
 
-    pub fn receive_queue(&mut self) {
-        
-    }
-
-
+    pub fn receive_queue(&mut self) {}
 }

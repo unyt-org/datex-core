@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex}};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use crate::datex_values::Endpoint;
 
@@ -22,9 +25,8 @@ impl ComInterfaceSocket {
             connection_timestamp: 0,
         }
     }
-    
+
     pub fn get_receive_queue(&self) -> Option<Arc<Mutex<VecDeque<u8>>>> {
         None
     }
-
 }

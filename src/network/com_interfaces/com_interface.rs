@@ -1,12 +1,22 @@
 use std::{
-    cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, rc::Rc, sync::{Arc, Mutex}
+    cell::RefCell,
+    collections::VecDeque,
+    hash::{Hash, Hasher},
+    rc::Rc,
+    sync::{Arc, Mutex},
 };
 
-use super::{com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket};
+use super::{
+    com_interface_properties::{InterfaceDirection, InterfaceProperties},
+    com_interface_socket::ComInterfaceSocket,
+};
 
 pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) -> ();
-    fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<Arc<Mutex<VecDeque<u8>>>> {
+    fn get_receive_queue(
+        &mut self,
+        socket: ComInterfaceSocket,
+    ) -> Option<Arc<Mutex<VecDeque<u8>>>> {
         socket.get_receive_queue()
     }
     fn get_properties(&self) -> InterfaceProperties;
@@ -32,7 +42,10 @@ impl ComInterfaceTrait {
         interface_mut.send_block(block, socket);
     }
 
-    pub fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<Arc<Mutex<VecDeque<u8>>>> {
+    pub fn get_receive_queue(
+        &mut self,
+        socket: ComInterfaceSocket,
+    ) -> Option<Arc<Mutex<VecDeque<u8>>>> {
         let interface = &mut self.interface;
         let mut interface_mut = interface.borrow_mut();
         interface_mut.get_receive_queue(socket)
@@ -49,7 +62,6 @@ impl ComInterfaceTrait {
         let interface_ref = interface.borrow();
         interface_ref.get_sockets()
     }
-
 
     pub fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
         let interface = &self.interface.borrow();
@@ -70,7 +82,6 @@ impl ComInterfaceTrait {
         return properties.direction == InterfaceDirection::IN
             || properties.direction == InterfaceDirection::IN_OUT;
     }
-
 }
 
 impl PartialEq for ComInterfaceTrait {
