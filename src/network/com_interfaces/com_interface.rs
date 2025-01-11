@@ -1,37 +1,76 @@
-use crate::network::com_hub::ComHub;
 use std::{
-    cell::RefCell, hash::{Hash, Hasher}, rc::Rc
+    cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, rc::Rc, sync::{Arc, Mutex}
 };
 
-use super::com_interface_properties::InterfaceProperties;
+use super::{com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket};
 
 pub trait ComInterface {
-    fn send_block(&mut self, block: &[u8]) -> ();
-    fn get_properties(&self) -> InterfaceProperties;
-    fn get_com_interface_handler(&self) -> &ComInterfaceHandler;
-}
-
-pub struct ComInterfaceHandler {
-    pub com_hub: Rc<RefCell<ComHub>>,
-}
-impl ComInterfaceHandler {
-    pub fn new(com_hub: Rc<RefCell<ComHub>>) -> Self {
-        ComInterfaceHandler { com_hub }
+    fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) -> ();
+    fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<Arc<Mutex<VecDeque<u8>>>> {
+        socket.get_receive_queue()
     }
-    fn receive_block(&mut self, block: &[u8]) {
-        self.com_hub.borrow_mut().receive_block(block);
+    fn get_properties(&self) -> InterfaceProperties;
+
+    fn get_sockets(&self) -> Vec<ComInterfaceSocket> {
+        vec![]
     }
 }
 
 #[derive(Clone)]
 pub struct ComInterfaceTrait {
-    pub interface: Rc<dyn ComInterface>,
+    pub interface: Rc<RefCell<dyn ComInterface>>,
 }
 
 impl ComInterfaceTrait {
-    pub fn new(inner: Rc<dyn ComInterface>) -> Self {
+    pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
         ComInterfaceTrait { interface: inner }
     }
+
+    pub fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) {
+        let interface = &mut self.interface;
+        let mut interface_mut = interface.borrow_mut();
+        interface_mut.send_block(block, socket);
+    }
+
+    pub fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<Arc<Mutex<VecDeque<u8>>>> {
+        let interface = &mut self.interface;
+        let mut interface_mut = interface.borrow_mut();
+        interface_mut.get_receive_queue(socket)
+    }
+
+    pub fn get_properties(&self) -> InterfaceProperties {
+        let interface = &self.interface;
+        let interface_ref = interface.borrow();
+        interface_ref.get_properties()
+    }
+
+    pub fn get_sockets(&self) -> Vec<ComInterfaceSocket> {
+        let interface = &self.interface;
+        let interface_ref = interface.borrow();
+        interface_ref.get_sockets()
+    }
+
+
+    pub fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
+        let interface = &self.interface.borrow();
+        let properties = interface.get_properties();
+        return properties.bandwidth / properties.latency;
+    }
+
+    pub fn can_send(&self, socket: ComInterfaceSocket) -> bool {
+        let interface = &self.interface.borrow();
+        let properties = interface.get_properties();
+        return properties.direction == InterfaceDirection::OUT
+            || properties.direction == InterfaceDirection::IN_OUT;
+    }
+
+    pub fn can_receive(&self, socket: ComInterfaceSocket) -> bool {
+        let interface = &self.interface.borrow();
+        let properties = interface.get_properties();
+        return properties.direction == InterfaceDirection::IN
+            || properties.direction == InterfaceDirection::IN_OUT;
+    }
+
 }
 
 impl PartialEq for ComInterfaceTrait {

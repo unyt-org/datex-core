@@ -1,13 +1,12 @@
-use crate::network::com_interfaces::com_interface::ComInterfaceHandler;
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use super::super::com_interface::ComInterface;
 
 pub struct TCPClientInterface {
-    handler: ComInterfaceHandler,
 }
 
 impl ComInterface for TCPClientInterface {
-    fn send_block(&mut self, _block: &[u8]) -> () {
+    fn send_block(&mut self, _block: &[u8], socket: ComInterfaceSocket) -> () {
         todo!()
     }
 
@@ -16,8 +15,9 @@ impl ComInterface for TCPClientInterface {
     ) -> crate::network::com_interfaces::com_interface_properties::InterfaceProperties {
         todo!()
     }
-
-    fn get_com_interface_handler(&self) -> &ComInterfaceHandler {
-        &self.handler
+    
+    fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
+        todo!()
     }
+
 }

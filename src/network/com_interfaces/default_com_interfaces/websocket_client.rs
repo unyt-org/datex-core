@@ -7,13 +7,7 @@ use websocket::{
     ClientBuilder, Message,
 };
 
-use crate::network::{
-    com_hub::ComHub,
-    com_interfaces::{
-        com_interface::ComInterfaceHandler,
-        com_interface_properties::{InterfaceDirection, InterfaceProperties},
-    },
-};
+use crate::network::com_interfaces::{com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket};
 
 use super::super::com_interface::ComInterface;
 
@@ -21,29 +15,27 @@ type WSSClient = Client<TlsStream<TcpStream>>;
 
 pub struct WebSocketClientInterface {
     client: WSSClient,
-    handler: ComInterfaceHandler,
 }
 
 impl WebSocketClientInterface {
-    pub fn new(handler: ComInterfaceHandler, address: &str) -> WebSocketClientInterface {
-        let client = ClientBuilder::new(address)
+    pub fn new(address: &str) -> WebSocketClientInterface {
+        let mut client = ClientBuilder::new(address)
             .unwrap()
             .connect_secure(None)
             .unwrap();
 
-        // for message in client.incoming_messages() {
-        // 	println!("Recv: {:?}", message.unwrap());
-        // }
-
+        for message in client.incoming_messages() {
+        	println!("Recv: {:?}", message.unwrap());
+        }
+        
         return WebSocketClientInterface {
-            handler,
-            client: client,
+            client
         };
     }
 }
 
 impl ComInterface for WebSocketClientInterface {
-    fn send_block(&mut self, block: &[u8]) -> () {
+    fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) -> () {
         let message = Message::binary(block);
         self.client.send_message(&message).unwrap();
     }
@@ -60,8 +52,8 @@ impl ComInterface for WebSocketClientInterface {
             allow_redirects: true,
         }
     }
-
-    fn get_com_interface_handler(&self) -> &ComInterfaceHandler {
-        &self.handler
+    
+    fn get_receive_queue(&mut self, socket: ComInterfaceSocket) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
+        todo!()
     }
 }
