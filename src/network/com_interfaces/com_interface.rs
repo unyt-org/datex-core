@@ -16,7 +16,7 @@ pub trait ComInterface {
     fn get_receive_queue(
         &mut self,
         socket: ComInterfaceSocket,
-    ) -> Option<Arc<Mutex<VecDeque<u8>>>> {
+    ) -> Arc<Mutex<VecDeque<u8>>> {
         socket.get_receive_queue()
     }
     fn get_properties(&self) -> InterfaceProperties;
@@ -45,7 +45,7 @@ impl ComInterfaceTrait {
     pub fn get_receive_queue(
         &mut self,
         socket: ComInterfaceSocket,
-    ) -> Option<Arc<Mutex<VecDeque<u8>>>> {
+    ) -> Arc<Mutex<VecDeque<u8>>> {
         let interface = &mut self.interface;
         let mut interface_mut = interface.borrow_mut();
         interface_mut.get_receive_queue(socket)

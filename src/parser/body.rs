@@ -6,6 +6,7 @@ use crate::datex_values::{
     Type, Url, Value,
 };
 use crate::global::binary_codes::BinaryCode;
+use crate::global::dxb_block::DXBHeader;
 use crate::utils::buffers;
 use num_bigint::{BigInt, BigUint, Sign};
 
@@ -128,6 +129,13 @@ fn extract_endpoint(dxb_body: &[u8], index: &mut usize, endpoint_type: BinaryCod
         Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE)
     };
 }
+
+
+pub fn extract_body(header: DXBHeader, dxb: &[u8]) -> &[u8] {
+    let start = header.body_start_offset;
+    return &dxb[start..];
+}
+
 
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(

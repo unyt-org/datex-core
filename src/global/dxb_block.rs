@@ -2,8 +2,10 @@ use num_enum::TryFromPrimitive;
 
 use crate::datex_values::Endpoint;
 
+#[derive(Debug)]
 pub struct DXBBlock {
     pub header: DXBHeader,
+    pub body: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +26,8 @@ pub struct DXBHeader {
     pub flags: HeaderFlags,
 
     pub routing: RoutingInfo,
+
+    pub body_start_offset: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, TryFromPrimitive)]

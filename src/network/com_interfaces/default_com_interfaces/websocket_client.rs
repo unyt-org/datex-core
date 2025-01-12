@@ -1,6 +1,6 @@
 extern crate websocket;
 
-use std::net::TcpStream;
+use std::{collections::VecDeque, net::TcpStream, sync::{Arc, Mutex}};
 
 use websocket::{
     sync::{stream::TlsStream, Client},
@@ -57,7 +57,7 @@ impl ComInterface for WebSocketClientInterface {
     fn get_receive_queue(
         &mut self,
         socket: ComInterfaceSocket,
-    ) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
+    ) -> Arc<Mutex<VecDeque<u8>>> {
         todo!()
     }
 }

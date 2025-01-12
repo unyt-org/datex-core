@@ -1,3 +1,5 @@
+use std::{collections::VecDeque, sync::{Arc, Mutex}};
+
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use super::super::com_interface::ComInterface;
@@ -18,7 +20,7 @@ impl ComInterface for TCPClientInterface {
     fn get_receive_queue(
         &mut self,
         socket: ComInterfaceSocket,
-    ) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
+    ) -> Arc<Mutex<VecDeque<u8>>> {
         todo!()
     }
 }

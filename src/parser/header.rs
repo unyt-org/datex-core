@@ -9,14 +9,28 @@ pub fn has_dxb_magic_number(dxb: &[u8]) -> bool {
     dxb.len() >= 2 && dxb[0] == 0x01 && dxb[1] == 0x64
 }
 
-pub fn parse_dxb_header<'a>(dxb: &'a [u8]) -> (DXBHeader, &'a [u8]) {
+
+#[derive(Debug)]
+pub enum HeaderParsingError {
+    InvalidMagicNumber,
+    InsufficientLength,
+}
+
+
+pub fn extract_dxb_block_length(dxb: &[u8]) -> Result<u16, HeaderParsingError> {
+    if !has_dxb_magic_number(dxb) {return Err(HeaderParsingError::InvalidMagicNumber)}
+    if dxb.len() < 6 {return Err(HeaderParsingError::InsufficientLength)}
+    return Ok(read_u16(dxb, &mut 4));
+}
+
+pub fn parse_dxb_header<'a>(dxb: &'a [u8]) -> Result<DXBHeader, HeaderParsingError> {
     // has magic number?
     if !has_dxb_magic_number(dxb) {
-        panic!("Invalid DXB header format - missing magic number");
+        return Err(HeaderParsingError::InvalidMagicNumber);
     }
     // header to short
     if dxb.len() < 28 {
-        panic!("Invalid DXB header format - too short");
+        return Err(HeaderParsingError::InsufficientLength);
     }
 
     let index = &mut 2;
@@ -62,9 +76,10 @@ pub fn parse_dxb_header<'a>(dxb: &'a [u8]) -> (DXBHeader, &'a [u8]) {
             sender,
             priority,
         },
+        body_start_offset: *index,
     };
 
-    return (header, dxb.clone());
+    return Ok(header);
 }
 
 fn get_dxb_header_sender(dxb: &[u8], index: &mut usize) -> Option<Endpoint> {

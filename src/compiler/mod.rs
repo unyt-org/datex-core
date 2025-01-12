@@ -49,6 +49,8 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, pest::error::Error<Rule>> 
             priority: 40,
             sender: Some(Endpoint::new_person("@theo", Endpoint::ANY_INSTANCE)),
         },
+
+        body_start_offset: 0, // TODO
     };
 
     Ok(append_dxb_header(&header, &body))

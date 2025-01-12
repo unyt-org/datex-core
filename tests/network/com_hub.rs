@@ -58,8 +58,8 @@ impl ComInterface for MockupInterface {
     fn get_receive_queue(
         &mut self,
         socket: ComInterfaceSocket,
-    ) -> Option<std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<u8>>>> {
-        Some(self.queue.clone())
+    ) -> Arc<Mutex<VecDeque<u8>>> {
+        self.queue.clone()
     }
 }
 

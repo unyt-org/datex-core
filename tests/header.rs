@@ -18,7 +18,9 @@ pub fn parse_header() {
             .to_string(),
         " ",
     );
-    let (header, body) = parse_dxb_header(&dxb);
+    let header_result = parse_dxb_header(&dxb);
+    assert!(header_result.is_ok());
+    let header = header_result.unwrap();
 
     assert_eq!(header.version, 2);
     assert_eq!(header.size, 0);
@@ -43,8 +45,6 @@ pub fn parse_header() {
  */
 #[test]
 pub fn generate_header() {
-    let runtime = Runtime::new();
-
     // // dxb -> header -> dxb
     // let header_dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 03 ff ff".to_string(), " ");
     // let (header, body) = parse_dxb_header(&header_dxb);
@@ -75,7 +75,11 @@ pub fn generate_header() {
             priority: 40,
             sender: Some(Endpoint::new_person("@theo", Endpoint::ANY_INSTANCE)),
         },
+
+        body_start_offset: 49, // TODO: set this value
     };
     let dxb = &hex_to_buffer_advanced("01 02 03".to_string(), " ");
-    assert_eq!(parse_dxb_header(&append_dxb_header(&header, dxb)).0, header);
+    let parse_result = parse_dxb_header(&append_dxb_header(&header, dxb));
+    assert!(parse_result.is_ok());
+    assert_eq!(parse_result.unwrap(), header);
 }

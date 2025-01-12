@@ -40,12 +40,16 @@ pub fn decompile(
 ) -> String {
     let mut body = dxb;
 
-    // header?
-    if has_dxb_magic_number(dxb) {
-        let (_header, _body) = header::parse_dxb_header(dxb);
-        body = _body;
-    }
+    let header_result = header::parse_dxb_header(dxb);
 
+    match header_result {
+        // dxb with header
+        Ok(header) => {
+            body = body::extract_body(header, dxb);
+        }
+        // assume just dxb body
+        Err(_) => (),
+    }
     return decompile_body(ctx, body, formatted, colorized, resolve_slots);
 }
 
