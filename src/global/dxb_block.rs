@@ -2,7 +2,7 @@ use num_enum::TryFromPrimitive;
 
 use crate::datex_values::Endpoint;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DXBBlock {
     pub header: DXBHeader,
     pub body: Vec<u8>,

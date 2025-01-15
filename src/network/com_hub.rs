@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
+use std::ops::Deref;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::com_interfaces::{
@@ -16,7 +17,9 @@ struct DynamicEndpointProperties {
 pub struct ComHub {
     pub interfaces: HashSet<ComInterfaceTrait>,
     pub endpoint_sockets: HashMap<Endpoint, HashMap<ComInterfaceSocket, DynamicEndpointProperties>>,
-    pub sockets: HashSet<ComInterfaceSocket>
+    pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
+
+    pub incoming_blocks: RefCell<VecDeque<Rc<DXBBlock>>>,
 }
 
 impl ComHub {
@@ -25,6 +28,7 @@ impl ComHub {
             interfaces: HashSet::new(),
             endpoint_sockets: HashMap::new(),
             sockets: HashSet::new(),
+            incoming_blocks: RefCell::new(VecDeque::new()),
         }));
     }
 
@@ -36,23 +40,84 @@ impl ComHub {
         self.interfaces.remove(&interface)
     }
 
-    pub(crate) fn receive_block(&self, block: &DXBBlock, socket: &ComInterfaceSocket) {
+    pub(crate) fn receive_block(&self, block: &DXBBlock, socket: &RefCell<ComInterfaceSocket>) {
         println!("Received block: {:?}", block);
+
+        // TODO: routing
+
+
+        // own incoming blocks
+        let mut incoming_blocks = self.incoming_blocks.borrow_mut();
+        incoming_blocks.push_back(Rc::new(block.clone()));
     }
 
-    /*/
+    
     fn iterate_endpoint_sockets(&self) -> Vec<ComInterfaceSocket> {
-
+        todo!()
     }
-    */
+    
 
-    pub fn receive_blocks(&self) {
+    /**
+     * Update all sockets and interfaces, 
+     * collecting incoming data and sending out queued blocks.
+     */
+    pub fn update(&mut self) {
+        // receive blocks from all sockets
+        self.receive_incoming_blocks();
+        
+        // update sockets
+        self.update_sockets();
+
+        // send all queued blocks from all interfaces
+        self.flush_outgoing_blocks();
+    }
+
+
+    /**
+     * Send a block to all endpoints specified in block header.
+     * The routing algorithm decides which sockets are used to send the block, based on the endpoint.
+     * A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
+     * The original_socket parameter is used to prevent sending the block back to the sender.
+     * When this method is called, the block is queued in the send queue.
+     */
+    pub fn send_block(&self, block: &DXBBlock, original_socket: Option<&mut ComInterfaceSocket>) {
+        // TODO: routing
+        for socket in &self.sockets {
+            let mut socket_ref = socket.borrow_mut();
+            socket_ref.queue_outgoing_block(&vec![]);
+        }
+    }
+
+    fn update_sockets(&self) {
+        // update sockets, collect incoming data into full blocks
+        for socket in &self.sockets {
+            let mut socket_ref = socket.borrow_mut();
+            socket_ref.collect_incoming_data();
+        }
+    }
+
+    /**
+     * Collect all blocks from the receive queues of all sockets and process them 
+     * in the receive_block method.
+     */
+    fn receive_incoming_blocks(&mut self) {
         // iterate over all sockets
         for socket in &self.sockets {
-            let block_queue = socket.get_block_queue();
+            let socket_ref = socket.borrow();
+            let block_queue = socket_ref.get_incoming_block_queue();
             for block in block_queue {
                 self.receive_block(block, socket);
             }
+        }
+    }
+
+    /**
+     * Send all queued blocks from all interfaces.
+     */
+    fn flush_outgoing_blocks(&self) {
+        // iterate over interfaces
+        for interface in &self.interfaces {
+            interface.flush_outgoing_blocks();
         }
     }
 }

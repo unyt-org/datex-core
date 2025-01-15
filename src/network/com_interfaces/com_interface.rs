@@ -82,6 +82,12 @@ impl ComInterfaceTrait {
         return properties.direction == InterfaceDirection::IN
             || properties.direction == InterfaceDirection::IN_OUT;
     }
+
+    pub fn flush_outgoing_blocks(&self) {
+        let interface = &self.interface.borrow();
+        let sockets = interface.get_sockets();
+        // TODO: send out all queued blocks
+    }
 }
 
 impl PartialEq for ComInterfaceTrait {
