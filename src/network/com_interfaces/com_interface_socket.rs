@@ -15,7 +15,7 @@ pub struct ComInterfaceSocket {
     uuid: String,
     connection_timestamp: u64,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
-    send_queue: VecDeque<Vec<u8>>,
+    pub send_queue: VecDeque<Vec<u8>>,
     block_collector: BlockCollector,
 }
 
