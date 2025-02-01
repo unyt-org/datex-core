@@ -3,7 +3,7 @@ use std::{
     collections::VecDeque,
     hash::{Hash, Hasher},
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, vec,
 };
 
 use super::{
@@ -12,7 +12,7 @@ use super::{
 };
 
 pub trait ComInterface {
-    fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) -> ();
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
     fn get_receive_queue(
         &mut self,
         socket: ComInterfaceSocket,
@@ -20,26 +20,22 @@ pub trait ComInterface {
         socket.get_receive_queue()
     }
     fn get_properties(&self) -> InterfaceProperties;
-
-    fn get_sockets(&self) -> Vec<ComInterfaceSocket> {
-        vec![]
-    }
 }
 
 #[derive(Clone)]
 pub struct ComInterfaceTrait {
     pub interface: Rc<RefCell<dyn ComInterface>>,
+    pub sockets: Rc<RefCell<Vec<
+        Rc<RefCell<ComInterfaceSocket>>
+    >>>,
 }
 
 impl ComInterfaceTrait {
     pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
-        ComInterfaceTrait { interface: inner }
-    }
-
-    pub fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) {
-        let interface = &mut self.interface;
-        let mut interface_mut = interface.borrow_mut();
-        interface_mut.send_block(block, socket);
+        ComInterfaceTrait { 
+            interface: inner,
+            sockets: Rc::new(RefCell::new(Vec::new())),
+         }
     }
 
     pub fn get_receive_queue(
@@ -57,10 +53,8 @@ impl ComInterfaceTrait {
         interface_ref.get_properties()
     }
 
-    pub fn get_sockets(&self) -> Vec<ComInterfaceSocket> {
-        let interface = &self.interface;
-        let interface_ref = interface.borrow();
-        interface_ref.get_sockets()
+    pub fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
+        self.sockets.clone()
     }
 
     pub fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
@@ -84,9 +78,18 @@ impl ComInterfaceTrait {
     }
 
     pub fn flush_outgoing_blocks(&self) {
-        let interface = &self.interface.borrow();
-        let sockets = interface.get_sockets();
-        // TODO: send out all queued blocks
+        for socket_mut in self.sockets.borrow().iter() {
+            let mut socket_mut = socket_mut.borrow_mut();
+            let blocks: Vec<Vec<u8>> = socket_mut.send_queue.drain(..).collect::<Vec<_>>();
+
+            println!("Flushing {} blocks", blocks.len());
+            println!("Socket: {:?}", socket_mut.uuid);
+
+            for block in blocks {
+                let interface = &mut self.interface.borrow_mut();
+                interface.send_block(&block, &socket_mut);
+            }
+        }
     }
 }
 

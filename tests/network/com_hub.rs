@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+use datex_core::global::dxb_block::DXBBlock;
 use datex_core::network::com_hub::ComHub;
 
 use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceTrait};
@@ -32,13 +33,13 @@ impl MockupInterface {
         })));
     }
 
-    pub fn new(mockup_interface: MockupInterface) -> ComInterfaceTrait {
-        return ComInterfaceTrait::new(Rc::new(RefCell::new(mockup_interface)));
+    pub fn new(mockup_interface: Rc<RefCell<MockupInterface>>) -> ComInterfaceTrait {
+        return ComInterfaceTrait::new(mockup_interface);
     }
 }
 
 impl ComInterface for MockupInterface {
-    fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) -> () {
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
         self.last_block = Some(block.to_vec());
     }
 
@@ -89,6 +90,44 @@ pub fn test_multiple_add() {
 
 #[test]
 pub fn test_send() {
+    // init com hub
+    let com_hub = ComHub::new();
+    let mut com_hub_mut = com_hub.borrow_mut();
+
+    // init mockup interface
+    let mockup_interface_out = MockupInterface {
+        last_block: None,
+        queue: Arc::new(Mutex::new(VecDeque::new())),
+    };
+    let mockup_interface_out_ref = Rc::new(RefCell::new(mockup_interface_out));
+    let mockup_out_trait = MockupInterface::new(mockup_interface_out_ref.clone());
+
+    // add mockup interface to com hub
+    com_hub_mut.add_interface(mockup_out_trait.clone());
+
+    // add socket to mockup interface
+    mockup_out_trait.sockets.borrow_mut().push(Rc::new(RefCell::new(
+        ComInterfaceSocket {
+            uuid: "mockup_out_socket".to_string(),
+            ..Default::default()
+        }
+    )));
+
+    // send block
+    let block = DXBBlock::default();
+    com_hub_mut.send_block(&block, None);
+    com_hub_mut.update();
+
+    let mockup_interface_out = mockup_interface_out_ref.borrow();
+    assert!(mockup_interface_out.last_block.is_some());
+    let block_bytes = mockup_interface_out.last_block.as_ref().unwrap();
+    assert_eq!(block_bytes, &block.to_bytes());
+}
+
+
+
+#[test]
+pub fn test_send_receive() {
     let com_hub = ComHub::new();
 
     let mockup_in = MockupInterface {
@@ -102,10 +141,11 @@ pub fn test_send() {
     };
 
     let mockup_in_rc = Rc::new(RefCell::new(mockup_in));
+    let mockup_out_rc = Rc::new(RefCell::new(mockup_out));
 
     let mockup_in_trait = ComInterfaceTrait::new(mockup_in_rc.clone());
 
-    let mockup_out_trait = MockupInterface::new(mockup_out);
+    let mockup_out_trait = MockupInterface::new(mockup_out_rc);
 
     {
         let mut com_hub_mut = com_hub.borrow_mut();

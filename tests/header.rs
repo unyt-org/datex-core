@@ -1,9 +1,8 @@
 use datex_core::datex_values::Endpoint;
-use datex_core::generator::header::append_dxb_header;
-use datex_core::global::dxb_block::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo};
+use datex_core::global::dxb_block::DXBBlock;
+use datex_core::global::dxb_header::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo};
 use datex_core::parser::header::parse_dxb_header;
-use datex_core::runtime::Runtime;
-use datex_core::utils::buffers::{buffer_to_hex, hex_to_buffer_advanced};
+use datex_core::utils::buffers::hex_to_buffer_advanced;
 
 // const CTX:&LoggerContext = &LoggerContext {log_redirect:None};
 
@@ -79,7 +78,8 @@ pub fn generate_header() {
         body_start_offset: 49, // TODO: set this value
     };
     let dxb = &hex_to_buffer_advanced("01 02 03".to_string(), " ");
-    let parse_result = parse_dxb_header(&append_dxb_header(&header, dxb));
+    let block = DXBBlock::new(header.clone(), dxb.to_vec());
+    let parse_result = parse_dxb_header(&block.to_bytes());
     assert!(parse_result.is_ok());
     assert_eq!(parse_result.unwrap(), header);
 }

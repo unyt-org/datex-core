@@ -36,7 +36,7 @@ impl WebSocketClientInterface {
 }
 
 impl ComInterface for WebSocketClientInterface {
-    fn send_block(&mut self, block: &[u8], socket: ComInterfaceSocket) -> () {
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
         let message = Message::binary(block);
         self.client.send_message(&message).unwrap();
     }

@@ -1,6 +1,6 @@
 use crate::{
     datex_values::Endpoint,
-    global::dxb_block::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo},
+    global::dxb_header::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo},
     utils::buffers::{read_slice, read_u16, read_u32, read_u64, read_u8},
 };
 

@@ -1,5 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 use std::ops::Deref;
+use std::path::Iter;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::com_interfaces::{
@@ -17,7 +18,7 @@ struct DynamicEndpointProperties {
 pub struct ComHub {
     pub interfaces: HashSet<ComInterfaceTrait>,
     pub endpoint_sockets: HashMap<Endpoint, HashMap<ComInterfaceSocket, DynamicEndpointProperties>>,
-    pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
+    //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
 
     pub incoming_blocks: RefCell<VecDeque<Rc<DXBBlock>>>,
 }
@@ -27,7 +28,7 @@ impl ComHub {
         return Rc::new(RefCell::new(ComHub {
             interfaces: HashSet::new(),
             endpoint_sockets: HashMap::new(),
-            sockets: HashSet::new(),
+            // sockets: HashSet::new(),
             incoming_blocks: RefCell::new(VecDeque::new()),
         }));
     }
@@ -49,6 +50,19 @@ impl ComHub {
         // own incoming blocks
         let mut incoming_blocks = self.incoming_blocks.borrow_mut();
         incoming_blocks.push_back(Rc::new(block.clone()));
+    }
+
+
+    // iterate over all sockets of all interfaces
+    fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
+        let mut sockets = Vec::new();
+        for interface in &self.interfaces {
+            let interface_ref = interface;
+            for socket in interface_ref.get_sockets().borrow().iter() {
+                sockets.push(socket.clone());
+            }
+        }
+        sockets.clone()
     }
 
     
@@ -82,15 +96,15 @@ impl ComHub {
      */
     pub fn send_block(&self, block: &DXBBlock, original_socket: Option<&mut ComInterfaceSocket>) {
         // TODO: routing
-        for socket in &self.sockets {
+        for socket in &self.iterate_all_sockets() {
             let mut socket_ref = socket.borrow_mut();
-            socket_ref.queue_outgoing_block(&vec![]);
+            socket_ref.queue_outgoing_block(&block.to_bytes());
         }
     }
 
     fn update_sockets(&self) {
         // update sockets, collect incoming data into full blocks
-        for socket in &self.sockets {
+        for socket in &self.iterate_all_sockets() {
             let mut socket_ref = socket.borrow_mut();
             socket_ref.collect_incoming_data();
         }
@@ -102,7 +116,7 @@ impl ComHub {
      */
     fn receive_incoming_blocks(&mut self) {
         // iterate over all sockets
-        for socket in &self.sockets {
+        for socket in &self.iterate_all_sockets() {
             let socket_ref = socket.borrow();
             let block_queue = socket_ref.get_incoming_block_queue();
             for block in block_queue {
@@ -114,8 +128,7 @@ impl ComHub {
     /**
      * Send all queued blocks from all interfaces.
      */
-    fn flush_outgoing_blocks(&self) {
-        // iterate over interfaces
+    fn flush_outgoing_blocks(&mut self) {
         for interface in &self.interfaces {
             interface.flush_outgoing_blocks();
         }

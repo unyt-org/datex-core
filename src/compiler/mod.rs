@@ -1,12 +1,12 @@
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::datex_values::Endpoint;
-use crate::generator::header::append_dxb_header;
 use crate::global::binary_codes::BinaryCode;
-use crate::global::dxb_block::DXBBlockType;
-use crate::global::dxb_block::DXBHeader;
-use crate::global::dxb_block::HeaderFlags;
-use crate::global::dxb_block::RoutingInfo;
+use crate::global::dxb_block::DXBBlock;
+use crate::global::dxb_header::DXBBlockType;
+use crate::global::dxb_header::DXBHeader;
+use crate::global::dxb_header::HeaderFlags;
+use crate::global::dxb_header::RoutingInfo;
 use crate::utils::buffers::append_f64;
 use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
@@ -53,7 +53,9 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, pest::error::Error<Rule>> 
         body_start_offset: 0, // TODO
     };
 
-    Ok(append_dxb_header(&header, &body))
+    let block = DXBBlock::new(header, body);
+
+    Ok(block.to_bytes())
 }
 
 struct CompilationScope<'a> {

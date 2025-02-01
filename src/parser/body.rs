@@ -6,7 +6,7 @@ use crate::datex_values::{
     Type, Url, Value,
 };
 use crate::global::binary_codes::BinaryCode;
-use crate::global::dxb_block::DXBHeader;
+use crate::global::dxb_header::DXBHeader;
 use crate::utils::buffers;
 use num_bigint::{BigInt, BigUint, Sign};
 

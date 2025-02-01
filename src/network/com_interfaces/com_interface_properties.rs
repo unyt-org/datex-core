@@ -1,10 +1,11 @@
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum InterfaceDirection {
     IN,
     OUT,
     IN_OUT,
 }
 
+#[derive(Debug)]
 pub struct InterfaceProperties {
     pub channel: String,
     pub name: Option<String>,

@@ -1,7 +1,6 @@
 use datex_core::{
     datex_values::Endpoint,
-    generator::header::append_dxb_header,
-    global::dxb_block::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo},
+    global::dxb_header::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo},
     network::com_interfaces::{
         com_interface::ComInterface,
         default_com_interfaces::{
