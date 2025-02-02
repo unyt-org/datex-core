@@ -1,12 +1,11 @@
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
-use crate::datex_values::Endpoint;
 use crate::global::binary_codes::BinaryCode;
 use crate::global::dxb_block::DXBBlock;
-use crate::global::dxb_header::DXBBlockType;
-use crate::global::dxb_header::DXBHeader;
-use crate::global::dxb_header::HeaderFlags;
-use crate::global::dxb_header::RoutingInfo;
+use crate::global::protocol_structures::block_header::BlockHeader;
+use crate::global::protocol_structures::routing_header;
+use crate::global::protocol_structures::routing_header::RoutingHeader;
+use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::utils::buffers::append_f64;
 use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
@@ -17,45 +16,49 @@ use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 
 pub mod parser;
+use anyhow::Result;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
 
-pub fn compile(datex_script: &str) -> Result<Vec<u8>, pest::error::Error<Rule>> {
+pub fn compile(datex_script: &str) -> Result<Vec<u8>> {
     let body = compile_body(datex_script)?;
 
-    let header = DXBHeader {
-        version: 2,
-        size: 65535,
-        signed: true,
-        encrypted: true,
+    let routing_header = RoutingHeader {
+		version: 2,
+		ttl: 0,
+		flags: routing_header::Flags::new(),
+		block_size_u16: Some(0),
+		block_size_u32: None,
+		scope_id: 0,
+		block_index: 0,
+		block_increment: 0,
+		sender: routing_header::Sender {
+			sender_type: routing_header::EndpointType::Person,
+			sender_id: [0; 20],
+		},
+		receivers: routing_header::Receivers {
+			flags: routing_header::ReceiverFlags::new()
+				.with_has_endpoints(false)
+				.with_has_pointer_id(false)
+				.with_has_endpoint_keys(false),
+			pointer_id: None,
+			endpoints: None,
+			endpoints_with_keys: None,
+		}
+	};
+    
+    let block_header = BlockHeader {};
 
-        block_type: DXBBlockType::REQUEST,
-        scope_id: 22,
-        block_index: 1,
-        block_increment: 2,
-        timestamp: 1234,
+    let block = DXBBlock::new(
+        routing_header,
+        block_header,
+        body,
+    );
 
-        flags: HeaderFlags {
-            end_of_scope: true,
-            allow_execute: true,
-            device_type: 0,
-        },
-
-        routing: RoutingInfo {
-            ttl: 14,
-            priority: 40,
-            sender: Some(Endpoint::new_person("@theo", Endpoint::ANY_INSTANCE)),
-        },
-
-        body_start_offset: 0, // TODO
-    };
-
-    let block = DXBBlock::new(header, body);
-
-    Ok(block.to_bytes())
+    return Ok(block.to_bytes()?);
 }
 
 struct CompilationScope<'a> {

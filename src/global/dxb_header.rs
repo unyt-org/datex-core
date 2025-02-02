@@ -67,7 +67,7 @@ impl Default for DXBHeader {
     fn default() -> Self { 
         DXBHeader {
             version: 0,
-            size: 0,
+            size: 29,
             signed: false,
             encrypted: false,
             timestamp: 0,
@@ -102,7 +102,7 @@ impl DXBHeader {
 	pub fn extract_dxb_block_length(dxb: &[u8]) -> Result<u16, HeaderParsingError> {
 		if !DXBHeader::has_dxb_magic_number(dxb) {return Err(HeaderParsingError::InvalidMagicNumber)}
 		if dxb.len() < 6 {return Err(HeaderParsingError::InsufficientLength)}
-		return Ok(read_u16(dxb, &mut 4));
+		return Ok(read_u16(dxb, &mut 3));
 	}
 	
 	pub fn from_bytes<'a>(dxb: &'a [u8]) -> Result<DXBHeader, HeaderParsingError> {

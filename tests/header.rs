@@ -1,7 +1,6 @@
 use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::dxb_header::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo};
-use datex_core::parser::header::parse_dxb_header;
 use datex_core::utils::buffers::hex_to_buffer_advanced;
 
 // const CTX:&LoggerContext = &LoggerContext {log_redirect:None};
@@ -17,7 +16,7 @@ pub fn parse_header() {
             .to_string(),
         " ",
     );
-    let header_result = parse_dxb_header(&dxb);
+    let header_result = DXBHeader::from_bytes(&dxb);
     assert!(header_result.is_ok());
     let header = header_result.unwrap();
 
@@ -37,49 +36,4 @@ pub fn parse_header() {
     assert_eq!(header.timestamp, 9);
 
     println!("{:#?}", header);
-}
-
-/**
- * test if a DXBHeader struct is correctly converted into a DXB buffer, and correctly converted back to a DXBHeader
- */
-#[test]
-pub fn generate_header() {
-    // // dxb -> header -> dxb
-    // let header_dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 03 ff ff".to_string(), " ");
-    // let (header, body) = parse_dxb_header(&header_dxb);
-    // let gen_header_dxb = append_dxb_header(&header, body);
-    // assert_eq!(buffer_to_hex(header_dxb), buffer_to_hex(gen_header_dxb));
-
-    // header -> dxb -> header
-    let header = DXBHeader {
-        version: 2,
-        size: 65535,
-        signed: true,
-        encrypted: true,
-
-        block_type: DXBBlockType::REQUEST,
-        scope_id: 22,
-        block_index: 1,
-        block_increment: 2,
-        timestamp: 1234,
-
-        flags: HeaderFlags {
-            end_of_scope: true,
-            allow_execute: true,
-            device_type: 0,
-        },
-
-        routing: RoutingInfo {
-            ttl: 14,
-            priority: 40,
-            sender: Some(Endpoint::new_person("@theo", Endpoint::ANY_INSTANCE)),
-        },
-
-        body_start_offset: 49, // TODO: set this value
-    };
-    let dxb = &hex_to_buffer_advanced("01 02 03".to_string(), " ");
-    let block = DXBBlock::new(header.clone(), dxb.to_vec());
-    let parse_result = parse_dxb_header(&block.to_bytes());
-    assert!(parse_result.is_ok());
-    assert_eq!(parse_result.unwrap(), header);
 }

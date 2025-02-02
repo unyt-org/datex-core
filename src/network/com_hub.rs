@@ -76,11 +76,11 @@ impl ComHub {
      * collecting incoming data and sending out queued blocks.
      */
     pub fn update(&mut self) {
-        // receive blocks from all sockets
-        self.receive_incoming_blocks();
-        
         // update sockets
         self.update_sockets();
+
+        // receive blocks from all sockets
+        self.receive_incoming_blocks();
 
         // send all queued blocks from all interfaces
         self.flush_outgoing_blocks();
@@ -98,7 +98,15 @@ impl ComHub {
         // TODO: routing
         for socket in &self.iterate_all_sockets() {
             let mut socket_ref = socket.borrow_mut();
-            socket_ref.queue_outgoing_block(&block.to_bytes());
+
+            match &block.to_bytes() {
+                Ok(bytes) => {
+                    socket_ref.queue_outgoing_block(bytes);
+                }
+                Err(err) => {
+                    eprintln!("Failed to convert block to bytes: {:?}", err);
+                }
+            }
         }
     }
 

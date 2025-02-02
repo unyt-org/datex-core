@@ -8,7 +8,7 @@ use std::vec;
 
 use crate::datex_values::SlotIdentifier;
 use crate::datex_values::Value;
-use crate::parser::header::has_dxb_magic_number;
+use crate::global::dxb_header::DXBHeader;
 use crate::utils::color::AnsiCodes;
 use crate::utils::color::Color;
 use crate::utils::logger::LoggerContext;
@@ -18,7 +18,6 @@ use regex::Regex;
 
 use crate::global::binary_codes::BinaryCode;
 use crate::parser::body;
-use crate::parser::header;
 
 use self::constants::tokens::get_code_color;
 
@@ -40,7 +39,7 @@ pub fn decompile(
 ) -> String {
     let mut body = dxb;
 
-    let header_result = header::parse_dxb_header(dxb);
+    let header_result = DXBHeader::from_bytes(dxb);
 
     match header_result {
         // dxb with header

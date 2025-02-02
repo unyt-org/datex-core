@@ -25,6 +25,10 @@ itertools = "0.10.5"
 pest = "2.6"
 pest_derive = "2.6"
 pad = "0.1"
+binrw = "0.14.1"
+modular-bitfield = "0.11.2"
+anyhow = "1.0.95"
+thiserror = "2.0.11"
 
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))'.dependencies]

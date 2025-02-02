@@ -13,38 +13,20 @@ use super::{
 
 pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
-    fn get_receive_queue(
-        &mut self,
-        socket: ComInterfaceSocket,
-    ) -> Arc<Mutex<VecDeque<u8>>> {
-        socket.get_receive_queue()
-    }
     fn get_properties(&self) -> InterfaceProperties;
+    fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
 }
 
 #[derive(Clone)]
 pub struct ComInterfaceTrait {
     pub interface: Rc<RefCell<dyn ComInterface>>,
-    pub sockets: Rc<RefCell<Vec<
-        Rc<RefCell<ComInterfaceSocket>>
-    >>>,
 }
 
 impl ComInterfaceTrait {
     pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
         ComInterfaceTrait { 
             interface: inner,
-            sockets: Rc::new(RefCell::new(Vec::new())),
          }
-    }
-
-    pub fn get_receive_queue(
-        &mut self,
-        socket: ComInterfaceSocket,
-    ) -> Arc<Mutex<VecDeque<u8>>> {
-        let interface = &mut self.interface;
-        let mut interface_mut = interface.borrow_mut();
-        interface_mut.get_receive_queue(socket)
     }
 
     pub fn get_properties(&self) -> InterfaceProperties {
@@ -54,7 +36,12 @@ impl ComInterfaceTrait {
     }
 
     pub fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
-        self.sockets.clone()
+        self.interface.borrow().get_sockets()
+    }
+
+    pub fn add_socket(&self, socket: Rc<RefCell<ComInterfaceSocket>>) {
+        let sockets = self.get_sockets();
+        sockets.borrow_mut().push(socket);
     }
 
     pub fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
@@ -78,7 +65,7 @@ impl ComInterfaceTrait {
     }
 
     pub fn flush_outgoing_blocks(&self) {
-        for socket_mut in self.sockets.borrow().iter() {
+        for socket_mut in self.get_sockets().borrow().iter() {
             let mut socket_mut = socket_mut.borrow_mut();
             let blocks: Vec<Vec<u8>> = socket_mut.send_queue.drain(..).collect::<Vec<_>>();
 

@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::{Arc, Mutex}};
 
-use crate::{global::dxb_block::DXBBlock, parser::header::{extract_dxb_block_length, parse_dxb_header, HeaderParsingError}};
+use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
 
 pub struct BlockCollector {
 	receive_queue: Arc<Mutex<VecDeque<u8>>>,
@@ -15,7 +15,7 @@ pub struct BlockCollector {
 	/**
 	 * The length of the current block as specified by the block header.
 	 */
-	current_block_specified_length: Option<u16>,
+	current_block_specified_length: Option<u32>,
 }
 
 impl BlockCollector {
@@ -34,57 +34,68 @@ impl BlockCollector {
 
     fn receive_slice(&mut self, slice: &[u8]) {
 
+		println!("Received slice: {:?}", slice);
+
 		// Add the received data to the current block.
 		self.current_block.extend_from_slice(slice);
 
-		// Extract the block length from the header if it is not already known.
-		if self.current_block_specified_length.is_none() {
-			let length_result = extract_dxb_block_length(&self.current_block);
-			match length_result {
-				Ok(length) => {
-					self.current_block_specified_length = Some(length);
-				}
-				Err(HeaderParsingError::InsufficientLength) => (),
-				Err(_) => {
-					println!("Received invalid block header.");
-					self.current_block.clear();
-					self.current_block_specified_length = None;
-				}
-			}
-		}
-
-		// If the block length is specified and the current block is long enough, extract the block.
-		if let Some(specified_length) = self.current_block_specified_length {
-        	if self.current_block.len() >= specified_length as usize {
-				let block_slice = self.current_block.drain(0..specified_length as usize).collect::<Vec<u8>>();
-
-				let header_result = parse_dxb_header(&block_slice);
-
-				match header_result {
-					Ok(header) => {
-						let block = DXBBlock {
-							header,
-							body: block_slice,
-						};
-						self.block_queue.push_back(block);
-						self.current_block_specified_length = None;
+		while self.current_block.len() > 0{
+			// Extract the block length from the header if it is not already known.
+			if self.current_block_specified_length.is_none() {
+				let length_result = DXBBlock::extract_dxb_block_length(&self.current_block);
+				println!("length_result: {:?}", length_result);
+				match length_result {
+					Ok(length) => {
+						self.current_block_specified_length = Some(length);
 					}
-					Err(_) => {
-						println!("Received invalid block header.");
+					Err(HeaderParsingError::InsufficientLength) => (),
+					Err(err) => {
+						println!("Received invalid block header: {:?}", err);
 						self.current_block.clear();
 						self.current_block_specified_length = None;
 					}
 				}
-				
 			}
-		}
+
+			// If the block length is specified and the current block is long enough, extract the block.
+			if let Some(specified_length) = self.current_block_specified_length {
+				if self.current_block.len() >= specified_length as usize {
+					let block_slice = self.current_block.drain(0..specified_length as usize).collect::<Vec<u8>>();
+
+					let block_result = DXBBlock::from_bytes(&block_slice);
+
+					match block_result {
+						Ok(block) => {
+							self.block_queue.push_back(block);
+							self.current_block_specified_length = None;
+						}
+						Err(err) => {
+							println!("Received invalid block header: {:?}", err);
+							self.current_block.clear();
+							self.current_block_specified_length = None;
+						}
+					}
+					
+				}
+			}
+
+			// otherwise, wait for more data
+			else {
+				break;
+			}
+		}		
     }
 
 
 	pub fn update(&mut self) {
+		println!("BlockCollector update");
 		let queue = self.receive_queue.clone();
 		let mut receive_queue = queue.lock().unwrap();
-		let range = 0..receive_queue.len();
+		let len = receive_queue.len();
+		if len == 0 {
+			return;
+		}
+		let range = 0..len;
 		let slice = receive_queue.drain(range).collect::<Vec<u8>>();
 		self.receive_slice(&slice);
 	}

@@ -7,7 +7,6 @@ use datex_core::{
             tcp_client::TCPClientInterface, websocket_client::WebSocketClientInterface,
         },
     },
-    parser::header::parse_dxb_header,
     runtime::Runtime,
     utils::buffers::hex_to_buffer_advanced,
 };

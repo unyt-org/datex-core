@@ -17,10 +17,7 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn get_receive_queue(
-        &mut self,
-        socket: ComInterfaceSocket,
-    ) -> Arc<Mutex<VecDeque<u8>>> {
+    fn get_sockets(&self) -> std::rc::Rc<std::cell::RefCell<Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>>> {
         todo!()
     }
 }

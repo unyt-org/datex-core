@@ -2,11 +2,8 @@ use std::cell::Cell;
 
 use crate::{
     datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
-    global::binary_codes::BinaryCode,
-    parser::{
-        body,
-        header::{self, has_dxb_magic_number},
-    },
+    global::{binary_codes::BinaryCode, dxb_header::DXBHeader},
+    parser::body,
     utils::logger::{Logger, LoggerContext},
 };
 
@@ -18,7 +15,7 @@ use super::stack::Stack;
 pub fn execute(ctx: &LoggerContext, dxb: &[u8]) -> ValueResult {
     let mut body = dxb;
 
-    let header_result = header::parse_dxb_header(dxb);
+    let header_result = DXBHeader::from_bytes(dxb);
 
     match header_result {
         // dxb with header
