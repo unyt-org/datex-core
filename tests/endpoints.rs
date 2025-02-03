@@ -1,6 +1,6 @@
 use datex_core::{
     datex_values::Endpoint,
-    utils::buffers::{buffer_to_hex, buffer_to_hex_advanced, hex_to_buffer},
+    utils::buffers::{buffer_to_hex_advanced, hex_to_buffer},
 };
 
 /**
