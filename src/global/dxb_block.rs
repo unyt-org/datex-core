@@ -1,4 +1,4 @@
-use std::io::{Cursor, Read};
+use std::{io::{BufRead, Cursor, Read}, vec};
 
 use anyhow::Result;
 use binrw::{BinRead, BinWrite};
@@ -59,7 +59,6 @@ impl DXBBlock {
         self.routing_header.write(&mut writer)?;
         self.block_header.write(&mut writer)?;
         self.encrypted_header.write(&mut writer)?;
-
         let mut bytes = writer.into_inner();
         bytes.extend_from_slice(&self.body);
 
@@ -107,6 +106,8 @@ impl DXBBlock {
             SignatureType::None => None,
             SignatureType::Invalid => todo!(),
         };
+        
+        reader.position();
 
         // TODO: validate the signature
 
@@ -118,15 +119,16 @@ impl DXBBlock {
                 decrypted_bytes
             }
             EncryptionType::Unencrypted => {
-                let mut decrypted_bytes = Vec::with_capacity(255);
-                reader.read_exact(&mut decrypted_bytes)?;
-                decrypted_bytes
-            }
+                let mut bytes = Vec::new();
+                reader.read_to_end(&mut bytes)?;
+                bytes
+            },
         };
+        reader.position();
 
         let mut reader = Cursor::new(decrypted_bytes);
-        let encrypted_header = EncryptedHeader::read(&mut reader)?;
         let block_header = BlockHeader::read(&mut reader)?;
+        let encrypted_header = EncryptedHeader::read(&mut reader)?;
 
         let mut body = Vec::new();
         reader.read_to_end(&mut body)?;

@@ -74,7 +74,7 @@ pub struct FlagsAndTimestamp {
     #[allow(unused)]
     unused_8: bool,
 
-    creation_timestamp: B43
+    pub creation_timestamp: B43
 }
 
 

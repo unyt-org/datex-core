@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use datex_core::global::dxb_block::DXBBlock;
+use datex_core::global::protocol_structures::encrypted_header::{self, EncryptedHeader};
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 
@@ -158,7 +159,20 @@ pub fn test_receive() {
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
-    let block = DXBBlock::default();
+    let block = DXBBlock {
+        body: vec![0x01, 0x02, 0x03],
+        encrypted_header: EncryptedHeader {
+            flags: encrypted_header::Flags::new().with_device_type(
+                encrypted_header::DeviceType::Unused11,
+            ),
+            ..Default::default()
+        },
+        routing_header: RoutingHeader {
+            block_size_u16: Some(62 + 3),
+            ..Default::default()
+        },
+        ..DXBBlock::default()
+    };
     let block_bytes = block.to_bytes().unwrap();
 
     {

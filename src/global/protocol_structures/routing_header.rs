@@ -159,7 +159,7 @@ impl Default for RoutingHeader {
             scope_id: 0,
             block_index: 0,
             block_increment: 0,
-            block_size_u16: Some(37),
+            block_size_u16: Some(62),
             block_size_u32: None,
             sender: Sender::default(),
             receivers: Receivers::default(),

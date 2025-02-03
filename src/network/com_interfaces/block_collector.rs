@@ -39,7 +39,9 @@ impl BlockCollector {
 		// Add the received data to the current block.
 		self.current_block.extend_from_slice(slice);
 
-		while self.current_block.len() > 0{
+		while self.current_block.len() > 0 {
+			println!("length_result: {:?}", self.current_block.len());
+
 			// Extract the block length from the header if it is not already known.
 			if self.current_block_specified_length.is_none() {
 				let length_result = DXBBlock::extract_dxb_block_length(&self.current_block);
@@ -48,7 +50,9 @@ impl BlockCollector {
 					Ok(length) => {
 						self.current_block_specified_length = Some(length);
 					}
-					Err(HeaderParsingError::InsufficientLength) => (),
+					Err(HeaderParsingError::InsufficientLength) => {
+						break;
+					},
 					Err(err) => {
 						println!("Received invalid block header: {:?}", err);
 						self.current_block.clear();
@@ -75,7 +79,8 @@ impl BlockCollector {
 							self.current_block_specified_length = None;
 						}
 					}
-					
+				} else {
+					break;
 				}
 			}
 
