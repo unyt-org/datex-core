@@ -130,12 +130,10 @@ fn extract_endpoint(dxb_body: &[u8], index: &mut usize, endpoint_type: BinaryCod
     };
 }
 
-
 pub fn extract_body(header: DXBHeader, dxb: &[u8]) -> &[u8] {
     let start = header.body_start_offset;
     return &dxb[start..];
 }
-
 
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(

@@ -36,11 +36,12 @@ impl MockupInterface {
         })));
     }
 
-    pub fn get_com_interface_trait(mockup_interface: Rc<RefCell<MockupInterface>>) -> ComInterfaceTrait {
+    pub fn get_com_interface_trait(
+        mockup_interface: Rc<RefCell<MockupInterface>>,
+    ) -> ComInterfaceTrait {
         return ComInterfaceTrait::new(mockup_interface);
     }
 }
-
 
 impl Default for MockupInterface {
     fn default() -> Self {
@@ -74,8 +75,12 @@ impl ComInterface for MockupInterface {
     }
 }
 
-
-fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>, ComInterfaceTrait, Rc<RefCell<ComInterfaceSocket>>) {
+fn get_mock_setup() -> (
+    Rc<RefCell<ComHub>>,
+    Rc<RefCell<MockupInterface>>,
+    ComInterfaceTrait,
+    Rc<RefCell<ComInterfaceSocket>>,
+) {
     // init com hub
     let com_hub = ComHub::new();
     let mut com_hub_mut = com_hub.borrow_mut();
@@ -88,12 +93,10 @@ fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>, ComIn
     // add mockup interface to com hub
     com_hub_mut.add_interface(mockup_in_trait.clone());
 
-    let socket = Rc::new(RefCell::new(
-        ComInterfaceSocket {
-            uuid: "mockup_in_socket".to_string(),
-            ..Default::default()
-        }
-    ));
+    let socket = Rc::new(RefCell::new(ComInterfaceSocket {
+        uuid: "mockup_in_socket".to_string(),
+        ..Default::default()
+    }));
 
     // add socket to mockup interface
     mockup_in_trait.add_socket(socket.clone());
@@ -105,7 +108,6 @@ fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>, ComIn
         socket,
     )
 }
-
 
 #[test]
 pub fn test_add_and_remove() {
@@ -133,7 +135,6 @@ pub fn test_multiple_add() {
 
 #[test]
 pub fn test_send() {
-
     // init mock setup
     let (com_hub, com_interface, _, _) = get_mock_setup();
 
@@ -162,13 +163,12 @@ pub fn test_receive() {
     let block = DXBBlock {
         body: vec![0x01, 0x02, 0x03],
         encrypted_header: EncryptedHeader {
-            flags: encrypted_header::Flags::new().with_device_type(
-                encrypted_header::DeviceType::Unused11,
-            ),
+            flags: encrypted_header::Flags::new()
+                .with_device_type(encrypted_header::DeviceType::Unused11),
             ..Default::default()
         },
         routing_header: RoutingHeader {
-            block_size_u16: Some(62 + 3),
+            block_size_u16: Some(26 + 3),
             ..Default::default()
         },
         ..DXBBlock::default()
@@ -222,7 +222,10 @@ pub fn test_receive_multiple() {
             ..Default::default()
         },
     ];
-    let block_bytes: Vec<Vec<u8>> = blocks.iter().map(|block| block.to_bytes().unwrap()).collect();
+    let block_bytes: Vec<Vec<u8>> = blocks
+        .iter()
+        .map(|block| block.to_bytes().unwrap())
+        .collect();
 
     {
         let socket_ref = socket.borrow();
@@ -241,11 +244,12 @@ pub fn test_receive_multiple() {
     assert_eq!(incoming_blocks.len(), blocks.len());
 
     for (incoming_block, block) in incoming_blocks.iter().zip(blocks.iter()) {
-        assert_eq!(incoming_block.raw_bytes.clone().unwrap(), block.to_bytes().unwrap());
+        assert_eq!(
+            incoming_block.raw_bytes.clone().unwrap(),
+            block.to_bytes().unwrap()
+        );
     }
 }
 
 #[test]
-pub fn test_send_receive() {
-
-}
+pub fn test_send_receive() {}

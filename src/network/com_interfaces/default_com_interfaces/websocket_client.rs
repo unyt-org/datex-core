@@ -1,6 +1,10 @@
 extern crate websocket;
 
-use std::{collections::VecDeque, net::TcpStream, sync::{Arc, Mutex}};
+use std::{
+    collections::VecDeque,
+    net::TcpStream,
+    sync::{Arc, Mutex},
+};
 
 use websocket::{
     sync::{stream::TlsStream, Client},
@@ -54,7 +58,10 @@ impl ComInterface for WebSocketClientInterface {
         }
     }
 
-   fn get_sockets(&self) -> std::rc::Rc<std::cell::RefCell<Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>>> {
+    fn get_sockets(
+        &self,
+    ) -> std::rc::Rc<std::cell::RefCell<Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>>>
+    {
         todo!()
-   }
+    }
 }

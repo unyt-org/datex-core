@@ -3,8 +3,8 @@ use modular_bitfield::{bitfield, BitfieldSpecifier};
 
 use super::{addressing::Endpoint, serializable::Serializable};
 
-#[derive(Debug, PartialEq, Clone, Default)]
-#[derive(BitfieldSpecifier)]
+// 4 bit
+#[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
 pub enum DeviceType {
     #[default]
     Unknown = 0,
@@ -38,6 +38,7 @@ pub enum DeviceType {
     Unused11 = 15,
 }
 
+// 4 bit + 4 bit = 8 bit
 #[bitfield]
 #[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
 #[bw(map = |&x| Self::into_bytes(x))]
@@ -50,12 +51,14 @@ pub struct Flags {
     unused_2: bool,
 }
 
+// min: 1 byte
+// max: 1 byte + 21 bytes = 22 bytes
 #[derive(Debug, Clone, Default, BinWrite, BinRead)]
 #[brw(little)]
 pub struct EncryptedHeader {
     pub flags: Flags,
 
     #[brw(if (flags.has_on_behalf_of()))]
-    pub on_behalf_of: Option<Endpoint>
+    pub on_behalf_of: Option<Endpoint>,
 }
 impl Serializable for EncryptedHeader {}

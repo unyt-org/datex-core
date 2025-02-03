@@ -5,6 +5,7 @@ use modular_bitfield::{bitfield, prelude::B43, BitfieldSpecifier};
 
 use super::{addressing::Endpoint, serializable::Serializable};
 
+// 4 bit
 #[derive(Debug, PartialEq, Clone, Copy, Default, BitfieldSpecifier)]
 pub enum BlockType {
     #[default]
@@ -37,9 +38,10 @@ pub enum BlockType {
     #[allow(unused)]
     Unused12,
     #[allow(unused)]
-    Unused13
+    Unused13,
 }
 
+// 21 bit + 43 bit = 64 bit
 #[bitfield]
 #[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
 #[bw(map = |&x| Self::into_bytes(x))]
@@ -74,23 +76,24 @@ pub struct FlagsAndTimestamp {
     #[allow(unused)]
     unused_8: bool,
 
-    pub creation_timestamp: B43
+    pub creation_timestamp: B43,
 }
 
-
+// min: 8 byte
+// max 8 byte + 4 byte + 21 byte + 16 byte = 49 byte
 #[derive(Debug, Clone, Default, BinWrite, BinRead)]
 #[brw(little)]
 pub struct BlockHeader {
     pub flags_and_timestamp: FlagsAndTimestamp,
 
-    #[br(if(flags_and_timestamp.has_lifetime()))]
+    #[brw(if(flags_and_timestamp.has_lifetime()))]
     pub lifetime: Option<u32>,
 
-    #[br(if(flags_and_timestamp.has_represented_by()))]
+    #[brw(if(flags_and_timestamp.has_represented_by()))]
     pub represented_by: Option<Endpoint>,
 
-    #[br(if(flags_and_timestamp.has_iv()))]
+    #[brw(if(flags_and_timestamp.has_iv()))]
     pub iv: [u8; 16],
 }
 
-impl Serializable for BlockHeader { }
+impl Serializable for BlockHeader {}

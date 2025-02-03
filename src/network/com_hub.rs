@@ -19,7 +19,6 @@ pub struct ComHub {
     pub interfaces: HashSet<ComInterfaceTrait>,
     pub endpoint_sockets: HashMap<Endpoint, HashMap<ComInterfaceSocket, DynamicEndpointProperties>>,
     //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
-
     pub incoming_blocks: RefCell<VecDeque<Rc<DXBBlock>>>,
 }
 
@@ -46,12 +45,10 @@ impl ComHub {
 
         // TODO: routing
 
-
         // own incoming blocks
         let mut incoming_blocks = self.incoming_blocks.borrow_mut();
         incoming_blocks.push_back(Rc::new(block.clone()));
     }
-
 
     // iterate over all sockets of all interfaces
     fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
@@ -65,14 +62,12 @@ impl ComHub {
         sockets.clone()
     }
 
-    
     fn iterate_endpoint_sockets(&self) -> Vec<ComInterfaceSocket> {
         todo!()
     }
-    
 
     /**
-     * Update all sockets and interfaces, 
+     * Update all sockets and interfaces,
      * collecting incoming data and sending out queued blocks.
      */
     pub fn update(&mut self) {
@@ -85,7 +80,6 @@ impl ComHub {
         // send all queued blocks from all interfaces
         self.flush_outgoing_blocks();
     }
-
 
     /**
      * Send a block to all endpoints specified in block header.
@@ -119,7 +113,7 @@ impl ComHub {
     }
 
     /**
-     * Collect all blocks from the receive queues of all sockets and process them 
+     * Collect all blocks from the receive queues of all sockets and process them
      * in the receive_block method.
      */
     fn receive_incoming_blocks(&mut self) {

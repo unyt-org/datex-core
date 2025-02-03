@@ -1,15 +1,15 @@
 use binrw::{BinRead, BinWrite};
 
-#[derive(Debug, Clone, PartialEq, Default)]
-#[derive(BinWrite, BinRead)]
+// 1 byte + 18 byte + 2 byte = 21 byte
+#[derive(Debug, Clone, PartialEq, Default, BinWrite, BinRead)]
 pub struct Endpoint {
     pub endpoint_type: EndpointType,
     pub endpoint_id: [u8; 18],
     pub instance: u16,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-#[derive(BinWrite, BinRead)]
+// 1 byte
+#[derive(Debug, PartialEq, Clone, Default, BinWrite, BinRead)]
 #[brw(repr(u8))]
 pub enum EndpointType {
     Person = 0,
@@ -19,10 +19,11 @@ pub enum EndpointType {
     Any = 255,
 }
 
-#[derive(Debug, Clone, Default)]
-#[derive(BinWrite, BinRead)]
+// min: 1 byte
+// max: 21 byte
+#[derive(Debug, Clone, Default, BinWrite, BinRead)]
 pub struct Sender {
     pub sender_type: EndpointType,
-    #[br(if(sender_type != EndpointType::Any))]
+    #[brw(if(sender_type.clone() != EndpointType::Any))]
     pub sender_id: [u8; 20],
 }

@@ -21,7 +21,7 @@ pub fn parse_encrypted_header() {
     };
     let encrypted_header = EncryptedHeader {
         on_behalf_of: Some(endpoint.clone()),
-		flags: encrypted_header::Flags::new().with_has_on_behalf_of(true),
+        flags: encrypted_header::Flags::new().with_has_on_behalf_of(true),
         ..EncryptedHeader::default()
     };
     let mut writer = Cursor::new(Vec::new());

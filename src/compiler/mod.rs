@@ -28,38 +28,33 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>> {
     let body = compile_body(datex_script)?;
 
     let routing_header = RoutingHeader {
-		version: 2,
-		ttl: 0,
-		flags: routing_header::Flags::new(),
-		block_size_u16: Some(0),
-		block_size_u32: None,
-		scope_id: 0,
-		block_index: 0,
-		block_increment: 0,
-		sender: addressing::Sender {
-			sender_type: addressing::EndpointType::Person,
-			sender_id: [0; 20],
-		},
-		receivers: routing_header::Receivers {
-			flags: routing_header::ReceiverFlags::new()
-				.with_has_endpoints(false)
-				.with_has_pointer_id(false)
-				.with_has_endpoint_keys(false),
-			pointer_id: None,
-			endpoints: None,
-			endpoints_with_keys: None,
-		}
-	};
-    
+        version: 2,
+        ttl: 0,
+        flags: routing_header::Flags::new(),
+        block_size_u16: Some(0),
+        block_size_u32: None,
+        scope_id: 0,
+        block_index: 0,
+        block_increment: 0,
+        sender: addressing::Sender {
+            sender_type: addressing::EndpointType::Person,
+            sender_id: [0; 20],
+        },
+        receivers: routing_header::Receivers {
+            flags: routing_header::ReceiverFlags::new()
+                .with_has_endpoints(false)
+                .with_has_pointer_id(false)
+                .with_has_endpoint_keys(false),
+            pointer_id: None,
+            endpoints: None,
+            endpoints_with_keys: None,
+        },
+    };
+
     let block_header = BlockHeader::default();
     let encrypted_header = EncryptedHeader::default();
 
-    let block = DXBBlock::new(
-        routing_header,
-        block_header,
-        encrypted_header,
-        body,
-    );
+    let block = DXBBlock::new(routing_header, block_header, encrypted_header, body);
 
     return Ok(block.to_bytes()?);
 }

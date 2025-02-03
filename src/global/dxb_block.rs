@@ -1,4 +1,7 @@
-use std::{io::{BufRead, Cursor, Read}, vec};
+use std::{
+    io::{BufRead, Cursor, Read},
+    vec,
+};
 
 use anyhow::Result;
 use binrw::{BinRead, BinWrite};
@@ -63,7 +66,6 @@ impl DXBBlock {
         bytes.extend_from_slice(&self.body);
 
         // TODO: adjust block length byte to match the actual length of the block
-
         return Ok(bytes);
     }
 
@@ -106,11 +108,8 @@ impl DXBBlock {
             SignatureType::None => None,
             SignatureType::Invalid => todo!(),
         };
-        
-        reader.position();
 
         // TODO: validate the signature
-
         let decrypted_bytes = match routing_header.flags.encryption_type() {
             EncryptionType::Encrypted => {
                 // TODO: decrypt the body
@@ -122,9 +121,8 @@ impl DXBBlock {
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes)?;
                 bytes
-            },
+            }
         };
-        reader.position();
 
         let mut reader = Cursor::new(decrypted_bytes);
         let block_header = BlockHeader::read(&mut reader)?;

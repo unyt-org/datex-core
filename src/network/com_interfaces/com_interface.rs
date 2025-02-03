@@ -3,7 +3,8 @@ use std::{
     collections::VecDeque,
     hash::{Hash, Hasher},
     rc::Rc,
-    sync::{Arc, Mutex}, vec,
+    sync::{Arc, Mutex},
+    vec,
 };
 
 use super::{
@@ -24,9 +25,7 @@ pub struct ComInterfaceTrait {
 
 impl ComInterfaceTrait {
     pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
-        ComInterfaceTrait { 
-            interface: inner,
-         }
+        ComInterfaceTrait { interface: inner }
     }
 
     pub fn get_properties(&self) -> InterfaceProperties {

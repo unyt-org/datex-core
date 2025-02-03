@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex}};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
@@ -17,7 +20,10 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn get_sockets(&self) -> std::rc::Rc<std::cell::RefCell<Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>>> {
+    fn get_sockets(
+        &self,
+    ) -> std::rc::Rc<std::cell::RefCell<Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>>>
+    {
         todo!()
     }
 }

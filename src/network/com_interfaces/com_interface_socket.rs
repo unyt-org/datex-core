@@ -20,7 +20,6 @@ pub struct ComInterfaceSocket {
 }
 
 impl ComInterfaceSocket {
-
     pub fn get_receive_queue(&self) -> Arc<Mutex<VecDeque<u8>>> {
         self.receive_queue.clone()
     }
@@ -37,7 +36,6 @@ impl ComInterfaceSocket {
         self.send_queue.push_back(block.to_vec());
     }
 }
-
 
 impl Default for ComInterfaceSocket {
     fn default() -> Self {
