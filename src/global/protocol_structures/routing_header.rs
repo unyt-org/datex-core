@@ -1,6 +1,8 @@
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
+use super::addressing::{Endpoint, Sender};
+
 #[derive(Debug, PartialEq, Clone, Default)]
 #[derive(BitfieldSpecifier)]
 pub enum SignatureType {
@@ -46,27 +48,6 @@ pub struct Flags {
     unused_3: bool,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-#[derive(BinWrite, BinRead)]
-#[brw(repr(u8))]
-pub enum EndpointType {
-    Person = 0,
-    Institution = 1,
-    Anonymous = 2,
-    #[default]
-    Any = 255,
-}
-
-#[derive(Debug, Clone, Default)]
-#[derive(BinWrite, BinRead)]
-pub struct Sender {
-    pub sender_type: EndpointType,
-    #[br(if(sender_type != EndpointType::Any))]
-    pub sender_id: [u8; 20],
-}
-
-
-
 #[bitfield]
 #[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
 #[bw(map = |&x| Self::into_bytes(x))]
@@ -97,14 +78,6 @@ pub struct PointerId {
     pub instance: u16,
     pub timestamp: u32,
     pub counter: u8,
-}
-
-#[derive(Debug, Clone, Default)]
-#[derive(BinWrite, BinRead)]
-pub struct Endpoint {
-    pub endpoint_type: EndpointType,
-    pub endpoint_id: [u8; 18],
-    pub instance: u16,
 }
 
 
