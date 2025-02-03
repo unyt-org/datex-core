@@ -1,15 +1,3 @@
-use datex_core::{
-    datex_values::Endpoint,
-    global::dxb_header::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo},
-    network::com_interfaces::{
-        com_interface::ComInterface,
-        default_com_interfaces::{
-            tcp_client::TCPClientInterface, websocket_client::WebSocketClientInterface,
-        },
-    },
-    runtime::Runtime,
-    utils::buffers::hex_to_buffer_advanced,
-};
 
 #[test]
 pub fn tcp_client_interface() {

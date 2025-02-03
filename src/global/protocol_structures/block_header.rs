@@ -1,4 +1,3 @@
-use std::io::Cursor;
 
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{bitfield, prelude::B43, BitfieldSpecifier};

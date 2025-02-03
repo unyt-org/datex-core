@@ -1,10 +1,7 @@
 use std::{
     cell::RefCell,
-    collections::VecDeque,
     hash::{Hash, Hasher},
     rc::Rc,
-    sync::{Arc, Mutex},
-    vec,
 };
 
 use super::{

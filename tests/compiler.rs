@@ -1,6 +1,6 @@
 use datex_core::{
     compiler::{
-        compile, compile_body,
+        compile_body,
         parser::{DatexParser, Rule},
     },
     decompiler::decompile_body,

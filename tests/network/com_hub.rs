@@ -1,8 +1,6 @@
 use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::io::Write;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{self, EncryptedHeader};

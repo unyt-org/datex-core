@@ -1,6 +1,4 @@
-use datex_core::datex_values::Endpoint;
-use datex_core::global::dxb_block::DXBBlock;
-use datex_core::global::dxb_header::{DXBBlockType, DXBHeader, HeaderFlags, RoutingInfo};
+use datex_core::global::dxb_header::{DXBBlockType, DXBHeader};
 use datex_core::utils::buffers::hex_to_buffer_advanced;
 
 // const CTX:&LoggerContext = &LoggerContext {log_redirect:None};

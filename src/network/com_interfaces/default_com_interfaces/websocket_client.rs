@@ -1,10 +1,6 @@
 extern crate websocket;
 
-use std::{
-    collections::VecDeque,
-    net::TcpStream,
-    sync::{Arc, Mutex},
-};
+use std::net::TcpStream;
 
 use websocket::{
     sync::{stream::TlsStream, Client},

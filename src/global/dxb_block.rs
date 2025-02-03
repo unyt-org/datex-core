@@ -1,7 +1,4 @@
-use std::{
-    io::{BufRead, Cursor, Read},
-    vec,
-};
+use std::io::{Cursor, Read};
 
 use anyhow::Result;
 use binrw::{BinRead, BinWrite};
