@@ -1,7 +1,7 @@
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
-use super::addressing::{Endpoint, Sender};
+use super::{addressing::{Endpoint, Sender}, serializable::Serializable};
 
 #[derive(Debug, PartialEq, Clone, Default)]
 #[derive(BitfieldSpecifier)]
@@ -147,6 +147,8 @@ pub struct RoutingHeader {
     pub sender: Sender,
     pub receivers: Receivers,
 }
+
+impl Serializable for RoutingHeader {}
 
 impl Default for RoutingHeader {
     fn default() -> Self {

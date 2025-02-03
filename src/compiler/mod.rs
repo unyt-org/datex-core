@@ -2,10 +2,11 @@ use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
 use crate::global::dxb_block::DXBBlock;
+use crate::global::protocol_structures::addressing;
 use crate::global::protocol_structures::block_header::BlockHeader;
+use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
-use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::utils::buffers::append_f64;
 use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
@@ -35,8 +36,8 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>> {
 		scope_id: 0,
 		block_index: 0,
 		block_increment: 0,
-		sender: routing_header::Sender {
-			sender_type: routing_header::EndpointType::Person,
+		sender: addressing::Sender {
+			sender_type: addressing::EndpointType::Person,
 			sender_id: [0; 20],
 		},
 		receivers: routing_header::Receivers {
@@ -50,11 +51,13 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>> {
 		}
 	};
     
-    let block_header = BlockHeader {};
+    let block_header = BlockHeader::default();
+    let encrypted_header = EncryptedHeader::default();
 
     let block = DXBBlock::new(
         routing_header,
         block_header,
+        encrypted_header,
         body,
     );
 

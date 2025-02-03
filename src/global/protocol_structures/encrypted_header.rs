@@ -1,7 +1,7 @@
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{bitfield, BitfieldSpecifier};
 
-use super::addressing::Endpoint;
+use super::{addressing::Endpoint, serializable::Serializable};
 
 #[derive(Debug, PartialEq, Clone, Default)]
 #[derive(BitfieldSpecifier)]
@@ -58,3 +58,4 @@ pub struct EncryptedHeader {
     #[brw(if (flags.has_on_behalf_of()))]
     pub on_behalf_of: Option<Endpoint>
 }
+impl Serializable for EncryptedHeader {}

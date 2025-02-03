@@ -1,6 +1,6 @@
 use binrw::{BinRead, BinWrite};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[derive(BinWrite, BinRead)]
 pub struct Endpoint {
     pub endpoint_type: EndpointType,

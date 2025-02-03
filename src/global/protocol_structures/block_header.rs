@@ -1,7 +1,9 @@
+use std::io::Cursor;
+
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{bitfield, prelude::B43, BitfieldSpecifier};
 
-use super::addressing::Endpoint;
+use super::{addressing::Endpoint, serializable::Serializable};
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, BitfieldSpecifier)]
 pub enum BlockType {
@@ -90,3 +92,5 @@ pub struct BlockHeader {
     #[br(if(flags_and_timestamp.has_iv()))]
     pub iv: [u8; 16],
 }
+
+impl Serializable for BlockHeader { }
