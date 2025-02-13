@@ -29,6 +29,7 @@ binrw = "0.14.1"
 modular-bitfield = "0.11.2"
 anyhow = "1.0.95"
 thiserror = "2.0.11"
+url = "2.5.4"
 
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))'.dependencies]

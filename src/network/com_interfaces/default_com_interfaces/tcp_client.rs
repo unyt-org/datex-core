@@ -1,4 +1,6 @@
 
+use anyhow::Result;
+
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use super::super::com_interface::ComInterface;
@@ -6,6 +8,11 @@ use super::super::com_interface::ComInterface;
 pub struct TCPClientInterface {}
 
 impl ComInterface for TCPClientInterface {
+
+    fn connect(&self) -> Result<()> {
+        todo!()
+    }
+
     fn send_block(&mut self, _block: &[u8], socket: &ComInterfaceSocket) -> () {
         todo!()
     }

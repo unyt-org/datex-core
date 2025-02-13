@@ -1,6 +1,9 @@
 use std::collections::{HashSet, VecDeque};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use anyhow::Result;
+use wasm_bindgen::prelude::wasm_bindgen;
+
 use super::com_interfaces::{
     com_interface::{ComInterface, ComInterfaceTrait},
     com_interface_socket::ComInterfaceSocket,
@@ -30,8 +33,16 @@ impl ComHub {
         }));
     }
 
-    pub fn add_interface(&mut self, interface: ComInterfaceTrait) -> bool {
-        self.interfaces.insert(interface)
+    pub fn add_interface(&mut self, interface: ComInterfaceTrait) -> Result<()> {
+
+        if self.interfaces.contains(&interface) {
+            return Err(anyhow::anyhow!("Interface already exists"));
+        }
+
+        interface.connect()?;
+        self.interfaces.insert(interface);
+
+        Ok(())
     }
 
     pub fn remove_interface(&mut self, interface: ComInterfaceTrait) -> bool {

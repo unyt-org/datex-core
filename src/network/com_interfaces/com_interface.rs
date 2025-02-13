@@ -4,6 +4,8 @@ use std::{
     rc::Rc,
 };
 
+use anyhow::Result;
+
 use super::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
@@ -13,6 +15,7 @@ pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
     fn get_properties(&self) -> InterfaceProperties;
     fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
+    fn connect(&self) -> Result<()>;
 }
 
 #[derive(Clone)]
@@ -23,6 +26,10 @@ pub struct ComInterfaceTrait {
 impl ComInterfaceTrait {
     pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
         ComInterfaceTrait { interface: inner }
+    }
+
+    pub fn connect(&self) -> Result<()> {
+        self.interface.borrow().connect()
     }
 
     pub fn get_properties(&self) -> InterfaceProperties {

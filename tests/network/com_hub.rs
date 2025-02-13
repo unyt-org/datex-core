@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::io::Write;
 use std::rc::Rc;
 
+use anyhow::Error;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{self, EncryptedHeader};
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
@@ -51,6 +52,11 @@ impl Default for MockupInterface {
 }
 
 impl ComInterface for MockupInterface {
+
+    fn connect(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
         self.last_block = Some(block.to_vec());
     }
@@ -113,7 +119,9 @@ pub fn test_add_and_remove() {
     let mut com_hub_mut = com_hub.borrow_mut();
     let mockup_interface = MockupInterface::default_com_interface_trait();
 
-    assert!(com_hub_mut.add_interface(mockup_interface.clone()));
+    com_hub_mut.add_interface(mockup_interface.clone()).unwrap_or_else(|e| {
+        panic!("Error adding interface: {:?}", e);
+    });
     assert!(com_hub_mut.remove_interface(mockup_interface));
 }
 
@@ -125,10 +133,15 @@ pub fn test_multiple_add() {
     let mockup_interface1: ComInterfaceTrait = MockupInterface::default_com_interface_trait();
     let mockup_interface2 = MockupInterface::default_com_interface_trait();
 
-    assert!(com_hub_mut.add_interface(mockup_interface1.clone()));
-    assert!(com_hub_mut.add_interface(mockup_interface2.clone()));
-    assert_eq!(com_hub_mut.add_interface(mockup_interface1.clone()), false);
-    assert_eq!(com_hub_mut.add_interface(mockup_interface2.clone()), false);
+    com_hub_mut.add_interface(mockup_interface1.clone()).unwrap_or_else(|e| {
+        panic!("Error adding interface: {:?}", e);
+    });
+    com_hub_mut.add_interface(mockup_interface2.clone()).unwrap_or_else(|e| {
+        panic!("Error adding interface: {:?}", e);
+    });
+
+    assert!(com_hub_mut.add_interface(mockup_interface1.clone()).is_err());
+    assert!(com_hub_mut.add_interface(mockup_interface2.clone()).is_err());
 }
 
 #[test]
