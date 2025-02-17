@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::VecDeque, rc::Rc, sync::{Arc, Mutex}};
 
 use anyhow::{anyhow, Result};
 use url::Url;
@@ -18,8 +18,7 @@ pub struct WebSocketClientInterface<WS> where WS: WebSocket {
 pub trait WebSocket {
     fn send_data(&self, message: &[u8]) -> bool;
     fn get_address(&self) -> Url;
-
-    fn connect(&self) -> Result<()>;
+    fn connect(&self) -> Result<Arc<Mutex<VecDeque<u8>>>>;
 }
 
 pub fn parse_url(address: &str) -> Result<Url> {
@@ -55,8 +54,14 @@ impl<WS> WebSocketClientInterface<WS> where WS: WebSocket {
 
 impl<WS> ComInterface for WebSocketClientInterface<WS> where WS: WebSocket {
 
-    fn connect(&self) -> Result<()> {
-        self.websocket.connect()
+    fn connect(&mut self) -> Result<()> {
+        let receive_queue = self.websocket.connect()?;
+        let socket = ComInterfaceSocket {
+            receive_queue,
+            ..Default::default()
+        };
+        self.socket = Some(Rc::new(RefCell::new(socket)));
+        Ok(())
     }
 
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {

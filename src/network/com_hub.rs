@@ -33,8 +33,7 @@ impl ComHub {
         }));
     }
 
-    pub fn add_interface(&mut self, interface: ComInterfaceTrait) -> Result<()> {
-
+    pub fn add_interface(&mut self, mut interface: ComInterfaceTrait) -> Result<()> {
         if self.interfaces.contains(&interface) {
             return Err(anyhow::anyhow!("Interface already exists"));
         }

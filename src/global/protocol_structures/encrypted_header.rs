@@ -40,7 +40,7 @@ pub enum DeviceType {
 
 // 4 bit + 4 bit = 8 bit
 #[bitfield]
-#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
+#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct Flags {
@@ -53,7 +53,7 @@ pub struct Flags {
 
 // min: 1 byte
 // max: 1 byte + 21 bytes = 22 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct EncryptedHeader {
     pub flags: Flags,

@@ -34,7 +34,7 @@ pub enum BlockSize {
 
 // 2 bit + 1 bit + 1 bit + 4 bit = 1 byte
 #[bitfield]
-#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
+#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct Flags {
@@ -54,7 +54,7 @@ pub struct Flags {
 
 // 1 byte
 #[bitfield]
-#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
+#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct ReceiverFlags {
@@ -75,7 +75,7 @@ pub struct ReceiverFlags {
 }
 
 // 1 byte + 18 byte + 2 byte + 4 byte + 1 byte = 26 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct PointerId {
     pub pointer_type: u8,
     pub identifier: [u8; 18],
@@ -86,7 +86,7 @@ pub struct PointerId {
 
 // <count>: 2 byte + (21 byte * count)
 // min: 2 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct ReceiverEndpoints {
     pub count: u16,
     #[br(count = count)]
@@ -95,7 +95,7 @@ pub struct ReceiverEndpoints {
 
 // <count>: 2 byte + (21 byte * count) + (512 byte * count)
 // min: 2 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct ReceiverEndpointsWithKeys {
     pub count: u16,
     #[br(count = count)]
@@ -103,7 +103,7 @@ pub struct ReceiverEndpointsWithKeys {
 }
 
 // min: 1 byte
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct Receivers {
     pub flags: ReceiverFlags,
 
@@ -117,7 +117,7 @@ pub struct Receivers {
 }
 
 // min: 11 byte + 2 byte + 1 byte + 1 byte = 15 bytes
-#[derive(Debug, Clone, BinWrite, BinRead)]
+#[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
     pub version: u8,

@@ -15,7 +15,7 @@ pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
     fn get_properties(&self) -> InterfaceProperties;
     fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
-    fn connect(&self) -> Result<()>;
+    fn connect(&mut self) -> Result<()>;
 }
 
 #[derive(Clone)]
@@ -28,8 +28,8 @@ impl ComInterfaceTrait {
         ComInterfaceTrait { interface: inner }
     }
 
-    pub fn connect(&self) -> Result<()> {
-        self.interface.borrow().connect()
+    pub fn connect(&mut self) -> Result<()> {
+        self.interface.borrow_mut().connect()
     }
 
     pub fn get_properties(&self) -> InterfaceProperties {

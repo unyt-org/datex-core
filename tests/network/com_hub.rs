@@ -53,7 +53,7 @@ impl Default for MockupInterface {
 
 impl ComInterface for MockupInterface {
 
-    fn connect(&self) -> anyhow::Result<()> {
+    fn connect(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -164,14 +164,10 @@ pub fn test_send() {
     assert_eq!(block_bytes, &block.to_bytes().unwrap());
 }
 
-#[test]
-pub fn test_receive() {
-    // init mock setup
-    let (com_hub, _, _, socket) = get_mock_setup();
-    let mut com_hub_mut = com_hub.borrow_mut();
 
-    // receive block
-    let block = DXBBlock {
+#[test]
+pub fn test_recalulate() {
+    let mut block = DXBBlock {
         body: vec![0x01, 0x02, 0x03],
         encrypted_header: EncryptedHeader {
             flags: encrypted_header::Flags::new()
@@ -179,13 +175,47 @@ pub fn test_receive() {
             ..Default::default()
         },
         routing_header: RoutingHeader {
-            block_size_u16: Some(26 + 3),
+            block_size_u16: Some(420),
             ..Default::default()
         },
         ..DXBBlock::default()
     };
-    let block_bytes = block.to_bytes().unwrap();
+    
+    { // invalid block size
+        let block_bytes = block.to_bytes().unwrap();
+        let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+        assert_ne!(block, block2);
+    }
 
+    { // valid block size
+        block.recalculate_struct();
+        let block_bytes = block.to_bytes().unwrap();
+        let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+        assert_eq!(block, block3);
+    }
+}
+
+
+
+#[test]
+pub fn test_receive() {
+    // init mock setup
+    let (com_hub, _, _, socket) = get_mock_setup();
+    let mut com_hub_mut = com_hub.borrow_mut();
+
+    // receive block
+    let mut block = DXBBlock {
+        body: vec![0x01, 0x02, 0x03],
+        encrypted_header: EncryptedHeader {
+            flags: encrypted_header::Flags::new()
+                .with_device_type(encrypted_header::DeviceType::Unused11),
+            ..Default::default()
+        },
+        ..DXBBlock::default()
+    };
+    block.recalculate_struct();
+    
+    let block_bytes = block.to_bytes().unwrap();
     {
         let socket_ref = socket.borrow();
         let receive_queue = socket_ref.get_receive_queue();

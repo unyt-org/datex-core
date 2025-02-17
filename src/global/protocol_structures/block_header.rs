@@ -42,7 +42,7 @@ pub enum BlockType {
 
 // 21 bit + 43 bit = 64 bit
 #[bitfield]
-#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug)]
+#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct FlagsAndTimestamp {
@@ -80,7 +80,7 @@ pub struct FlagsAndTimestamp {
 
 // min: 8 byte
 // max 8 byte + 4 byte + 21 byte + 16 byte = 49 byte
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct BlockHeader {
     pub flags_and_timestamp: FlagsAndTimestamp,

@@ -5,10 +5,12 @@ use binrw::{BinRead, BinWrite};
 use strum::Display;
 use thiserror::Error;
 
+use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
+
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
-    routing_header::{EncryptionType, RoutingHeader, SignatureType},
+    routing_header::{self, BlockSize, EncryptionType, RoutingHeader, SignatureType},
 };
 
 #[derive(Debug, Display, Error)]
@@ -17,6 +19,7 @@ pub enum HeaderParsingError {
     InsufficientLength,
 }
 
+// TODO fix partial eq 
 #[derive(Debug, Clone)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
@@ -24,6 +27,15 @@ pub struct DXBBlock {
     pub encrypted_header: EncryptedHeader,
     pub body: Vec<u8>,
     pub raw_bytes: Option<Vec<u8>>,
+}
+
+impl PartialEq for DXBBlock {
+    fn eq(&self, other: &Self) -> bool {
+        self.routing_header == other.routing_header
+            && self.block_header == other.block_header
+            && self.encrypted_header == other.encrypted_header
+            && self.body == other.body
+    }
 }
 
 impl Default for DXBBlock {
@@ -61,10 +73,41 @@ impl DXBBlock {
         self.encrypted_header.write(&mut writer)?;
         let mut bytes = writer.into_inner();
         bytes.extend_from_slice(&self.body);
-
-        // TODO: adjust block length byte to match the actual length of the block
-        return Ok(bytes);
+        return Ok(DXBBlock::adjust_block_length(bytes, &self.routing_header));
     }
+    pub fn recalculate_struct(&mut self) -> &mut Self {
+        let bytes = self.to_bytes().unwrap();
+        let size = bytes.len() as u32;
+        let is_small_size = size <= u16::MAX as u32;
+        self.routing_header.flags.set_block_size(if is_small_size {BlockSize::Default} else {BlockSize::Large});
+        self.routing_header.block_size_u16 = if is_small_size {Some(size as u16)} else {None};
+        self.routing_header.block_size_u32 = if is_small_size {None} else {Some(size)};
+        self
+    }
+
+    fn adjust_block_length(mut bytes: Vec<u8>, routing_header: &RoutingHeader) -> Vec<u8> {
+        let size = bytes.len() as u32;
+        let is_small_size = size <= u16::MAX as u32;
+        
+        if is_small_size {
+            if routing_header.flags.block_size() == BlockSize::Large {
+                bytes.remove(13);
+            }
+            write_u16(&mut bytes, &mut 13, size as u16);
+        } else {
+            if routing_header.flags.block_size() == BlockSize::Default {
+                bytes.insert(13, 0);
+            }
+            write_u32(&mut bytes, &mut 13, size);
+        }
+        if is_small_size {
+            clear_bit(&mut bytes, 5, 3);
+        } else {
+            set_bit(&mut bytes, 5, 3);
+        }
+        bytes
+    }
+
 
     pub fn has_dxb_magic_number(dxb: &[u8]) -> bool {
         dxb.len() >= 2 && dxb[0] == 0x01 && dxb[1] == 0x64

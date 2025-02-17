@@ -9,7 +9,7 @@ pub struct TCPClientInterface {}
 
 impl ComInterface for TCPClientInterface {
 
-    fn connect(&self) -> Result<()> {
+    fn connect(&mut self) -> Result<()> {
         todo!()
     }
 

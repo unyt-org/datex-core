@@ -1,5 +1,5 @@
 
-use std::net::TcpStream;
+use std::{collections::VecDeque, net::TcpStream, sync::{Arc, Mutex}};
 
 use anyhow::Result;
 use url::Url;
@@ -38,7 +38,7 @@ impl WebSocketNative {
 
 impl WebSocket for WebSocketNative {
 
-	fn connect(&self) -> Result<()> {
+	fn connect(&self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
 		todo!()
 	}
 

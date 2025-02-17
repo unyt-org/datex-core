@@ -1,6 +1,8 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use num_integer::Integer;
 use core::fmt::Write;
 use itertools::Itertools;
+use num_traits::int::PrimInt;
 
 /*
 read functions for primitive data types on a u8 array, also increments the index
@@ -105,6 +107,39 @@ pub fn write_u16(buffer: &mut Vec<u8>, index: &mut usize, val: u16) {
         *index += 1;
     }
 }
+pub fn write_u32(buffer: &mut Vec<u8>, index: &mut usize, val: u32) {
+    let bytes = val.to_le_bytes();
+    for b in bytes {
+        buffer[*index] = b;
+        *index += 1;
+    }
+}
+
+pub fn set_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
+    buffer[byte_index] |= 1 << bit_position;
+}
+
+pub fn clear_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
+    if byte_index < buffer.len() && bit_position < 8 {
+        buffer[byte_index] &= !(1 << bit_position);
+    }
+}
+
+pub fn toggle_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
+    if byte_index < buffer.len() && bit_position < 8 {
+        buffer[byte_index] ^= 1 << bit_position;
+    }
+}
+
+// TODO
+// pub fn write_int<T: PrimInt>(buffer: &mut Vec<u8>, mut index: usize, val: T) {
+//     let bytes = val.to_u128().unwrap().to_le_bytes();
+//     for b in bytes {
+//         buffer[index] = b;
+//         index += 1;
+//     }
+// }
+
 pub fn append_u16(buffer: &mut Vec<u8>, val: u16) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
@@ -119,13 +154,6 @@ pub fn append_i16(buffer: &mut Vec<u8>, val: i16) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
 
-pub fn write_u32(buffer: &mut Vec<u8>, index: &mut usize, val: u32) {
-    let bytes = val.to_le_bytes();
-    for b in bytes {
-        buffer[*index] = b;
-        *index += 1;
-    }
-}
 pub fn append_u32(buffer: &mut Vec<u8>, val: u32) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }

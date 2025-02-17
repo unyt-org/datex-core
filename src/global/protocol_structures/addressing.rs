@@ -21,7 +21,7 @@ pub enum EndpointType {
 
 // min: 1 byte
 // max: 21 byte
-#[derive(Debug, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct Sender {
     pub sender_type: EndpointType,
     #[brw(if(sender_type.clone() != EndpointType::Any))]
