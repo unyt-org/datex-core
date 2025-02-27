@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::{cell::{Cell, RefCell}, rc::Rc, sync::{Arc, Mutex}};
 
 use crate::{
     datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
@@ -12,7 +12,7 @@ use super::stack::Stack;
 /**
  * Converts DXB (with or without header) to DATEX Script
 */
-pub fn execute(ctx: &LoggerContext, dxb: &[u8]) -> ValueResult {
+pub fn execute(ctx: Rc<RefCell<LoggerContext>>, dxb: &[u8]) -> ValueResult {
     let mut body = dxb;
 
     let header_result = DXBHeader::from_bytes(dxb);
@@ -29,17 +29,17 @@ pub fn execute(ctx: &LoggerContext, dxb: &[u8]) -> ValueResult {
     return execute_body(ctx, body);
 }
 
-fn execute_body(ctx: &LoggerContext, dxb_body: &[u8]) -> ValueResult {
+fn execute_body(ctx: Rc<RefCell<LoggerContext>>, dxb_body: &[u8]) -> ValueResult {
     return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));
 }
 
 fn execute_loop(
-    ctx: &LoggerContext,
+    ctx: Rc<RefCell<LoggerContext>>,
     dxb_body: &[u8],
     index: &Cell<usize>,
     is_end_instruction: &Cell<bool>,
 ) -> ValueResult {
-    let logger = Logger::new_for_development(ctx, "DATEX Runtime");
+    let logger = Logger::new_for_development(ctx.clone(), "DATEX Runtime".to_string());
 
     let mut stack: Stack = Stack::new(&logger);
 
@@ -88,7 +88,7 @@ fn execute_loop(
 
         // enter new subscope - continue at index?
         if instruction.subscope_continue {
-            let sub_result = execute_loop(ctx, dxb_body, index, is_end_instruction);
+            let sub_result = execute_loop(ctx.clone(), dxb_body, index, is_end_instruction);
 
             // propagate error from subscope
             if sub_result.is_err() {

@@ -5,11 +5,11 @@ use crate::{
 
 pub struct Stack<'a> {
     stack: Vec<Box<dyn Value>>,
-    logger: &'a Logger<'a>,
+    logger: &'a Logger,
 }
 
 impl Stack<'_> {
-    pub fn new<'a>(logger: &'a Logger<'a>) -> Stack<'a> {
+    pub fn new<'a>(logger: &'a Logger) -> Stack<'a> {
         Stack {
             stack: Vec::new(),
             logger,

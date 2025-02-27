@@ -3,8 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
 
+use crate::{global::dxb_block::{DXBBlock, HeaderParsingError}, utils::logger::Logger};
+
+#[derive(Debug)]
 pub struct BlockCollector {
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
     /**
@@ -19,15 +21,35 @@ pub struct BlockCollector {
      * The length of the current block as specified by the block header.
      */
     current_block_specified_length: Option<u32>,
+
+    logger: Option<Logger>,
 }
 
-impl BlockCollector {
-    pub fn new(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
+impl Default for BlockCollector {
+    fn default() -> Self {
         BlockCollector {
-            receive_queue,
+            receive_queue: Arc::new(Mutex::new(VecDeque::new())),
             block_queue: VecDeque::new(),
             current_block: Vec::new(),
             current_block_specified_length: None,
+            logger: None,
+        }
+    }
+    
+}
+
+impl BlockCollector {
+    pub fn new<'a>(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
+        BlockCollector{
+            receive_queue,
+            ..Default::default()
+        }
+    }
+    pub fn new_with_logger<'a>(receive_queue: Arc<Mutex<VecDeque<u8>>>, logger: Option<Logger>) -> BlockCollector {
+        BlockCollector{
+            receive_queue,
+            logger,
+            ..Default::default()
         }
     }
 
@@ -36,18 +58,26 @@ impl BlockCollector {
     }
 
     fn receive_slice(&mut self, slice: &[u8]) {
-        println!("Received slice: {:?}", slice);
+        if let Some(logger) = &self.logger {
+            logger.info(&format!("Received slice of size {:?}", slice.len()));
+        }
+
 
         // Add the received data to the current block.
         self.current_block.extend_from_slice(slice);
 
         while self.current_block.len() > 0 {
-            println!("length_result: {:?}", self.current_block.len());
+            if let Some(logger) = &self.logger {
+                logger.info(&format!("length_result A {:?}", self.current_block.len()));
+            }
 
             // Extract the block length from the header if it is not already known.
             if self.current_block_specified_length.is_none() {
                 let length_result = DXBBlock::extract_dxb_block_length(&self.current_block);
-                println!("length_result: {:?}", length_result);
+                if let Some(logger) = &self.logger {
+                    logger.info(&format!("length_result B {:?}", length_result));
+                }
+
                 match length_result {
                     Ok(length) => {
                         self.current_block_specified_length = Some(length);
@@ -56,7 +86,9 @@ impl BlockCollector {
                         break;
                     }
                     Err(err) => {
-                        println!("Received invalid block header: {:?}", err);
+                        if let Some(logger) = &self.logger {
+                            logger.error(&format!("Received invalid block header: {:?}", err));
+                        }
                         self.current_block.clear();
                         self.current_block_specified_length = None;
                     }
@@ -79,7 +111,9 @@ impl BlockCollector {
                             self.current_block_specified_length = None;
                         }
                         Err(err) => {
-                            println!("Received invalid block header: {:?}", err);
+                            if let Some(logger) = &self.logger {
+                                logger.error(&format!("Received invalid block header: {:?}", err));
+                            }
                             self.current_block.clear();
                             self.current_block_specified_length = None;
                         }
@@ -96,10 +130,12 @@ impl BlockCollector {
     }
 
     pub fn update(&mut self) {
-        println!("BlockCollector update");
         let queue = self.receive_queue.clone();
         let mut receive_queue = queue.lock().unwrap();
         let len = receive_queue.len();
+        if let Some(logger) = &self.logger {
+            logger.success(&format!("Update block collector (length={})", len));
+        }
         if len == 0 {
             return;
         }

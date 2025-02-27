@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::{Ref, RefCell}, rc::Rc, sync::{Arc, Mutex}};
 
 use crate::{
     datex_values::ValueResult,
@@ -20,36 +20,38 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Runtime<'a> {
     pub version: String,
-    pub ctx: &'a LoggerContext,
+    pub ctx: Rc<RefCell<LoggerContext>>,
     pub crypto: &'a dyn Crypto,
     pub memory: Rc<RefCell<Memory>>,
     pub com_hub: Rc<RefCell<ComHub>>,
+    pub logger: Logger,
 }
 
 impl Runtime<'_> {
     pub fn new_with_crypto_and_logger<'a>(
         crypto: &'a dyn Crypto,
-        ctx: &'a LoggerContext,
+        ctx: Rc<RefCell<LoggerContext>>,
     ) -> Runtime<'a> {
-        let logger = Logger::new_for_development(&ctx, "DATEX");
-        logger.success("initialized!");
+        let logger = Logger::new_for_development(ctx.clone(), "DATEX".to_string());
+        logger.success("Runtime initialized!");
         return Runtime {
             version: VERSION.to_string(),
             crypto,
-            ctx,
+            logger,
+            ctx: ctx.clone(),
             memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: ComHub::new(),
+            com_hub: ComHub::new_with_logger_context(ctx.clone()),
         };
     }
 
     pub fn new() -> Runtime<'static> {
         return Runtime::new_with_crypto_and_logger(
             &RustCrypto {},
-            &LoggerContext { log_redirect: None },
+            Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
         );
     }
 
     pub fn execute(&self, dxb: &[u8]) -> ValueResult {
-        execute(&self.ctx, dxb)
+        execute(self.ctx.clone(), dxb)
     }
 }

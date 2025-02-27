@@ -32,8 +32,8 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
     let runtime = Runtime::new();
     let dxb_body = compile_body(&datex_script).unwrap();
 
-    let decompiled = decompile_body(runtime.ctx, &dxb_body, false, false, false);
-    let decompiled_color = decompile_body(runtime.ctx, &dxb_body, true, true, true);
+    let decompiled = decompile_body(runtime.ctx.clone(), &dxb_body, false, false, false);
+    let decompiled_color = decompile_body(runtime.ctx.clone(), &dxb_body, true, true, true);
 
     println!("original   : {}", datex_script);
     println!("decompiled : {}", decompiled_color);
@@ -44,8 +44,8 @@ fn compare_compiled(datex_script: &str, expected: &str) {
     let runtime = Runtime::new();
     let dxb_body = compile_body(&datex_script).unwrap();
 
-    let decompiled_color = decompile_body(runtime.ctx, &dxb_body, true, true, true);
-    let decompiled = decompile_body(runtime.ctx, &dxb_body, false, false, false);
+    let decompiled_color = decompile_body(runtime.ctx.clone(), &dxb_body, true, true, true);
+    let decompiled = decompile_body(runtime.ctx.clone(), &dxb_body, false, false, false);
 
     println!("original   : {}", datex_script);
     println!("expected : {}", expected);

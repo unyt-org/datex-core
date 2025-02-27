@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque};
+use std::sync::{Arc, Mutex};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::Result;
-use wasm_bindgen::prelude::wasm_bindgen;
 
 use super::com_interfaces::{
     com_interface::{ComInterface, ComInterfaceTrait},
@@ -10,6 +10,7 @@ use super::com_interfaces::{
 };
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
+use crate::utils::logger::{Logger, LoggerContext};
 
 struct DynamicEndpointProperties {
     known_since: u64,
@@ -20,17 +21,34 @@ pub struct ComHub {
     pub interfaces: HashSet<ComInterfaceTrait>,
     pub endpoint_sockets: HashMap<Endpoint, HashMap<ComInterfaceSocket, DynamicEndpointProperties>>,
     //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
-    pub incoming_blocks: RefCell<VecDeque<Rc<DXBBlock>>>,
+    pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
+    pub logger: Option<Logger>,
+}
+
+impl Default for ComHub {
+    fn default() -> Self {
+        ComHub {
+            interfaces: HashSet::new(),
+            endpoint_sockets: HashMap::new(),
+            logger: None,
+            // sockets: HashSet::new(),
+            incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
+        }
+    }
 }
 
 impl ComHub {
-    pub fn new() -> Rc<RefCell<ComHub>> {
+    pub fn new_with_logger_context(ctx: Rc<RefCell<LoggerContext>>) -> Rc<RefCell<ComHub>> {
         return Rc::new(RefCell::new(ComHub {
             interfaces: HashSet::new(),
             endpoint_sockets: HashMap::new(),
-            // sockets: HashSet::new(),
-            incoming_blocks: RefCell::new(VecDeque::new()),
+            logger: Some(Logger::new_for_production(ctx, "ComHub".to_string())),
+            incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
         }));
+    }
+
+    pub fn new() -> Rc<RefCell<ComHub>> {
+        return Rc::new(RefCell::new(ComHub::default()));
     }
 
     pub fn add_interface(&mut self, mut interface: ComInterfaceTrait) -> Result<()> {
@@ -114,6 +132,9 @@ impl ComHub {
 
     fn update_sockets(&self) {
         // update sockets, collect incoming data into full blocks
+        if let Some(logger) = &self.logger {
+            logger.info("Collecting incoming data from all sockets");
+        }
         for socket in &self.iterate_all_sockets() {
             let mut socket_ref = socket.borrow_mut();
             socket_ref.collect_incoming_data();

@@ -1,12 +1,12 @@
 use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
+    collections::VecDeque, sync::{Arc, Mutex}
 };
 
-use crate::{datex_values::Endpoint, global::dxb_block::DXBBlock};
+use crate::{datex_values::Endpoint, global::dxb_block::DXBBlock, utils::logger::{Logger}};
 
 use super::block_collector::BlockCollector;
 
+#[derive(Debug)]
 pub struct ComInterfaceSocket {
     pub endpoint: Option<Endpoint>,
     pub is_connected: bool,
@@ -17,6 +17,8 @@ pub struct ComInterfaceSocket {
     pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
     pub send_queue: VecDeque<Vec<u8>>,
     pub block_collector: BlockCollector,
+
+    pub logger: Option<Logger>,
 }
 
 impl ComInterfaceSocket {
@@ -29,11 +31,30 @@ impl ComInterfaceSocket {
     }
 
     pub fn collect_incoming_data(&mut self) {
+        if let Some(logger) = &self.logger {
+            logger.info(&format!("Collecting incoming data for {}", &self.uuid));
+        }
         self.block_collector.update();
     }
 
     pub fn queue_outgoing_block(&mut self, block: &[u8]) {
         self.send_queue.push_back(block.to_vec());
+    }
+
+    pub fn new() -> ComInterfaceSocket {
+        ComInterfaceSocket::default()
+    }
+    pub fn new_with_logger(logger: Option<Logger>) -> ComInterfaceSocket {
+        let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
+        ComInterfaceSocket::new_with_logger_and_receive_queue(logger, receive_queue)
+    }
+    pub fn new_with_logger_and_receive_queue(logger: Option<Logger>, receive_queue: Arc<Mutex<VecDeque<u8>>>) -> ComInterfaceSocket {
+        ComInterfaceSocket{
+            logger: logger.clone(),
+            receive_queue: receive_queue.clone(),
+            block_collector: BlockCollector::new_with_logger(receive_queue.clone(), logger),
+            ..ComInterfaceSocket::default()
+        }
     }
 }
 
@@ -46,6 +67,7 @@ impl Default for ComInterfaceSocket {
             is_open: false,
             is_destroyed: false,
             uuid: "xyz-todo".to_string(),
+            logger: None,
             connection_timestamp: 0,
             receive_queue: receive_queue.clone(),
             send_queue: VecDeque::new(),

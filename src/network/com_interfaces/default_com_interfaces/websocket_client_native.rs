@@ -37,8 +37,7 @@ impl WebSocketNative {
 }
 
 impl WebSocket for WebSocketNative {
-
-	fn connect(&self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
+	fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
 		todo!()
 	}
 
@@ -55,7 +54,7 @@ impl WebSocketClientInterface<WebSocketNative> {
 	pub fn new(address: &str) -> Result<WebSocketClientInterface<WebSocketNative>> {
 		let websocket = WebSocketNative::new(address)?;
 		
-		Ok(WebSocketClientInterface::new_with_web_socket(websocket))
+		Ok(WebSocketClientInterface::new_with_web_socket(websocket, None))
 	}
 
 }

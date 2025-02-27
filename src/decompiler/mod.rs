@@ -2,8 +2,13 @@ mod constants;
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::cell::Ref;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::vec;
 
 use crate::datex_values::SlotIdentifier;
@@ -31,7 +36,7 @@ lazy_static! {
  * Converts DXB (with or without header) to DATEX Script
  */
 pub fn decompile(
-    ctx: &LoggerContext,
+    ctx: Rc<RefCell<LoggerContext>>,
     dxb: &[u8],
     formatted: bool,
     colorized: bool,
@@ -49,18 +54,18 @@ pub fn decompile(
         // assume just dxb body
         Err(_) => (),
     }
-    return decompile_body(ctx, body, formatted, colorized, resolve_slots);
+    return decompile_body(ctx.clone(), body, formatted, colorized, resolve_slots);
 }
 
 pub fn decompile_body(
-    ctx: &LoggerContext,
+    ctx: Rc<RefCell<LoggerContext>>,
     dxb_body: &[u8],
     formatted: bool,
     colorized: bool,
     resolve_slots: bool,
 ) -> String {
     let mut initial_state = DecompilerGlobalState {
-        ctx,
+        ctx: ctx.clone(),
         dxb_body,
         index: &Cell::from(0),
         is_end_instruction: &Cell::from(false),
@@ -104,7 +109,7 @@ fn int_to_label(n: i32) -> String {
 
 struct DecompilerGlobalState<'a> {
     // ctx
-    ctx: &'a LoggerContext,
+    ctx: Rc<RefCell<LoggerContext>>,
 
     // dxb
     dxb_body: &'a [u8],
@@ -424,7 +429,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
             // scope
             BinaryCode::SCOPE_BLOCK_START => {
                 let scope = &mut decompile_body(
-                    &state.ctx,
+                    state.ctx.clone(),
                     &primitive_value.get_as_buffer(),
                     state.formatted,
                     state.colorized,

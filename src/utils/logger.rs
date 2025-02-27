@@ -1,12 +1,15 @@
+use std::{cell::RefCell, rc::Rc, sync::{Arc, Mutex}};
+
 use crate::datex_values::Value;
 
 use super::color::{AnsiCodes, Color};
 
-pub struct Logger<'a> {
+#[derive(Clone, Debug)]
+pub struct Logger {
     name: String,
     is_production: bool,
     formatting: LogFormatting,
-    context: &'a LoggerContext,
+    context: Rc<RefCell<LoggerContext>>,
 }
 
 #[derive(Clone, Copy)]
@@ -17,13 +20,14 @@ pub enum LogLevel {
     ERROR,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum LogFormatting {
     PlainText,
     Color4Bit,
     ColorRGB,
 }
 
+#[derive(Debug)]
 pub struct LoggerContext {
     pub log_redirect: Option<fn(&str) -> ()>,
 }
@@ -31,13 +35,13 @@ pub struct LoggerContext {
 static DEVELOPMENT_LOG_LEVEL: u8 = LogLevel::VERBOSE as u8;
 static PRODUCTION_LOG_LEVEL: u8 = LogLevel::VERBOSE as u8;
 
-impl Logger<'_> {
-    pub fn new<'a>(
-        context: &'a LoggerContext,
-        name: &'a str,
+impl Logger {
+    pub fn new(
+        context: Rc<RefCell<LoggerContext>>,
+        name: String,
         is_production: bool,
         formatting: LogFormatting,
-    ) -> Logger<'a> {
+    ) -> Logger {
         return Logger {
             name: (*name).to_string(),
             is_production,
@@ -45,7 +49,7 @@ impl Logger<'_> {
             context,
         };
     }
-    pub fn new_for_production<'a>(context: &'a LoggerContext, name: &'a str) -> Logger<'a> {
+    pub fn new_for_production(context: Rc<RefCell<LoggerContext>>, name: String) -> Logger {
         return Logger {
             name: (*name).to_string(),
             is_production: true,
@@ -53,7 +57,7 @@ impl Logger<'_> {
             context,
         };
     }
-    pub fn new_for_development<'a>(context: &'a LoggerContext, name: &'a str) -> Logger<'a> {
+    pub fn new_for_development<'a>(context: Rc<RefCell<LoggerContext>>, name: String) -> Logger {
         return Logger {
             name: (*name).to_string(),
             is_production: false,
@@ -105,7 +109,7 @@ impl Logger<'_> {
             return;
         }
 
-        let handler = self.context.log_redirect;
+        let handler = self.context.borrow().log_redirect;
 
         // log handler
         if handler.is_some() {
