@@ -1,5 +1,8 @@
 
+use std::{cell::RefCell, collections::VecDeque, rc::Rc, sync::{Arc, Mutex}};
+
 use anyhow::Result;
+use async_trait::async_trait;
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
@@ -7,11 +10,9 @@ use super::super::com_interface::ComInterface;
 
 pub struct TCPClientInterface {}
 
+#[async_trait]
 impl ComInterface for TCPClientInterface {
 
-    fn connect(&mut self) -> Result<()> {
-        todo!()
-    }
 
     fn send_block(&mut self, _block: &[u8], socket: &ComInterfaceSocket) -> () {
         todo!()
@@ -25,8 +26,12 @@ impl ComInterface for TCPClientInterface {
 
     fn get_sockets(
         &self,
-    ) -> std::rc::Rc<std::cell::RefCell<Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>>>
+    ) -> Rc<RefCell<Vec<Arc<Mutex<ComInterfaceSocket>>>>>
     {
         todo!()
+    }
+      
+    async fn connect(&mut self) -> Result<()> {
+        Ok(())
     }
 }

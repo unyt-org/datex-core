@@ -9,7 +9,7 @@ pub struct Logger {
     name: String,
     is_production: bool,
     formatting: LogFormatting,
-    context: Rc<RefCell<LoggerContext>>,
+    context: Arc<Mutex<LoggerContext>>,
 }
 
 #[derive(Clone, Copy)]
@@ -37,7 +37,7 @@ static PRODUCTION_LOG_LEVEL: u8 = LogLevel::VERBOSE as u8;
 
 impl Logger {
     pub fn new(
-        context: Rc<RefCell<LoggerContext>>,
+        context: Arc<Mutex<LoggerContext>>,
         name: String,
         is_production: bool,
         formatting: LogFormatting,
@@ -49,7 +49,7 @@ impl Logger {
             context,
         };
     }
-    pub fn new_for_production(context: Rc<RefCell<LoggerContext>>, name: String) -> Logger {
+    pub fn new_for_production(context: Arc<Mutex<LoggerContext>>, name: String) -> Logger {
         return Logger {
             name: (*name).to_string(),
             is_production: true,
@@ -57,7 +57,7 @@ impl Logger {
             context,
         };
     }
-    pub fn new_for_development<'a>(context: Rc<RefCell<LoggerContext>>, name: String) -> Logger {
+    pub fn new_for_development<'a>(context: Arc<Mutex<LoggerContext>>, name: String) -> Logger {
         return Logger {
             name: (*name).to_string(),
             is_production: false,
@@ -109,7 +109,7 @@ impl Logger {
             return;
         }
 
-        let handler = self.context.borrow().log_redirect;
+        let handler = self.context.lock().unwrap().log_redirect;
 
         // log handler
         if handler.is_some() {

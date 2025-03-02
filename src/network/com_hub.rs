@@ -38,7 +38,7 @@ impl Default for ComHub {
 }
 
 impl ComHub {
-    pub fn new_with_logger_context(ctx: Rc<RefCell<LoggerContext>>) -> Rc<RefCell<ComHub>> {
+    pub fn new_with_logger_context(ctx: Arc<Mutex<LoggerContext>>) -> Rc<RefCell<ComHub>> {
         return Rc::new(RefCell::new(ComHub {
             interfaces: HashSet::new(),
             endpoint_sockets: HashMap::new(),
@@ -51,12 +51,12 @@ impl ComHub {
         return Rc::new(RefCell::new(ComHub::default()));
     }
 
-    pub fn add_interface(&mut self, mut interface: ComInterfaceTrait) -> Result<()> {
+    pub async fn add_interface(&mut self, mut interface: ComInterfaceTrait) -> Result<()> {
         if self.interfaces.contains(&interface) {
             return Err(anyhow::anyhow!("Interface already exists"));
         }
 
-        interface.connect()?;
+        interface.connect().await?;
         self.interfaces.insert(interface);
 
         Ok(())
@@ -66,7 +66,7 @@ impl ComHub {
         self.interfaces.remove(&interface)
     }
 
-    pub(crate) fn receive_block(&self, block: &DXBBlock, socket: &RefCell<ComInterfaceSocket>) {
+    pub(crate) fn receive_block(&self, block: &DXBBlock, socket: &Arc<Mutex<ComInterfaceSocket>>) {
         println!("Received block: {:?}", block);
 
         // TODO: routing
@@ -77,7 +77,7 @@ impl ComHub {
     }
 
     // iterate over all sockets of all interfaces
-    fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
+    fn iterate_all_sockets(&self) -> Vec<Arc<Mutex<ComInterfaceSocket>>> {
         let mut sockets = Vec::new();
         for interface in &self.interfaces {
             let interface_ref = interface;
@@ -117,7 +117,7 @@ impl ComHub {
     pub fn send_block(&self, block: &DXBBlock, original_socket: Option<&mut ComInterfaceSocket>) {
         // TODO: routing
         for socket in &self.iterate_all_sockets() {
-            let mut socket_ref = socket.borrow_mut();
+            let mut socket_ref = socket.lock().unwrap();
 
             match &block.to_bytes() {
                 Ok(bytes) => {
@@ -136,7 +136,7 @@ impl ComHub {
             logger.info("Collecting incoming data from all sockets");
         }
         for socket in &self.iterate_all_sockets() {
-            let mut socket_ref = socket.borrow_mut();
+            let mut socket_ref: std::sync::MutexGuard<'_, ComInterfaceSocket> = socket.lock().unwrap();
             socket_ref.collect_incoming_data();
         }
     }
@@ -148,7 +148,7 @@ impl ComHub {
     fn receive_incoming_blocks(&mut self) {
         // iterate over all sockets
         for socket in &self.iterate_all_sockets() {
-            let socket_ref = socket.borrow();
+            let socket_ref = socket.lock().unwrap();
             let block_queue = socket_ref.get_incoming_block_queue();
             for block in block_queue {
                 self.receive_block(block, socket);

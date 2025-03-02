@@ -1,9 +1,7 @@
 use std::{
-    cell::RefCell,
-    hash::{Hash, Hasher},
-    rc::Rc,
+    cell::RefCell, hash::{Hash, Hasher}, rc::Rc, sync::{Arc, Mutex}
 };
-
+use async_trait::async_trait;
 use anyhow::Result;
 
 use super::{
@@ -11,11 +9,12 @@ use super::{
     com_interface_socket::ComInterfaceSocket,
 };
 
+#[async_trait]
 pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
     fn get_properties(&self) -> InterfaceProperties;
-    fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
-    fn connect(&mut self) -> Result<()>;
+    fn get_sockets(&self) -> Rc<RefCell<Vec<Arc<Mutex<ComInterfaceSocket>>>>>;
+    async fn connect(&mut self) -> Result<()>;
 }
 
 #[derive(Clone)]
@@ -28,8 +27,8 @@ impl ComInterfaceTrait {
         ComInterfaceTrait { interface: inner }
     }
 
-    pub fn connect(&mut self) -> Result<()> {
-        self.interface.borrow_mut().connect()
+    pub async fn connect(&mut self) -> Result<()> {
+        self.interface.borrow_mut().connect().await
     }
 
     pub fn get_properties(&self) -> InterfaceProperties {
@@ -38,11 +37,11 @@ impl ComInterfaceTrait {
         interface_ref.get_properties()
     }
 
-    pub fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
+    pub fn get_sockets(&self) -> Rc<RefCell<Vec<Arc<Mutex<ComInterfaceSocket>>>>> {
         self.interface.borrow().get_sockets()
     }
 
-    pub fn add_socket(&self, socket: Rc<RefCell<ComInterfaceSocket>>) {
+    pub fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         let sockets = self.get_sockets();
         sockets.borrow_mut().push(socket);
     }
@@ -69,7 +68,7 @@ impl ComInterfaceTrait {
 
     pub fn flush_outgoing_blocks(&self) {
         for socket_mut in self.get_sockets().borrow().iter() {
-            let mut socket_mut = socket_mut.borrow_mut();
+            let mut socket_mut = socket_mut.lock().unwrap();
             let blocks: Vec<Vec<u8>> = socket_mut.send_queue.drain(..).collect::<Vec<_>>();
 
             println!("Flushing {} blocks", blocks.len());

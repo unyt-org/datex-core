@@ -36,7 +36,7 @@ lazy_static! {
  * Converts DXB (with or without header) to DATEX Script
  */
 pub fn decompile(
-    ctx: Rc<RefCell<LoggerContext>>,
+    ctx: Arc<Mutex<LoggerContext>>,
     dxb: &[u8],
     formatted: bool,
     colorized: bool,
@@ -58,7 +58,7 @@ pub fn decompile(
 }
 
 pub fn decompile_body(
-    ctx: Rc<RefCell<LoggerContext>>,
+    ctx: Arc<Mutex<LoggerContext>>,
     dxb_body: &[u8],
     formatted: bool,
     colorized: bool,
@@ -109,7 +109,7 @@ fn int_to_label(n: i32) -> String {
 
 struct DecompilerGlobalState<'a> {
     // ctx
-    ctx: Rc<RefCell<LoggerContext>>,
+    ctx: Arc<Mutex<LoggerContext>>,
 
     // dxb
     dxb_body: &'a [u8],

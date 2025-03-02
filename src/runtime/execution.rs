@@ -12,7 +12,7 @@ use super::stack::Stack;
 /**
  * Converts DXB (with or without header) to DATEX Script
 */
-pub fn execute(ctx: Rc<RefCell<LoggerContext>>, dxb: &[u8]) -> ValueResult {
+pub fn execute(ctx: Arc<Mutex<LoggerContext>>, dxb: &[u8]) -> ValueResult {
     let mut body = dxb;
 
     let header_result = DXBHeader::from_bytes(dxb);
@@ -29,12 +29,12 @@ pub fn execute(ctx: Rc<RefCell<LoggerContext>>, dxb: &[u8]) -> ValueResult {
     return execute_body(ctx, body);
 }
 
-fn execute_body(ctx: Rc<RefCell<LoggerContext>>, dxb_body: &[u8]) -> ValueResult {
+fn execute_body(ctx: Arc<Mutex<LoggerContext>>, dxb_body: &[u8]) -> ValueResult {
     return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));
 }
 
 fn execute_loop(
-    ctx: Rc<RefCell<LoggerContext>>,
+    ctx: Arc<Mutex<LoggerContext>>,
     dxb_body: &[u8],
     index: &Cell<usize>,
     is_end_instruction: &Cell<bool>,

@@ -20,7 +20,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Runtime<'a> {
     pub version: String,
-    pub ctx: Rc<RefCell<LoggerContext>>,
+    pub ctx: Arc<Mutex<LoggerContext>>,
     pub crypto: &'a dyn Crypto,
     pub memory: Rc<RefCell<Memory>>,
     pub com_hub: Rc<RefCell<ComHub>>,
@@ -30,7 +30,7 @@ pub struct Runtime<'a> {
 impl Runtime<'_> {
     pub fn new_with_crypto_and_logger<'a>(
         crypto: &'a dyn Crypto,
-        ctx: Rc<RefCell<LoggerContext>>,
+        ctx: Arc<Mutex<LoggerContext>>,
     ) -> Runtime<'a> {
         let logger = Logger::new_for_development(ctx.clone(), "DATEX".to_string());
         logger.success("Runtime initialized!");
@@ -47,7 +47,7 @@ impl Runtime<'_> {
     pub fn new() -> Runtime<'static> {
         return Runtime::new_with_crypto_and_logger(
             &RustCrypto {},
-            Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
+            Arc::new(Mutex::new(LoggerContext { log_redirect: None })),
         );
     }
 

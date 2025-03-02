@@ -2,6 +2,7 @@
 use std::{collections::VecDeque, net::TcpStream, sync::{Arc, Mutex}};
 
 use anyhow::Result;
+use async_trait::async_trait;
 use url::Url;
 use websocket::{
     sync::{stream::TlsStream, Client}, ClientBuilder
@@ -37,9 +38,7 @@ impl WebSocketNative {
 }
 
 impl WebSocket for WebSocketNative {
-	fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
-		todo!()
-	}
+	
 
 	fn send_data(&self, message: &[u8]) -> bool {
 		todo!()
@@ -48,6 +47,10 @@ impl WebSocket for WebSocketNative {
 	fn get_address(&self) -> Url {
 		self.address.clone()
 	}
+	      
+    async fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
+        todo!()
+    }
 }
 
 impl WebSocketClientInterface<WebSocketNative> {
