@@ -1,60 +1,64 @@
-
-use std::{collections::VecDeque, net::TcpStream, sync::{Arc, Mutex}};
+use std::{
+  collections::VecDeque,
+  net::TcpStream,
+  sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
 use url::Url;
 use websocket::{
-    sync::{stream::TlsStream, Client}, ClientBuilder
+  sync::{stream::TlsStream, Client},
+  ClientBuilder,
 };
 
-
-use super::super::websocket_client::{parse_url, WebSocket, WebSocketClientInterface};
+use super::super::websocket_client::{
+  parse_url, WebSocket, WebSocketClientInterface,
+};
 
 struct WebSocketNative {
-	client: Client<TlsStream<TcpStream>>,
-	address: Url
+  client: Client<TlsStream<TcpStream>>,
+  address: Url,
 }
 
 impl WebSocketNative {
-	fn new(address: &str) -> Result<WebSocketNative> {
+  fn new(address: &str) -> Result<WebSocketNative> {
+    let address = parse_url(address)?;
 
-		let address = parse_url(address)?;
+    let mut client = ClientBuilder::new(address.as_str())
+      .unwrap()
+      .connect_secure(None)
+      .unwrap();
 
-		let mut client = ClientBuilder::new(address.as_str())
-			.unwrap()
-			.connect_secure(None)
-			.unwrap();
+    for message in client.incoming_messages() {
+      println!("Recv: {:?}", message.unwrap());
+    }
 
-		for message in client.incoming_messages() {
-			println!("Recv: {:?}", message.unwrap());
-		}
-
-		Ok(WebSocketNative { 
-			client,
-			address
-		 })
-	}
+    Ok(WebSocketNative { client, address })
+  }
 }
 
 impl WebSocket for WebSocketNative {
-	fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
-		todo!()
-	}
+  fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
+    todo!()
+  }
 
-	fn send_data(&self, message: &[u8]) -> bool {
-		todo!()
-	}
+  fn send_data(&self, message: &[u8]) -> bool {
+    todo!()
+  }
 
-	fn get_address(&self) -> Url {
-		self.address.clone()
-	}
+  fn get_address(&self) -> Url {
+    self.address.clone()
+  }
 }
 
 impl WebSocketClientInterface<WebSocketNative> {
-	pub fn new(address: &str) -> Result<WebSocketClientInterface<WebSocketNative>> {
-		let websocket = WebSocketNative::new(address)?;
-		
-		Ok(WebSocketClientInterface::new_with_web_socket(websocket, None))
-	}
+  pub fn new(
+    address: &str,
+  ) -> Result<WebSocketClientInterface<WebSocketNative>> {
+    let websocket = WebSocketNative::new(address)?;
 
+    Ok(WebSocketClientInterface::new_with_web_socket(
+      websocket, None,
+    ))
+  }
 }

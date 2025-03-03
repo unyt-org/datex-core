@@ -1,13 +1,17 @@
-use std::{cell::{Ref, RefCell}, rc::Rc, sync::{Arc, Mutex}};
+use std::{
+  cell::{Ref, RefCell},
+  rc::Rc,
+  sync::{Arc, Mutex},
+};
 
 use crate::{
-    datex_values::ValueResult,
-    network::com_hub::ComHub,
-    utils::{
-        crypto::Crypto,
-        logger::{Logger, LoggerContext},
-        rust_crypto::RustCrypto,
-    },
+  datex_values::ValueResult,
+  network::com_hub::ComHub,
+  utils::{
+    crypto::Crypto,
+    logger::{Logger, LoggerContext},
+    rust_crypto::RustCrypto,
+  },
 };
 
 mod execution;
@@ -19,39 +23,39 @@ use self::{execution::execute, memory::Memory};
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Runtime<'a> {
-    pub version: String,
-    pub ctx: Rc<RefCell<LoggerContext>>,
-    pub crypto: &'a dyn Crypto,
-    pub memory: Rc<RefCell<Memory>>,
-    pub com_hub: Rc<RefCell<ComHub>>,
-    pub logger: Logger,
+  pub version: String,
+  pub ctx: Rc<RefCell<LoggerContext>>,
+  pub crypto: &'a dyn Crypto,
+  pub memory: Rc<RefCell<Memory>>,
+  pub com_hub: Rc<RefCell<ComHub>>,
+  pub logger: Logger,
 }
 
 impl Runtime<'_> {
-    pub fn new_with_crypto_and_logger<'a>(
-        crypto: &'a dyn Crypto,
-        ctx: Rc<RefCell<LoggerContext>>,
-    ) -> Runtime<'a> {
-        let logger = Logger::new_for_development(ctx.clone(), "DATEX".to_string());
-        logger.success("Runtime initialized!");
-        return Runtime {
-            version: VERSION.to_string(),
-            crypto,
-            logger,
-            ctx: ctx.clone(),
-            memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: ComHub::new_with_logger_context(ctx.clone()),
-        };
-    }
+  pub fn new_with_crypto_and_logger<'a>(
+    crypto: &'a dyn Crypto,
+    ctx: Rc<RefCell<LoggerContext>>,
+  ) -> Runtime<'a> {
+    let logger = Logger::new_for_development(ctx.clone(), "DATEX".to_string());
+    logger.success("Runtime initialized!");
+    return Runtime {
+      version: VERSION.to_string(),
+      crypto,
+      logger,
+      ctx: ctx.clone(),
+      memory: Rc::new(RefCell::new(Memory::new())),
+      com_hub: ComHub::new_with_logger_context(ctx.clone()),
+    };
+  }
 
-    pub fn new() -> Runtime<'static> {
-        return Runtime::new_with_crypto_and_logger(
-            &RustCrypto {},
-            Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
-        );
-    }
+  pub fn new() -> Runtime<'static> {
+    return Runtime::new_with_crypto_and_logger(
+      &RustCrypto {},
+      Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
+    );
+  }
 
-    pub fn execute(&self, dxb: &[u8]) -> ValueResult {
-        execute(self.ctx.clone(), dxb)
-    }
+  pub fn execute(&self, dxb: &[u8]) -> ValueResult {
+    execute(self.ctx.clone(), dxb)
+  }
 }
