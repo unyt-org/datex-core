@@ -54,7 +54,7 @@ impl ComHub {
     return Rc::new(RefCell::new(ComHub::default()));
   }
 
-  pub fn add_interface(
+  pub async fn add_interface(
     &mut self,
     mut interface: ComInterfaceTrait,
   ) -> Result<()> {
@@ -62,7 +62,9 @@ impl ComHub {
       return Err(anyhow::anyhow!("Interface already exists"));
     }
 
-    interface.connect()?;
+    //interface.connect()?;
+    interface.async_connect().await?;
+  
     self.interfaces.insert(interface);
 
     Ok(())

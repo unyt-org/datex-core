@@ -1,8 +1,10 @@
 use std::{
   cell::RefCell,
   hash::{Hash, Hasher},
-  rc::Rc,
+  rc::Rc, sync::Arc,
 };
+
+use tokio::sync::Notify;
 
 use anyhow::Result;
 
@@ -16,16 +18,25 @@ pub trait ComInterface {
   fn get_properties(&self) -> InterfaceProperties;
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
   fn connect(&mut self) -> Result<()>;
+  fn async_connect(&mut self) -> Result<()>;
 }
 
 #[derive(Clone)]
 pub struct ComInterfaceTrait {
   pub interface: Rc<RefCell<dyn ComInterface>>,
+  pub notify: Arc<dyn Notify>,
 }
 
 impl ComInterfaceTrait {
   pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
-    ComInterfaceTrait { interface: inner }
+    ComInterfaceTrait { notify: Arc::new(Notify::new()), interface: inner }
+  }
+
+  pub async fn async_connect(&mut self) -> Result<()> {
+    println!("Async connect");
+    self.connect()?;
+    
+    Ok(())
   }
 
   pub fn connect(&mut self) -> Result<()> {

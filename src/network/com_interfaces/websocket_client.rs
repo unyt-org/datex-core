@@ -111,4 +111,8 @@ where
       None => Rc::new(RefCell::new(vec![])),
     }
   }
+  
+  fn async_connect(&mut self) -> Result<()> {
+        todo!()
+    }
 }
