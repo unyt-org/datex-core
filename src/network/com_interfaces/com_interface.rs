@@ -28,7 +28,6 @@ impl ComInterfaceTrait {
     ComInterfaceTrait { interface: inner }
   }
 
-
   pub fn connect(&mut self) -> Result<()> {
     self.interface.borrow_mut().connect()
   }
@@ -53,7 +52,8 @@ impl ComInterfaceTrait {
   pub fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
     let interface = &self.interface.borrow();
     let properties = interface.get_properties();
-    return properties.max_bandwidth / properties.round_trip_time.as_millis() as u32;
+    return properties.max_bandwidth
+      / properties.round_trip_time.as_millis() as u32;
   }
 
   pub fn can_send(&self, socket: ComInterfaceSocket) -> bool {

@@ -15,23 +15,23 @@ pub struct InterfaceProperties {
    * Supported communication directions
    */
   pub direction: InterfaceDirection,
-  
+
   /*
    * Time in milliseconds to wait before reconnecting after a connection error
    */
   pub reconnect_interval: Option<Duration>,
-  
+
   /**
    * Estimated mean latency for this interface type in milliseconds (round trip time).
    * Lower latency interfaces are preferred over higher latency channels
    */
   pub round_trip_time: Duration,
-  
+
   /**
    * Bandwidth in bytes per second
    */
   pub max_bandwidth: u32,
-  
+
   /**
    * If true, the interface does support continuous connections.
    */
@@ -45,7 +45,7 @@ pub struct InterfaceProperties {
 
   /**
    * If true, the interface is a secure channel (can not be eavesdropped).
-   * This might be an already encrypted channel such as WebRTC or a channel 
+   * This might be an already encrypted channel such as WebRTC or a channel
    * that is end-to-end and not interceptable by third parties
    */
   pub is_secure_channel: bool,

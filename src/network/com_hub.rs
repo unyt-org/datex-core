@@ -5,8 +5,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use anyhow::Result;
 
 use super::com_interfaces::{
-  com_interface::ComInterfaceTrait,
-  com_interface_socket::ComInterfaceSocket,
+  com_interface::ComInterfaceTrait, com_interface_socket::ComInterfaceSocket,
 };
 use crate::crypto::crypto::{Crypto, CryptoDefault};
 use crate::datex_values::Endpoint;
@@ -25,7 +24,7 @@ pub struct ComHub {
   //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
   pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
   pub logger: Option<Logger>,
-  pub crypto: Rc<RefCell<dyn Crypto>>
+  pub crypto: Rc<RefCell<dyn Crypto>>,
 }
 
 impl Default for ComHub {
@@ -50,7 +49,7 @@ impl ComHub {
       endpoint_sockets: HashMap::new(),
       logger: Some(Logger::new_for_production(ctx, "ComHub".to_string())),
       incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
-      crypto
+      crypto,
     }));
   }
 

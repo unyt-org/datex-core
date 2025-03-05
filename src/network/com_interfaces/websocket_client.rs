@@ -2,17 +2,20 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::{Arc, Mutex}, time::Duration,
+  sync::{Arc, Mutex},
+  time::Duration,
 };
 
 use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-  crypto::{self, crypto::Crypto}, network::com_interfaces::{
+  crypto::{self, crypto::Crypto},
+  network::com_interfaces::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
-  }, utils::logger::{self, Logger}
+  },
+  utils::logger::{self, Logger},
 };
 
 use super::com_interface::ComInterface;
