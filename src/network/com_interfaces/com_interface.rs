@@ -2,10 +2,7 @@ use std::{
   cell::RefCell,
   hash::{Hash, Hasher},
   rc::Rc,
-  sync::Arc,
 };
-
-use tokio::sync::Notify;
 
 use anyhow::Result;
 
@@ -18,7 +15,7 @@ pub trait ComInterface {
   fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
   fn get_properties(&self) -> InterfaceProperties;
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
-  fn connect(&mut self /*, on_connect: Arc<Notify> */) -> Result<()>;
+  fn connect(&mut self) -> Result<()>;
 }
 
 #[derive(Clone)]
