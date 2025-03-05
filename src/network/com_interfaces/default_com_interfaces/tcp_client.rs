@@ -31,7 +31,4 @@ impl ComInterface for TCPClientInterface {
     todo!()
   }
   
-  fn async_connect(&mut self) -> Result<()> {
-        todo!()
-    }
 }

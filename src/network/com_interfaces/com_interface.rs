@@ -17,29 +17,30 @@ pub trait ComInterface {
   fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
   fn get_properties(&self) -> InterfaceProperties;
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
-  fn connect(&mut self) -> Result<()>;
-  fn async_connect(&mut self) -> Result<()>;
+  fn connect(&mut self/*, on_connect: Arc<Notify> */) -> Result<()>;
 }
 
 #[derive(Clone)]
 pub struct ComInterfaceTrait {
   pub interface: Rc<RefCell<dyn ComInterface>>,
-  pub notify: Arc<dyn Notify>,
 }
 
 impl ComInterfaceTrait {
   pub fn new(inner: Rc<RefCell<dyn ComInterface>>) -> Self {
-    ComInterfaceTrait { notify: Arc::new(Notify::new()), interface: inner }
+    ComInterfaceTrait { interface: inner }
   }
 
+
   pub async fn async_connect(&mut self) -> Result<()> {
+    let on_connect = Arc::new(Notify::new());
     println!("Async connect");
     self.connect()?;
+    // on_connect.notified().await;
     
     Ok(())
   }
 
-  pub fn connect(&mut self) -> Result<()> {
+  pub fn connect(&mut self/*, on_connect: Arc<Notify> */) -> Result<()> {
     self.interface.borrow_mut().connect()
   }
 

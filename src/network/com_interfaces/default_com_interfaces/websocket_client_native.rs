@@ -1,7 +1,5 @@
 use std::{
-  collections::VecDeque,
-  net::TcpStream,
-  sync::{Arc, Mutex},
+  cell::{Ref, RefCell}, collections::VecDeque, net::TcpStream, rc::Rc, sync::{Arc, Mutex}
 };
 
 use anyhow::Result;
@@ -58,7 +56,7 @@ impl WebSocketClientInterface<WebSocketNative> {
     let websocket = WebSocketNative::new(address)?;
 
     Ok(WebSocketClientInterface::new_with_web_socket(
-      websocket, None,
+      Rc::new(RefCell::new(websocket)), None,
     ))
   }
 }

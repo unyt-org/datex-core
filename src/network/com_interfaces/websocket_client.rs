@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use tokio::sync::Notify;
 use url::Url;
 
 use crate::{
@@ -22,7 +23,7 @@ pub struct WebSocketClientInterface<WS>
 where
   WS: WebSocket,
 {
-  pub websocket: WS,
+  pub websocket: Rc<RefCell<WS>>,
   pub logger: Option<Logger>,
   socket: Option<Rc<RefCell<ComInterfaceSocket>>>,
 }
@@ -54,14 +55,15 @@ impl<WS> WebSocketClientInterface<WS>
 where
   WS: WebSocket,
 {
+
   pub fn new_with_web_socket(
-    web_socket: WS,
+    web_socket: Rc<RefCell<WS>>,
     logger: Option<Logger>,
   ) -> WebSocketClientInterface<WS> {
     return WebSocketClientInterface {
-      websocket: web_socket,
-      logger,
-      socket: None,
+        websocket: web_socket,
+        logger,
+        socket: None,
     };
   }
 }
@@ -74,7 +76,7 @@ where
     if let Some(logger) = &self.logger {
       logger.debug(&"Connecting to WebSocket");
     }
-    let receive_queue = self.websocket.connect()?;
+    let receive_queue = self.websocket.borrow_mut().connect()?;
     let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
       self.logger.clone(),
       receive_queue,
@@ -89,7 +91,7 @@ where
 
   fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
     // TODO: what happens if socket != self.socket? (only one socket exists)
-    self.websocket.send_data(block);
+    self.websocket.borrow_mut().send_data(block);
   }
 
   fn get_properties(&self) -> InterfaceProperties {
@@ -112,7 +114,4 @@ where
     }
   }
   
-  fn async_connect(&mut self) -> Result<()> {
-        todo!()
-    }
 }

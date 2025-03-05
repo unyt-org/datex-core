@@ -10,6 +10,14 @@ use crate::{
 use super::block_collector::BlockCollector;
 
 #[derive(Debug)]
+pub enum SocketState {
+  Closed,
+  Connecting,
+  Open,
+  Error,
+}
+
+#[derive(Debug)]
 pub struct ComInterfaceSocket {
   pub endpoint: Option<Endpoint>,
   pub is_connected: bool,
