@@ -64,7 +64,7 @@ impl ComInterfaceTrait {
   pub fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
     let interface = &self.interface.borrow();
     let properties = interface.get_properties();
-    return properties.bandwidth / properties.latency;
+    return properties.max_bandwidth / properties.round_trip_time.as_millis() as u32;
   }
 
   pub fn can_send(&self, socket: ComInterfaceSocket) -> bool {

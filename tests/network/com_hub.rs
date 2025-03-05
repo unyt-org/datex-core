@@ -67,13 +67,7 @@ impl ComInterface for MockupInterface {
   fn get_properties(&self) -> InterfaceProperties {
     InterfaceProperties {
       channel: "mockup".to_string(),
-      name: None,
-      direction: InterfaceDirection::IN_OUT,
-      reconnect_interval: None,
-      latency: 0,
-      bandwidth: 1000,
-      continuous_connection: true,
-      allow_redirects: true,
+      ..Default::default()
     }
   }
 

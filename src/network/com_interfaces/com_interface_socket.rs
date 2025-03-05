@@ -3,8 +3,6 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-use num_enum::IntoPrimitive;
-
 use crate::{
   datex_values::Endpoint, global::dxb_block::DXBBlock, utils::logger::Logger,
 };

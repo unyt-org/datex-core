@@ -2,7 +2,7 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex}, time::Duration,
 };
 
 use anyhow::{anyhow, Result};
@@ -95,13 +95,9 @@ where
   fn get_properties(&self) -> InterfaceProperties {
     InterfaceProperties {
       channel: "websocket".to_string(),
-      name: None,
-      direction: InterfaceDirection::IN_OUT,
-      reconnect_interval: None,
-      latency: 0,
-      bandwidth: 1000,
-      continuous_connection: true,
-      allow_redirects: true,
+      round_trip_time: Duration::from_millis(40),
+      max_bandwidth: 1000,
+      ..InterfaceProperties::default()
     }
   }
 
