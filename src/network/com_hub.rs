@@ -63,8 +63,6 @@ impl ComHub {
     }
 
     interface.connect()?;
-    // interface.async_connect().await?;
-  
     self.interfaces.insert(interface);
 
     Ok(())

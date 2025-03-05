@@ -1,7 +1,8 @@
 use std::{
   cell::RefCell,
   hash::{Hash, Hasher},
-  rc::Rc, sync::Arc,
+  rc::Rc,
+  sync::Arc,
 };
 
 use tokio::sync::Notify;
@@ -17,7 +18,7 @@ pub trait ComInterface {
   fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
   fn get_properties(&self) -> InterfaceProperties;
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
-  fn connect(&mut self/*, on_connect: Arc<Notify> */) -> Result<()>;
+  fn connect(&mut self /*, on_connect: Arc<Notify> */) -> Result<()>;
 }
 
 #[derive(Clone)]
@@ -30,17 +31,16 @@ impl ComInterfaceTrait {
     ComInterfaceTrait { interface: inner }
   }
 
-
   pub async fn async_connect(&mut self) -> Result<()> {
     let on_connect = Arc::new(Notify::new());
     println!("Async connect");
     self.connect()?;
     // on_connect.notified().await;
-    
+
     Ok(())
   }
 
-  pub fn connect(&mut self/*, on_connect: Arc<Notify> */) -> Result<()> {
+  pub fn connect(&mut self /*, on_connect: Arc<Notify> */) -> Result<()> {
     self.interface.borrow_mut().connect()
   }
 

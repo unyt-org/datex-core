@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use tokio::sync::Notify;
 use url::Url;
 
 use crate::{
@@ -55,15 +54,14 @@ impl<WS> WebSocketClientInterface<WS>
 where
   WS: WebSocket,
 {
-
   pub fn new_with_web_socket(
     web_socket: Rc<RefCell<WS>>,
     logger: Option<Logger>,
   ) -> WebSocketClientInterface<WS> {
     return WebSocketClientInterface {
-        websocket: web_socket,
-        logger,
-        socket: None,
+      websocket: web_socket,
+      logger,
+      socket: None,
     };
   }
 }
@@ -113,5 +111,4 @@ where
       None => Rc::new(RefCell::new(vec![])),
     }
   }
-  
 }

@@ -30,5 +30,4 @@ impl ComInterface for TCPClientInterface {
   > {
     todo!()
   }
-  
 }
