@@ -31,16 +31,8 @@ impl ComInterfaceTrait {
     ComInterfaceTrait { interface: inner }
   }
 
-  pub async fn async_connect(&mut self) -> Result<()> {
-    let on_connect = Arc::new(Notify::new());
-    println!("Async connect");
-    self.connect()?;
-    // on_connect.notified().await;
 
-    Ok(())
-  }
-
-  pub fn connect(&mut self /*, on_connect: Arc<Notify> */) -> Result<()> {
+  pub fn connect(&mut self) -> Result<()> {
     self.interface.borrow_mut().connect()
   }
 
