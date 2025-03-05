@@ -5,13 +5,7 @@ use std::{
 };
 
 use crate::{
-  datex_values::ValueResult,
-  network::com_hub::ComHub,
-  utils::{
-    crypto::Crypto,
-    logger::{Logger, LoggerContext},
-    rust_crypto::RustCrypto,
-  },
+  crypto::{crypto::Crypto, crypto_native::CryptoNative}, datex_values::ValueResult, network::com_hub::ComHub, utils::logger::{Logger, LoggerContext}
 };
 
 mod execution;
@@ -22,35 +16,35 @@ use self::{execution::execute, memory::Memory};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub struct Runtime<'a> {
+pub struct Runtime {
   pub version: String,
   pub ctx: Rc<RefCell<LoggerContext>>,
-  pub crypto: &'a dyn Crypto,
+  pub crypto: Rc<RefCell<dyn Crypto>>,
   pub memory: Rc<RefCell<Memory>>,
   pub com_hub: Rc<RefCell<ComHub>>,
   pub logger: Logger,
 }
 
-impl Runtime<'_> {
-  pub fn new_with_crypto_and_logger<'a>(
-    crypto: &'a dyn Crypto,
+impl Runtime {
+  pub fn new_with_crypto_and_logger(
+    crypto: Rc<RefCell<dyn Crypto>>,
     ctx: Rc<RefCell<LoggerContext>>,
-  ) -> Runtime<'a> {
+  ) -> Runtime {
     let logger = Logger::new_for_development(ctx.clone(), "DATEX".to_string());
     logger.success("Runtime initialized!");
     return Runtime {
       version: VERSION.to_string(),
-      crypto,
+      crypto: crypto.clone(),
       logger,
       ctx: ctx.clone(),
       memory: Rc::new(RefCell::new(Memory::new())),
-      com_hub: ComHub::new_with_logger_context(ctx.clone()),
+      com_hub: ComHub::new_with_logger_context(crypto.clone(), ctx.clone()),
     };
   }
 
-  pub fn new() -> Runtime<'static> {
+  pub fn new() -> Runtime {
     return Runtime::new_with_crypto_and_logger(
-      &RustCrypto {},
+      Rc::new(RefCell::new(CryptoNative)), // FIXME TODO omit this
       Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
     );
   }

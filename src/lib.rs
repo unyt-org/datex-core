@@ -16,3 +16,4 @@ pub mod network;
 pub mod parser;
 pub mod runtime;
 pub mod utils;
+pub mod crypto;

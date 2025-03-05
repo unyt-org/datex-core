@@ -9,11 +9,10 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-  network::com_interfaces::{
+  crypto::{self, crypto::Crypto}, network::com_interfaces::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
-  },
-  utils::logger::{self, Logger},
+  }, utils::logger::{self, Logger}
 };
 
 use super::com_interface::ComInterface;
@@ -22,8 +21,9 @@ pub struct WebSocketClientInterface<WS>
 where
   WS: WebSocket,
 {
-  pub websocket: Rc<RefCell<WS>>,
+  pub web_socket: Rc<RefCell<WS>>,
   pub logger: Option<Logger>,
+  crypto: Rc<RefCell<dyn Crypto>>,
   socket: Option<Rc<RefCell<ComInterfaceSocket>>>,
 }
 
@@ -55,11 +55,13 @@ where
   WS: WebSocket,
 {
   pub fn new_with_web_socket(
+    crypto: Rc<RefCell<dyn Crypto>>,
     web_socket: Rc<RefCell<WS>>,
     logger: Option<Logger>,
   ) -> WebSocketClientInterface<WS> {
     return WebSocketClientInterface {
-      websocket: web_socket,
+      web_socket,
+      crypto,
       logger,
       socket: None,
     };
@@ -74,8 +76,9 @@ where
     if let Some(logger) = &self.logger {
       logger.debug(&"Connecting to WebSocket");
     }
-    let receive_queue = self.websocket.borrow_mut().connect()?;
+    let receive_queue = self.web_socket.borrow_mut().connect()?;
     let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
+      &*self.crypto.borrow(),
       self.logger.clone(),
       receive_queue,
     );
@@ -89,7 +92,7 @@ where
 
   fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
     // TODO: what happens if socket != self.socket? (only one socket exists)
-    self.websocket.borrow_mut().send_data(block);
+    self.web_socket.borrow_mut().send_data(block);
   }
 
   fn get_properties(&self) -> InterfaceProperties {
