@@ -3,16 +3,17 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use num_enum::IntoPrimitive;
+
 use crate::{
   datex_values::Endpoint, global::dxb_block::DXBBlock, utils::logger::Logger,
 };
 
 use super::block_collector::BlockCollector;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SocketState {
   Closed,
-  Connecting,
   Open,
   Error,
 }
