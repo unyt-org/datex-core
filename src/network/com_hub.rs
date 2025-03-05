@@ -5,11 +5,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use anyhow::Result;
 
 use super::com_interfaces::{
-  com_interface::{ComInterface, ComInterfaceTrait},
+  com_interface::ComInterfaceTrait,
   com_interface_socket::ComInterfaceSocket,
 };
-use crate::crypto::crypto::Crypto;
-use crate::crypto::crypto_native::CryptoNative;
+use crate::crypto::crypto::{Crypto, CryptoDefault};
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
 use crate::utils::logger::{Logger, LoggerContext};
@@ -35,7 +34,7 @@ impl Default for ComHub {
       interfaces: HashSet::new(),
       endpoint_sockets: HashMap::new(),
       logger: None,
-      crypto: Rc::new(RefCell::new(CryptoNative)), // TODO FIXME should be used, since we dont want to have it in datexcorejs
+      crypto: Rc::new(RefCell::new(CryptoDefault)),
       incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
     }
   }
@@ -55,6 +54,7 @@ impl ComHub {
     }));
   }
 
+  #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
   pub fn new() -> Rc<RefCell<ComHub>> {
     return Rc::new(RefCell::new(ComHub::default()));
   }

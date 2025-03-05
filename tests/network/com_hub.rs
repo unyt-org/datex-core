@@ -3,6 +3,7 @@ use std::io::Write;
 use std::rc::Rc;
 
 use anyhow::Error;
+use datex_core::crypto::uuid::UUID;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
   self, EncryptedHeader,
@@ -93,12 +94,15 @@ fn get_mock_setup() -> (
     MockupInterface::get_com_interface_trait(mockup_interface_in_ref.clone());
 
   // add mockup interface to com hub
-  com_hub_mut.add_interface(mockup_in_trait.clone());
+  com_hub_mut.add_interface(mockup_in_trait.clone()).unwrap_or_else(|e| {
+    panic!("Error adding interface: {:?}", e);
+  });
 
-  let socket = Rc::new(RefCell::new(ComInterfaceSocket {
-    uuid: "mockup_in_socket".to_string(),
-    ..Default::default()
-  }));
+  let socket = Rc::new(RefCell::new(
+    ComInterfaceSocket::new_with_logger(
+      &*com_hub_mut.crypto.borrow(), 
+      com_hub_mut.logger.clone()),
+  ));
 
   // add socket to mockup interface
   mockup_in_trait.add_socket(socket.clone());

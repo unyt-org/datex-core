@@ -4,8 +4,9 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use crate::crypto::crypto::CryptoDefault;
 use crate::{
-  crypto::{crypto::Crypto, crypto_native::CryptoNative}, datex_values::ValueResult, network::com_hub::ComHub, utils::logger::{Logger, LoggerContext}
+  crypto::crypto::Crypto, datex_values::ValueResult, network::com_hub::ComHub, utils::logger::{Logger, LoggerContext}
 };
 
 mod execution;
@@ -44,7 +45,7 @@ impl Runtime {
 
   pub fn new() -> Runtime {
     return Runtime::new_with_crypto_and_logger(
-      Rc::new(RefCell::new(CryptoNative)), // FIXME TODO omit this
+      Rc::new(RefCell::new(CryptoDefault)),
       Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
     );
   }
