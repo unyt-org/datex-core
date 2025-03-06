@@ -84,7 +84,7 @@ fn get_mock_setup() -> (
   Rc<RefCell<ComInterfaceSocket>>,
 ) {
   // init com hub
-  let com_hub = ComHub::new();
+  let com_hub = ComHub::empty();
   let mut com_hub_mut = com_hub.borrow_mut();
 
   // init mockup interface
@@ -118,7 +118,7 @@ fn get_mock_setup() -> (
 
 #[test]
 pub fn test_add_and_remove() {
-  let com_hub = &mut ComHub::new();
+  let com_hub = &mut ComHub::empty();
   let mut com_hub_mut = com_hub.borrow_mut();
   let mockup_interface = MockupInterface::default_com_interface_trait();
 
@@ -132,7 +132,7 @@ pub fn test_add_and_remove() {
 
 #[test]
 pub fn test_multiple_add() {
-  let com_hub = &mut ComHub::new();
+  let com_hub = &mut ComHub::empty();
   let mut com_hub_mut = com_hub.borrow_mut();
 
   let mockup_interface1: ComInterfaceTrait =

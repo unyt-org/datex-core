@@ -20,40 +20,42 @@ use self::{execution::execute, memory::Memory};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub struct Context {
+  pub logger_context: Rc<RefCell<LoggerContext>>,
+  pub crypto: Rc<RefCell<dyn Crypto>>,
+}
 pub struct Runtime {
   pub version: String,
-  pub ctx: Rc<RefCell<LoggerContext>>,
-  pub crypto: Rc<RefCell<dyn Crypto>>,
+  pub context: Rc<RefCell<Context>>,
   pub memory: Rc<RefCell<Memory>>,
   pub com_hub: Rc<RefCell<ComHub>>,
   pub logger: Logger,
 }
 
 impl Runtime {
-  pub fn new_with_crypto_and_logger(
-    crypto: Rc<RefCell<dyn Crypto>>,
-    ctx: Rc<RefCell<LoggerContext>>,
+  pub fn new(
+    context: Rc<RefCell<Context>>,
   ) -> Runtime {
-    let logger = Logger::new_for_development(ctx.clone(), "DATEX".to_string());
+    let logger = Logger::new_for_development(context.borrow().logger_context.clone(), "DATEX".to_string());
     logger.success("Runtime initialized!");
     return Runtime {
       version: VERSION.to_string(),
-      crypto: crypto.clone(),
+      context: context.clone(),
       logger,
-      ctx: ctx.clone(),
       memory: Rc::new(RefCell::new(Memory::new())),
-      com_hub: ComHub::new_with_logger_context(crypto.clone(), ctx.clone()),
+      com_hub: ComHub::new(context.clone()),
     };
   }
 
-  pub fn new() -> Runtime {
-    return Runtime::new_with_crypto_and_logger(
-      Rc::new(RefCell::new(CryptoDefault)),
-      Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
-    );
+  pub fn default() -> Runtime {
+    let context = Rc::new(RefCell::new(Context {
+      logger_context: Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
+      crypto: Rc::new(RefCell::new(CryptoDefault)),
+    }));
+    return Runtime::new(context);
   }
 
   pub fn execute(&self, dxb: &[u8]) -> ValueResult {
-    execute(self.ctx.clone(), dxb)
+    execute(self.context.clone(), dxb)
   }
 }

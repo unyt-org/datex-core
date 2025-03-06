@@ -40,21 +40,21 @@ impl Default for ComHub {
 }
 
 impl ComHub {
-  pub fn new_with_logger_context(
-    crypto: Rc<RefCell<dyn Crypto>>,
-    ctx: Rc<RefCell<LoggerContext>>,
+  pub fn new(
+    context: Rc<RefCell<Context>>,
   ) -> Rc<RefCell<ComHub>> {
+    let logger = Logger::new_for_production(context.borrow().logger_ctx.clone(), "ComHub".to_string());
     return Rc::new(RefCell::new(ComHub {
       interfaces: HashSet::new(),
       endpoint_sockets: HashMap::new(),
-      logger: Some(Logger::new_for_production(ctx, "ComHub".to_string())),
+      logger: Some(logger),
       incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
-      crypto,
+      crypto: context.borrow().crypto.clone(),
     }));
   }
 
   #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
-  pub fn new() -> Rc<RefCell<ComHub>> {
+  pub fn empty() -> Rc<RefCell<ComHub>> {
     return Rc::new(RefCell::new(ComHub::default()));
   }
 
