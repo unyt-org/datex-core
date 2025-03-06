@@ -13,8 +13,14 @@ use websocket::{
   ClientBuilder,
 };
 
-use crate::{crypto::{self, crypto::Crypto}, network::com_interfaces::websocket::{websocket_client::{WebSocket, WebSocketClientInterface}, websocket_common::parse_url}, runtime::Context};
-
+use crate::{
+  crypto::{self, crypto::Crypto},
+  network::com_interfaces::websocket::{
+    websocket_client::{WebSocket, WebSocketClientInterface},
+    websocket_common::parse_url,
+  },
+  runtime::Context,
+};
 
 struct WebSocketNative {
   client: Client<TlsStream<TcpStream>>,

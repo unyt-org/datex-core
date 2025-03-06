@@ -33,10 +33,7 @@ pub fn execute(context: Rc<RefCell<Context>>, dxb: &[u8]) -> ValueResult {
   return execute_body(context, body);
 }
 
-fn execute_body(
-  ctx: Rc<RefCell<Context>>,
-  dxb_body: &[u8],
-) -> ValueResult {
+fn execute_body(ctx: Rc<RefCell<Context>>, dxb_body: &[u8]) -> ValueResult {
   return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));
 }
 
@@ -46,7 +43,10 @@ fn execute_loop(
   index: &Cell<usize>,
   is_end_instruction: &Cell<bool>,
 ) -> ValueResult {
-  let logger = Logger::new_for_development(ctx.borrow().logger_context.clone(), "DATEX Runtime".to_string());
+  let logger = Logger::new_for_development(
+    ctx.borrow().logger_context.clone(),
+    "DATEX Runtime".to_string(),
+  );
 
   let mut stack: Stack = Stack::new(&logger);
 

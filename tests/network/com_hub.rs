@@ -1,7 +1,3 @@
-use std::cell::RefCell;
-use std::io::Write;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use anyhow::Error;
 use datex_core::crypto::crypto_native::CryptoNative;
 use datex_core::crypto::uuid::UUID;
@@ -11,6 +7,10 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
+use std::cell::RefCell;
+use std::io::Write;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use datex_core::network::com_interfaces::com_interface::{
   ComInterface, ComInterfaceTrait,
@@ -77,12 +77,11 @@ impl ComInterface for MockupInterface {
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
     self.sockets.clone()
   }
-  
+
   fn get_uuid(&self) -> String {
-      return UUID::<()>::default().to_string();
+    return UUID::<()>::default().to_string();
   }
 }
-
 
 fn init_global_context() {
   let global_ctx = GlobalContext {

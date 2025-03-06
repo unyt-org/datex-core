@@ -10,11 +10,15 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-  crypto::{uuid::UUID}, network::com_interfaces::{
-    com_interface::ComInterface, com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket
-  }, runtime::Context, utils::logger::{self, Logger}
+  crypto::uuid::UUID,
+  network::com_interfaces::{
+    com_interface::ComInterface,
+    com_interface_properties::{InterfaceDirection, InterfaceProperties},
+    com_interface_socket::ComInterfaceSocket,
+  },
+  runtime::Context,
+  utils::logger::{self, Logger},
 };
-
 
 pub struct WebSocketClientInterface<WS>
 where
@@ -94,8 +98,8 @@ where
       None => Rc::new(RefCell::new(vec![])),
     }
   }
-  
+
   fn get_uuid(&self) -> String {
-      self.uuid.to_string()
+    self.uuid.to_string()
   }
 }

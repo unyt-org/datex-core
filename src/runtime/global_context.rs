@@ -1,10 +1,9 @@
-
-use std::sync::{Arc, Mutex};
 use crate::crypto::crypto::Crypto;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct GlobalContext {
-    pub crypto: Arc<Mutex<dyn Crypto>>,
+  pub crypto: Arc<Mutex<dyn Crypto>>,
 }
 
 lazy_static::lazy_static! {
@@ -12,10 +11,10 @@ lazy_static::lazy_static! {
 }
 
 pub fn set_global_context(c: GlobalContext) {
-    let mut crypto = GLOBAL_CONTEXT.lock().unwrap();
-    *crypto = Some(c);
+  let mut crypto = GLOBAL_CONTEXT.lock().unwrap();
+  *crypto = Some(c);
 }
 
 pub fn get_global_context() -> GlobalContext {
-    GLOBAL_CONTEXT.lock().unwrap().clone().unwrap()
+  GLOBAL_CONTEXT.lock().unwrap().clone().unwrap()
 }

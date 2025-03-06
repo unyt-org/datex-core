@@ -13,9 +13,9 @@ use crate::{
 };
 
 mod execution;
+pub mod global_context;
 pub mod memory;
 mod stack;
-pub mod global_context;
 
 use self::{execution::execute, memory::Memory};
 
@@ -35,10 +35,11 @@ pub struct Runtime {
 }
 
 impl Runtime {
-  pub fn new(
-    context: Rc<RefCell<Context>>,
-  ) -> Runtime {
-    let logger = Logger::new_for_development(context.borrow().logger_context.clone(), "DATEX".to_string());
+  pub fn new(context: Rc<RefCell<Context>>) -> Runtime {
+    let logger = Logger::new_for_development(
+      context.borrow().logger_context.clone(),
+      "DATEX".to_string(),
+    );
     logger.success("Runtime initialized!");
     return Runtime {
       version: VERSION.to_string(),
@@ -51,7 +52,9 @@ impl Runtime {
 
   pub fn default() -> Runtime {
     let context = Rc::new(RefCell::new(Context {
-      logger_context: Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
+      logger_context: Rc::new(RefCell::new(LoggerContext {
+        log_redirect: None,
+      })),
     }));
     return Runtime::new(context);
   }

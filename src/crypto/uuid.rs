@@ -1,6 +1,6 @@
-use std::{fmt::Display, marker::PhantomData};
-use crate::runtime::global_context::get_global_context;
 use super::crypto::Crypto;
+use crate::runtime::global_context::get_global_context;
+use std::{fmt::Display, marker::PhantomData};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UUID<T> {

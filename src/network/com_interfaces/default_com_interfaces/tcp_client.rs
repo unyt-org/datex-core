@@ -30,8 +30,8 @@ impl ComInterface for TCPClientInterface {
   > {
     todo!()
   }
-  
+
   fn get_uuid(&self) -> String {
-        todo!()
-    }
+    todo!()
+  }
 }

@@ -1,9 +1,13 @@
 use std::{
-  cell::RefCell, collections::VecDeque, rc::Rc, sync::{Arc, Mutex}
+  cell::RefCell,
+  collections::VecDeque,
+  rc::Rc,
+  sync::{Arc, Mutex},
 };
 
 use crate::{
-  crypto::{uuid::UUID}, datex_values::Endpoint, global::dxb_block::DXBBlock, runtime::Context, utils::logger::Logger
+  crypto::uuid::UUID, datex_values::Endpoint, global::dxb_block::DXBBlock,
+  runtime::Context, utils::logger::Logger,
 };
 
 use super::block_collector::BlockCollector;
@@ -58,13 +62,9 @@ impl ComInterfaceSocket {
     logger: Option<Logger>,
   ) -> ComInterfaceSocket {
     let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
-    ComInterfaceSocket::new_with_receive_queue(
-      context,
-      receive_queue,
-      logger,
-    )
+    ComInterfaceSocket::new_with_receive_queue(context, receive_queue, logger)
   }
- 
+
   pub fn new_with_receive_queue(
     context: Rc<RefCell<Context>>,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,

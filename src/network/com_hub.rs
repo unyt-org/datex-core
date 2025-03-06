@@ -9,8 +9,8 @@ use super::com_interfaces::{
 };
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
-use crate::utils::logger::{Logger, LoggerContext};
 use crate::runtime::Context;
+use crate::utils::logger::{Logger, LoggerContext};
 struct DynamicEndpointProperties {
   known_since: u64,
   distance: u32,
@@ -39,10 +39,11 @@ impl Default for ComHub {
 }
 
 impl ComHub {
-  pub fn new(
-    context: Rc<RefCell<Context>>,
-  ) -> Rc<RefCell<ComHub>> {
-    let logger = Logger::new_for_production(context.borrow().logger_context.clone(), "ComHub".to_string());
+  pub fn new(context: Rc<RefCell<Context>>) -> Rc<RefCell<ComHub>> {
+    let logger = Logger::new_for_production(
+      context.borrow().logger_context.clone(),
+      "ComHub".to_string(),
+    );
     return Rc::new(RefCell::new(ComHub {
       interfaces: HashSet::new(),
       endpoint_sockets: HashMap::new(),
@@ -51,7 +52,7 @@ impl ComHub {
       context,
     }));
   }
-  
+
   #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
   pub fn empty() -> Rc<RefCell<ComHub>> {
     return Rc::new(RefCell::new(ComHub::default()));
