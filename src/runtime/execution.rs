@@ -11,12 +11,12 @@ use crate::{
   utils::logger::{Logger, LoggerContext},
 };
 
-use super::stack::Stack;
+use super::{stack::Stack, Context};
 
 /**
  * Converts DXB (with or without header) to DATEX Script
 */
-pub fn execute(ctx: Rc<RefCell<LoggerContext>>, dxb: &[u8]) -> ValueResult {
+pub fn execute(context: Rc<RefCell<Context>>, dxb: &[u8]) -> ValueResult {
   let mut body = dxb;
 
   let header_result = DXBHeader::from_bytes(dxb);
@@ -30,24 +30,23 @@ pub fn execute(ctx: Rc<RefCell<LoggerContext>>, dxb: &[u8]) -> ValueResult {
     Err(_) => (),
   }
 
-  return execute_body(ctx, body);
+  return execute_body(context, body);
 }
 
 fn execute_body(
-  ctx: Rc<RefCell<LoggerContext>>,
+  ctx: Rc<RefCell<Context>>,
   dxb_body: &[u8],
 ) -> ValueResult {
   return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));
 }
 
 fn execute_loop(
-  ctx: Rc<RefCell<LoggerContext>>,
+  ctx: Rc<RefCell<Context>>,
   dxb_body: &[u8],
   index: &Cell<usize>,
   is_end_instruction: &Cell<bool>,
 ) -> ValueResult {
-  let logger =
-    Logger::new_for_development(ctx.clone(), "DATEX Runtime".to_string());
+  let logger = Logger::new_for_development(ctx.borrow().logger_context.clone(), "DATEX Runtime".to_string());
 
   let mut stack: Stack = Stack::new(&logger);
 

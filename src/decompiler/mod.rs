@@ -14,6 +14,7 @@ use std::vec;
 use crate::datex_values::SlotIdentifier;
 use crate::datex_values::Value;
 use crate::global::dxb_header::DXBHeader;
+use crate::runtime::Context;
 use crate::utils::color::AnsiCodes;
 use crate::utils::color::Color;
 use crate::utils::logger::LoggerContext;
@@ -36,7 +37,7 @@ lazy_static! {
  * Converts DXB (with or without header) to DATEX Script
  */
 pub fn decompile(
-  ctx: Rc<RefCell<LoggerContext>>,
+  ctx: Rc<RefCell<Context>>,
   dxb: &[u8],
   formatted: bool,
   colorized: bool,
@@ -64,7 +65,7 @@ pub fn decompile(
 }
 
 pub fn decompile_body(
-  ctx: Rc<RefCell<LoggerContext>>,
+  ctx: Rc<RefCell<Context>>,
   dxb_body: &[u8],
   formatted: bool,
   colorized: bool,
@@ -115,7 +116,7 @@ fn int_to_label(n: i32) -> String {
 
 struct DecompilerGlobalState<'a> {
   // ctx
-  ctx: Rc<RefCell<LoggerContext>>,
+  ctx: Rc<RefCell<Context>>,
 
   // dxb
   dxb_body: &'a [u8],

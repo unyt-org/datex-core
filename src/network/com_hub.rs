@@ -10,8 +10,8 @@ use super::com_interfaces::{
 use crate::crypto::crypto::{Crypto, CryptoDefault};
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
-use crate::utils::logger::{Logger, LoggerContext};
-
+use crate::utils::logger::{Logger};
+use crate::runtime::Context;
 struct DynamicEndpointProperties {
   known_since: u64,
   distance: u32,
@@ -43,7 +43,7 @@ impl ComHub {
   pub fn new(
     context: Rc<RefCell<Context>>,
   ) -> Rc<RefCell<ComHub>> {
-    let logger = Logger::new_for_production(context.borrow().logger_ctx.clone(), "ComHub".to_string());
+    let logger = Logger::new_for_production(context.borrow().logger_context.clone(), "ComHub".to_string());
     return Rc::new(RefCell::new(ComHub {
       interfaces: HashSet::new(),
       endpoint_sockets: HashMap::new(),
