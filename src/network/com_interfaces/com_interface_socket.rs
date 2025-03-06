@@ -1,13 +1,9 @@
 use std::{
-  collections::VecDeque,
-  sync::{Arc, Mutex},
+  cell::RefCell, collections::VecDeque, rc::Rc, sync::{Arc, Mutex}
 };
 
 use crate::{
-  crypto::{crypto::Crypto, uuid::UUID},
-  datex_values::Endpoint,
-  global::dxb_block::DXBBlock,
-  utils::logger::Logger,
+  crypto::{uuid::UUID}, datex_values::Endpoint, global::dxb_block::DXBBlock, runtime::Context, utils::logger::Logger
 };
 
 use super::block_collector::BlockCollector;
@@ -54,24 +50,24 @@ impl ComInterfaceSocket {
     self.send_queue.push_back(block.to_vec());
   }
 
-  pub fn new() -> ComInterfaceSocket {
+  pub fn empty() -> ComInterfaceSocket {
     ComInterfaceSocket::default()
   }
-  pub fn new_with_logger(
-    crypto: &dyn Crypto,
+  pub fn new(
+    context: Rc<RefCell<Context>>,
     logger: Option<Logger>,
   ) -> ComInterfaceSocket {
     let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
-    ComInterfaceSocket::new_with_logger_and_receive_queue(
-      crypto,
-      logger,
+    ComInterfaceSocket::new_with_receive_queue(
+      context,
       receive_queue,
+      logger,
     )
   }
-  pub fn new_with_logger_and_receive_queue(
-    crypto: &dyn Crypto,
-    logger: Option<Logger>,
+  pub fn new_with_receive_queue(
+    context: Rc<RefCell<Context>>,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
+    logger: Option<Logger>,
   ) -> ComInterfaceSocket {
     ComInterfaceSocket {
       logger: logger.clone(),
@@ -80,7 +76,7 @@ impl ComInterfaceSocket {
         receive_queue.clone(),
         logger,
       ),
-      uuid: UUID::new(crypto),
+      uuid: UUID::new(&*context.borrow().crypto.borrow()),
       ..ComInterfaceSocket::default()
     }
   }

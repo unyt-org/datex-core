@@ -100,7 +100,7 @@ fn get_mock_setup() -> (
       panic!("Error adding interface: {:?}", e);
     });
 
-  let socket = Rc::new(RefCell::new(ComInterfaceSocket::new_with_logger(
+  let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
     &*com_hub_mut.crypto.borrow(),
     com_hub_mut.logger.clone(),
   )));

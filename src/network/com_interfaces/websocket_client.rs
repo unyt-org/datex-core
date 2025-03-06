@@ -10,12 +10,10 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-  crypto::{self, crypto::Crypto},
-  network::com_interfaces::{
+  crypto::{self, crypto::Crypto}, network::com_interfaces::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
-  },
-  utils::logger::{self, Logger},
+  }, runtime::Context, utils::logger::{self, Logger}
 };
 
 use super::com_interface::ComInterface;
@@ -26,7 +24,7 @@ where
 {
   pub web_socket: Rc<RefCell<WS>>,
   pub logger: Option<Logger>,
-  crypto: Rc<RefCell<dyn Crypto>>,
+  context: Rc<RefCell<Context>>,
   socket: Option<Rc<RefCell<ComInterfaceSocket>>>,
 }
 
@@ -58,13 +56,13 @@ where
   WS: WebSocket,
 {
   pub fn new_with_web_socket(
-    crypto: Rc<RefCell<dyn Crypto>>,
+    context: Rc<RefCell<Context>>,
     web_socket: Rc<RefCell<WS>>,
     logger: Option<Logger>,
   ) -> WebSocketClientInterface<WS> {
     return WebSocketClientInterface {
       web_socket,
-      crypto,
+      context,
       logger,
       socket: None,
     };
@@ -80,10 +78,10 @@ where
       logger.debug(&"Connecting to WebSocket");
     }
     let receive_queue = self.web_socket.borrow_mut().connect()?;
-    let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
-      &*self.crypto.borrow(),
-      self.logger.clone(),
+    let socket = ComInterfaceSocket::new_with_receive_queue(
+      self.context.clone(),
       receive_queue,
+      self.logger.clone(),
     );
     self.socket = Some(Rc::new(RefCell::new(socket)));
     if let Some(logger) = &self.logger {
