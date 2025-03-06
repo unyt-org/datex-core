@@ -3,7 +3,7 @@ use std::{
 };
 
 use crate::{
-  crypto::{uuid::UUID}, datex_values::Endpoint, global::dxb_block::DXBBlock, runtime::Context, utils::logger::Logger
+  crypto::{crypto::Crypto, uuid::UUID}, datex_values::Endpoint, global::dxb_block::DXBBlock, runtime::Context, utils::logger::Logger
 };
 
 use super::block_collector::BlockCollector;
@@ -64,6 +64,7 @@ impl ComInterfaceSocket {
       logger,
     )
   }
+ 
   pub fn new_with_receive_queue(
     context: Rc<RefCell<Context>>,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,

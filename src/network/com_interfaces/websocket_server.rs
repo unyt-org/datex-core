@@ -10,11 +10,10 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-  network::com_interfaces::{
+  crypto::uuid::UUID, network::com_interfaces::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
-  },
-  utils::logger::{self, Logger},
+  }, utils::logger::{self, Logger}
 };
 
 use super::com_interface::ComInterface;
@@ -23,6 +22,7 @@ pub struct WebSocketServerInterface<WS>
 where
   WS: WebSocket,
 {
+ uuid: UUID<WebSocketServerInterface<WS>>,
   pub websocket_server: Rc<RefCell<WS>>,
   pub websockets: HashMap<ComInterfaceSocket, WS>,
   pub logger: Option<Logger>,
@@ -61,6 +61,7 @@ where
     logger: Option<Logger>,
   ) -> WebSocketServerInterface<WS> {
     return WebSocketServerInterface {
+		uuid: UUID::default(),
       websocket_server: web_socket,
       websockets: HashMap::new(),
       logger,
@@ -107,4 +108,8 @@ where
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
     self.sockets.clone()
   }
+  
+  fn get_uuid(&self) -> String {
+		self.uuid.to_string()
+	}
 }

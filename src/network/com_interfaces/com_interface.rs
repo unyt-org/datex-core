@@ -16,6 +16,7 @@ pub trait ComInterface {
   fn get_properties(&self) -> InterfaceProperties;
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
   fn connect(&mut self) -> Result<()>;
+  fn get_uuid(&self) -> String;
 }
 
 #[derive(Clone)]

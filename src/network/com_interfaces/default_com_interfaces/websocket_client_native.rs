@@ -13,7 +13,7 @@ use websocket::{
   ClientBuilder,
 };
 
-use crate::crypto::{self, crypto::Crypto};
+use crate::{crypto::{self, crypto::Crypto}, runtime::Context};
 
 use super::super::websocket_client::{
   parse_url, WebSocket, WebSocketClientInterface,
@@ -57,7 +57,7 @@ impl WebSocket for WebSocketNative {
 
 impl WebSocketClientInterface<WebSocketNative> {
   pub fn new(
-    crypto: Rc<RefCell<dyn Crypto>>,
+    crypto: Rc<RefCell<Context>>,
     address: &str,
   ) -> Result<WebSocketClientInterface<WebSocketNative>> {
     let websocket = WebSocketNative::new(address)?;

@@ -75,6 +75,10 @@ impl ComInterface for MockupInterface {
   fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
     self.sockets.clone()
   }
+  
+  fn get_uuid(&self) -> String {
+      return UUID::<()>::default().to_string();
+  }
 }
 
 fn get_mock_setup() -> (
@@ -101,7 +105,7 @@ fn get_mock_setup() -> (
     });
 
   let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
-    &*com_hub_mut.crypto.borrow(),
+    com_hub_mut.context.clone(),
     com_hub_mut.logger.clone(),
   )));
 
