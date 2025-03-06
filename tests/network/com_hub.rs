@@ -1,8 +1,9 @@
 use std::cell::RefCell;
 use std::io::Write;
 use std::rc::Rc;
-
+use std::sync::{Arc, Mutex};
 use anyhow::Error;
+use datex_core::crypto::crypto_native::CryptoNative;
 use datex_core::crypto::uuid::UUID;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
@@ -18,6 +19,7 @@ use datex_core::network::com_interfaces::com_interface_properties::{
   InterfaceDirection, InterfaceProperties,
 };
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
+use datex_core::runtime::global_context::{set_global_context, GlobalContext};
 
 pub struct MockupInterface {
   pub last_block: Option<Vec<u8>>,
@@ -79,6 +81,15 @@ impl ComInterface for MockupInterface {
   fn get_uuid(&self) -> String {
       return UUID::<()>::default().to_string();
   }
+}
+
+
+fn init_global_context() {
+  let global_ctx = GlobalContext {
+    crypto: Arc::new(Mutex::new(CryptoNative)),
+  };
+
+  set_global_context(global_ctx);
 }
 
 fn get_mock_setup() -> (
@@ -165,6 +176,7 @@ pub fn test_multiple_add() {
 #[test]
 pub fn test_send() {
   // init mock setup
+  init_global_context();
   let (com_hub, com_interface, _, _) = get_mock_setup();
 
   // send block
@@ -217,6 +229,7 @@ pub fn test_recalulate() {
 #[test]
 pub fn test_receive() {
   // init mock setup
+  init_global_context();
   let (com_hub, _, _, socket) = get_mock_setup();
   let mut com_hub_mut = com_hub.borrow_mut();
 
@@ -253,6 +266,7 @@ pub fn test_receive() {
 #[test]
 pub fn test_receive_multiple() {
   // init mock setup
+  init_global_context();
   let (com_hub, _, _, socket) = get_mock_setup();
   let mut com_hub_mut = com_hub.borrow_mut();
 
