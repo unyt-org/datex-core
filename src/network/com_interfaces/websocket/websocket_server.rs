@@ -11,12 +11,9 @@ use url::Url;
 
 use crate::{
   crypto::uuid::UUID, network::com_interfaces::{
-    com_interface_properties::{InterfaceDirection, InterfaceProperties},
-    com_interface_socket::ComInterfaceSocket,
+    com_interface::ComInterface, com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket
   }, utils::logger::{self, Logger}
 };
-
-use super::com_interface::ComInterface;
 
 pub struct WebSocketServerInterface<WS>
 where
@@ -35,22 +32,6 @@ pub trait WebSocket {
   fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>>;
 }
 
-pub fn parse_url(address: &str) -> Result<Url> {
-  let address = if address.contains("://") {
-    address.to_string()
-  } else {
-    format!("wss://{}", address)
-  };
-
-  let mut url = Url::parse(&address).map_err(|_| anyhow!("Invalid URL"))?;
-  match url.scheme() {
-    "https" => url.set_scheme("wss").unwrap(),
-    "http" => url.set_scheme("ws").unwrap(),
-    "wss" | "ws" => (),
-    _ => return Err(anyhow!("Invalid URL scheme")),
-  }
-  Ok(url)
-}
 
 impl<WS> WebSocketServerInterface<WS>
 where
