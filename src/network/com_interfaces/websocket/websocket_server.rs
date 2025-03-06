@@ -12,7 +12,7 @@ use url::Url;
 use crate::{
   crypto::uuid::UUID, network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket
-  }, utils::logger::{self, Logger}
+  }, runtime::Context, utils::logger::{self, Logger}
 };
 
 pub struct WebSocketServerInterface<WS>
@@ -20,8 +20,8 @@ where
   WS: WebSocket,
 {
  uuid: UUID<WebSocketServerInterface<WS>>,
-  pub websocket_server: Rc<RefCell<WS>>,
-  pub websockets: HashMap<ComInterfaceSocket, WS>,
+  pub web_socket_server: Rc<RefCell<WS>>,
+  pub web_sockets: HashMap<ComInterfaceSocket, WS>,
   pub logger: Option<Logger>,
   sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
 }
@@ -32,21 +32,21 @@ pub trait WebSocket {
   fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>>;
 }
 
-
 impl<WS> WebSocketServerInterface<WS>
 where
   WS: WebSocket,
 {
-  pub fn new_with_web_socket(
-    web_socket: Rc<RefCell<WS>>,
+  pub fn new_with_web_socket_server(
+    context: Rc<RefCell<Context>>,
+    web_socket_server: Rc<RefCell<WS>>,
     logger: Option<Logger>,
   ) -> WebSocketServerInterface<WS> {
     return WebSocketServerInterface {
-		uuid: UUID::default(),
-      websocket_server: web_socket,
-      websockets: HashMap::new(),
+      uuid: UUID::new(&*context.clone().borrow().crypto.borrow()),
+      web_sockets: HashMap::new(),
+      web_socket_server,
       logger,
-      sockets: Rc::new(RefCell::new(vec![])),
+      sockets: Rc::new(RefCell::new(Vec::new())),
     };
   }
 }
