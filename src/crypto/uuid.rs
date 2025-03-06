@@ -1,5 +1,5 @@
 use std::{fmt::Display, marker::PhantomData};
-
+use crate::runtime::global_context::get_global_context;
 use super::crypto::Crypto;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,9 +9,11 @@ pub struct UUID<T> {
 }
 
 impl<T> UUID<T> {
-  pub fn new(crypto: &dyn Crypto) -> UUID<T> {
+  pub fn new() -> UUID<T> {
+    let crypto = get_global_context().crypto;
+    let uuid = crypto.lock().unwrap().create_uuid();
     UUID {
-      uuid: crypto.create_uuid(),
+      uuid,
       _phantom: PhantomData,
     }
   }

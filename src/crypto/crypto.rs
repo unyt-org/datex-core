@@ -1,4 +1,4 @@
-pub trait Crypto {
+pub trait Crypto: Send + Sync {
   fn encrypt(&self, data: &[u8]) -> Vec<u8>;
   fn decrypt(&self, data: &[u8]) -> Vec<u8>;
   fn create_uuid(&self) -> String;

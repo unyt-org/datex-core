@@ -3,7 +3,7 @@ use std::{
 };
 
 use crate::{
-  crypto::{crypto::Crypto, uuid::UUID}, datex_values::Endpoint, global::dxb_block::DXBBlock, runtime::Context, utils::logger::Logger
+  crypto::{uuid::UUID}, datex_values::Endpoint, global::dxb_block::DXBBlock, runtime::Context, utils::logger::Logger
 };
 
 use super::block_collector::BlockCollector;
@@ -77,7 +77,7 @@ impl ComInterfaceSocket {
         receive_queue.clone(),
         logger,
       ),
-      uuid: UUID::new(&*context.borrow().crypto.borrow()),
+      uuid: UUID::new(),
       ..ComInterfaceSocket::default()
     }
   }

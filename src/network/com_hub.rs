@@ -7,7 +7,6 @@ use anyhow::Result;
 use super::com_interfaces::{
   com_interface::ComInterfaceTrait, com_interface_socket::ComInterfaceSocket,
 };
-use crate::crypto::crypto::{Crypto, CryptoDefault};
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
 use crate::utils::logger::{Logger, LoggerContext};
@@ -33,10 +32,7 @@ impl Default for ComHub {
       interfaces: HashSet::new(),
       endpoint_sockets: HashMap::new(),
       logger: None,
-      context: Rc::new(RefCell::new(Context {
-        logger_context: Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
-        crypto: Rc::new(RefCell::new(CryptoDefault)),
-      })),
+      context: Rc::new(RefCell::new(Context::default())),
       incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
     }
   }
@@ -55,11 +51,7 @@ impl ComHub {
       context,
     }));
   }
-
-  pub fn get_crypto(&self) -> Rc<RefCell<dyn Crypto>> {
-    self.context.borrow().crypto.clone()
-  }
-
+  
   #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
   pub fn empty() -> Rc<RefCell<ComHub>> {
     return Rc::new(RefCell::new(ComHub::default()));

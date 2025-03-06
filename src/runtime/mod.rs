@@ -15,15 +15,17 @@ use crate::{
 mod execution;
 pub mod memory;
 mod stack;
+pub mod global_context;
 
 use self::{execution::execute, memory::Memory};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Default)]
 pub struct Context {
   pub logger_context: Rc<RefCell<LoggerContext>>,
-  pub crypto: Rc<RefCell<dyn Crypto>>,
 }
+
 pub struct Runtime {
   pub version: String,
   pub context: Rc<RefCell<Context>>,
@@ -50,7 +52,6 @@ impl Runtime {
   pub fn default() -> Runtime {
     let context = Rc::new(RefCell::new(Context {
       logger_context: Rc::new(RefCell::new(LoggerContext { log_redirect: None })),
-      crypto: Rc::new(RefCell::new(CryptoDefault)),
     }));
     return Runtime::new(context);
   }

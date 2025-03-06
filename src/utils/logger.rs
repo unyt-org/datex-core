@@ -31,7 +31,7 @@ pub enum LogFormatting {
   ColorRGB,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LoggerContext {
   pub log_redirect: Option<fn(&str) -> ()>,
 }

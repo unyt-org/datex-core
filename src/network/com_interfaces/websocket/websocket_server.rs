@@ -42,7 +42,7 @@ where
     logger: Option<Logger>,
   ) -> WebSocketServerInterface<WS> {
     return WebSocketServerInterface {
-      uuid: UUID::new(&*context.clone().borrow().crypto.borrow()),
+      uuid: UUID::new(),
       web_sockets: HashMap::new(),
       web_socket_server,
       logger,

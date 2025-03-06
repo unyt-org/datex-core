@@ -10,7 +10,7 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-  crypto::{self, crypto::Crypto, uuid::UUID}, network::com_interfaces::{
+  crypto::{uuid::UUID}, network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::{InterfaceDirection, InterfaceProperties}, com_interface_socket::ComInterfaceSocket
   }, runtime::Context, utils::logger::{self, Logger}
 };
@@ -43,7 +43,7 @@ where
     logger: Option<Logger>,
   ) -> WebSocketClientInterface<WS> {
     return WebSocketClientInterface {
-      uuid: UUID::new(&*context.clone().borrow().crypto.borrow()),
+      uuid: UUID::new(),
       web_socket,
       context,
       logger,
