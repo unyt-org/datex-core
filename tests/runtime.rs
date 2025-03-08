@@ -7,8 +7,8 @@ use datex_core::runtime::Runtime;
  */
 #[test]
 pub fn init_runtime() {
-  let runtime = Runtime::default();
-  assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
+    let runtime = Runtime::default();
+    assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
 }
 
 /**
@@ -16,8 +16,8 @@ pub fn init_runtime() {
  */
 #[test]
 pub fn execute_block() {
-  assert_eq!(1, 1)
-  // let runtime = Runtime::new();
-  // let dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 02".to_string(), " ");
-  // runtime.execute(&dxb)
+    assert_eq!(1, 1)
+    // let runtime = Runtime::new();
+    // let dxb = hex_to_buffer_advanced("01 64 02 00 00 ff 01 02".to_string(), " ");
+    // runtime.execute(&dxb)
 }
