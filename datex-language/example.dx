@@ -1,0 +1,20 @@
+42;
+44.0;
+0x42;
+0b01010101;
+`0123456789abcdef`;
+
+"string";
+'also a string (true) (1 + 2)';
+
+true;
+null;
+void;
+
+ref a;
+const b;
+val c;
+
+@@0123456789abcde;
+@jonas;
+@+unyt;
