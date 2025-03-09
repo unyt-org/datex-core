@@ -1,16 +1,14 @@
+use super::block_collector::BlockCollector;
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::utils::uuid::UUID;
+use crate::{
+    datex_values::Endpoint, global::dxb_block::DXBBlock, utils::logger::Logger,
+};
+use std::fmt::Display;
 use std::{
-    cell::RefCell,
     collections::VecDeque,
-    rc::Rc,
     sync::{Arc, Mutex},
 };
-
-use crate::{
-    datex_values::Endpoint, global::dxb_block::DXBBlock,
-    runtime::Context, utils::logger::Logger,
-};
-use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use super::block_collector::BlockCollector;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SocketState {
@@ -19,13 +17,22 @@ pub enum SocketState {
     Error,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ComInterfaceSocketUUID(pub UUID);
+impl Display for ComInterfaceSocketUUID {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "ComInterfaceSocket({})", self.0)
+    }
+}
+
 #[derive(Debug)]
 pub struct ComInterfaceSocket {
     pub endpoint: Option<Endpoint>,
     pub is_connected: bool,
     pub is_open: bool,
     pub is_destroyed: bool,
-    pub uuid: ComInterfaceUUID,
+    pub uuid: ComInterfaceSocketUUID,
+    pub interface_uuid: ComInterfaceUUID,
     pub connection_timestamp: u64,
     pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
     pub send_queue: VecDeque<Vec<u8>>,
@@ -55,25 +62,22 @@ impl ComInterfaceSocket {
         self.send_queue.push_back(block.to_vec());
     }
 
-    pub fn empty() -> ComInterfaceSocket {
-        ComInterfaceSocket::default()
-    }
     pub fn new(
-        context: Rc<RefCell<Context>>,
+        interface_uuid: ComInterfaceUUID,
         logger: Option<Logger>,
     ) -> ComInterfaceSocket {
         let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
         ComInterfaceSocket::new_with_receive_queue(
-            context,
-            receive_queue,
+            interface_uuid,
             logger,
+            receive_queue,
         )
     }
 
     pub fn new_with_receive_queue(
-        context: Rc<RefCell<Context>>,
-        receive_queue: Arc<Mutex<VecDeque<u8>>>,
+        interface_uuid: ComInterfaceUUID,
         logger: Option<Logger>,
+        receive_queue: Arc<Mutex<VecDeque<u8>>>,
     ) -> ComInterfaceSocket {
         ComInterfaceSocket {
             logger: logger.clone(),
@@ -82,26 +86,14 @@ impl ComInterfaceSocket {
                 receive_queue.clone(),
                 logger,
             ),
-            uuid: ComInterfaceUUID::new(),
-            ..ComInterfaceSocket::default()
-        }
-    }
-}
-
-impl Default for ComInterfaceSocket {
-    fn default() -> Self {
-        let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
-        ComInterfaceSocket {
+            interface_uuid,
             endpoint: None,
             is_connected: false,
             is_open: false,
             is_destroyed: false,
-            uuid: ComInterfaceUUID::default(),
-            logger: None,
+            uuid: ComInterfaceSocketUUID(UUID::new()),
             connection_timestamp: 0,
-            receive_queue: receive_queue.clone(),
             send_queue: VecDeque::new(),
-            block_collector: BlockCollector::new(receive_queue.clone()),
         }
     }
 }

@@ -6,19 +6,20 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use url::Url;
 
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::utils::uuid::UUID;
 use crate::{
     network::com_interfaces::{
         com_interface::ComInterface,
-        com_interface_properties::{InterfaceDirection, InterfaceProperties},
+        com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocket,
     },
     runtime::Context,
-    utils::logger::{self, Logger},
+    utils::logger::Logger,
 };
-use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 
 pub struct WebSocketServerInterface<WS>
 where
@@ -42,17 +43,16 @@ where
     WS: WebSocket,
 {
     pub fn new_with_web_socket_server(
-        context: Rc<RefCell<Context>>,
         web_socket_server: Rc<RefCell<WS>>,
         logger: Option<Logger>,
     ) -> WebSocketServerInterface<WS> {
-        return WebSocketServerInterface {
-            uuid: ComInterfaceUUID::new(),
+        WebSocketServerInterface {
+            uuid: ComInterfaceUUID(UUID::new()),
             web_sockets: HashMap::new(),
             web_socket_server,
             logger,
             sockets: Rc::new(RefCell::new(Vec::new())),
-        };
+        }
     }
 }
 

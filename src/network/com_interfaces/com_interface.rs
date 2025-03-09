@@ -1,42 +1,23 @@
+use super::{
+    com_interface_properties::{InterfaceDirection, InterfaceProperties},
+    com_interface_socket::ComInterfaceSocket,
+};
+use crate::utils::uuid::UUID;
+use anyhow::Result;
+use std::fmt::Display;
 use std::{
     cell::RefCell,
     hash::{Hash, Hasher},
     rc::Rc,
 };
-use std::fmt::Display;
-use anyhow::Result;
-use crate::crypto::uuid::generate_uuid;
-use super::{
-    com_interface_properties::{InterfaceDirection, InterfaceProperties},
-    com_interface_socket::ComInterfaceSocket,
-};
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ComInterfaceUUID(String);
-
-impl ComInterfaceUUID {
-    pub fn new() -> ComInterfaceUUID {
-        ComInterfaceUUID::default()
-    }
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
-
-impl Default for ComInterfaceUUID {
-    fn default() -> Self {
-        ComInterfaceUUID(generate_uuid())
-    }
-}
-
+pub struct ComInterfaceUUID(pub UUID);
 impl Display for ComInterfaceUUID {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "ComInterface({})", self.0)
     }
 }
-
-
 
 pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();

@@ -19,6 +19,8 @@ pub fn get_global_context() -> GlobalContext {
     let context = GLOBAL_CONTEXT.lock().unwrap().clone();
     match context {
         Some(c) => c,
-        None => panic!("Global context not initialized - call set_global_context first!"),
+        None => panic!(
+            "Global context not initialized - call set_global_context first!"
+        ),
     }
 }

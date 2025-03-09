@@ -60,13 +60,13 @@ impl WebSocket for WebSocketNative {
 
 impl WebSocketClientInterface<WebSocketNative> {
     pub fn new(
-        crypto: Rc<RefCell<Context>>,
+        ctx: Rc<RefCell<Context>>,
         address: &str,
     ) -> Result<WebSocketClientInterface<WebSocketNative>> {
         let websocket = WebSocketNative::new(address)?;
 
         Ok(WebSocketClientInterface::new_with_web_socket(
-            crypto,
+            ctx,
             Rc::new(RefCell::new(websocket)),
             None,
         ))

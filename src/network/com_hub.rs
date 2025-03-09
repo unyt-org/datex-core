@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::Result;
@@ -10,10 +10,10 @@ use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::runtime::Context;
-use crate::utils::logger::{Logger, LoggerContext};
+use crate::utils::logger::Logger;
 struct DynamicEndpointProperties {
-    known_since: u64,
-    distance: u32,
+    pub known_since: u64,
+    pub distance: u32,
 }
 
 pub struct ComHub {
@@ -26,6 +26,21 @@ pub struct ComHub {
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
     pub logger: Option<Logger>,
     pub context: Rc<RefCell<Context>>,
+}
+
+#[derive(Debug, Clone)]
+struct EndpointIterateOptions {
+    pub only_redirect: bool,
+    pub only_outgoing: bool,
+}
+
+impl Default for EndpointIterateOptions {
+    fn default() -> Self {
+        EndpointIterateOptions {
+            only_redirect: true,
+            only_outgoing: false,
+        }
+    }
 }
 
 impl Default for ComHub {
@@ -47,17 +62,10 @@ impl ComHub {
             "ComHub".to_string(),
         );
         Rc::new(RefCell::new(ComHub {
-            interfaces: HashMap::new(),
-            endpoint_sockets: HashMap::new(),
             logger: Some(logger),
-            incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
             context,
+            ..ComHub::default()
         }))
-    }
-
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
-    pub fn empty() -> Rc<RefCell<ComHub>> {
-        Rc::new(RefCell::new(ComHub::default()))
     }
 
     pub fn add_interface(
@@ -75,8 +83,13 @@ impl ComHub {
         Ok(())
     }
 
-    pub fn remove_interface(&mut self, interface: Rc<RefCell<dyn ComInterface>>) -> bool {
-        self.interfaces.remove(&interface.borrow().get_uuid()).is_some()
+    pub fn remove_interface(
+        &mut self,
+        interface: Rc<RefCell<dyn ComInterface>>,
+    ) -> bool {
+        self.interfaces
+            .remove(&interface.borrow().get_uuid())
+            .is_some()
     }
 
     pub(crate) fn receive_block(
@@ -105,8 +118,27 @@ impl ComHub {
         sockets.clone()
     }
 
-    fn iterate_endpoint_sockets(&self) -> Vec<ComInterfaceSocket> {
-        todo!()
+    fn iterate_endpoint_sockets(
+        &mut self,
+        endpoint: &Endpoint,
+        options: EndpointIterateOptions,
+    ) {
+        let endpoint_sockets = self.endpoint_sockets.get(&endpoint);
+
+        for (socket, _) in endpoint_sockets.unwrap() {
+            if options.only_redirect
+                && match &socket.endpoint {
+                    Some(e) => e == endpoint,
+                    _ => false,
+                }
+            {
+                continue;
+            }
+
+            /*if options.only_outgoing && socket.
+                continue;
+            }*/
+        }
     }
 
     /**

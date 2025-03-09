@@ -6,19 +6,20 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use url::Url;
 
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::utils::uuid::UUID;
 use crate::{
     network::com_interfaces::{
         com_interface::ComInterface,
-        com_interface_properties::{InterfaceDirection, InterfaceProperties},
+        com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocket,
     },
     runtime::Context,
-    utils::logger::{self, Logger},
+    utils::logger::Logger,
 };
-use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 
 pub struct WebSocketClientInterface<WS>
 where
@@ -46,13 +47,13 @@ where
         web_socket: Rc<RefCell<WS>>,
         logger: Option<Logger>,
     ) -> WebSocketClientInterface<WS> {
-        return WebSocketClientInterface {
-            uuid: ComInterfaceUUID::new(),
+        WebSocketClientInterface {
+            uuid: ComInterfaceUUID(UUID::new()),
             web_socket,
             context,
             logger,
             socket: None,
-        };
+        }
     }
 }
 
@@ -87,9 +88,9 @@ where
         }
         let receive_queue = self.web_socket.borrow_mut().connect()?;
         let socket = ComInterfaceSocket::new_with_receive_queue(
-            self.context.clone(),
-            receive_queue,
+            self.uuid.clone(),
             self.logger.clone(),
+            receive_queue,
         );
         self.socket = Some(Rc::new(RefCell::new(socket)));
         if let Some(logger) = &self.logger {

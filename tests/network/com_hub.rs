@@ -10,12 +10,13 @@ use std::io::Write;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceUUID};
-use datex_core::network::com_interfaces::com_interface_properties::{
-    InterfaceProperties,
+use datex_core::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceUUID,
 };
+use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 use datex_core::runtime::global_context::{set_global_context, GlobalContext};
+use datex_core::utils::uuid::UUID;
 
 pub struct MockupInterface {
     pub last_block: Option<Vec<u8>>,
@@ -30,7 +31,7 @@ impl Default for MockupInterface {
         MockupInterface {
             last_block: None,
             sockets: Rc::new(RefCell::new(Vec::new())),
-            uuid: ComInterfaceUUID::new(),
+            uuid: ComInterfaceUUID(UUID::new()),
         }
     }
 }
@@ -74,13 +75,14 @@ fn get_mock_setup() -> (
     Rc<RefCell<ComInterfaceSocket>>,
 ) {
     // init com hub
-    let com_hub = ComHub::empty();
+    let com_hub = Rc::new(RefCell::new(ComHub::default()));
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // init mockup interface
-    let mockup_interface_ref = Rc::new(RefCell::new(MockupInterface::default()));
+    let mockup_interface_ref =
+        Rc::new(RefCell::new(MockupInterface::default()));
 
-    // add mockup interface to com hub
+    // add mockup interface to com_hub
     com_hub_mut
         .add_interface(mockup_interface_ref.clone())
         .unwrap_or_else(|e| {
@@ -88,7 +90,7 @@ fn get_mock_setup() -> (
         });
 
     let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
-        com_hub_mut.context.clone(),
+        mockup_interface_ref.borrow().uuid.clone(),
         com_hub_mut.logger.clone(),
     )));
 
@@ -98,16 +100,12 @@ fn get_mock_setup() -> (
         mockup_interface.add_socket(socket.clone());
     }
 
-    (
-        com_hub.clone(),
-        mockup_interface_ref,
-        socket,
-    )
+    (com_hub.clone(), mockup_interface_ref, socket)
 }
 
 #[test]
 pub fn test_add_and_remove() {
-    let com_hub = &mut ComHub::empty();
+    let com_hub = Rc::new(RefCell::new(ComHub::default()));
     let mut com_hub_mut = com_hub.borrow_mut();
     let mockup_interface = Rc::new(RefCell::new(MockupInterface::default()));
 
@@ -123,7 +121,7 @@ pub fn test_add_and_remove() {
 pub fn test_multiple_add() {
     init_global_context();
 
-    let com_hub = &mut ComHub::empty();
+    let com_hub = Rc::new(RefCell::new(ComHub::default()));
     let mut com_hub_mut = com_hub.borrow_mut();
 
     let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
@@ -170,7 +168,7 @@ pub fn test_send() {
 }
 
 #[test]
-pub fn test_recalulate() {
+pub fn test_recalculate() {
     let mut block = DXBBlock {
         body: vec![0x01, 0x02, 0x03],
         encrypted_header: EncryptedHeader {

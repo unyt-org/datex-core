@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::hash::{Hash, Hasher};
 
 use crate::utils::{
     buffers::{self, append_u16, append_u8, read_slice, read_u16, read_u8},
@@ -12,13 +13,27 @@ pub enum EndpointType {
     InstitutionAlias,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Endpoint {
     name: String,
     endpoint_type: EndpointType,
     instance: u16,
     binary: Vec<u8>, // 1 byte type, 18 bytes name, 2 bytes instance
 }
+
+impl Hash for Endpoint {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(self.binary.as_slice());
+    }
+}
+
+impl PartialEq for Endpoint {
+    fn eq(&self, other: &Self) -> bool {
+        self.binary == other.binary
+    }
+}
+
+impl Eq for Endpoint {}
 
 impl Endpoint {
     pub const ANY_INSTANCE: u16 = 0;
