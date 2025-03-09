@@ -17,7 +17,7 @@ pub struct ComInterfaceUUID(String);
 
 impl ComInterfaceUUID {
     pub fn new() -> ComInterfaceUUID {
-        ComInterfaceUUID(generate_uuid())
+        ComInterfaceUUID::default()
     }
     pub fn to_string(&self) -> String {
         self.0.clone()
@@ -26,7 +26,7 @@ impl ComInterfaceUUID {
 
 impl Default for ComInterfaceUUID {
     fn default() -> Self {
-        ComInterfaceUUID("00000000-0000-0000-0000-000000000000".to_string())
+        ComInterfaceUUID(generate_uuid())
     }
 }
 
