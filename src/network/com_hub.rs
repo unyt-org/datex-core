@@ -9,6 +9,8 @@ use super::com_interfaces::{
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::Context;
 use crate::utils::logger::Logger;
 struct DynamicEndpointProperties {
@@ -32,6 +34,8 @@ pub struct ComHub {
 struct EndpointIterateOptions {
     pub only_redirect: bool,
     pub only_outgoing: bool,
+    pub match_instances: bool,
+    pub exclude_socket: Option<ComInterfaceSocketUUID>,
 }
 
 impl Default for EndpointIterateOptions {
@@ -39,6 +43,8 @@ impl Default for EndpointIterateOptions {
         EndpointIterateOptions {
             only_redirect: true,
             only_outgoing: false,
+            match_instances: false,
+            exclude_socket: None,
         }
     }
 }
@@ -118,27 +124,76 @@ impl ComHub {
         sockets.clone()
     }
 
-    fn iterate_endpoint_sockets(
-        &mut self,
-        endpoint: &Endpoint,
+    fn get_socket_interface_properties(
+        interfaces: &HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
+        socket: &ComInterfaceSocket,
+    ) -> InterfaceProperties {
+        interfaces
+            .get(&socket.interface_uuid)
+            .unwrap()
+            .borrow()
+            .get_properties()
+    }
+
+    fn iterate_endpoint_sockets<'a>(
+        &'a self,
+        endpoint: &'a Endpoint,
         options: EndpointIterateOptions,
-    ) {
+    ) -> impl Iterator<Item=&'a ComInterfaceSocket> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(&endpoint);
+        let interfaces = &self.interfaces;
 
-        for (socket, _) in endpoint_sockets.unwrap() {
-            if options.only_redirect
-                && match &socket.endpoint {
-                    Some(e) => e == endpoint,
-                    _ => false,
+        std::iter::from_coroutine(
+            #[coroutine]
+            move || {
+                for (socket, _) in endpoint_sockets.unwrap() {
+                    // check if is direct socket if only_redirect is set to true
+                    if options.only_redirect
+                        && match &socket.endpoint {
+                        Some(e) => e == endpoint,
+                        _ => false,
+                    }
+                    {
+                        continue;
+                    }
+
+                    // check if the socket is excluded if exclude_socket is set
+                    if let Some(exclude_socket) = &options.exclude_socket {
+                        if socket.uuid == *exclude_socket {
+                            continue;
+                        }
+                    }
+
+                    // check if the socket is outgoing if only_outgoing is set to true
+                    let properties = ComHub::get_socket_interface_properties(
+                        interfaces,
+                        socket,
+                    );
+                    if options.only_outgoing && !properties.can_send() {
+                        continue;
+                    }
+
+                    yield socket;
                 }
-            {
-                continue;
             }
+        )
+    }
 
-            /*if options.only_outgoing && socket.
-                continue;
-            }*/
+    fn find_matching_endpoint_socket<'a>(&'a self, endpoint: &'a Endpoint, exclude_socket: Option<ComInterfaceSocketUUID>) -> Option<&'a ComInterfaceSocket> {
+        // iterate over all sockets of all interfaces
+        let options = EndpointIterateOptions {
+            only_redirect: false,
+            only_outgoing: true,
+            match_instances: true,
+            exclude_socket,
+        };
+        for socket in self.iterate_endpoint_sockets(endpoint, options) {
+            return Some(socket);
         }
+
+        // no matching socket found, check other instances of the endpoint
+        // TODO
+        None
     }
 
     /**

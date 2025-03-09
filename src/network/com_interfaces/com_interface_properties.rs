@@ -50,6 +50,25 @@ pub struct InterfaceProperties {
      */
     pub is_secure_channel: bool,
 }
+
+impl InterfaceProperties {
+    pub fn can_send(&self) -> bool {
+        match self.direction {
+            InterfaceDirection::IN => false,
+            InterfaceDirection::OUT => true,
+            InterfaceDirection::IN_OUT => true,
+        }
+    }
+    
+    pub fn can_receive(&self) -> bool {
+        match self.direction {
+            InterfaceDirection::IN => true,
+            InterfaceDirection::OUT => false,
+            InterfaceDirection::IN_OUT => true,
+        }
+    }
+}
+
 impl Default for InterfaceProperties {
     fn default() -> Self {
         InterfaceProperties {
