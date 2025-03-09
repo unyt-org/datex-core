@@ -6,3 +6,4 @@ bin/
 # check out compiled code
 # pkg/
 wasm-pack.log
+.DS_Store
