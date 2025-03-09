@@ -10,7 +10,6 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 use crate::{
-    crypto::uuid::UUID,
     network::com_interfaces::{
         com_interface::ComInterface,
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
@@ -19,12 +18,13 @@ use crate::{
     runtime::Context,
     utils::logger::{self, Logger},
 };
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 
 pub struct WebSocketClientInterface<WS>
 where
     WS: WebSocket,
 {
-    pub uuid: UUID<WebSocketClientInterface<WS>>,
+    pub uuid: ComInterfaceUUID,
     pub web_socket: Rc<RefCell<WS>>,
     pub logger: Option<Logger>,
     context: Rc<RefCell<Context>>,
@@ -47,7 +47,7 @@ where
         logger: Option<Logger>,
     ) -> WebSocketClientInterface<WS> {
         return WebSocketClientInterface {
-            uuid: UUID::new(),
+            uuid: ComInterfaceUUID::new(),
             web_socket,
             context,
             logger,
@@ -60,24 +60,6 @@ impl<WS> ComInterface for WebSocketClientInterface<WS>
 where
     WS: WebSocket,
 {
-    fn connect(&mut self) -> Result<()> {
-        if let Some(logger) = &self.logger {
-            logger.debug(&"Connecting to WebSocket");
-        }
-        let receive_queue = self.web_socket.borrow_mut().connect()?;
-        let socket = ComInterfaceSocket::new_with_receive_queue(
-            self.context.clone(),
-            receive_queue,
-            self.logger.clone(),
-        );
-        self.socket = Some(Rc::new(RefCell::new(socket)));
-        if let Some(logger) = &self.logger {
-            logger.success(&"Adding WebSocket");
-        }
-
-        Ok(())
-    }
-
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
         // TODO: what happens if socket != self.socket? (only one socket exists)
         self.web_socket.borrow_mut().send_data(block);
@@ -99,7 +81,25 @@ where
         }
     }
 
-    fn get_uuid(&self) -> String {
-        self.uuid.to_string()
+    fn connect(&mut self) -> Result<()> {
+        if let Some(logger) = &self.logger {
+            logger.debug(&"Connecting to WebSocket");
+        }
+        let receive_queue = self.web_socket.borrow_mut().connect()?;
+        let socket = ComInterfaceSocket::new_with_receive_queue(
+            self.context.clone(),
+            receive_queue,
+            self.logger.clone(),
+        );
+        self.socket = Some(Rc::new(RefCell::new(socket)));
+        if let Some(logger) = &self.logger {
+            logger.success(&"Adding WebSocket");
+        }
+
+        Ok(())
+    }
+
+    fn get_uuid(&self) -> ComInterfaceUUID {
+        self.uuid.clone()
     }
 }

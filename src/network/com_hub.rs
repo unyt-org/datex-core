@@ -1,14 +1,14 @@
 use std::collections::{HashSet, VecDeque};
-use std::sync::{Arc, Mutex};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::Result;
 
 use super::com_interfaces::{
-    com_interface::ComInterfaceTrait, com_interface_socket::ComInterfaceSocket,
+    com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::runtime::Context;
 use crate::utils::logger::{Logger, LoggerContext};
 struct DynamicEndpointProperties {
@@ -17,7 +17,7 @@ struct DynamicEndpointProperties {
 }
 
 pub struct ComHub {
-    pub interfaces: HashSet<ComInterfaceTrait>,
+    pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
     pub endpoint_sockets: HashMap<
         Endpoint,
         HashMap<ComInterfaceSocket, DynamicEndpointProperties>,
@@ -31,7 +31,7 @@ pub struct ComHub {
 impl Default for ComHub {
     fn default() -> Self {
         ComHub {
-            interfaces: HashSet::new(),
+            interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
             logger: None,
             context: Rc::new(RefCell::new(Context::default())),
@@ -46,36 +46,37 @@ impl ComHub {
             context.borrow().logger_context.clone(),
             "ComHub".to_string(),
         );
-        return Rc::new(RefCell::new(ComHub {
-            interfaces: HashSet::new(),
+        Rc::new(RefCell::new(ComHub {
+            interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
             logger: Some(logger),
             incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
             context,
-        }));
+        }))
     }
 
     #[cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))]
     pub fn empty() -> Rc<RefCell<ComHub>> {
-        return Rc::new(RefCell::new(ComHub::default()));
+        Rc::new(RefCell::new(ComHub::default()))
     }
 
     pub fn add_interface(
         &mut self,
-        mut interface: ComInterfaceTrait,
+        interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<()> {
-        if self.interfaces.contains(&interface) {
+        let uuid = interface.borrow().get_uuid();
+        if self.interfaces.contains_key(&uuid) {
             return Err(anyhow::anyhow!("Interface already exists"));
         }
 
-        interface.connect()?;
-        self.interfaces.insert(interface);
+        interface.borrow_mut().connect()?;
+        self.interfaces.insert(uuid, interface);
 
         Ok(())
     }
 
-    pub fn remove_interface(&mut self, interface: ComInterfaceTrait) -> bool {
-        self.interfaces.remove(&interface)
+    pub fn remove_interface(&mut self, interface: Rc<RefCell<dyn ComInterface>>) -> bool {
+        self.interfaces.remove(&interface.borrow().get_uuid()).is_some()
     }
 
     pub(crate) fn receive_block(
@@ -95,8 +96,8 @@ impl ComHub {
     // iterate over all sockets of all interfaces
     fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
         let mut sockets = Vec::new();
-        for interface in &self.interfaces {
-            let interface_ref = interface;
+        for (_, interface) in &self.interfaces {
+            let interface_ref = interface.borrow();
             for socket in interface_ref.get_sockets().borrow().iter() {
                 sockets.push(socket.clone());
             }
@@ -180,8 +181,8 @@ impl ComHub {
      * Send all queued blocks from all interfaces.
      */
     fn flush_outgoing_blocks(&mut self) {
-        for interface in &self.interfaces {
-            interface.flush_outgoing_blocks();
+        for (_, interface) in &self.interfaces {
+            interface.borrow_mut().flush_outgoing_blocks();
         }
     }
 }

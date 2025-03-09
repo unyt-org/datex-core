@@ -6,10 +6,10 @@ use std::{
 };
 
 use crate::{
-    crypto::uuid::UUID, datex_values::Endpoint, global::dxb_block::DXBBlock,
+    datex_values::Endpoint, global::dxb_block::DXBBlock,
     runtime::Context, utils::logger::Logger,
 };
-
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use super::block_collector::BlockCollector;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,7 +25,7 @@ pub struct ComInterfaceSocket {
     pub is_connected: bool,
     pub is_open: bool,
     pub is_destroyed: bool,
-    pub uuid: UUID<ComInterfaceSocket>,
+    pub uuid: ComInterfaceUUID,
     pub connection_timestamp: u64,
     pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
     pub send_queue: VecDeque<Vec<u8>>,
@@ -82,7 +82,7 @@ impl ComInterfaceSocket {
                 receive_queue.clone(),
                 logger,
             ),
-            uuid: UUID::new(),
+            uuid: ComInterfaceUUID::new(),
             ..ComInterfaceSocket::default()
         }
     }
@@ -96,7 +96,7 @@ impl Default for ComInterfaceSocket {
             is_connected: false,
             is_open: false,
             is_destroyed: false,
-            uuid: UUID::default(),
+            uuid: ComInterfaceUUID::default(),
             logger: None,
             connection_timestamp: 0,
             receive_queue: receive_queue.clone(),

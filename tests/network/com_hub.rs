@@ -1,6 +1,4 @@
-use anyhow::Error;
 use datex_core::crypto::crypto_native::CryptoNative;
-use datex_core::crypto::uuid::UUID;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
@@ -12,11 +10,9 @@ use std::io::Write;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceTrait,
-};
+use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceUUID};
 use datex_core::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
+    InterfaceProperties,
 };
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 use datex_core::runtime::global_context::{set_global_context, GlobalContext};
@@ -24,47 +20,22 @@ use datex_core::runtime::global_context::{set_global_context, GlobalContext};
 pub struct MockupInterface {
     pub last_block: Option<Vec<u8>>,
     pub sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
+    uuid: ComInterfaceUUID,
 }
 
-impl MockupInterface {
-    // pub fn new() -> ComInterfaceTrait {
-    //     return ComInterfaceTrait::new(Rc::new(RefCell::new(
-    //         MockupInterface {
-    //             last_block: None,
-    //         }
-    //     )));
-    // }
-
-    pub fn default_com_interface_trait() -> ComInterfaceTrait {
-        return ComInterfaceTrait::new(Rc::new(RefCell::new(
-            MockupInterface {
-                last_block: None,
-                sockets: Rc::new(RefCell::new(Vec::new())),
-            },
-        )));
-    }
-
-    pub fn get_com_interface_trait(
-        mockup_interface: Rc<RefCell<MockupInterface>>,
-    ) -> ComInterfaceTrait {
-        return ComInterfaceTrait::new(mockup_interface);
-    }
-}
+impl MockupInterface {}
 
 impl Default for MockupInterface {
     fn default() -> Self {
         MockupInterface {
             last_block: None,
             sockets: Rc::new(RefCell::new(Vec::new())),
+            uuid: ComInterfaceUUID::new(),
         }
     }
 }
 
 impl ComInterface for MockupInterface {
-    fn connect(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
         self.last_block = Some(block.to_vec());
     }
@@ -80,8 +51,12 @@ impl ComInterface for MockupInterface {
         self.sockets.clone()
     }
 
-    fn get_uuid(&self) -> String {
-        return UUID::<()>::default().to_string();
+    fn connect(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn get_uuid(&self) -> ComInterfaceUUID {
+        self.uuid.clone()
     }
 }
 
@@ -96,7 +71,6 @@ fn init_global_context() {
 fn get_mock_setup() -> (
     Rc<RefCell<ComHub>>,
     Rc<RefCell<MockupInterface>>,
-    ComInterfaceTrait,
     Rc<RefCell<ComInterfaceSocket>>,
 ) {
     // init com hub
@@ -104,15 +78,11 @@ fn get_mock_setup() -> (
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // init mockup interface
-    let mock_interface = MockupInterface::default();
-    let mockup_interface_in_ref = Rc::new(RefCell::new(mock_interface));
-    let mockup_in_trait = MockupInterface::get_com_interface_trait(
-        mockup_interface_in_ref.clone(),
-    );
+    let mockup_interface_ref = Rc::new(RefCell::new(MockupInterface::default()));
 
     // add mockup interface to com hub
     com_hub_mut
-        .add_interface(mockup_in_trait.clone())
+        .add_interface(mockup_interface_ref.clone())
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {:?}", e);
         });
@@ -122,13 +92,15 @@ fn get_mock_setup() -> (
         com_hub_mut.logger.clone(),
     )));
 
-    // add socket to mockup interface
-    mockup_in_trait.add_socket(socket.clone());
+    {
+        let mockup_interface = mockup_interface_ref.borrow_mut();
+        // add socket to mockup interface
+        mockup_interface.add_socket(socket.clone());
+    }
 
     (
         com_hub.clone(),
-        mockup_interface_in_ref,
-        mockup_in_trait,
+        mockup_interface_ref,
         socket,
     )
 }
@@ -137,7 +109,7 @@ fn get_mock_setup() -> (
 pub fn test_add_and_remove() {
     let com_hub = &mut ComHub::empty();
     let mut com_hub_mut = com_hub.borrow_mut();
-    let mockup_interface = MockupInterface::default_com_interface_trait();
+    let mockup_interface = Rc::new(RefCell::new(MockupInterface::default()));
 
     com_hub_mut
         .add_interface(mockup_interface.clone())
@@ -149,12 +121,13 @@ pub fn test_add_and_remove() {
 
 #[test]
 pub fn test_multiple_add() {
+    init_global_context();
+
     let com_hub = &mut ComHub::empty();
     let mut com_hub_mut = com_hub.borrow_mut();
 
-    let mockup_interface1: ComInterfaceTrait =
-        MockupInterface::default_com_interface_trait();
-    let mockup_interface2 = MockupInterface::default_com_interface_trait();
+    let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
+    let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
 
     com_hub_mut
         .add_interface(mockup_interface1.clone())
@@ -179,7 +152,7 @@ pub fn test_multiple_add() {
 pub fn test_send() {
     // init mock setup
     init_global_context();
-    let (com_hub, com_interface, _, _) = get_mock_setup();
+    let (com_hub, com_interface, _) = get_mock_setup();
 
     // send block
     let block: DXBBlock = DXBBlock::default();
@@ -232,7 +205,7 @@ pub fn test_recalulate() {
 pub fn test_receive() {
     // init mock setup
     init_global_context();
-    let (com_hub, _, _, socket) = get_mock_setup();
+    let (com_hub, _, socket) = get_mock_setup();
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
@@ -269,7 +242,7 @@ pub fn test_receive() {
 pub fn test_receive_multiple() {
     // init mock setup
     init_global_context();
-    let (com_hub, _, _, socket) = get_mock_setup();
+    let (com_hub, _, socket) = get_mock_setup();
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block

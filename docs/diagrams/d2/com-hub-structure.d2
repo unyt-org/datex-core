@@ -45,25 +45,10 @@ ComHub: {
 
   -update_sockets()
   -receive_incoming_blocks()
-  -flush_outgoing_blocks()
 }
 
-ComHub <- ComInterfaceTrait: {
+ComHub <- impl ComInterface: {
   class: n_to_one
-}
-
-ComInterfaceTrait: {
-  shape: class
-
-  +connect(): Result
-  +flush_outgoing_blocks()
-}
-
-ComInterfaceTrait <- impl ComInterface: {
-  source-arrowhead: {
-    shape: diamond
-    style.filled: true
-  }
 }
 
 impl ComInterface: {
@@ -74,6 +59,7 @@ impl ComInterface: {
   get_properties(): InterfaceProperties
   get_sockets(): Vec<ComInterfaceSocket>
   connect(): Result
+  flush_outgoing_blocks()
   get_uuid(): String
 }
 
