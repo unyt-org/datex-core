@@ -1,0 +1,112 @@
+vars: {
+  d2-config: {
+    theme-overrides: {
+      B1: "#69B9D5"
+      B2: "#D44778"
+      B3: "#5D5D5D"
+      B4: "#404040"
+      B5: "#252525"
+      B6: "#313244"
+
+      AA2: "#C64472"
+      AA4: "#252525"
+      AA5: "#313244"
+
+      AB4: "#252525"
+      AB5: "#313244"
+    }
+  }
+}
+
+direction: right
+
+classes: {
+  n_to_one: {
+    source-arrowhead: 1 {
+      shape: diamond
+    }
+    target-arrowhead: *
+  }
+
+  impl: {
+    target-arrowhead: {
+      style.filled: false
+    }
+  }
+}
+
+ComHub: {
+  shape: class
+
+  +incoming_blocks: VecDeque<DXBBlock>
+
+  +send_block(block\: DXBBlock)
+  +update()
+
+  -update_sockets()
+  -receive_incoming_blocks()
+  -flush_outgoing_blocks()
+}
+
+ComHub <- ComInterfaceTrait: {
+  class: n_to_one
+}
+
+ComInterfaceTrait: {
+  shape: class
+
+  +connect(): Result
+  +flush_outgoing_blocks()
+}
+
+ComInterfaceTrait <- impl ComInterface: {
+  source-arrowhead: {
+    shape: diamond
+    style.filled: true
+  }
+}
+
+impl ComInterface: {
+  shape: class
+  style.stroke-dash: 3
+
+  send_block(block\: \[u8\], socket): ComInterfaceSocket)
+  get_properties(): InterfaceProperties
+  get_sockets(): Vec<ComInterfaceSocket>
+  connect(): Result
+  get_uuid(): String
+}
+
+impl ComInterface <- ComInterfaceSocket: {
+  class: n_to_one
+}
+
+impl ComInterface -> TCPClientComInterface: {
+  class: impl
+}
+impl ComInterface -> WebsocketClientComInterface: {
+  class: impl
+}
+impl ComInterface -> WebsocketServerComInterface: {
+  class: impl
+}
+
+TCPClientComInterface: {
+  shape: class
+}
+WebsocketClientComInterface: {
+  shape: class
+}
+WebsocketServerComInterface: {
+  shape: class
+}
+
+ComInterfaceSocket: {
+  shape: class
+
+  send_queue: VecDeque<Vec<u8>>
+
+  +queue_block(dxb\: \[u8\])
+  +get_incoming_block_queue(): VecDeque<DXBBlock>
+  +collect_incoming_data()
+}

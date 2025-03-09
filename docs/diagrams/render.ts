@@ -12,7 +12,7 @@ for await (const entry of walk(inputDir, { exts: [".d2"] })) {
 
     // Execute the D2 CLI command to render the file
     const process = new Deno.Command("d2", {
-        args: ["-t", "200", inputFile, outputFile],
+        args: ["-t", "200", "-l", "elk", /*"-s",*/ inputFile, outputFile],
         stdout: "piped",
         stderr: "piped",
     });
