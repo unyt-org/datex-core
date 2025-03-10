@@ -15,8 +15,9 @@ use datex_core::network::com_interfaces::com_interface::{
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::runtime::global_context::{set_global_context, GlobalContext};
 use datex_core::utils::uuid::UUID;
+
+use crate::context::init_global_context;
 
 pub struct MockupInterface {
     pub last_block: Option<Vec<u8>>,
@@ -61,14 +62,6 @@ impl ComInterface for MockupInterface {
     }
 }
 
-fn init_global_context() {
-    let global_ctx = GlobalContext {
-        crypto: Arc::new(Mutex::new(CryptoNative)),
-    };
-
-    set_global_context(global_ctx);
-}
-
 fn get_mock_setup() -> (
     Rc<RefCell<ComHub>>,
     Rc<RefCell<MockupInterface>>,
@@ -105,6 +98,7 @@ fn get_mock_setup() -> (
 
 #[test]
 pub fn test_add_and_remove() {
+    init_global_context();
     let com_hub = Rc::new(RefCell::new(ComHub::default()));
     let mut com_hub_mut = com_hub.borrow_mut();
     let mockup_interface = Rc::new(RefCell::new(MockupInterface::default()));

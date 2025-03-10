@@ -33,7 +33,7 @@ where
 }
 
 pub trait WebSocket {
-    fn send_data(&self, message: &[u8]) -> bool;
+    fn send_data(&mut self, message: &[u8]) -> bool;
     fn get_address(&self) -> Url;
     fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>>;
 }

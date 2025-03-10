@@ -1,20 +1,15 @@
 use std::{
-    cell::{Ref, RefCell},
+    cell::RefCell,
     collections::VecDeque,
-    net::TcpStream,
     rc::Rc,
     sync::{Arc, Mutex},
 };
 
 use anyhow::Result;
 use url::Url;
-use websocket::{
-    sync::{stream::TlsStream, Client},
-    ClientBuilder,
-};
+use websocket::{stream::sync::NetworkStream, sync::Client, ClientBuilder};
 
 use crate::{
-    crypto::{self, crypto::Crypto},
     network::com_interfaces::websocket::{
         websocket_client::{WebSocket, WebSocketClientInterface},
         websocket_common::parse_url,
@@ -22,35 +17,43 @@ use crate::{
     runtime::Context,
 };
 
-struct WebSocketNative {
-    client: Client<TlsStream<TcpStream>>,
+pub struct WebSocketNative {
+    client: Option<Client<Box<dyn NetworkStream + Send>>>,
     address: Url,
+    receive_queue: Arc<Mutex<VecDeque<u8>>>,
 }
 
 impl WebSocketNative {
     fn new(address: &str) -> Result<WebSocketNative> {
         let address = parse_url(address)?;
-
-        let mut client = ClientBuilder::new(address.as_str())
-            .unwrap()
-            .connect_secure(None)
-            .unwrap();
-
-        for message in client.incoming_messages() {
-            println!("Recv: {:?}", message.unwrap());
-        }
-
-        Ok(WebSocketNative { client, address })
+        Ok(WebSocketNative {
+            client: None,
+            receive_queue: Arc::new(Mutex::new(VecDeque::new())),
+            address,
+        })
     }
 }
 
 impl WebSocket for WebSocketNative {
     fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
-        todo!()
+        let mut client = ClientBuilder::new(self.address.as_str())?;
+        if self.address.scheme() == "wss" {
+            // TODO SSL
+            self.client = Some(client.connect(None).unwrap());
+        } else {
+            self.client = Some(client.connect(None).unwrap());
+        }
+        Ok(self.receive_queue.clone())
     }
 
-    fn send_data(&self, message: &[u8]) -> bool {
-        todo!()
+    fn send_data(&mut self, message: &[u8]) -> bool {
+        if let Some(client) = self.client.as_mut() {
+            let owned_message =
+                websocket::OwnedMessage::Binary(message.to_vec());
+            client.send_message(&owned_message).is_ok()
+        } else {
+            false
+        }
     }
 
     fn get_address(&self) -> Url {

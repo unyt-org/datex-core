@@ -139,7 +139,7 @@ impl ComHub {
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions,
-    ) -> impl Iterator<Item=&'a ComInterfaceSocket> + 'a {
+    ) -> impl Iterator<Item = &'a ComInterfaceSocket> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(&endpoint);
         let interfaces = &self.interfaces;
 
@@ -150,9 +150,9 @@ impl ComHub {
                     // check if is direct socket if only_redirect is set to true
                     if options.only_redirect
                         && match &socket.endpoint {
-                        Some(e) => e == endpoint,
-                        _ => false,
-                    }
+                            Some(e) => e == endpoint,
+                            _ => false,
+                        }
                     {
                         continue;
                     }
@@ -166,20 +166,22 @@ impl ComHub {
 
                     // check if the socket is outgoing if only_outgoing is set to true
                     let properties = ComHub::get_socket_interface_properties(
-                        interfaces,
-                        socket,
+                        interfaces, socket,
                     );
                     if options.only_outgoing && !properties.can_send() {
                         continue;
                     }
-
                     yield socket;
                 }
-            }
+            },
         )
     }
 
-    fn find_matching_endpoint_socket<'a>(&'a self, endpoint: &'a Endpoint, exclude_socket: Option<ComInterfaceSocketUUID>) -> Option<&'a ComInterfaceSocket> {
+    fn find_matching_endpoint_socket<'a>(
+        &'a self,
+        endpoint: &'a Endpoint,
+        exclude_socket: Option<ComInterfaceSocketUUID>,
+    ) -> Option<&'a ComInterfaceSocket> {
         // iterate over all sockets of all interfaces
         let options = EndpointIterateOptions {
             only_redirect: false,
