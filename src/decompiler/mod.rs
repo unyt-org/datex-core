@@ -2,22 +2,17 @@ mod constants;
 
 use std::borrow::Cow;
 use std::cell::Cell;
-use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::vec;
 
 use crate::datex_values::SlotIdentifier;
 use crate::datex_values::Value;
-use crate::global::dxb_header::DXBHeader;
 use crate::runtime::Context;
 use crate::utils::color::AnsiCodes;
 use crate::utils::color::Color;
-use crate::utils::logger::LoggerContext;
 use constants::tokens::get_code_token;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -43,7 +38,8 @@ pub fn decompile(
     colorized: bool,
     resolve_slots: bool,
 ) -> String {
-    let mut body = dxb;
+    todo!();
+    /*let mut body = dxb;
 
     let header_result = DXBHeader::from_bytes(dxb);
 
@@ -61,7 +57,7 @@ pub fn decompile(
         formatted,
         colorized,
         resolve_slots,
-    );
+    );*/
 }
 
 pub fn decompile_body(

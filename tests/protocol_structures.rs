@@ -15,8 +15,8 @@ use datex_core::global::{
 #[test]
 pub fn parse_encrypted_header() {
     let endpoint = Endpoint {
-        endpoint_type: EndpointType::Person,
-        endpoint_id: [1; 18],
+        type_: EndpointType::Person,
+        identifier: [1; 18],
         instance: 0,
     };
     let encrypted_header = EncryptedHeader {

@@ -1,13 +1,12 @@
 use std::{
-    cell::{Ref, RefCell},
-    rc::Rc,
-    sync::{Arc, Mutex},
+    cell::RefCell,
+    rc::Rc
+    ,
 };
 
-use crate::crypto::crypto::CryptoDefault;
 use crate::{
-    crypto::crypto::Crypto,
-    datex_values::ValueResult,
+    crypto::crypto::Crypto
+    ,
     network::com_hub::ComHub,
     utils::logger::{Logger, LoggerContext},
 };
@@ -17,7 +16,7 @@ pub mod global_context;
 pub mod memory;
 mod stack;
 
-use self::{execution::execute, memory::Memory};
+use self::memory::Memory;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -57,9 +56,5 @@ impl Runtime {
             })),
         }));
         return Runtime::new(context);
-    }
-
-    pub fn execute(&self, dxb: &[u8]) -> ValueResult {
-        execute(self.context.clone(), dxb)
     }
 }

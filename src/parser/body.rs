@@ -6,7 +6,6 @@ use crate::datex_values::{
     SlotIdentifier, Time, Type, Url, Value,
 };
 use crate::global::binary_codes::BinaryCode;
-use crate::global::dxb_header::DXBHeader;
 use crate::utils::buffers;
 use num_bigint::{BigInt, BigUint, Sign};
 
@@ -29,7 +28,7 @@ fn extract_slot_identifier(
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(&dxb_body, index);
-    return buffers::read_slice(&dxb_body, index, size as usize);
+    return buffers::read_vec_slice(&dxb_body, index, size as usize);
 }
 
 fn extract_type<'a>(
@@ -71,94 +70,12 @@ fn extract_type<'a>(
     }
 }
 
-fn extract_endpoint(
-    dxb_body: &[u8],
-    index: &mut usize,
-    endpoint_type: BinaryCode,
-) -> Endpoint {
-    match endpoint_type {
-        BinaryCode::ENDPOINT => (),
-        BinaryCode::ENDPOINT_WILDCARD => (),
-        BinaryCode::PERSON_ALIAS => (),
-        BinaryCode::PERSON_ALIAS_WILDCARD => (),
-        BinaryCode::INSTITUTION_ALIAS => (),
-        BinaryCode::INSTITUTION_ALIAS_WILDCARD => (),
-        _ => panic!("invalid endpoint extraction"), // should never happen
-    }
-
-    let name_is_binary = endpoint_type == BinaryCode::ENDPOINT
-        || endpoint_type == BinaryCode::ENDPOINT_WILDCARD;
-
-    let mut instance: u16 = Endpoint::ANY_INSTANCE;
-    let mut instance_set = false;
-
-    let name_length = buffers::read_u8(dxb_body, index); // get name length
-    let subspace_number = buffers::read_u8(dxb_body, index); // get subspace number
-    let mut instance_length = buffers::read_u8(dxb_body, index); // get instance length
-
-    if instance_length == 0 {
-        instance_set = true
-    } else if instance_length == 255 {
-        instance_length = 0
-    }
-
-    // get name
-    let mut name: String = "".to_string();
-    let mut name_binary: Vec<u8> = vec![];
-    if name_is_binary {
-        name_binary =
-            buffers::read_slice(dxb_body, index, name_length as usize);
-    } else {
-        name = buffers::read_string_utf8(dxb_body, index, name_length as usize);
-    }
-
-    let mut subspaces: Vec<String> = vec![];
-
-    for _n in 0..subspace_number {
-        let length = buffers::read_u8(dxb_body, index);
-        if length == 0 {
-            subspaces.push("*".to_string());
-        } else {
-            let subspace_name =
-                buffers::read_string_utf8(dxb_body, index, length as usize);
-            subspaces.push(subspace_name.to_string());
-        }
-    }
-
-    // TODO: new instance format, number instead of string
-    if !instance_set {
-        let instance_string = &buffers::read_string_utf8(
-            dxb_body,
-            index,
-            instance_length as usize,
-        ); // get instance
-        instance = u16::from_str_radix(instance_string, 16).unwrap_or(0);
-    }
-
-    return if endpoint_type == BinaryCode::PERSON_ALIAS {
-        Endpoint::new_person(&name, instance)
-    } else if endpoint_type == BinaryCode::INSTITUTION_ALIAS {
-        Endpoint::new_institution(&name, instance)
-    } else if endpoint_type == BinaryCode::ENDPOINT {
-        Endpoint::new(&name_binary, instance)
-    }
-    // should never get here
-    else {
-        Endpoint::new(&name_binary, Endpoint::ANY_INSTANCE)
-    };
-}
-
-pub fn extract_body(header: DXBHeader, dxb: &[u8]) -> &[u8] {
-    let start = header.body_start_offset;
-    return &dxb[start..];
-}
-
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
     mut _index: &'a Cell<usize>,
     is_end_instruction: &'a Cell<bool>,
-) -> impl Iterator<Item = Instruction> + 'a {
+) -> impl Iterator<Item=Instruction> + 'a {
     return std::iter::from_coroutine(
         #[coroutine]
         move || {
@@ -286,7 +203,7 @@ pub fn iterate_instructions<'a>(
                 else if token == BinaryCode::BUFFER as u8 {
                     let size = buffers::read_u32(&dxb_body, index);
                     let value =
-                        buffers::read_slice(&dxb_body, index, size as usize);
+                        buffers::read_vec_slice(&dxb_body, index, size as usize);
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::BUFFER,
@@ -337,7 +254,7 @@ pub fn iterate_instructions<'a>(
 
                     let size = buffers::read_u32(&dxb_body, index);
                     let buffer =
-                        buffers::read_slice(&dxb_body, index, size as usize);
+                        buffers::read_vec_slice(&dxb_body, index, size as usize);
                     let bigint = BigInt::from_bytes_be(sign, &buffer);
 
                     _index.set(*index);
@@ -359,12 +276,12 @@ pub fn iterate_instructions<'a>(
 
                     let num_size = buffers::read_u16(&dxb_body, index);
                     let den_size = buffers::read_u16(&dxb_body, index);
-                    let num_buffer = buffers::read_slice(
+                    let num_buffer = buffers::read_vec_slice(
                         &dxb_body,
                         index,
                         num_size as usize,
                     );
-                    let den_buffer = buffers::read_slice(
+                    let den_buffer = buffers::read_vec_slice(
                         &dxb_body,
                         index,
                         den_size as usize,
@@ -665,7 +582,7 @@ pub fn iterate_instructions<'a>(
                 }
                 // pointer
                 else if token == BinaryCode::POINTER as u8 {
-                    let id = buffers::read_slice(
+                    let id = buffers::read_vec_slice(
                         &dxb_body,
                         index,
                         Pointer::MAX_POINTER_ID_SIZE,
@@ -681,7 +598,7 @@ pub fn iterate_instructions<'a>(
                         subscope_continue: false,
                     }
                 } else if token == BinaryCode::SET_POINTER as u8 {
-                    let id = buffers::read_slice(
+                    let id = buffers::read_vec_slice(
                         &dxb_body,
                         index,
                         Pointer::MAX_POINTER_ID_SIZE,
@@ -697,7 +614,7 @@ pub fn iterate_instructions<'a>(
                         subscope_continue: false,
                     }
                 } else if token == BinaryCode::INIT_POINTER as u8 {
-                    let id = buffers::read_slice(
+                    let id = buffers::read_vec_slice(
                         &dxb_body,
                         index,
                         Pointer::MAX_POINTER_ID_SIZE,
@@ -1208,11 +1125,12 @@ pub fn iterate_instructions<'a>(
                 }
                 // endpoints
                 else if token == BinaryCode::PERSON_ALIAS as u8 {
-                    let endpoint = extract_endpoint(
+                    let endpoint_bytes = buffers::read_slice::<21>(
                         &dxb_body,
                         index,
-                        BinaryCode::PERSON_ALIAS,
                     );
+                    // TODO: handle invalid endpoint bytes
+                    let endpoint = Endpoint::new_from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::PERSON_ALIAS,
@@ -1224,11 +1142,12 @@ pub fn iterate_instructions<'a>(
                         subscope_continue: false,
                     }
                 } else if token == BinaryCode::INSTITUTION_ALIAS as u8 {
-                    let endpoint = extract_endpoint(
+                    let endpoint_bytes = buffers::read_slice::<21>(
                         &dxb_body,
                         index,
-                        BinaryCode::INSTITUTION_ALIAS,
                     );
+                    // TODO: handle invalid endpoint bytes
+                    let endpoint = Endpoint::new_from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::INSTITUTION_ALIAS,
@@ -1240,11 +1159,12 @@ pub fn iterate_instructions<'a>(
                         subscope_continue: false,
                     }
                 } else if token == BinaryCode::ENDPOINT as u8 {
-                    let endpoint = extract_endpoint(
+                    let endpoint_bytes = buffers::read_slice::<21>(
                         &dxb_body,
                         index,
-                        BinaryCode::ENDPOINT,
                     );
+                    // TODO: handle invalid endpoint bytes
+                    let endpoint = Endpoint::new_from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::ENDPOINT,
@@ -1317,7 +1237,7 @@ impl Instruction {
                 self.value.as_ref().unwrap()
             );
         } else {
-            return format!("{} [{:X}]", self.code, self.code as u8,);
+            return format!("{} [{:X}]", self.code, self.code as u8, );
         }
     }
 }

@@ -3,13 +3,13 @@ use binrw::{BinRead, BinWrite};
 // 1 byte + 18 byte + 2 byte = 21 byte
 #[derive(Debug, Clone, PartialEq, Default, BinWrite, BinRead)]
 pub struct Endpoint {
-    pub endpoint_type: EndpointType,
-    pub endpoint_id: [u8; 18],
+    pub type_: EndpointType,
+    pub identifier: [u8; 18],
     pub instance: u16,
 }
 
 // 1 byte
-#[derive(Debug, PartialEq, Clone, Default, BinWrite, BinRead)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default, BinWrite, BinRead)]
 #[brw(repr(u8))]
 pub enum EndpointType {
     Person = 0,

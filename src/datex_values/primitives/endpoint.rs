@@ -1,112 +1,166 @@
-use regex::Regex;
-use std::hash::{Hash, Hasher};
-
+use crate::global::protocol_structures::addressing::EndpointType;
+use crate::global::protocol_structures::routing_header::RoutingHeader;
+use crate::utils::buffers::buffer_to_hex;
 use crate::utils::{
-    buffers::{self, append_u16, append_u8, read_slice, read_u16, read_u8},
+    buffers::{self, append_u16, append_u8, read_u16, read_u8, read_vec_slice},
     color::Color,
 };
+use binrw::{BinRead, BinWrite};
+use std::fmt::{Debug, Display, Formatter};
+use std::hash::Hash;
+use std::io::Cursor;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum EndpointType {
-    Id,
-    PersonAlias,
-    InstitutionAlias,
+#[derive(BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum EndpointInstance {
+    #[br(magic = 0u16)]
+    Main,
+    #[br(magic = 65535u16)]
+    Any,
+    Instance(u16),
 }
 
-#[derive(Debug, Clone)]
+#[derive(BinWrite, BinRead, Debug, Clone, Hash, PartialEq, Eq)]
+#[brw(little)]
 pub struct Endpoint {
-    name: String,
-    endpoint_type: EndpointType,
-    instance: u16,
-    binary: Vec<u8>, // 1 byte type, 18 bytes name, 2 bytes instance
+    // 1 byte type, 18 bytes name, 2 bytes instance
+    type_: EndpointType,
+    identifier: [u8; 18],
+    instance: EndpointInstance,
 }
 
-impl Hash for Endpoint {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(self.binary.as_slice());
-    }
+#[derive(PartialEq, Debug)]
+pub enum InvalidEndpointNameError {
+    InvalidCharacters,
+    MaxLengthExceeded,
+    MinLengthNotMet,
+    InvalidInstance,
 }
-
-impl PartialEq for Endpoint {
-    fn eq(&self, other: &Self) -> bool {
-        self.binary == other.binary
-    }
-}
-
-impl Eq for Endpoint {}
+#[derive(PartialEq, Debug)]
+pub struct InvalidEndpointError;
 
 impl Endpoint {
-    pub const ANY_INSTANCE: u16 = 0;
+    pub const ANY: Endpoint = Endpoint {
+        type_: EndpointType::Any,
+        identifier: [255; 18],
+        instance: EndpointInstance::Any,
+    };
 
     // create default id endpoint (@@1234567890, @@local)
-    pub fn new(name_binary: &Vec<u8>, instance: u16) -> Endpoint {
-        let mut name = buffers::buffer_to_hex(name_binary.to_vec());
-        name = Regex::new(r"(00)*$")
-            .unwrap()
-            .replace_all(&name, "")
-            .to_string();
-        if name == "" {
-            name = "local".to_string()
-        } else if name == "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" {
-            name = "any".to_string()
+    pub fn new_anonymous(identifier: [u8; 18], instance: EndpointInstance) -> Endpoint {
+        Endpoint {
+            type_: EndpointType::Anonymous,
+            identifier,
+            instance,
+        }
+    }
+
+    fn new_named(name: &str, instance: EndpointInstance, type_: EndpointType) -> Result<Endpoint, InvalidEndpointNameError> {
+        let mut identifier = String::into_bytes(name.to_string().trim_end_matches('\0').to_string());
+        // make sure length does not exceed 18 bytes
+        if identifier.len() > 18 {
+            return Err(InvalidEndpointNameError::MaxLengthExceeded);
+        }
+        // make sure length is at least 3 bytes
+        if identifier.len() < 3 {
+            return Err(InvalidEndpointNameError::MinLengthNotMet);
+        }
+        // make sure instance is valid
+        if !Self::is_instance_valid(&instance) {
+            return Err(InvalidEndpointNameError::InvalidInstance);
         }
 
-        Endpoint {
-            name,
-            endpoint_type: EndpointType::Id,
-            instance,
-            binary: Self::to_binary(EndpointType::Id, name_binary, instance),
+        identifier.resize(18, 0);
+
+        // make sure forbidden characters are not present
+        if !Self::are_name_chars_valid(identifier.clone().try_into().unwrap()) {
+            return Err(InvalidEndpointNameError::InvalidCharacters);
         }
+
+        Ok(Endpoint {
+            type_,
+            identifier: identifier
+                .try_into()
+                .unwrap(),
+            instance,
+        })
     }
 
     // create alias endpoint (@person)
-    pub fn new_person(name: &str, instance: u16) -> Endpoint {
-        Endpoint {
-            name: name.trim_matches(char::from(0)).to_string(),
-            endpoint_type: EndpointType::PersonAlias,
-            instance,
-            binary: Self::to_binary(
-                EndpointType::PersonAlias,
-                &Self::encode_name_binary(name.to_string()),
-                instance,
-            ),
-        }
+    pub fn new_person(name: &str, instance: EndpointInstance) -> Result<Endpoint, InvalidEndpointNameError> {
+        Self::new_named(name, instance, EndpointType::Person)
     }
 
     // create institution endpoint (@+institution)
-    pub fn new_institution(name: &str, instance: u16) -> Endpoint {
-        Endpoint {
-            name: name.trim_matches(char::from(0)).to_string(),
-            endpoint_type: EndpointType::InstitutionAlias,
-            instance,
-            binary: Self::to_binary(
-                EndpointType::InstitutionAlias,
-                &Self::encode_name_binary(name.to_string()),
-                instance,
-            ),
+    pub fn new_institution(name: &str, instance: EndpointInstance) -> Result<Endpoint, InvalidEndpointNameError> {
+        Self::new_named(name, instance, EndpointType::Institution)
+    }
+
+    pub fn new_from_binary(binary: [u8; 21]) -> Result<Endpoint, InvalidEndpointError> {
+        let mut reader = Cursor::new(binary);
+        let endpoint = Endpoint::read(&mut reader).map_err(|_| InvalidEndpointError)?;
+
+        // check if endpoint is valid
+        if !Self::is_endpoint_valid(&endpoint) {
+            return Err(InvalidEndpointError);
+        }
+        Ok(endpoint)
+    }
+
+    fn are_name_chars_valid(name: [u8; 18]) -> bool {
+        let mut is_null = false;
+        for c in name.iter() {
+            // make sure '\0' bytes are only at the end if present
+            if is_null && *c != 0x00 {
+                return false;
+            }
+            if *c == 0x00 {
+                is_null = true;
+                continue;
+            }
+            // only allowed ranges 0-9, A-Z, a-z, "_" and "-"
+            if !(*c >= 0x30 && *c <= 0x39) && // 0-9
+                !(*c >= 0x41 && *c <= 0x5A) && // A-Z
+                !(*c >= 0x61 && *c <= 0x7A) && // a-z
+                *c != 0x2D && // -
+                *c != 0x5F { // _
+                return false;
+            }
+            // forbidden characters: O, I
+            if *c == 0x4F || *c == 0x49 {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_instance_valid(endpoint_instance: &EndpointInstance) -> bool {
+        match endpoint_instance {
+            EndpointInstance::Main => true,
+            EndpointInstance::Any => true,
+            EndpointInstance::Instance(instance) => {
+                // instance must be between 1 and 65534
+                *instance > 0 && *instance < 65535
+            }
         }
     }
 
-    pub fn new_from_binary(binary: &Vec<u8>) -> Endpoint {
-        let index = &mut 0;
-        let endpoint_type_bin = read_u8(binary, index);
-        let endpoint_type = match endpoint_type_bin {
-            2 => EndpointType::InstitutionAlias,
-            1 => EndpointType::PersonAlias,
-            _ => EndpointType::Id,
-        };
-
-        let name = &read_slice(binary, index, 18);
-        let instance = read_u16(binary, index);
-
-        match endpoint_type {
-            EndpointType::InstitutionAlias => {
-                Self::new_institution(&Self::decode_name_binary(name), instance)
+    fn is_endpoint_valid(endpoint: &Endpoint) -> bool {
+        // make sure instance is valid
+        if !Self::is_instance_valid(&endpoint.instance) {
+            return false;
+        }
+        match endpoint.type_ {
+            EndpointType::Any => {
+                // instance must be Any
+                endpoint.instance == EndpointInstance::Any &&
+                    // identifier must be all 1
+                    endpoint.identifier == [255u8; 18]
             }
-            EndpointType::PersonAlias => {
-                Self::new_person(&Self::decode_name_binary(name), instance)
+            EndpointType::Person | EndpointType::Institution => {
+                // name must be only contain valid characters
+                Self::are_name_chars_valid(endpoint.identifier)
             }
-            EndpointType::Id => Self::new(name, instance),
+            _ => true
         }
     }
 
@@ -131,83 +185,119 @@ impl Endpoint {
         return name_utf8.trim_matches(char::from(0)).to_string();
     }
 
-    // get the binary representation for an endpoint
-    // 1 byte type, 18 bytes name, 2 bytes instance
-    fn to_binary(
-        endpoint_type: EndpointType,
-        name_binary: &Vec<u8>,
-        instance: u16,
-    ) -> Vec<u8> {
-        if name_binary.len() > 18 {
-            // might include null terminator
-            panic!("Endpoint name exceeds maximum of 18 bytes");
-        }
-        let name_sized = &mut name_binary.to_vec();
-        name_sized.resize(18, 0);
-        let binary = &mut Vec::<u8>::with_capacity(21);
-
-        append_u8(binary, endpoint_type as u8);
-        binary.extend_from_slice(name_sized);
-        append_u16(binary, instance);
-
-        return binary.to_vec();
+    pub fn to_binary(&self) -> [u8; 21] {
+        let mut writer = Cursor::new(Vec::new());
+        self.write(&mut writer).unwrap();
+        writer.into_inner().try_into().unwrap()
     }
 
-    pub fn get_binary(&self) -> &Vec<u8> {
-        return &self.binary;
+    pub fn type_(&self) -> EndpointType {
+        self.type_
     }
 
-    pub fn get_type(&self) -> &EndpointType {
-        return &self.endpoint_type;
+    pub fn instance(&self) -> EndpointInstance {
+        self.instance
     }
+}
 
-    pub fn get_instance(&self) -> u16 {
-        return self.instance;
-    }
 
-    pub fn to_string(&self, colorized: bool) -> String {
-        let mut main = match self.endpoint_type {
-            EndpointType::Id => format!(
-                "{}@@{}",
-                (if colorized {
-                    Color::ENDPOINT.as_ansi_rgb()
-                } else {
-                    "".to_string()
-                }),
-                self.name
-            ),
-            EndpointType::PersonAlias => format!(
-                "{}@{}",
-                (if colorized {
-                    Color::EndpointPerson.as_ansi_rgb()
-                } else {
-                    "".to_string()
-                }),
-                self.name
-            ),
-            EndpointType::InstitutionAlias => format!(
-                "{}@+{}",
-                (if colorized {
-                    Color::EndpointInstitution.as_ansi_rgb()
-                } else {
-                    "".to_string()
-                }),
-                self.name
-            ),
+impl Display for Endpoint {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.type_ {
+            EndpointType::Anonymous => write!(
+                f,
+                "@@{}",
+                buffer_to_hex(self.identifier.to_vec())
+            )?,
+            EndpointType::Person => write!(
+                f,
+                "@{}",
+                str::from_utf8(&self.identifier).unwrap().trim_end_matches('\0')
+            )?,
+            EndpointType::Institution => write!(
+                f,
+                "@+{}",
+                str::from_utf8(&self.identifier).unwrap().trim_end_matches('\0')
+            )?,
+            EndpointType::Any => f.write_str("@@any")?
         };
-        // if self.subspaces.is_some() {
-        // 	for subspace in self.subspaces.as_ref().unwrap() {
-        // 		if colorized {main += &Color::DEFAULT.as_ansi_rgb()}
-        // 		main += ".";
-        // 		if colorized {main += &Color::DefaultLight.as_ansi_rgb()}
-        // 		main += &subspace;
-        // 	}
-        // }
 
-        if self.instance != Endpoint::ANY_INSTANCE {
-            main += &format!("/{:04X}", self.instance);
-        }
+        match self.instance {
+            EndpointInstance::Main => (),
+            EndpointInstance::Any => f.write_str("/*")?,
+            EndpointInstance::Instance(instance) => write!(f, "/{}", instance)?,
+        };
 
-        return main;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn too_long() {
+        let endpoint = Endpoint::new_person("too-long-endpoint-name", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::MaxLengthExceeded));
+    }
+
+    #[test]
+    fn too_short() {
+        let endpoint = Endpoint::new_person("ab", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
+
+        let endpoint = Endpoint::new_person("ab\0\0\0\0\0\0\0\0", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
+    }
+
+    #[test]
+    fn invalid_characters() {
+        let endpoint = Endpoint::new_person("äüö", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+
+        let endpoint = Endpoint::new_person("__O", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+
+        let endpoint = Endpoint::new_person("#@!", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+
+        let endpoint = Endpoint::new_person("\0__", EndpointInstance::Main);
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+    }
+
+    #[test]
+    fn test_invalid_instance() {
+        let endpoint = Endpoint::new_person("test", EndpointInstance::Instance(0));
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+
+        let endpoint = Endpoint::new_person("test", EndpointInstance::Instance(65535));
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+    }
+
+    #[test]
+    fn test_any_instance() {
+        let binary = [0xFF; 21];
+        let endpoint = Endpoint::new_from_binary(binary);
+        assert_eq!(endpoint, Ok(Endpoint::ANY));
+    }
+    #[test]
+    fn format_named_endpoint() {
+        let endpoint = Endpoint::new_person("test", EndpointInstance::Main).unwrap();
+        assert_eq!(endpoint.to_string(), "@test");
+
+        let endpoint = Endpoint::new_institution("test", EndpointInstance::Main).unwrap();
+        assert_eq!(endpoint.to_string(), "@+test");
+
+        let endpoint = Endpoint::new_person("test", EndpointInstance::Instance(42)).unwrap();
+        assert_eq!(endpoint.to_string(), "@test/42");
+
+        let endpoint = Endpoint::new_person("test", EndpointInstance::Any).unwrap();
+        assert_eq!(endpoint.to_string(), "@test/*");
+    }
+
+    #[test]
+    fn format_anonymous_endpoint() {
+        let endpoint = Endpoint::new_anonymous([0xaa; 18], EndpointInstance::Main);
+        assert_eq!(endpoint.to_string(), "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
 }

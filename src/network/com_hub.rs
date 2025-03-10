@@ -32,18 +32,18 @@ pub struct ComHub {
 
 #[derive(Debug, Clone)]
 struct EndpointIterateOptions {
-    pub only_redirect: bool,
+    pub only_direct: bool,
     pub only_outgoing: bool,
-    pub match_instances: bool,
+    pub exact_instance: bool,
     pub exclude_socket: Option<ComInterfaceSocketUUID>,
 }
 
 impl Default for EndpointIterateOptions {
     fn default() -> Self {
         EndpointIterateOptions {
-            only_redirect: true,
+            only_direct: false,
             only_outgoing: false,
-            match_instances: false,
+            exact_instance: false,
             exclude_socket: None,
         }
     }
@@ -139,7 +139,7 @@ impl ComHub {
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions,
-    ) -> impl Iterator<Item = &'a ComInterfaceSocket> + 'a {
+    ) -> impl Iterator<Item=&'a ComInterfaceSocket> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(&endpoint);
         let interfaces = &self.interfaces;
 
@@ -148,11 +148,11 @@ impl ComHub {
             move || {
                 for (socket, _) in endpoint_sockets.unwrap() {
                     // check if is direct socket if only_redirect is set to true
-                    if options.only_redirect
+                    if !options.only_direct
                         && match &socket.endpoint {
-                            Some(e) => e == endpoint,
-                            _ => false,
-                        }
+                        Some(e) => e == endpoint,
+                        _ => false,
+                    }
                     {
                         continue;
                     }
@@ -184,17 +184,25 @@ impl ComHub {
     ) -> Option<&'a ComInterfaceSocket> {
         // iterate over all sockets of all interfaces
         let options = EndpointIterateOptions {
-            only_redirect: false,
+            only_direct: false,
             only_outgoing: true,
-            match_instances: true,
-            exclude_socket,
+            exact_instance: true,
+            exclude_socket: exclude_socket.clone(),
         };
-        for socket in self.iterate_endpoint_sockets(endpoint, options) {
+        for socket in self.iterate_endpoint_sockets(&endpoint, options) {
             return Some(socket);
         }
 
         // no matching socket found, check other instances of the endpoint
-        // TODO
+        let options = EndpointIterateOptions {
+            only_direct: false,
+            only_outgoing: true,
+            exact_instance: false,
+            exclude_socket,
+        };
+        for socket in self.iterate_endpoint_sockets(&endpoint, options) {
+            // TODO
+        }
         None
     }
 

@@ -6,32 +6,12 @@ use std::{
 
 use crate::{
     datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
-    global::{binary_codes::BinaryCode, dxb_header::DXBHeader},
+    global::{binary_codes::BinaryCode},
     parser::body,
     utils::logger::{Logger, LoggerContext},
 };
 
 use super::{stack::Stack, Context};
-
-/**
- * Converts DXB (with or without header) to DATEX Script
-*/
-pub fn execute(context: Rc<RefCell<Context>>, dxb: &[u8]) -> ValueResult {
-    let mut body = dxb;
-
-    let header_result = DXBHeader::from_bytes(dxb);
-
-    match header_result {
-        // dxb with header
-        Ok(header) => {
-            body = body::extract_body(header, dxb);
-        }
-        // assume just dxb body
-        Err(_) => (),
-    }
-
-    return execute_body(context, body);
-}
 
 fn execute_body(ctx: Rc<RefCell<Context>>, dxb_body: &[u8]) -> ValueResult {
     return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));

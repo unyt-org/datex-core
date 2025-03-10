@@ -1,8 +1,6 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use core::fmt::Write;
 use itertools::Itertools;
-use num_integer::Integer;
-use num_traits::int::PrimInt;
 
 /*
 read functions for primitive data types on a u8 array, also increments the index
@@ -76,10 +74,16 @@ pub fn read_string_utf8(
         .unwrap_or("⎣INVALID UTF8 STRING⎤".to_string());
 }
 
-pub fn read_slice(buffer: &[u8], index: &mut usize, size: usize) -> Vec<u8> {
+pub fn read_vec_slice(buffer: &[u8], index: &mut usize, size: usize) -> Vec<u8> {
     let slice = &buffer[*index..*index + size];
     *index += size;
     return slice.to_vec();
+}
+
+pub fn read_slice<'a, const SIZE: usize>(buffer: &'a [u8], index: &mut usize) -> &'a [u8; SIZE] {
+    let slice = &buffer[*index..*index + SIZE];
+    *index += SIZE;
+    slice.try_into().unwrap()
 }
 
 /*

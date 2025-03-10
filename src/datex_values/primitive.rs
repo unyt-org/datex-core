@@ -110,7 +110,7 @@ impl Value for PrimitiveValue {
             PrimitiveValue::Void => "void".to_string(),
             PrimitiveValue::Null => "null".to_string(),
             PrimitiveValue::Quantity(value) => value.to_string(false),
-            PrimitiveValue::Endpoint(value) => value.to_string(false),
+            PrimitiveValue::Endpoint(value) => value.to_string(),
             PrimitiveValue::Time(value) => value.to_string(),
             PrimitiveValue::Url(value) => value.to_string(),
         }
@@ -165,7 +165,7 @@ impl PrimitiveValue {
     pub fn to_string_colorized(&self) -> String {
         match &self {
             PrimitiveValue::Quantity(value) => value.to_string(true),
-            PrimitiveValue::Endpoint(value) => value.to_string(true),
+            PrimitiveValue::Endpoint(value) => value.to_string(),
             _ => Value::to_string(self),
         }
     }

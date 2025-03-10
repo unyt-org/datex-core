@@ -1,13 +1,10 @@
 use std::{
-    cell::{Ref, RefCell},
+    cell::RefCell,
     rc::Rc,
 };
 
 use datex_core::{
-    network::com_interfaces::{
-        com_interface::ComInterface,
-        websocket::websocket_client::WebSocketClientInterface,
-    },
+    network::com_interfaces::websocket::websocket_client::WebSocketClientInterface,
     runtime::Context,
 };
 
