@@ -1,3 +1,4 @@
+use crate::crypto::random;
 use crate::global::protocol_structures::addressing::EndpointType;
 use crate::utils::buffers::buffer_to_hex;
 use binrw::{BinRead, BinWrite};
@@ -19,9 +20,9 @@ pub enum EndpointInstance {
 #[brw(little)]
 pub struct Endpoint {
     // 1 byte type, 18 bytes name, 2 bytes instance
-    type_: EndpointType,
-    identifier: [u8; 18],
-    instance: EndpointInstance,
+    pub type_: EndpointType,
+    pub identifier: [u8; 18],
+    pub instance: EndpointInstance,
 }
 
 #[derive(PartialEq, Debug)]
@@ -53,6 +54,26 @@ impl Endpoint {
         identifier: [0; 18],
         instance: EndpointInstance::Main,
     };
+
+    fn random_anonymous_id() -> [u8; 18] {
+        let mut buffer = random::random_bytes();
+        for _ in 0..3 {
+            if buffer.iter().any(|&b| b != 0) {
+                return buffer;
+            }
+            buffer = random::random_bytes();
+        }
+        panic!("Could not generate random anonymous id");
+    }
+
+    // create random anonymous endpoint (@@8D928D1F244C76289C8A558DCB6C9D82896F)
+    pub fn new_random() -> Endpoint {
+        return Self::new_anonymous(
+            Self::random_anonymous_id(),
+            EndpointInstance::Main,
+        )
+        .unwrap();
+    }
 
     // create default id endpoint (@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
     pub fn new_anonymous(
