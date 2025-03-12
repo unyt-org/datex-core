@@ -35,6 +35,7 @@ pub enum InvalidEndpointNameError {
     MaxLengthExceeded,
     MinLengthNotMet,
     InvalidInstance,
+    ReservedName,
 }
 #[derive(PartialEq, Debug)]
 pub struct InvalidEndpointError;
@@ -60,21 +61,23 @@ impl Endpoint {
         identifier: [u8; 18],
         instance: EndpointInstance,
     ) -> Result<Endpoint, InvalidEndpointNameError> {
-        if identifier == [0; 18] {
-            if instance == EndpointInstance::Main {
-                return Ok(Endpoint::LOCAL);
-            } else {
-                return Err(InvalidEndpointNameError::InvalidInstance);
-            }
-        } else if identifier == [255; 18] {
-            if instance == EndpointInstance::Any {
-                return Ok(Endpoint::ANY);
-            }
-            // TODO: shall we allow instance for @@any?
-            // } else {
-            //     return Err(InvalidEndpointNameError::InvalidInstance);
-            // }
+        if identifier == [0; 18] || identifier == [255; 18] {
+            return Err(InvalidEndpointNameError::ReservedName);
         }
+        //  {
+        //     if instance == EndpointInstance::Main {
+        //         return Ok(Endpoint::LOCAL);
+        //     } else {
+        //         return Err(InvalidEndpointNameError::InvalidInstance);
+        //     }
+        // } else if identifier == [255; 18] {
+        //     if instance == EndpointInstance::Any {
+        //         return Ok(Endpoint::ANY);
+        //     }
+        // TODO: shall we allow instance for @@any?
+        // } else {
+        //     return Err(InvalidEndpointNameError::InvalidInstance);
+        // }
         Ok(Endpoint {
             type_: EndpointType::Anonymous,
             identifier,
@@ -129,12 +132,18 @@ impl Endpoint {
         }
 
         let endpoint = match name_part {
-            s if s.starts_with("@@any") => {
-                Endpoint::new_anonymous([255u8; 18], instance)
-            }
-            s if s.starts_with("@@local") => {
-                Endpoint::new_anonymous([0u8; 18], instance)
-            }
+            // TODO shall we allow instance for @@any?
+            s if s.starts_with("@@any") => Ok(Endpoint {
+                type_: EndpointType::Any,
+                identifier: [255u8; 18],
+                instance,
+            }),
+            // TODO shall we allow instance for @@local?
+            s if s.starts_with("@@local") => Ok(Endpoint {
+                type_: EndpointType::Local,
+                identifier: [0u8; 18],
+                instance,
+            }),
             s if s.starts_with("@@") => {
                 let s = s.trim_start_matches("@@");
                 if s.len() < 18 * 2 {
@@ -285,6 +294,26 @@ impl Endpoint {
     pub fn instance(&self) -> EndpointInstance {
         self.instance
     }
+
+    pub fn is_broadcast(&self) -> bool {
+        self.instance == EndpointInstance::Any
+    }
+    pub fn is_local(&self) -> bool {
+        self == &Endpoint::LOCAL
+    }
+    pub fn is_any(&self) -> bool {
+        self == &Endpoint::ANY
+    }
+    pub fn is_main(&self) -> bool {
+        self.instance == EndpointInstance::Main
+    }
+    pub fn main(&self) -> Endpoint {
+        Endpoint {
+            type_: self.type_,
+            identifier: self.identifier,
+            instance: EndpointInstance::Main,
+        }
+    }
 }
 
 impl Display for Endpoint {
@@ -333,6 +362,17 @@ impl Display for Endpoint {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn utilities() {
+        let endpoint: Endpoint = Endpoint::new_from_string("@ben/42").unwrap();
+        assert!(!endpoint.is_main());
+
+        let main_endpoint = endpoint.main();
+        assert!(main_endpoint.is_main());
+        assert_eq!(main_endpoint.to_string(), "@ben");
+        assert_eq!(main_endpoint.main().to_string(), "@ben");
+    }
 
     #[test]
     fn parse_from_string() {
@@ -515,6 +555,14 @@ mod test {
         let endpoint = Endpoint::new_from_string("@@local").unwrap();
         assert_eq!(endpoint.to_string(), "@@local");
         assert_eq!(endpoint, Endpoint::LOCAL);
+
+        let endpoint =
+            Endpoint::new_from_string("@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::ReservedName));
+
+        let endpoint =
+            Endpoint::new_from_string("@@000000000000000000000000000000000000");
+        assert_eq!(endpoint, Err(InvalidEndpointNameError::ReservedName));
     }
 
     #[test]
