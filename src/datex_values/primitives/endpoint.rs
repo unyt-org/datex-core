@@ -25,7 +25,7 @@ pub struct Endpoint {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum InvalidEndpointNameError {
+pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
     MinLengthNotMet,
@@ -33,7 +33,7 @@ pub enum InvalidEndpointNameError {
     ReservedName,
 }
 #[derive(PartialEq, Debug)]
-pub struct InvalidEndpointError;
+pub struct EndpointParsingError;
 
 impl Endpoint {
     pub const PREFIX_PERSON: &'static str = "@";
@@ -54,13 +54,13 @@ impl Endpoint {
         instance: EndpointInstance::Main,
     };
 
-    // create default id endpoint (@@1234567890, @@local)
+    // create default id endpoint (@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
     pub fn new_anonymous(
         identifier: [u8; 18],
         instance: EndpointInstance,
-    ) -> Result<Endpoint, InvalidEndpointNameError> {
+    ) -> Result<Endpoint, InvalidEndpointError> {
         if identifier == [0; 18] || identifier == [255; 18] {
-            return Err(InvalidEndpointNameError::ReservedName);
+            return Err(InvalidEndpointError::ReservedName);
         }
         //  {
         //     if instance == EndpointInstance::Main {
@@ -87,7 +87,7 @@ impl Endpoint {
     pub fn new_person(
         name: &str,
         instance: EndpointInstance,
-    ) -> Result<Endpoint, InvalidEndpointNameError> {
+    ) -> Result<Endpoint, InvalidEndpointError> {
         Self::new_named(name, instance, EndpointType::Person)
     }
 
@@ -95,13 +95,14 @@ impl Endpoint {
     pub fn new_institution(
         name: &str,
         instance: EndpointInstance,
-    ) -> Result<Endpoint, InvalidEndpointNameError> {
+    ) -> Result<Endpoint, InvalidEndpointError> {
         Self::new_named(name, instance, EndpointType::Institution)
     }
 
+    // create endpoint from string (@person/42, @@local, @+unyt)
     pub fn new_from_string(
         name: &str,
-    ) -> Result<Endpoint, InvalidEndpointNameError> {
+    ) -> Result<Endpoint, InvalidEndpointError> {
         let name = name.to_string();
         if name
             == format!("{}{}", Endpoint::PREFIX_ANONYMOUS, Endpoint::ALIAS_ANY)
@@ -123,7 +124,7 @@ impl Endpoint {
         if name.contains('/') {
             let parts: Vec<&str> = name.split('/').collect();
             if parts.len() != 2 {
-                return Err(InvalidEndpointNameError::InvalidCharacters);
+                return Err(InvalidEndpointError::InvalidCharacters);
             }
             name_part = parts[0].to_string();
             let instance_str = parts[1];
@@ -132,7 +133,7 @@ impl Endpoint {
             } else {
                 let instance_num = instance_str
                     .parse::<u16>()
-                    .map_err(|_| InvalidEndpointNameError::InvalidInstance)?;
+                    .map_err(|_| InvalidEndpointError::InvalidInstance)?;
                 instance = EndpointInstance::Instance(instance_num);
             }
         }
@@ -167,12 +168,12 @@ impl Endpoint {
             s if s.starts_with(Endpoint::PREFIX_ANONYMOUS) => {
                 let s = s.trim_start_matches(Endpoint::PREFIX_ANONYMOUS);
                 if s.len() < 18 * 2 {
-                    return Err(InvalidEndpointNameError::MinLengthNotMet);
+                    return Err(InvalidEndpointError::MinLengthNotMet);
                 } else if s.len() > 18 * 2 {
-                    return Err(InvalidEndpointNameError::MaxLengthExceeded);
+                    return Err(InvalidEndpointError::MaxLengthExceeded);
                 }
                 let bytes = decode(&s)
-                    .map_err(|_| InvalidEndpointNameError::InvalidCharacters)?;
+                    .map_err(|_| InvalidEndpointError::InvalidCharacters)?;
                 let byte_slice: &[u8] = &bytes;
                 Endpoint::new_anonymous(
                     byte_slice.try_into().unwrap(),
@@ -189,21 +190,22 @@ impl Endpoint {
             s if s.starts_with(Endpoint::PREFIX_PERSON) => {
                 Endpoint::new_named(&s[1..], instance, EndpointType::Person)
             }
-            _ => return Err(InvalidEndpointNameError::InvalidCharacters),
+            _ => return Err(InvalidEndpointError::InvalidCharacters),
         };
         endpoint
     }
 
+    // parse endpoint from binary
     pub fn new_from_binary(
         binary: [u8; 21],
-    ) -> Result<Endpoint, InvalidEndpointError> {
+    ) -> Result<Endpoint, EndpointParsingError> {
         let mut reader = Cursor::new(binary);
         let endpoint =
-            Endpoint::read(&mut reader).map_err(|_| InvalidEndpointError)?;
+            Endpoint::read(&mut reader).map_err(|_| EndpointParsingError)?;
 
         // check if endpoint is valid
         if !Self::is_endpoint_valid(&endpoint) {
-            return Err(InvalidEndpointError);
+            return Err(EndpointParsingError);
         }
         Ok(endpoint)
     }
@@ -212,28 +214,28 @@ impl Endpoint {
         name: &str,
         instance: EndpointInstance,
         type_: EndpointType,
-    ) -> Result<Endpoint, InvalidEndpointNameError> {
+    ) -> Result<Endpoint, InvalidEndpointError> {
         let mut identifier = String::into_bytes(
             name.to_string().trim_end_matches('\0').to_string(),
         );
         // make sure length does not exceed 18 bytes
         if identifier.len() > 18 {
-            return Err(InvalidEndpointNameError::MaxLengthExceeded);
+            return Err(InvalidEndpointError::MaxLengthExceeded);
         }
         // make sure length is at least 3 bytes
         if identifier.len() < 3 {
-            return Err(InvalidEndpointNameError::MinLengthNotMet);
+            return Err(InvalidEndpointError::MinLengthNotMet);
         }
         // make sure instance is valid
         if !Self::is_instance_valid(&instance) {
-            return Err(InvalidEndpointNameError::InvalidInstance);
+            return Err(InvalidEndpointError::InvalidInstance);
         }
 
         identifier.resize(18, 0);
 
         // make sure forbidden characters are not present
         if !Self::are_name_chars_valid(identifier.clone().try_into().unwrap()) {
-            return Err(InvalidEndpointNameError::InvalidCharacters);
+            return Err(InvalidEndpointError::InvalidCharacters);
         }
 
         Ok(Endpoint {
@@ -309,26 +311,37 @@ impl Endpoint {
         writer.into_inner().try_into().unwrap()
     }
 
+    // get endpoint type
     pub fn type_(&self) -> EndpointType {
         self.type_
     }
 
+    // get endpoint instance
     pub fn instance(&self) -> EndpointInstance {
         self.instance
     }
 
+    // check if endpoint is broadcast (instance is /*)
     pub fn is_broadcast(&self) -> bool {
         self.instance == EndpointInstance::Any
     }
+
+    // check if endpoint is local (@@local)
     pub fn is_local(&self) -> bool {
         self == &Endpoint::LOCAL
     }
+
+    // check if endpoint is any (@@any)
     pub fn is_any(&self) -> bool {
         self == &Endpoint::ANY
     }
+
+    // check if endpoint is main (@person) without instance
     pub fn is_main(&self) -> bool {
         self.instance == EndpointInstance::Main
     }
+
+    // get the main endpoint (@person) of the endpoint without instance
     pub fn main(&self) -> Endpoint {
         Endpoint {
             type_: self.type_,
@@ -336,6 +349,8 @@ impl Endpoint {
             instance: EndpointInstance::Main,
         }
     }
+
+    // get the broadcast endpoint (@person/*) of the endpoint
     pub fn broadcast(&self) -> Endpoint {
         Endpoint {
             type_: self.type_,
@@ -460,10 +475,10 @@ mod test {
             "too-long-endpoint-name",
             EndpointInstance::Main,
         );
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::MaxLengthExceeded));
+        assert_eq!(endpoint, Err(InvalidEndpointError::MaxLengthExceeded));
 
         let endpoint = Endpoint::new_from_string("@too-long-endpoint-name");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::MaxLengthExceeded));
+        assert_eq!(endpoint, Err(InvalidEndpointError::MaxLengthExceeded));
 
         let to_long_endpoint_names = vec![
             "@too-long-endpoint-name",
@@ -473,24 +488,21 @@ mod test {
         ];
         for name in to_long_endpoint_names {
             let endpoint = Endpoint::new_from_string(name);
-            assert_eq!(
-                endpoint,
-                Err(InvalidEndpointNameError::MaxLengthExceeded)
-            );
+            assert_eq!(endpoint, Err(InvalidEndpointError::MaxLengthExceeded));
         }
     }
 
     #[test]
     fn too_short() {
         let endpoint = Endpoint::new_person("ab", EndpointInstance::Main);
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
+        assert_eq!(endpoint, Err(InvalidEndpointError::MinLengthNotMet));
 
         let endpoint =
             Endpoint::new_person("ab\0\0\0\0\0\0\0\0", EndpointInstance::Main);
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
+        assert_eq!(endpoint, Err(InvalidEndpointError::MinLengthNotMet));
 
         let endpoint = Endpoint::new_from_string("@ab");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
+        assert_eq!(endpoint, Err(InvalidEndpointError::MinLengthNotMet));
 
         let to_short_endpoint_names = vec![
             "@ab",
@@ -502,35 +514,32 @@ mod test {
         ];
         for name in to_short_endpoint_names {
             let endpoint = Endpoint::new_from_string(name);
-            assert_eq!(
-                endpoint,
-                Err(InvalidEndpointNameError::MinLengthNotMet)
-            );
+            assert_eq!(endpoint, Err(InvalidEndpointError::MinLengthNotMet));
         }
     }
 
     #[test]
     fn invalid_characters() {
         let endpoint = Endpoint::new_person("äüö", EndpointInstance::Main);
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_person("__O", EndpointInstance::Main);
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_person("#@!", EndpointInstance::Main);
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_person("\0__", EndpointInstance::Main);
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_from_string("@äüö");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_from_string(&format!(
             "@@{}X",
             "F".repeat(18 * 2 - 1)
         ));
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidCharacters));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let invalid_endpoint_names = vec![
             "@äüö",
@@ -545,10 +554,7 @@ mod test {
         ];
         for name in invalid_endpoint_names {
             let endpoint = Endpoint::new_from_string(name);
-            assert_eq!(
-                endpoint,
-                Err(InvalidEndpointNameError::InvalidCharacters)
-            );
+            assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
         }
     }
 
@@ -556,18 +562,18 @@ mod test {
     fn invalid_instance() {
         let endpoint =
             Endpoint::new_person("test", EndpointInstance::Instance(0));
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidInstance));
 
         let endpoint =
             Endpoint::new_person("test", EndpointInstance::Instance(65535));
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidInstance));
 
         let endpoint = Endpoint::new_from_string("@unyt/0");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidInstance));
         let endpoint = Endpoint::new_from_string("@+unyt/0");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidInstance));
         let endpoint = Endpoint::new_from_string("@+unyt/65535");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidInstance));
     }
 
     #[test]
@@ -592,11 +598,11 @@ mod test {
 
         let endpoint =
             Endpoint::new_from_string("@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::ReservedName));
+        assert_eq!(endpoint, Err(InvalidEndpointError::ReservedName));
 
         let endpoint =
             Endpoint::new_from_string("@@000000000000000000000000000000000000");
-        assert_eq!(endpoint, Err(InvalidEndpointNameError::ReservedName));
+        assert_eq!(endpoint, Err(InvalidEndpointError::ReservedName));
     }
 
     #[test]
