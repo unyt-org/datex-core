@@ -75,7 +75,7 @@ pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
     mut _index: &'a Cell<usize>,
     is_end_instruction: &'a Cell<bool>,
-) -> impl Iterator<Item=Instruction> + 'a {
+) -> impl Iterator<Item = Instruction> + 'a {
     return std::iter::from_coroutine(
         #[coroutine]
         move || {
@@ -202,8 +202,11 @@ pub fn iterate_instructions<'a>(
                 // buffer
                 else if token == BinaryCode::BUFFER as u8 {
                     let size = buffers::read_u32(&dxb_body, index);
-                    let value =
-                        buffers::read_vec_slice(&dxb_body, index, size as usize);
+                    let value = buffers::read_vec_slice(
+                        &dxb_body,
+                        index,
+                        size as usize,
+                    );
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::BUFFER,
@@ -253,8 +256,11 @@ pub fn iterate_instructions<'a>(
                     };
 
                     let size = buffers::read_u32(&dxb_body, index);
-                    let buffer =
-                        buffers::read_vec_slice(&dxb_body, index, size as usize);
+                    let buffer = buffers::read_vec_slice(
+                        &dxb_body,
+                        index,
+                        size as usize,
+                    );
                     let bigint = BigInt::from_bytes_be(sign, &buffer);
 
                     _index.set(*index);
@@ -1125,12 +1131,11 @@ pub fn iterate_instructions<'a>(
                 }
                 // endpoints
                 else if token == BinaryCode::PERSON_ALIAS as u8 {
-                    let endpoint_bytes = buffers::read_slice::<21>(
-                        &dxb_body,
-                        index,
-                    );
+                    let endpoint_bytes =
+                        buffers::read_slice::<21>(&dxb_body, index);
                     // TODO: handle invalid endpoint bytes
-                    let endpoint = Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                    let endpoint =
+                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::PERSON_ALIAS,
@@ -1142,12 +1147,11 @@ pub fn iterate_instructions<'a>(
                         subscope_continue: false,
                     }
                 } else if token == BinaryCode::INSTITUTION_ALIAS as u8 {
-                    let endpoint_bytes = buffers::read_slice::<21>(
-                        &dxb_body,
-                        index,
-                    );
+                    let endpoint_bytes =
+                        buffers::read_slice::<21>(&dxb_body, index);
                     // TODO: handle invalid endpoint bytes
-                    let endpoint = Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                    let endpoint =
+                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::INSTITUTION_ALIAS,
@@ -1159,12 +1163,11 @@ pub fn iterate_instructions<'a>(
                         subscope_continue: false,
                     }
                 } else if token == BinaryCode::ENDPOINT as u8 {
-                    let endpoint_bytes = buffers::read_slice::<21>(
-                        &dxb_body,
-                        index,
-                    );
+                    let endpoint_bytes =
+                        buffers::read_slice::<21>(&dxb_body, index);
                     // TODO: handle invalid endpoint bytes
-                    let endpoint = Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                    let endpoint =
+                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::ENDPOINT,
@@ -1237,7 +1240,7 @@ impl Instruction {
                 self.value.as_ref().unwrap()
             );
         } else {
-            return format!("{} [{:X}]", self.code, self.code as u8, );
+            return format!("{} [{:X}]", self.code, self.code as u8,);
         }
     }
 }

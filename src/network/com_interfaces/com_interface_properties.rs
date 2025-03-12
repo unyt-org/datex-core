@@ -59,7 +59,7 @@ impl InterfaceProperties {
             InterfaceDirection::IN_OUT => true,
         }
     }
-    
+
     pub fn can_receive(&self) -> bool {
         match self.direction {
             InterfaceDirection::IN => true,

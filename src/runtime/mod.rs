@@ -1,12 +1,7 @@
-use std::{
-    cell::RefCell,
-    rc::Rc
-    ,
-};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    crypto::crypto::Crypto
-    ,
+    crypto::crypto::Crypto,
     network::com_hub::ComHub,
     utils::logger::{Logger, LoggerContext},
 };

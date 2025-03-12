@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
-    global::{binary_codes::BinaryCode},
+    global::binary_codes::BinaryCode,
     parser::body,
     utils::logger::{Logger, LoggerContext},
 };

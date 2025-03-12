@@ -139,7 +139,7 @@ impl ComHub {
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions,
-    ) -> impl Iterator<Item=&'a ComInterfaceSocket> + 'a {
+    ) -> impl Iterator<Item = &'a ComInterfaceSocket> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(&endpoint);
         let interfaces = &self.interfaces;
 
@@ -150,9 +150,9 @@ impl ComHub {
                     // check if is direct socket if only_redirect is set to true
                     if !options.only_direct
                         && match &socket.endpoint {
-                        Some(e) => e == endpoint,
-                        _ => false,
-                    }
+                            Some(e) => e == endpoint,
+                            _ => false,
+                        }
                     {
                         continue;
                     }
