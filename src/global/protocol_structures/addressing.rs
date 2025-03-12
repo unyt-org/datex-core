@@ -9,12 +9,15 @@ pub struct Endpoint {
 }
 
 // 1 byte
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default, BinWrite, BinRead)]
+#[derive(
+    Debug, Hash, PartialEq, Eq, Clone, Copy, Default, BinWrite, BinRead,
+)]
 #[brw(repr(u8))]
 pub enum EndpointType {
-    Person = 0,
-    Institution = 1,
-    Anonymous = 2,
+    Local = 0,
+    Person = 1,
+    Institution = 2,
+    Anonymous = 3,
     #[default]
     Any = 255,
 }
