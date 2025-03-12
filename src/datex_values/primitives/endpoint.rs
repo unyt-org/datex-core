@@ -39,6 +39,10 @@ pub enum InvalidEndpointNameError {
 pub struct InvalidEndpointError;
 
 impl Endpoint {
+    pub const PREFIX_PERSON: &'static str = "@";
+    pub const PREFIX_INSTITUTION: &'static str = "@+";
+    pub const PREFIX_ANONYMOUS: &'static str = "@@";
+
     pub const ANY: Endpoint = Endpoint {
         type_: EndpointType::Any,
         identifier: [255; 18],
@@ -46,7 +50,10 @@ impl Endpoint {
     };
 
     // create default id endpoint (@@1234567890, @@local)
-    pub fn new_anonymous(identifier: [u8; 18], instance: EndpointInstance) -> Endpoint {
+    pub fn new_anonymous(
+        identifier: [u8; 18],
+        instance: EndpointInstance,
+    ) -> Endpoint {
         Endpoint {
             type_: EndpointType::Anonymous,
             identifier,
@@ -54,8 +61,14 @@ impl Endpoint {
         }
     }
 
-    fn new_named(name: &str, instance: EndpointInstance, type_: EndpointType) -> Result<Endpoint, InvalidEndpointNameError> {
-        let mut identifier = String::into_bytes(name.to_string().trim_end_matches('\0').to_string());
+    fn new_named(
+        name: &str,
+        instance: EndpointInstance,
+        type_: EndpointType,
+    ) -> Result<Endpoint, InvalidEndpointNameError> {
+        let mut identifier = String::into_bytes(
+            name.to_string().trim_end_matches('\0').to_string(),
+        );
         // make sure length does not exceed 18 bytes
         if identifier.len() > 18 {
             return Err(InvalidEndpointNameError::MaxLengthExceeded);
@@ -78,26 +91,38 @@ impl Endpoint {
 
         Ok(Endpoint {
             type_,
-            identifier: identifier
-                .try_into()
-                .unwrap(),
+            identifier: identifier.try_into().unwrap(),
             instance,
         })
     }
 
     // create alias endpoint (@person)
-    pub fn new_person(name: &str, instance: EndpointInstance) -> Result<Endpoint, InvalidEndpointNameError> {
+    pub fn new_person(
+        name: &str,
+        instance: EndpointInstance,
+    ) -> Result<Endpoint, InvalidEndpointNameError> {
         Self::new_named(name, instance, EndpointType::Person)
     }
 
     // create institution endpoint (@+institution)
-    pub fn new_institution(name: &str, instance: EndpointInstance) -> Result<Endpoint, InvalidEndpointNameError> {
+    pub fn new_institution(
+        name: &str,
+        instance: EndpointInstance,
+    ) -> Result<Endpoint, InvalidEndpointNameError> {
         Self::new_named(name, instance, EndpointType::Institution)
     }
 
-    pub fn new_from_binary(binary: [u8; 21]) -> Result<Endpoint, InvalidEndpointError> {
+    pub fn new_from_string(
+        name: &str,
+    ) -> Result<Endpoint, InvalidEndpointError> {
+    }
+
+    pub fn new_from_binary(
+        binary: [u8; 21],
+    ) -> Result<Endpoint, InvalidEndpointError> {
         let mut reader = Cursor::new(binary);
-        let endpoint = Endpoint::read(&mut reader).map_err(|_| InvalidEndpointError)?;
+        let endpoint =
+            Endpoint::read(&mut reader).map_err(|_| InvalidEndpointError)?;
 
         // check if endpoint is valid
         if !Self::is_endpoint_valid(&endpoint) {
@@ -122,7 +147,9 @@ impl Endpoint {
                 !(*c >= 0x41 && *c <= 0x5A) && // A-Z
                 !(*c >= 0x61 && *c <= 0x7A) && // a-z
                 *c != 0x2D && // -
-                *c != 0x5F { // _
+                *c != 0x5F
+            {
+                // _
                 return false;
             }
             // forbidden characters: O, I
@@ -160,7 +187,7 @@ impl Endpoint {
                 // name must be only contain valid characters
                 Self::are_name_chars_valid(endpoint.identifier)
             }
-            _ => true
+            _ => true,
         }
     }
 
@@ -200,26 +227,34 @@ impl Endpoint {
     }
 }
 
-
 impl Display for Endpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.type_ {
             EndpointType::Anonymous => write!(
                 f,
-                "@@{}",
+                "{}{}",
+                Endpoint::PREFIX_ANONYMOUS,
                 buffer_to_hex(self.identifier.to_vec())
             )?,
             EndpointType::Person => write!(
                 f,
-                "@{}",
-                str::from_utf8(&self.identifier).unwrap().trim_end_matches('\0')
+                "{}{}",
+                Endpoint::PREFIX_PERSON,
+                str::from_utf8(&self.identifier)
+                    .unwrap()
+                    .trim_end_matches('\0')
             )?,
             EndpointType::Institution => write!(
                 f,
-                "@+{}",
-                str::from_utf8(&self.identifier).unwrap().trim_end_matches('\0')
+                "{}{}",
+                Endpoint::PREFIX_INSTITUTION,
+                str::from_utf8(&self.identifier)
+                    .unwrap()
+                    .trim_end_matches('\0')
             )?,
-            EndpointType::Any => f.write_str("@@any")?
+            EndpointType::Any => f.write_str(
+                format!("{}any", Endpoint::PREFIX_ANONYMOUS).as_str(),
+            )?,
         };
 
         match self.instance {
@@ -237,7 +272,10 @@ mod test {
     use super::*;
     #[test]
     fn too_long() {
-        let endpoint = Endpoint::new_person("too-long-endpoint-name", EndpointInstance::Main);
+        let endpoint = Endpoint::new_person(
+            "too-long-endpoint-name",
+            EndpointInstance::Main,
+        );
         assert_eq!(endpoint, Err(InvalidEndpointNameError::MaxLengthExceeded));
     }
 
@@ -246,7 +284,8 @@ mod test {
         let endpoint = Endpoint::new_person("ab", EndpointInstance::Main);
         assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
 
-        let endpoint = Endpoint::new_person("ab\0\0\0\0\0\0\0\0", EndpointInstance::Main);
+        let endpoint =
+            Endpoint::new_person("ab\0\0\0\0\0\0\0\0", EndpointInstance::Main);
         assert_eq!(endpoint, Err(InvalidEndpointNameError::MinLengthNotMet));
     }
 
@@ -267,10 +306,12 @@ mod test {
 
     #[test]
     fn test_invalid_instance() {
-        let endpoint = Endpoint::new_person("test", EndpointInstance::Instance(0));
+        let endpoint =
+            Endpoint::new_person("test", EndpointInstance::Instance(0));
         assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
 
-        let endpoint = Endpoint::new_person("test", EndpointInstance::Instance(65535));
+        let endpoint =
+            Endpoint::new_person("test", EndpointInstance::Instance(65535));
         assert_eq!(endpoint, Err(InvalidEndpointNameError::InvalidInstance));
     }
 
@@ -282,22 +323,31 @@ mod test {
     }
     #[test]
     fn format_named_endpoint() {
-        let endpoint = Endpoint::new_person("test", EndpointInstance::Main).unwrap();
+        let endpoint =
+            Endpoint::new_person("test", EndpointInstance::Main).unwrap();
         assert_eq!(endpoint.to_string(), "@test");
 
-        let endpoint = Endpoint::new_institution("test", EndpointInstance::Main).unwrap();
+        let endpoint =
+            Endpoint::new_institution("test", EndpointInstance::Main).unwrap();
         assert_eq!(endpoint.to_string(), "@+test");
 
-        let endpoint = Endpoint::new_person("test", EndpointInstance::Instance(42)).unwrap();
+        let endpoint =
+            Endpoint::new_person("test", EndpointInstance::Instance(42))
+                .unwrap();
         assert_eq!(endpoint.to_string(), "@test/42");
 
-        let endpoint = Endpoint::new_person("test", EndpointInstance::Any).unwrap();
+        let endpoint =
+            Endpoint::new_person("test", EndpointInstance::Any).unwrap();
         assert_eq!(endpoint.to_string(), "@test/*");
     }
 
     #[test]
     fn format_anonymous_endpoint() {
-        let endpoint = Endpoint::new_anonymous([0xaa; 18], EndpointInstance::Main);
-        assert_eq!(endpoint.to_string(), "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        let endpoint =
+            Endpoint::new_anonymous([0xaa; 18], EndpointInstance::Main);
+        assert_eq!(
+            endpoint.to_string(),
+            "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        );
     }
 }
