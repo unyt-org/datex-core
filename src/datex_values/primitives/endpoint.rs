@@ -5,7 +5,7 @@ use crate::utils::{
     buffers::{self, append_u16, append_u8, read_u16, read_u8, read_vec_slice},
     color::Color,
 };
-use binrw::{BinRead, BinWrite};
+use binrw::{endian, BinRead, BinWrite};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::io::Cursor;
@@ -114,7 +114,44 @@ impl Endpoint {
 
     pub fn new_from_string(
         name: &str,
-    ) -> Result<Endpoint, InvalidEndpointError> {
+    ) -> Result<Endpoint, InvalidEndpointNameError> {
+        let name = name.to_string();
+        let mut name_part = name.clone();
+        let mut instance = EndpointInstance::Main;
+
+        // check if instance is present
+        if name.contains('/') {
+            let parts: Vec<&str> = name.split('/').collect();
+            if parts.len() != 2 {
+                return Err(InvalidEndpointNameError::InvalidCharacters);
+            }
+            name_part = parts[0].to_string();
+            let instance_str = parts[1];
+            if instance_str == "*" {
+                instance = EndpointInstance::Any;
+            } else {
+                let instance_num = instance_str
+                    .parse::<u16>()
+                    .map_err(|_| InvalidEndpointNameError::InvalidInstance)?;
+                instance = EndpointInstance::Instance(instance_num);
+            }
+        }
+
+        let endpoint = match name_part {
+            s if s.starts_with("@@") => {
+                Endpoint::new_named(&s[2..], instance, EndpointType::Anonymous)
+            }
+            s if s.starts_with("@+") => Endpoint::new_named(
+                &s[2..],
+                instance,
+                EndpointType::Institution,
+            ),
+            s if s.starts_with("@") => {
+                Endpoint::new_named(&s[1..], instance, EndpointType::Person)
+            }
+            _ => return Err(InvalidEndpointNameError::InvalidCharacters),
+        };
+        endpoint
     }
 
     pub fn new_from_binary(
@@ -191,27 +228,6 @@ impl Endpoint {
         }
     }
 
-    // convert string name to binary representation
-    fn encode_name_binary(name: String) -> Vec<u8> {
-        if name.len() > 18 {
-            panic!("Endpoint name exceeds maximum of 18 bytes");
-        }
-        // TODO: maybe 6 bit charset?
-        return String::into_bytes(name);
-    }
-
-    // convert binary representation with null terminators to string
-    fn decode_name_binary(name_binary: &Vec<u8>) -> String {
-        if name_binary.len() > 18 {
-            panic!("Endpoint name exceeds maximum of 18 bytes");
-        }
-
-        let name_utf8 = String::from_utf8(name_binary.to_vec())
-            .expect("could not read endpoint name");
-        // remove \0
-        return name_utf8.trim_matches(char::from(0)).to_string();
-    }
-
     pub fn to_binary(&self) -> [u8; 21] {
         let mut writer = Cursor::new(Vec::new());
         self.write(&mut writer).unwrap();
@@ -270,6 +286,29 @@ impl Display for Endpoint {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn parse_from_string() {
+        let endpoint = Endpoint::new_from_string("@jonas").unwrap();
+        assert!(endpoint.type_ == EndpointType::Person);
+        assert!(endpoint.instance == EndpointInstance::Main);
+        assert_eq!(endpoint.to_string(), "@jonas");
+        assert_eq!(
+            endpoint.identifier,
+            [106, 111, 110, 97, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+
+        let endpoint = Endpoint::new_from_string("@+unyt").unwrap();
+        assert!(endpoint.type_ == EndpointType::Institution);
+        assert!(endpoint.instance == EndpointInstance::Main);
+        assert_eq!(endpoint.to_string(), "@+unyt");
+
+        let endpoint = Endpoint::new_from_string("@@unyt").unwrap();
+        assert!(endpoint.type_ == EndpointType::Anonymous);
+        assert!(endpoint.instance == EndpointInstance::Main);
+        assert_eq!(endpoint.to_string(), "@+unyt");
+    }
+
     #[test]
     fn too_long() {
         let endpoint = Endpoint::new_person(
