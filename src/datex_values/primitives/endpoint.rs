@@ -6,6 +6,7 @@ use crate::utils::{
     color::Color,
 };
 use binrw::{endian, BinRead, BinWrite};
+use hex::{decode, decode_to_slice};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::io::Cursor;
@@ -139,7 +140,13 @@ impl Endpoint {
 
         let endpoint = match name_part {
             s if s.starts_with("@@") => {
-                Endpoint::new_named(&s[2..], instance, EndpointType::Anonymous)
+                let bytes = decode(&s[2..])
+                    .map_err(|_| InvalidEndpointNameError::InvalidCharacters)?;
+                let byte_slice: &[u8] = &bytes;
+                let endpoint_id: [u8; 18] = byte_slice
+                    .try_into()
+                    .map_err(|_| InvalidEndpointNameError::InvalidCharacters)?;
+                return Ok(Endpoint::new_anonymous(endpoint_id, instance));
             }
             s if s.starts_with("@+") => Endpoint::new_named(
                 &s[2..],
