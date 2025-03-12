@@ -1,12 +1,7 @@
 use crate::global::protocol_structures::addressing::EndpointType;
-use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::utils::buffers::buffer_to_hex;
-use crate::utils::{
-    buffers::{self, append_u16, append_u8, read_u16, read_u8, read_vec_slice},
-    color::Color,
-};
-use binrw::{endian, BinRead, BinWrite};
-use hex::{decode, decode_to_slice};
+use binrw::{BinRead, BinWrite};
+use hex::decode;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::io::Cursor;
@@ -44,6 +39,9 @@ impl Endpoint {
     pub const PREFIX_PERSON: &'static str = "@";
     pub const PREFIX_INSTITUTION: &'static str = "@+";
     pub const PREFIX_ANONYMOUS: &'static str = "@@";
+
+    pub const ALIAS_LOCAL: &'static str = "local";
+    pub const ALIAS_ANY: &'static str = "any";
 
     pub const ANY: Endpoint = Endpoint {
         type_: EndpointType::Any,
@@ -105,9 +103,17 @@ impl Endpoint {
         name: &str,
     ) -> Result<Endpoint, InvalidEndpointNameError> {
         let name = name.to_string();
-        if name == "@@any" {
+        if name
+            == format!("{}{}", Endpoint::PREFIX_ANONYMOUS, Endpoint::ALIAS_ANY)
+        {
             return Ok(Endpoint::ANY);
-        } else if name == "@@local" {
+        } else if name
+            == format!(
+                "{}{}",
+                Endpoint::PREFIX_ANONYMOUS,
+                Endpoint::ALIAS_LOCAL
+            )
+        {
             return Ok(Endpoint::LOCAL);
         }
 
@@ -133,19 +139,33 @@ impl Endpoint {
 
         let endpoint = match name_part {
             // TODO shall we allow instance for @@any?
-            s if s.starts_with("@@any") => Ok(Endpoint {
-                type_: EndpointType::Any,
-                identifier: [255u8; 18],
-                instance,
-            }),
+            s if s.starts_with(&format!(
+                "{}{}",
+                Endpoint::PREFIX_ANONYMOUS,
+                Endpoint::ALIAS_ANY
+            )) =>
+            {
+                Ok(Endpoint {
+                    type_: EndpointType::Any,
+                    identifier: [255u8; 18],
+                    instance,
+                })
+            }
             // TODO shall we allow instance for @@local?
-            s if s.starts_with("@@local") => Ok(Endpoint {
-                type_: EndpointType::Local,
-                identifier: [0u8; 18],
-                instance,
-            }),
-            s if s.starts_with("@@") => {
-                let s = s.trim_start_matches("@@");
+            s if s.starts_with(&format!(
+                "{}{}",
+                Endpoint::PREFIX_ANONYMOUS,
+                Endpoint::ALIAS_LOCAL
+            )) =>
+            {
+                Ok(Endpoint {
+                    type_: EndpointType::Local,
+                    identifier: [0u8; 18],
+                    instance,
+                })
+            }
+            s if s.starts_with(Endpoint::PREFIX_ANONYMOUS) => {
+                let s = s.trim_start_matches(Endpoint::PREFIX_ANONYMOUS);
                 if s.len() < 18 * 2 {
                     return Err(InvalidEndpointNameError::MinLengthNotMet);
                 } else if s.len() > 18 * 2 {
@@ -159,12 +179,14 @@ impl Endpoint {
                     instance,
                 )
             }
-            s if s.starts_with("@+") => Endpoint::new_named(
-                &s[2..],
-                instance,
-                EndpointType::Institution,
-            ),
-            s if s.starts_with("@") => {
+            s if s.starts_with(Endpoint::PREFIX_INSTITUTION) => {
+                Endpoint::new_named(
+                    &s[2..],
+                    instance,
+                    EndpointType::Institution,
+                )
+            }
+            s if s.starts_with(Endpoint::PREFIX_PERSON) => {
                 Endpoint::new_named(&s[1..], instance, EndpointType::Person)
             }
             _ => return Err(InvalidEndpointNameError::InvalidCharacters),
@@ -314,6 +336,13 @@ impl Endpoint {
             instance: EndpointInstance::Main,
         }
     }
+    pub fn broadcast(&self) -> Endpoint {
+        Endpoint {
+            type_: self.type_,
+            identifier: self.identifier,
+            instance: EndpointInstance::Any,
+        }
+    }
 }
 
 impl Display for Endpoint {
@@ -367,11 +396,16 @@ mod test {
     fn utilities() {
         let endpoint: Endpoint = Endpoint::new_from_string("@ben/42").unwrap();
         assert!(!endpoint.is_main());
+        assert!(!endpoint.is_broadcast());
 
         let main_endpoint = endpoint.main();
         assert!(main_endpoint.is_main());
         assert_eq!(main_endpoint.to_string(), "@ben");
-        assert_eq!(main_endpoint.main().to_string(), "@ben");
+        assert_eq!(main_endpoint.instance, EndpointInstance::Main);
+
+        let broadcast_endpoint = endpoint.broadcast();
+        assert!(broadcast_endpoint.is_broadcast());
+        assert_eq!(broadcast_endpoint.to_string(), "@ben/*");
     }
 
     #[test]
