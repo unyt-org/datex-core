@@ -37,12 +37,12 @@ pub enum InvalidEndpointError {
 pub struct EndpointParsingError;
 
 impl Endpoint {
-    pub const PREFIX_PERSON: &'static str = "@";
-    pub const PREFIX_INSTITUTION: &'static str = "@+";
-    pub const PREFIX_ANONYMOUS: &'static str = "@@";
+    const PREFIX_PERSON: &'static str = "@";
+    const PREFIX_INSTITUTION: &'static str = "@+";
+    const PREFIX_ANONYMOUS: &'static str = "@@";
 
-    pub const ALIAS_LOCAL: &'static str = "local";
-    pub const ALIAS_ANY: &'static str = "any";
+    const ALIAS_LOCAL: &'static str = "local";
+    const ALIAS_ANY: &'static str = "any";
 
     pub const ANY: Endpoint = Endpoint {
         type_: EndpointType::Any,
@@ -54,17 +54,6 @@ impl Endpoint {
         identifier: [0; 18],
         instance: EndpointInstance::Main,
     };
-
-    fn random_anonymous_id() -> [u8; 18] {
-        let mut buffer = random::random_bytes();
-        for _ in 0..3 {
-            if buffer.iter().any(|&b| b != 0) {
-                return buffer;
-            }
-            buffer = random::random_bytes();
-        }
-        panic!("Could not generate random anonymous id");
-    }
 
     // create random anonymous endpoint (@@8D928D1F244C76289C8A558DCB6C9D82896F)
     pub fn new_random() -> Endpoint {
@@ -264,6 +253,17 @@ impl Endpoint {
             identifier: identifier.try_into().unwrap(),
             instance,
         })
+    }
+
+    fn random_anonymous_id() -> [u8; 18] {
+        let mut buffer = random::random_bytes();
+        for _ in 0..3 {
+            if buffer.iter().any(|&b| b != 0) {
+                return buffer;
+            }
+            buffer = random::random_bytes();
+        }
+        panic!("Could not generate random anonymous id");
     }
 
     fn are_name_chars_valid(name: [u8; 18]) -> bool {
