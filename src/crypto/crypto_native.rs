@@ -44,7 +44,7 @@ impl Crypto for CryptoNative {
 
     fn encrypt_rsa(
         &self,
-        data: &[u8],
+        data: Vec<u8>,
         public_key: Vec<u8>,
     ) -> Pin<
         Box<

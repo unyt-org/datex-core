@@ -3,7 +3,7 @@ use std::{future::Future, pin::Pin, usize};
 pub trait Crypto: Send + Sync {
     fn encrypt_rsa(
         &self,
-        data: &[u8],
+        data: Vec<u8>,
         public_key: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
     fn decrypt_rsa(
@@ -58,7 +58,7 @@ impl Crypto for CryptoDefault {
 
     fn encrypt_rsa(
         &self,
-        data: &[u8],
+        data: Vec<u8>,
         public_key: Vec<u8>,
     ) -> Pin<
         Box<
