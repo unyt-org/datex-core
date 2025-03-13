@@ -1,18 +1,12 @@
-use super::crypto::Crypto;
+use std::pin::Pin;
+
+use super::crypto::{Crypto, CryptoError};
 use rand::RngCore;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
 impl Crypto for CryptoNative {
-    fn encrypt(&self, data: &[u8]) -> Vec<u8> {
-        todo!()
-    }
-
-    fn decrypt(&self, data: &[u8]) -> Vec<u8> {
-        todo!()
-    }
-
     fn create_uuid(&self) -> String {
         Uuid::new_v4().to_string()
     }
@@ -26,7 +20,7 @@ impl Crypto for CryptoNative {
 
     fn new_encryption_key_pair(
         &self,
-    ) -> std::pin::Pin<
+    ) -> Pin<
         Box<
             dyn std::prelude::rust_2024::Future<
                 Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
@@ -38,11 +32,37 @@ impl Crypto for CryptoNative {
 
     fn new_sign_key_pair(
         &self,
-    ) -> std::pin::Pin<
+    ) -> Pin<
         Box<
             dyn std::prelude::rust_2024::Future<
                 Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
             >,
+        >,
+    > {
+        todo!()
+    }
+
+    fn encrypt_rsa(
+        &self,
+        data: &[u8],
+        public_key: Vec<u8>,
+    ) -> Pin<
+        Box<
+            (dyn std::future::Future<Output = Result<Vec<u8>, CryptoError>>
+                 + 'static),
+        >,
+    > {
+        todo!()
+    }
+
+    fn decrypt_rsa(
+        &self,
+        data: &[u8],
+        private_key: Vec<u8>,
+    ) -> Pin<
+        Box<
+            (dyn std::future::Future<Output = Result<Vec<u8>, CryptoError>>
+                 + 'static),
         >,
     > {
         todo!()

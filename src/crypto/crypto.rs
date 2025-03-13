@@ -1,8 +1,16 @@
 use std::{future::Future, pin::Pin, usize};
 
 pub trait Crypto: Send + Sync {
-    fn encrypt(&self, data: &[u8]) -> Vec<u8>;
-    fn decrypt(&self, data: &[u8]) -> Vec<u8>;
+    fn encrypt_rsa(
+        &self,
+        data: &[u8],
+        public_key: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
+    fn decrypt_rsa(
+        &self,
+        data: &[u8],
+        private_key: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
     fn create_uuid(&self) -> String;
     fn random_bytes(&self, length: usize) -> Vec<u8>;
 
@@ -20,18 +28,12 @@ pub enum CryptoError {
     KeyGeneratorFailed,
     KeyExportFailed,
     KeyImportFailed,
+    EncryptionError,
+    DecryptionError,
 }
 
 pub struct CryptoDefault;
 impl Crypto for CryptoDefault {
-    fn encrypt(&self, data: &[u8]) -> Vec<u8> {
-        unreachable!()
-    }
-
-    fn decrypt(&self, data: &[u8]) -> Vec<u8> {
-        unreachable!()
-    }
-
     fn create_uuid(&self) -> String {
         unreachable!()
     }
@@ -51,6 +53,32 @@ impl Crypto for CryptoDefault {
         &self,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
     {
+        unreachable!()
+    }
+
+    fn encrypt_rsa(
+        &self,
+        data: &[u8],
+        public_key: Vec<u8>,
+    ) -> Pin<
+        Box<
+            (dyn std::future::Future<Output = Result<Vec<u8>, CryptoError>>
+                 + 'static),
+        >,
+    > {
+        unreachable!()
+    }
+
+    fn decrypt_rsa(
+        &self,
+        data: &[u8],
+        private_key: Vec<u8>,
+    ) -> Pin<
+        Box<
+            (dyn std::future::Future<Output = Result<Vec<u8>, CryptoError>>
+                 + 'static),
+        >,
+    > {
         unreachable!()
     }
 }
