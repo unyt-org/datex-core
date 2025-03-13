@@ -23,4 +23,28 @@ impl Crypto for CryptoNative {
         rng.fill_bytes(&mut buffer);
         buffer
     }
+
+    fn new_encryption_key_pair(
+        &self,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::prelude::rust_2024::Future<
+                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
+            >,
+        >,
+    > {
+        todo!()
+    }
+
+    fn new_sign_key_pair(
+        &self,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::prelude::rust_2024::Future<
+                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
+            >,
+        >,
+    > {
+        todo!()
+    }
 }
