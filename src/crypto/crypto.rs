@@ -14,8 +14,9 @@ pub trait Crypto: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>;
 }
 
-#[derive(Copy, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum CryptoError {
+    Other(String),
     KeyGeneratorFailed,
     KeyExportFailed,
     KeyImportFailed,
