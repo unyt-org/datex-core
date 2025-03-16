@@ -8,7 +8,7 @@ pub trait Crypto: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
     fn decrypt_rsa(
         &self,
-        data: &[u8],
+        data: Vec<u8>,
         private_key: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
     fn create_uuid(&self) -> String;
@@ -71,7 +71,7 @@ impl Crypto for CryptoDefault {
 
     fn decrypt_rsa(
         &self,
-        data: &[u8],
+        data: Vec<u8>,
         private_key: Vec<u8>,
     ) -> Pin<
         Box<
