@@ -67,4 +67,33 @@ impl Crypto for CryptoNative {
     > {
         todo!()
     }
+
+    fn sign_rsa(
+        &self,
+        data: Vec<u8>,
+        private_key: Vec<u8>,
+    ) -> Pin<
+        Box<
+            dyn std::prelude::rust_2024::Future<
+                Output = Result<Vec<u8>, CryptoError>,
+            >,
+        >,
+    > {
+        todo!()
+    }
+
+    fn verify_rsa(
+        &self,
+        data: Vec<u8>,
+        signature: Vec<u8>,
+        public_key: Vec<u8>,
+    ) -> Pin<
+        Box<
+            dyn std::prelude::rust_2024::Future<
+                Output = Result<bool, CryptoError>,
+            >,
+        >,
+    > {
+        todo!()
+    }
 }

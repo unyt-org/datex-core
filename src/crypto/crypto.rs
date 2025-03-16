@@ -11,6 +11,20 @@ pub trait Crypto: Send + Sync {
         data: Vec<u8>,
         private_key: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
+
+    fn sign_rsa(
+        &self,
+        data: Vec<u8>,
+        private_key: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
+
+    fn verify_rsa(
+        &self,
+        data: Vec<u8>,
+        signature: Vec<u8>,
+        public_key: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>>>>;
+
     fn create_uuid(&self) -> String;
     fn random_bytes(&self, length: usize) -> Vec<u8>;
 
@@ -79,6 +93,23 @@ impl Crypto for CryptoDefault {
                  + 'static),
         >,
     > {
+        unreachable!()
+    }
+
+    fn sign_rsa(
+        &self,
+        data: Vec<u8>,
+        private_key: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>> {
+        unreachable!()
+    }
+
+    fn verify_rsa(
+        &self,
+        data: Vec<u8>,
+        signature: Vec<u8>,
+        public_key: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>>>> {
         unreachable!()
     }
 }
