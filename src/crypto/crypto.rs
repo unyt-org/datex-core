@@ -44,6 +44,8 @@ pub enum CryptoError {
     KeyImportFailed,
     EncryptionError,
     DecryptionError,
+    SigningError,
+    VerificationError,
 }
 
 pub struct CryptoDefault;
