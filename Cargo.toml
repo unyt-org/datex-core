@@ -54,6 +54,7 @@ panic = "abort"
 [profile.dev]
 opt-level = 3
 
+# see https://docs.rs/rsa/latest/rsa/
 [profile.dev.package.num-bigint-dig]
 opt-level = 3
 
