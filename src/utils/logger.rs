@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use crate::stdlib::{cell::RefCell, rc::Rc};
 
 use crate::datex_values::Value;
 

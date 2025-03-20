@@ -1,4 +1,4 @@
-use std::usize;
+use crate::stdlib::usize;
 
 use crate::runtime::global_context::get_global_context;
 

@@ -1,7 +1,7 @@
-use std::collections::VecDeque;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
-
+use crate::stdlib::collections::VecDeque;
+use crate::stdlib::{cell::RefCell, rc::Rc};
 use anyhow::Result;
+use std::collections::HashMap; // FIXME no-std
 
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,

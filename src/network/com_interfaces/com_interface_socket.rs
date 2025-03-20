@@ -1,14 +1,12 @@
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::stdlib::fmt::Display;
+use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::utils::uuid::UUID;
 use crate::{
     datex_values::Endpoint, global::dxb_block::DXBBlock, utils::logger::Logger,
 };
-use std::fmt::Display;
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Mutex; // FIXME no-std
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SocketState {

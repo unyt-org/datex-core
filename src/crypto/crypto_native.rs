@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use crate::stdlib::pin::Pin;
 
 use super::crypto::{Crypto, CryptoError};
 use rand::RngCore;

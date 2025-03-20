@@ -1,4 +1,4 @@
-use std::time::Duration;
+use crate::stdlib::time::Duration;
 
 #[derive(PartialEq, Debug)]
 pub enum InterfaceDirection {

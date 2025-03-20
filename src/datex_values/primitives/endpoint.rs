@@ -1,11 +1,11 @@
 use crate::crypto::random;
 use crate::global::protocol_structures::addressing::EndpointType;
+use crate::stdlib::fmt::{Debug, Display, Formatter};
+use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
 use binrw::{BinRead, BinWrite};
 use hex::decode;
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
-use std::io::Cursor;
+use std::io::Cursor; // FIXME no-std
 
 #[derive(BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum EndpointInstance {

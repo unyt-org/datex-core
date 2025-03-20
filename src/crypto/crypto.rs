@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, usize};
+use crate::stdlib::{future::Future, pin::Pin, usize};
 
 pub trait Crypto: Send + Sync {
     fn encrypt_rsa(

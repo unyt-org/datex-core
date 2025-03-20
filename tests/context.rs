@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use datex_core::stdlib::sync::Arc;
+use std::sync::Mutex; // FIXME no-std
 
 use datex_core::{
     crypto::crypto_native::CryptoNative,

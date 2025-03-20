@@ -1,5 +1,5 @@
+use crate::stdlib::fmt;
 use core::fmt::Write;
-use std::fmt;
 
 use lazy_static::lazy_static;
 use num_bigint::BigInt;

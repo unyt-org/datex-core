@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::HashMap; // FIXME no-std
 
 use crate::datex_values::Pointer;
 

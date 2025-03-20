@@ -1,7 +1,6 @@
-use std::{
+use crate::stdlib::{
     cell::{Cell, RefCell},
     rc::Rc,
-    sync::{Arc, Mutex},
 };
 
 use crate::{

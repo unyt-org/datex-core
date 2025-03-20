@@ -1,12 +1,12 @@
 mod constants;
 
-use std::borrow::Cow;
-use std::cell::Cell;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
-use std::vec;
+use crate::stdlib::borrow::Cow;
+use crate::stdlib::cell::Cell;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec;
+use std::collections::HashMap; // FIXME no-std
+use std::collections::HashSet; // FIXME no-std
 
 use crate::datex_values::SlotIdentifier;
 use crate::datex_values::Value;

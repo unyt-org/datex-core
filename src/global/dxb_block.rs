@@ -1,4 +1,4 @@
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read}; // FIXME no-std
 
 use anyhow::Result;
 use binrw::{BinRead, BinWrite};

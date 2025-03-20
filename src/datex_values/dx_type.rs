@@ -1,4 +1,4 @@
-use std::fmt;
+use crate::stdlib::fmt;
 
 use crate::global::binary_codes::BinaryCode;
 

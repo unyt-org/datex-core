@@ -1,7 +1,5 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use crate::stdlib::{collections::VecDeque, sync::Arc};
+use std::sync::Mutex; // FIXME no-std
 
 use crate::{
     global::dxb_block::{DXBBlock, HeaderParsingError},

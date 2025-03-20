@@ -33,6 +33,7 @@ num-traits = "0.2.19"
 async-trait = "0.1.87"
 tokio = { version = "1.43.0", features = ["sync"] }
 hex = "0.4.3"
+nostd = "0.1.4"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))'.dependencies]
 websocket = "0.24.0"

@@ -1,9 +1,6 @@
-use std::{
-    cell::RefCell,
-    collections::VecDeque,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::sync::Mutex; // FIXME no-std
+
+use crate::stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc};
 
 use anyhow::Result;
 use url::Url;

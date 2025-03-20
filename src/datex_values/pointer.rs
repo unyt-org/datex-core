@@ -1,8 +1,8 @@
 use super::{Value, ValueResult};
+use crate::stdlib::fmt;
 use crate::{
     global::binary_codes::BinaryCode, utils::buffers::buffer_to_hex_advanced,
 };
-use std::fmt;
 
 pub struct Pointer {
     pub id_formatted: String,

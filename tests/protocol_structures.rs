@@ -1,4 +1,4 @@
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::{Cursor, Seek, SeekFrom}; // FIXME no-std
 
 use binrw::{BinRead, BinWrite};
 use datex_core::global::{

@@ -1,6 +1,6 @@
 use super::{Value, ValueResult};
 use crate::global::binary_codes::BinaryCode;
-use std::fmt;
+use crate::stdlib::fmt;
 
 pub struct Error {
     pub message: String,

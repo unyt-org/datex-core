@@ -1,5 +1,5 @@
-use std::cell::Cell;
-use std::fmt;
+use crate::stdlib::cell::Cell;
+use crate::stdlib::fmt;
 
 use crate::datex_values::{
     internal_slot, BaseUnit, Endpoint, Pointer, PrimitiveValue, Quantity,

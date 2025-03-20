@@ -1,4 +1,4 @@
-use std::fmt;
+use crate::stdlib::fmt;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct SlotIdentifier {

@@ -1,5 +1,5 @@
 use crate::crypto::crypto::Crypto;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex}; // FIXME no-std
 
 #[derive(Clone)]
 pub struct GlobalContext {

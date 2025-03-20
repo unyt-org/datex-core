@@ -1,9 +1,7 @@
-use std::{
-    cell::RefCell,
-    collections::VecDeque,
-    rc::Rc,
-    sync::{Arc, Mutex},
-    time::Duration,
+use std::sync::Mutex; // FIXME no-std
+
+use crate::stdlib::{
+    cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc, time::Duration,
 };
 
 use anyhow::Result;

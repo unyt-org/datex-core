@@ -1,14 +1,12 @@
-use datex_core::crypto::crypto_native::CryptoNative;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
-use std::cell::RefCell;
-use std::io::Write;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use datex_core::stdlib::cell::RefCell;
+use datex_core::stdlib::rc::Rc;
+use std::io::Write; // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceUUID,

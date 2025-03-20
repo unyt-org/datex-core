@@ -1,9 +1,9 @@
-use std::{collections::HashMap, ops::Div};
-
+use crate::stdlib::ops::Div;
 use lazy_static::lazy_static;
 use num_bigint::{BigInt, BigUint, Sign};
 use num_integer::Integer;
 use pad::PadStr;
+use std::collections::HashMap; // FIXME no-std
 
 static EXPONENT_MIN: i8 = -128;
 

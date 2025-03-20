@@ -1,4 +1,4 @@
-use std::env;
+use datex_core::stdlib::env;
 
 use datex_core::runtime::Runtime;
 

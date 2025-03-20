@@ -1,5 +1,5 @@
 use crate::crypto::uuid::generate_uuid;
-use std::fmt::Display;
+use crate::stdlib::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UUID(String);

@@ -2,14 +2,14 @@ use super::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
 };
-use crate::utils::uuid::UUID;
-use anyhow::Result;
-use std::fmt::Display;
-use std::{
+use crate::stdlib::fmt::Display;
+use crate::stdlib::{
     cell::RefCell,
     hash::{Hash, Hasher},
     rc::Rc,
 };
+use crate::utils::uuid::UUID;
+use anyhow::Result;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
