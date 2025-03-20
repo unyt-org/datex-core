@@ -2,10 +2,12 @@
 name = "datex-core"
 version = "0.0.3"
 description = "The DATEX Core Rust implementation"
-authors = ["Benedikt Strehle <benedikt@unyt.org>"]
+authors = [
+    "Benedikt Strehle <benedikt@unyt.org>",
+    "Jonas Strehle <jonas@unyt.org>",
+]
 edition = "2021"
 license-file = "LICENSE"
-
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -33,7 +35,7 @@ num-traits = "0.2.19"
 async-trait = "0.1.87"
 tokio = { version = "1.43.0", features = ["sync"] }
 hex = "0.4.3"
-nostd = "0.1.4"
+nostd = { version = "0.1.4", optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "xtensa")))'.dependencies]
 websocket = "0.24.0"
@@ -43,3 +45,8 @@ rand = "0.9.0"
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
+
+
+[features]
+default = ["nostd"] # default to nostd
+std = []            # use std
