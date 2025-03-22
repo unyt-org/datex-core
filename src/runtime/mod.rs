@@ -4,7 +4,6 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 
 use crate::{
-    crypto::crypto::Crypto,
     network::com_hub::ComHub,
     utils::logger::{Logger, LoggerContext},
 };
