@@ -9,7 +9,6 @@ use crate::stdlib::{
     rc::Rc,
 };
 use crate::utils::uuid::UUID;
-use anyhow::Result;
 use log::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -19,12 +18,18 @@ impl Display for ComInterfaceUUID {
         write!(f, "ComInterface({})", self.0)
     }
 }
+#[derive(Debug)]
+pub enum ComInterfaceError {
+    ConnectionError,
+    SendError,
+    ReceiveError,
+}
 
 pub trait ComInterface {
     fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
     fn get_properties(&self) -> InterfaceProperties;
     fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
-    fn connect(&mut self) -> Result<()>;
+    fn connect(&mut self) -> Result<(), ComInterfaceError>;
     fn get_uuid(&self) -> ComInterfaceUUID;
 
     fn add_socket(&self, socket: Rc<RefCell<ComInterfaceSocket>>) {

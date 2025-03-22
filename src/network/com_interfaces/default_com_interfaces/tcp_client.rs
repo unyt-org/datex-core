@@ -1,6 +1,7 @@
-use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceUUID,
+};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use anyhow::Result;
 
 use super::super::com_interface::ComInterface;
 
@@ -27,7 +28,7 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn connect(&mut self) -> Result<()> {
+    fn connect(&mut self) -> Result<(), ComInterfaceError> {
         todo!()
     }
 

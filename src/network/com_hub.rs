@@ -1,9 +1,9 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use anyhow::Result;
 use log::{error, info};
 use std::collections::HashMap; // FIXME no-std
 
+use super::com_interfaces::com_interface::ComInterfaceError;
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
@@ -59,6 +59,12 @@ impl Default for ComHub {
     }
 }
 
+#[derive(Debug)]
+pub enum ComHubError {
+    InterfaceError(ComInterfaceError),
+    InterfaceAlreadyExists,
+}
+
 impl ComHub {
     pub fn new(context: Rc<RefCell<Context>>) -> Rc<RefCell<ComHub>> {
         Rc::new(RefCell::new(ComHub {
@@ -70,13 +76,16 @@ impl ComHub {
     pub fn add_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
-    ) -> Result<()> {
+    ) -> Result<(), ComHubError> {
         let uuid = interface.borrow().get_uuid();
         if self.interfaces.contains_key(&uuid) {
-            return Err(anyhow::anyhow!("Interface already exists"));
+            return Err(ComHubError::InterfaceAlreadyExists);
         }
 
-        interface.borrow_mut().connect()?;
+        interface
+            .borrow_mut()
+            .connect()
+            .map_err(|e| ComHubError::InterfaceError(e))?;
         self.interfaces.insert(uuid, interface);
 
         Ok(())

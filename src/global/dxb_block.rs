@@ -1,6 +1,5 @@
 use std::io::{Cursor, Read}; // FIXME no-std
 
-use anyhow::Result;
 use binrw::{BinRead, BinWrite};
 use strum::Display;
 use thiserror::Error;
@@ -10,9 +9,7 @@ use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
-    routing_header::{
-        self, BlockSize, EncryptionType, RoutingHeader, SignatureType,
-    },
+    routing_header::{BlockSize, EncryptionType, RoutingHeader, SignatureType},
 };
 
 #[derive(Debug, Display, Error)]
@@ -68,7 +65,7 @@ impl DXBBlock {
         }
     }
 
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error> {
         let mut writer = Cursor::new(Vec::new());
         self.routing_header.write(&mut writer)?;
         self.block_header.write(&mut writer)?;
@@ -141,7 +138,7 @@ impl DXBBlock {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<DXBBlock> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<DXBBlock, binrw::Error> {
         let mut reader = Cursor::new(bytes);
         let routing_header = RoutingHeader::read(&mut reader)?;
 

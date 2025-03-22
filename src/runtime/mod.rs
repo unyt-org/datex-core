@@ -1,4 +1,4 @@
-use crate::stdlib::sync::Once;
+use std::sync::Once;
 
 use log::info;
 

@@ -5,7 +5,7 @@ use binrw::{
 use std::io::Cursor; // FIXME no-std
 
 pub trait Serializable: BinWrite + ReadEndian + WriteEndian {
-    fn to_bytes(&self) -> anyhow::Result<Vec<u8>>
+    fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error>
     where
         for<'a> Self::Args<'a>: Default,
     {

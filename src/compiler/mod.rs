@@ -17,15 +17,18 @@ use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 
 pub mod parser;
-use anyhow::Result;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
-
-pub fn compile(datex_script: &str) -> Result<Vec<u8>> {
-    let body = compile_body(datex_script)?;
+pub enum CompilationError {
+    InvalidRule(String),
+    SerializationError(binrw::Error),
+}
+pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
+    let body = compile_body(datex_script)
+        .map_err(|e| CompilationError::InvalidRule(e.to_string()))?;
 
     let routing_header = RoutingHeader {
         version: 2,
@@ -57,7 +60,10 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>> {
     let block =
         DXBBlock::new(routing_header, block_header, encrypted_header, body);
 
-    return Ok(block.to_bytes()?);
+    let bytes = block
+        .to_bytes()
+        .map_err(|e| CompilationError::SerializationError(e))?;
+    return Ok(bytes);
 }
 
 struct CompilationScope<'a> {

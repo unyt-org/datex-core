@@ -9,7 +9,7 @@ use datex_core::stdlib::rc::Rc;
 use std::io::Write; // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceUUID,
+    ComInterface, ComInterfaceError, ComInterfaceUUID,
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
@@ -51,7 +51,7 @@ impl ComInterface for MockupInterface {
         self.sockets.clone()
     }
 
-    fn connect(&mut self) -> anyhow::Result<()> {
+    fn connect(&mut self) -> Result<(), ComInterfaceError> {
         Ok(())
     }
 

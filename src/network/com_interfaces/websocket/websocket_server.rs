@@ -5,11 +5,12 @@ use crate::stdlib::{
     cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc, time::Duration,
 };
 
-use anyhow::Result;
 use log::debug;
 use url::Url;
 
-use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceUUID,
+};
 use crate::network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::InterfaceProperties,
     com_interface_socket::ComInterfaceSocket,
@@ -26,10 +27,18 @@ where
     sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
 }
 
+#[derive(Debug)]
+pub enum WebSocketServerError {
+    WebSocketError,
+    InvalidPort,
+}
+
 pub trait WebSocket {
     fn send_data(&self, message: &[u8]) -> bool;
     fn get_address(&self) -> Url;
-    fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>>;
+    fn connect(
+        &mut self,
+    ) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketServerError>;
 }
 
 impl<WS> WebSocketServerInterface<WS>
@@ -52,7 +61,7 @@ impl<WS> ComInterface for WebSocketServerInterface<WS>
 where
     WS: WebSocket,
 {
-    fn connect(&mut self) -> Result<()> {
+    fn connect(&mut self) -> Result<(), ComInterfaceError> {
         debug!("Connecting to WebSocket");
         //   let receive_queue = self.websocket.borrow_mut().connect()?;
         //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(

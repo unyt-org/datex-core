@@ -1,8 +1,10 @@
 use std::sync::Mutex; // FIXME no-std
 
-use crate::stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc};
+use crate::{
+    network::com_interfaces::websocket::websocket_common::WebSocketError,
+    stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc},
+};
 
-use anyhow::Result;
 use url::Url;
 use websocket::{stream::sync::NetworkStream, sync::Client, ClientBuilder};
 
@@ -21,8 +23,9 @@ pub struct WebSocketNative {
 }
 
 impl WebSocketNative {
-    fn new(address: &str) -> Result<WebSocketNative> {
-        let address = parse_url(address)?;
+    fn new(address: &str) -> Result<WebSocketNative, WebSocketError> {
+        let address =
+            parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
         Ok(WebSocketNative {
             client: None,
             receive_queue: Arc::new(Mutex::new(VecDeque::new())),
@@ -32,8 +35,9 @@ impl WebSocketNative {
 }
 
 impl WebSocket for WebSocketNative {
-    fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>> {
-        let mut client = ClientBuilder::new(self.address.as_str())?;
+    fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError> {
+        let mut client = ClientBuilder::new(self.address.as_str())
+            .map_err(|_| WebSocketError::InvalidURL)?;
         if self.address.scheme() == "wss" {
             // TODO SSL
             self.client = Some(client.connect(None).unwrap());
@@ -62,7 +66,7 @@ impl WebSocketClientInterface<WebSocketNative> {
     pub fn new(
         ctx: Rc<RefCell<Context>>,
         address: &str,
-    ) -> Result<WebSocketClientInterface<WebSocketNative>> {
+    ) -> Result<WebSocketClientInterface<WebSocketNative>, WebSocketError> {
         let websocket = WebSocketNative::new(address)?;
 
         Ok(WebSocketClientInterface::new_with_web_socket(
