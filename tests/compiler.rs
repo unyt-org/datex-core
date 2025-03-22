@@ -6,6 +6,7 @@ use datex_core::{
     decompiler::decompile_body,
     runtime::Runtime,
 };
+use log::info;
 use pest::Parser;
 
 #[test]
@@ -37,8 +38,8 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
     let decompiled_color =
         decompile_body(runtime.context.clone(), &dxb_body, true, true, true);
 
-    println!("original   : {}", datex_script);
-    println!("decompiled : {}", decompiled_color);
+    info!("original   : {}", datex_script);
+    info!("decompiled : {}", decompiled_color);
     assert_eq!(datex_script, decompiled)
 }
 
@@ -51,15 +52,14 @@ fn compare_compiled(datex_script: &str, expected: &str) {
     let decompiled =
         decompile_body(runtime.context.clone(), &dxb_body, false, false, false);
 
-    println!("original   : {}", datex_script);
-    println!("expected : {}", expected);
-    println!("decompiled : {}", decompiled_color);
+    info!("original   : {}", datex_script);
+    info!("expected : {}", expected);
+    info!("decompiled : {}", decompiled_color);
     assert_eq!(expected, decompiled)
 }
 
 #[test]
 pub fn compile_raw_tokens() {
     let dxb = DatexParser::parse(Rule::datex, "1;2");
-
-    println!("{:#?}", dxb);
+    info!("{:#?}", dxb);
 }

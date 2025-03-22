@@ -10,6 +10,7 @@ use crate::stdlib::{
 };
 use crate::utils::uuid::UUID;
 use anyhow::Result;
+use log::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -55,8 +56,8 @@ pub trait ComInterface {
             let blocks: Vec<Vec<u8>> =
                 socket_mut.send_queue.drain(..).collect::<Vec<_>>();
 
-            println!("Flushing {} blocks", blocks.len());
-            println!("Socket: {:?}", socket_mut.uuid);
+            debug!("Flushing {} blocks", blocks.len());
+            debug!("Socket: {:?}", socket_mut.uuid);
 
             for block in blocks {
                 self.send_block(&block, &socket_mut);

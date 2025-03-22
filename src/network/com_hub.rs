@@ -1,7 +1,7 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use anyhow::Result;
-use log::info;
+use log::{error, info};
 use std::collections::HashMap; // FIXME no-std
 
 use super::com_interfaces::{
@@ -96,7 +96,7 @@ impl ComHub {
         block: &DXBBlock,
         socket: &RefCell<ComInterfaceSocket>,
     ) {
-        println!("Received block: {:?}", block);
+        info!("Received block: {:?}", block);
 
         // TODO: routing
 
@@ -235,7 +235,7 @@ impl ComHub {
                     socket_ref.queue_outgoing_block(bytes);
                 }
                 Err(err) => {
-                    eprintln!("Failed to convert block to bytes: {:?}", err);
+                    error!("Failed to convert block to bytes: {:?}", err);
                 }
             }
         }

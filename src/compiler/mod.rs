@@ -217,8 +217,6 @@ impl<'a> CompilationScope<'a> {
 pub fn compile_body(datex_script: &str) -> Result<Vec<u8>, Error<Rule>> {
     let pairs = DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
 
-    // println!("{:}", res);
-
     let mut buffer = Vec::with_capacity(256);
     let compilation_scope = CompilationScope {
         buffer: &mut buffer,
@@ -237,7 +235,6 @@ fn parse_statements(
     for pair in pairs {
         match pair.as_rule() {
             Rule::statement => {
-                // println!("statement {:#?}", pair);
                 for inner in pair.into_inner() {
                     parse(&mut compilation_scope, inner)
                 }
