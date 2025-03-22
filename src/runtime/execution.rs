@@ -1,3 +1,5 @@
+use log::{debug, error, info};
+
 use crate::stdlib::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -22,18 +24,13 @@ fn execute_loop(
     index: &Cell<usize>,
     is_end_instruction: &Cell<bool>,
 ) -> ValueResult {
-    let logger = Logger::new_for_development(
-        ctx.borrow().logger_context.clone(),
-        "DATEX Runtime".to_string(),
-    );
-
-    let mut stack: Stack = Stack::new(&logger);
+    let mut stack: Stack = Stack::new();
 
     let instruction_iterator =
         body::iterate_instructions(dxb_body, index, is_end_instruction);
 
     for instruction in instruction_iterator {
-        logger.debug(&instruction.to_string());
+        debug!("{}", &instruction);
 
         let code = instruction.code;
 
@@ -42,16 +39,16 @@ fn execute_loop(
         let has_value = instruction.value.is_some();
 
         let error = match code {
-            BinaryCode::ADD => binary_operation(code, &mut stack, &logger),
-            BinaryCode::SUBTRACT => binary_operation(code, &mut stack, &logger),
-            BinaryCode::MULTIPLY => binary_operation(code, &mut stack, &logger),
-            BinaryCode::DIVIDE => binary_operation(code, &mut stack, &logger),
-            BinaryCode::MODULO => binary_operation(code, &mut stack, &logger),
-            BinaryCode::POWER => binary_operation(code, &mut stack, &logger),
-            BinaryCode::AND => binary_operation(code, &mut stack, &logger),
-            BinaryCode::OR => binary_operation(code, &mut stack, &logger),
+            BinaryCode::ADD => binary_operation(code, &mut stack),
+            BinaryCode::SUBTRACT => binary_operation(code, &mut stack),
+            BinaryCode::MULTIPLY => binary_operation(code, &mut stack),
+            BinaryCode::DIVIDE => binary_operation(code, &mut stack),
+            BinaryCode::MODULO => binary_operation(code, &mut stack),
+            BinaryCode::POWER => binary_operation(code, &mut stack),
+            BinaryCode::AND => binary_operation(code, &mut stack),
+            BinaryCode::OR => binary_operation(code, &mut stack),
 
-            BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack, &logger),
+            BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack),
 
             _ => {
                 // add value to stack
@@ -72,7 +69,7 @@ fn execute_loop(
 
         if error.is_some() {
             let error_val = error.unwrap();
-            logger.error(&format!("error: {}", &error_val));
+            error!("error: {}", &error_val);
             return Err(error_val);
         }
 
@@ -88,20 +85,20 @@ fn execute_loop(
             // push subscope result to stack
             else {
                 let res = sub_result.ok().unwrap();
-                logger.success(&format!("sub result: {}", res));
+                info!("sub result: {}", res);
                 stack.push(res);
             }
         }
     }
 
-    clear_stack(&mut stack, &logger);
+    clear_stack(&mut stack);
 
     return Ok(stack.pop_or_void());
 }
 
 // reset stack
 // clear from end and set final value as first stack value of new stack
-fn clear_stack(stack: &mut Stack, logger: &Logger) -> Option<Error> {
+fn clear_stack(stack: &mut Stack) -> Option<Error> {
     if stack.size() == 0 {
         return None;
     }; // nothing to clear
@@ -113,7 +110,7 @@ fn clear_stack(stack: &mut Stack, logger: &Logger) -> Option<Error> {
 
         // type cast
         if next.is::<Type>() {
-            logger.debug(&format!("cast {next} {current}"));
+            debug!("cast {next} {current}");
             let dx_type = next.downcast::<Type>();
             if dx_type.is_ok() {
                 let res = current.cast(*dx_type.ok().unwrap());
@@ -130,7 +127,7 @@ fn clear_stack(stack: &mut Stack, logger: &Logger) -> Option<Error> {
         }
         // other apply
         else {
-            logger.debug(&format!("apply {next} {current}"));
+            debug!("apply {next} {current}");
         }
     }
 
@@ -141,11 +138,7 @@ fn clear_stack(stack: &mut Stack, logger: &Logger) -> Option<Error> {
 
 // operator handlers
 
-fn binary_operation(
-    code: BinaryCode,
-    stack: &mut Stack,
-    logger: &Logger,
-) -> Option<Error> {
+fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
     stack.print();
 
     // pop 2 operands from stack
@@ -164,7 +157,7 @@ fn binary_operation(
     // binary operation
     match s2.binary_operation(code, s1) {
         Ok(result) => {
-            logger.success(&format!("binary op result: {}", result));
+            info!("binary op result: {}", result);
             stack.push(result);
             return None;
         }

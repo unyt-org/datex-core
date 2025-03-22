@@ -1,6 +1,7 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use anyhow::Result;
+use log::info;
 use std::collections::HashMap; // FIXME no-std
 
 use super::com_interfaces::{
@@ -26,7 +27,6 @@ pub struct ComHub {
     >,
     //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
-    pub logger: Option<Logger>,
     pub context: Rc<RefCell<Context>>,
 }
 
@@ -54,7 +54,6 @@ impl Default for ComHub {
         ComHub {
             interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
-            logger: None,
             context: Rc::new(RefCell::new(Context::default())),
             incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
         }
@@ -63,12 +62,7 @@ impl Default for ComHub {
 
 impl ComHub {
     pub fn new(context: Rc<RefCell<Context>>) -> Rc<RefCell<ComHub>> {
-        let logger = Logger::new_for_production(
-            context.borrow().logger_context.clone(),
-            "ComHub".to_string(),
-        );
         Rc::new(RefCell::new(ComHub {
-            logger: Some(logger),
             context,
             ..ComHub::default()
         }))
@@ -250,9 +244,7 @@ impl ComHub {
 
     fn update_sockets(&self) {
         // update sockets, collect incoming data into full blocks
-        if let Some(logger) = &self.logger {
-            logger.info("Collecting incoming data from all sockets");
-        }
+        info!("Collecting incoming data from all sockets");
         for socket in &self.iterate_all_sockets() {
             let mut socket_ref = socket.borrow_mut();
             socket_ref.collect_incoming_data();

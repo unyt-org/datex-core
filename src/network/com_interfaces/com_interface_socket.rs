@@ -1,3 +1,5 @@
+use log::info;
+
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::stdlib::fmt::Display;
@@ -35,8 +37,6 @@ pub struct ComInterfaceSocket {
     pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
     pub send_queue: VecDeque<Vec<u8>>,
     pub block_collector: BlockCollector,
-
-    pub logger: Option<Logger>,
 }
 
 impl ComInterfaceSocket {
@@ -49,10 +49,7 @@ impl ComInterfaceSocket {
     }
 
     pub fn collect_incoming_data(&mut self) {
-        if let Some(logger) = &self.logger {
-            logger
-                .info(&format!("Collecting incoming data for {}", &self.uuid));
-        }
+        info!("Collecting incoming data for {}", &self.uuid);
         self.block_collector.update();
     }
 
@@ -60,29 +57,22 @@ impl ComInterfaceSocket {
         self.send_queue.push_back(block.to_vec());
     }
 
-    pub fn new(
-        interface_uuid: ComInterfaceUUID,
-        logger: Option<Logger>,
-    ) -> ComInterfaceSocket {
+    pub fn new(interface_uuid: ComInterfaceUUID) -> ComInterfaceSocket {
         let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
         ComInterfaceSocket::new_with_receive_queue(
             interface_uuid,
-            logger,
             receive_queue,
         )
     }
 
     pub fn new_with_receive_queue(
         interface_uuid: ComInterfaceUUID,
-        logger: Option<Logger>,
         receive_queue: Arc<Mutex<VecDeque<u8>>>,
     ) -> ComInterfaceSocket {
         ComInterfaceSocket {
-            logger: logger.clone(),
             receive_queue: receive_queue.clone(),
-            block_collector: BlockCollector::new_with_logger(
+            block_collector: BlockCollector::new_with_receive_queue(
                 receive_queue.clone(),
-                logger,
             ),
             interface_uuid,
             endpoint: None,

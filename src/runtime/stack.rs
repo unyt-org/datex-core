@@ -1,27 +1,22 @@
-use crate::{
-    datex_values::{Error, PrimitiveValue, Value, ValueResult},
-    utils::logger::Logger,
-};
+use log::info;
 
-pub struct Stack<'a> {
+use crate::datex_values::{Error, PrimitiveValue, Value, ValueResult};
+
+pub struct Stack {
     stack: Vec<Box<dyn Value>>,
-    logger: &'a Logger,
 }
 
-impl Stack<'_> {
-    pub fn new<'a>(logger: &'a Logger) -> Stack<'a> {
-        Stack {
-            stack: Vec::new(),
-            logger,
-        }
+impl Stack {
+    pub fn new() -> Stack {
+        Stack { stack: Vec::new() }
     }
 
     // custom stack operations
 
     pub fn print(&mut self) {
-        self.logger.plain("[CURRENT STACK]");
+        info!("[CURRENT STACK]");
         for item in &self.stack {
-            self.logger.plain(&item.to_string())
+            info!("{}", &item.to_string())
         }
     }
 
