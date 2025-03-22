@@ -12,6 +12,7 @@ pub mod datex_values;
 pub mod decompiler;
 pub mod generator;
 pub mod global;
+pub mod logger;
 pub mod network;
 pub mod parser;
 pub mod runtime;

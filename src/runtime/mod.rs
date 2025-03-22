@@ -1,3 +1,6 @@
+use log::info;
+
+use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -30,11 +33,13 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn new(context: Rc<RefCell<Context>>) -> Runtime {
+        init_logger();
         let logger = Logger::new_for_development(
             context.borrow().logger_context.clone(),
             "DATEX".to_string(),
         );
-        logger.success("Runtime initialized!");
+        logger.info("Runtime initialized (old)!");
+        info!("Runtime initialized!");
         return Runtime {
             version: VERSION.to_string(),
             context: context.clone(),
