@@ -1,3 +1,5 @@
+use crate::stdlib::sync::Once;
+
 use log::info;
 
 use crate::logger::init_logger;
@@ -16,6 +18,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
 pub struct Context {}
+static INIT: Once = Once::new();
 
 pub struct Runtime {
     pub version: String,
@@ -26,7 +29,9 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn new(context: Rc<RefCell<Context>>) -> Runtime {
-        init_logger();
+        INIT.call_once(|| {
+            init_logger();
+        });
         info!("Runtime initialized!");
         return Runtime {
             version: VERSION.to_string(),

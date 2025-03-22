@@ -21,8 +21,7 @@ cfg_if! {
         }
     }
 
-    else if #[cfg(feature = "env_logger")]
-    {
+    else if #[cfg(feature = "env_logger")] {
         use env_logger;
         use log::info;
         pub fn init_logger() {
@@ -31,8 +30,7 @@ cfg_if! {
         }
     }
 
-    else
-    {
+    else {
         pub fn init_logger() {
             println!("No logger enabled. Logs will not be recorded.");
         }
