@@ -68,7 +68,6 @@ impl WebSocketClientInterface<WebSocketNative> {
         Ok(WebSocketClientInterface::new_with_web_socket(
             ctx,
             Rc::new(RefCell::new(websocket)),
-            None,
         ))
     }
 }

@@ -13,7 +13,6 @@ use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::Context;
-use crate::utils::logger::Logger;
 struct DynamicEndpointProperties {
     pub known_since: u64,
     pub distance: u32,

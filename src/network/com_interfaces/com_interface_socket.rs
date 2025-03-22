@@ -5,9 +5,7 @@ use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::stdlib::fmt::Display;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::utils::uuid::UUID;
-use crate::{
-    datex_values::Endpoint, global::dxb_block::DXBBlock, utils::logger::Logger,
-};
+use crate::{datex_values::Endpoint, global::dxb_block::DXBBlock};
 use std::sync::Mutex; // FIXME no-std
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,9 +69,7 @@ impl ComInterfaceSocket {
     ) -> ComInterfaceSocket {
         ComInterfaceSocket {
             receive_queue: receive_queue.clone(),
-            block_collector: BlockCollector::new_with_receive_queue(
-                receive_queue.clone(),
-            ),
+            block_collector: BlockCollector::new(receive_queue.clone()),
             interface_uuid,
             endpoint: None,
             is_connected: false,

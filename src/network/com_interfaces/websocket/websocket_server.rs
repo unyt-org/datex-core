@@ -6,19 +6,15 @@ use crate::stdlib::{
 };
 
 use anyhow::Result;
+use log::debug;
 use url::Url;
 
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use crate::utils::uuid::UUID;
-use crate::{
-    network::com_interfaces::{
-        com_interface::ComInterface,
-        com_interface_properties::InterfaceProperties,
-        com_interface_socket::ComInterfaceSocket,
-    },
-    runtime::Context,
-    utils::logger::Logger,
+use crate::network::com_interfaces::{
+    com_interface::ComInterface, com_interface_properties::InterfaceProperties,
+    com_interface_socket::ComInterfaceSocket,
 };
+use crate::utils::uuid::UUID;
 
 pub struct WebSocketServerInterface<WS>
 where
@@ -27,7 +23,6 @@ where
     uuid: ComInterfaceUUID,
     pub web_socket_server: Rc<RefCell<WS>>,
     pub web_sockets: HashMap<ComInterfaceSocket, WS>,
-    pub logger: Option<Logger>,
     sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
 }
 
@@ -43,13 +38,11 @@ where
 {
     pub fn new_with_web_socket_server(
         web_socket_server: Rc<RefCell<WS>>,
-        logger: Option<Logger>,
     ) -> WebSocketServerInterface<WS> {
         WebSocketServerInterface {
             uuid: ComInterfaceUUID(UUID::new()),
             web_sockets: HashMap::new(),
             web_socket_server,
-            logger,
             sockets: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -60,9 +53,7 @@ where
     WS: WebSocket,
 {
     fn connect(&mut self) -> Result<()> {
-        if let Some(logger) = &self.logger {
-            logger.debug(&"Connecting to WebSocket");
-        }
+        debug!("Connecting to WebSocket");
         //   let receive_queue = self.websocket.borrow_mut().connect()?;
         //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
         // 	self.logger.clone(),

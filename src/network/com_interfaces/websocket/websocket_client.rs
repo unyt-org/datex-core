@@ -5,6 +5,7 @@ use crate::stdlib::{
 };
 
 use anyhow::Result;
+use log::{debug, info};
 use url::Url;
 
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
@@ -16,7 +17,6 @@ use crate::{
         com_interface_socket::ComInterfaceSocket,
     },
     runtime::Context,
-    utils::logger::Logger,
 };
 
 pub struct WebSocketClientInterface<WS>
@@ -25,7 +25,6 @@ where
 {
     pub uuid: ComInterfaceUUID,
     pub web_socket: Rc<RefCell<WS>>,
-    pub logger: Option<Logger>,
     context: Rc<RefCell<Context>>,
     socket: Option<Rc<RefCell<ComInterfaceSocket>>>,
 }
@@ -43,13 +42,11 @@ where
     pub fn new_with_web_socket(
         context: Rc<RefCell<Context>>,
         web_socket: Rc<RefCell<WS>>,
-        logger: Option<Logger>,
     ) -> WebSocketClientInterface<WS> {
         WebSocketClientInterface {
             uuid: ComInterfaceUUID(UUID::new()),
             web_socket,
             context,
-            logger,
             socket: None,
         }
     }
@@ -81,19 +78,14 @@ where
     }
 
     fn connect(&mut self) -> Result<()> {
-        if let Some(logger) = &self.logger {
-            logger.debug(&"Connecting to WebSocket");
-        }
+        debug!("Connecting to WebSocket");
         let receive_queue = self.web_socket.borrow_mut().connect()?;
         let socket = ComInterfaceSocket::new_with_receive_queue(
             self.uuid.clone(),
-            self.logger.clone(),
             receive_queue,
         );
         self.socket = Some(Rc::new(RefCell::new(socket)));
-        if let Some(logger) = &self.logger {
-            logger.success(&"Adding WebSocket");
-        }
+        info!("Adding WebSocket");
 
         Ok(())
     }
