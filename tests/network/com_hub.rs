@@ -36,7 +36,7 @@ impl Default for MockupInterface {
 }
 
 impl ComInterface for MockupInterface {
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) {
         self.last_block = Some(block.to_vec());
     }
 
@@ -268,7 +268,7 @@ pub fn test_receive_multiple() {
         let receive_queue = socket_ref.get_receive_queue();
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         for block in block_bytes.iter() {
-            let _ = receive_queue_mut.write(&block);
+            let _ = receive_queue_mut.write(block);
         }
     }
 
