@@ -6,6 +6,7 @@ pub trait Crypto: Send + Sync {
         data: Vec<u8>,
         public_key: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>>;
+
     fn decrypt_rsa(
         &self,
         data: Vec<u8>,
