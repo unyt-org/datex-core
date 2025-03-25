@@ -257,13 +257,11 @@ impl Endpoint {
     }
 
     fn random_anonymous_id() -> [u8; 18] {
-        let mut buffer = random::random_bytes_slice();
-        for _ in 0..3 {
-            if buffer.iter().any(|&b| b != 0) {
-                return buffer;
-            }
-            buffer = random::random_bytes_slice();
+        let buffer = random::random_bytes_slice();
+        if buffer.iter().any(|&b| b != 0) {
+            return buffer;
         }
+        // if all bytes are 0, we panic - this should not happen under normal circumstances
         panic!("Could not generate random anonymous id");
     }
 
