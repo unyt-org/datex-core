@@ -205,7 +205,6 @@ impl Endpoint {
         }
 
         let endpoint = match name_part {
-            // TODO shall we allow instance for @@any?
             s if s.starts_with(&format!(
                 "{}{}",
                 Endpoint::PREFIX_ANONYMOUS,
@@ -218,7 +217,6 @@ impl Endpoint {
                         instance,
                     })
                 }
-            // TODO shall we allow instance for @@local?
             s if s.starts_with(&format!(
                 "{}{}",
                 Endpoint::PREFIX_ANONYMOUS,
