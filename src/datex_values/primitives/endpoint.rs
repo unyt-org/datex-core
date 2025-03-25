@@ -276,18 +276,13 @@ impl Endpoint {
                 is_null = true;
                 continue;
             }
-            // only allowed ranges 0-9, A-Z, a-z, "_" and "-"
+            // only allowed ranges 0-9, a-z, "_" and "-"
             if !(*c >= 0x30 && *c <= 0x39) && // 0-9
-                !(*c >= 0x41 && *c <= 0x5A) && // A-Z
                 !(*c >= 0x61 && *c <= 0x7A) && // a-z
                 *c != 0x2D && // -
                 *c != 0x5F
             {
                 // _
-                return false;
-            }
-            // forbidden characters: O, I
-            if *c == 0x4F || *c == 0x49 {
                 return false;
             }
         }
@@ -553,6 +548,9 @@ mod test {
         assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_from_string("@äüö");
+        assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
+
+        let endpoint = Endpoint::new_from_string("@Jonas");
         assert_eq!(endpoint, Err(InvalidEndpointError::InvalidCharacters));
 
         let endpoint = Endpoint::new_from_string(&format!(
