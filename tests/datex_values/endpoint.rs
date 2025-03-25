@@ -10,5 +10,5 @@ fn new_random() {
     init_global_context();
     let endpoint = Endpoint::new_random();
     assert_eq!(endpoint.type_, EndpointType::Anonymous);
-    assert_eq!(endpoint.instance, EndpointInstance::Main);
+    assert_eq!(endpoint.instance, EndpointInstance::Any);
 }

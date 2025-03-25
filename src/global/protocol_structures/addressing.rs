@@ -14,19 +14,15 @@ pub struct Endpoint {
 )]
 #[brw(repr(u8))]
 pub enum EndpointType {
-    Local = 0,
-    Person = 1,
-    Institution = 2,
-    Anonymous = 3,
     #[default]
-    Any = 255,
+    Person = 0,
+    Institution = 1,
+    Anonymous = 2,
 }
 
-// min: 1 byte
-// max: 21 byte
+// 21 bytes
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct Sender {
     pub sender_type: EndpointType,
-    #[brw(if(sender_type.clone() != EndpointType::Any))]
     pub sender_id: [u8; 20],
 }

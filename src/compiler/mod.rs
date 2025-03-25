@@ -39,9 +39,10 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
         scope_id: 0,
         block_index: 0,
         block_increment: 0,
-        sender: addressing::Sender {
-            sender_type: addressing::EndpointType::Person,
-            sender_id: [0; 20],
+        sender: addressing::Endpoint {
+            type_: addressing::EndpointType::Person,
+            identifier: [0; 18],
+            instance: 0,
         },
         receivers: routing_header::Receivers {
             flags: routing_header::ReceiverFlags::new()
@@ -133,7 +134,7 @@ impl<'a> CompilationScope<'a> {
                 .replace("\\n", "\n"),
             "$1",
         )
-        .into_owned()
+            .into_owned()
     }
 
     fn insert_float64(&mut self, float64: f64) {

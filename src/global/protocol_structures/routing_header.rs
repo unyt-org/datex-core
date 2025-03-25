@@ -2,7 +2,7 @@ use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
 use super::{
-    addressing::{Endpoint, Sender},
+    addressing::Endpoint,
     serializable::Serializable,
 };
 
@@ -116,7 +116,7 @@ pub struct Receivers {
     pub endpoints_with_keys: Option<ReceiverEndpointsWithKeys>,
 }
 
-// min: 11 byte + 2 byte + 1 byte + 1 byte = 15 bytes
+// min: 11 byte + 2 byte + 21 byte + 1 byte = 35 bytes
 #[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
@@ -145,7 +145,7 @@ pub struct RoutingHeader {
     )]
     pub block_size_u32: Option<u32>,
 
-    pub sender: Sender,
+    pub sender: Endpoint,
     pub receivers: Receivers,
 }
 
@@ -162,7 +162,7 @@ impl Default for RoutingHeader {
             block_increment: 0,
             block_size_u16: Some(26),
             block_size_u32: None,
-            sender: Sender::default(),
+            sender: Endpoint::default(),
             receivers: Receivers::default(),
         }
     }
