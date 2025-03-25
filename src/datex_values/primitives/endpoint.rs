@@ -5,7 +5,8 @@ use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
 use binrw::{BinRead, BinWrite};
 use hex::decode;
-use std::io::Cursor; // FIXME no-std
+// FIXME no-std
+use std::io::Cursor;
 
 #[derive(BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum EndpointInstance {
@@ -61,7 +62,7 @@ impl Endpoint {
             Self::random_anonymous_id(),
             EndpointInstance::Main,
         )
-        .unwrap();
+            .unwrap();
     }
 
     // create default id endpoint (@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
@@ -120,10 +121,10 @@ impl Endpoint {
             return Ok(Endpoint::ANY);
         } else if name
             == format!(
-                "{}{}",
-                Endpoint::PREFIX_ANONYMOUS,
-                Endpoint::ALIAS_LOCAL
-            )
+            "{}{}",
+            Endpoint::PREFIX_ANONYMOUS,
+            Endpoint::ALIAS_LOCAL
+        )
         {
             return Ok(Endpoint::LOCAL);
         }
@@ -155,26 +156,26 @@ impl Endpoint {
                 Endpoint::PREFIX_ANONYMOUS,
                 Endpoint::ALIAS_ANY
             )) =>
-            {
-                Ok(Endpoint {
-                    type_: EndpointType::Any,
-                    identifier: [255u8; 18],
-                    instance,
-                })
-            }
+                {
+                    Ok(Endpoint {
+                        type_: EndpointType::Any,
+                        identifier: [255u8; 18],
+                        instance,
+                    })
+                }
             // TODO shall we allow instance for @@local?
             s if s.starts_with(&format!(
                 "{}{}",
                 Endpoint::PREFIX_ANONYMOUS,
                 Endpoint::ALIAS_LOCAL
             )) =>
-            {
-                Ok(Endpoint {
-                    type_: EndpointType::Local,
-                    identifier: [0u8; 18],
-                    instance,
-                })
-            }
+                {
+                    Ok(Endpoint {
+                        type_: EndpointType::Local,
+                        identifier: [0u8; 18],
+                        instance,
+                    })
+                }
             s if s.starts_with(Endpoint::PREFIX_ANONYMOUS) => {
                 let s = s.trim_start_matches(Endpoint::PREFIX_ANONYMOUS);
                 if s.len() < 18 * 2 {
@@ -256,12 +257,12 @@ impl Endpoint {
     }
 
     fn random_anonymous_id() -> [u8; 18] {
-        let mut buffer = random::random_bytes();
+        let mut buffer = random::random_bytes_slice();
         for _ in 0..3 {
             if buffer.iter().any(|&b| b != 0) {
                 return buffer;
             }
-            buffer = random::random_bytes();
+            buffer = random::random_bytes_slice();
         }
         panic!("Could not generate random anonymous id");
     }
@@ -466,7 +467,7 @@ mod test {
         let endpoint = Endpoint::new_from_string(
             &format!("@@{}", "A".repeat(18 * 2)).to_string(),
         )
-        .unwrap();
+            .unwrap();
         assert!(endpoint.type_ == EndpointType::Anonymous);
         assert!(endpoint.instance == EndpointInstance::Main);
         assert_eq!(endpoint.to_string(), format!("@@{}", "A".repeat(18 * 2)));
@@ -659,7 +660,7 @@ mod test {
         let endpoint = Endpoint::new_from_string(
             "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/42",
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(
             endpoint.to_string(),
             "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/42"
