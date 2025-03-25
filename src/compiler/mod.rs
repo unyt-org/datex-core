@@ -134,7 +134,7 @@ impl<'a> CompilationScope<'a> {
                 .replace("\\n", "\n"),
             "$1",
         )
-            .into_owned()
+        .into_owned()
     }
 
     fn insert_float64(&mut self, float64: f64) {

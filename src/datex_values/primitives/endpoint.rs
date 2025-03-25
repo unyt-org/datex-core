@@ -24,9 +24,7 @@ pub enum EndpointInstance {
 }
 
 impl EndpointInstance {
-    pub fn new(
-        instance: u16,
-    ) -> EndpointInstance {
+    pub fn new(instance: u16) -> EndpointInstance {
         match instance {
             0 => EndpointInstance::Any,
             65535 => EndpointInstance::All,
@@ -97,10 +95,7 @@ impl Endpoint {
 
     // create a random anonymous endpoint (e.g. @@8D928D1F244C76289C8A558DCB6C9D82896F)
     pub fn new_random() -> Endpoint {
-        Self::new_anonymous(
-            Self::random_anonymous_id(),
-            EndpointInstance::Any,
-        )
+        Self::new_anonymous(Self::random_anonymous_id(), EndpointInstance::Any)
             .unwrap()
     }
 
@@ -109,37 +104,34 @@ impl Endpoint {
         identifier: [u8; 18],
         instance: EndpointInstance,
     ) -> Result<Endpoint, InvalidEndpointError> {
-
         // @@any endpoint
         if identifier == [255; 18] {
-            return
-                if instance == EndpointInstance::Any {
-                    Ok(Endpoint::ANY)
-                } else if instance == EndpointInstance::All {
-                    Ok(Endpoint::ANY_INSTANCE)
-                } else {
-                    Ok(Endpoint {
-                        type_: EndpointType::Anonymous,
-                        identifier,
-                        instance,
-                    })
-                };
+            return if instance == EndpointInstance::Any {
+                Ok(Endpoint::ANY)
+            } else if instance == EndpointInstance::All {
+                Ok(Endpoint::ANY_INSTANCE)
+            } else {
+                Ok(Endpoint {
+                    type_: EndpointType::Anonymous,
+                    identifier,
+                    instance,
+                })
+            };
         }
 
         // @@local endpoint
         if identifier == [0; 18] {
-            return
-                if instance == EndpointInstance::Any {
-                    Ok(Endpoint::LOCAL)
-                } else if instance == EndpointInstance::All {
-                    Ok(Endpoint::LOCAL_INSTANCES)
-                } else {
-                    Ok(Endpoint {
-                        type_: EndpointType::Anonymous,
-                        identifier,
-                        instance,
-                    })
-                };
+            return if instance == EndpointInstance::Any {
+                Ok(Endpoint::LOCAL)
+            } else if instance == EndpointInstance::All {
+                Ok(Endpoint::LOCAL_INSTANCES)
+            } else {
+                Ok(Endpoint {
+                    type_: EndpointType::Anonymous,
+                    identifier,
+                    instance,
+                })
+            };
         }
 
         Ok(Endpoint {
@@ -176,10 +168,10 @@ impl Endpoint {
             return Ok(Endpoint::ANY);
         } else if name
             == format!(
-            "{}{}",
-            Endpoint::PREFIX_ANONYMOUS,
-            Endpoint::ALIAS_LOCAL
-        )
+                "{}{}",
+                Endpoint::PREFIX_ANONYMOUS,
+                Endpoint::ALIAS_LOCAL
+            )
         {
             return Ok(Endpoint::LOCAL);
         }
@@ -210,25 +202,25 @@ impl Endpoint {
                 Endpoint::PREFIX_ANONYMOUS,
                 Endpoint::ALIAS_ANY
             )) =>
-                {
-                    Ok(Endpoint {
-                        type_: EndpointType::Anonymous,
-                        identifier: [255u8; 18],
-                        instance,
-                    })
-                }
+            {
+                Ok(Endpoint {
+                    type_: EndpointType::Anonymous,
+                    identifier: [255u8; 18],
+                    instance,
+                })
+            }
             s if s.starts_with(&format!(
                 "{}{}",
                 Endpoint::PREFIX_ANONYMOUS,
                 Endpoint::ALIAS_LOCAL
             )) =>
-                {
-                    Ok(Endpoint {
-                        type_: EndpointType::Anonymous,
-                        identifier: [0u8; 18],
-                        instance,
-                    })
-                }
+            {
+                Ok(Endpoint {
+                    type_: EndpointType::Anonymous,
+                    identifier: [0u8; 18],
+                    instance,
+                })
+            }
             s if s.starts_with(Endpoint::PREFIX_ANONYMOUS) => {
                 let s = s.trim_start_matches(Endpoint::PREFIX_ANONYMOUS);
                 if s.len() < 18 * 2 {
@@ -437,11 +429,21 @@ impl Display for Endpoint {
             EndpointType::Anonymous => {
                 // is @@any
                 if self.identifier == [255; 18] {
-                    write!(f, "{}{}", Endpoint::PREFIX_ANONYMOUS, Endpoint::ALIAS_ANY)?;
+                    write!(
+                        f,
+                        "{}{}",
+                        Endpoint::PREFIX_ANONYMOUS,
+                        Endpoint::ALIAS_ANY
+                    )?;
                 }
                 // is @@local
                 else if self.identifier == [0; 18] {
-                    write!(f, "{}{}", Endpoint::PREFIX_ANONYMOUS, Endpoint::ALIAS_LOCAL)?;
+                    write!(
+                        f,
+                        "{}{}",
+                        Endpoint::PREFIX_ANONYMOUS,
+                        Endpoint::ALIAS_LOCAL
+                    )?;
                 }
                 // is normal anonymous endpoint
                 else {
@@ -523,7 +525,7 @@ mod test {
         let endpoint = Endpoint::new_from_string(
             &format!("@@{}", "A".repeat(18 * 2)).to_string(),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(endpoint.type_, EndpointType::Anonymous);
         assert_eq!(endpoint.instance, EndpointInstance::Any);
         assert_eq!(endpoint.to_string(), format!("@@{}", "A".repeat(18 * 2)));
@@ -653,39 +655,61 @@ mod test {
     #[test]
     fn special_instances() {
         let endpoint = Endpoint::new_from_string("@+unyt/0");
-        assert_eq!(endpoint, Ok(
-            Endpoint {
+        assert_eq!(
+            endpoint,
+            Ok(Endpoint {
                 type_: EndpointType::Institution,
                 identifier: Endpoint::name_to_bytes("unyt").unwrap(),
                 instance: EndpointInstance::Any,
-            }
-        ));
+            })
+        );
 
         let endpoint = Endpoint::new_from_string("@+unyt/65535");
-        assert_eq!(endpoint, Ok(
-            Endpoint {
+        assert_eq!(
+            endpoint,
+            Ok(Endpoint {
                 type_: EndpointType::Institution,
                 identifier: Endpoint::name_to_bytes("unyt").unwrap(),
                 instance: EndpointInstance::All,
-            }
-        ));
+            })
+        );
 
         let endpoint = Endpoint::new_from_string("@+unyt/*");
-        assert_eq!(endpoint, Ok(
-            Endpoint {
+        assert_eq!(
+            endpoint,
+            Ok(Endpoint {
                 type_: EndpointType::Institution,
                 identifier: Endpoint::name_to_bytes("unyt").unwrap(),
                 instance: EndpointInstance::All,
-            }
-        ));
+            })
+        );
     }
 
     #[test]
     fn any_instance() {
         // @@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF/0
         let binary = [
-            EndpointType::Anonymous as u8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            0x00, 0x00
+            EndpointType::Anonymous as u8,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0xFF,
+            0x00,
+            0x00,
         ];
         let endpoint = Endpoint::new_from_binary(binary);
         assert_eq!(endpoint, Ok(Endpoint::ANY));
@@ -705,11 +729,13 @@ mod test {
         assert_eq!(endpoint, Endpoint::LOCAL);
 
         let endpoint =
-            Endpoint::new_from_string("@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF").unwrap();
+            Endpoint::new_from_string("@@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+                .unwrap();
         assert_eq!(endpoint, Endpoint::ANY);
 
         let endpoint =
-            Endpoint::new_from_string("@@000000000000000000000000000000000000").unwrap();
+            Endpoint::new_from_string("@@000000000000000000000000000000000000")
+                .unwrap();
         assert_eq!(endpoint, Endpoint::LOCAL);
     }
 
@@ -736,8 +762,7 @@ mod test {
     #[test]
     fn format_anonymous_endpoint() {
         let endpoint =
-            Endpoint::new_anonymous([0xaa; 18], EndpointInstance::Any)
-                .unwrap();
+            Endpoint::new_anonymous([0xaa; 18], EndpointInstance::Any).unwrap();
         assert_eq!(
             endpoint.to_string(),
             "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -746,7 +771,7 @@ mod test {
         let endpoint = Endpoint::new_from_string(
             "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/42",
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(
             endpoint.to_string(),
             "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/42"

@@ -1,10 +1,7 @@
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
-use super::{
-    addressing::Endpoint,
-    serializable::Serializable,
-};
+use super::{addressing::Endpoint, serializable::Serializable};
 
 // 2 bit
 #[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]

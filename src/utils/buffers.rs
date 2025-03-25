@@ -329,7 +329,6 @@ pub fn hex_to_buffer_advanced(hex: String, seperator: &str) -> Vec<u8> {
     return buffer;
 }
 
-
 #[cfg(test)]
 mod test {
     use super::{
@@ -426,7 +425,10 @@ mod test {
             "AABB1122"
         );
         assert_eq!(
-            buffer_to_hex(hex_to_buffer_advanced("AA-BB-11-22".to_string(), "-")),
+            buffer_to_hex(hex_to_buffer_advanced(
+                "AA-BB-11-22".to_string(),
+                "-"
+            )),
             "AABB1122"
         );
         assert_eq!(
