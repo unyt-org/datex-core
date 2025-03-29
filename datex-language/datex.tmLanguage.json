@@ -1,0 +1,355 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "DATEX",
+  "patterns": [
+    {"include": "#compile"},
+    {"include": "#insert"},
+    {"include": "#insert_val"},
+    {"include": "#strings-single"},
+    {"include": "#strings-double"},
+    {"include": "#slot"},
+    {"include": "#url"},
+    {"include": "#key"},
+    {"include": "#path"},
+    {"include": "#hex"},
+    {"include": "#bin"},
+    {"include": "#oct"},
+    {"include": "#keywords"},
+    {"include": "#quantity"},
+    {"include": "#time"},
+    {"include": "#float"},
+    {"include": "#int"},
+    {"include": "#number"},
+    {"include": "#buffer"},
+    {"include": "#true"},
+    {"include": "#false"},
+    {"include": "#void"},
+    {"include": "#null"},
+    {"include": "#pointer"},
+    {"include": "#pointer-label"},
+    {"include": "#pointer-transform"},
+    {"include": "#pointer-create"},
+    {"include": "#shebang"},
+    {"include": "#comment"},
+    {"include": "#comment-block"},
+    {"include": "#comment2"},
+    {"include": "#comment-block2"},
+    {"include": "#endpoint-person"},
+    {"include": "#endpoint-anonymous"},
+    {"include": "#endpoint-institution"},
+    {"include": "#type"}
+  ],
+  "fileTypes": ["dx"],
+  "repository": {
+    "keywords": {
+      "patterns": [{
+        "name": "keyword.control.datex",
+        "match": "\\b(typeof|response|clone_collapse|collapse|defer|plugin|named|default|scope|run|export|as|from|var|val|ref|const|new|to|iterator|skip|leave|maybe|accept|try|yeet|next|keys|has|iterate|assert|matches|freeze|seal|function|do|await|get|base|transaction|debugger|extends|implements|constructor|destructor|creator|replicator|template|return|exit|use|delete|count|about|if|else|while|origin|copy|clone|type|subscribers|always)\\b"
+      }]
+    },
+    "compile": {
+      "name": "insert.datex",
+      "match": "compile\\b"
+    },
+    "insert": {
+      "name": "insert.datex",
+      "match": "insert\\b"
+    },
+    "insert_val": {
+      "name": "insert.datex",
+      "match": "\\?\\d*"
+    },
+    "url": {
+      "name": "url.datex",
+      "match": "[a-zA-Z0-9_]+:\\/\\/((?:[-a-zA-Z0-9(@:%_\\+.~#?&//=]|\\\\.)+)"
+    },
+    "path": {
+      "name": "url.datex",
+      "match": "\\.\\.?\\/(?:[-a-zA-Z0-9(@:%_\\+.~#?&//=]|\\\\.)+"
+    },
+    "strings-double": {
+      "name": "string.quoted.double.datex",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.datex",
+          "match": "\\\\."
+        }
+      ]
+    },
+
+    "slot": {
+      "name": "slot.datex",
+      "match": "#[A-Za-z0-9À-ž_]+"
+    },
+    "float": {
+      "name": "constant.numeric.decimal.datex",
+      "match": "(((\\d_?)+\\.)?(\\d_?)+((E|e)(-|\\+)?(\\d_?)+)|(\\d_?)+\\.(\\d_?)+)(?! *\\:)"
+    },
+    "int": {
+      "name": "constant.numeric.integer.datex",
+      "match": "\\b(\\d_?)+\\b(?! *\\:)"
+    },
+    "hex": {
+      "name": "constant.numeric.hex.datex",
+      "match": "0x[0-9a-fA-F]+"
+    },
+    "bin": {
+      "name": "constant.numeric.bin.datex",
+      "match": "0b[01_]+"
+    },
+    "oct": {
+      "name": "constant.numeric.oct.datex",
+      "match": "0o[0-7_]+"
+    },
+    "number": {
+      "name": "constant.numeric",
+      "match": "nan|infinity"
+    },
+    "quantity": {
+      "name": "constant.numeric.quantity.datex",
+      "match": "((?:(?:(?:\\d_?)+\\.)?(?:\\d_?)+(?:(?:E|e)(?:-|\\+)?(?:\\d_?)+)|(?:\\d_?)+\\.(?:\\d_?)+)|(?:(?:\\d_?)+))(?! *\\:)((?:[YZEPTGMkhdcmµunpfazy]?[A-Za-z€¢$¥Ω£₽⁄⁄]{1,4}(?:\\^-?\\d{1,4})?)(?:[*\\/][YZEPTGMkhdcmµunpfazy]?[A-Za-z€¢$%¥Ω£₽]{1,4}(?:\\^-?\\d{1,4})?)*)",
+      "captures": {
+        "1": {"name": "quantity.datex"},
+        "2": {"name": "unit.datex"}
+      }
+    },
+    "time": {
+      "name": "constant.numeric.time.datex",
+      "match": "~((\\d{1,5}-\\d{1,2}-\\d{1,2})|(\\d{1,5}-\\d{1,2}-\\d{1,2}(T| )\\d{1,2}:\\d{1,2}(:\\d{1,2}(.\\d{1,3})?)?Z?)|(\\d{1,2}:\\d{1,2}(:\\d{1,2}(.\\d{1,3})?)?))~"
+    },
+    "buffer": {
+      "name": "buffer.datex",
+      "match": "`([A-Fa-f0-9_]*)`"
+    },
+    "true": {
+      "name": "constant.language.boolean.true.datex",
+      "match": "true"
+    },
+    "false": {
+      "name": "constant.language.boolean.false.datex",
+      "match": "false"
+    },
+    "void": {
+      "name": "constant.language.boolean.void.datex",
+      "match": "void"
+    },
+    "null": {
+      "name": "constant.language.boolean.null.datex",
+      "match": "null"
+    },
+    "key": {
+      "name": "key.datex",
+      "match": "[A-Za-z0-9À-ž_-]+?\\s*(?=\\:)(?!\\:\\:)"
+    },
+    "pointer": {
+      "name": "variable.pointer.datex",
+      "match": "\\$((?:[A-Fa-f0-9]{2}|[xX]([A-Fa-f0-9])){1,26})"
+    },
+    "pointer-label": {
+      "name": "variable.pointer.datex",
+      "match": "\\$([A-Za-z0-9À-ž_]{1,25})"
+    },
+    "pointer-transform": {
+      "name": "variable.pointer.datex",
+      "match": "\\$(?=\\()"
+    },
+    "pointer-create": {
+      "name": "variable.pointer.datex",
+      "match": "\\$\\$"
+    },
+    "shebang": {
+      "name": "comment.line.datex",
+      "match": "^#!.*"
+    },
+    "comment": {
+      "name": "comment.line.datex",
+      "match": "# .*?$"
+    },
+    "comment-block": {
+      "name": "comment.block.datex",
+      "begin": "##*",
+      "end": "##*"
+    },
+    "comment2": {
+      "name": "comment.line.datex",
+      "match": "\\/\\/.*?$"
+    },
+    "comment-block2": {
+      "name": "comment.block.datex",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    "endpoint-anonymous": {
+      "name": "entity.name.function",
+      "begin": "(@@[A-Za-z0-9À-ž-_]{1,32})",
+      "end": "\\b",
+      "applyEndPatternLast": 1,
+      "patterns": [
+        {
+          "name": "entity.name.endpoint.name",
+          "match": "[A-Za-z0-9À-ž-_]{1,32}"
+        },
+        {
+          "name": "entity.name.endpoint.wildcard",
+          "match": "\\*"
+        },
+        {
+          "name": "punctuation",
+          "match": ":(?!:)"
+        },
+        {
+          "name": "punctuation",
+          "match": "/"
+        }
+      ]
+    },
+    "endpoint-institution": {
+      "name": "entity.name.function",
+      "begin": "(@\\+[A-Za-z0-9À-ž-_]{1,32})",
+      "end": "\\b",
+      "applyEndPatternLast": 1,
+      "patterns": [
+        {
+          "name": "entity.name.endpoint.name",
+          "match": "[A-Za-z0-9À-ž-_]{1,32}"
+        },
+        {
+          "name": "entity.name.endpoint.wildcard",
+          "match": "\\*"
+        },
+        {
+          "name": "operator.seperator.datex",
+          "match": ":(?!:)"
+        },
+        {
+          "name": "operator.seperator.datex",
+          "match": "/"
+        }
+      ]
+    },
+    "endpoint-person": {
+      "name": "entity.name.function",
+      "begin": "(@[A-Za-z0-9À-ž-_]{1,32})",
+      "end": "\\b",
+      "applyEndPatternLast": 1,
+      "patterns": [
+        {
+          "name": "entity.name.endpoint.name",
+          "match": "[A-Za-z0-9À-ž-_]{1,32}"
+        },
+        {
+          "name": "entity.name.endpoint.wildcard",
+          "match": "\\*"
+        },
+        {
+          "name": "operator.seperator.datex",
+          "match": ":(?!:)"
+        },
+        {
+          "name": "operator.seperator.datex",
+          "match": "/"
+        }
+      ]
+    },
+    "strings-single": {
+      "name": "string.quoted.single.datex",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.datex",
+          "match": "\\\\."
+        },
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "name": "source.datex",
+          "patterns": [
+            {"include": "#compile"},
+            {"include": "#insert"},
+            {"include": "#insert_val"},
+            {"include": "#strings-single"},
+            {"include": "#strings-double"},
+            {"include": "#slot"},
+            {"include": "#key"},
+            {"include": "#url"},
+            {"include": "#path"},
+            {"include": "#hex"},
+            {"include": "#bin"},
+            {"include": "#oct"},
+            {"include": "#keywords"},
+            {"include": "#quantity"},
+            {"include": "#time"},
+            {"include": "#float"},
+            {"include": "#int"},
+            {"include": "#number"},
+            {"include": "#buffer"},
+            {"include": "#true"},
+            {"include": "#false"},
+            {"include": "#void"},
+            {"include": "#null"},
+            {"include": "#pointer"},
+            {"include": "#pointer-label"},
+            {"include": "#pointer-transform"},
+            {"include": "#pointer-create"},
+            {"include": "#comment"},
+            {"include": "#comment-block"},
+            {"include": "#endpoint-person"},
+            {"include": "#type"}
+          ]
+        }
+      ]
+    },
+    "type": {
+      "name": "type.datex",
+      "begin": "<(?:(\\w+?):)?([A-Za-z0-9À-ž_+-]+)(\/[A-Za-z0-9À-ž_+-]*)*" ,
+      "end": ">",
+      "patterns": [
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "name": "source.datex",
+          "patterns": [
+            {"include": "#compile"},
+            {"include": "#insert"},
+            {"include": "#insert_val"},
+            {"include": "#strings-single"},
+            {"include": "#strings-double"},
+            {"include": "#slot"},
+            {"include": "#key"},
+            {"include": "#url"},
+            {"include": "#path"},
+            {"include": "#hex"},
+            {"include": "#bin"},
+            {"include": "#oct"},
+            {"include": "#keywords"},
+            {"include": "#quantity"},
+            {"include": "#time"},
+            {"include": "#float"},
+            {"include": "#int"},
+            {"include": "#number"},
+            {"include": "#buffer"},
+            {"include": "#true"},
+            {"include": "#false"},
+            {"include": "#void"},
+            {"include": "#null"},
+            {"include": "#pointer"},
+            {"include": "#pointer-label"},
+            {"include": "#pointer-transform"},
+            {"include": "#pointer-create"},
+            {"include": "#comment"},
+            {"include": "#comment-block"},
+            {"include": "#endpoint-person"},
+            {"include": "#endpoint-anonymous"},
+            {"include": "#endpoint-institution"},
+            {"include": "#type"}
+          ]
+        }
+      ]
+    }
+
+  },
+  "scopeName": "source.datex"
+}

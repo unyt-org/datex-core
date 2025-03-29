@@ -1,0 +1,44 @@
+vars: {
+  d2-config: {
+    theme-overrides: {
+      B1: "#69B9D5"
+      B2: "#D44778"
+      B3: "#5D5D5D"
+      B4: "#404040"
+      B5: "#252525"
+      B6: "#313244"
+
+      AA2: "#C64472"
+      AA4: "#252525"
+      AA5: "#313244"
+
+      AB4: "#252525"
+      AB5: "#313244"
+    }
+  }
+}
+
+shape: sequence_diagram
+
+Runtime
+
+ComHub
+
+
+ComInterfaceSocket A
+
+Runtime.send -> ComHub.send: send_block(block: DXBBlock)
+
+Routing Algorithm: {
+  ComHub.send."ComInterfaceSocket A is \nchosen as the receiving socket"
+}
+
+ComHub.send -> ComInterfaceSocket A.send: queue_outgoing_block(bytes: \[u8\])
+
+Queuing: {
+  ComInterfaceSocket A.send."Bytes are appended \nto the socket's send_queue"
+}
+
+ComInterfaceSocket A.send -> Runtime.send: {
+  style.stroke-dash: 3
+}

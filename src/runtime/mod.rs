@@ -1,48 +1,47 @@
-use std::{cell::RefCell, rc::Rc};
+use std::sync::Once;
 
-use crate::{utils::{logger::{LoggerContext, Logger}, crypto::Crypto, rust_crypto::RustCrypto}, datex_values::ValueResult};
+use log::info;
 
-mod stack;
+use crate::logger::init_logger;
+use crate::stdlib::{cell::RefCell, rc::Rc};
+
+use crate::network::com_hub::ComHub;
+
 mod execution;
+pub mod global_context;
 pub mod memory;
+mod stack;
 
-use self::{execution::execute, memory::Memory};
+use self::memory::Memory;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Default)]
+pub struct Context {}
+static INIT: Once = Once::new();
 
-pub struct Runtime<'a> {
+pub struct Runtime {
     pub version: String,
-	pub ctx: &'a LoggerContext,
-	pub crypto: &'a dyn Crypto,
-	pub memory: Rc<RefCell<Memory>>
+    pub context: Rc<RefCell<Context>>,
+    pub memory: Rc<RefCell<Memory>>,
+    pub com_hub: Rc<RefCell<ComHub>>,
 }
 
-impl Runtime<'_> {
-	
-	pub fn new_with_crypto_and_logger<'a>(crypto: &'a dyn Crypto, ctx: &'a LoggerContext) -> Runtime<'a> {
-		let logger = Logger::new_for_development(&ctx, "DATEX");
-    	logger.success("initialized!");
-		return Runtime { 
-			version: VERSION.to_string(),
-			crypto, 
-			ctx, 
-			memory: Rc::new(RefCell::new(Memory::new()))
-		}
-	}
+impl Runtime {
+    pub fn new(context: Rc<RefCell<Context>>) -> Runtime {
+        INIT.call_once(|| {
+            init_logger();
+        });
+        info!("Runtime initialized!");
+        Runtime {
+            version: VERSION.to_string(),
+            context: context.clone(),
+            memory: Rc::new(RefCell::new(Memory::new())),
+            com_hub: ComHub::new(context.clone()),
+        }
+    }
 
-	pub fn new() -> Runtime<'static> {
-		return Runtime { 
-			version: VERSION.to_string(), 
-			crypto: &RustCrypto{},
-			ctx: &LoggerContext { log_redirect: None},
-			memory: Rc::new(RefCell::new(Memory::new()))
-		}
-	}
-
-	pub fn execute(&self, dxb: &[u8]) -> ValueResult {
-		execute(&self.ctx, dxb)
-	}
-
+    pub fn default() -> Runtime {
+        Runtime::new(Rc::new(RefCell::new(Context {})))
+    }
 }
-

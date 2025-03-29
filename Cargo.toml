@@ -2,15 +2,18 @@
 name = "datex-core"
 version = "0.0.4"
 description = "The DATEX Core Rust implementation"
-authors = ["Benedikt Strehle <benedikt@unyt.org>"]
+authors = [
+    "Benedikt Strehle <benedikt@unyt.org>",
+    "Jonas Strehle <jonas@unyt.org>",
+]
 edition = "2021"
 license-file = "LICENSE"
-
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+# core dependencies
 regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"
@@ -20,15 +23,58 @@ mopa = "0.2.2"
 num-bigint = "0.4"
 num-integer = "0.1"
 default-args = "1.0.0"
-wasm-bindgen = "0.2.81"
 itertools = "0.10.5"
 pest = "2.6"
 pest_derive = "2.6"
 pad = "0.1"
+binrw = "0.14.1"
+modular-bitfield = "0.11.2"
+thiserror = "2.0.11"
+url = "2.5.4"
+num-traits = "0.2.19"
+async-trait = "0.1.87"
+tokio = { version = "1.43.0", features = ["sync", "rt", "macros"] }
+hex = "0.4.3"
+log = { version = "0.4", features = ["std", "serde"] }
+cfg-if = "0.1"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-websocket = "0.24.0"
+# optional dependencies
+nostd = { version = "0.1.4", optional = true }
+websocket = { version = "0.24.0", optional = true }
+rand = { version = "0.8.5", optional = true }
+uuid = { version = "1.15.1", features = ["v4"], optional = true }
+rsa = { version = "0.9.8", optional = true }
+flexi_logger = { version = "0.29.8", optional = true }
+console_log = { version = "1.0.0", optional = true }
 
 [profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 3
+
+# see https://docs.rs/rsa/latest/rsa/
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+
+[features]
+default = [
+    "nostd",
+    "native_websocket",
+    "native_tcp",
+    "native_rand",
+    "native_uuid",
+    "native_crypto",
+    "flexi_logger",
+] # default to nostd
+native_websocket = ["websocket"] # use native websocket
+native_tcp = [] # use native tcp
+native_rand = ["rand"] # use native websocket
+native_uuid = ["uuid"] # use native websocket
+native_crypto = ["rsa"] # use native crypto
+wasm_logger = ["console_log"]
+std = [] # use std
