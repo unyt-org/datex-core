@@ -90,7 +90,6 @@ pub fn parse_routing_header() {
     assert!(
         header_result.to_bytes().unwrap() == routing_header.to_bytes().unwrap()
     );
-    // }
 }
 
 #[test]
