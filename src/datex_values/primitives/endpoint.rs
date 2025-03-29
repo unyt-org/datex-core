@@ -71,7 +71,7 @@ impl Endpoint {
 
     // targets all instances of all endpoints
     // @@any/* == @@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF/*
-    pub const ANY_INSTANCE: Endpoint = Endpoint {
+    pub const ANY_ALL_INSTANCES: Endpoint = Endpoint {
         type_: EndpointType::Anonymous,
         identifier: [255; 18],
         instance: EndpointInstance::All,
@@ -87,7 +87,7 @@ impl Endpoint {
 
     // targets all instances of the local endpoint
     // @@local/* == @@000000000000000000000000000000000000/*
-    pub const LOCAL_INSTANCES: Endpoint = Endpoint {
+    pub const LOCAL_ALL_INSTANCES: Endpoint = Endpoint {
         type_: EndpointType::Anonymous,
         identifier: [0; 18],
         instance: EndpointInstance::All,
@@ -109,7 +109,7 @@ impl Endpoint {
             return if instance == EndpointInstance::Any {
                 Ok(Endpoint::ANY)
             } else if instance == EndpointInstance::All {
-                Ok(Endpoint::ANY_INSTANCE)
+                Ok(Endpoint::ANY_ALL_INSTANCES)
             } else {
                 Ok(Endpoint {
                     type_: EndpointType::Anonymous,
@@ -124,7 +124,7 @@ impl Endpoint {
             return if instance == EndpointInstance::Any {
                 Ok(Endpoint::LOCAL)
             } else if instance == EndpointInstance::All {
-                Ok(Endpoint::LOCAL_INSTANCES)
+                Ok(Endpoint::LOCAL_ALL_INSTANCES)
             } else {
                 Ok(Endpoint {
                     type_: EndpointType::Anonymous,
