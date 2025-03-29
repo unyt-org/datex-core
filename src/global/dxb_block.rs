@@ -20,6 +20,7 @@ pub enum HeaderParsingError {
 
 // TODO fix partial eq
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
     pub block_header: BlockHeader,
@@ -37,17 +38,6 @@ impl PartialEq for DXBBlock {
     }
 }
 
-impl Default for DXBBlock {
-    fn default() -> Self {
-        DXBBlock {
-            routing_header: RoutingHeader::default(),
-            block_header: BlockHeader::default(),
-            encrypted_header: EncryptedHeader::default(),
-            body: Vec::new(),
-            raw_bytes: None,
-        }
-    }
-}
 
 impl DXBBlock {
     pub fn new(
@@ -72,7 +62,7 @@ impl DXBBlock {
         self.encrypted_header.write(&mut writer)?;
         let mut bytes = writer.into_inner();
         bytes.extend_from_slice(&self.body);
-        return Ok(DXBBlock::adjust_block_length(bytes, &self.routing_header));
+        Ok(DXBBlock::adjust_block_length(bytes, &self.routing_header))
     }
     pub fn recalculate_struct(&mut self) -> &mut Self {
         let bytes = self.to_bytes().unwrap();
@@ -127,14 +117,14 @@ impl DXBBlock {
         dxb: &[u8],
     ) -> Result<u32, HeaderParsingError> {
         if dxb.len() < 6 {
-            return Err(HeaderParsingError::InsufficientLength.into());
+            return Err(HeaderParsingError::InsufficientLength);
         }
         let routing_header = RoutingHeader::read(&mut Cursor::new(dxb))
             .map_err(|_| HeaderParsingError::InvalidBlock)?;
         if routing_header.block_size_u16.is_some() {
-            return Ok(routing_header.block_size_u16.unwrap() as u32);
+            Ok(routing_header.block_size_u16.unwrap() as u32)
         } else {
-            return Ok(routing_header.block_size_u32.unwrap());
+            Ok(routing_header.block_size_u32.unwrap())
         }
     }
 
@@ -183,12 +173,12 @@ impl DXBBlock {
         let mut body = Vec::new();
         reader.read_to_end(&mut body)?;
 
-        return Ok(DXBBlock {
+        Ok(DXBBlock {
             routing_header,
             block_header,
             encrypted_header,
             body,
             raw_bytes: Some(bytes.to_vec()),
-        });
+        })
     }
 }

@@ -8,7 +8,7 @@ pub struct Error {
 
 impl Value for Error {
     fn to_string(&self) -> String {
-        return format!("!{}", self.message);
+        format!("!{}", self.message)
     }
 
     fn binary_operation(

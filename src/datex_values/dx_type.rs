@@ -12,27 +12,25 @@ pub struct Type {
 
 impl Value for Type {
     fn to_string(&self) -> String {
-        if self.namespace.len() == 0 || self.namespace == "std" {
+        if self.namespace.is_empty() || self.namespace == "std" {
             if self.variation.is_some() {
-                return format!(
+                format!(
                     "<{}/{}>",
                     self.name,
                     self.variation.as_ref().unwrap()
-                );
+                )
             } else {
-                return format!("<{}>", self.name);
+                format!("<{}>", self.name)
             }
+        } else if self.variation.is_some() {
+            format!(
+                "<{}:{}/{}>",
+                self.namespace,
+                self.name,
+                self.variation.as_ref().unwrap()
+            )
         } else {
-            if self.variation.is_some() {
-                return format!(
-                    "<{}:{}/{}>",
-                    self.namespace,
-                    self.name,
-                    self.variation.as_ref().unwrap()
-                );
-            } else {
-                return format!("<{}:{}>", self.namespace, self.name);
-            }
+            format!("<{}:{}>", self.namespace, self.name)
         }
     }
 

@@ -63,8 +63,8 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
 
     let bytes = block
         .to_bytes()
-        .map_err(|e| CompilationError::SerializationError(e))?;
-    return Ok(bytes);
+        .map_err(CompilationError::SerializationError)?;
+    Ok(bytes)
 }
 
 struct CompilationScope<'a> {
@@ -143,16 +143,13 @@ impl<'a> CompilationScope<'a> {
     }
 
     fn insert_int(&mut self, int: i64) {
-        if int <= CompilationScope::MAX_INT_8
-            && int >= CompilationScope::MIN_INT_8
+        if (CompilationScope::MIN_INT_8..=CompilationScope::MAX_INT_8).contains(&int)
         {
             self.insert_int8(int as i8)
-        } else if int <= CompilationScope::MAX_INT_16
-            && int >= CompilationScope::MIN_INT_16
+        } else if (CompilationScope::MIN_INT_16..=CompilationScope::MAX_INT_16).contains(&int)
         {
             self.insert_int16(int as i16)
-        } else if int <= CompilationScope::MAX_INT_32
-            && int >= CompilationScope::MIN_INT_32
+        } else if (CompilationScope::MIN_INT_32..=CompilationScope::MAX_INT_32).contains(&int)
         {
             self.insert_int32(int as i32)
         } else {

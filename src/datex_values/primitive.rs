@@ -13,6 +13,7 @@ use super::{
 
 #[derive(Clone)]
 // Native values (array, object)
+#[derive(Default)]
 pub enum PrimitiveValue {
     Int8(i8),
     Uint8(u8),
@@ -31,14 +32,10 @@ pub enum PrimitiveValue {
     Endpoint(Endpoint),
     Url(Url),
     Null,
+    #[default]
     Void,
 }
 
-impl Default for PrimitiveValue {
-    fn default() -> Self {
-        PrimitiveValue::Void
-    }
-}
 
 impl fmt::Display for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -79,9 +76,9 @@ impl Value for PrimitiveValue {
             PrimitiveValue::Float64(value) => {
                 if value.is_infinite() {
                     if value.is_sign_negative() {
-                        return "-infinity".to_string();
+                        "-infinity".to_string()
                     } else {
-                        return "infinity".to_string();
+                        "infinity".to_string()
                     }
                 } else if value.is_nan() {
                     return "nan".to_string();
@@ -95,7 +92,7 @@ impl Value for PrimitiveValue {
             }
             PrimitiveValue::Text(value) => {
                 let string = escape_string(value);
-                return format!("\"{string}\"");
+                format!("\"{string}\"")
             }
             PrimitiveValue::Buffer(value) => {
                 let n = value.len();
@@ -104,7 +101,7 @@ impl Value for PrimitiveValue {
                 for byte in value {
                     write!(s, "{:02X}", byte).expect("could not parse buffer")
                 }
-                return format!("`{s}`");
+                format!("`{s}`")
             }
             PrimitiveValue::Boolean(value) => value.to_string(),
             PrimitiveValue::Void => "void".to_string(),
@@ -143,9 +140,9 @@ impl Value for PrimitiveValue {
             };
         }
 
-        return Err(Error {
+        Err(Error {
             message: "invalid binary operation".to_string(),
-        });
+        })
     }
 
     fn cast(&self, dx_type: super::Type) -> ValueResult {
@@ -229,9 +226,9 @@ impl PrimitiveValue {
                 }),
             }
         } else {
-            return Err(Error {
+            Err(Error {
                 message: "cannot perform a subtract operation".to_string(),
-            });
+            })
         }
     }
 
@@ -258,9 +255,9 @@ impl PrimitiveValue {
                 }),
             }
         } else {
-            return Err(Error {
+            Err(Error {
                 message: "cannot perform a subtract operation".to_string(),
-            });
+            })
         }
     }
 
@@ -290,9 +287,9 @@ impl PrimitiveValue {
                 }),
             }
         } else {
-            return Err(Error {
+            Err(Error {
                 message: "cannot perform a subtract operation".to_string(),
-            });
+            })
         }
     }
 
@@ -319,9 +316,9 @@ impl PrimitiveValue {
                 }),
             }
         } else {
-            return Err(Error {
+            Err(Error {
                 message: "cannot perform a subtract operation".to_string(),
-            });
+            })
         }
     }
 
@@ -348,9 +345,9 @@ impl PrimitiveValue {
                 }),
             }
         } else {
-            return Err(Error {
+            Err(Error {
                 message: "cannot perform a subtract operation".to_string(),
-            });
+            })
         }
     }
 
@@ -424,7 +421,7 @@ impl PrimitiveValue {
             PrimitiveValue::Int32(value) => *value as f64,
             PrimitiveValue::UInt32(value) => *value as f64,
             PrimitiveValue::Int64(value) => *value as f64,
-            PrimitiveValue::Float64(value) => *value as f64,
+            PrimitiveValue::Float64(value) => { *value },
             _ => 0.0,
         }
     }
@@ -436,11 +433,11 @@ impl PrimitiveValue {
                 let string = escape_string(value);
                 // key:
                 if KEY_CAN_OMIT_QUOTES.is_match(&string) {
-                    return string;
+                    string
                 }
                 // "key":
                 else {
-                    return format!("\"{string}\"");
+                    format!("\"{string}\"")
                 }
             }
             _ => Value::to_string(self),

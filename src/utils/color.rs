@@ -68,7 +68,7 @@ pub enum Color {
 }
 
 pub fn ansi_rgb(r: u8, g: u8, b: u8) -> String {
-    return format!("\x1b[38;2;{r};{g};{b}m");
+    format!("\x1b[38;2;{r};{g};{b}m")
 }
 
 impl Color {
@@ -112,15 +112,11 @@ impl Color {
 
     // TODO:
     pub fn as_ansi_4_bit_bg(&self) -> &'static str {
-        match self {
-            _ => "",
-        }
+        ""
     }
 
     // TODO:
     pub fn as_ansi_4_bit(&self) -> &'static str {
-        match self {
-            _ => "",
-        }
+        ""
     }
 }

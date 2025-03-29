@@ -26,7 +26,7 @@ pub enum ComInterfaceError {
 }
 
 pub trait ComInterface {
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> ();
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket);
     fn get_properties(&self) -> InterfaceProperties;
     fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>;
     fn connect(&mut self) -> Result<(), ComInterfaceError>;
@@ -39,20 +39,20 @@ pub trait ComInterface {
 
     fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
         let properties = self.get_properties();
-        return properties.max_bandwidth
-            / properties.round_trip_time.as_millis() as u32;
+        properties.max_bandwidth
+            / properties.round_trip_time.as_millis() as u32
     }
 
     fn can_send(&self, socket: ComInterfaceSocket) -> bool {
         let properties = self.get_properties();
-        return properties.direction == InterfaceDirection::OUT
-            || properties.direction == InterfaceDirection::IN_OUT;
+        properties.direction == InterfaceDirection::OUT
+            || properties.direction == InterfaceDirection::IN_OUT
     }
 
     fn can_receive(&self, socket: ComInterfaceSocket) -> bool {
         let properties = self.get_properties();
-        return properties.direction == InterfaceDirection::IN
-            || properties.direction == InterfaceDirection::IN_OUT;
+        properties.direction == InterfaceDirection::IN
+            || properties.direction == InterfaceDirection::IN_OUT
     }
 
     fn flush_outgoing_blocks(&mut self) {

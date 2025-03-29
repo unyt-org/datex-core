@@ -76,7 +76,7 @@ where
         Ok(())
     }
 
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) {
         // TODO: what happens if socket != self.socket? (only one socket exists)
         //   self.websocket.borrow_mut().send_data(block);
     }

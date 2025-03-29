@@ -51,7 +51,7 @@ impl BlockCollector {
         // Add the received data to the current block.
         self.current_block.extend_from_slice(slice);
 
-        while self.current_block.len() > 0 {
+        while !self.current_block.is_empty() {
             info!("length_result A {:?}", self.current_block.len());
 
             // Extract the block length from the header if it is not already known.

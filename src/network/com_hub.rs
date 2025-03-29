@@ -30,6 +30,7 @@ pub struct ComHub {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 struct EndpointIterateOptions {
     pub only_direct: bool,
     pub only_outgoing: bool,
@@ -37,16 +38,6 @@ struct EndpointIterateOptions {
     pub exclude_socket: Option<ComInterfaceSocketUUID>,
 }
 
-impl Default for EndpointIterateOptions {
-    fn default() -> Self {
-        EndpointIterateOptions {
-            only_direct: false,
-            only_outgoing: false,
-            exact_instance: false,
-            exclude_socket: None,
-        }
-    }
-}
 
 impl Default for ComHub {
     fn default() -> Self {
@@ -85,7 +76,7 @@ impl ComHub {
         interface
             .borrow_mut()
             .connect()
-            .map_err(|e| ComHubError::InterfaceError(e))?;
+            .map_err(ComHubError::InterfaceError)?;
         self.interfaces.insert(uuid, interface);
 
         Ok(())
@@ -117,7 +108,7 @@ impl ComHub {
     // iterate over all sockets of all interfaces
     fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
         let mut sockets = Vec::new();
-        for (_, interface) in &self.interfaces {
+        for interface in self.interfaces.values() {
             let interface_ref = interface.borrow();
             for socket in interface_ref.get_sockets().borrow().iter() {
                 sockets.push(socket.clone());
@@ -142,13 +133,13 @@ impl ComHub {
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions,
     ) -> impl Iterator<Item = &'a ComInterfaceSocket> + 'a {
-        let endpoint_sockets = self.endpoint_sockets.get(&endpoint);
+        let endpoint_sockets = self.endpoint_sockets.get(endpoint);
         let interfaces = &self.interfaces;
 
         std::iter::from_coroutine(
             #[coroutine]
             move || {
-                for (socket, _) in endpoint_sockets.unwrap() {
+                for socket in endpoint_sockets.unwrap().keys() {
                     // check if is direct socket if only_redirect is set to true
                     if !options.only_direct
                         && match &socket.endpoint {
@@ -191,7 +182,7 @@ impl ComHub {
             exact_instance: true,
             exclude_socket: exclude_socket.clone(),
         };
-        for socket in self.iterate_endpoint_sockets(&endpoint, options) {
+        for socket in self.iterate_endpoint_sockets(endpoint, options) {
             return Some(socket);
         }
 
@@ -202,7 +193,7 @@ impl ComHub {
             exact_instance: false,
             exclude_socket,
         };
-        for socket in self.iterate_endpoint_sockets(&endpoint, options) {
+        for socket in self.iterate_endpoint_sockets(endpoint, options) {
             // TODO
         }
         None
@@ -278,7 +269,7 @@ impl ComHub {
      * Send all queued blocks from all interfaces.
      */
     fn flush_outgoing_blocks(&mut self) {
-        for (_, interface) in &self.interfaces {
+        for interface in self.interfaces.values() {
             interface.borrow_mut().flush_outgoing_blocks();
         }
     }

@@ -12,6 +12,6 @@ pub trait Serializable: BinWrite + ReadEndian + WriteEndian {
         let mut writer = Cursor::new(Vec::new());
         self.write(&mut writer)?;
         let bytes = writer.into_inner();
-        return Ok(bytes);
+        Ok(bytes)
     }
 }

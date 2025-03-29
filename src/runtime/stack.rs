@@ -21,7 +21,7 @@ impl Stack {
     }
 
     pub fn size(&mut self) -> usize {
-        return self.stack.len();
+        self.stack.len()
     }
 
     pub fn push(&mut self, value: Box<dyn Value>) {
@@ -31,20 +31,20 @@ impl Stack {
     pub fn pop(&mut self) -> ValueResult {
         let value = self.stack.pop();
         if value.is_some() {
-            return Ok(value.unwrap());
+            Ok(value.unwrap())
         } else {
-            return Err(Error {
+            Err(Error {
                 message: "stack error".to_string(),
-            });
+            })
         }
     }
 
     pub fn pop_or_void(&mut self) -> Box<dyn Value> {
         let value = self.stack.pop();
         if value.is_some() {
-            return value.unwrap();
+            value.unwrap()
         } else {
-            return Box::new(PrimitiveValue::Void);
+            Box::new(PrimitiveValue::Void)
         }
     }
 }

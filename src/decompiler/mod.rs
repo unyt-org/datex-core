@@ -83,7 +83,7 @@ pub fn decompile_body(
         variables: HashMap::new(),
     };
 
-    return decompile_loop(&mut initial_state);
+    decompile_loop(&mut initial_state)
 }
 
 fn int_to_label(n: i32) -> String {
@@ -135,19 +135,18 @@ impl DecompilerGlobalState<'_> {
     fn get_insert_label(&mut self, index: usize) -> String {
         // existing
         if self.labels.contains_key(&index) {
-            return self
+            self
                 .labels
                 .get(&index)
-                .or(Some(&"?invalid?".to_string()))
-                .unwrap()
-                .to_string();
+                .unwrap_or(&"?invalid?".to_string())
+                .to_string()
         }
         // new
         else {
             let name = self.current_label.to_string();
             self.current_label += 1;
             self.labels.insert(index, name.clone());
-            return name;
+            name
         }
     }
 
@@ -159,21 +158,20 @@ impl DecompilerGlobalState<'_> {
         }
         // existing variable
         if self.variables.contains_key(&slot.index) {
-            return (
+            (
                 self.variables
                     .get(&slot.index)
-                    .or(Some(&"?invalid?".to_string()))
-                    .unwrap()
+                    .unwrap_or(&"?invalid?".to_string())
                     .to_string(),
                 "".to_string(),
-            );
+            )
         }
         // init variable
         else {
             let name = int_to_label(self.current_label);
             self.current_label += 1;
             self.variables.insert(slot.index, name.clone());
-            return (name, "var".to_string());
+            (name, "var".to_string())
         }
     }
 }
@@ -301,7 +299,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 
         match code {
             // slot based
-            BinaryCode::INTERNAL_VAR => out += &format!("{variable_name}"),
+            BinaryCode::INTERNAL_VAR => out += &variable_name.to_string(),
             // only for backwards compatibility
             BinaryCode::LABEL => out += &format!("$_{variable_name}"),
             BinaryCode::SET_INTERNAL_VAR => {
@@ -309,7 +307,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                     out += &Color::RESERVED.as_ansi_rgb();
                 }
                 out += &variable_prefix;
-                if variable_prefix.len() != 0 {
+                if !variable_prefix.is_empty() {
                     out += " "
                 };
                 if state.colorized {
@@ -326,7 +324,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                     out += &Color::RESERVED.as_ansi_rgb();
                 }
                 out += &variable_prefix;
-                if variable_prefix.len() != 0 {
+                if !variable_prefix.is_empty() {
                     out += " "
                 };
                 if state.colorized {
@@ -343,7 +341,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                     out += &Color::RESERVED.as_ansi_rgb();
                 }
                 out += &variable_prefix;
-                if variable_prefix.len() != 0 {
+                if !variable_prefix.is_empty() {
                     out += " "
                 };
                 if state.colorized {
@@ -467,7 +465,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                         out += &INDENT;
                         out += &NEW_LINE.replace_all(
                             // add spaces to every new line
-                            &scope,
+                            scope,
                             &INDENT.to_string(),
                         );
                     };
@@ -519,7 +517,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
         // enter new subscope - continue at index?
         if instruction.subscope_continue {
             let inner = Cow::from(decompile_loop(state));
-            let is_empty = inner.len() == 0;
+            let is_empty = inner.is_empty();
             let newline_count = inner.chars().filter(|c| *c == '\n').count();
 
             // only if content inside brackets, and multiple lines
@@ -534,7 +532,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
             }
             // no content inside brackets or single line
             else {
-                out += &NEW_LINE.replace_all(&inner, "").trim_end(); // remove remaining new line + spaces in last line
+                out += NEW_LINE.replace_all(&inner, "").trim_end(); // remove remaining new line + spaces in last line
             }
         }
 
@@ -621,7 +619,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                     out += &Color::RESERVED.as_ansi_rgb();
                 }
                 out += "\r\nlbl ";
-                out += &label.1;
+                out += label.1;
                 if state.colorized {
                     out += &Color::DEFAULT.as_ansi_rgb();
                 }
@@ -636,7 +634,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
         // is a big overhead for the decompiler and also might create unintended sideffects...
 
         // update connective_size and add &/| syntax
-        while last_was_value && connective_size_stack.len() != 0 {
+        while last_was_value && !connective_size_stack.is_empty() {
             let len = connective_size_stack.len() - 1;
             connective_size_stack[len] -= 1;
 
@@ -669,5 +667,5 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
         out += AnsiCodes::RESET
     };
 
-    return out;
+    out
 }

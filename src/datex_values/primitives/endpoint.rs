@@ -228,7 +228,7 @@ impl Endpoint {
                 } else if s.len() > 18 * 2 {
                     return Err(InvalidEndpointError::MaxLengthExceeded);
                 }
-                let bytes = decode(&s)
+                let bytes = decode(s)
                     .map_err(|_| InvalidEndpointError::InvalidCharacters)?;
                 let byte_slice: &[u8] = &bytes;
                 Endpoint::new_anonymous(

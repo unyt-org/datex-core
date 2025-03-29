@@ -14,7 +14,7 @@ use crate::{
 use super::{stack::Stack, Context};
 
 fn execute_body(ctx: Rc<RefCell<Context>>, dxb_body: &[u8]) -> ValueResult {
-    return execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false));
+    execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false))
 }
 
 fn execute_loop(
@@ -92,7 +92,7 @@ fn execute_loop(
 
     clear_stack(&mut stack);
 
-    return Ok(stack.pop_or_void());
+    Ok(stack.pop_or_void())
 }
 
 // reset stack
@@ -132,7 +132,7 @@ fn clear_stack(stack: &mut Stack) -> Option<Error> {
 
     stack.push(current);
 
-    return None;
+    None
 }
 
 // operator handlers
@@ -158,7 +158,7 @@ fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
         Ok(result) => {
             info!("binary op result: {}", result);
             stack.push(result);
-            return None;
+            None
         }
         Err(err) => Some(err),
     }

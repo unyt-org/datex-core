@@ -167,8 +167,8 @@ impl Quantity {
 
         (if self.sign { "" } else { "-" }).to_owned()
             + p1
-            + (if p2.len() > 0 {
-                if p1.len() > 0 {
+            + (if !p2.is_empty() {
+                if !p1.is_empty() {
                     "."
                 } else {
                     "0."
@@ -262,10 +262,10 @@ impl Quantity {
     }
 
     fn equals(&self, other: &Quantity) -> bool {
-        return self.has_same_dimension(other)
+        self.has_same_dimension(other)
             && self.denominator == self.denominator
             && self.numerator == other.numerator
-            && self.sign == other.sign;
+            && self.sign == other.sign
     }
 
     fn normalize_fraction<'a>(
@@ -278,23 +278,23 @@ impl Quantity {
 
         // denominator always positive, numerator has sign
         if &numerator < zero && &denominator < zero {
-            numerator = numerator * minus_one;
-            denominator = denominator * minus_one;
+            numerator *= minus_one;
+            denominator *= minus_one;
         } else if &numerator >= zero && &denominator < zero {
-            numerator = numerator * BigInt::from(-1i8);
-            denominator = denominator * BigInt::from(-1i8);
+            numerator *= BigInt::from(-1i8);
+            denominator *= BigInt::from(-1i8);
         }
 
         // reduce to lowest terms
         let gcd = Quantity::gcd(numerator.clone(), denominator.clone());
 
         if &gcd > one {
-            numerator = numerator / &gcd;
-            denominator = denominator / &gcd;
+            numerator /= &gcd;
+            denominator /= &gcd;
         } else if &gcd < minus_one {
             let gcd2 = gcd * minus_one;
-            numerator = numerator / &gcd2;
-            denominator = denominator / &gcd2;
+            numerator /= &gcd2;
+            denominator /= &gcd2;
         }
 
         (numerator, denominator)
@@ -323,7 +323,7 @@ impl Quantity {
         let one = &BigInt::from(1u8);
         let ten = &BigInt::from(10u8);
         while &n > one && &(&n % ten) == zero {
-            n = n / ten;
+            n /= ten;
         }
         &n == one
     }

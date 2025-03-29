@@ -13,15 +13,15 @@ impl Pointer {
     pub const STATIC_POINTER_SIZE: usize = 18;
 
     pub fn from_id(id: Vec<u8>) -> Pointer {
-        return Pointer {
+        Pointer {
             id_formatted: buffer_to_hex_advanced(id, "", 0, true),
-        };
+        }
     }
 }
 
 impl Value for Pointer {
     fn to_string(&self) -> String {
-        return format!("${}", self.id_formatted);
+        format!("${}", self.id_formatted)
     }
 
     fn binary_operation(

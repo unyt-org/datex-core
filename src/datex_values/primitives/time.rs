@@ -6,10 +6,10 @@ pub struct Time {
 impl Time {
     pub fn to_string(&self) -> String {
         // TODO: use primitive timestamp representation
-        return format!("<time> {}", self.ms);
+        format!("<time> {}", self.ms)
     }
 
     pub fn from_milliseconds(ms: u64) -> Time {
-        return Time { ms };
+        Time { ms }
     }
 }

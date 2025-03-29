@@ -33,15 +33,15 @@ impl Runtime {
             init_logger();
         });
         info!("Runtime initialized!");
-        return Runtime {
+        Runtime {
             version: VERSION.to_string(),
             context: context.clone(),
             memory: Rc::new(RefCell::new(Memory::new())),
             com_hub: ComHub::new(context.clone()),
-        };
+        }
     }
 
     pub fn default() -> Runtime {
-        return Runtime::new(Rc::new(RefCell::new(Context {})));
+        Runtime::new(Rc::new(RefCell::new(Context {})))
     }
 }

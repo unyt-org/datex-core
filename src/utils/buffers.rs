@@ -9,52 +9,52 @@ read functions for primitive data types on a u8 array, also increments the index
 pub fn read_u8(buffer: &[u8], index: &mut usize) -> u8 {
     let val = buffer[*index];
     *index += 1;
-    return val;
+    val
 }
 
 pub fn read_i8(buffer: &[u8], index: &mut usize) -> i8 {
     let mut slice = &buffer[*index..*index + 1];
     *index += 1;
-    return slice.read_i8().unwrap();
+    slice.read_i8().unwrap()
 }
 
 pub fn read_u16(buffer: &[u8], index: &mut usize) -> u16 {
     let mut slice = &buffer[*index..*index + 2];
     *index += 2;
-    return slice.read_u16::<LittleEndian>().unwrap();
+    slice.read_u16::<LittleEndian>().unwrap()
 }
 pub fn read_i16(buffer: &[u8], index: &mut usize) -> i16 {
     let mut slice = &buffer[*index..*index + 2];
     *index += 2;
-    return slice.read_i16::<LittleEndian>().unwrap();
+    slice.read_i16::<LittleEndian>().unwrap()
 }
 
 pub fn read_i32(buffer: &[u8], index: &mut usize) -> i32 {
     let mut slice = &buffer[*index..*index + 4];
     *index += 4;
-    return slice.read_i32::<LittleEndian>().unwrap();
+    slice.read_i32::<LittleEndian>().unwrap()
 }
 pub fn read_u32(buffer: &[u8], index: &mut usize) -> u32 {
     let mut slice = &buffer[*index..*index + 4];
     *index += 4;
-    return slice.read_u32::<LittleEndian>().unwrap();
+    slice.read_u32::<LittleEndian>().unwrap()
 }
 
 pub fn read_u64(buffer: &[u8], index: &mut usize) -> u64 {
     let mut slice = &buffer[*index..*index + 8];
     *index += 8;
-    return slice.read_u64::<LittleEndian>().unwrap();
+    slice.read_u64::<LittleEndian>().unwrap()
 }
 pub fn read_i64(buffer: &[u8], index: &mut usize) -> i64 {
     let mut slice = &buffer[*index..*index + 8];
     *index += 8;
-    return slice.read_i64::<LittleEndian>().unwrap();
+    slice.read_i64::<LittleEndian>().unwrap()
 }
 
 pub fn read_f64(buffer: &[u8], index: &mut usize) -> f64 {
     let mut slice = &buffer[*index..*index + 8];
     *index += 8;
-    return slice.read_f64::<LittleEndian>().unwrap();
+    slice.read_f64::<LittleEndian>().unwrap()
 }
 
 pub fn read_string_utf8(
@@ -70,8 +70,8 @@ pub fn read_string_utf8(
     };
     let slice = &buffer[*index..end];
     *index = end;
-    return String::from_utf8(slice.to_vec())
-        .unwrap_or("⎣INVALID UTF8 STRING⎤".to_string());
+    String::from_utf8(slice.to_vec())
+        .unwrap_or("⎣INVALID UTF8 STRING⎤".to_string())
 }
 
 pub fn read_vec_slice(
@@ -81,7 +81,7 @@ pub fn read_vec_slice(
 ) -> Vec<u8> {
     let slice = &buffer[*index..*index + size];
     *index += size;
-    return slice.to_vec();
+    slice.to_vec()
 }
 
 pub fn read_slice<'a, const SIZE: usize>(
@@ -229,7 +229,7 @@ pub fn buffer_to_hex(buffer: Vec<u8>) -> String {
     for byte in buffer {
         write!(s, "{:02X}", byte).expect("could not parse buffer")
     }
-    return s;
+    s
 }
 
 /**
@@ -285,12 +285,12 @@ pub fn buffer_to_hex_advanced(
         }
 
         // seperator?
-        if seperator.len() != 0 && i < n {
+        if !seperator.is_empty() && i < n {
             s += seperator;
         }
     }
 
-    return s;
+    s
 }
 
 pub fn hex_to_buffer(hex: String) -> Vec<u8> {
@@ -303,7 +303,7 @@ pub fn hex_to_buffer(hex: String) -> Vec<u8> {
         );
     }
 
-    return buffer;
+    buffer
 }
 
 pub fn hex_to_buffer_advanced(hex: String, seperator: &str) -> Vec<u8> {
@@ -326,7 +326,7 @@ pub fn hex_to_buffer_advanced(hex: String, seperator: &str) -> Vec<u8> {
         }
     }
 
-    return buffer;
+    buffer
 }
 
 #[cfg(test)]

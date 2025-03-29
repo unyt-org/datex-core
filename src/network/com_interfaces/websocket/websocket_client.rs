@@ -59,7 +59,7 @@ impl<WS> ComInterface for WebSocketClientInterface<WS>
 where
     WS: WebSocket,
 {
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) -> () {
+    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) {
         // TODO: what happens if socket != self.socket? (only one socket exists)
         self.web_socket.borrow_mut().send_data(block);
     }
