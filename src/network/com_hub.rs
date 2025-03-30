@@ -1,13 +1,13 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use log::{error, info};
-use std::collections::HashMap; // FIXME no-std
+use std::collections::{HashMap, HashSet}; // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
-use crate::datex_values::Endpoint;
+use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::DXBBlock;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
@@ -27,17 +27,16 @@ pub struct ComHub {
     //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
     pub context: Rc<RefCell<Context>>,
+    pub default_socket: Option<ComInterfaceSocket>,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 struct EndpointIterateOptions {
     pub only_direct: bool,
     pub only_outgoing: bool,
     pub exact_instance: bool,
     pub exclude_socket: Option<ComInterfaceSocketUUID>,
 }
-
 
 impl Default for ComHub {
     fn default() -> Self {
@@ -46,6 +45,7 @@ impl Default for ComHub {
             endpoint_sockets: HashMap::new(),
             context: Rc::new(RefCell::new(Context::default())),
             incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
+            default_socket: None,
         }
     }
 }
@@ -170,33 +170,108 @@ impl ComHub {
         )
     }
 
-    fn find_matching_endpoint_socket<'a>(
+    /// Finds the best matching socket over which an endpoint is known to be reachable.
+    fn find_known_endpoint_socket<'a>(
         &'a self,
         endpoint: &'a Endpoint,
         exclude_socket: Option<ComInterfaceSocketUUID>,
     ) -> Option<&'a ComInterfaceSocket> {
-        // iterate over all sockets of all interfaces
-        let options = EndpointIterateOptions {
-            only_direct: false,
-            only_outgoing: true,
-            exact_instance: true,
-            exclude_socket: exclude_socket.clone(),
-        };
-        for socket in self.iterate_endpoint_sockets(endpoint, options) {
-            return Some(socket);
-        }
+        match endpoint.instance {
+            // find socket for any endpoint instance
+            EndpointInstance::Any => {
+                let options = EndpointIterateOptions {
+                    only_direct: false,
+                    only_outgoing: true,
+                    exact_instance: false,
+                    exclude_socket,
+                };
+                for socket in self.iterate_endpoint_sockets(endpoint, options) {
+                    // TODO
+                    return Some(socket);
+                }
+                None
+            }
 
-        // no matching socket found, check other instances of the endpoint
-        let options = EndpointIterateOptions {
-            only_direct: false,
-            only_outgoing: true,
-            exact_instance: false,
-            exclude_socket,
-        };
-        for socket in self.iterate_endpoint_sockets(endpoint, options) {
-            // TODO
+            // find socket for exact instance
+            EndpointInstance::Instance(_) => {
+                // iterate over all sockets of all interfaces
+                let options = EndpointIterateOptions {
+                    only_direct: false,
+                    only_outgoing: true,
+                    exact_instance: true,
+                    exclude_socket,
+                };
+                for socket in self.iterate_endpoint_sockets(endpoint, options) {
+                    return Some(socket);
+                }
+                None
+            }
+
+            // TODO: how to handle broadcasts?
+            EndpointInstance::All => {
+                todo!()
+            }
         }
-        None
+    }
+
+    /// Finds the best socket over which to send a block to an endpoint.
+    /// If a known socket is found, it is returned, otherwise the default socket is returned, if it
+    /// exists and is not excluded.
+    fn find_best_endpoint_socket<'a>(
+        &'a self,
+        endpoint: &'a Endpoint,
+        exclude_socket: Option<ComInterfaceSocketUUID>,
+    ) -> Option<&'a ComInterfaceSocket> {
+        // find best known socket for endpoint
+        let matching_socket =
+            self.find_known_endpoint_socket(endpoint, exclude_socket.clone());
+
+        // if a matching socket is found, return it
+        if matching_socket.is_some() {
+            matching_socket
+        }
+        // otherwise, return the default socket if it exists and is not excluded
+        else {
+            if self.default_socket.is_some()
+                && (exclude_socket.is_none()
+                    || self.default_socket.as_ref().unwrap().uuid
+                        != exclude_socket.unwrap())
+            {
+                Some(self.default_socket.as_ref().unwrap())
+            } else {
+                None
+            }
+        }
+    }
+
+    /// returns all receivers to which the block has to be sent, grouped by the
+    /// outbound socket
+    fn get_outbound_receiver_groups(
+        &self,
+        block: &DXBBlock,
+    ) -> Option<HashSet<(ComInterfaceSocket, Vec<Endpoint>)>> {
+        if let Some(receivers) = block.receivers() {
+            if receivers.len() != 0 {
+                let endpoint_sockets = receivers.iter().map(
+                    |e| {
+                        let socket = self.find_best_endpoint_socket(e, None);
+                        if socket.is_some() {
+                            (socket.unwrap(), e.clone())
+                        } else {
+                            (self.default_socket.as_ref().unwrap(), e.clone())
+                        }
+                    },
+                );
+
+                None
+            }
+            else {
+                None
+            }
+        }
+        else {
+            None
+        }
     }
 
     /**
