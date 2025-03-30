@@ -14,11 +14,7 @@ impl Value for Type {
     fn to_string(&self) -> String {
         if self.namespace.is_empty() || self.namespace == "std" {
             if self.variation.is_some() {
-                format!(
-                    "<{}/{}>",
-                    self.name,
-                    self.variation.as_ref().unwrap()
-                )
+                format!("<{}/{}>", self.name, self.variation.as_ref().unwrap())
             } else {
                 format!("<{}>", self.name)
             }

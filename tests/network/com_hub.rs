@@ -6,7 +6,9 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::io::Write; // FIXME no-std
+use std::io::Write;
+use datex_core::datex_values::Endpoint;
+// FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceError, ComInterfaceUUID,
@@ -160,6 +162,8 @@ pub fn test_send() {
 
 #[test]
 pub fn test_recalculate() {
+    init_global_context();
+
     let mut block = DXBBlock {
         body: vec![0x01, 0x02, 0x03],
         encrypted_header: EncryptedHeader {
@@ -169,6 +173,7 @@ pub fn test_recalculate() {
         },
         routing_header: RoutingHeader {
             block_size_u16: Some(420),
+            sender: Endpoint::new_from_string("@test").unwrap(),
             ..Default::default()
         },
         ..DXBBlock::default()

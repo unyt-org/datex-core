@@ -1,8 +1,7 @@
 use datex_core::{
     datex_values::{Endpoint, EndpointInstance},
-    global::protocol_structures::addressing::EndpointType,
 };
-
+use datex_core::datex_values::EndpointType;
 use crate::context::init_global_context;
 
 #[test]

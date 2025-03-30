@@ -1,7 +1,6 @@
 use crate::stdlib::fmt;
 
-#[derive(Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub struct SlotIdentifier {
     pub index: u16,
 }
@@ -48,7 +47,6 @@ pub mod internal_slot_address_space {
     pub const OBJECT_SLOTS: (u16, u16) = (0xfa00, 0xfeef);
     pub const UNASSIGNED: (u16, u16) = (0x0000, 0xefff);
 }
-
 
 impl SlotIdentifier {
     pub fn new(index: u16) -> SlotIdentifier {

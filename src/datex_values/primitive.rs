@@ -36,7 +36,6 @@ pub enum PrimitiveValue {
     Void,
 }
 
-
 impl fmt::Display for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", Value::to_string(self))
@@ -421,7 +420,7 @@ impl PrimitiveValue {
             PrimitiveValue::Int32(value) => *value as f64,
             PrimitiveValue::UInt32(value) => *value as f64,
             PrimitiveValue::Int64(value) => *value as f64,
-            PrimitiveValue::Float64(value) => { *value },
+            PrimitiveValue::Float64(value) => *value,
             _ => 0.0,
         }
     }

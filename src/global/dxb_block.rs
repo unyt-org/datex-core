@@ -3,7 +3,7 @@ use std::io::{Cursor, Read}; // FIXME no-std
 use binrw::{BinRead, BinWrite};
 use strum::Display;
 use thiserror::Error;
-
+use crate::datex_values::Endpoint;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 
 use super::protocol_structures::{
@@ -19,8 +19,7 @@ pub enum HeaderParsingError {
 }
 
 // TODO fix partial eq
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
     pub block_header: BlockHeader,
@@ -37,7 +36,6 @@ impl PartialEq for DXBBlock {
             && self.body == other.body
     }
 }
-
 
 impl DXBBlock {
     pub fn new(
@@ -90,17 +88,23 @@ impl DXBBlock {
         let size = bytes.len() as u32;
         let is_small_size = size <= u16::MAX as u32;
 
+        const SIZE_BYTE_POSITION: usize = 13;
+
         if is_small_size {
+            // replace u32 size with u16 size
             if routing_header.flags.block_size() == BlockSize::Large {
-                bytes.remove(13);
+                bytes.remove(SIZE_BYTE_POSITION);
             }
-            write_u16(&mut bytes, &mut 13, size as u16);
+            write_u16(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size as u16);
         } else {
+            // replace u16 size with u32 size
             if routing_header.flags.block_size() == BlockSize::Default {
-                bytes.insert(13, 0);
+                bytes.insert(SIZE_BYTE_POSITION, 0);
             }
-            write_u32(&mut bytes, &mut 13, size);
+            write_u32(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size);
         }
+
+        // update small size flag
         if is_small_size {
             clear_bit(&mut bytes, 5, 3);
         } else {
@@ -180,5 +184,17 @@ impl DXBBlock {
             body,
             raw_bytes: Some(bytes.to_vec()),
         })
+    }
+
+    /// Get a list of all receiver endpoints from the routing header.
+    pub fn receivers(&self) -> Option<&Vec<Endpoint>> {
+        if let Some(endpoints) = &self
+            .routing_header
+            .receivers.endpoints {
+            Some(&endpoints.endpoints)
+        }
+        else {
+            None
+        }
     }
 }

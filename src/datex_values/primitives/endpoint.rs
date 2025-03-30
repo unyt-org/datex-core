@@ -1,5 +1,4 @@
 use crate::crypto::random;
-use crate::global::protocol_structures::addressing::EndpointType;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
@@ -8,15 +7,18 @@ use hex::decode;
 // FIXME no-std
 use std::io::Cursor;
 
-#[derive(BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default)]
 pub enum EndpointInstance {
     // targets any instance, but exactly one endpoint
     // syntax: @x/0000 == @x
+    #[default]
     #[br(magic = 0u16)]
+    #[bw(magic = 0u16)]
     Any,
     // targets all instances of the endpoint
     // syntax: @x/65535 == @x/*
     #[br(magic = 65535u16)]
+    #[bw(magic = 65535u16)]
     All,
     // targets a specific instance of the endpoint
     // syntax: @x/[1-65534]
@@ -33,7 +35,19 @@ impl EndpointInstance {
     }
 }
 
-#[derive(BinWrite, BinRead, Debug, Clone, Hash, PartialEq, Eq)]
+// 1 byte
+#[derive(
+    Debug, Hash, PartialEq, Eq, Clone, Copy, Default, BinWrite, BinRead,
+)]
+#[brw(repr(u8))]
+pub enum EndpointType {
+    #[default]
+    Person = 0,
+    Institution = 1,
+    Anonymous = 2,
+}
+
+#[derive(BinWrite, BinRead, Debug, Clone, Hash, PartialEq, Eq, Default)]
 #[brw(little)]
 pub struct Endpoint {
     // 1 byte type, 18 bytes name, 2 bytes instance

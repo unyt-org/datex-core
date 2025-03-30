@@ -135,8 +135,7 @@ impl DecompilerGlobalState<'_> {
     fn get_insert_label(&mut self, index: usize) -> String {
         // existing
         if self.labels.contains_key(&index) {
-            self
-                .labels
+            self.labels
                 .get(&index)
                 .unwrap_or(&"?invalid?".to_string())
                 .to_string()

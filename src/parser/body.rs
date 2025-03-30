@@ -198,11 +198,8 @@ pub fn iterate_instructions<'a>(
                 // buffer
                 else if token == BinaryCode::BUFFER as u8 {
                     let size = buffers::read_u32(dxb_body, index);
-                    let value = buffers::read_vec_slice(
-                        dxb_body,
-                        index,
-                        size as usize,
-                    );
+                    let value =
+                        buffers::read_vec_slice(dxb_body, index, size as usize);
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::BUFFER,
@@ -252,11 +249,8 @@ pub fn iterate_instructions<'a>(
                     };
 
                     let size = buffers::read_u32(dxb_body, index);
-                    let buffer = buffers::read_vec_slice(
-                        dxb_body,
-                        index,
-                        size as usize,
-                    );
+                    let buffer =
+                        buffers::read_vec_slice(dxb_body, index, size as usize);
                     let bigint = BigInt::from_bytes_be(sign, &buffer);
 
                     _index.set(*index);
