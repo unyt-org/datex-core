@@ -90,6 +90,13 @@ pub struct ReceiverEndpoints {
     pub endpoints: Vec<Endpoint>,
 }
 
+impl ReceiverEndpoints {
+    pub fn new(endpoints: Vec<Endpoint>) -> Self {
+        let count = endpoints.len() as u16;
+        ReceiverEndpoints { count, endpoints }
+    }
+}
+
 // <count>: 2 byte + (21 byte * count) + (512 byte * count)
 // min: 2 bytes
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]

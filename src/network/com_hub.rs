@@ -1,7 +1,9 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use log::{error, info};
-use std::collections::{HashMap, HashSet}; // FIXME no-std
+use std::collections::HashMap;
+use itertools::Itertools;
+// FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
 use super::com_interfaces::{
@@ -13,6 +15,7 @@ use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::Context;
+
 struct DynamicEndpointProperties {
     pub known_since: u64,
     pub distance: u32,
@@ -20,14 +23,15 @@ struct DynamicEndpointProperties {
 
 pub struct ComHub {
     pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
+    // TODO: keep socket mapping up to date
+    pub sockets: HashMap<ComInterfaceSocketUUID, Rc<RefCell<ComInterfaceSocket>>>,
     pub endpoint_sockets: HashMap<
         Endpoint,
         HashMap<ComInterfaceSocket, DynamicEndpointProperties>,
     >,
-    //pub sockets: HashSet<RefCell<ComInterfaceSocket>>,
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
     pub context: Rc<RefCell<Context>>,
-    pub default_socket: Option<ComInterfaceSocket>,
+    pub default_socket: Option<ComInterfaceSocketUUID>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -45,6 +49,7 @@ impl Default for ComHub {
             endpoint_sockets: HashMap::new(),
             context: Rc::new(RefCell::new(Context::default())),
             incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
+            sockets: HashMap::new(),
             default_socket: None,
         }
     }
@@ -105,7 +110,16 @@ impl ComHub {
         incoming_blocks.push_back(Rc::new(block.clone()));
     }
 
-    // iterate over all sockets of all interfaces
+    fn get_socket_by_uuid(
+        &self,
+        socket_uuid: &ComInterfaceSocketUUID,
+    ) -> Rc<RefCell<ComInterfaceSocket>> {
+        self.sockets.get(socket_uuid)
+            .map(|socket| socket.clone())
+            .unwrap_or_else(|| panic!("Socket for uuid {} not found", socket_uuid))
+    }
+
+    /// Iterate over all sockets of all interfaces
     fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
         let mut sockets = Vec::new();
         for interface in self.interfaces.values() {
@@ -119,10 +133,10 @@ impl ComHub {
 
     fn get_socket_interface_properties(
         interfaces: &HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
-        socket: &ComInterfaceSocket,
+        interface_uuid: &ComInterfaceUUID,
     ) -> InterfaceProperties {
         interfaces
-            .get(&socket.interface_uuid)
+            .get(interface_uuid)
             .unwrap()
             .borrow()
             .get_properties()
@@ -132,7 +146,7 @@ impl ComHub {
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions,
-    ) -> impl Iterator<Item = &'a ComInterfaceSocket> + 'a {
+    ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(endpoint);
         let interfaces = &self.interfaces;
 
@@ -143,9 +157,9 @@ impl ComHub {
                     // check if is direct socket if only_redirect is set to true
                     if !options.only_direct
                         && match &socket.endpoint {
-                            Some(e) => e == endpoint,
-                            _ => false,
-                        }
+                        Some(e) => e == endpoint,
+                        _ => false,
+                    }
                     {
                         continue;
                     }
@@ -159,23 +173,23 @@ impl ComHub {
 
                     // check if the socket is outgoing if only_outgoing is set to true
                     let properties = ComHub::get_socket_interface_properties(
-                        interfaces, socket,
+                        interfaces, &socket.interface_uuid
                     );
                     if options.only_outgoing && !properties.can_send() {
                         continue;
                     }
-                    yield socket;
+                    yield socket.uuid.clone()
                 }
             },
         )
     }
 
     /// Finds the best matching socket over which an endpoint is known to be reachable.
-    fn find_known_endpoint_socket<'a>(
-        &'a self,
-        endpoint: &'a Endpoint,
+    fn find_known_endpoint_socket(
+        &self,
+        endpoint: &Endpoint,
         exclude_socket: Option<ComInterfaceSocketUUID>,
-    ) -> Option<&'a ComInterfaceSocket> {
+    ) -> Option<ComInterfaceSocketUUID> {
         match endpoint.instance {
             // find socket for any endpoint instance
             EndpointInstance::Any => {
@@ -217,11 +231,11 @@ impl ComHub {
     /// Finds the best socket over which to send a block to an endpoint.
     /// If a known socket is found, it is returned, otherwise the default socket is returned, if it
     /// exists and is not excluded.
-    fn find_best_endpoint_socket<'a>(
-        &'a self,
-        endpoint: &'a Endpoint,
+    fn find_best_endpoint_socket(
+        &self,
+        endpoint: &Endpoint,
         exclude_socket: Option<ComInterfaceSocketUUID>,
-    ) -> Option<&'a ComInterfaceSocket> {
+    ) -> Option<ComInterfaceSocketUUID> {
         // find best known socket for endpoint
         let matching_socket =
             self.find_known_endpoint_socket(endpoint, exclude_socket.clone());
@@ -234,10 +248,10 @@ impl ComHub {
         else {
             if self.default_socket.is_some()
                 && (exclude_socket.is_none()
-                    || self.default_socket.as_ref().unwrap().uuid
-                        != exclude_socket.unwrap())
+                    || self.default_socket.clone().unwrap()
+                        != exclude_socket.clone().unwrap())
             {
-                Some(self.default_socket.as_ref().unwrap())
+                Some(self.default_socket.clone().unwrap())
             } else {
                 None
             }
@@ -249,21 +263,32 @@ impl ComHub {
     fn get_outbound_receiver_groups(
         &self,
         block: &DXBBlock,
-    ) -> Option<HashSet<(ComInterfaceSocket, Vec<Endpoint>)>> {
+        exclude_socket: Option<ComInterfaceSocketUUID>,
+    ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
         if let Some(receivers) = block.receivers() {
             if receivers.len() != 0 {
-                let endpoint_sockets = receivers.iter().map(
-                    |e| {
-                        let socket = self.find_best_endpoint_socket(e, None);
-                        if socket.is_some() {
-                            (socket.unwrap(), e.clone())
-                        } else {
-                            (self.default_socket.as_ref().unwrap(), e.clone())
-                        }
-                    },
-                );
+                let endpoint_sockets = receivers.iter()
+                    .map(
+                        |e| {
+                            let socket = self.find_best_endpoint_socket(e, exclude_socket.clone());
+                            (socket, e)
+                        },
+                    )
+                    .group_by(
+                        |(socket, _)| socket.clone(),
+                    )
+                    .into_iter()
+                    .map(
+                        |(socket, group)| {
+                            let endpoints = group
+                                .map(|(_, endpoint)| endpoint.clone())
+                                .collect::<Vec<_>>();
+                            (socket, endpoints)
+                        },
+                    )
+                    .collect::<Vec<_>>();
 
-                None
+                Some(endpoint_sockets)
             }
             else {
                 None
@@ -274,10 +299,8 @@ impl ComHub {
         }
     }
 
-    /**
-     * Update all sockets and interfaces,
-     * collecting incoming data and sending out queued blocks.
-     */
+    /// Update all sockets and interfaces,
+    /// collecting incoming data and sending out queued blocks.
     pub fn update(&mut self) {
         // update sockets
         self.update_sockets();
@@ -288,33 +311,55 @@ impl ComHub {
         // send all queued blocks from all interfaces
         self.flush_outgoing_blocks();
     }
-
-    /**
-     * Send a block to all endpoints specified in block header.
-     * The routing algorithm decides which sockets are used to send the block, based on the endpoint.
-     * A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
-     * The original_socket parameter is used to prevent sending the block back to the sender.
-     * When this method is called, the block is queued in the send queue.
-     */
+    
+    /// Send a block to all endpoints specified in the block header.
+    /// The routing algorithm decides which sockets are used to send the block, based on the endpoint.
+    /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
+    /// The original_socket parameter is used to prevent sending the block back to the sender.
+    /// When this method is called, the block is queued in the send queue.
     pub fn send_block(
         &self,
         block: &DXBBlock,
-        original_socket: Option<&mut ComInterfaceSocket>,
+        original_socket: Option<ComInterfaceSocketUUID>,
     ) {
-        // TODO: routing
-        for socket in &self.iterate_all_sockets() {
-            let mut socket_ref = socket.borrow_mut();
+        let outbound_receiver_groups =
+            self.get_outbound_receiver_groups(block, original_socket);
 
-            match &block.to_bytes() {
-                Ok(bytes) => {
-                    socket_ref.queue_outgoing_block(bytes);
-                }
-                Err(err) => {
-                    error!("Failed to convert block to bytes: {:?}", err);
-                }
+        if outbound_receiver_groups.is_none() {
+            error!("No outbound receiver groups found for block");
+            return;
+        }
+
+        let outbound_receiver_groups = outbound_receiver_groups.unwrap();
+
+        for (receiver_socket, endpoints) in outbound_receiver_groups {
+            if let Some(socket) = receiver_socket {
+                self.send_block_addressed(block, &socket, &endpoints);
+            }
+            else {
+                error!("Cannot send block, no receiver sockets found");
             }
         }
     }
+
+    /// Send a block via a socket to a list of endpoints.
+    /// Before the block is sent, it is modified to include the list of endpoints as receivers.
+    fn send_block_addressed(&self, block: &DXBBlock, socket_uuid: &ComInterfaceSocketUUID, endpoints: &[Endpoint]) {
+        let mut addressed_block = block.clone();
+        addressed_block.set_receivers(endpoints);
+
+        let socket = self.get_socket_by_uuid(socket_uuid);
+        let mut socket_ref = socket.borrow_mut();
+        match &addressed_block.to_bytes() {
+            Ok(bytes) => {
+                socket_ref.queue_outgoing_block(&bytes);
+            }
+            Err(err) => {
+                error!("Failed to convert block to bytes: {:?}", err);
+            }
+        }
+    }
+
 
     fn update_sockets(&self) {
         // update sockets, collect incoming data into full blocks
@@ -324,11 +369,9 @@ impl ComHub {
             socket_ref.collect_incoming_data();
         }
     }
-
-    /**
-     * Collect all blocks from the receive queues of all sockets and process them
-     * in the receive_block method.
-     */
+    
+    /// Collect all blocks from the receive queues of all sockets and process them
+    /// in the receive_block method.
     fn receive_incoming_blocks(&mut self) {
         // iterate over all sockets
         for socket in &self.iterate_all_sockets() {
@@ -340,9 +383,7 @@ impl ComHub {
         }
     }
 
-    /**
-     * Send all queued blocks from all interfaces.
-     */
+    /// Send all queued blocks from all interfaces.
     fn flush_outgoing_blocks(&mut self) {
         for interface in self.interfaces.values() {
             interface.borrow_mut().flush_outgoing_blocks();
