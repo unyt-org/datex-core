@@ -2,7 +2,6 @@ use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use itertools::Itertools;
 use log::{error, info};
-use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
 // FIXME no-std
 
@@ -167,7 +166,7 @@ impl ComHub {
         endpoint: &Endpoint,
         socket_uuid: ComInterfaceSocketUUID,
     ) {
-        if !self.endpoint_sockets.contains_key(&endpoint) {
+        if !self.endpoint_sockets.contains_key(endpoint) {
             self.endpoint_sockets
                 .insert(endpoint.clone(), HashMap::new());
         }
@@ -364,16 +363,14 @@ impl ComHub {
             matching_socket
         }
         // otherwise, return the default socket if it exists and is not excluded
-        else {
-            if self.default_socket.is_some()
-                && (exclude_socket.is_none()
-                    || self.default_socket.clone().unwrap()
-                        != exclude_socket.clone().unwrap())
-            {
-                Some(self.default_socket.clone().unwrap())
-            } else {
-                None
-            }
+        else if self.default_socket.is_some()
+            && (exclude_socket.is_none()
+                || self.default_socket.clone().unwrap()
+                    != exclude_socket.clone().unwrap())
+        {
+            Some(self.default_socket.clone().unwrap())
+        } else {
+            None
         }
     }
 
@@ -385,7 +382,7 @@ impl ComHub {
         exclude_socket: Option<ComInterfaceSocketUUID>,
     ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
         if let Some(receivers) = block.receivers() {
-            if receivers.len() != 0 {
+            if !receivers.is_empty() {
                 let endpoint_sockets = receivers
                     .iter()
                     .map(|e| {
@@ -472,7 +469,7 @@ impl ComHub {
         match &addressed_block.to_bytes() {
             Ok(bytes) => {
                 // TODO: resend block if socket failed to send
-                socket_ref.queue_outgoing_block(&bytes);
+                socket_ref.queue_outgoing_block(bytes);
             }
             Err(err) => {
                 error!("Failed to convert block to bytes: {:?}", err);
