@@ -1,8 +1,9 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use log::{error, info};
-use std::collections::HashMap;
 use itertools::Itertools;
+use log::{error, info};
+use std::cell::Ref;
+use std::collections::{HashMap, HashSet};
 // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
@@ -23,11 +24,18 @@ struct DynamicEndpointProperties {
 
 pub struct ComHub {
     pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
+    /// a list of all available sockets, keyed by their UUID
+    /// contains the socket itself and a list of endpoints currently associated with it
     // TODO: keep socket mapping up to date
-    pub sockets: HashMap<ComInterfaceSocketUUID, Rc<RefCell<ComInterfaceSocket>>>,
-    pub endpoint_sockets: HashMap<
+    pub sockets: HashMap<
+        ComInterfaceSocketUUID,
+        (Rc<RefCell<ComInterfaceSocket>>, HashSet<Endpoint>),
+    >,
+    /// a list of all available sockets for each endpoint, with additional
+    /// DynamicEndpointProperties metadata
+    endpoint_sockets: HashMap<
         Endpoint,
-        HashMap<ComInterfaceSocket, DynamicEndpointProperties>,
+        HashMap<ComInterfaceSocketUUID, DynamicEndpointProperties>,
     >,
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
     pub context: Rc<RefCell<Context>>,
@@ -59,6 +67,12 @@ impl Default for ComHub {
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
     InterfaceAlreadyExists,
+}
+
+#[derive(Debug)]
+pub enum SocketEndpointRegistrationError {
+    SocketDisconnected,
+    SocketUninitialized,
 }
 
 impl ComHub {
@@ -110,16 +124,114 @@ impl ComHub {
         incoming_blocks.push_back(Rc::new(block.clone()));
     }
 
+    /// registers a new endpoint that is reachable over the socket
+    /// if the socket is not already registered, it will be added to the socket list
+    /// if the provided endpoint is not the same as the socket endpoint,
+    /// it is registered as an indirect socket to the endpoint
+    pub fn register_socket_endpoint(
+        &mut self,
+        socket: Rc<RefCell<ComInterfaceSocket>>,
+        endpoint: Endpoint,
+    ) -> Result<(), SocketEndpointRegistrationError> {
+        let socket_ref = socket.borrow();
+        // if the registered endpoint is the same as the socket endpoint,
+        // this is a direct socket to the endpoint
+        let is_direct = socket_ref.endpoint == Some(endpoint.clone());
+
+        // cannot register endpoint if socket is not connected
+        if !socket_ref.is_connected {
+            return Err(SocketEndpointRegistrationError::SocketDisconnected);
+        }
+
+        // cannot register endpoint if socket is not initialized (no endpoint assigned)
+        if socket_ref.endpoint.is_none() {
+            return Err(SocketEndpointRegistrationError::SocketUninitialized);
+        }
+
+        // TODO: set as default socket if interface is registered as default interface
+
+        // add endpoint to socket endpoint list
+        self.add_socket_endpoint(socket.clone(), endpoint.clone());
+
+        // add socket to endpoint socket list
+        self.add_endpoint_socket(&endpoint, socket_ref.uuid.clone());
+
+        // resort sockets for endpoint
+        self.sort_sockets(&endpoint);
+
+        Ok(())
+    }
+
+    fn add_endpoint_socket(
+        &mut self,
+        endpoint: &Endpoint,
+        socket_uuid: ComInterfaceSocketUUID,
+    ) {
+        if !self.endpoint_sockets.contains_key(&endpoint) {
+            self.endpoint_sockets
+                .insert(endpoint.clone(), HashMap::new());
+        }
+
+        let endpoint_sockets = self.endpoint_sockets.get_mut(endpoint).unwrap();
+        endpoint_sockets.insert(
+            socket_uuid,
+            DynamicEndpointProperties {
+                known_since: 0,
+                distance: 0,
+            },
+        );
+    }
+
+    fn add_socket_endpoint(
+        &mut self,
+        socket: Rc<RefCell<ComInterfaceSocket>>,
+        endpoint: Endpoint,
+    ) {
+        if !self.sockets.contains_key(&socket.borrow().uuid) {
+            self.sockets.insert(
+                socket.borrow().uuid.clone(),
+                (socket.clone(), HashSet::new()),
+            );
+        }
+
+        // add endpoint to socket endpoint list
+        self.sockets
+            .get_mut(&socket.borrow().uuid)
+            .unwrap()
+            .1
+            .insert(endpoint.clone());
+    }
+
+    /// Sort the sockets for an endpoint:
+    /// - direct sockets first
+    /// - then sort by channel channel_factor (latency, bandwidth)
+    /// - then sort by socket connect_timestamp
+    fn sort_sockets(&mut self, endpoint: &Endpoint) {
+        let sockets = self.endpoint_sockets.get_mut(endpoint).unwrap();
+
+        // TODO: implement sorting logic
+        /*let sorted_sockets =
+
+        self.endpoint_sockets.insert(
+            endpoint.clone(),
+            sorted_sockets,
+        );*/
+    }
+
     fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<ComInterfaceSocket>> {
-        self.sockets.get(socket_uuid)
-            .map(|socket| socket.clone())
-            .unwrap_or_else(|| panic!("Socket for uuid {} not found", socket_uuid))
+        self.sockets
+            .get(socket_uuid)
+            .map(|socket| socket.0.clone())
+            .unwrap_or_else(|| {
+                panic!("Socket for uuid {} not found", socket_uuid)
+            })
     }
 
     /// Iterate over all sockets of all interfaces
+    #[deprecated(note = "Iterate self.sockets instead")]
     fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
         let mut sockets = Vec::new();
         for interface in self.interfaces.values() {
@@ -153,32 +265,39 @@ impl ComHub {
         std::iter::from_coroutine(
             #[coroutine]
             move || {
-                for socket in endpoint_sockets.unwrap().keys() {
-                    // check if is direct socket if only_redirect is set to true
-                    if !options.only_direct
-                        && match &socket.endpoint {
-                        Some(e) => e == endpoint,
-                        _ => false,
-                    }
+                for socket_uuid in endpoint_sockets.unwrap().keys() {
                     {
-                        continue;
-                    }
+                        let socket = self.get_socket_by_uuid(socket_uuid);
+                        let socket = socket.borrow();
+                        // check if is direct socket if only_redirect is set to true
+                        if !options.only_direct
+                            && match &socket.endpoint {
+                                Some(e) => e == endpoint,
+                                _ => false,
+                            }
+                        {
+                            continue;
+                        }
 
-                    // check if the socket is excluded if exclude_socket is set
-                    if let Some(exclude_socket) = &options.exclude_socket {
-                        if socket.uuid == *exclude_socket {
+                        // check if the socket is excluded if exclude_socket is set
+                        if let Some(exclude_socket) = &options.exclude_socket {
+                            if socket.uuid == *exclude_socket {
+                                continue;
+                            }
+                        }
+
+                        // check if the socket is outgoing if only_outgoing is set to true
+                        let properties =
+                            ComHub::get_socket_interface_properties(
+                                interfaces,
+                                &socket.interface_uuid,
+                            );
+                        if options.only_outgoing && !properties.can_send() {
                             continue;
                         }
                     }
 
-                    // check if the socket is outgoing if only_outgoing is set to true
-                    let properties = ComHub::get_socket_interface_properties(
-                        interfaces, &socket.interface_uuid
-                    );
-                    if options.only_outgoing && !properties.can_send() {
-                        continue;
-                    }
-                    yield socket.uuid.clone()
+                    yield socket_uuid.clone()
                 }
             },
         )
@@ -267,34 +386,30 @@ impl ComHub {
     ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
         if let Some(receivers) = block.receivers() {
             if receivers.len() != 0 {
-                let endpoint_sockets = receivers.iter()
-                    .map(
-                        |e| {
-                            let socket = self.find_best_endpoint_socket(e, exclude_socket.clone());
-                            (socket, e)
-                        },
-                    )
-                    .group_by(
-                        |(socket, _)| socket.clone(),
-                    )
+                let endpoint_sockets = receivers
+                    .iter()
+                    .map(|e| {
+                        let socket = self.find_best_endpoint_socket(
+                            e,
+                            exclude_socket.clone(),
+                        );
+                        (socket, e)
+                    })
+                    .group_by(|(socket, _)| socket.clone())
                     .into_iter()
-                    .map(
-                        |(socket, group)| {
-                            let endpoints = group
-                                .map(|(_, endpoint)| endpoint.clone())
-                                .collect::<Vec<_>>();
-                            (socket, endpoints)
-                        },
-                    )
+                    .map(|(socket, group)| {
+                        let endpoints = group
+                            .map(|(_, endpoint)| endpoint.clone())
+                            .collect::<Vec<_>>();
+                        (socket, endpoints)
+                    })
                     .collect::<Vec<_>>();
 
                 Some(endpoint_sockets)
-            }
-            else {
+            } else {
                 None
             }
-        }
-        else {
+        } else {
             None
         }
     }
@@ -311,7 +426,7 @@ impl ComHub {
         // send all queued blocks from all interfaces
         self.flush_outgoing_blocks();
     }
-    
+
     /// Send a block to all endpoints specified in the block header.
     /// The routing algorithm decides which sockets are used to send the block, based on the endpoint.
     /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
@@ -335,8 +450,7 @@ impl ComHub {
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket) = receiver_socket {
                 self.send_block_addressed(block, &socket, &endpoints);
-            }
-            else {
+            } else {
                 error!("Cannot send block, no receiver sockets found");
             }
         }
@@ -344,7 +458,12 @@ impl ComHub {
 
     /// Send a block via a socket to a list of endpoints.
     /// Before the block is sent, it is modified to include the list of endpoints as receivers.
-    fn send_block_addressed(&self, block: &DXBBlock, socket_uuid: &ComInterfaceSocketUUID, endpoints: &[Endpoint]) {
+    fn send_block_addressed(
+        &self,
+        block: &DXBBlock,
+        socket_uuid: &ComInterfaceSocketUUID,
+        endpoints: &[Endpoint],
+    ) {
         let mut addressed_block = block.clone();
         addressed_block.set_receivers(endpoints);
 
@@ -352,6 +471,7 @@ impl ComHub {
         let mut socket_ref = socket.borrow_mut();
         match &addressed_block.to_bytes() {
             Ok(bytes) => {
+                // TODO: resend block if socket failed to send
                 socket_ref.queue_outgoing_block(&bytes);
             }
             Err(err) => {
@@ -359,7 +479,6 @@ impl ComHub {
             }
         }
     }
-
 
     fn update_sockets(&self) {
         // update sockets, collect incoming data into full blocks
@@ -369,7 +488,7 @@ impl ComHub {
             socket_ref.collect_incoming_data();
         }
     }
-    
+
     /// Collect all blocks from the receive queues of all sockets and process them
     /// in the receive_block method.
     fn receive_incoming_blocks(&mut self) {
