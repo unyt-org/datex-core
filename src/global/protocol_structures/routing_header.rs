@@ -1,7 +1,7 @@
+use super::serializable::Serializable;
+use crate::datex_values::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
-use crate::datex_values::Endpoint;
-use super::{serializable::Serializable};
 
 // 2 bit
 #[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]

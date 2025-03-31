@@ -1,4 +1,5 @@
 use binrw::{BinRead, BinWrite};
+use datex_core::datex_values::{Endpoint, EndpointInstance, EndpointType};
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{
@@ -9,7 +10,6 @@ use datex_core::global::{
     },
 };
 use std::io::{Cursor, Seek, SeekFrom};
-use datex_core::datex_values::{Endpoint, EndpointInstance, EndpointType};
 // FIXME no-std
 
 #[test]
@@ -17,7 +17,7 @@ pub fn parse_encrypted_header() {
     let endpoint = Endpoint {
         type_: EndpointType::Person,
         identifier: [1; 18],
-        instance: EndpointInstance::Any
+        instance: EndpointInstance::Any,
     };
     let encrypted_header = EncryptedHeader {
         on_behalf_of: Some(endpoint.clone()),

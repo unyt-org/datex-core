@@ -7,7 +7,9 @@ use hex::decode;
 // FIXME no-std
 use std::io::Cursor;
 
-#[derive(BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default)]
+#[derive(
+    BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
+)]
 pub enum EndpointInstance {
     // targets any instance, but exactly one endpoint
     // syntax: @x/0000 == @x

@@ -1,11 +1,11 @@
 use std::io::{Cursor, Read}; // FIXME no-std
 
-use binrw::{BinRead, BinWrite};
-use strum::Display;
-use thiserror::Error;
 use crate::datex_values::Endpoint;
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
+use binrw::{BinRead, BinWrite};
+use strum::Display;
+use thiserror::Error;
 
 use super::protocol_structures::{
     block_header::BlockHeader,
@@ -189,23 +189,16 @@ impl DXBBlock {
 
     /// Get a list of all receiver endpoints from the routing header.
     pub fn receivers(&self) -> Option<&Vec<Endpoint>> {
-        if let Some(endpoints) = &self
-            .routing_header
-            .receivers.endpoints {
+        if let Some(endpoints) = &self.routing_header.receivers.endpoints {
             Some(&endpoints.endpoints)
-        }
-        else {
+        } else {
             None
         }
     }
 
     /// Update the receivers list in the routing header.
-    pub fn set_receivers(
-        &mut self,
-        receivers: &[Endpoint],
-    ) {
-        self.routing_header.receivers.endpoints = Some(ReceiverEndpoints::new(
-            receivers.to_vec(),
-        ));
+    pub fn set_receivers(&mut self, receivers: &[Endpoint]) {
+        self.routing_header.receivers.endpoints =
+            Some(ReceiverEndpoints::new(receivers.to_vec()));
     }
 }

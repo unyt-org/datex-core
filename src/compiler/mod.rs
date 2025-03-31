@@ -16,12 +16,12 @@ use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 
 pub mod parser;
+use crate::datex_values::{Endpoint, EndpointType};
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
-use crate::datex_values::{Endpoint, EndpointType};
 
 pub enum CompilationError {
     InvalidRule(String),

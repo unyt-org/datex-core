@@ -1,8 +1,6 @@
-use datex_core::{
-    datex_values::{Endpoint, EndpointInstance},
-};
-use datex_core::datex_values::EndpointType;
 use crate::context::init_global_context;
+use datex_core::datex_values::EndpointType;
+use datex_core::datex_values::{Endpoint, EndpointInstance};
 
 #[test]
 fn new_random() {

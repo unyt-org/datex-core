@@ -1,3 +1,4 @@
+use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
@@ -7,7 +8,6 @@ use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::io::Write;
-use datex_core::datex_values::Endpoint;
 // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
