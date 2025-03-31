@@ -15,6 +15,7 @@ use datex_core::network::com_interfaces::com_interface::{
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
+use datex_core::utils::debuggable::Debuggable;
 use datex_core::utils::uuid::UUID;
 
 use crate::context::init_global_context;
@@ -45,6 +46,7 @@ impl ComInterface for MockupInterface {
     fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "mockup".to_string(),
+            name: Some("mockup".to_string()),
             ..Default::default()
         }
     }
@@ -150,6 +152,8 @@ pub fn test_send() {
     let mut com_hub_mut = com_hub.borrow_mut();
     com_hub_mut.send_block(&block, None);
     com_hub_mut.update();
+
+    com_hub_mut.log_debug_info();
 
     // get last block that was sent
     let mockup_interface_out = com_interface.clone();

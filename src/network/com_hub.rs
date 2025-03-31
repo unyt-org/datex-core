@@ -1,8 +1,10 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use ansi_term::Style;
 use itertools::Itertools;
 use log::{error, info};
 use std::collections::{HashMap, HashSet};
+use std::fmt::Formatter;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
@@ -15,6 +17,7 @@ use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::Context;
+use crate::utils::debuggable::Debuggable;
 
 struct DynamicEndpointProperties {
     pub known_since: u64,
@@ -504,5 +507,44 @@ impl ComHub {
         for interface in self.interfaces.values() {
             interface.borrow_mut().flush_outgoing_blocks();
         }
+    }
+}
+
+impl Debuggable for ComHub {
+    fn get_debug_info(&self) -> String {
+        let mut str = String::new();
+
+        let width = 40;
+
+        str.push_str("\n");
+        str.push_str(&"=".repeat(width));
+
+        str.push_str(&format!(
+            "\n{}\n\n",
+            Style::new().bold().paint("ComHub Debug Info")
+        ));
+
+        str.push_str(&format!(
+            "Registered Interfaces: {}\n",
+            self.interfaces.len()
+        ));
+
+        str.push_str(&format!("Connected Sockets: {}\n\n", self.sockets.len()));
+
+        for interface in self.interfaces.values() {
+            let interface = interface.borrow();
+            str.push_str(&format!(
+                "{}\n",
+                Style::new().bold().paint(&format!(
+                    "{} ({})",
+                    interface.get_properties().channel,
+                    interface.get_properties().name.unwrap_or("-".to_string())
+                ))
+            ));
+        }
+
+        str.push_str(&"=".repeat(width));
+
+        str
     }
 }
