@@ -8,11 +8,11 @@ use crate::stdlib::{
 use crate::{
     datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
     global::binary_codes::BinaryCode,
-    parser::body,
 };
-
+use crate::parser::iterate_instructions;
 use super::{stack::Stack, Context};
 
+/*
 fn execute_body(ctx: Rc<RefCell<Context>>, dxb_body: &[u8]) -> ValueResult {
     execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false))
 }
@@ -26,7 +26,7 @@ fn execute_loop(
     let mut stack: Stack = Stack::new();
 
     let instruction_iterator =
-        body::iterate_instructions(dxb_body, index, is_end_instruction);
+        iterate_instructions(dxb_body, index, is_end_instruction);
 
     for instruction in instruction_iterator {
         debug!("{}", &instruction);
@@ -163,3 +163,5 @@ fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
         Err(err) => Some(err),
     }
 }
+
+*/

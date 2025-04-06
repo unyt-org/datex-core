@@ -18,8 +18,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::global::binary_codes::BinaryCode;
-use crate::parser::body;
-
+use crate::parser::iterate_instructions;
 use self::constants::tokens::get_code_color;
 
 lazy_static! {
@@ -83,7 +82,8 @@ pub fn decompile_body(
         variables: HashMap::new(),
     };
 
-    decompile_loop(&mut initial_state)
+    todo!();
+    //decompile_loop(&mut initial_state)
 }
 
 fn int_to_label(n: i32) -> String {
@@ -176,12 +176,13 @@ impl DecompilerGlobalState<'_> {
     }
 }
 
+/*
 fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
     let mut out: String = "".to_string();
 
     // let logger = Logger::new_for_development(&state.ctx, "Decompiler");
 
-    let instruction_iterator = body::iterate_instructions(
+    let instruction_iterator = iterate_instructions(
         state.dxb_body,
         state.index,
         state.is_end_instruction,
@@ -669,3 +670,4 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
 
     out
 }
+*/
