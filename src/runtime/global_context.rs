@@ -1,9 +1,10 @@
-use crate::crypto::crypto::Crypto;
+use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use std::sync::{Arc, Mutex}; // FIXME no-std
 
 #[derive(Clone)]
 pub struct GlobalContext {
-    pub crypto: Arc<Mutex<dyn Crypto>>,
+    pub crypto: Arc<Mutex<dyn CryptoTrait>>,
+    pub time: Arc<Mutex<dyn TimeTrait>>,
 }
 
 lazy_static::lazy_static! {

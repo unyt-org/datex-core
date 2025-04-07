@@ -4,12 +4,10 @@ use std::sync::{Arc, Mutex, Once};
 use crate::crypto::crypto_native::CryptoNative;
 use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use global_context::{set_global_context, GlobalContext};
+use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
 
 use crate::network::com_hub::ComHub;
-use crate::utils::time::Time;
-use crate::utils::time::TimeTrait;
 
 mod execution;
 pub mod global_context;
@@ -39,7 +37,7 @@ impl Runtime {
 
             info!(
                 "Runtime initialized - Version {VERSION} Time: {}",
-                Time::now()
+                get_global_context().time.lock().unwrap().now()
             );
         });
         Self::new()
@@ -47,8 +45,11 @@ impl Runtime {
 
     #[cfg(feature = "native_crypto")]
     pub fn init_native() -> Runtime {
+        use crate::utils::time_native::TimeNative;
+
         Self::init(GlobalContext {
             crypto: Arc::new(Mutex::new(CryptoNative)),
+            time: Arc::new(Mutex::new(TimeNative)),
         })
     }
 }

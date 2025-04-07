@@ -1,6 +1,6 @@
 use crate::stdlib::pin::Pin;
 
-use super::crypto::{Crypto, CryptoError};
+use super::crypto::{CryptoError, CryptoTrait};
 use rand::{rngs::OsRng, Rng};
 use rsa::{
     pkcs8::{EncodePrivateKey, EncodePublicKey},
@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
-impl Crypto for CryptoNative {
+impl CryptoTrait for CryptoNative {
     fn create_uuid(&self) -> String {
         Uuid::new_v4().to_string()
     }

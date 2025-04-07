@@ -77,14 +77,13 @@ default = [
 ] # default to nostd
 
 native_websocket = ["websocket"] # use native websocket
-native_tcp = [] # use native tcp
-native_time = [] # use native time
-native_rand = ["rand"] # use native websocket
-native_uuid = ["uuid"] # use native websocket
-native_crypto = ["rsa"] # use native crypto
+native_tcp = []                  # use native tcp
+native_time = []                 # use native time
+native_rand = ["rand"]           # use native websocket
+native_uuid = ["uuid"]           # use native websocket
+native_crypto = ["rsa"]          # use native crypto
 
 wasm_logger = ["console_log"]
-wasm_time = ["js-sys"]
 
-std = [] # use std
+std = []   # use std
 debug = []

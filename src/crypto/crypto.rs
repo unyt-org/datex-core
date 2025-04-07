@@ -1,6 +1,9 @@
-use crate::stdlib::{future::Future, pin::Pin, usize};
+use crate::{
+    runtime::global_context::get_global_context,
+    stdlib::{future::Future, pin::Pin, usize},
+};
 
-pub trait Crypto: Send + Sync {
+pub trait CryptoTrait: Send + Sync {
     fn encrypt_rsa(
         &self,
         data: Vec<u8>,
@@ -35,6 +38,18 @@ pub trait Crypto: Send + Sync {
     fn new_sign_key_pair(
         &self,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>;
+}
+
+pub struct Crypto;
+impl Crypto {
+    // TODO add other method if needed here as wrapper
+
+    // pub fn create_uuid(&self) -> String {
+    //     let crypto: std::sync::Arc<std::sync::Mutex<dyn CryptoTrait>> =
+    //         get_global_context().crypto;
+    //     let crypto = crypto.lock().unwrap();
+    //     crypto.create_uuid()
+    // }
 }
 
 #[derive(Debug, Clone)]

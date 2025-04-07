@@ -16,8 +16,6 @@ use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::utils::time::Time;
-use crate::utils::time::TimeTrait;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
@@ -189,7 +187,7 @@ impl ComHub {
         endpoint_sockets.push((
             socket_uuid,
             DynamicEndpointProperties {
-                known_since: Time::now(),
+                known_since: 1, // FIXME
                 distance,
                 is_direct,
                 channel_factor,
