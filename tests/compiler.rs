@@ -30,13 +30,10 @@ c";"#,
 }
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
-    let runtime = Runtime::default();
     let dxb_body = compile_body(datex_script).unwrap();
 
-    let decompiled =
-        decompile_body(runtime.context.clone(), &dxb_body, false, false, false);
-    let decompiled_color =
-        decompile_body(runtime.context.clone(), &dxb_body, true, true, true);
+    let decompiled = decompile_body(&dxb_body, false, false, false);
+    let decompiled_color = decompile_body(&dxb_body, true, true, true);
 
     info!("original   : {}", datex_script);
     info!("decompiled : {}", decompiled_color);
@@ -44,13 +41,11 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 }
 
 fn compare_compiled(datex_script: &str, expected: &str) {
-    let runtime = Runtime::default();
+    let runtime = Runtime::init_native();
     let dxb_body = compile_body(datex_script).unwrap();
 
-    let decompiled_color =
-        decompile_body(runtime.context.clone(), &dxb_body, true, true, true);
-    let decompiled =
-        decompile_body(runtime.context.clone(), &dxb_body, false, false, false);
+    let decompiled_color = decompile_body(&dxb_body, true, true, true);
+    let decompiled = decompile_body(&dxb_body, false, false, false);
 
     info!("original   : {}", datex_script);
     info!("expected : {}", expected);

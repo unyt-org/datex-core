@@ -12,15 +12,11 @@ use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use crate::utils::uuid::UUID;
-use crate::{
-    network::com_interfaces::{
-        com_interface::ComInterface,
-        com_interface_properties::InterfaceProperties,
-        com_interface_socket::ComInterfaceSocket,
-    },
-    runtime::Context,
+use crate::network::com_interfaces::{
+    com_interface::ComInterface, com_interface_properties::InterfaceProperties,
+    com_interface_socket::ComInterfaceSocket,
 };
+use crate::utils::uuid::UUID;
 
 pub struct WebSocketClientInterface<WS>
 where
@@ -28,7 +24,6 @@ where
 {
     pub uuid: ComInterfaceUUID,
     pub web_socket: Rc<RefCell<WS>>,
-    context: Rc<RefCell<Context>>,
     socket: Option<Rc<RefCell<ComInterfaceSocket>>>,
 }
 
@@ -43,13 +38,11 @@ where
     WS: WebSocket,
 {
     pub fn new_with_web_socket(
-        context: Rc<RefCell<Context>>,
         web_socket: Rc<RefCell<WS>>,
     ) -> WebSocketClientInterface<WS> {
         WebSocketClientInterface {
             uuid: ComInterfaceUUID(UUID::new()),
             web_socket,
-            context,
             socket: None,
         }
     }
@@ -87,9 +80,7 @@ where
             .borrow_mut()
             .connect()
             .map_err(|_| ComInterfaceError::ConnectionError)?;
-        let socket = self.create_socket_default(
-            receive_queue,
-        );
+        let socket = self.create_socket_default(receive_queue);
         self.socket = Some(Rc::new(RefCell::new(socket)));
         info!("Adding WebSocket");
 

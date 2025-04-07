@@ -11,14 +11,13 @@ use crate::{
     parser::body,
 };
 
-use super::{stack::Stack, Context};
+use super::stack::Stack;
 
-fn execute_body(ctx: Rc<RefCell<Context>>, dxb_body: &[u8]) -> ValueResult {
-    execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false))
+fn execute_body(dxb_body: &[u8]) -> ValueResult {
+    execute_loop(dxb_body, &Cell::from(0), &Cell::from(false))
 }
 
 fn execute_loop(
-    ctx: Rc<RefCell<Context>>,
     dxb_body: &[u8],
     index: &Cell<usize>,
     is_end_instruction: &Cell<bool>,
@@ -74,8 +73,7 @@ fn execute_loop(
 
         // enter new subscope - continue at index?
         if instruction.subscope_continue {
-            let sub_result =
-                execute_loop(ctx.clone(), dxb_body, index, is_end_instruction);
+            let sub_result = execute_loop(dxb_body, index, is_end_instruction);
 
             // propagate error from subscope
             if sub_result.is_err() {

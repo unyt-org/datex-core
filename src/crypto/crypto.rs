@@ -48,5 +48,3 @@ pub enum CryptoError {
     SigningError,
     VerificationError,
 }
-
-pub struct CryptoDefault;

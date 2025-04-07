@@ -12,9 +12,10 @@ use super::com_interfaces::{
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::DXBBlock;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use crate::network::com_interfaces::com_interface_properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface_properties::{
+    InterfaceDirection, InterfaceProperties,
+};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::Context;
 use crate::utils::time::Time;
 use crate::utils::time::TimeTrait;
 
@@ -43,7 +44,6 @@ pub struct ComHub {
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
-    pub context: Rc<RefCell<Context>>,
     pub default_socket: Option<ComInterfaceSocketUUID>,
 }
 
@@ -59,7 +59,6 @@ impl Default for ComHub {
         ComHub {
             interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
-            context: Rc::new(RefCell::new(Context::default())),
             incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
             sockets: HashMap::new(),
             default_socket: None,
@@ -80,9 +79,8 @@ pub enum SocketEndpointRegistrationError {
 }
 
 impl ComHub {
-    pub fn new(context: Rc<RefCell<Context>>) -> Rc<RefCell<ComHub>> {
+    pub fn new() -> Rc<RefCell<ComHub>> {
         Rc::new(RefCell::new(ComHub {
-            context,
             ..ComHub::default()
         }))
     }
@@ -159,7 +157,14 @@ impl ComHub {
         self.add_socket_endpoint(socket.clone(), endpoint.clone());
 
         // add socket to endpoint socket list
-        self.add_endpoint_socket(&endpoint, socket_ref.uuid.clone(), distance, is_direct, socket_ref.channel_factor, socket_ref.direction.clone());
+        self.add_endpoint_socket(
+            &endpoint,
+            socket_ref.uuid.clone(),
+            distance,
+            is_direct,
+            socket_ref.channel_factor,
+            socket_ref.direction.clone(),
+        );
 
         // resort sockets for endpoint
         self.sort_sockets(&endpoint);
@@ -223,7 +228,8 @@ impl ComHub {
 
         sockets.sort_by(|(_, a), (_, b)| {
             // sort by channel_factor
-            b.is_direct.cmp(&a.is_direct)
+            b.is_direct
+                .cmp(&a.is_direct)
                 .then_with(|| b.channel_factor.cmp(&a.channel_factor))
                 .then_with(|| b.distance.cmp(&a.distance))
                 .then_with(|| b.known_since.cmp(&a.known_since))

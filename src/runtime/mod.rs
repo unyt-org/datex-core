@@ -1,9 +1,11 @@
-use std::sync::Once;
+use std::sync::{Arc, Mutex, Once};
 
-use log::info;
-
+#[cfg(feature = "native_crypto")]
+use crate::crypto::crypto_native::CryptoNative;
 use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use global_context::{set_global_context, GlobalContext};
+use log::info;
 
 use crate::network::com_hub::ComHub;
 use crate::utils::time::Time;
@@ -18,32 +20,45 @@ use self::memory::Memory;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Default)]
-pub struct Context {}
 static INIT: Once = Once::new();
 
 pub struct Runtime {
     pub version: String,
-    pub context: Rc<RefCell<Context>>,
     pub memory: Rc<RefCell<Memory>>,
     pub com_hub: Rc<RefCell<ComHub>>,
 }
 
 impl Runtime {
-    pub fn new(context: Rc<RefCell<Context>>) -> Runtime {
+    pub fn new() -> Runtime {
+        Runtime::default()
+    }
+    pub fn init(global_context: GlobalContext) -> Runtime {
+        set_global_context(global_context);
         INIT.call_once(|| {
             init_logger();
+
+            info!(
+                "Runtime initialized - Version {VERSION} Time: {}",
+                Time::now()
+            );
         });
-        info!("Runtime initialized - Time: {}", Time::now());
-        Runtime {
-            version: VERSION.to_string(),
-            context: context.clone(),
-            memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: ComHub::new(context.clone()),
-        }
+        Self::new()
     }
 
-    pub fn default() -> Runtime {
-        Runtime::new(Rc::new(RefCell::new(Context {})))
+    #[cfg(feature = "native_crypto")]
+    pub fn init_native() -> Runtime {
+        Self::init(GlobalContext {
+            crypto: Arc::new(Mutex::new(CryptoNative)),
+        })
+    }
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        return Runtime {
+            version: VERSION.to_string(),
+            memory: Rc::new(RefCell::new(Memory::new())),
+            com_hub: ComHub::new(),
+        };
     }
 }

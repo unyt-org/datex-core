@@ -8,12 +8,9 @@ use crate::{
 use url::Url;
 use websocket::{stream::sync::NetworkStream, sync::Client, ClientBuilder};
 
-use crate::{
-    network::com_interfaces::websocket::{
-        websocket_client::{WebSocket, WebSocketClientInterface},
-        websocket_common::parse_url,
-    },
-    runtime::Context,
+use crate::network::com_interfaces::websocket::{
+    websocket_client::{WebSocket, WebSocketClientInterface},
+    websocket_common::parse_url,
 };
 
 pub struct WebSocketNative {
@@ -64,14 +61,12 @@ impl WebSocket for WebSocketNative {
 
 impl WebSocketClientInterface<WebSocketNative> {
     pub fn new(
-        ctx: Rc<RefCell<Context>>,
         address: &str,
     ) -> Result<WebSocketClientInterface<WebSocketNative>, WebSocketError> {
         let websocket = WebSocketNative::new(address)?;
 
-        Ok(WebSocketClientInterface::new_with_web_socket(
-            ctx,
-            Rc::new(RefCell::new(websocket)),
-        ))
+        Ok(WebSocketClientInterface::new_with_web_socket(Rc::new(
+            RefCell::new(websocket),
+        )))
     }
 }

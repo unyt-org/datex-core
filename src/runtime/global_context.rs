@@ -1,10 +1,9 @@
 use crate::crypto::crypto::Crypto;
 use std::sync::{Arc, Mutex}; // FIXME no-std
 
-#[deprecated]
 #[derive(Clone)]
 pub struct GlobalContext {
-    pub crypto: Arc<Mutex<dyn Crypto>>, // FIXME remove and make trait & impl solution
+    pub crypto: Arc<Mutex<dyn Crypto>>,
 }
 
 lazy_static::lazy_static! {
