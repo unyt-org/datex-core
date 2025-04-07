@@ -34,6 +34,7 @@ pub struct ComInterfaceSocket {
     pub uuid: ComInterfaceSocketUUID,
     pub interface_uuid: ComInterfaceUUID,
     pub connection_timestamp: u64,
+    pub channel_factor: u32,
     pub direction: InterfaceDirection,
     pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
     pub send_queue: VecDeque<Vec<u8>>,
@@ -58,15 +59,27 @@ impl ComInterfaceSocket {
         self.send_queue.push_back(block.to_vec());
     }
 
+    pub fn can_send(&self) -> bool {
+        self.direction == InterfaceDirection::OUT
+            || self.direction == InterfaceDirection::IN_OUT
+    }
+
+    pub fn can_receive(&self) -> bool {
+        self.direction == InterfaceDirection::IN
+            || self.direction == InterfaceDirection::IN_OUT
+    }
+
     pub fn new(
         interface_uuid: ComInterfaceUUID,
         direction: InterfaceDirection,
+        channel_factor: u32,
     ) -> ComInterfaceSocket {
         let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
         ComInterfaceSocket::new_with_receive_queue(
             interface_uuid,
             receive_queue,
             direction,
+            channel_factor,
         )
     }
 
@@ -74,6 +87,7 @@ impl ComInterfaceSocket {
         interface_uuid: ComInterfaceUUID,
         receive_queue: Arc<Mutex<VecDeque<u8>>>,
         direction: InterfaceDirection,
+        channel_factor: u32,
     ) -> ComInterfaceSocket {
         ComInterfaceSocket {
             receive_queue: receive_queue.clone(),
@@ -85,6 +99,7 @@ impl ComInterfaceSocket {
             is_destroyed: false,
             uuid: ComInterfaceSocketUUID(UUID::new()),
             connection_timestamp: 0,
+            channel_factor,
             direction,
             send_queue: VecDeque::new(),
         }

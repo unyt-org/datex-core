@@ -87,10 +87,8 @@ where
             .borrow_mut()
             .connect()
             .map_err(|_| ComInterfaceError::ConnectionError)?;
-        let socket = ComInterfaceSocket::new_with_receive_queue(
-            self.uuid.clone(),
+        let socket = self.create_socket_default(
             receive_queue,
-            InterfaceDirection::IN_OUT,
         );
         self.socket = Some(Rc::new(RefCell::new(socket)));
         info!("Adding WebSocket");

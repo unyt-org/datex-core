@@ -12,14 +12,19 @@ use super::com_interfaces::{
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::DXBBlock;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface_properties::{InterfaceDirection, InterfaceProperties};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::Context;
+use crate::utils::time::Time;
+use crate::utils::time::TimeTrait;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
     pub known_since: u64,
     pub distance: u32,
+    pub is_direct: bool,
+    pub channel_factor: u32,
+    pub direction: InterfaceDirection,
 }
 
 pub struct ComHub {
@@ -45,7 +50,6 @@ pub struct ComHub {
 #[derive(Debug, Clone, Default)]
 struct EndpointIterateOptions {
     pub only_direct: bool,
-    pub only_outgoing: bool,
     pub exact_instance: bool,
     pub exclude_socket: Option<ComInterfaceSocketUUID>,
 }
@@ -132,6 +136,7 @@ impl ComHub {
         &mut self,
         socket: Rc<RefCell<ComInterfaceSocket>>,
         endpoint: Endpoint,
+        distance: u32,
     ) -> Result<(), SocketEndpointRegistrationError> {
         let socket_ref = socket.borrow();
         // if the registered endpoint is the same as the socket endpoint,
@@ -154,7 +159,7 @@ impl ComHub {
         self.add_socket_endpoint(socket.clone(), endpoint.clone());
 
         // add socket to endpoint socket list
-        self.add_endpoint_socket(&endpoint, socket_ref.uuid.clone());
+        self.add_endpoint_socket(&endpoint, socket_ref.uuid.clone(), distance, is_direct, socket_ref.channel_factor, socket_ref.direction.clone());
 
         // resort sockets for endpoint
         self.sort_sockets(&endpoint);
@@ -166,6 +171,10 @@ impl ComHub {
         &mut self,
         endpoint: &Endpoint,
         socket_uuid: ComInterfaceSocketUUID,
+        distance: u32,
+        is_direct: bool,
+        channel_factor: u32,
+        direction: InterfaceDirection,
     ) {
         if !self.endpoint_sockets.contains_key(endpoint) {
             self.endpoint_sockets.insert(endpoint.clone(), Vec::new());
@@ -175,8 +184,11 @@ impl ComHub {
         endpoint_sockets.push((
             socket_uuid,
             DynamicEndpointProperties {
-                known_since: 0,
-                distance: 0,
+                known_since: Time::now(),
+                distance,
+                is_direct,
+                channel_factor,
+                direction,
             },
         ));
     }
@@ -202,19 +214,20 @@ impl ComHub {
     }
 
     /// Sort the sockets for an endpoint:
-    /// - direct sockets first
+    /// - socket with send capability first
+    /// - then direct sockets
     /// - then sort by channel channel_factor (latency, bandwidth)
     /// - then sort by socket connect_timestamp
     fn sort_sockets(&mut self, endpoint: &Endpoint) {
         let sockets = self.endpoint_sockets.get_mut(endpoint).unwrap();
 
-        // TODO: implement sorting logic
-        /*let sorted_sockets =
-
-        self.endpoint_sockets.insert(
-            endpoint.clone(),
-            sorted_sockets,
-        );*/
+        sockets.sort_by(|(_, a), (_, b)| {
+            // sort by channel_factor
+            b.is_direct.cmp(&a.is_direct)
+                .then_with(|| b.channel_factor.cmp(&a.channel_factor))
+                .then_with(|| b.distance.cmp(&a.distance))
+                .then_with(|| b.known_since.cmp(&a.known_since))
+        });
     }
 
     pub(crate) fn get_socket_by_uuid(
@@ -227,6 +240,18 @@ impl ComHub {
             .unwrap_or_else(|| {
                 panic!("Socket for uuid {} not found", socket_uuid)
             })
+    }
+
+    pub(crate) fn get_com_interface_by_uuid(
+        &self,
+        interface_uuid: &ComInterfaceUUID,
+    ) -> Rc<RefCell<dyn ComInterface>> {
+        self.interfaces
+            .get(interface_uuid)
+            .unwrap_or_else(|| {
+                panic!("Interface for uuid {} not found", interface_uuid)
+            })
+            .clone()
     }
 
     /// Iterate over all sockets of all interfaces
@@ -259,7 +284,6 @@ impl ComHub {
         options: EndpointIterateOptions,
     ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(endpoint);
-        let interfaces = &self.interfaces;
 
         std::iter::from_coroutine(
             #[coroutine]
@@ -285,14 +309,11 @@ impl ComHub {
                             }
                         }
 
-                        // check if the socket is outgoing if only_outgoing is set to true
-                        let properties =
-                            ComHub::get_socket_interface_properties(
-                                interfaces,
-                                &socket.interface_uuid,
-                            );
-                        if options.only_outgoing && !properties.can_send() {
-                            continue;
+                        // only yield outgoing sockets
+                        // if a non-outgoing socket is found, all following sockets
+                        // will also be non-outgoing
+                        if !socket.can_send() {
+                            break;
                         }
                     }
 
@@ -313,7 +334,6 @@ impl ComHub {
             EndpointInstance::Any => {
                 let options = EndpointIterateOptions {
                     only_direct: false,
-                    only_outgoing: true,
                     exact_instance: false,
                     exclude_socket,
                 };
@@ -329,7 +349,6 @@ impl ComHub {
                 // iterate over all sockets of all interfaces
                 let options = EndpointIterateOptions {
                     only_direct: false,
-                    only_outgoing: true,
                     exact_instance: true,
                     exclude_socket,
                 };

@@ -6,6 +6,8 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 
 use crate::network::com_hub::ComHub;
+use crate::utils::time::Time;
+use crate::utils::time::TimeTrait;
 
 mod execution;
 pub mod global_context;
@@ -32,7 +34,7 @@ impl Runtime {
         INIT.call_once(|| {
             init_logger();
         });
-        info!("Runtime initialized!");
+        info!("Runtime initialized - Time: {}", Time::now());
         Runtime {
             version: VERSION.to_string(),
             context: context.clone(),

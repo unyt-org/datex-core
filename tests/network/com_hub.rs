@@ -88,6 +88,7 @@ fn get_mock_setup() -> (
     let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
         mockup_interface_ref.borrow().uuid.clone(),
         InterfaceDirection::IN_OUT,
+        1
     )));
 
     {

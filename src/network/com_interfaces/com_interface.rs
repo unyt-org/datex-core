@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 use super::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::ComInterfaceSocket,
@@ -37,21 +39,9 @@ pub trait ComInterface {
         sockets.borrow_mut().push(socket);
     }
 
-    fn get_channel_factor(&self, socket: ComInterfaceSocket) -> u32 {
+    fn get_channel_factor(&self) -> u32 {
         let properties = self.get_properties();
         properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
-    }
-
-    fn can_send(&self, socket: ComInterfaceSocket) -> bool {
-        let properties = self.get_properties();
-        properties.direction == InterfaceDirection::OUT
-            || properties.direction == InterfaceDirection::IN_OUT
-    }
-
-    fn can_receive(&self, socket: ComInterfaceSocket) -> bool {
-        let properties = self.get_properties();
-        properties.direction == InterfaceDirection::IN
-            || properties.direction == InterfaceDirection::IN_OUT
     }
 
     fn flush_outgoing_blocks(&mut self) {
@@ -68,6 +58,34 @@ pub trait ComInterface {
             }
         }
     }
+    
+    
+    fn create_socket(
+        &self,
+        receive_queue: Arc<Mutex<VecDeque<u8>>>,
+        direction: InterfaceDirection,
+        channel_factor: u32,
+    ) -> ComInterfaceSocket {
+        ComInterfaceSocket::new_with_receive_queue(
+            self.get_uuid().clone(),
+            receive_queue,
+            direction,
+            channel_factor
+        )
+    }
+
+    fn create_socket_default(
+        &self,
+        receive_queue: Arc<Mutex<VecDeque<u8>>>
+    ) -> ComInterfaceSocket {
+        ComInterfaceSocket::new_with_receive_queue(
+            self.get_uuid().clone(),
+            receive_queue,
+            self.get_properties().direction,
+            self.get_channel_factor()
+        )
+    }
+    
 }
 
 impl PartialEq for dyn ComInterface {
