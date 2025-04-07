@@ -124,6 +124,11 @@ impl ComHub {
         incoming_blocks.push_back(Rc::new(block.clone()));
     }
 
+    // TODO this method is currently not beeing invoked
+    // We have to finnalize the get_com_interface_sockets logic and empty the add registered endpoint socket queue
+    // to call the register_socket_endpoint on the comhub during updates to be able to sort the endpoint sockets
+    // for priority
+
     /// registers a new endpoint that is reachable over the socket
     /// if the socket is not already registered, it will be added to the socket list
     /// if the provided endpoint is not the same as the socket endpoint,
