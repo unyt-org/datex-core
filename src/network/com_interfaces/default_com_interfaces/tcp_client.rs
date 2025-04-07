@@ -18,21 +18,21 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn get_sockets(
-        &self,
-    ) -> std::rc::Rc<
-        std::cell::RefCell<
-            Vec<std::rc::Rc<std::cell::RefCell<ComInterfaceSocket>>>,
-        >,
-    > {
-        todo!()
-    }
-
     fn connect(&mut self) -> Result<(), ComInterfaceError> {
         todo!()
     }
 
     fn get_uuid(&self) -> ComInterfaceUUID {
+        todo!()
+    }
+
+    fn get_sockets(
+        &self,
+    ) -> std::rc::Rc<
+        std::cell::RefCell<
+            crate::network::com_interfaces::com_interface::ComInterfaceSockets,
+        >,
+    > {
         todo!()
     }
 }

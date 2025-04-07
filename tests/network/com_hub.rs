@@ -11,7 +11,7 @@ use std::io::Write;
 // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceUUID,
+    ComInterface, ComInterfaceError, ComInterfaceSockets, ComInterfaceUUID,
 };
 use datex_core::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -23,8 +23,8 @@ use crate::context::init_global_context;
 
 pub struct MockupInterface {
     pub last_block: Option<Vec<u8>>,
-    pub sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
     uuid: ComInterfaceUUID,
+    com_interface_sockets: Rc<RefCell<ComInterfaceSockets>>,
 }
 
 impl MockupInterface {}
@@ -33,7 +33,9 @@ impl Default for MockupInterface {
     fn default() -> Self {
         MockupInterface {
             last_block: None,
-            sockets: Rc::new(RefCell::new(Vec::new())),
+            com_interface_sockets: Rc::new(RefCell::new(
+                ComInterfaceSockets::default(),
+            )),
             uuid: ComInterfaceUUID(UUID::new()),
         }
     }
@@ -52,16 +54,16 @@ impl ComInterface for MockupInterface {
         }
     }
 
-    fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
-        self.sockets.clone()
-    }
-
     fn connect(&mut self) -> Result<(), ComInterfaceError> {
         Ok(())
     }
 
     fn get_uuid(&self) -> ComInterfaceUUID {
         self.uuid.clone()
+    }
+
+    fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>> {
+        self.com_interface_sockets.clone()
     }
 }
 
@@ -88,7 +90,7 @@ fn get_mock_setup() -> (
     let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
         mockup_interface_ref.borrow().uuid.clone(),
         InterfaceDirection::IN_OUT,
-        1
+        1,
     )));
 
     {

@@ -9,7 +9,7 @@ use log::debug;
 use url::Url;
 
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceUUID,
+    ComInterfaceError, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::InterfaceProperties,
@@ -24,7 +24,8 @@ where
     uuid: ComInterfaceUUID,
     pub web_socket_server: Rc<RefCell<WS>>,
     pub web_sockets: HashMap<ComInterfaceSocket, WS>,
-    sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
+    // sockets: Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>>,
+    com_interface_sockets: Rc<RefCell<ComInterfaceSockets>>,
 }
 
 #[derive(Debug)]
@@ -52,7 +53,12 @@ where
             uuid: ComInterfaceUUID(UUID::new()),
             web_sockets: HashMap::new(),
             web_socket_server,
-            sockets: Rc::new(RefCell::new(Vec::new())),
+            com_interface_sockets: Rc::new(RefCell::new(ComInterfaceSockets {
+                sockets: HashMap::new(),
+                socket_registrations: VecDeque::new(),
+                new_sockets: VecDeque::new(),
+                deleted_sockets: VecDeque::new(),
+            })),
         }
     }
 }
@@ -90,11 +96,21 @@ where
         }
     }
 
-    fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
-        self.sockets.clone()
-    }
+    // fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
+    //     self.sockets.clone()
+    // }
 
     fn get_uuid(&self) -> ComInterfaceUUID {
         self.uuid.clone()
+    }
+
+    fn get_sockets(
+        &self,
+    ) -> Rc<
+        RefCell<
+            crate::network::com_interfaces::com_interface::ComInterfaceSockets,
+        >,
+    > {
+        self.com_interface_sockets.clone()
     }
 }

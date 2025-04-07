@@ -9,9 +9,8 @@ use url::Url;
 
 use super::websocket_common::WebSocketError;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceUUID,
+    ComInterfaceError, ComInterfaceSockets, ComInterfaceUUID,
 };
-use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use crate::network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::InterfaceProperties,
     com_interface_socket::ComInterfaceSocket,
@@ -24,13 +23,13 @@ where
 {
     pub uuid: ComInterfaceUUID,
     pub web_socket: Rc<RefCell<WS>>,
-    socket: Option<Rc<RefCell<ComInterfaceSocket>>>,
 }
 
 pub trait WebSocket {
     fn send_data(&mut self, message: &[u8]) -> bool;
     fn get_address(&self) -> Url;
     fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError>;
+    fn get_com_interface_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
 }
 
 impl<WS> WebSocketClientInterface<WS>
@@ -43,7 +42,6 @@ where
         WebSocketClientInterface {
             uuid: ComInterfaceUUID(UUID::new()),
             web_socket,
-            socket: None,
         }
     }
 }
@@ -66,11 +64,9 @@ where
         }
     }
 
-    fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
-        match self.socket.clone() {
-            Some(socket) => Rc::new(RefCell::new(vec![socket.clone()])),
-            None => Rc::new(RefCell::new(vec![])),
-        }
+    fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>> {
+        let sockets = self.web_socket.borrow();
+        sockets.get_com_interface_sockets()
     }
 
     fn connect(&mut self) -> Result<(), ComInterfaceError> {
@@ -80,8 +76,10 @@ where
             .borrow_mut()
             .connect()
             .map_err(|_| ComInterfaceError::ConnectionError)?;
+
+        // TODO: get endpoint and call register_endpoint_socket after add_socket
         let socket = self.create_socket_default(receive_queue);
-        self.socket = Some(Rc::new(RefCell::new(socket)));
+        self.add_socket(Rc::new(RefCell::new(socket)));
         info!("Adding WebSocket");
 
         Ok(())

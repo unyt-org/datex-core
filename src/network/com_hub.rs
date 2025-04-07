@@ -258,19 +258,6 @@ impl ComHub {
             .clone()
     }
 
-    /// Iterate over all sockets of all interfaces
-    #[deprecated(note = "Iterate self.sockets instead")]
-    fn iterate_all_sockets(&self) -> Vec<Rc<RefCell<ComInterfaceSocket>>> {
-        let mut sockets = Vec::new();
-        for interface in self.interfaces.values() {
-            let interface_ref = interface.borrow();
-            for socket in interface_ref.get_sockets().borrow().iter() {
-                sockets.push(socket.clone());
-            }
-        }
-        sockets.clone()
-    }
-
     fn get_socket_interface_properties(
         interfaces: &HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
         interface_uuid: &ComInterfaceUUID,
@@ -503,7 +490,7 @@ impl ComHub {
     fn update_sockets(&self) {
         // update sockets, collect incoming data into full blocks
         info!("Collecting incoming data from all sockets");
-        for socket in &self.iterate_all_sockets() {
+        for (socket, _) in self.sockets.values() {
             let mut socket_ref = socket.borrow_mut();
             socket_ref.collect_incoming_data();
         }
@@ -513,7 +500,7 @@ impl ComHub {
     /// in the receive_block method.
     fn receive_incoming_blocks(&mut self) {
         // iterate over all sockets
-        for socket in &self.iterate_all_sockets() {
+        for (socket, _) in self.sockets.values() {
             let socket_ref = socket.borrow();
             let block_queue = socket_ref.get_incoming_block_queue();
             for block in block_queue {

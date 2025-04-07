@@ -57,6 +57,16 @@ impl WebSocket for WebSocketNative {
     fn get_address(&self) -> Url {
         self.address.clone()
     }
+
+    fn get_com_interface_sockets(
+        &self,
+    ) -> Rc<
+        RefCell<
+            crate::network::com_interfaces::com_interface::ComInterfaceSockets,
+        >,
+    > {
+        todo!()
+    }
 }
 
 impl WebSocketClientInterface<WebSocketNative> {
