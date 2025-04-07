@@ -79,3 +79,4 @@ native_uuid = ["uuid"] # use native websocket
 native_crypto = ["rsa"] # use native crypto
 wasm_logger = ["console_log"]
 std = [] # use std
+debug = []

@@ -2,11 +2,13 @@ use log::info;
 
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use crate::stdlib::fmt::Display;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, global::dxb_block::DXBBlock};
-use std::sync::Mutex; // FIXME no-std
+use std::sync::Mutex;
+// FIXME no-std
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SocketState {
@@ -32,6 +34,7 @@ pub struct ComInterfaceSocket {
     pub uuid: ComInterfaceSocketUUID,
     pub interface_uuid: ComInterfaceUUID,
     pub connection_timestamp: u64,
+    pub direction: InterfaceDirection,
     pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
     pub send_queue: VecDeque<Vec<u8>>,
     pub block_collector: BlockCollector,
@@ -55,17 +58,22 @@ impl ComInterfaceSocket {
         self.send_queue.push_back(block.to_vec());
     }
 
-    pub fn new(interface_uuid: ComInterfaceUUID) -> ComInterfaceSocket {
+    pub fn new(
+        interface_uuid: ComInterfaceUUID,
+        direction: InterfaceDirection,
+    ) -> ComInterfaceSocket {
         let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
         ComInterfaceSocket::new_with_receive_queue(
             interface_uuid,
             receive_queue,
+            direction,
         )
     }
 
     pub fn new_with_receive_queue(
         interface_uuid: ComInterfaceUUID,
         receive_queue: Arc<Mutex<VecDeque<u8>>>,
+        direction: InterfaceDirection,
     ) -> ComInterfaceSocket {
         ComInterfaceSocket {
             receive_queue: receive_queue.clone(),
@@ -77,6 +85,7 @@ impl ComInterfaceSocket {
             is_destroyed: false,
             uuid: ComInterfaceSocketUUID(UUID::new()),
             connection_timestamp: 0,
+            direction,
             send_queue: VecDeque::new(),
         }
     }

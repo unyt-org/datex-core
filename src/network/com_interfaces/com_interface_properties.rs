@@ -1,6 +1,6 @@
 use crate::stdlib::time::Duration;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum InterfaceDirection {
     IN,
     OUT,

@@ -7,9 +7,11 @@ use crate::stdlib::{
 use log::{debug, info};
 use url::Url;
 
+use super::websocket_common::WebSocketError;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceUUID,
 };
+use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use crate::utils::uuid::UUID;
 use crate::{
     network::com_interfaces::{
@@ -19,8 +21,6 @@ use crate::{
     },
     runtime::Context,
 };
-
-use super::websocket_common::WebSocketError;
 
 pub struct WebSocketClientInterface<WS>
 where
@@ -90,6 +90,7 @@ where
         let socket = ComInterfaceSocket::new_with_receive_queue(
             self.uuid.clone(),
             receive_queue,
+            InterfaceDirection::IN_OUT,
         );
         self.socket = Some(Rc::new(RefCell::new(socket)));
         info!("Adding WebSocket");

@@ -13,9 +13,10 @@ use std::io::Write;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceError, ComInterfaceUUID,
 };
-use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;
+use datex_core::network::com_interfaces::com_interface_properties::{
+    InterfaceDirection, InterfaceProperties,
+};
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::utils::debuggable::Debuggable;
 use datex_core::utils::uuid::UUID;
 
 use crate::context::init_global_context;
@@ -86,6 +87,7 @@ fn get_mock_setup() -> (
 
     let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
         mockup_interface_ref.borrow().uuid.clone(),
+        InterfaceDirection::IN_OUT,
     )));
 
     {
@@ -152,8 +154,6 @@ pub fn test_send() {
     let mut com_hub_mut = com_hub.borrow_mut();
     com_hub_mut.send_block(&block, None);
     com_hub_mut.update();
-
-    com_hub_mut.log_debug_info();
 
     // get last block that was sent
     let mockup_interface_out = com_interface.clone();

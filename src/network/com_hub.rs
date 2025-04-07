@@ -1,10 +1,8 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use ansi_term::Style;
 use itertools::Itertools;
 use log::{error, info};
 use std::collections::{HashMap, HashSet};
-use std::fmt::Formatter;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
@@ -17,9 +15,9 @@ use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::Context;
-use crate::utils::debuggable::Debuggable;
 
-struct DynamicEndpointProperties {
+#[derive(Debug, Clone)]
+pub struct DynamicEndpointProperties {
     pub known_since: u64,
     pub distance: u32,
 }
@@ -35,9 +33,9 @@ pub struct ComHub {
     >,
     /// a list of all available sockets for each endpoint, with additional
     /// DynamicEndpointProperties metadata
-    endpoint_sockets: HashMap<
+    pub endpoint_sockets: HashMap<
         Endpoint,
-        HashMap<ComInterfaceSocketUUID, DynamicEndpointProperties>,
+        Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
     pub context: Rc<RefCell<Context>>,
@@ -170,18 +168,17 @@ impl ComHub {
         socket_uuid: ComInterfaceSocketUUID,
     ) {
         if !self.endpoint_sockets.contains_key(endpoint) {
-            self.endpoint_sockets
-                .insert(endpoint.clone(), HashMap::new());
+            self.endpoint_sockets.insert(endpoint.clone(), Vec::new());
         }
 
         let endpoint_sockets = self.endpoint_sockets.get_mut(endpoint).unwrap();
-        endpoint_sockets.insert(
+        endpoint_sockets.push((
             socket_uuid,
             DynamicEndpointProperties {
                 known_since: 0,
                 distance: 0,
             },
-        );
+        ));
     }
 
     fn add_socket_endpoint(
@@ -220,7 +217,7 @@ impl ComHub {
         );*/
     }
 
-    fn get_socket_by_uuid(
+    pub(crate) fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<ComInterfaceSocket>> {
@@ -267,7 +264,7 @@ impl ComHub {
         std::iter::from_coroutine(
             #[coroutine]
             move || {
-                for socket_uuid in endpoint_sockets.unwrap().keys() {
+                for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
                         let socket = self.get_socket_by_uuid(socket_uuid);
                         let socket = socket.borrow();
@@ -507,44 +504,5 @@ impl ComHub {
         for interface in self.interfaces.values() {
             interface.borrow_mut().flush_outgoing_blocks();
         }
-    }
-}
-
-impl Debuggable for ComHub {
-    fn get_debug_info(&self) -> String {
-        let mut str = String::new();
-
-        let width = 40;
-
-        str.push_str("\n");
-        str.push_str(&"=".repeat(width));
-
-        str.push_str(&format!(
-            "\n{}\n\n",
-            Style::new().bold().paint("ComHub Debug Info")
-        ));
-
-        str.push_str(&format!(
-            "Registered Interfaces: {}\n",
-            self.interfaces.len()
-        ));
-
-        str.push_str(&format!("Connected Sockets: {}\n\n", self.sockets.len()));
-
-        for interface in self.interfaces.values() {
-            let interface = interface.borrow();
-            str.push_str(&format!(
-                "{}\n",
-                Style::new().bold().paint(&format!(
-                    "{} ({})",
-                    interface.get_properties().channel,
-                    interface.get_properties().name.unwrap_or("-".to_string())
-                ))
-            ));
-        }
-
-        str.push_str(&"=".repeat(width));
-
-        str
     }
 }
