@@ -5,9 +5,10 @@ use crate::{
     stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc},
 };
 
-use futures_util::StreamExt;
-use log::{debug, info};
+use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use log::{debug, error, info};
 use tokio::net::TcpStream;
+use tungstenite::Message;
 use url::Url;
 use websocket::{stream::sync::NetworkStream, sync::Client, ClientBuilder};
 
@@ -17,7 +18,8 @@ use crate::network::com_interfaces::websocket::{
 };
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 pub struct WebSocketClientNative {
-    client: Option<Client<Box<dyn NetworkStream + Send>>>,
+    client:
+        Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
     address: Url,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
 }
@@ -50,16 +52,33 @@ impl WebSocketClientNative {
 
 impl WebSocket for WebSocketClientNative {
     fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError> {
-        let mut client = ClientBuilder::new(self.address.as_str())
-            .map_err(|_| WebSocketError::InvalidURL)?;
-        info!("a");
-        if self.address.scheme() == "wss" {
-            // TODO SSL
-            self.client = Some(client.connect(None).unwrap());
-        } else {
-            self.client = Some(client.connect(None).unwrap());
-        }
-        info!("b");
+        let address = self.address.clone();
+        let receive_queue = self.receive_queue.clone();
+        // let self_clone: Arc<Mutex<_>> = Arc::new(Mutex::new(self.clone()));
+
+        tokio::spawn(async move {
+            let stream = WebSocketClientNative::connect_async(&address)
+                .await
+                .unwrap();
+            let (write, read) = stream.split();
+            // self.client = Some(write);
+            let receive_queue_clone = receive_queue.clone();
+            read.for_each(|message| {
+                let receive_queue = receive_queue_clone.clone();
+                async move {
+                    match message {
+                        Ok(msg) => {
+                            if let Message::Binary(data) = msg {
+                                let mut queue = receive_queue.lock().unwrap();
+                                queue.extend(data);
+                            }
+                        }
+                        Err(e) => error!("Error receiving message: {:?}", e),
+                    }
+                }
+            })
+            .await;
+        });
 
         Ok(self.receive_queue.clone())
     }
@@ -68,10 +87,8 @@ impl WebSocket for WebSocketClientNative {
         info!("c");
 
         if let Some(client) = self.client.as_mut() {
-            let owned_message =
-                websocket::OwnedMessage::Binary(message.to_vec());
-            debug!("Sending message: {:?}", owned_message);
-            client.send_message(&owned_message).is_ok()
+            client.send(Message::Binary(message.to_vec()));
+            true
         } else {
             false
         }
