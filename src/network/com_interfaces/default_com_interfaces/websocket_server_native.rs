@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{error::Error, net::SocketAddr, sync::Mutex}; // FIXME no-std
 
 use crate::{
@@ -35,7 +36,7 @@ impl WebSocketServerNative {
         })
     }
 
-    async fn connect_async(&self) -> Result<(), WebSocketServerError> {
+    pub async fn connect_async(&self) -> Result<(), WebSocketServerError> {
         let addr = self
             .address
             .to_string()
@@ -47,16 +48,19 @@ impl WebSocketServerNative {
             .map_err(|_| WebSocketServerError::WebSocketError)?;
         info!("WebSocket server listening on ws://{}", addr);
 
-        while let Ok((stream, _)) = listener.accept().await {
-            let a = self.handle_connection(stream);
-            tokio::spawn(a);
+        loop {
+            let (stream, _) = listener
+                .accept()
+                .await
+                .map_err(|_| WebSocketServerError::WebSocketError)?;
+            let queue = Arc::clone(&self.receive_queue);
+            tokio::spawn(Self::handle_connection(stream, queue));
         }
-        Ok(())
     }
 
     async fn handle_connection(
-        &self,
         stream: TcpStream,
+        queue: Arc<Mutex<VecDeque<u8>>>,
     ) -> Result<(), WebSocketServerError> {
         let ws_stream = accept_async(stream)
             .await
@@ -70,6 +74,7 @@ impl WebSocketServerNative {
             match msg {
                 Message::Binary(bin) => {
                     // pong TBD
+                    queue.lock().unwrap().extend(bin.clone());
                     write.send(Message::Binary(bin.clone())).await.unwrap();
                 }
                 Message::Close(_) => {
@@ -87,6 +92,7 @@ impl WebSocket for WebSocketServerNative {
     fn connect(
         &mut self,
     ) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketServerError> {
+        // WebSocketServerNative::connect_async(self);
         Ok(self.receive_queue.clone())
     }
 
@@ -100,14 +106,16 @@ impl WebSocket for WebSocketServerNative {
 }
 
 impl WebSocketServerInterface<WebSocketServerNative> {
-    // pub fn new(
-    //     address: &str,
-    // ) -> Result<WebSocketServerInterface<WebSocketServerNative>, WebSocketError>
-    // {
-    //     let websocket = WebSocketServerNative::new(address)?;
+    pub fn new(
+        port: u16,
+    ) -> Result<WebSocketServerInterface<WebSocketServerNative>, WebSocketError>
+    {
+        // 127.0.0.1:{port}
+        let address = format!("127.0.0.1:{}", port);
+        let websocket = WebSocketServerNative::new(&address.to_string())?;
 
-    //     Ok(WebSocketClientInterface::new_with_web_socket(Rc::new(
-    //         RefCell::new(websocket),
-    //     )))
-    // }
+        Ok(WebSocketServerInterface::new_with_web_socket_server(
+            Rc::new(RefCell::new(websocket)),
+        ))
+    }
 }
