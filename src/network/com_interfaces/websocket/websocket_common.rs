@@ -1,3 +1,4 @@
+use strum::Display;
 use url::Url;
 
 #[derive(Debug)]
@@ -6,7 +7,7 @@ pub enum URLError {
     InvalidScheme,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum WebSocketError {
     Other(String),
     InvalidURL,

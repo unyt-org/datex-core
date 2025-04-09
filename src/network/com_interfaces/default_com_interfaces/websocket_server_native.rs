@@ -10,7 +10,7 @@ use crate::{
 };
 
 use futures_util::{SinkExt, StreamExt};
-use log::{debug, info};
+use log::{debug, error, info};
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::Message;
 use url::Url;
@@ -36,12 +36,17 @@ impl WebSocketServerNative {
         })
     }
 
-    pub async fn connect_async(&self) -> Result<(), WebSocketServerError> {
-        let addr = self
-            .address
-            .to_string()
-            .parse::<SocketAddr>()
-            .map_err(|_| WebSocketServerError::InvalidPort)?;
+    async fn connect_async(
+        address: &Url,
+        receive_queue: Arc<Mutex<VecDeque<u8>>>,
+    ) -> Result<(), WebSocketServerError> {
+        let addr = format!(
+            "{}:{}",
+            address.host_str().unwrap(),
+            address.port().unwrap()
+        )
+        .parse::<SocketAddr>()
+        .map_err(|_| WebSocketServerError::InvalidPort)?;
 
         let listener = TcpListener::bind(&addr)
             .await
@@ -53,8 +58,11 @@ impl WebSocketServerNative {
                 .accept()
                 .await
                 .map_err(|_| WebSocketServerError::WebSocketError)?;
-            let queue = Arc::clone(&self.receive_queue);
-            tokio::spawn(Self::handle_connection(stream, queue));
+            // let queue = Arc::clone(&receive_queue);
+            tokio::spawn(Self::handle_connection(
+                stream,
+                receive_queue.clone(),
+            ));
         }
     }
 
@@ -92,7 +100,18 @@ impl WebSocket for WebSocketServerNative {
     fn connect(
         &mut self,
     ) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketServerError> {
-        // WebSocketServerNative::connect_async(self);
+        let address = self.get_address();
+        let receive_queue = self.receive_queue.clone();
+        tokio::spawn(async move {
+            if let Err(e) = WebSocketServerNative::connect_async(
+                &address,
+                receive_queue.clone(),
+            )
+            .await
+            {
+                error!("Server error: {}", e);
+            }
+        });
         Ok(self.receive_queue.clone())
     }
 
@@ -110,7 +129,6 @@ impl WebSocketServerInterface<WebSocketServerNative> {
         port: u16,
     ) -> Result<WebSocketServerInterface<WebSocketServerNative>, WebSocketError>
     {
-        // 127.0.0.1:{port}
         let address = format!("127.0.0.1:{}", port);
         let websocket = WebSocketServerNative::new(&address.to_string())?;
 

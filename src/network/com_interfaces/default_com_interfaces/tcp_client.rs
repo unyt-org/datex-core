@@ -8,7 +8,11 @@ use super::super::com_interface::ComInterface;
 pub struct TCPClientInterface {}
 
 impl ComInterface for TCPClientInterface {
-    fn send_block(&mut self, _block: &[u8], socket: &ComInterfaceSocket) {
+    fn send_block(
+        &mut self,
+        _block: &[u8],
+        socket: Option<&ComInterfaceSocket>,
+    ) {
         todo!()
     }
 

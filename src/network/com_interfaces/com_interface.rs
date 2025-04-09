@@ -39,7 +39,7 @@ pub struct ComInterfaceSockets {
 }
 
 pub trait ComInterface {
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket);
+    fn send_block(&mut self, block: &[u8], socket: Option<&ComInterfaceSocket>);
     fn get_properties(&self) -> InterfaceProperties;
 
     fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
@@ -105,7 +105,7 @@ pub trait ComInterface {
                 blocks
             };
             for block in blocks {
-                self.send_block(&block, &socket_ref.borrow());
+                self.send_block(&block, Some(&socket_ref.borrow()));
             }
         }
     }

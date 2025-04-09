@@ -42,7 +42,11 @@ impl Default for MockupInterface {
 }
 
 impl ComInterface for MockupInterface {
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) {
+    fn send_block(
+        &mut self,
+        block: &[u8],
+        socket: Option<&ComInterfaceSocket>,
+    ) {
         self.last_block = Some(block.to_vec());
     }
 

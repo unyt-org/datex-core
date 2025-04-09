@@ -8,6 +8,7 @@ use crate::stdlib::{
 };
 
 use log::debug;
+use strum::Display;
 use url::Url;
 
 use crate::network::com_interfaces::com_interface::{
@@ -30,25 +31,13 @@ where
     com_interface_sockets: Rc<RefCell<ComInterfaceSockets>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum WebSocketServerError {
     WebSocketError,
     InvalidPort,
 }
 impl std::error::Error for WebSocketServerError {}
 
-impl fmt::Display for WebSocketServerError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WebSocketServerError::WebSocketError => {
-                write!(f, "WebSocket error")
-            }
-            WebSocketServerError::InvalidPort => {
-                write!(f, "Invalid port")
-            }
-        }
-    }
-}
 pub trait WebSocket {
     fn send_data(&self, message: &[u8]) -> bool;
     fn get_address(&self) -> Url;
@@ -84,7 +73,11 @@ where
 {
     fn connect(&mut self) -> Result<(), ComInterfaceError> {
         debug!("Spinning up websocket server");
-        //   let receive_queue = self.websocket.borrow_mut().connect()?;
+        let receive_queue = self
+            .web_socket_server
+            .borrow_mut()
+            .connect()
+            .map_err(|_| ComInterfaceError::ConnectionError)?;
         //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
         // 	self.logger.clone(),
         // 	receive_queue,
@@ -97,7 +90,11 @@ where
         Ok(())
     }
 
-    fn send_block(&mut self, block: &[u8], socket: &ComInterfaceSocket) {
+    fn send_block(
+        &mut self,
+        block: &[u8],
+        socket: Option<&ComInterfaceSocket>,
+    ) {
         // TODO: what happens if socket != self.socket? (only one socket exists)
         //   self.websocket.borrow_mut().send_data(block);
     }
