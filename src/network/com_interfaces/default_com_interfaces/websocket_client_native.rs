@@ -1,4 +1,4 @@
-use std::sync::Mutex; // FIXME no-std
+use std::{future::Future, pin::Pin, sync::Mutex}; // FIXME no-std
 
 use crate::{
     network::com_interfaces::websocket::websocket_common::WebSocketError,
@@ -83,16 +83,14 @@ impl WebSocket for WebSocketClientNative {
         Ok(self.receive_queue.clone())
     }
 
-    fn send_data(&mut self, message: &[u8]) -> bool {
-        info!("c");
-
-        if let Some(client) = self.client.as_mut() {
-            client.send(Message::Binary(message.to_vec()));
-            true
-        } else {
-            false
-        }
-    }
+    // async fn send_data(&mut self, message: &[u8]) -> bool {
+    //     if let Some(client) = self.client.as_mut() {
+    //         debug!("Sending message: {:?}", message);
+    //         client.send(Message::Binary(message.to_vec())).await.is_ok()
+    //     } else {
+    //         false
+    //     }
+    // }
 
     fn get_address(&self) -> Url {
         self.address.clone()
@@ -106,6 +104,30 @@ impl WebSocket for WebSocketClientNative {
         >,
     > {
         todo!()
+    }
+
+    fn send_data<'a>(
+        &'a mut self,
+        message: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            let client = self.client.as_mut();
+            if client.is_none() {
+                error!("Client is not connected");
+                return false;
+            }
+            debug!("Sending message: {:?}", message);
+
+            let client = client.unwrap();
+            client
+                .send(Message::Binary(message.to_vec()))
+                .await
+                .map_err(|e| {
+                    error!("Error sending message: {:?}", e);
+                    false
+                })
+                .is_ok()
+        })
     }
 }
 

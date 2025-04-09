@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Mutex; // FIXME no-std
 
 use crate::stdlib::{
@@ -26,7 +28,10 @@ where
 }
 
 pub trait WebSocket {
-    fn send_data(&mut self, message: &[u8]) -> bool;
+    fn send_data<'a>(
+        &'a mut self,
+        message: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
     fn get_address(&self) -> Url;
     fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError>;
     fn get_com_interface_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
