@@ -78,10 +78,12 @@ default = [
     "native_crypto",
     "native_time",
     "flexi_logger",
+
+    "debug",
 ] # default to nostd
 
 native_websocket = [
-    "websocket",
+    "websocket",         # FIXME remove in future
     "tokio-tungstenite",
     "tungstenite",
     "futures-util",

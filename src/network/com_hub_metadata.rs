@@ -1,3 +1,5 @@
+use log::{debug, info};
+
 use crate::datex_values::Endpoint;
 use crate::network::com_hub::{ComHub, DynamicEndpointProperties};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
@@ -6,6 +8,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use std::collections::HashMap;
+use std::fmt::Display;
 
 pub struct ComHubMetadataInterfaceSocket {
     pub uuid: String,
@@ -25,6 +28,24 @@ pub struct ComHubMetadata {
         Endpoint,
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
+}
+
+impl Display for ComHubMetadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "ComHubMetadata {{\n")?;
+        for interface in &self.interfaces {
+            write!(f, "  Interface: {}\n", interface.uuid)?;
+            write!(f, "    Properties: {:?}\n", interface.properties)?;
+            for socket in &interface.sockets {
+                write!(
+                    f,
+                    "    Socket: {} ({}), Properties: {:?}\n",
+                    socket.uuid, socket.endpoint, socket.properties
+                )?;
+            }
+        }
+        write!(f, "}}\n")
+    }
 }
 
 impl ComHub {
@@ -75,5 +96,10 @@ impl ComHub {
         }
 
         metadata
+    }
+
+    pub fn print_metadata(&self) {
+        let metadata = self.get_metadata();
+        debug!("ComHub Metadata: {}", metadata);
     }
 }

@@ -67,7 +67,7 @@ pub trait ComInterface {
     }
 
     fn register_socket_endpoint(
-        &mut self,
+        &self,
         socket_uuid: ComInterfaceSocketUUID,
         endpoint: Endpoint,
         distance: u32,
@@ -75,9 +75,17 @@ pub trait ComInterface {
         let sockets = self.get_sockets();
         let mut sockets = sockets.borrow_mut();
 
-        if sockets.sockets.get(&socket_uuid).is_none() {
+        let socket = sockets.sockets.get(&socket_uuid);
+        if socket.is_none() {
             return Err(ComInterfaceError::SocketNotFound);
         }
+        {
+            let mut socket = socket.unwrap().borrow_mut();
+            if socket.direct_endpoint.is_none() {
+                socket.direct_endpoint = Some(endpoint.clone());
+            }
+        }
+
         debug!("Socket registered: {:?}", socket_uuid);
 
         sockets.socket_registrations.push_back((

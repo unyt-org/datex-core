@@ -1,7 +1,7 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use itertools::Itertools;
-use log::{error, info};
+use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 // FIXME no-std
 
@@ -125,7 +125,7 @@ impl ComHub {
     }
 
     // TODO this method is currently not beeing invoked
-    // We have to finnalize the get_com_interface_sockets logic and empty the add registered endpoint socket queue
+    // We have to finalize the get_com_interface_sockets logic and empty the add registered endpoint socket queue
     // to call the register_socket_endpoint on the comhub during updates to be able to sort the endpoint sockets
     // for priority
 
@@ -142,7 +142,7 @@ impl ComHub {
         let socket_ref = socket.borrow();
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
-        let is_direct = socket_ref.endpoint == Some(endpoint.clone());
+        let is_direct = socket_ref.direct_endpoint == Some(endpoint.clone());
 
         // cannot register endpoint if socket is not connected
         if !socket_ref.is_connected {
@@ -150,7 +150,7 @@ impl ComHub {
         }
 
         // cannot register endpoint if socket is not initialized (no endpoint assigned)
-        if socket_ref.endpoint.is_none() {
+        if socket_ref.direct_endpoint.is_none() {
             return Err(SocketEndpointRegistrationError::SocketUninitialized);
         }
 
@@ -201,18 +201,32 @@ impl ComHub {
         ));
     }
 
+    fn add_socket(&mut self, socket: Rc<RefCell<ComInterfaceSocket>>) {
+        if self.sockets.contains_key(&socket.borrow().uuid) {
+            panic!("Socket {} already exists in ComHub", socket.borrow().uuid);
+        }
+
+        self.sockets.insert(
+            socket.borrow().uuid.clone(),
+            (socket.clone(), HashSet::new()),
+        );
+    }
+
+    fn delete_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
+        self.sockets
+            .remove(socket_uuid)
+            .or_else(|| panic!("Socket {} not found in ComHub", socket_uuid));
+    }
+
     fn add_socket_endpoint(
         &mut self,
         socket: Rc<RefCell<ComInterfaceSocket>>,
         endpoint: Endpoint,
     ) {
-        if !self.sockets.contains_key(&socket.borrow().uuid) {
-            self.sockets.insert(
-                socket.borrow().uuid.clone(),
-                (socket.clone(), HashSet::new()),
-            );
-        }
-
+        assert!(
+            self.sockets.contains_key(&socket.borrow().uuid),
+            "Socket not found in ComHub"
+        );
         // add endpoint to socket endpoint list
         self.sockets
             .get_mut(&socket.borrow().uuid)
@@ -286,21 +300,31 @@ impl ComHub {
             move || {
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
+                        info!("Socket UUID 123: {:?}", socket_uuid);
                         let socket = self.get_socket_by_uuid(socket_uuid);
                         let socket = socket.borrow();
-                        // check if is direct socket if only_redirect is set to true
-                        if !options.only_direct
-                            && match &socket.endpoint {
-                                Some(e) => e == endpoint,
-                                _ => false,
-                            }
+
+                        // check if only_direct is set and the endpoint equals the direct endpoint of the socket
+                        if options.only_direct
+                            && socket.direct_endpoint.is_some()
+                            && socket.direct_endpoint.as_ref().unwrap()
+                                == endpoint
                         {
+                            debug!(
+                                "No direct socket found for endpoint {}. Skipping...",
+                                endpoint
+                            );
                             continue;
                         }
 
                         // check if the socket is excluded if exclude_socket is set
                         if let Some(exclude_socket) = &options.exclude_socket {
                             if socket.uuid == *exclude_socket {
+                                debug!(
+                                    "Socket {} is excluded for endpoint {}. Skipping...",
+                                    socket.uuid,
+                                    endpoint
+                                );
                                 continue;
                             }
                         }
@@ -312,7 +336,10 @@ impl ComHub {
                             break;
                         }
                     }
-
+                    debug!(
+                        "Found matching socket {} for endpoint {}",
+                        socket_uuid, endpoint
+                    );
                     yield socket_uuid.clone()
                 }
             },
@@ -429,8 +456,10 @@ impl ComHub {
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     pub fn update(&mut self) {
-        // update sockets
         self.update_sockets();
+
+        // update sockets block collectors
+        self.collect_incoming_data();
 
         // receive blocks from all sockets
         self.receive_incoming_blocks();
@@ -459,11 +488,13 @@ impl ComHub {
 
         let outbound_receiver_groups = outbound_receiver_groups.unwrap();
 
+        println!("Outbound receiver groups: {:?}", outbound_receiver_groups);
+
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket) = receiver_socket {
                 self.send_block_addressed(block, &socket, &endpoints);
             } else {
-                error!("Cannot send block, no receiver sockets found");
+                error!("Cannot send block, no receiver sockets found for endpoints {:?}", endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
             }
         }
     }
@@ -492,7 +523,40 @@ impl ComHub {
         }
     }
 
-    fn update_sockets(&self) {
+    fn update_sockets(&mut self) {
+        let mut new_sockets = Vec::new();
+        let mut deleted_sockets = Vec::new();
+        let mut registered_sockets = Vec::new();
+
+        for interface in self.interfaces.values() {
+            let socket_updates = interface.clone().borrow().get_sockets();
+            let mut socket_updates = socket_updates.borrow_mut();
+
+            registered_sockets
+                .extend(socket_updates.socket_registrations.drain(..));
+            new_sockets.extend(socket_updates.new_sockets.drain(..));
+            deleted_sockets.extend(socket_updates.deleted_sockets.drain(..));
+        }
+
+        for socket in new_sockets {
+            self.add_socket(socket.clone());
+        }
+        for socket_uuid in deleted_sockets {
+            self.delete_socket(&socket_uuid);
+        }
+        for (socket_uuid, distance, endpoint) in registered_sockets {
+            let socket = self.get_socket_by_uuid(&socket_uuid);
+            self.register_socket_endpoint(socket, endpoint.clone(), distance)
+                .unwrap_or_else(|e| {
+                    error!(
+                        "Failed to register socket {} for endpoint {} {:?}",
+                        socket_uuid, endpoint, e
+                    );
+                });
+        }
+    }
+
+    fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
         info!("Collecting incoming data from all sockets");
         for (socket, _) in self.sockets.values() {

@@ -27,7 +27,7 @@ impl Display for ComInterfaceSocketUUID {
 
 #[derive(Debug)]
 pub struct ComInterfaceSocket {
-    pub endpoint: Option<Endpoint>,
+    pub direct_endpoint: Option<Endpoint>,
     pub is_connected: bool,
     pub is_open: bool,
     pub is_destroyed: bool,
@@ -93,7 +93,7 @@ impl ComInterfaceSocket {
             receive_queue: receive_queue.clone(),
             block_collector: BlockCollector::new(receive_queue.clone()),
             interface_uuid,
-            endpoint: None,
+            direct_endpoint: None,
             is_connected: false,
             is_open: false,
             is_destroyed: false,

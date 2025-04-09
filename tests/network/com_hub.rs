@@ -7,6 +7,7 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
+use std::clone;
 use std::io::Write;
 // FIXME no-std
 
@@ -20,6 +21,10 @@ use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocke
 use datex_core::utils::uuid::UUID;
 
 use crate::context::init_global_context;
+
+lazy_static::lazy_static! {
+    static ref TEST_ENDPOINT_A: Endpoint = Endpoint::new_from_string("@test-a").unwrap();
+}
 
 pub struct MockupInterface {
     pub last_block: Option<Vec<u8>>,
@@ -96,12 +101,19 @@ fn get_mock_setup() -> (
         InterfaceDirection::IN_OUT,
         1,
     )));
+    socket.borrow_mut().is_connected = true;
 
     {
         let mockup_interface = mockup_interface_ref.borrow_mut();
         // add socket to mockup interface
         mockup_interface.add_socket(socket.clone());
+        let uuid = socket.borrow().uuid.clone();
+
+        mockup_interface
+            .register_socket_endpoint(uuid, TEST_ENDPOINT_A.clone(), 1)
+            .unwrap();
     }
+    com_hub_mut.update();
 
     (com_hub.clone(), mockup_interface_ref, socket)
 }
@@ -157,8 +169,13 @@ pub fn test_send() {
     let (com_hub, com_interface, _) = get_mock_setup();
 
     // send block
-    let block: DXBBlock = DXBBlock::default();
+    let mut block: DXBBlock = DXBBlock::default();
     let mut com_hub_mut = com_hub.borrow_mut();
+
+    com_hub_mut.print_metadata();
+
+    block.set_receivers(&[TEST_ENDPOINT_A.clone()]);
+
     com_hub_mut.send_block(&block, None);
     com_hub_mut.update();
 
