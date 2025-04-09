@@ -54,7 +54,7 @@ pub trait ComInterface {
         sockets
             .sockets
             .insert(socket.borrow().uuid.clone(), socket.clone());
-        debug!("Socket added: {:?}", socket.borrow().uuid);
+        debug!("Socket added: {}", socket.borrow().uuid);
     }
 
     fn remove_socket(&mut self, socket: &ComInterfaceSocket) {
@@ -86,7 +86,7 @@ pub trait ComInterface {
             }
         }
 
-        debug!("Socket registered: {:?}", socket_uuid);
+        debug!("Socket registered: {} {}", socket_uuid, endpoint);
 
         sockets.socket_registrations.push_back((
             socket_uuid,

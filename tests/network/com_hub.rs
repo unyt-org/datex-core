@@ -7,7 +7,6 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::clone;
 use std::io::Write;
 // FIXME no-std
 
@@ -24,20 +23,25 @@ use crate::context::init_global_context;
 
 lazy_static::lazy_static! {
     static ref TEST_ENDPOINT_A: Endpoint = Endpoint::new_from_string("@test-a").unwrap();
+    static ref TEST_ENDPOINT_B: Endpoint = Endpoint::new_from_string("@test-b").unwrap();
 }
 
 pub struct MockupInterface {
-    pub last_block: Option<Vec<u8>>,
+    pub block_queue: Vec<Vec<u8>>,
     uuid: ComInterfaceUUID,
     com_interface_sockets: Rc<RefCell<ComInterfaceSockets>>,
 }
 
-impl MockupInterface {}
+impl MockupInterface {
+    fn last_block(&self) -> Option<Vec<u8>> {
+        self.block_queue.last().cloned()
+    }
+}
 
 impl Default for MockupInterface {
     fn default() -> Self {
         MockupInterface {
-            last_block: None,
+            block_queue: Vec::new(),
             com_interface_sockets: Rc::new(RefCell::new(
                 ComInterfaceSockets::default(),
             )),
@@ -52,7 +56,7 @@ impl ComInterface for MockupInterface {
         block: &[u8],
         socket: Option<&ComInterfaceSocket>,
     ) {
-        self.last_block = Some(block.to_vec());
+        self.block_queue.push(block.to_vec());
     }
 
     fn get_properties(&self) -> InterfaceProperties {
@@ -76,11 +80,7 @@ impl ComInterface for MockupInterface {
     }
 }
 
-fn get_mock_setup() -> (
-    Rc<RefCell<ComHub>>,
-    Rc<RefCell<MockupInterface>>,
-    Rc<RefCell<ComInterfaceSocket>>,
-) {
+fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>) {
     // init com hub
     let com_hub = Rc::new(RefCell::new(ComHub::default()));
     let mut com_hub_mut = com_hub.borrow_mut();
@@ -96,23 +96,50 @@ fn get_mock_setup() -> (
             panic!("Error adding interface: {:?}", e);
         });
 
+    (com_hub.clone(), mockup_interface_ref.clone())
+}
+
+fn add_socket(
+    mockup_interface_ref: Rc<RefCell<MockupInterface>>,
+) -> Rc<RefCell<ComInterfaceSocket>> {
     let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
         mockup_interface_ref.borrow().uuid.clone(),
         InterfaceDirection::IN_OUT,
         1,
     )));
     socket.borrow_mut().is_connected = true;
+    mockup_interface_ref.borrow().add_socket(socket.clone());
+    socket
+}
 
-    {
-        let mockup_interface = mockup_interface_ref.borrow_mut();
-        // add socket to mockup interface
-        mockup_interface.add_socket(socket.clone());
-        let uuid = socket.borrow().uuid.clone();
+fn register_socket_endpoint(
+    mockup_interface_ref: Rc<RefCell<MockupInterface>>,
+    socket: Rc<RefCell<ComInterfaceSocket>>,
+    endpoint: Endpoint,
+) {
+    let mockup_interface = mockup_interface_ref.borrow_mut();
+    let uuid = socket.borrow().uuid.clone();
 
-        mockup_interface
-            .register_socket_endpoint(uuid, TEST_ENDPOINT_A.clone(), 1)
-            .unwrap();
-    }
+    mockup_interface
+        .register_socket_endpoint(uuid, endpoint, 1)
+        .unwrap();
+}
+
+fn get_mock_setup_with_socket() -> (
+    Rc<RefCell<ComHub>>,
+    Rc<RefCell<MockupInterface>>,
+    Rc<RefCell<ComInterfaceSocket>>,
+) {
+    let (com_hub, mockup_interface_ref) = get_mock_setup();
+    let mut com_hub_mut = com_hub.borrow_mut();
+
+    let socket = add_socket(mockup_interface_ref.clone());
+    register_socket_endpoint(
+        mockup_interface_ref.clone(),
+        socket.clone(),
+        TEST_ENDPOINT_A.clone(),
+    );
+
     com_hub_mut.update();
 
     (com_hub.clone(), mockup_interface_ref, socket)
@@ -162,30 +189,86 @@ pub fn test_multiple_add() {
         .is_err());
 }
 
+fn send_empty_block_to_endpoint(
+    endpoints: &[Endpoint],
+    com_hub: &Rc<RefCell<ComHub>>,
+) -> DXBBlock {
+    // send block
+    let mut block: DXBBlock = DXBBlock::default();
+    block.set_receivers(endpoints);
+
+    let mut com_hub_mut = com_hub.borrow_mut();
+    com_hub_mut.send_block(&block, None);
+    com_hub_mut.update();
+    block
+}
+
 #[test]
 pub fn test_send() {
     // init mock setup
     init_global_context();
-    let (com_hub, com_interface, _) = get_mock_setup();
+    let (com_hub, com_interface, _) = get_mock_setup_with_socket();
 
-    // send block
-    let mut block: DXBBlock = DXBBlock::default();
-    let mut com_hub_mut = com_hub.borrow_mut();
-
-    com_hub_mut.print_metadata();
-
-    block.set_receivers(&[TEST_ENDPOINT_A.clone()]);
-
-    com_hub_mut.send_block(&block, None);
-    com_hub_mut.update();
+    let block =
+        send_empty_block_to_endpoint(&[TEST_ENDPOINT_A.clone()], &com_hub);
 
     // get last block that was sent
     let mockup_interface_out = com_interface.clone();
     let mockup_interface_out = mockup_interface_out.borrow();
-    let block_bytes = mockup_interface_out.last_block.as_ref().unwrap();
+    let block_bytes = mockup_interface_out.last_block().unwrap();
 
-    assert!(mockup_interface_out.last_block.is_some());
-    assert_eq!(block_bytes, &block.to_bytes().unwrap());
+    assert!(mockup_interface_out.last_block().is_some());
+    assert_eq!(block_bytes, block.to_bytes().unwrap());
+}
+
+#[test]
+pub fn test_send_invalid_recipient() {
+    // init mock setup
+    init_global_context();
+    let (com_hub, com_interface, _) = get_mock_setup_with_socket();
+
+    send_empty_block_to_endpoint(&[TEST_ENDPOINT_B.clone()], &com_hub);
+
+    // get last block that was sent
+    let mockup_interface_out = com_interface.clone();
+    let mockup_interface_out = mockup_interface_out.borrow();
+
+    assert!(mockup_interface_out.last_block().is_none());
+}
+
+#[test]
+pub fn send_block_to_multiple_endpoints() {
+    // init mock setup
+    init_global_context();
+    let (com_hub, com_interface) = get_mock_setup();
+
+    let socket = add_socket(com_interface.clone());
+    register_socket_endpoint(
+        com_interface.clone(),
+        socket.clone(),
+        TEST_ENDPOINT_A.clone(),
+    );
+    register_socket_endpoint(
+        com_interface.clone(),
+        socket.clone(),
+        TEST_ENDPOINT_B.clone(),
+    );
+    com_hub.borrow_mut().update();
+
+    // send block to multiple receivers
+    let block = send_empty_block_to_endpoint(
+        &[TEST_ENDPOINT_A.clone(), TEST_ENDPOINT_B.clone()],
+        &com_hub,
+    );
+
+    // get last block that was sent
+    let mockup_interface_out = com_interface.clone();
+    let mockup_interface_out = mockup_interface_out.borrow();
+    let block_bytes = mockup_interface_out.last_block().unwrap();
+
+    assert_eq!(mockup_interface_out.block_queue.len(), 1);
+    assert!(mockup_interface_out.last_block().is_some());
+    assert_eq!(block_bytes, block.to_bytes().unwrap());
 }
 
 #[test]
@@ -227,7 +310,7 @@ pub fn test_recalculate() {
 pub fn test_receive() {
     // init mock setup
     init_global_context();
-    let (com_hub, _, socket) = get_mock_setup();
+    let (com_hub, _, socket) = get_mock_setup_with_socket();
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
@@ -264,7 +347,7 @@ pub fn test_receive() {
 pub fn test_receive_multiple() {
     // init mock setup
     init_global_context();
-    let (com_hub, _, socket) = get_mock_setup();
+    let (com_hub, _, socket) = get_mock_setup_with_socket();
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block

@@ -1,5 +1,6 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use futures_util::stream::Iter;
 use itertools::Itertools;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
@@ -294,10 +295,12 @@ impl ComHub {
         options: EndpointIterateOptions,
     ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
         let endpoint_sockets = self.endpoint_sockets.get(endpoint);
-
         std::iter::from_coroutine(
             #[coroutine]
             move || {
+                if endpoint_sockets.is_none() {
+                    return;
+                }
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
                         info!("Socket UUID 123: {:?}", socket_uuid);
