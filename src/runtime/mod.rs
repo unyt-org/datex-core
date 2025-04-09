@@ -56,10 +56,10 @@ impl Runtime {
 
 impl Default for Runtime {
     fn default() -> Self {
-        return Runtime {
+        Runtime {
             version: VERSION.to_string(),
             memory: Rc::new(RefCell::new(Memory::new())),
             com_hub: ComHub::new(),
-        };
+        }
     }
 }

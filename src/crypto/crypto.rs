@@ -1,7 +1,4 @@
-use crate::{
-    runtime::global_context::get_global_context,
-    stdlib::{future::Future, pin::Pin, usize},
-};
+use crate::stdlib::{future::Future, pin::Pin, usize};
 
 pub trait CryptoTrait: Send + Sync {
     fn encrypt_rsa(

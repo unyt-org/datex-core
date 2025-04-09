@@ -1,5 +1,4 @@
-use core::fmt;
-use std::{error::Error, net::SocketAddr, sync::Mutex}; // FIXME no-std
+use std::{net::SocketAddr, sync::Mutex}; // FIXME no-std
 
 use crate::{
     network::com_interfaces::websocket::{

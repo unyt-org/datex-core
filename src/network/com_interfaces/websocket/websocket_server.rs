@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt;
 // FIXME no-std
 use std::sync::Mutex; // FIXME no-std
 

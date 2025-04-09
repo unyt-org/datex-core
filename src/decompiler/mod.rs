@@ -2,8 +2,6 @@ mod constants;
 
 use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::Cell;
-use crate::stdlib::cell::RefCell;
-use crate::stdlib::rc::Rc;
 use crate::stdlib::vec;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet; // FIXME no-std

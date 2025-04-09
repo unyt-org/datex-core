@@ -10,13 +10,12 @@ use log::{debug, error, info};
 use tokio::net::TcpStream;
 use tungstenite::Message;
 use url::Url;
-use websocket::{stream::sync::NetworkStream, sync::Client, ClientBuilder};
 
 use crate::network::com_interfaces::websocket::{
     websocket_client::{WebSocket, WebSocketClientInterface},
     websocket_common::parse_url,
 };
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 pub struct WebSocketClientNative {
     client:
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
