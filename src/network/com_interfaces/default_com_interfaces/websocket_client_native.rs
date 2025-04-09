@@ -13,17 +13,17 @@ use crate::network::com_interfaces::websocket::{
     websocket_common::parse_url,
 };
 
-pub struct WebSocketNative {
+pub struct WebSocketClientNative {
     client: Option<Client<Box<dyn NetworkStream + Send>>>,
     address: Url,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
 }
 
-impl WebSocketNative {
-    fn new(address: &str) -> Result<WebSocketNative, WebSocketError> {
+impl WebSocketClientNative {
+    fn new(address: &str) -> Result<WebSocketClientNative, WebSocketError> {
         let address =
             parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
-        Ok(WebSocketNative {
+        Ok(WebSocketClientNative {
             client: None,
             receive_queue: Arc::new(Mutex::new(VecDeque::new())),
             address,
@@ -31,7 +31,7 @@ impl WebSocketNative {
     }
 }
 
-impl WebSocket for WebSocketNative {
+impl WebSocket for WebSocketClientNative {
     fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError> {
         let mut client = ClientBuilder::new(self.address.as_str())
             .map_err(|_| WebSocketError::InvalidURL)?;
@@ -69,11 +69,12 @@ impl WebSocket for WebSocketNative {
     }
 }
 
-impl WebSocketClientInterface<WebSocketNative> {
+impl WebSocketClientInterface<WebSocketClientNative> {
     pub fn new(
         address: &str,
-    ) -> Result<WebSocketClientInterface<WebSocketNative>, WebSocketError> {
-        let websocket = WebSocketNative::new(address)?;
+    ) -> Result<WebSocketClientInterface<WebSocketClientNative>, WebSocketError>
+    {
+        let websocket = WebSocketClientNative::new(address)?;
 
         Ok(WebSocketClientInterface::new_with_web_socket(Rc::new(
             RefCell::new(websocket),

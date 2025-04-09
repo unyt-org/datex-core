@@ -33,7 +33,11 @@ thiserror = "2.0.11"
 url = "2.5.4"
 num-traits = "0.2.19"
 async-trait = "0.1.87"
-tokio = { version = "1.43.0", features = ["sync", "rt", "macros"] }
+tokio = { version = "1.43.0", features = ["full"] }       # "sync", "rt", "macros"
+tokio-tungstenite = { version = "0.21", optional = true }
+tungstenite = { version = "0.21", optional = true }
+futures-util = { version = "0.3", optional = true }
+
 hex = "0.4.3"
 log = { version = "0.4", features = ["std", "serde"] }
 cfg-if = "0.1"
@@ -76,12 +80,17 @@ default = [
     "flexi_logger",
 ] # default to nostd
 
-native_websocket = ["websocket"] # use native websocket
-native_tcp = []                  # use native tcp
-native_time = []                 # use native time
-native_rand = ["rand"]           # use native websocket
-native_uuid = ["uuid"]           # use native websocket
-native_crypto = ["rsa"]          # use native crypto
+native_websocket = [
+    "websocket",
+    "tokio-tungstenite",
+    "tungstenite",
+    "futures-util",
+] # use native websocket
+native_tcp = [] # use native tcp
+native_time = [] # use native time
+native_rand = ["rand"] # use native websocket
+native_uuid = ["uuid"] # use native websocket
+native_crypto = ["rsa"] # use native crypto
 
 wasm_logger = ["console_log"]
 

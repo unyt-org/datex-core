@@ -1,4 +1,6 @@
-use std::collections::HashMap; // FIXME no-std
+use std::collections::HashMap;
+use std::fmt;
+// FIXME no-std
 use std::sync::Mutex; // FIXME no-std
 
 use crate::stdlib::{
@@ -33,7 +35,20 @@ pub enum WebSocketServerError {
     WebSocketError,
     InvalidPort,
 }
+impl std::error::Error for WebSocketServerError {}
 
+impl fmt::Display for WebSocketServerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WebSocketServerError::WebSocketError => {
+                write!(f, "WebSocket error")
+            }
+            WebSocketServerError::InvalidPort => {
+                write!(f, "Invalid port")
+            }
+        }
+    }
+}
 pub trait WebSocket {
     fn send_data(&self, message: &[u8]) -> bool;
     fn get_address(&self) -> Url;
@@ -68,7 +83,7 @@ where
     WS: WebSocket,
 {
     fn connect(&mut self) -> Result<(), ComInterfaceError> {
-        debug!("Connecting to WebSocket");
+        debug!("Spinning up websocket server");
         //   let receive_queue = self.websocket.borrow_mut().connect()?;
         //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
         // 	self.logger.clone(),
@@ -89,16 +104,12 @@ where
 
     fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
-            channel: "websocket".to_string(),
+            channel: "websocketserver".to_string(),
             round_trip_time: Duration::from_millis(40),
             max_bandwidth: 1000,
             ..InterfaceProperties::default()
         }
     }
-
-    // fn get_sockets(&self) -> Rc<RefCell<Vec<Rc<RefCell<ComInterfaceSocket>>>>> {
-    //     self.sockets.clone()
-    // }
 
     fn get_uuid(&self) -> ComInterfaceUUID {
         self.uuid.clone()
