@@ -4,6 +4,7 @@ use std::pin::Pin;
 // FIXME no-std
 use std::sync::Mutex; // FIXME no-std
 
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::stdlib::{
     cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc, time::Duration,
 };
@@ -95,7 +96,7 @@ where
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket: Option<&ComInterfaceSocket>,
+        socket: Option<ComInterfaceSocketUUID>,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // self.we
         // self.websocket.borrow_mut().send_data(block);

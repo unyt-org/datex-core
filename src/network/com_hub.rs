@@ -461,7 +461,7 @@ impl ComHub {
 
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    pub fn update(&mut self) {
+    pub async fn update(&mut self) {
         self.update_sockets();
 
         // update sockets block collectors
@@ -471,7 +471,7 @@ impl ComHub {
         self.receive_incoming_blocks();
 
         // send all queued blocks from all interfaces
-        self.flush_outgoing_blocks();
+        self.flush_outgoing_blocks().await;
     }
 
     /// Send a block to all endpoints specified in the block header.

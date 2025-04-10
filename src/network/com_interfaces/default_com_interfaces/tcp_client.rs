@@ -4,7 +4,9 @@ use std::pin::Pin;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceUUID,
 };
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
+use crate::network::com_interfaces::com_interface_socket::{
+    ComInterfaceSocket, ComInterfaceSocketUUID,
+};
 
 use super::super::com_interface::ComInterface;
 
@@ -19,7 +21,7 @@ impl ComInterface for TCPClientInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket: Option<&ComInterfaceSocket>,
+        socket: Option<ComInterfaceSocketUUID>,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         todo!()
     }

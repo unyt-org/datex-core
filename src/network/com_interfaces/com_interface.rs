@@ -49,7 +49,7 @@ pub trait ComInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket: Option<&ComInterfaceSocket>,
+        socket_uuid: Option<ComInterfaceSocketUUID>,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     fn get_properties(&self) -> InterfaceProperties;
@@ -128,51 +128,63 @@ pub trait ComInterface {
     fn flush_outgoing_blocks<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+        fn get_blocks(
+            socket_ref: &Rc<RefCell<ComInterfaceSocket>>,
+        ) -> Vec<Vec<u8>> {
+            let mut socket_mut = socket_ref.borrow_mut();
+            let blocks: Vec<Vec<u8>> =
+                socket_mut.send_queue.drain(..).collect::<Vec<_>>();
+
+            debug!("Flushing {} blocks", blocks.len());
+            debug!("Socket: {:?}", socket_mut.uuid);
+            blocks
+        }
+
         Box::pin(async move {
-            let shared_self: Arc<Mutex<&mut Self>> = Arc::new(Mutex::new(self));
+            let sockets = self.get_sockets();
+            let shared_self = &Rc::new(RefCell::new(self));
+            join_all(
+                // Iterate over all sockets
+                sockets
+                    .borrow()
+                    .sockets
+                    .values()
+                    .into_iter()
+                    .map(|socket_ref| {
+                        // Get all blocks of the socket
+                        let blocks = get_blocks(socket_ref);
 
-            let futures = shared_self
-                .lock()
-                .unwrap()
-                .get_sockets()
-                .borrow()
-                .sockets
-                .values()
-                .into_iter()
-                .map(|socket_ref| {
-                    let blocks = {
-                        let mut socket_mut = socket_ref.borrow_mut();
-                        let blocks: Vec<Vec<u8>> =
-                            socket_mut.send_queue.drain(..).collect::<Vec<_>>();
+                        // Iterate over all blocks for a socket
+                        blocks.into_iter().map(|block| {
+                            // Send the block
+                            let socket_ref = socket_ref.clone();
+                            Box::pin(async move {
+                                let socket_borrow = socket_ref.borrow();
 
-                        debug!("Flushing {} blocks", blocks.len());
-                        debug!("Socket: {:?}", socket_mut.uuid);
-                        blocks
-                    };
-
-                    blocks.into_iter().map(|block| {
-                        let socket_ref = socket_ref.clone();
-
-                        let locked_self = &shared_self;
-                        Box::pin(async move {
-                            let socket_borrow = socket_ref.borrow();
-                            let has_been_send = locked_self
-                                .lock()
-                                .unwrap()
-                                .send_block(&block, Some(&socket_borrow))
-                                .await;
-                            if !has_been_send {
-                                debug!("Failed to send block");
-                                socket_ref
+                                // socket will return a boolean indicating of a block could be sent
+                                let has_been_send = shared_self
+                                    .clone()
                                     .borrow_mut()
-                                    .send_queue
-                                    .push_back(block);
-                            }
+                                    .send_block(
+                                        &block,
+                                        Some(socket_borrow.uuid.clone()),
+                                    )
+                                    .await;
+
+                                // If the block could not be sent, push it back to the send queue to be sent later
+                                if !has_been_send {
+                                    debug!("Failed to send block");
+                                    socket_ref
+                                        .borrow_mut()
+                                        .send_queue
+                                        .push_back(block);
+                                }
+                            })
                         })
                     })
-                });
-
-            join_all(futures.flatten()).await;
+                    .flatten(),
+            )
+            .await;
             debug!("Flushed all outgoing blocks");
         })
     }
