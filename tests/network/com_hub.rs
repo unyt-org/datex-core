@@ -58,10 +58,10 @@ impl ComInterface for MockupInterface {
         block: &'a [u8],
         socket: Option<&ComInterfaceSocket>,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        Pin::from(Box::new(async move {
-            self.block_queue.push(block.to_vec());
-            true
-        }))
+        // FIXME this should be inside the async body, why is it not working?
+        self.block_queue.push(block.to_vec());
+
+        Pin::from(Box::new(async move { true }))
     }
 
     fn get_properties(&self) -> InterfaceProperties {
@@ -224,6 +224,8 @@ pub async fn test_send() {
 
     let block =
         send_empty_block_to_endpoint(&[TEST_ENDPOINT_A.clone()], &com_hub);
+
+    // com_interface.borrow().
 
     // get last block that was sent
     let mockup_interface_out = com_interface.clone();

@@ -9,6 +9,7 @@ use crate::stdlib::{
 };
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
+use futures_util::future::join_all;
 use log::debug;
 use std::{
     collections::{HashMap, VecDeque},
@@ -124,21 +125,56 @@ pub trait ComInterface {
         properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
     }
 
-    fn flush_outgoing_blocks(&mut self) {
-        for socket_ref in self.get_sockets().borrow().sockets.values() {
-            let blocks = {
-                let mut socket_mut = socket_ref.borrow_mut();
-                let blocks: Vec<Vec<u8>> =
-                    socket_mut.send_queue.drain(..).collect::<Vec<_>>();
+    fn flush_outgoing_blocks<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+        Box::pin(async move {
+            let shared_self: Arc<Mutex<&mut Self>> = Arc::new(Mutex::new(self));
 
-                debug!("Flushing {} blocks", blocks.len());
-                debug!("Socket: {:?}", socket_mut.uuid);
-                blocks
-            };
-            for block in blocks {
-                self.send_block(&block, Some(&socket_ref.borrow()));
-            }
-        }
+            let futures = shared_self
+                .lock()
+                .unwrap()
+                .get_sockets()
+                .borrow()
+                .sockets
+                .values()
+                .into_iter()
+                .map(|socket_ref| {
+                    let blocks = {
+                        let mut socket_mut = socket_ref.borrow_mut();
+                        let blocks: Vec<Vec<u8>> =
+                            socket_mut.send_queue.drain(..).collect::<Vec<_>>();
+
+                        debug!("Flushing {} blocks", blocks.len());
+                        debug!("Socket: {:?}", socket_mut.uuid);
+                        blocks
+                    };
+
+                    blocks.into_iter().map(|block| {
+                        let socket_ref = socket_ref.clone();
+
+                        let locked_self = &shared_self;
+                        Box::pin(async move {
+                            let socket_borrow = socket_ref.borrow();
+                            let has_been_send = locked_self
+                                .lock()
+                                .unwrap()
+                                .send_block(&block, Some(&socket_borrow))
+                                .await;
+                            if !has_been_send {
+                                debug!("Failed to send block");
+                                socket_ref
+                                    .borrow_mut()
+                                    .send_queue
+                                    .push_back(block);
+                            }
+                        })
+                    })
+                });
+
+            join_all(futures.flatten()).await;
+            debug!("Flushed all outgoing blocks");
+        })
     }
 
     fn create_socket(

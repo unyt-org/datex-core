@@ -1,5 +1,6 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use futures_util::future::{join_all, Join};
 use itertools::Itertools;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
@@ -584,9 +585,13 @@ impl ComHub {
     }
 
     /// Send all queued blocks from all interfaces.
-    fn flush_outgoing_blocks(&mut self) {
-        for interface in self.interfaces.values() {
-            interface.borrow_mut().flush_outgoing_blocks();
-        }
+    async fn flush_outgoing_blocks(&mut self) {
+        join_all(self.interfaces.values().map(|interface| {
+            Box::pin(async move {
+                let mut interface = interface.borrow_mut();
+                interface.flush_outgoing_blocks().await
+            })
+        }))
+        .await;
     }
 }
