@@ -356,7 +356,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
 }
 
 #[tokio::test]
-pub async fn default_interface() {
+pub async fn default_interface_create_socket_first() {
     init_global_context();
     let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
 
@@ -366,6 +366,36 @@ pub async fn default_interface() {
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
         });
+
+    let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
+
+    let mockup_interface_out = com_interface.clone();
+    let mockup_interface_out = mockup_interface_out.borrow();
+    assert_eq!(mockup_interface_out.block_queue.len(), 1);
+}
+
+#[tokio::test]
+pub async fn default_interface_set_default_interface_first() {
+    init_global_context();
+    let (com_hub, com_interface) = get_mock_setup().await;
+
+    com_hub
+        .borrow_mut()
+        .set_default_interface(com_interface.borrow().uuid.clone())
+        .unwrap_or_else(|e| {
+            panic!("Error setting default interface: {:?}", e);
+        });
+
+    let socket = add_socket(com_interface.clone());
+    register_socket_endpoint(
+        com_interface.clone(),
+        socket.clone(),
+        TEST_ENDPOINT_A.clone(),
+    );
+
+    // Update to let the com_hub know about the socket and call the add_socket method
+    // This will set the default interface and socket
+    com_hub.borrow_mut().update().await;
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
