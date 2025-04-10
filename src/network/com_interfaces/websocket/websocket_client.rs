@@ -33,7 +33,15 @@ pub trait WebSocket {
         message: &'a [u8],
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
     fn get_address(&self) -> Url;
-    fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError>;
+    fn connect<'a>(
+        &'a mut self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError>,
+                > + 'a,
+        >,
+    >; //Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError>;
     fn get_com_interface_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
 }
 
@@ -82,20 +90,25 @@ where
         sockets.get_com_interface_sockets()
     }
 
-    fn open(&mut self) -> Result<(), ComInterfaceError> {
-        debug!("Connecting to WebSocket");
-        let receive_queue = self
-            .web_socket
-            .borrow_mut()
-            .connect()
-            .map_err(|_| ComInterfaceError::ConnectionError)?;
+    fn open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
+        Box::pin(async move {
+            // FIXME add this back when open is async
+            debug!("Connecting to WebSocket");
+            let receive_queue = self
+                .web_socket
+                .borrow_mut()
+                .connect()
+                .await
+                .map_err(|_| ComInterfaceError::ConnectionError)?;
 
-        // TODO: get endpoint and call register_endpoint_socket after add_socket
-        let socket = self.create_socket_default(receive_queue);
-        self.add_socket(Rc::new(RefCell::new(socket)));
-        info!("Adding WebSocket");
-
-        Ok(())
+            // TODO: get endpoint and call register_endpoint_socket after add_socket
+            let socket = self.create_socket_default(receive_queue);
+            self.add_socket(Rc::new(RefCell::new(socket)));
+            info!("Adding WebSocket");
+            Ok(())
+        })
     }
 
     fn get_uuid(&self) -> ComInterfaceUUID {

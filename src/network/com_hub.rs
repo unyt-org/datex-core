@@ -3,6 +3,8 @@ use crate::stdlib::{cell::RefCell, rc::Rc};
 use itertools::Itertools;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
+use std::pin::Pin;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
@@ -83,22 +85,23 @@ impl ComHub {
         }))
     }
 
-    pub fn add_interface(
-        &mut self,
+    pub fn add_interface<'a>(
+        &'a mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
-    ) -> Result<(), ComHubError> {
-        let uuid = interface.borrow().get_uuid();
-        if self.interfaces.contains_key(&uuid) {
-            return Err(ComHubError::InterfaceAlreadyExists);
-        }
-
-        interface
-            .borrow_mut()
-            .open()
-            .map_err(ComHubError::InterfaceError)?;
-        self.interfaces.insert(uuid, interface);
-
-        Ok(())
+    ) -> Pin<Box<dyn Future<Output = Result<(), ComHubError>> + 'a>> {
+        Box::pin(async move {
+            let uuid = interface.borrow().get_uuid();
+            if self.interfaces.contains_key(&uuid) {
+                return Err(ComHubError::InterfaceAlreadyExists);
+            }
+            interface
+                .borrow_mut()
+                .open()
+                .await
+                .map_err(ComHubError::InterfaceError)?;
+            self.interfaces.insert(uuid, interface);
+            Ok(())
+        })
     }
 
     pub fn remove_interface(

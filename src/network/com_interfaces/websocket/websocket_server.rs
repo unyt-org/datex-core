@@ -69,23 +69,27 @@ impl<WS> ComInterface for WebSocketServerInterface<WS>
 where
     WS: WebSocket,
 {
-    fn open(&mut self) -> Result<(), ComInterfaceError> {
+    fn open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
         debug!("Spinning up websocket server");
-        let receive_queue = self
-            .web_socket_server
-            .borrow_mut()
-            .connect()
-            .map_err(|_| ComInterfaceError::ConnectionError)?;
-        //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
-        // 	self.logger.clone(),
-        // 	receive_queue,
-        //   );
-        //   self.sockets = Some(Rc::new(RefCell::new(socket)));
-        //   if let Some(logger) = &self.logger {
-        // 	logger.success(&"Adding WebSocket");
-        //   }
+        Box::pin(async move {
+            let receive_queue =
+                self.web_socket_server
+                    .borrow_mut()
+                    .connect()
+                    .map_err(|_| ComInterfaceError::ConnectionError)?;
+            //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
+            // 	self.logger.clone(),
+            // 	receive_queue,
+            //   );
+            //   self.sockets = Some(Rc::new(RefCell::new(socket)));
+            //   if let Some(logger) = &self.logger {
+            // 	logger.success(&"Adding WebSocket");
+            //   }
 
-        Ok(())
+            Ok(())
+        })
     }
 
     fn send_block<'a>(

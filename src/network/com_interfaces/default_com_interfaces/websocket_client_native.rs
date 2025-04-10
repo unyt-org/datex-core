@@ -50,12 +50,19 @@ impl WebSocketClientNative {
 }
 
 impl WebSocket for WebSocketClientNative {
-    fn connect(&mut self) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError> {
+    fn connect<'a>(
+        &'a mut self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<Arc<Mutex<VecDeque<u8>>>, WebSocketError>,
+                > + 'a,
+        >,
+    > {
         let address = self.address.clone();
         let receive_queue = self.receive_queue.clone();
-        // let self_clone: Arc<Mutex<_>> = Arc::new(Mutex::new(self.clone()));
 
-        tokio::spawn(async move {
+        Box::pin(async move {
             let stream = WebSocketClientNative::connect_async(&address)
                 .await
                 .unwrap();
@@ -72,14 +79,16 @@ impl WebSocket for WebSocketClientNative {
                                 queue.extend(data);
                             }
                         }
-                        Err(e) => error!("Error receiving message: {:?}", e),
+                        Err(e) => {
+                            error!("Error receiving message: {:?}", e)
+                        }
                     }
                 }
             })
             .await;
-        });
-
-        Ok(self.receive_queue.clone())
+            Ok(self.receive_queue.clone())
+        })
+        // let self_clone: Arc<Mutex<_>> = Arc::new(Mutex::new(self.clone()));
     }
 
     // async fn send_data(&mut self, message: &[u8]) -> bool {

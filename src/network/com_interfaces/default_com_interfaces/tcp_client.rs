@@ -24,7 +24,9 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn open(&mut self) -> Result<(), ComInterfaceError> {
+    fn open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
         todo!()
     }
 

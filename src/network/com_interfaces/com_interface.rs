@@ -57,7 +57,9 @@ pub trait ComInterface {
     fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
 
     // Opens the interface and prepares it for communication.
-    fn open(&mut self) -> Result<(), ComInterfaceError>;
+    fn open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>>;
 
     // Destroy the interface and free all resources.
     fn close(&mut self) -> Result<(), ComInterfaceError> {
