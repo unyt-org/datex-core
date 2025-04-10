@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::pin::Pin;
+
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceUUID,
 };
@@ -8,21 +11,20 @@ use super::super::com_interface::ComInterface;
 pub struct TCPClientInterface {}
 
 impl ComInterface for TCPClientInterface {
-    fn send_block(
-        &mut self,
-        _block: &[u8],
-        socket: Option<&ComInterfaceSocket>,
-    ) {
-        todo!()
-    }
-
     fn get_properties(
         &self,
     ) -> crate::network::com_interfaces::com_interface_properties::InterfaceProperties{
         todo!()
     }
+    fn send_block<'a>(
+        &'a mut self,
+        block: &'a [u8],
+        socket: Option<&ComInterfaceSocket>,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        todo!()
+    }
 
-    fn connect(&mut self) -> Result<(), ComInterfaceError> {
+    fn open(&mut self) -> Result<(), ComInterfaceError> {
         todo!()
     }
 

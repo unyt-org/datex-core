@@ -7,7 +7,9 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
+use std::future::Future;
 use std::io::Write;
+use std::pin::Pin;
 // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
@@ -51,12 +53,15 @@ impl Default for MockupInterface {
 }
 
 impl ComInterface for MockupInterface {
-    fn send_block(
-        &mut self,
-        block: &[u8],
+    fn send_block<'a>(
+        &'a mut self,
+        block: &'a [u8],
         socket: Option<&ComInterfaceSocket>,
-    ) {
-        self.block_queue.push(block.to_vec());
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Pin::from(Box::new(async move {
+            self.block_queue.push(block.to_vec());
+            true
+        }))
     }
 
     fn get_properties(&self) -> InterfaceProperties {
@@ -67,7 +72,7 @@ impl ComInterface for MockupInterface {
         }
     }
 
-    fn connect(&mut self) -> Result<(), ComInterfaceError> {
+    fn open(&mut self) -> Result<(), ComInterfaceError> {
         Ok(())
     }
 

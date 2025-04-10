@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 // FIXME no-std
 use std::sync::Mutex; // FIXME no-std
 
@@ -56,12 +58,9 @@ where
             uuid: ComInterfaceUUID(UUID::new()),
             web_sockets: HashMap::new(),
             web_socket_server,
-            com_interface_sockets: Rc::new(RefCell::new(ComInterfaceSockets {
-                sockets: HashMap::new(),
-                socket_registrations: VecDeque::new(),
-                new_sockets: VecDeque::new(),
-                deleted_sockets: VecDeque::new(),
-            })),
+            com_interface_sockets: Rc::new(RefCell::new(
+                ComInterfaceSockets::default(),
+            )),
         }
     }
 }
@@ -70,7 +69,7 @@ impl<WS> ComInterface for WebSocketServerInterface<WS>
 where
     WS: WebSocket,
 {
-    fn connect(&mut self) -> Result<(), ComInterfaceError> {
+    fn open(&mut self) -> Result<(), ComInterfaceError> {
         debug!("Spinning up websocket server");
         let receive_queue = self
             .web_socket_server
@@ -89,14 +88,26 @@ where
         Ok(())
     }
 
-    fn send_block(
-        &mut self,
-        block: &[u8],
+    fn send_block<'a>(
+        &'a mut self,
+        block: &'a [u8],
         socket: Option<&ComInterfaceSocket>,
-    ) {
-        // TODO: what happens if socket != self.socket? (only one socket exists)
-        //   self.websocket.borrow_mut().send_data(block);
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // self.we
+        // self.websocket.borrow_mut().send_data(block);
+        Box::pin(async move {
+            // TODO
+            true
+        })
     }
+    // fn send_block(
+    //     &mut self,
+    //     block: &[u8],
+    //     socket: Option<&ComInterfaceSocket>,
+    // ) {
+    //     // TODO: what happens if socket != self.socket? (only one socket exists)
+    //     //   self.websocket.borrow_mut().send_data(block);
+    // }
 
     fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {

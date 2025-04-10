@@ -55,13 +55,17 @@ impl<WS> ComInterface for WebSocketClientInterface<WS>
 where
     WS: WebSocket,
 {
-    fn send_block(
-        &mut self,
-        block: &[u8],
+    fn send_block<'a>(
+        &'a mut self,
+        block: &'a [u8],
         socket: Option<&ComInterfaceSocket>,
-    ) {
-        // TODO: what happens if socket != self.socket? (only one socket exists)
-        self.web_socket.borrow_mut().send_data(block);
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // self.we
+        // self.websocket.borrow_mut().send_data(block);
+        Box::pin(async move {
+            let ws = &mut self.web_socket.borrow_mut();
+            ws.send_data(block).await
+        })
     }
 
     fn get_properties(&self) -> InterfaceProperties {
@@ -78,7 +82,7 @@ where
         sockets.get_com_interface_sockets()
     }
 
-    fn connect(&mut self) -> Result<(), ComInterfaceError> {
+    fn open(&mut self) -> Result<(), ComInterfaceError> {
         debug!("Connecting to WebSocket");
         let receive_queue = self
             .web_socket

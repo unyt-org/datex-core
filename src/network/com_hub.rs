@@ -94,7 +94,7 @@ impl ComHub {
 
         interface
             .borrow_mut()
-            .connect()
+            .open()
             .map_err(ComHubError::InterfaceError)?;
         self.interfaces.insert(uuid, interface);
 

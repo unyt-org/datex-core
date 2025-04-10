@@ -10,8 +10,14 @@ use crate::stdlib::{
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use log::debug;
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+};
+use std::{
+    future::Future,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -39,14 +45,27 @@ pub struct ComInterfaceSockets {
 }
 
 pub trait ComInterface {
-    fn send_block(&mut self, block: &[u8], socket: Option<&ComInterfaceSocket>);
+    fn send_block<'a>(
+        &'a mut self,
+        block: &'a [u8],
+        socket: Option<&ComInterfaceSocket>,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
     fn get_properties(&self) -> InterfaceProperties;
+    fn get_uuid(&self) -> ComInterfaceUUID;
 
     fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
 
-    fn connect(&mut self) -> Result<(), ComInterfaceError>;
-    fn get_uuid(&self) -> ComInterfaceUUID;
+    // Opens the interface and prepares it for communication.
+    fn open(&mut self) -> Result<(), ComInterfaceError>;
 
+    // Destroy the interface and free all resources.
+    fn close(&mut self) -> Result<(), ComInterfaceError> {
+        // FIXME
+        Ok(())
+    }
+
+    // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Rc<RefCell<ComInterfaceSocket>>) {
         let sockets = self.get_sockets();
         let mut sockets = sockets.borrow_mut();
@@ -57,6 +76,7 @@ pub trait ComInterface {
         debug!("Socket added: {}", socket.borrow().uuid);
     }
 
+    // Remove socket from the interface
     fn remove_socket(&mut self, socket: &ComInterfaceSocket) {
         let sockets = self.get_sockets();
         let mut sockets = sockets.borrow_mut();
@@ -66,6 +86,7 @@ pub trait ComInterface {
         debug!("Socket removed: {:?}", socket.uuid);
     }
 
+    // Called when a endpoint is known for a specific socket (called by ComHub)
     fn register_socket_endpoint(
         &self,
         socket_uuid: ComInterfaceSocketUUID,
