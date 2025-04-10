@@ -32,7 +32,7 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn get_uuid(&self) -> ComInterfaceUUID {
+    fn get_uuid(&self) -> &ComInterfaceUUID {
         todo!()
     }
 

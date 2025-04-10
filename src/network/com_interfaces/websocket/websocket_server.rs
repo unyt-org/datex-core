@@ -123,8 +123,8 @@ where
         }
     }
 
-    fn get_uuid(&self) -> ComInterfaceUUID {
-        self.uuid.clone()
+    fn get_uuid<'a>(&'a self) -> &'a ComInterfaceUUID {
+        &self.uuid
     }
 
     fn get_sockets(

@@ -112,7 +112,7 @@ where
         })
     }
 
-    fn get_uuid(&self) -> ComInterfaceUUID {
-        self.uuid.clone()
+    fn get_uuid(&self) -> &ComInterfaceUUID {
+        &self.uuid
     }
 }

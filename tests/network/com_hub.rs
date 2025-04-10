@@ -107,8 +107,8 @@ impl ComInterface for MockupInterface {
     ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
         Pin::from(Box::new(async move { Ok(()) }))
     }
-    fn get_uuid(&self) -> ComInterfaceUUID {
-        self.uuid.clone()
+    fn get_uuid(&self) -> &ComInterfaceUUID {
+        &self.uuid
     }
 
     fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>> {
@@ -196,7 +196,10 @@ pub async fn test_add_and_remove() {
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {:?}", e);
         });
-    assert!(com_hub_mut.remove_interface(mockup_interface));
+    assert!(com_hub_mut
+        .remove_interface(mockup_interface.borrow().uuid.clone())
+        .await
+        .is_ok());
 }
 
 #[tokio::test]

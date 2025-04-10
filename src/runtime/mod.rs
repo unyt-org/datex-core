@@ -59,7 +59,7 @@ impl Default for Runtime {
         Runtime {
             version: VERSION.to_string(),
             memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: ComHub::new(),
+            com_hub: Rc::new(RefCell::new(ComHub::default())),
         }
     }
 }

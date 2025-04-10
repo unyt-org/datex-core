@@ -53,7 +53,7 @@ pub trait ComInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     fn get_properties(&self) -> InterfaceProperties;
-    fn get_uuid(&self) -> ComInterfaceUUID;
+    fn get_uuid<'a>(&'a self) -> &'a ComInterfaceUUID;
 
     fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
 
