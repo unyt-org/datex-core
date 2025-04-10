@@ -98,7 +98,18 @@ impl ComHub {
         interface_uuid: ComInterfaceUUID,
     ) -> Result<(), ComHubError> {
         if self.interfaces.contains_key(&interface_uuid) {
-            self.default_interface_uuid = Some(interface_uuid);
+            self.default_interface_uuid = Some(interface_uuid.clone());
+            let socket_list = &self
+                .get_com_interface_by_uuid(&interface_uuid)
+                .borrow()
+                .get_sockets();
+
+            if let Some(socket) = socket_list.borrow().sockets.values().next() {
+                self.default_socket_uuid = Some(socket.borrow().uuid.clone());
+            } else {
+                debug!("No sockets found for interface {}", interface_uuid);
+            }
+
             Ok(())
         } else {
             Err(ComHubError::InterfaceDoesNotExist)
@@ -201,7 +212,6 @@ impl ComHub {
             };
 
             if !remaining_receivers.is_empty() {
-                error!("Block is not for this endpoint");
                 let block = &mut block.clone();
                 block.set_receivers(&remaining_receivers);
                 self.send_block(block, Some(socket_uuid));
@@ -240,22 +250,6 @@ impl ComHub {
         // cannot register endpoint if socket is not initialized (no endpoint assigned)
         if socket_ref.direct_endpoint.is_none() {
             return Err(SocketEndpointRegistrationError::SocketUninitialized);
-        }
-
-        // set as default socket if interface is registered as default interface
-        if self.default_socket_uuid.is_none()
-            && match self.default_interface_uuid {
-                Some(ref default_interface) => {
-                    socket_ref.interface_uuid == *default_interface
-                }
-                None => false,
-            }
-        {
-            debug!(
-                "Setting default socket for interface {}: {}",
-                socket_ref.interface_uuid, socket_ref.uuid
-            );
-            self.default_socket_uuid = Some(socket_ref.uuid.clone());
         }
 
         // add endpoint to socket endpoint list
@@ -304,14 +298,29 @@ impl ComHub {
     }
 
     fn add_socket(&mut self, socket: Rc<RefCell<ComInterfaceSocket>>) {
-        if self.sockets.contains_key(&socket.borrow().uuid) {
-            panic!("Socket {} already exists in ComHub", socket.borrow().uuid);
+        let socket_ref = socket.borrow();
+
+        if self.sockets.contains_key(&socket_ref.uuid) {
+            panic!("Socket {} already exists in ComHub", socket_ref.uuid);
         }
 
-        self.sockets.insert(
-            socket.borrow().uuid.clone(),
-            (socket.clone(), HashSet::new()),
-        );
+        self.sockets
+            .insert(socket_ref.uuid.clone(), (socket.clone(), HashSet::new()));
+        // set as default socket if interface is registered as default interface
+        if self.default_socket_uuid.is_none()
+            && match self.default_interface_uuid {
+                Some(ref default_interface) => {
+                    socket_ref.interface_uuid == *default_interface
+                }
+                None => false,
+            }
+        {
+            debug!(
+                "Setting default socket for interface {}: {}",
+                socket_ref.interface_uuid, socket_ref.uuid
+            );
+            self.default_socket_uuid = Some(socket_ref.uuid.clone());
+        }
     }
 
     fn delete_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
@@ -590,8 +599,6 @@ impl ComHub {
 
         let outbound_receiver_groups = outbound_receiver_groups.unwrap();
 
-        println!("Outbound receiver groups: {:?}", outbound_receiver_groups);
-
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket) = receiver_socket {
                 self.send_block_addressed(block, &socket, &endpoints);
@@ -616,6 +623,12 @@ impl ComHub {
         let mut socket_ref = socket.borrow_mut();
         match &addressed_block.to_bytes() {
             Ok(bytes) => {
+                info!(
+                    "Sending block to socket {}: {}",
+                    socket_uuid,
+                    endpoints.iter().map(|e| e.to_string()).join(", ")
+                );
+
                 // TODO: resend block if socket failed to send
                 socket_ref.queue_outgoing_block(bytes);
             }

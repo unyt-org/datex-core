@@ -355,6 +355,25 @@ pub async fn send_blocks_to_multiple_endpoints() {
     assert!(mockup_interface_out.last_block().is_some());
 }
 
+#[tokio::test]
+pub async fn default_interface() {
+    init_global_context();
+    let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
+
+    com_hub
+        .borrow_mut()
+        .set_default_interface(com_interface.borrow().uuid.clone())
+        .unwrap_or_else(|e| {
+            panic!("Error setting default interface: {:?}", e);
+        });
+
+    let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
+
+    let mockup_interface_out = com_interface.clone();
+    let mockup_interface_out = mockup_interface_out.borrow();
+    assert_eq!(mockup_interface_out.block_queue.len(), 1);
+}
+
 #[test]
 pub fn test_recalculate() {
     init_global_context();
