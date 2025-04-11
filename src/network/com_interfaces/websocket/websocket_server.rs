@@ -116,12 +116,14 @@ where
         // let web_socket  =
         Box::pin(async move {
             // TODO
-            self.web_sockets
-                .values()
-                .next()
-                .unwrap()
-                .send_block(block)
-                .await
+            // self.web_sockets
+            //     .values()
+            //     .next()
+            //     .unwrap()
+            //     .send_block(block)
+            //     .await
+
+            true
         })
     }
     // fn send_block(

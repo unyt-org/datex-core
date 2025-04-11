@@ -82,7 +82,7 @@ impl WebSocketServerNative {
                 Message::Binary(bin) => {
                     // pong TBD
                     queue.lock().unwrap().extend(bin.clone());
-                    write.send(Message::Binary(bin.clone())).await.unwrap();
+                    // write.send(Message::Binary(bin.clone())).await.unwrap();
                 }
                 Message::Close(_) => {
                     println!("Client disconnected");
@@ -115,6 +115,66 @@ impl WebSocket for WebSocketServerNative {
                 "Connecting to WebSocket server at {}",
                 address.host_str().unwrap()
             );
+            let addr = format!(
+                "{}:{}",
+                address.host_str().unwrap(),
+                address.port().unwrap()
+            )
+            .parse::<SocketAddr>()
+            .map_err(|_| WebSocketServerError::InvalidPort)?;
+
+            let listener = TcpListener::bind(&addr)
+                .await
+                .map_err(|_| WebSocketServerError::WebSocketError)?;
+
+            let queue_clone = receive_queue.clone();
+            tokio::spawn(async move {
+                loop {
+                    let (stream, addr) = match listener.accept().await {
+                        Ok(pair) => pair,
+                        Err(e) => {
+                            error!("Failed to accept connection: {}", e);
+                            continue;
+                        }
+                    };
+
+                    let queue = queue_clone.clone();
+                    tokio::spawn(async move {
+                        match accept_async(stream).await {
+                            Ok(ws_stream) => {
+                                info!(
+                                    "Accepted WebSocket connection from {}",
+                                    addr
+                                );
+                                let (mut write, mut read) = ws_stream.split();
+                                // self
+                                while let Some(msg) = read.next().await {
+                                    match msg {
+                                        Ok(Message::Binary(bin)) => {
+                                            let mut q = queue.lock().unwrap();
+                                            q.extend(bin);
+                                        }
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            error!(
+                                                "WebSocket error from {}: {}",
+                                                addr, e
+                                            );
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                error!(
+                                    "WebSocket handshake failed with {}: {}",
+                                    addr, e
+                                );
+                            }
+                        }
+                    });
+                }
+            });
             Ok(self.receive_queue.clone())
         })
         // tokio::spawn(async move {
@@ -147,8 +207,8 @@ impl WebSocketServerInterface<WebSocketServerNative> {
     ) -> Result<WebSocketServerInterface<WebSocketServerNative>, WebSocketError>
     {
         let address = format!("127.0.0.1:{}", port);
-        let websocket = WebSocketServerNative::new(&address.to_string())?;
-        websocket.connect().await?;
+        let mut websocket = WebSocketServerNative::new(&address.to_string())?;
+        websocket.connect().await;
         Ok(WebSocketServerInterface::new_with_web_socket_server(
             Rc::new(RefCell::new(websocket)),
         ))
