@@ -29,7 +29,7 @@ where
 }
 
 pub trait WebSocket {
-    fn send_data<'a>(
+    fn send_block<'a>(
         &'a mut self,
         message: &'a [u8],
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
@@ -50,7 +50,7 @@ impl<WS> WebSocketClientInterface<WS>
 where
     WS: WebSocket,
 {
-    pub fn new_with_web_socket(
+    pub(crate) fn new_with_web_socket(
         web_socket: Rc<RefCell<WS>>,
     ) -> WebSocketClientInterface<WS> {
         WebSocketClientInterface {
@@ -67,28 +67,13 @@ where
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket: Option<ComInterfaceSocketUUID>,
+        // A websocket client interface does only know one socket
+        _: Option<ComInterfaceSocketUUID>,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // self.we
-        // self.websocket.borrow_mut().send_data(block);
         Box::pin(async move {
             let ws = &mut self.web_socket.borrow_mut();
-            ws.send_data(block).await
+            ws.send_block(block).await
         })
-    }
-
-    fn get_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            channel: "websocket".to_string(),
-            round_trip_time: Duration::from_millis(40),
-            max_bandwidth: 1000,
-            ..InterfaceProperties::default()
-        }
-    }
-
-    fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>> {
-        let sockets = self.web_socket.borrow();
-        sockets.get_com_interface_sockets()
     }
 
     fn open<'a>(
@@ -110,6 +95,20 @@ where
             info!("Adding WebSocket");
             Ok(())
         })
+    }
+
+    fn get_properties(&self) -> InterfaceProperties {
+        InterfaceProperties {
+            channel: "websocket".to_string(),
+            round_trip_time: Duration::from_millis(40),
+            max_bandwidth: 1000,
+            ..InterfaceProperties::default()
+        }
+    }
+
+    fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>> {
+        let sockets = self.web_socket.borrow();
+        sockets.get_com_interface_sockets()
     }
 
     fn get_uuid(&self) -> &ComInterfaceUUID {

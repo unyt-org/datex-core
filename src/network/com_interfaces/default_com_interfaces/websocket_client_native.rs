@@ -7,7 +7,7 @@ use crate::{
 
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use log::{debug, error, info};
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, spawn};
 use tungstenite::Message;
 use url::Url;
 
@@ -63,42 +63,35 @@ impl WebSocket for WebSocketClientNative {
         let receive_queue = self.receive_queue.clone();
 
         Box::pin(async move {
-            let stream = WebSocketClientNative::connect_async(&address)
+            info!(
+                "Connecting to WebSocket server at {}",
+                address.host_str().unwrap()
+            );
+            let (stream, _) = tokio_tungstenite::connect_async(address)
                 .await
-                .unwrap();
-            let (write, read) = stream.split();
-            // self.client = Some(write);
+                .map_err(|_| WebSocketError::ConnectionError)?;
+            let (write, mut read) = stream.split();
             let receive_queue_clone = receive_queue.clone();
-            read.for_each(|message| {
-                let receive_queue = receive_queue_clone.clone();
-                async move {
-                    match message {
-                        Ok(msg) => {
-                            if let Message::Binary(data) = msg {
-                                let mut queue = receive_queue.lock().unwrap();
-                                queue.extend(data);
-                            }
+            self.client = Some(write);
+            spawn(async move {
+                while let Some(msg) = read.next().await {
+                    match msg {
+                        Ok(Message::Binary(data)) => {
+                            let mut queue = receive_queue_clone.lock().unwrap();
+                            queue.extend(data);
+                        }
+                        Ok(_) => {
+                            error!("Invalid  message type received");
                         }
                         Err(e) => {
-                            error!("Error receiving message: {:?}", e)
+                            error!("WebSocket read error: {}", e);
                         }
                     }
                 }
-            })
-            .await;
+            });
             Ok(self.receive_queue.clone())
         })
-        // let self_clone: Arc<Mutex<_>> = Arc::new(Mutex::new(self.clone()));
     }
-
-    // async fn send_data(&mut self, message: &[u8]) -> bool {
-    //     if let Some(client) = self.client.as_mut() {
-    //         debug!("Sending message: {:?}", message);
-    //         client.send(Message::Binary(message.to_vec())).await.is_ok()
-    //     } else {
-    //         false
-    //     }
-    // }
 
     fn get_address(&self) -> Url {
         self.address.clone()
@@ -114,7 +107,7 @@ impl WebSocket for WebSocketClientNative {
         todo!()
     }
 
-    fn send_data<'a>(
+    fn send_block<'a>(
         &'a mut self,
         message: &'a [u8],
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
@@ -140,11 +133,12 @@ impl WebSocket for WebSocketClientNative {
 }
 
 impl WebSocketClientInterface<WebSocketClientNative> {
-    pub fn new(
+    pub async fn start(
         address: &str,
     ) -> Result<WebSocketClientInterface<WebSocketClientNative>, WebSocketError>
     {
-        let websocket = WebSocketClientNative::new(address)?;
+        let mut websocket = WebSocketClientNative::new(address)?;
+        websocket.connect().await?;
 
         Ok(WebSocketClientInterface::new_with_web_socket(Rc::new(
             RefCell::new(websocket),

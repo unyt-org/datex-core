@@ -41,18 +41,30 @@ pub enum WebSocketServerError {
 impl std::error::Error for WebSocketServerError {}
 
 pub trait WebSocket {
-    fn send_data(&self, message: &[u8]) -> bool;
+    fn send_block<'a>(
+        &'a mut self,
+        message: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
+    fn connect<'a>(
+        &'a mut self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        Arc<Mutex<VecDeque<u8>>>,
+                        WebSocketServerError,
+                    >,
+                > + 'a,
+        >,
+    >;
     fn get_address(&self) -> Url;
-    fn connect(
-        &mut self,
-    ) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketServerError>;
 }
 
 impl<WS> WebSocketServerInterface<WS>
 where
     WS: WebSocket,
 {
-    pub fn new_with_web_socket_server(
+    pub(crate) fn new_with_web_socket_server(
         web_socket_server: Rc<RefCell<WS>>,
     ) -> WebSocketServerInterface<WS> {
         WebSocketServerInterface {
@@ -75,11 +87,12 @@ where
     ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
         debug!("Spinning up websocket server");
         Box::pin(async move {
-            let receive_queue =
-                self.web_socket_server
-                    .borrow_mut()
-                    .connect()
-                    .map_err(|_| ComInterfaceError::ConnectionError)?;
+            let receive_queue = self
+                .web_socket_server
+                .borrow_mut()
+                .connect()
+                .await
+                .map_err(|_| ComInterfaceError::ConnectionError)?;
             //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
             // 	self.logger.clone(),
             // 	receive_queue,
@@ -100,9 +113,15 @@ where
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // self.we
         // self.websocket.borrow_mut().send_data(block);
+        // let web_socket  =
         Box::pin(async move {
             // TODO
-            true
+            self.web_sockets
+                .values()
+                .next()
+                .unwrap()
+                .send_block(block)
+                .await
         })
     }
     // fn send_block(

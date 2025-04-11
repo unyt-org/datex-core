@@ -1,13 +1,32 @@
+use std::clone;
 
-
-use datex_core::network::com_interfaces::websocket::websocket_client::WebSocketClientInterface;
+use datex_core::network::com_interfaces::websocket::{
+    websocket_client::{WebSocket, WebSocketClientInterface},
+    websocket_server::WebSocketServerInterface,
+};
+use tokio::sync::watch::error;
 
 use crate::context::init_global_context;
 
-#[test]
-pub fn test_construct() {
+#[tokio::test]
+pub async fn test_construct() {
     init_global_context();
-    let client = WebSocketClientInterface::new("ws://localhost:8080").unwrap();
+
+    let server =
+        WebSocketServerInterface::start(8080)
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Failed to create WebSocketServerInterface: {}", e);
+            });
+
+    let client = WebSocketClientInterface::start("ws://localhost:8080")
+        .await
+        .unwrap_or_else(|e| {
+            panic!("Failed to create WebSocketClientInterface: {}", e);
+        });
+    // show error instead with panic
+
+    // client.borrow().connect()
 }
 
 // FIXME TODO

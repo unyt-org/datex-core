@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Mutex}; // FIXME no-std
+use std::{future::Future, net::SocketAddr, pin::Pin, sync::Mutex}; // FIXME no-std
 
 use crate::{
     network::com_interfaces::websocket::{
@@ -96,41 +96,59 @@ impl WebSocketServerNative {
 }
 
 impl WebSocket for WebSocketServerNative {
-    fn connect(
-        &mut self,
-    ) -> Result<Arc<Mutex<VecDeque<u8>>>, WebSocketServerError> {
+    fn connect<'a>(
+        &'a mut self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        Arc<Mutex<VecDeque<u8>>>,
+                        WebSocketServerError,
+                    >,
+                > + 'a,
+        >,
+    > {
         let address = self.get_address();
         let receive_queue = self.receive_queue.clone();
-        tokio::spawn(async move {
-            if let Err(e) = WebSocketServerNative::connect_async(
-                &address,
-                receive_queue.clone(),
-            )
-            .await
-            {
-                error!("Server error: {}", e);
-            }
-        });
-        Ok(self.receive_queue.clone())
+        Box::pin(async move {
+            info!(
+                "Connecting to WebSocket server at {}",
+                address.host_str().unwrap()
+            );
+            Ok(self.receive_queue.clone())
+        })
+        // tokio::spawn(async move {
+        //     if let Err(e) = WebSocketServerNative::connect_async(
+        //         &address,
+        //         receive_queue.clone(),
+        //     )
+        //     .await
+        //     {
+        //         error!("Server error: {}", e);
+        //     }
+        // });
     }
 
     fn get_address(&self) -> Url {
         self.address.clone()
     }
 
-    fn send_data(&self, message: &[u8]) -> bool {
-        todo!()
+    fn send_block<'a>(
+        &'a mut self,
+        message: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move { true })
     }
 }
 
 impl WebSocketServerInterface<WebSocketServerNative> {
-    pub fn new(
+    pub async fn start(
         port: u16,
     ) -> Result<WebSocketServerInterface<WebSocketServerNative>, WebSocketError>
     {
         let address = format!("127.0.0.1:{}", port);
         let websocket = WebSocketServerNative::new(&address.to_string())?;
-
+        websocket.connect().await?;
         Ok(WebSocketServerInterface::new_with_web_socket_server(
             Rc::new(RefCell::new(websocket)),
         ))
