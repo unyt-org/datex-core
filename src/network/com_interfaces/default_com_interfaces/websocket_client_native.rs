@@ -3,14 +3,14 @@ use std::{future::Future, pin::Pin, sync::Mutex, time::Duration}; // FIXME no-st
 use crate::{
     network::com_interfaces::{
         com_interface::{
-            ComInterface, ComInterfaceError, ComInterfaceSockets,
+            ComInterface, ComInterfaceSockets,
             ComInterfaceUUID,
         },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         websocket::websocket_common::WebSocketError,
     },
-    stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc},
+    stdlib::{collections::VecDeque, sync::Arc},
     utils::uuid::UUID,
 };
 
@@ -80,7 +80,7 @@ impl WebSocketClientNativeInterface {
     }
 
     pub fn get_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
-        return self.get_socket().map(|s| s.lock().unwrap().uuid.clone());
+        self.get_socket().map(|s| s.lock().unwrap().uuid.clone())
     }
 
     async fn start(&mut self) -> Result<(), WebSocketError> {

@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceSockets, ComInterfaceUUID,
+    ComInterface, ComInterfaceSockets, ComInterfaceUUID,
 };
 use datex_core::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,

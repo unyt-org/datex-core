@@ -5,15 +5,12 @@ use std::{
 
 use crate::{
     network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceError, ComInterfaceSockets,
-            ComInterfaceUUID,
-        },
+        com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         websocket::websocket_common::{WebSocketError, WebSocketServerError},
     },
-    stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc},
+    stdlib::sync::Arc,
     utils::uuid::UUID,
 };
 
@@ -28,15 +25,6 @@ use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
 use tokio_tungstenite::WebSocketStream;
-pub struct WebSocketServerNative {
-    pub tx_streams: Arc<
-        Mutex<
-            HashMap<SocketAddr, SplitSink<WebSocketStream<TcpStream>, Message>>,
-        >,
-    >,
-    address: Url,
-    receive_queue: Arc<Mutex<VecDeque<u8>>>,
-}
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,

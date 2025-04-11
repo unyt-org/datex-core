@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceSockets, ComInterfaceUUID,
+    ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 

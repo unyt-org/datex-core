@@ -333,12 +333,12 @@ impl ComHub {
         endpoint: Endpoint,
     ) {
         assert!(
-            self.sockets.contains_key(&socket_uuid),
+            self.sockets.contains_key(socket_uuid),
             "Socket not found in ComHub"
         );
         // add endpoint to socket endpoint list
         self.sockets
-            .get_mut(&socket_uuid)
+            .get_mut(socket_uuid)
             .unwrap()
             .1
             .insert(endpoint.clone());
