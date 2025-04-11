@@ -151,8 +151,11 @@ impl WebSocket for WebSocketServerNative {
                                 while let Some(msg) = read.next().await {
                                     match msg {
                                         Ok(Message::Binary(bin)) => {
-                                            let mut q = queue.lock().unwrap();
-                                            q.extend(bin);
+                                            debug!(
+                                                "Received binary message: {:?}",
+                                                bin
+                                            );
+                                            queue.lock().unwrap().extend(bin);
                                         }
                                         Ok(_) => {}
                                         Err(e) => {

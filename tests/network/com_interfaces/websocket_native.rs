@@ -10,23 +10,31 @@ use crate::context::init_global_context;
 
 #[tokio::test]
 pub async fn test_construct() {
+    const PORT: u16 = 8080;
     init_global_context();
 
     let server =
-        WebSocketServerInterface::start(8080)
+        WebSocketServerInterface::start(PORT)
             .await
             .unwrap_or_else(|e| {
                 panic!("Failed to create WebSocketServerInterface: {}", e);
             });
 
-    let client = WebSocketClientInterface::start("ws://localhost:8080")
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketClientInterface: {}", e);
-        });
-    // show error instead with panic
+    let client =
+        WebSocketClientInterface::start(&format!("ws://localhost:{}", PORT))
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Failed to create WebSocketClientInterface: {}", e);
+            });
 
-    // client.borrow().connect()
+    client
+        .web_socket
+        .clone()
+        .borrow_mut()
+        .send_block(b"Hello")
+        .await;
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 }
 
 // FIXME TODO
