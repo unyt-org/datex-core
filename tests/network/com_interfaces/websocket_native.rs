@@ -5,6 +5,7 @@ use datex_core::network::com_interfaces::{
         websocket_server_native::WebSocketServerNativeInterface,
     },
 };
+use log::debug;
 
 use crate::context::init_global_context;
 
@@ -34,21 +35,27 @@ pub async fn test_construct() {
             .await
     );
 
-    let uuid = server
-        .get_sockets()
-        .lock()
-        .unwrap()
-        .sockets
-        .values()
-        .next()
-        .unwrap()
-        .lock()
-        .unwrap()
-        .uuid
-        .clone();
+    let server_sockets = server.get_sockets().clone();
+    let server_socket = server_sockets.lock().unwrap();
+    let server_socket = server_socket.sockets.values().next().unwrap().clone();
+    let uuid = {
+        let server_socket = server_socket.lock().unwrap();
+        server_socket.uuid.clone()
+    };
 
     assert!(server.send_block(b"Hi", uuid).await);
+
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    assert_eq!(
+        server_socket
+            .lock()
+            .unwrap()
+            .receive_queue
+            .lock()
+            .unwrap()
+            .len(),
+        5
+    );
 }
 
 // FIXME TODO
