@@ -63,7 +63,7 @@ impl ComHub {
         for (endpoint, sockets) in &self.endpoint_sockets {
             for (socket_uuid, properties) in sockets {
                 let socket = self.get_socket_by_uuid(socket_uuid);
-                let socket = socket.borrow();
+                let socket = socket.lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)

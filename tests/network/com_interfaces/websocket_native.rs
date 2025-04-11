@@ -1,9 +1,8 @@
-
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
-    websocket::{
-        websocket_client::{WebSocket, WebSocketClientInterface},
-        websocket_server::WebSocketServerInterface,
+    default_com_interfaces::{
+        websocket_client_native::WebSocketClientNativeInterface,
+        websocket_server_native::WebSocketServerNativeInterface,
     },
 };
 
@@ -14,38 +13,41 @@ pub async fn test_construct() {
     const PORT: u16 = 8080;
     init_global_context();
 
-    let mut server = WebSocketServerInterface::start(PORT)
+    let mut server = WebSocketServerNativeInterface::open(&PORT)
         .await
         .unwrap_or_else(|e| {
             panic!("Failed to create WebSocketServerInterface: {}", e);
         });
 
-    let client =
-        WebSocketClientInterface::start(&format!("ws://localhost:{}", PORT))
+    let mut client = WebSocketClientNativeInterface::open(&format!(
+        "ws://localhost:{}",
+        PORT
+    ))
+    .await
+    .unwrap_or_else(|e| {
+        panic!("Failed to create WebSocketClientInterface: {}", e);
+    });
+
+    assert!(
+        client
+            .send_block(b"Hello", client.get_socket_uuid().unwrap())
             .await
-            .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketClientInterface: {}", e);
-            });
+    );
 
-    client
-        .web_socket
-        .clone()
-        .borrow_mut()
-        .send_block(b"Hello")
-        .await;
-
-    let client_uuid = server
+    let uuid = server
         .get_sockets()
-        .borrow()
+        .lock()
+        .unwrap()
         .sockets
         .values()
         .next()
-        .expect("No sockets found")
-        .borrow()
+        .unwrap()
+        .lock()
+        .unwrap()
         .uuid
         .clone();
 
-    server.send_block(b"Hi", Some(client_uuid)).await;
+    assert!(server.send_block(b"Hi", uuid).await);
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 }
 

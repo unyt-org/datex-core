@@ -10,6 +10,7 @@ use datex_core::stdlib::rc::Rc;
 use std::future::Future;
 use std::io::Write;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
@@ -31,9 +32,9 @@ lazy_static::lazy_static! {
 }
 
 pub struct MockupInterface {
-    pub block_queue: Vec<(Option<ComInterfaceSocketUUID>, Vec<u8>)>,
+    pub block_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
+    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     uuid: ComInterfaceUUID,
-    com_interface_sockets: Rc<RefCell<ComInterfaceSockets>>,
 }
 
 impl MockupInterface {
@@ -43,7 +44,7 @@ impl MockupInterface {
     fn last_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
         self.block_queue
             .last()
-            .and_then(|(socket_uuid, _)| socket_uuid.clone())
+            .map(|(socket_uuid, _)| socket_uuid.clone())
     }
 
     fn find_outgoing_block_for_socket(
@@ -52,7 +53,7 @@ impl MockupInterface {
     ) -> Option<Vec<u8>> {
         self.block_queue
             .iter()
-            .find(|(uuid, _)| uuid == &Some(socket_uuid.clone()))
+            .find(|(uuid, _)| uuid == &socket_uuid)
             .map(|(_, block)| block.clone())
     }
     fn has_outgoing_block_for_socket(
@@ -64,7 +65,7 @@ impl MockupInterface {
 
     fn last_block_and_socket(
         &self,
-    ) -> Option<(Option<ComInterfaceSocketUUID>, Vec<u8>)> {
+    ) -> Option<(ComInterfaceSocketUUID, Vec<u8>)> {
         self.block_queue.last().cloned()
     }
 }
@@ -73,7 +74,7 @@ impl Default for MockupInterface {
     fn default() -> Self {
         MockupInterface {
             block_queue: Vec::new(),
-            com_interface_sockets: Rc::new(RefCell::new(
+            com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
             uuid: ComInterfaceUUID(UUID::new()),
@@ -85,7 +86,7 @@ impl ComInterface for MockupInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket_uuid: Option<ComInterfaceSocketUUID>,
+        socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // FIXME this should be inside the async body, why is it not working?
         self.block_queue.push((socket_uuid, block.to_vec()));
@@ -101,16 +102,11 @@ impl ComInterface for MockupInterface {
         }
     }
 
-    fn open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
-        Pin::from(Box::new(async move { Ok(()) }))
-    }
     fn get_uuid(&self) -> &ComInterfaceUUID {
         &self.uuid
     }
 
-    fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>> {
+    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
 }
@@ -138,24 +134,24 @@ async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)
 
 fn add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
-) -> Rc<RefCell<ComInterfaceSocket>> {
-    let socket = Rc::new(RefCell::new(ComInterfaceSocket::new(
+) -> Arc<Mutex<ComInterfaceSocket>> {
+    let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
         mockup_interface_ref.borrow().uuid.clone(),
         InterfaceDirection::IN_OUT,
         1,
     )));
-    socket.borrow_mut().is_connected = true;
+    socket.lock().unwrap().is_connected = true;
     mockup_interface_ref.borrow().add_socket(socket.clone());
     socket
 }
 
 fn register_socket_endpoint(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
-    socket: Rc<RefCell<ComInterfaceSocket>>,
+    socket: Arc<Mutex<ComInterfaceSocket>>,
     endpoint: Endpoint,
 ) {
     let mockup_interface = mockup_interface_ref.borrow_mut();
-    let uuid = socket.borrow().uuid.clone();
+    let uuid = socket.lock().unwrap().uuid.clone();
 
     mockup_interface
         .register_socket_endpoint(uuid, endpoint, 1)
@@ -165,7 +161,7 @@ fn register_socket_endpoint(
 async fn get_mock_setup_with_socket() -> (
     Rc<RefCell<ComHub>>,
     Rc<RefCell<MockupInterface>>,
-    Rc<RefCell<ComInterfaceSocket>>,
+    Arc<Mutex<ComInterfaceSocket>>,
 ) {
     let (com_hub, mockup_interface_ref) = get_mock_setup().await;
     let mut com_hub_mut = com_hub.borrow_mut();
@@ -347,9 +343,9 @@ pub async fn send_blocks_to_multiple_endpoints() {
     assert_eq!(mockup_interface_out.block_queue.len(), 2);
 
     assert!(mockup_interface_out
-        .has_outgoing_block_for_socket(socket_a.borrow().uuid.clone()));
+        .has_outgoing_block_for_socket(socket_a.lock().unwrap().uuid.clone()));
     assert!(mockup_interface_out
-        .has_outgoing_block_for_socket(socket_b.borrow().uuid.clone()));
+        .has_outgoing_block_for_socket(socket_b.lock().unwrap().uuid.clone()));
 
     assert!(mockup_interface_out.last_block().is_some());
 }
@@ -459,7 +455,7 @@ pub async fn test_receive() {
 
     let block_bytes = block.to_bytes().unwrap();
     {
-        let socket_ref = socket.borrow();
+        let socket_ref = socket.lock().unwrap();
         let receive_queue = socket_ref.get_receive_queue();
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         let _ = receive_queue_mut.write(block_bytes.as_slice());
@@ -512,7 +508,7 @@ pub async fn test_receive_multiple() {
         .collect();
 
     {
-        let socket_ref = socket.borrow();
+        let socket_ref = socket.lock().unwrap();
         let receive_queue = socket_ref.get_receive_queue();
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         for block in block_bytes.iter() {

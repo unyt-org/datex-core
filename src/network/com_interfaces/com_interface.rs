@@ -39,28 +39,37 @@ pub enum ComInterfaceError {
 #[derive(Debug, Default)]
 pub struct ComInterfaceSockets {
     pub sockets:
-        HashMap<ComInterfaceSocketUUID, Rc<RefCell<ComInterfaceSocket>>>,
+        HashMap<ComInterfaceSocketUUID, Arc<Mutex<ComInterfaceSocket>>>,
     pub socket_registrations: VecDeque<(ComInterfaceSocketUUID, u32, Endpoint)>,
-    pub new_sockets: VecDeque<Rc<RefCell<ComInterfaceSocket>>>,
+    pub new_sockets: VecDeque<Arc<Mutex<ComInterfaceSocket>>>,
     pub deleted_sockets: VecDeque<ComInterfaceSocketUUID>,
+}
+
+impl ComInterfaceSockets {
+    pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
+        let uuid = socket.lock().unwrap().uuid.clone();
+        self.sockets.insert(uuid, socket.clone());
+        self.new_sockets.push_back(socket);
+    }
+    pub fn get_socket_by_uuid(
+        &self,
+        uuid: &ComInterfaceSocketUUID,
+    ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
+        self.sockets.get(uuid).cloned()
+    }
 }
 
 pub trait ComInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket_uuid: Option<ComInterfaceSocketUUID>,
+        socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     fn get_properties(&self) -> InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;
 
-    fn get_sockets(&self) -> Rc<RefCell<ComInterfaceSockets>>;
-
-    // Opens the interface and prepares it for communication.
-    fn open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>>;
+    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     // Destroy the interface and free all resources.
     fn close(&mut self) -> Result<(), ComInterfaceError> {
@@ -69,20 +78,19 @@ pub trait ComInterface {
     }
 
     // Add new socket to the interface (not registered yet)
-    fn add_socket(&self, socket: Rc<RefCell<ComInterfaceSocket>>) {
+    fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         let sockets = self.get_sockets();
-        let mut sockets = sockets.borrow_mut();
+        let mut sockets = sockets.lock().unwrap();
         sockets.new_sockets.push_back(socket.clone());
-        sockets
-            .sockets
-            .insert(socket.borrow().uuid.clone(), socket.clone());
-        debug!("Socket added: {}", socket.borrow().uuid);
+        let uuid = socket.clone().lock().unwrap().uuid.clone();
+        sockets.sockets.insert(uuid.clone(), socket.clone());
+        debug!("Socket added: {}", uuid);
     }
 
     // Remove socket from the interface
     fn remove_socket(&mut self, socket: &ComInterfaceSocket) {
         let sockets = self.get_sockets();
-        let mut sockets = sockets.borrow_mut();
+        let mut sockets = sockets.lock().unwrap();
 
         sockets.deleted_sockets.push_back(socket.uuid.clone());
         sockets.sockets.remove(&socket.uuid);
@@ -97,14 +105,14 @@ pub trait ComInterface {
         distance: u32,
     ) -> Result<(), ComInterfaceError> {
         let sockets = self.get_sockets();
-        let mut sockets = sockets.borrow_mut();
+        let mut sockets = sockets.lock().unwrap();
 
         let socket = sockets.sockets.get(&socket_uuid);
         if socket.is_none() {
             return Err(ComInterfaceError::SocketNotFound);
         }
         {
-            let mut socket = socket.unwrap().borrow_mut();
+            let mut socket = socket.unwrap().lock().unwrap();
             if socket.direct_endpoint.is_none() {
                 socket.direct_endpoint = Some(endpoint.clone());
             }
@@ -129,9 +137,9 @@ pub trait ComInterface {
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         fn get_blocks(
-            socket_ref: &Rc<RefCell<ComInterfaceSocket>>,
+            socket_ref: &Arc<Mutex<ComInterfaceSocket>>,
         ) -> Vec<Vec<u8>> {
-            let mut socket_mut = socket_ref.borrow_mut();
+            let mut socket_mut = socket_ref.lock().unwrap();
             let blocks: Vec<Vec<u8>> =
                 socket_mut.send_queue.drain(..).collect::<Vec<_>>();
 
@@ -146,7 +154,8 @@ pub trait ComInterface {
             join_all(
                 // Iterate over all sockets
                 sockets
-                    .borrow()
+                    .lock()
+                    .unwrap()
                     .sockets
                     .values()
                     .map(|socket_ref| {
@@ -158,7 +167,8 @@ pub trait ComInterface {
                             // Send the block
                             let socket_ref = socket_ref.clone();
                             Box::pin(async move {
-                                let socket_borrow = socket_ref.borrow();
+                                let mut socket_borrow =
+                                    socket_ref.lock().unwrap();
 
                                 // socket will return a boolean indicating of a block could be sent
                                 let has_been_send = shared_self
@@ -166,17 +176,14 @@ pub trait ComInterface {
                                     .borrow_mut()
                                     .send_block(
                                         &block,
-                                        Some(socket_borrow.uuid.clone()),
+                                        socket_borrow.uuid.clone(),
                                     )
                                     .await;
 
                                 // If the block could not be sent, push it back to the send queue to be sent later
                                 if !has_been_send {
                                     debug!("Failed to send block");
-                                    socket_ref
-                                        .borrow_mut()
-                                        .send_queue
-                                        .push_back(block);
+                                    socket_borrow.send_queue.push_back(block);
                                 }
                             })
                         })

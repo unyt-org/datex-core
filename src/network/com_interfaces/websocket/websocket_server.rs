@@ -41,26 +41,6 @@ pub enum WebSocketServerError {
 }
 impl std::error::Error for WebSocketServerError {}
 
-pub trait WebSocket {
-    fn send_block<'a>(
-        &'a mut self,
-        message: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
-    fn connect<'a>(
-        &'a mut self,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                    Output = Result<
-                        Arc<Mutex<VecDeque<u8>>>,
-                        WebSocketServerError,
-                    >,
-                > + 'a,
-        >,
-    >;
-    fn get_address(&self) -> Url;
-}
-
 impl<WS> WebSocketServerInterface<WS>
 where
     WS: WebSocket,
@@ -94,6 +74,9 @@ where
                 .connect()
                 .await
                 .map_err(|_| ComInterfaceError::ConnectionError)?;
+
+            // self.web_socket_server.borrow().
+            // self.add_socket(socket);
             //   let socket = ComInterfaceSocket::new_with_logger_and_receive_queue(
             // 	self.logger.clone(),
             // 	receive_queue,
@@ -116,6 +99,7 @@ where
         // self.websocket.borrow_mut().send_data(block);
         // let web_socket  =
         Box::pin(async move {
+            // self.web_sockets.s
             self.web_socket_server
                 .clone()
                 .borrow_mut()

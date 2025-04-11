@@ -4,6 +4,7 @@ use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
@@ -36,7 +37,7 @@ pub struct ComHub {
     // TODO: keep socket mapping up to date
     pub sockets: HashMap<
         ComInterfaceSocketUUID,
-        (Rc<RefCell<ComInterfaceSocket>>, HashSet<Endpoint>),
+        (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
     >,
     /// a list of all available sockets for each endpoint, with additional
     /// DynamicEndpointProperties metadata
@@ -102,8 +103,11 @@ impl ComHub {
                 .borrow()
                 .get_sockets();
 
-            if let Some(socket) = socket_list.borrow().sockets.values().next() {
-                self.default_socket_uuid = Some(socket.borrow().uuid.clone());
+            if let Some(socket) =
+                socket_list.lock().unwrap().sockets.values().next()
+            {
+                self.default_socket_uuid =
+                    Some(socket.lock().unwrap().uuid.clone());
             } else {
                 debug!("No sockets found for interface {}", interface_uuid);
             }
@@ -132,15 +136,12 @@ impl ComHub {
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
+        // TODO: throw if interface is not opened
+
         let uuid = interface.borrow().get_uuid().clone();
         if self.interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
         }
-        interface
-            .borrow_mut()
-            .open()
-            .await
-            .map_err(ComHubError::InterfaceError)?;
         self.interfaces.insert(uuid, interface);
         Ok(())
     }
@@ -230,11 +231,11 @@ impl ComHub {
     /// it is registered as an indirect socket to the endpoint
     pub fn register_socket_endpoint(
         &mut self,
-        socket: Rc<RefCell<ComInterfaceSocket>>,
+        socket: Arc<Mutex<ComInterfaceSocket>>,
         endpoint: Endpoint,
         distance: u32,
     ) -> Result<(), SocketEndpointRegistrationError> {
-        let socket_ref = socket.borrow();
+        let socket_ref = socket.lock().unwrap();
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
         let is_direct = socket_ref.direct_endpoint == Some(endpoint.clone());
@@ -250,7 +251,7 @@ impl ComHub {
         }
 
         // add endpoint to socket endpoint list
-        self.add_socket_endpoint(socket.clone(), endpoint.clone());
+        self.add_socket_endpoint(&socket_ref.uuid, endpoint.clone());
 
         // add socket to endpoint socket list
         self.add_endpoint_socket(
@@ -294,8 +295,8 @@ impl ComHub {
         ));
     }
 
-    fn add_socket(&mut self, socket: Rc<RefCell<ComInterfaceSocket>>) {
-        let socket_ref = socket.borrow();
+    fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
+        let socket_ref = socket.lock().unwrap();
 
         if self.sockets.contains_key(&socket_ref.uuid) {
             panic!("Socket {} already exists in ComHub", socket_ref.uuid);
@@ -328,16 +329,16 @@ impl ComHub {
 
     fn add_socket_endpoint(
         &mut self,
-        socket: Rc<RefCell<ComInterfaceSocket>>,
+        socket_uuid: &ComInterfaceSocketUUID,
         endpoint: Endpoint,
     ) {
         assert!(
-            self.sockets.contains_key(&socket.borrow().uuid),
+            self.sockets.contains_key(&socket_uuid),
             "Socket not found in ComHub"
         );
         // add endpoint to socket endpoint list
         self.sockets
-            .get_mut(&socket.borrow().uuid)
+            .get_mut(&socket_uuid)
             .unwrap()
             .1
             .insert(endpoint.clone());
@@ -364,7 +365,7 @@ impl ComHub {
     pub(crate) fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
-    ) -> Rc<RefCell<ComInterfaceSocket>> {
+    ) -> Arc<Mutex<ComInterfaceSocket>> {
         self.sockets
             .get(socket_uuid)
             .map(|socket| socket.0.clone())
@@ -412,7 +413,7 @@ impl ComHub {
                     {
                         info!("Socket UUID 123: {:?}", socket_uuid);
                         let socket = self.get_socket_by_uuid(socket_uuid);
-                        let socket = socket.borrow();
+                        let socket = socket.lock().unwrap();
 
                         // check if only_direct is set and the endpoint equals the direct endpoint of the socket
                         if options.only_direct
@@ -617,7 +618,7 @@ impl ComHub {
         addressed_block.set_receivers(endpoints);
 
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let mut socket_ref = socket.borrow_mut();
+        let mut socket_ref = socket.lock().unwrap();
         match &addressed_block.to_bytes() {
             Ok(bytes) => {
                 info!(
@@ -642,7 +643,7 @@ impl ComHub {
 
         for interface in self.interfaces.values() {
             let socket_updates = interface.clone().borrow().get_sockets();
-            let mut socket_updates = socket_updates.borrow_mut();
+            let mut socket_updates = socket_updates.lock().unwrap();
 
             registered_sockets
                 .extend(socket_updates.socket_registrations.drain(..));
@@ -672,7 +673,7 @@ impl ComHub {
         // update sockets, collect incoming data into full blocks
         info!("Collecting incoming data from all sockets");
         for (socket, _) in self.sockets.values() {
-            let mut socket_ref = socket.borrow_mut();
+            let mut socket_ref = socket.lock().unwrap();
             socket_ref.collect_incoming_data();
         }
     }
@@ -682,10 +683,11 @@ impl ComHub {
     fn receive_incoming_blocks(&mut self) {
         // iterate over all sockets
         for (socket, _) in self.sockets.values() {
-            let socket_ref = socket.borrow();
+            let socket_ref = socket.lock().unwrap();
             let block_queue = socket_ref.get_incoming_block_queue();
+            let uuid = &socket_ref.uuid;
             for block in block_queue {
-                self.receive_block(block, &socket.borrow().uuid);
+                self.receive_block(block, uuid);
             }
         }
     }

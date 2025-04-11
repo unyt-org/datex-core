@@ -1,8 +1,9 @@
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceUUID,
+    ComInterfaceError, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
@@ -19,14 +20,8 @@ impl ComInterface for TCPClientInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket: Option<ComInterfaceSocketUUID>,
+        socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        todo!()
-    }
-
-    fn open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ComInterfaceError>> + 'a>> {
         todo!()
     }
 
@@ -34,13 +29,7 @@ impl ComInterface for TCPClientInterface {
         todo!()
     }
 
-    fn get_sockets(
-        &self,
-    ) -> std::rc::Rc<
-        std::cell::RefCell<
-            crate::network::com_interfaces::com_interface::ComInterfaceSockets,
-        >,
-    > {
+    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         todo!()
     }
 }

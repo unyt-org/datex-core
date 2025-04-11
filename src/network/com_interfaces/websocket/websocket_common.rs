@@ -1,4 +1,5 @@
 use strum::Display;
+use thiserror::Error;
 use url::Url;
 
 #[derive(Debug)]
@@ -7,13 +8,19 @@ pub enum URLError {
     InvalidScheme,
 }
 
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Error)]
 pub enum WebSocketError {
     Other(String),
     InvalidURL,
     ConnectionError,
     SendError,
     ReceiveError,
+}
+
+#[derive(Debug, Display, Error)]
+pub enum WebSocketServerError {
+    WebSocketError(WebSocketError),
+    InvalidPort,
 }
 
 pub fn parse_url(address: &str) -> Result<Url, URLError> {
