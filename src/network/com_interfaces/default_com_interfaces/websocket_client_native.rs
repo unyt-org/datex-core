@@ -2,10 +2,7 @@ use std::{future::Future, pin::Pin, sync::Mutex, time::Duration}; // FIXME no-st
 
 use crate::{
     network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceSockets,
-            ComInterfaceUUID,
-        },
+        com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         websocket::websocket_common::WebSocketError,
@@ -22,24 +19,6 @@ use url::Url;
 
 use crate::network::com_interfaces::websocket::websocket_common::parse_url;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-pub struct WebSocketClientNative {
-    tx_stream:
-        Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
-    address: Url,
-    receive_queue: Arc<Mutex<VecDeque<u8>>>,
-}
-
-impl WebSocketClientNative {
-    fn new(address: &str) -> Result<WebSocketClientNative, WebSocketError> {
-        let address =
-            parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
-        Ok(WebSocketClientNative {
-            tx_stream: None,
-            receive_queue: Arc::new(Mutex::new(VecDeque::new())),
-            address,
-        })
-    }
-}
 
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
