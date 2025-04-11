@@ -1,4 +1,3 @@
-use std::clone;
 
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
@@ -7,7 +6,6 @@ use datex_core::network::com_interfaces::{
         websocket_server::WebSocketServerInterface,
     },
 };
-use tokio::sync::watch::error;
 
 use crate::context::init_global_context;
 

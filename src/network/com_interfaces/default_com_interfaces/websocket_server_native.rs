@@ -11,7 +11,7 @@ use crate::{
     stdlib::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc},
 };
 
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use log::{debug, error, info};
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::Message;

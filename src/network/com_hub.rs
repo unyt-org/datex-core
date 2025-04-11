@@ -1,11 +1,9 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use futures_util::future::{join_all, Join};
+use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
-use std::future::Future;
-use std::pin::Pin;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::ComInterfaceError;
@@ -213,9 +211,8 @@ impl ComHub {
 
             if !remaining_receivers.is_empty() {
                 let block = &mut block.clone();
-                block.set_receivers(&remaining_receivers);
+                block.set_receivers(remaining_receivers);
                 self.send_block(block, Some(socket_uuid));
-                return;
             }
         }
 
@@ -521,7 +518,7 @@ impl ComHub {
         else if self.default_socket_uuid.is_some()
             && (exclude_socket.is_none()
                 || &self.default_socket_uuid.clone().unwrap()
-                    != exclude_socket.clone().unwrap())
+                    != exclude_socket.unwrap())
         {
             Some(self.default_socket_uuid.clone().unwrap())
         } else {

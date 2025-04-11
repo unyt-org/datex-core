@@ -4,9 +4,7 @@ use std::pin::Pin;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceUUID,
 };
-use crate::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
-};
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
 use super::super::com_interface::ComInterface;
 

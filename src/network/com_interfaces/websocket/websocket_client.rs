@@ -16,7 +16,6 @@ use crate::network::com_interfaces::com_interface::{
 };
 use crate::network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::InterfaceProperties,
-    com_interface_socket::ComInterfaceSocket,
 };
 use crate::utils::uuid::UUID;
 

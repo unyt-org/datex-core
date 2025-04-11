@@ -7,7 +7,6 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::cell::Ref;
 use std::future::Future;
 use std::io::Write;
 use std::pin::Pin;

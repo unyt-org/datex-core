@@ -142,7 +142,7 @@ where
         }
     }
 
-    fn get_uuid<'a>(&'a self) -> &'a ComInterfaceUUID {
+    fn get_uuid(&self) -> &ComInterfaceUUID {
         &self.uuid
     }
 

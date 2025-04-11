@@ -90,7 +90,7 @@ impl ComHub {
                 uuid: interface.get_uuid().0.to_string(),
                 properties: interface.get_properties(),
                 sockets: sockets_by_com_interface_uuid
-                    .remove(&interface.get_uuid())
+                    .remove(interface.get_uuid())
                     .unwrap_or_default(),
             });
         }
