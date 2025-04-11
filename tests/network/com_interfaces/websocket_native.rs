@@ -5,13 +5,15 @@ use datex_core::network::com_interfaces::{
         websocket_server_native::WebSocketServerNativeInterface,
     },
 };
-use log::debug;
 
 use crate::context::init_global_context;
 
 #[tokio::test]
 pub async fn test_construct() {
     const PORT: u16 = 8080;
+    const CLIENT_TO_SERVER_MSG: &[u8] = b"Hello World";
+    const SERVER_TO_CLIENT_MSG: &[u8] = b"Nooo, this is Patrick!";
+
     init_global_context();
 
     let mut server = WebSocketServerNativeInterface::open(&PORT)
@@ -31,7 +33,7 @@ pub async fn test_construct() {
 
     assert!(
         client
-            .send_block(b"Hello", client.get_socket_uuid().unwrap())
+            .send_block(CLIENT_TO_SERVER_MSG, client.get_socket_uuid().unwrap())
             .await
     );
 
@@ -43,9 +45,26 @@ pub async fn test_construct() {
         server_socket.uuid.clone()
     };
 
-    assert!(server.send_block(b"Hi", uuid).await);
+    assert!(server.send_block(SERVER_TO_CLIENT_MSG, uuid).await);
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // Check if the client received the message
+    assert_eq!(
+        client
+            .get_socket()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .receive_queue
+            .lock()
+            .unwrap()
+            .drain(..)
+            .collect::<Vec<_>>(),
+        SERVER_TO_CLIENT_MSG
+    );
+
+    // Check if the server received the message
     assert_eq!(
         server_socket
             .lock()
@@ -53,28 +72,8 @@ pub async fn test_construct() {
             .receive_queue
             .lock()
             .unwrap()
-            .len(),
-        5
+            .drain(..)
+            .collect::<Vec<_>>(),
+        CLIENT_TO_SERVER_MSG
     );
 }
-
-// FIXME TODO
-// #[tokio::test]
-// pub async fn test_client_connect() {
-//     init_global_context();
-
-//     let server = &mut WebSocketServerInterface::new(8080).unwrap();
-//     server.connect().unwrap();
-//     sleep(Duration::from_secs(2)).await;
-//     info!("Server connected");
-
-//     let client =
-//         &mut WebSocketClientInterface::new("ws://localhost:8080").unwrap();
-//     client.connect().unwrap();
-//     info!("Client connected");
-
-//     sleep(Duration::from_secs(2)).await;
-//     // ComInterfaceSocket::new(ComInterfaceUUID::, direction, channel_factor)
-//     client.send_block(b"Hello", None);
-//     info!("Message sent");
-// }
