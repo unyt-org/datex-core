@@ -7,6 +7,7 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
+use log::debug;
 use std::future::Future;
 use std::io::Write;
 use std::pin::Pin;
@@ -27,6 +28,7 @@ use datex_core::utils::uuid::UUID;
 use crate::context::init_global_context;
 
 lazy_static::lazy_static! {
+    static ref ORIGIN : Endpoint = Endpoint::new_from_string("@origin").unwrap();
     static ref TEST_ENDPOINT_A: Endpoint = Endpoint::new_from_string("@test-a").unwrap();
     static ref TEST_ENDPOINT_B: Endpoint = Endpoint::new_from_string("@test-b").unwrap();
 }
@@ -114,7 +116,7 @@ impl ComInterface for MockupInterface {
 async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)
 {
     // init com hub
-    let com_hub = Rc::new(RefCell::new(ComHub::default()));
+    let com_hub = ComHub::new(ORIGIN.clone());
     let mut com_hub_mut = com_hub.borrow_mut();
 
     // init mockup interface
@@ -183,18 +185,19 @@ pub async fn test_add_and_remove() {
     init_global_context();
     let com_hub = Rc::new(RefCell::new(ComHub::default()));
     let mut com_hub_mut = com_hub.borrow_mut();
-    let mockup_interface = Rc::new(RefCell::new(MockupInterface::default()));
-
-    com_hub_mut
-        .add_interface(mockup_interface.clone())
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Error adding interface: {:?}", e);
-        });
-    assert!(com_hub_mut
-        .remove_interface(mockup_interface.borrow().uuid.clone())
-        .await
-        .is_ok());
+    let uuid = {
+        let mockup_interface =
+            Rc::new(RefCell::new(MockupInterface::default()));
+        let uuid = mockup_interface.borrow().uuid.clone();
+        com_hub_mut
+            .add_interface(mockup_interface.clone())
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Error adding interface: {:?}", e);
+            });
+        uuid
+    };
+    assert!(com_hub_mut.remove_interface(uuid).await.is_ok());
 }
 
 #[tokio::test]
@@ -451,6 +454,7 @@ pub async fn test_receive() {
         },
         ..DXBBlock::default()
     };
+    block.set_receivers(&[ORIGIN.clone()]);
     block.recalculate_struct();
 
     let block_bytes = block.to_bytes().unwrap();

@@ -200,5 +200,9 @@ impl DXBBlock {
     pub fn set_receivers(&mut self, receivers: &[Endpoint]) {
         self.routing_header.receivers.endpoints =
             Some(ReceiverEndpoints::new(receivers.to_vec()));
+        self.routing_header
+            .receivers
+            .flags
+            .set_has_endpoints(receivers.len() > 0);
     }
 }

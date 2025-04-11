@@ -33,10 +33,16 @@ thiserror = "2.0.11"
 url = "2.5.4"
 num-traits = "0.2.19"
 async-trait = "0.1.87"
-tokio = { version = "1.43.0", features = ["full"] }       # "sync", "rt", "macros"
+tokio = { version = "1.43.0", features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+] }
 tokio-tungstenite = { version = "0.21", optional = true }
 tungstenite = { version = "0.21", optional = true }
-futures-util = { version = "0.3", optional = true }
+futures-util = { version = "0.3" }
 
 hex = "0.4.3"
 log = { version = "0.4", features = ["std", "serde"] }
@@ -62,6 +68,7 @@ panic = "abort"
 
 [profile.dev]
 opt-level = 3
+features = ["debug", "tokio-rt"]
 
 # see https://docs.rs/rsa/latest/rsa/
 [profile.dev.package.num-bigint-dig]
@@ -86,7 +93,6 @@ native_websocket = [
     "websocket",         # FIXME remove in future
     "tokio-tungstenite",
     "tungstenite",
-    "futures-util",
 ] # use native websocket
 native_tcp = [] # use native tcp
 native_time = [] # use native time

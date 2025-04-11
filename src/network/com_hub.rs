@@ -186,9 +186,8 @@ impl ComHub {
         block: &DXBBlock,
         socket_uuid: &ComInterfaceSocketUUID,
     ) {
-        info!("Received block: {:?}", block);
+        info!("Received block addressed to {:?}", block.receivers());
 
-        // TODO: routing
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
             let is_for_own = receivers.endpoints.contains(&self.endpoint);
             // check if the block is for own endpoint
