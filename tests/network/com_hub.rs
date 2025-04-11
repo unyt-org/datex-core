@@ -7,7 +7,6 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use log::debug;
 use std::future::Future;
 use std::io::Write;
 use std::pin::Pin;
@@ -28,9 +27,9 @@ use datex_core::utils::uuid::UUID;
 use crate::context::init_global_context;
 
 lazy_static::lazy_static! {
-    static ref ORIGIN : Endpoint = Endpoint::new_from_string("@origin").unwrap();
-    static ref TEST_ENDPOINT_A: Endpoint = Endpoint::new_from_string("@test-a").unwrap();
-    static ref TEST_ENDPOINT_B: Endpoint = Endpoint::new_from_string("@test-b").unwrap();
+    static ref ORIGIN : Endpoint = Endpoint::from_string("@origin").unwrap();
+    static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_string("@test-a").unwrap();
+    static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_string("@test-b").unwrap();
 }
 
 pub struct MockupInterface {
@@ -415,7 +414,7 @@ pub fn test_recalculate() {
         },
         routing_header: RoutingHeader {
             block_size_u16: Some(420),
-            sender: Endpoint::new_from_string("@test").unwrap(),
+            sender: Endpoint::from_string("@test").unwrap(),
             ..Default::default()
         },
         ..DXBBlock::default()

@@ -203,6 +203,6 @@ impl DXBBlock {
         self.routing_header
             .receivers
             .flags
-            .set_has_endpoints(receivers.len() > 0);
+            .set_has_endpoints(!receivers.is_empty());
     }
 }

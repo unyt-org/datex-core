@@ -1121,7 +1121,7 @@ pub fn iterate_instructions<'a>(
                         buffers::read_slice::<21>(dxb_body, index);
                     // TODO: handle invalid endpoint bytes
                     let endpoint =
-                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                        Endpoint::from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::PERSON_ALIAS,
@@ -1137,7 +1137,7 @@ pub fn iterate_instructions<'a>(
                         buffers::read_slice::<21>(dxb_body, index);
                     // TODO: handle invalid endpoint bytes
                     let endpoint =
-                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                        Endpoint::from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::INSTITUTION_ALIAS,
@@ -1153,7 +1153,7 @@ pub fn iterate_instructions<'a>(
                         buffers::read_slice::<21>(dxb_body, index);
                     // TODO: handle invalid endpoint bytes
                     let endpoint =
-                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                        Endpoint::from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::ENDPOINT,

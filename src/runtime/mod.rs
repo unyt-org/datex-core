@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex, Once};
 
 #[cfg(feature = "native_crypto")]
 use crate::crypto::crypto_native::CryptoNative;
+use crate::datex_values::Endpoint;
 use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
@@ -24,13 +25,19 @@ pub struct Runtime {
     pub version: String,
     pub memory: Rc<RefCell<Memory>>,
     pub com_hub: Rc<RefCell<ComHub>>,
+    pub endpoint: Endpoint,
 }
 
 impl Runtime {
-    pub fn new() -> Runtime {
-        Runtime::default()
+    pub fn new(endpoint: Endpoint) -> Runtime {
+        let com_hub = ComHub::new(endpoint.clone());
+        Runtime {
+            endpoint,
+            com_hub,
+            ..Runtime::default()
+        }
     }
-    pub fn init(global_context: GlobalContext) -> Runtime {
+    pub fn init(endpoint: Endpoint, global_context: GlobalContext) -> Runtime {
         set_global_context(global_context);
         INIT.call_once(|| {
             init_logger();
@@ -40,23 +47,27 @@ impl Runtime {
                 get_global_context().time.lock().unwrap().now()
             );
         });
-        Self::new()
+        Self::new(endpoint)
     }
 
     #[cfg(feature = "native_crypto")]
     pub fn init_native() -> Runtime {
         use crate::utils::time_native::TimeNative;
 
-        Self::init(GlobalContext {
-            crypto: Arc::new(Mutex::new(CryptoNative)),
-            time: Arc::new(Mutex::new(TimeNative)),
-        })
+        Self::init(
+            Endpoint::default(),
+            GlobalContext {
+                crypto: Arc::new(Mutex::new(CryptoNative)),
+                time: Arc::new(Mutex::new(TimeNative)),
+            },
+        )
     }
 }
 
 impl Default for Runtime {
     fn default() -> Self {
         Runtime {
+            endpoint: Endpoint::default(),
             version: VERSION.to_string(),
             memory: Rc::new(RefCell::new(Memory::new())),
             com_hub: Rc::new(RefCell::new(ComHub::default())),

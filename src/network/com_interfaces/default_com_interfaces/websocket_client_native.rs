@@ -7,7 +7,7 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         websocket::websocket_common::WebSocketError,
     },
-    stdlib::{collections::VecDeque, sync::Arc},
+    stdlib::sync::Arc,
     utils::uuid::UUID,
 };
 
