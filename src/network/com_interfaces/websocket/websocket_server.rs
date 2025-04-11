@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::sync::Mutex; // FIXME no-std
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::websocket::websocket_common::WebSocketError;
 use crate::stdlib::{
     cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc, time::Duration,
 };
@@ -35,7 +36,7 @@ where
 
 #[derive(Debug, Display)]
 pub enum WebSocketServerError {
-    WebSocketError,
+    WebSocketError(WebSocketError),
     InvalidPort,
 }
 impl std::error::Error for WebSocketServerError {}
@@ -115,6 +116,11 @@ where
         // self.websocket.borrow_mut().send_data(block);
         // let web_socket  =
         Box::pin(async move {
+            self.web_socket_server
+                .clone()
+                .borrow_mut()
+                .send_block(block)
+                .await;
             // TODO
             // self.web_sockets
             //     .values()
@@ -126,14 +132,6 @@ where
             true
         })
     }
-    // fn send_block(
-    //     &mut self,
-    //     block: &[u8],
-    //     socket: Option<&ComInterfaceSocket>,
-    // ) {
-    //     // TODO: what happens if socket != self.socket? (only one socket exists)
-    //     //   self.websocket.borrow_mut().send_data(block);
-    // }
 
     fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {

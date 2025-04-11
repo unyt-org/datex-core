@@ -1,8 +1,11 @@
 use std::clone;
 
-use datex_core::network::com_interfaces::websocket::{
-    websocket_client::{WebSocket, WebSocketClientInterface},
-    websocket_server::WebSocketServerInterface,
+use datex_core::network::com_interfaces::{
+    com_interface::ComInterface,
+    websocket::{
+        websocket_client::{WebSocket, WebSocketClientInterface},
+        websocket_server::WebSocketServerInterface,
+    },
 };
 use tokio::sync::watch::error;
 
@@ -13,12 +16,11 @@ pub async fn test_construct() {
     const PORT: u16 = 8080;
     init_global_context();
 
-    let server =
-        WebSocketServerInterface::start(PORT)
-            .await
-            .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketServerInterface: {}", e);
-            });
+    let mut server = WebSocketServerInterface::start(PORT)
+        .await
+        .unwrap_or_else(|e| {
+            panic!("Failed to create WebSocketServerInterface: {}", e);
+        });
 
     let client =
         WebSocketClientInterface::start(&format!("ws://localhost:{}", PORT))
@@ -34,6 +36,18 @@ pub async fn test_construct() {
         .send_block(b"Hello")
         .await;
 
+    let client_uuid = server
+        .get_sockets()
+        .borrow()
+        .sockets
+        .values()
+        .next()
+        .expect("No sockets found")
+        .borrow()
+        .uuid
+        .clone();
+
+    server.send_block(b"Hi", Some(client_uuid)).await;
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 }
 

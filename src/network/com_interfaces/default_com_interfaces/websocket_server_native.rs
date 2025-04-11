@@ -1,4 +1,7 @@
-use std::{future::Future, net::SocketAddr, pin::Pin, sync::Mutex}; // FIXME no-std
+use std::{
+    collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
+    sync::Mutex,
+}; // FIXME no-std
 
 use crate::{
     network::com_interfaces::websocket::{
@@ -17,81 +20,32 @@ use url::Url;
 use crate::network::com_interfaces::websocket::{
     websocket_common::parse_url, websocket_server::WebSocket,
 };
+use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
+use tokio_tungstenite::WebSocketStream;
 pub struct WebSocketServerNative {
-    // client: Option<Client<Box<dyn NetworkStream + Send>>>,
+    pub tx_streams: Arc<
+        Mutex<
+            HashMap<SocketAddr, SplitSink<WebSocketStream<TcpStream>, Message>>,
+        >,
+    >,
     address: Url,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
 }
 
 impl WebSocketServerNative {
-    fn new(address: &str) -> Result<WebSocketServerNative, WebSocketError> {
-        let address =
-            parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
+    fn new(
+        address: &str,
+    ) -> Result<WebSocketServerNative, WebSocketServerError> {
+        let address = parse_url(address).map_err(|_| {
+            WebSocketServerError::WebSocketError(WebSocketError::InvalidURL)
+        })?;
         Ok(WebSocketServerNative {
+            tx_streams: Arc::new(Mutex::new(HashMap::new())),
             receive_queue: Arc::new(Mutex::new(VecDeque::new())),
             address,
         })
-    }
-
-    async fn connect_async(
-        address: &Url,
-        receive_queue: Arc<Mutex<VecDeque<u8>>>,
-    ) -> Result<(), WebSocketServerError> {
-        let addr = format!(
-            "{}:{}",
-            address.host_str().unwrap(),
-            address.port().unwrap()
-        )
-        .parse::<SocketAddr>()
-        .map_err(|_| WebSocketServerError::InvalidPort)?;
-
-        let listener = TcpListener::bind(&addr)
-            .await
-            .map_err(|_| WebSocketServerError::WebSocketError)?;
-        info!("WebSocket server listening on ws://{}", addr);
-
-        loop {
-            let (stream, _) = listener
-                .accept()
-                .await
-                .map_err(|_| WebSocketServerError::WebSocketError)?;
-            // let queue = Arc::clone(&receive_queue);
-            tokio::spawn(Self::handle_connection(
-                stream,
-                receive_queue.clone(),
-            ));
-        }
-    }
-
-    async fn handle_connection(
-        stream: TcpStream,
-        queue: Arc<Mutex<VecDeque<u8>>>,
-    ) -> Result<(), WebSocketServerError> {
-        let ws_stream = accept_async(stream)
-            .await
-            .map_err(|_| WebSocketServerError::WebSocketError)?;
-        debug!("New connection established");
-
-        let (mut write, mut read) = ws_stream.split();
-
-        while let Some(msg) = read.next().await {
-            let msg = msg.map_err(|_| WebSocketServerError::WebSocketError)?;
-            match msg {
-                Message::Binary(bin) => {
-                    // pong TBD
-                    queue.lock().unwrap().extend(bin.clone());
-                    // write.send(Message::Binary(bin.clone())).await.unwrap();
-                }
-                Message::Close(_) => {
-                    println!("Client disconnected");
-                    break;
-                }
-                _ => {}
-            }
-        }
-        Ok(())
     }
 }
 
@@ -123,11 +77,15 @@ impl WebSocket for WebSocketServerNative {
             .parse::<SocketAddr>()
             .map_err(|_| WebSocketServerError::InvalidPort)?;
 
-            let listener = TcpListener::bind(&addr)
-                .await
-                .map_err(|_| WebSocketServerError::WebSocketError)?;
+            let listener = TcpListener::bind(&addr).await.map_err(|_| {
+                WebSocketServerError::WebSocketError(
+                    WebSocketError::ConnectionError,
+                )
+            })?;
 
             let queue_clone = receive_queue.clone();
+            let clients = self.tx_streams.clone(); // Arc<Mutex<HashMap<SocketAddr, Sender<Message>>>>
+
             tokio::spawn(async move {
                 loop {
                     let (stream, addr) = match listener.accept().await {
@@ -139,6 +97,9 @@ impl WebSocket for WebSocketServerNative {
                     };
 
                     let queue = queue_clone.clone();
+                    // let clients = self.clients.clone();
+                    let clients_map = clients.clone();
+
                     tokio::spawn(async move {
                         match accept_async(stream).await {
                             Ok(ws_stream) => {
@@ -146,8 +107,12 @@ impl WebSocket for WebSocketServerNative {
                                     "Accepted WebSocket connection from {}",
                                     addr
                                 );
-                                let (mut write, mut read) = ws_stream.split();
+                                let (write, mut read) = ws_stream.split();
                                 // self
+                                // clients.insert(addr, write);
+                                clients_map.lock().unwrap().insert(addr, write);
+
+                                // self.clients
                                 while let Some(msg) = read.next().await {
                                     match msg {
                                         Ok(Message::Binary(bin)) => {
@@ -207,11 +172,13 @@ impl WebSocket for WebSocketServerNative {
 impl WebSocketServerInterface<WebSocketServerNative> {
     pub async fn start(
         port: u16,
-    ) -> Result<WebSocketServerInterface<WebSocketServerNative>, WebSocketError>
-    {
+    ) -> Result<
+        WebSocketServerInterface<WebSocketServerNative>,
+        WebSocketServerError,
+    > {
         let address = format!("127.0.0.1:{}", port);
         let mut websocket = WebSocketServerNative::new(&address.to_string())?;
-        websocket.connect().await;
+        websocket.connect().await?;
         Ok(WebSocketServerInterface::new_with_web_socket_server(
             Rc::new(RefCell::new(websocket)),
         ))

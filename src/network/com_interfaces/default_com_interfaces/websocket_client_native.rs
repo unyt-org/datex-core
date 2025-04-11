@@ -17,7 +17,7 @@ use crate::network::com_interfaces::websocket::{
 };
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 pub struct WebSocketClientNative {
-    client:
+    tx_stream:
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
     address: Url,
     receive_queue: Arc<Mutex<VecDeque<u8>>>,
@@ -28,24 +28,10 @@ impl WebSocketClientNative {
         let address =
             parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
         Ok(WebSocketClientNative {
-            client: None,
+            tx_stream: None,
             receive_queue: Arc::new(Mutex::new(VecDeque::new())),
             address,
         })
-    }
-
-    async fn connect_async(
-        address: &Url,
-    ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, WebSocketError>
-    {
-        info!(
-            "Connecting to WebSocket server at {}",
-            address.host_str().unwrap()
-        );
-        let (ws_stream, _) = tokio_tungstenite::connect_async(address)
-            .await
-            .map_err(|_| WebSocketError::ConnectionError)?;
-        Ok(ws_stream)
     }
 }
 
@@ -72,7 +58,7 @@ impl WebSocket for WebSocketClientNative {
                 .map_err(|_| WebSocketError::ConnectionError)?;
             let (write, mut read) = stream.split();
             let receive_queue_clone = receive_queue.clone();
-            self.client = Some(write);
+            self.tx_stream = Some(write);
             spawn(async move {
                 while let Some(msg) = read.next().await {
                     match msg {
@@ -81,7 +67,7 @@ impl WebSocket for WebSocketClientNative {
                             queue.extend(data);
                         }
                         Ok(_) => {
-                            error!("Invalid  message type received");
+                            error!("Invalid message type received");
                         }
                         Err(e) => {
                             error!("WebSocket read error: {}", e);
@@ -112,7 +98,7 @@ impl WebSocket for WebSocketClientNative {
         message: &'a [u8],
     ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
         Box::pin(async move {
-            let client = self.client.as_mut();
+            let client = self.tx_stream.as_mut();
             if client.is_none() {
                 error!("Client is not connected");
                 return false;
