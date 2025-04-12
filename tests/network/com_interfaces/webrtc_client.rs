@@ -1,3 +1,4 @@
+use core::panic;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use datex_core::network::com_interfaces::{
@@ -6,7 +7,7 @@ use datex_core::network::com_interfaces::{
         tcp_client_native::TCPClientNativeInterface,
         tcp_server_native::TCPServerNativeInterface,
     },
-    socket_provider::SingleSocketProvider,
+    socket_provider::{MultipleSocketProvider, SingleSocketProvider},
     webrtc::webrtc_client::WebRTCClientInterface,
 };
 use log::info;
@@ -64,6 +65,13 @@ pub async fn test_construct() {
     .unwrap_or_else(|e| {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    // client_a.send_block(, socket_uuid)
+    assert_eq!(client_a.get_sockets_count(), 1);
+    assert_eq!(client_b.get_sockets_count(), 1);
+
+    let uuid = client_a.get_socket_uuid_at(0).unwrap();
+    client_a.send_block(CLIENT_A_TO_CLIENT_B_MSG, uuid).await;
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 }

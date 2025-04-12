@@ -11,11 +11,12 @@ use crate::{
         com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
+        socket_provider::MultipleSocketProvider,
         webrtc::webrtc_common::WebRTCError,
     },
     utils::uuid::UUID,
 };
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
 use tokio::spawn;
 use url::Url;
@@ -26,6 +27,11 @@ pub struct WebRTCClientInterface {
     pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
+}
+impl MultipleSocketProvider for WebRTCClientInterface {
+    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.com_interface_sockets.clone()
+    }
 }
 
 impl WebRTCClientInterface {
@@ -58,6 +64,7 @@ impl WebRTCClientInterface {
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
         };
         interface.start(use_reliable_connection).await?;
+
         Ok(interface)
     }
     async fn start(
@@ -75,21 +82,29 @@ impl WebRTCClientInterface {
         } else {
             WebRtcSocket::new_unreliable(address)
         };
-        future.await.map_err(|_| {
-            error!("Failed to connect to WebRTC server");
-            WebRTCError::ConnectionError
-        })?;
+        spawn(async move {
+            future
+                .await
+                .map_err(|_| {
+                    error!("Failed to connect to WebRTC server");
+                    WebRTCError::ConnectionError
+                })
+                .unwrap_or_else(|_| {
+                    error!("Failed to connect to WebRTC server");
+                });
+        });
+
         info!("Connected to WebRTC server");
         let socket = Arc::new(Mutex::new(socket));
         self.socket = Some(socket.clone());
         let interface_uuid = self.uuid.clone();
         let com_interface_sockets = self.com_interface_sockets.clone();
         let peer_socket_map = self.peer_socket_map.clone();
+        warn!("1");
         spawn(async move {
             let rtc_socket = socket.as_ref();
-            let mut rtc_socket = rtc_socket.lock().unwrap();
             loop {
-                for (peer, state) in rtc_socket.update_peers() {
+                for (peer, state) in rtc_socket.lock().unwrap().update_peers() {
                     let mut peer_socket_map = peer_socket_map.lock().unwrap();
                     let mut com_interface_sockets =
                         com_interface_sockets.lock().unwrap();
@@ -116,9 +131,11 @@ impl WebRTCClientInterface {
                         }
                     }
                 }
-
-                for (peer, packet) in
-                    rtc_socket.channel_mut(Self::CHANNEL_ID).receive()
+                for (peer, packet) in rtc_socket
+                    .lock()
+                    .unwrap()
+                    .channel_mut(Self::CHANNEL_ID)
+                    .receive()
                 {
                     let peer_socket_map = peer_socket_map.lock().unwrap();
                     let socket_uuid = peer_socket_map.get(&peer).unwrap();
@@ -138,6 +155,8 @@ impl WebRTCClientInterface {
                 }
             }
         });
+        warn!("2");
+
         Ok(())
     }
 }

@@ -4,8 +4,10 @@ use log::info;
 cfg_if! {
     if #[cfg(feature = "debug")] {
         const LOG_LEVEL: &str = "debug";
+        const LOG_ENV: &str = "matchbox_socket=info, datex_core=debug";
     } else {
         const LOG_LEVEL: &str = "info";
+        const LOG_ENV: &str = "matchbox_socket=info, datex_core=info";
     }
 }
 
@@ -14,7 +16,7 @@ cfg_if! {
     if #[cfg(feature = "flexi_logger")] {
         use flexi_logger;
         pub fn init_logger() {
-            flexi_logger::Logger::try_with_env_or_str(LOG_LEVEL).expect("Failed to initialize logger")
+            flexi_logger::Logger::try_with_env_or_str(LOG_ENV).expect("Failed to initialize logger")
                 .start()
                 .expect("Failed to start logger");
             info!("Logger initialized! (Using flexi_logger)");
