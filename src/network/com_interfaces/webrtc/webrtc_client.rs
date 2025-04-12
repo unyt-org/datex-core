@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    collections::HashMap,
     future::Future,
     pin::Pin,
     rc::Rc,
@@ -20,7 +21,7 @@ use crate::{
 };
 use futures_util::FutureExt;
 use log::{debug, error, info};
-use matchbox_socket::{PeerState, WebRtcChannel, WebRtcSocket};
+use matchbox_socket::{PeerId, PeerState, WebRtcChannel, WebRtcSocket};
 use tokio::spawn;
 use url::Url;
 
@@ -29,7 +30,7 @@ pub struct WebRTCClientInterface {
     pub uuid: ComInterfaceUUID,
     pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
-    // pub state: Rc<RefCell<SocketState>>,
+    pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
 }
 
 impl WebRTCClientInterface {
@@ -49,6 +50,7 @@ impl WebRTCClientInterface {
             uuid,
             socket: None,
             com_interface_sockets,
+            peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             // state: Rc::new(RefCell::new(SocketState::Closed)),
         };
         interface.start().await?;
@@ -64,12 +66,13 @@ impl WebRTCClientInterface {
         let socket = Arc::new(Mutex::new(socket));
         self.socket = Some(socket.clone());
         let interface_uuid = self.uuid.clone();
-
+        let com_interface_sockets = self.com_interface_sockets.clone();
+        let peer_socket_map = self.peer_socket_map.clone();
         spawn(async move {
-            let socket = socket.as_ref();
-            let mut socket = socket.lock().unwrap();
+            let rtc_socket = socket.as_ref();
+            let mut rtc_socket = rtc_socket.lock().unwrap();
             loop {
-                for (peer, state) in socket.update_peers() {
+                for (peer, state) in rtc_socket.update_peers() {
                     match state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
@@ -77,12 +80,21 @@ impl WebRTCClientInterface {
                                 InterfaceDirection::IN_OUT,
                                 1,
                             );
+                            let socket_uuid = socket.uuid.clone();
+                            com_interface_sockets
+                                .lock()
+                                .unwrap()
+                                .add_socket(Arc::new(Mutex::new(socket)));
 
+                            peer_socket_map
+                                .lock()
+                                .unwrap()
+                                .insert(peer, socket_uuid);
                             info!("Peer joined: {peer}");
-                            let packet = "hello friend!"
-                                .as_bytes()
-                                .to_vec()
-                                .into_boxed_slice();
+                            // let packet = "hello friend!"
+                            //     .as_bytes()
+                            //     .to_vec()
+                            //     .into_boxed_slice();
                             // socket.channel_mut(CHANNEL_ID).send(packet, peer);
                         }
                         PeerState::Disconnected => {
@@ -92,61 +104,67 @@ impl WebRTCClientInterface {
                 }
 
                 for (peer, packet) in
-                    socket.channel_mut(Self::CHANNEL_ID).receive()
+                    rtc_socket.channel_mut(Self::CHANNEL_ID).receive()
                 {
+                    let peer_socket_map = peer_socket_map.lock().unwrap();
+                    let socket_uuid = peer_socket_map.get(&peer).unwrap();
+
+                    let sockets = com_interface_sockets.lock().unwrap();
+                    let socket =
+                        sockets.get_socket_by_uuid(socket_uuid).unwrap();
+                    let socket = socket.lock().unwrap();
+                    let receive_queue = socket.receive_queue.clone();
+                    let mut queue = receive_queue.lock().unwrap();
                     let message = String::from_utf8_lossy(&packet);
-                    info!("Message from {peer}: {message:?}");
+                    debug!("Message from {socket_uuid}: {message:?}");
+
+                    queue.extend(packet);
+                    drop(queue);
+                    drop(socket);
                 }
             }
         });
         Ok(())
     }
-
-    fn update(&self) {
-        let interface_uuid = self.uuid.clone();
-        let socket = self.socket.as_ref().unwrap();
-        let mut socket = socket.lock().unwrap();
-        loop {
-            for (peer, state) in socket.update_peers() {
-                match state {
-                    PeerState::Connected => {
-                        let socket = ComInterfaceSocket::new(
-                            interface_uuid.clone(),
-                            InterfaceDirection::IN_OUT,
-                            1,
-                        );
-
-                        info!("Peer joined: {peer}");
-                        let packet = "hello friend!"
-                            .as_bytes()
-                            .to_vec()
-                            .into_boxed_slice();
-                        // socket.channel_mut(CHANNEL_ID).send(packet, peer);
-                    }
-                    PeerState::Disconnected => {
-                        info!("Peer left: {peer}");
-                    }
-                }
-            }
-
-            for (peer, packet) in socket.channel_mut(Self::CHANNEL_ID).receive()
-            {
-                let message = String::from_utf8_lossy(&packet);
-                info!("Message from {peer}: {message:?}");
-            }
-        }
-    }
 }
+
 impl ComInterface for WebRTCClientInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        _: ComInterfaceSocketUUID,
+        socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        let peer_socket_map = self.peer_socket_map.clone();
+        let com_interface_sockets = self.com_interface_sockets.clone();
+        // let socket = com_interface_sockets
+        //     .lock()
+        //     .unwrap()
+        //     .get_socket_by_uuid(&socket)
+        //     .unwrap();
+        let rtc_socket = self.socket.clone();
+        if rtc_socket.is_none() {
+            error!("Client is not connected");
+            return Box::pin(async { false });
+        }
+        let peer_id = {
+            let peer_socket_map = peer_socket_map.lock().unwrap();
+            peer_socket_map
+                .iter()
+                .find(|(_, uuid)| *uuid == &socket_uuid)
+                .map(|(peer, _)| *peer)
+        };
+        if peer_id.is_none() {
+            error!("Peer not found");
+            return Box::pin(async { false });
+        }
+        let rtc_socket = rtc_socket.unwrap();
         Box::pin(async move {
             debug!("Sending block: {:?}", block);
-
-            // TODO
+            rtc_socket
+                .lock()
+                .unwrap()
+                .channel_mut(Self::CHANNEL_ID)
+                .send(block.into(), peer_id.unwrap());
             true
         })
     }
