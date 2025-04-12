@@ -35,7 +35,7 @@ impl MultipleSocketProvider for WebRTCClientInterface {
 }
 
 impl WebRTCClientInterface {
-    const CHANNEL_ID: usize = 42;
+    const CHANNEL_ID: usize = 0;
     pub async fn open_reliable(
         address: &str,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
@@ -64,6 +64,7 @@ impl WebRTCClientInterface {
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
         };
         interface.start(use_reliable_connection).await?;
+        warn!("done open");
 
         Ok(interface)
     }
@@ -100,7 +101,7 @@ impl WebRTCClientInterface {
         let interface_uuid = self.uuid.clone();
         let com_interface_sockets = self.com_interface_sockets.clone();
         let peer_socket_map = self.peer_socket_map.clone();
-        warn!("1");
+
         spawn(async move {
             let rtc_socket = socket.as_ref();
             loop {
@@ -131,6 +132,7 @@ impl WebRTCClientInterface {
                         }
                     }
                 }
+
                 for (peer, packet) in rtc_socket
                     .lock()
                     .unwrap()
@@ -155,8 +157,6 @@ impl WebRTCClientInterface {
                 }
             }
         });
-        warn!("2");
-
         Ok(())
     }
 }
@@ -173,6 +173,7 @@ impl ComInterface for WebRTCClientInterface {
             error!("Client is not connected");
             return Box::pin(async { false });
         }
+        warn!("sendblock");
         let peer_id = {
             let peer_socket_map = peer_socket_map.lock().unwrap();
             peer_socket_map
@@ -180,10 +181,12 @@ impl ComInterface for WebRTCClientInterface {
                 .find(|(_, uuid)| *uuid == &socket_uuid)
                 .map(|(peer, _)| *peer)
         };
+
         if peer_id.is_none() {
             error!("Peer not found");
             return Box::pin(async { false });
         }
+
         let rtc_socket = rtc_socket.unwrap();
         Box::pin(async move {
             debug!("Sending block: {:?}", block);

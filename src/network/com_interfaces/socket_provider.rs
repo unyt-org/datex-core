@@ -22,7 +22,7 @@ pub trait MultipleSocketProvider {
             .collect()
     }
     fn get_sockets_count(&self) -> usize {
-        self.get_sockets().lock().unwrap().sockets.len()
+        self.get_sockets().clone().lock().unwrap().sockets.len()
     }
     fn get_socket_uuid_at(
         &self,
