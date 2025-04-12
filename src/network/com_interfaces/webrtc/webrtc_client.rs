@@ -172,8 +172,12 @@ impl ComInterface for WebRTCClientInterface {
                 .lock()
                 .unwrap()
                 .channel_mut(Self::CHANNEL_ID)
-                .send(block.into(), peer_id.unwrap());
-            true
+                .try_send(block.into(), peer_id.unwrap())
+                .map_err(|e| {
+                    error!("Error sending message: {:?}", e);
+                    false
+                })
+                .is_ok()
         })
     }
 

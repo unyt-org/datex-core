@@ -69,7 +69,11 @@ panic = "abort"
 
 [profile.dev]
 opt-level = 3
-features = ["debug", "tokio-rt"]
+features = ["debug", "tokio-rt", "matchbox_signaling"]
+
+[dev-dependencies]
+matchbox_signaling = { version = "0.11.0" }
+
 
 # see https://docs.rs/rsa/latest/rsa/
 [profile.dev.package.num-bigint-dig]
