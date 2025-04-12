@@ -12,6 +12,7 @@ use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use futures_util::future::join_all;
 use log::debug;
 use std::{
+    any::Any,
     collections::{HashMap, VecDeque},
     pin::Pin,
 };
@@ -62,13 +63,19 @@ impl ComInterfaceSockets {
         self.sockets.get(uuid).cloned()
     }
 }
-
-pub trait ComInterface {
+// impl<T: Any> ComInterface for T {
+//     fn as_any(&self) -> &dyn Any {
+//         self
+//     }
+// }
+pub trait ComInterface: Any {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     fn get_properties(&self) -> InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;

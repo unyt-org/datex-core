@@ -3,6 +3,7 @@ use crate::stdlib::{cell::RefCell, rc::Rc};
 use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info};
+use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 // FIXME no-std
@@ -120,6 +121,15 @@ impl ComHub {
 
     pub fn get_default_interface(&self) -> Option<ComInterfaceUUID> {
         self.default_interface_uuid.clone()
+    }
+
+    pub fn get_interface_by_uuid<T: ComInterface + 'static>(
+        &self,
+        interface_uuid: &ComInterfaceUUID,
+    ) -> Option<Ref<T>> {
+        let iface = self.interfaces.get(interface_uuid)?;
+        let borrowed = iface.borrow();
+        Ref::filter_map(borrowed, |b| b.as_any().downcast_ref::<T>()).ok()
     }
 
     pub async fn add_default_interface(

@@ -84,6 +84,12 @@ impl Default for MockupInterface {
 }
 
 impl ComInterface for MockupInterface {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
