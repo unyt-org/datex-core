@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -56,12 +57,11 @@ impl TCPClientNativeInterface {
     }
 
     async fn start(&mut self) -> Result<(), TCPError> {
-        let address = self.address.clone();
-        info!(
-            "Connecting to WebSocket server at {}",
-            address.host_str().unwrap()
-        );
-        let stream = TcpStream::connect(address.to_string())
+        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
+        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
+        let address = format!("{}:{}", host, port);
+
+        let stream = TcpStream::connect(address)
             .await
             .map_err(|_| TCPError::ConnectionError)?;
 
@@ -88,8 +88,8 @@ impl TCPClientNativeInterface {
                         break;
                     }
                     Ok(n) => {
-                        info!("Received: {:?}", &buffer[..n]);
-                        receive_queue.lock().unwrap().extend(buffer);
+                        let mut queue = receive_queue.lock().unwrap();
+                        queue.extend(&buffer[..n]);
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {}", e);

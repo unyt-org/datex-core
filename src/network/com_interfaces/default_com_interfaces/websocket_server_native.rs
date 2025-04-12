@@ -66,7 +66,7 @@ impl WebSocketServerNativeInterface {
 
     async fn start(&mut self) -> Result<(), WebSocketServerError> {
         let address = self.address.clone();
-        info!("Spinning up server at {}", address.host_str().unwrap());
+        info!("Spinning up server at {}", address);
         let addr = format!(
             "{}:{}",
             address.host_str().unwrap(),

@@ -34,11 +34,14 @@ pub struct TCPServerNativeInterface {
 
 impl TCPServerNativeInterface {
     pub async fn open(
-        address: &str,
+        port: &u16,
     ) -> Result<TCPServerNativeInterface, TCPError> {
-        let uuid = ComInterfaceUUID(UUID::new());
+        let uuid: ComInterfaceUUID = ComInterfaceUUID(UUID::new());
+        let address: String = format!("ws://127.0.0.1:{}", port);
+        let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
+
         let mut interface = TCPServerNativeInterface {
-            address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,
+            address,
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
@@ -51,10 +54,16 @@ impl TCPServerNativeInterface {
 
     async fn start(&mut self) -> Result<(), TCPError> {
         let address = self.address.clone();
-        info!("Spinning up server at {}", address.host_str().unwrap());
-        let listener = TcpListener::bind(address.to_string())
+        info!("Spinning up server at {}", address);
+
+        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
+        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
+        let address = format!("{}:{}", host, port);
+
+        let listener = TcpListener::bind(address.clone())
             .await
-            .map_err(|_| TCPError::ConnectionError)?;
+            .map_err(|e| TCPError::Other(format!("{:?}", e)))?;
+        info!("Server listening on {}", address);
 
         let interface_uuid = self.uuid.clone();
         let sockets = self.com_interface_sockets.clone();
@@ -62,7 +71,7 @@ impl TCPServerNativeInterface {
         spawn(async move {
             loop {
                 match listener.accept().await {
-                    Ok((stream, addr)) => {
+                    Ok((stream, _)) => {
                         let socket = ComInterfaceSocket::new(
                             interface_uuid.clone(),
                             InterfaceDirection::IN_OUT,
@@ -107,7 +116,8 @@ impl TCPServerNativeInterface {
                 }
                 Ok(n) => {
                     info!("Received: {:?}", &buffer[..n]);
-                    receive_queue.lock().unwrap().extend(buffer);
+                    let mut queue = receive_queue.lock().unwrap();
+                    queue.extend(&buffer[..n]);
                 }
                 Err(e) => {
                     error!("Failed to read from socket: {}", e);
