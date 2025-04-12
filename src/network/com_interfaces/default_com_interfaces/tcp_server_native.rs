@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf, WriteHalf};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::TcpListener;
 use tokio::spawn;
 use url::Url;
 

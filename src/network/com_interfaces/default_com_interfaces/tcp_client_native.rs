@@ -1,15 +1,13 @@
 use std::future::Future;
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use log::{error, info, warn};
+use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedWriteHalf, WriteHalf};
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
 use tokio::spawn;
-use tokio::sync::mpsc;
 use url::Url;
 
 use crate::network::com_interfaces::com_interface::{
