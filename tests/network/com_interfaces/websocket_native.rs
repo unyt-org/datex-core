@@ -1,7 +1,9 @@
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::{
-        websocket_client_native::WebSocketClientNativeInterface,
+        websocket_client_native::{
+            SocketProvider, WebSocketClientNativeInterface,
+        },
         websocket_server_native::WebSocketServerNativeInterface,
     },
 };

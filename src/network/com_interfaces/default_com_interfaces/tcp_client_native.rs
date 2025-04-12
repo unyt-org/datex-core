@@ -20,6 +20,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::network::com_interfaces::tcp::tcp_common::TCPError;
 use crate::utils::uuid::UUID;
 
@@ -30,6 +31,11 @@ pub struct TCPClientNativeInterface {
     pub uuid: ComInterfaceUUID,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Option<Arc<Mutex<OwnedWriteHalf>>>,
+}
+impl SingleSocketProvider for TCPClientNativeInterface {
+    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.com_interface_sockets.clone()
+    }
 }
 
 impl TCPClientNativeInterface {

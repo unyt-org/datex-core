@@ -5,6 +5,7 @@ use crate::{
         com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
+        socket_provider::SingleSocketProvider,
         websocket::websocket_common::WebSocketError,
     },
     stdlib::sync::Arc,
@@ -28,6 +29,12 @@ pub struct WebSocketClientNativeInterface {
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
 }
 
+impl SingleSocketProvider for WebSocketClientNativeInterface {
+    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.com_interface_sockets.clone()
+    }
+}
+
 impl WebSocketClientNativeInterface {
     pub async fn open(
         address: &str,
@@ -45,21 +52,6 @@ impl WebSocketClientNativeInterface {
         };
         interface.start().await?;
         Ok(interface)
-    }
-
-    pub fn get_socket(&self) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
-        return self
-            .get_sockets()
-            .lock()
-            .unwrap()
-            .sockets
-            .values()
-            .next()
-            .cloned();
-    }
-
-    pub fn get_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
-        self.get_socket().map(|s| s.lock().unwrap().uuid.clone())
     }
 
     async fn start(&mut self) -> Result<(), WebSocketError> {
