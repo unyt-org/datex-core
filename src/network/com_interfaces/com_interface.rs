@@ -51,6 +51,10 @@ impl ComInterfaceSockets {
         self.sockets.insert(uuid, socket.clone());
         self.new_sockets.push_back(socket);
     }
+    pub fn remove_socket(&mut self, socket: &ComInterfaceSocketUUID) {
+        self.sockets.remove(socket);
+        self.deleted_sockets.push_back(socket.clone());
+    }
     pub fn get_socket_by_uuid(
         &self,
         uuid: &ComInterfaceSocketUUID,

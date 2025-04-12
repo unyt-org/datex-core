@@ -1,9 +1,7 @@
 use std::{
-    cell::RefCell,
     collections::HashMap,
     future::Future,
     pin::Pin,
-    rc::Rc,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -12,16 +10,13 @@ use crate::{
     network::com_interfaces::{
         com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
-        com_interface_socket::{
-            ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
-        },
+        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         webrtc::webrtc_common::WebRTCError,
     },
     utils::uuid::UUID,
 };
-use futures_util::FutureExt;
 use log::{debug, error, info};
-use matchbox_socket::{PeerId, PeerState, WebRtcChannel, WebRtcSocket};
+use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
 use tokio::spawn;
 use url::Url;
 
@@ -34,10 +29,20 @@ pub struct WebRTCClientInterface {
 }
 
 impl WebRTCClientInterface {
-    const CHANNEL_ID: usize = 0;
-
-    pub async fn open(
+    const CHANNEL_ID: usize = 42;
+    pub async fn open_reliable(
         address: &str,
+    ) -> Result<WebRTCClientInterface, WebRTCError> {
+        Self::open(address, true).await
+    }
+    pub async fn open_unreliable(
+        address: &str,
+    ) -> Result<WebRTCClientInterface, WebRTCError> {
+        Self::open(address, false).await
+    }
+    async fn open(
+        address: &str,
+        use_reliable_connection: bool,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
         let uuid = ComInterfaceUUID(UUID::new());
         let com_interface_sockets =
@@ -51,18 +56,30 @@ impl WebRTCClientInterface {
             socket: None,
             com_interface_sockets,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
-            // state: Rc::new(RefCell::new(SocketState::Closed)),
         };
-        interface.start().await?;
+        interface.start(use_reliable_connection).await?;
         Ok(interface)
     }
-    async fn start(&mut self) -> Result<(), WebRTCError> {
+    async fn start(
+        &mut self,
+        use_reliable_connection: bool,
+    ) -> Result<(), WebRTCError> {
         let address = self.address.clone();
         info!(
-            "Connecting to WebSocket server at {}",
+            "Connecting to WebRTC server at {}",
             address.host_str().unwrap()
         );
-        let (socket, loop_fut) = WebRtcSocket::new_reliable(address);
+        // TODO we should handle closing the queue here (see https://github.com/johanhelsing/matchbox/blob/883a89445ab16e8cb781b05ab435047bc9ae2b74/examples/simple/src/main.rs#L72)
+        let (socket, future) = if use_reliable_connection {
+            WebRtcSocket::new_reliable(address)
+        } else {
+            WebRtcSocket::new_unreliable(address)
+        };
+        future.await.map_err(|_| {
+            error!("Failed to connect to WebRTC server");
+            WebRTCError::ConnectionError
+        })?;
+        info!("Connected to WebRTC server");
         let socket = Arc::new(Mutex::new(socket));
         self.socket = Some(socket.clone());
         let interface_uuid = self.uuid.clone();
@@ -73,6 +90,9 @@ impl WebRTCClientInterface {
             let mut rtc_socket = rtc_socket.lock().unwrap();
             loop {
                 for (peer, state) in rtc_socket.update_peers() {
+                    let mut peer_socket_map = peer_socket_map.lock().unwrap();
+                    let mut com_interface_sockets =
+                        com_interface_sockets.lock().unwrap();
                     match state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
@@ -82,23 +102,17 @@ impl WebRTCClientInterface {
                             );
                             let socket_uuid = socket.uuid.clone();
                             com_interface_sockets
-                                .lock()
-                                .unwrap()
                                 .add_socket(Arc::new(Mutex::new(socket)));
-
-                            peer_socket_map
-                                .lock()
-                                .unwrap()
-                                .insert(peer, socket_uuid);
-                            info!("Peer joined: {peer}");
-                            // let packet = "hello friend!"
-                            //     .as_bytes()
-                            //     .to_vec()
-                            //     .into_boxed_slice();
-                            // socket.channel_mut(CHANNEL_ID).send(packet, peer);
+                            info!("Socket joined: {socket_uuid}");
+                            peer_socket_map.insert(peer, socket_uuid);
                         }
                         PeerState::Disconnected => {
-                            info!("Peer left: {peer}");
+                            let socket_uuid =
+                                peer_socket_map.get(&peer).unwrap();
+                            info!("Socket disconnected: {socket_uuid}");
+
+                            com_interface_sockets.remove_socket(socket_uuid);
+                            peer_socket_map.remove(&peer);
                         }
                     }
                 }
@@ -135,12 +149,6 @@ impl ComInterface for WebRTCClientInterface {
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let peer_socket_map = self.peer_socket_map.clone();
-        let com_interface_sockets = self.com_interface_sockets.clone();
-        // let socket = com_interface_sockets
-        //     .lock()
-        //     .unwrap()
-        //     .get_socket_by_uuid(&socket)
-        //     .unwrap();
         let rtc_socket = self.socket.clone();
         if rtc_socket.is_none() {
             error!("Client is not connected");
