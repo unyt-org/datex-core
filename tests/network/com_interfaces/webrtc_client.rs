@@ -1,16 +1,12 @@
 use core::panic;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::SocketAddr;
 
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
-    default_com_interfaces::{
-        tcp_client_native::TCPClientNativeInterface,
-        tcp_server_native::TCPServerNativeInterface,
-    },
-    socket_provider::{MultipleSocketProvider, SingleSocketProvider},
+    socket_provider::MultipleSocketProvider,
     webrtc::webrtc_client::WebRTCClientInterface,
 };
-use log::{info, warn};
+use log::info;
 use matchbox_signaling::SignalingServer;
 use tokio::spawn;
 
@@ -58,7 +54,7 @@ pub async fn test_construct() {
     });
 
     info!("client_a created");
-    let mut client_b = WebRTCClientInterface::open_reliable(&format!(
+    let client_b = WebRTCClientInterface::open_reliable(&format!(
         "ws://localhost:{}",
         PORT
     ))
