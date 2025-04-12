@@ -29,8 +29,8 @@ use tokio_tungstenite::WebSocketStream;
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
     pub uuid: ComInterfaceUUID,
-    pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
-    pub websocket_streams: Arc<
+    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
+    websocket_streams: Arc<
         Mutex<
             HashMap<
                 ComInterfaceSocketUUID,

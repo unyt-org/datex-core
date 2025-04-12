@@ -23,8 +23,8 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
     pub uuid: ComInterfaceUUID,
-    pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
-    pub websocket_stream:
+    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
+    websocket_stream:
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
 }
 
