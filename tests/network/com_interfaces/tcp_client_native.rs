@@ -1,6 +1,7 @@
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::tcp_client_native::TCPClientNativeInterface,
+    socket_provider::SingleSocketProvider,
 };
 
 use crate::context::init_global_context;
@@ -20,5 +21,9 @@ pub async fn test_construct() {
                 panic!("Failed to create WebSocketClientInterface: {}", e);
             });
 
-    client.send_block(CLIENT_TO_SERVER_MSG, client.get_socket_uuid().unwrap());
+    assert!(
+        client
+            .send_block(CLIENT_TO_SERVER_MSG, client.get_socket_uuid().unwrap())
+            .await
+    );
 }
