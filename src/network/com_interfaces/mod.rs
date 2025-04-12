@@ -5,5 +5,6 @@ pub mod com_interface_socket;
 pub mod default_com_interfaces;
 pub mod socket_provider;
 pub mod tcp;
+#[cfg(feature = "webrtc")]
 pub mod webrtc;
 pub mod websocket;

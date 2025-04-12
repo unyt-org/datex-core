@@ -40,10 +40,16 @@ cfg_if! {
 
     else if #[cfg(feature = "env_logger")] {
         use env_logger;
-        use log::info;
         pub fn init_logger() {
             env_logger::init();
             info!("Logger initialized! (Using env_logger)");
+        }
+    }
+
+    else if #[cfg(feature = "esp_logger")] {
+        use esp_idf_svc::log::EspLogger;
+        pub fn init_logger() {
+            EspLogger::initialize_default();
         }
     }
 

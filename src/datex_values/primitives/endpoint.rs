@@ -6,6 +6,7 @@ use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME no-std
 use std::io::Cursor;
+use crate::stdlib::str;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
