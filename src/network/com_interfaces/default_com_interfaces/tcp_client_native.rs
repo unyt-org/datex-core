@@ -97,7 +97,7 @@ impl TCPClientNativeInterface {
 }
 
 impl ComInterface for TCPClientNativeInterface {
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "tcp".to_string(),
             round_trip_time: Duration::from_millis(20),

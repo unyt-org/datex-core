@@ -92,7 +92,7 @@ impl ComInterface for MockupInterface {
         Pin::from(Box::new(async move { true }))
     }
 
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "mockup".to_string(),
             name: Some("mockup".to_string()),

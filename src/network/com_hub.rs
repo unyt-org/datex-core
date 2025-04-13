@@ -403,7 +403,7 @@ impl ComHub {
             .get(interface_uuid)
             .unwrap()
             .borrow()
-            .get_properties()
+            .init_properties()
     }
 
     fn iterate_endpoint_sockets<'a>(

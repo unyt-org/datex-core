@@ -77,6 +77,7 @@ pub struct ComInterfaceInfo {
     state: ComInterfaceState,
     uuid: ComInterfaceUUID,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
+    pub interface_properties: Option<InterfaceProperties>,
 }
 
 impl ComInterfaceInfo {
@@ -84,6 +85,7 @@ impl ComInterfaceInfo {
         Self {
             uuid: ComInterfaceUUID(UUID::new()),
             state: ComInterfaceState::Created,
+            interface_properties: None,
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
@@ -112,6 +114,9 @@ macro_rules! delegate_com_interface_info {
         fn get_info(&self) -> &ComInterfaceInfo {
             &self.info
         }
+        fn get_info_mut(&mut self) -> &mut ComInterfaceInfo {
+            &mut self.info
+        }
         fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
             self.info.com_interface_sockets().clone()
         }
@@ -122,6 +127,12 @@ macro_rules! delegate_com_interface_info {
         fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
             self
         }
+        // fn get_properties(&mut self) -> InterfaceProperties {
+        //     if self.info.interface_properties.is_none() {
+        //         self.info.interface_properties = Some(self.init_properties());
+        //     }
+        //     self.info.interface_properties.unwrap()
+        // }
     };
 }
 
@@ -134,10 +145,21 @@ pub trait ComInterface: Any {
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
-    fn get_properties(&self) -> InterfaceProperties;
+    fn init_properties(&self) -> InterfaceProperties;
+    fn get_properties(&mut self) -> &InterfaceProperties {
+        if self.get_info().interface_properties.is_some() {
+            return self.get_info().interface_properties.as_ref().unwrap();
+        } else {
+            let new_properties = self.init_properties();
+            let info = self.get_info_mut();
+            info.interface_properties = Some(new_properties);
+            info.interface_properties.as_ref().unwrap()
+        }
+    }
     fn get_uuid(&self) -> &ComInterfaceUUID;
 
     fn get_info(&self) -> &ComInterfaceInfo;
+    fn get_info_mut(&mut self) -> &mut ComInterfaceInfo;
     // fn get_socket_state_mut(&mut self) -> &mut ComInterfaceInfo;
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
@@ -200,7 +222,7 @@ pub trait ComInterface: Any {
     }
 
     fn get_channel_factor(&self) -> u32 {
-        let properties = self.get_properties();
+        let properties = self.init_properties();
         properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
     }
 
@@ -287,7 +309,7 @@ pub trait ComInterface: Any {
         ComInterfaceSocket::new_with_receive_queue(
             self.get_uuid().clone(),
             receive_queue,
-            self.get_properties().direction,
+            self.init_properties().direction,
             self.get_channel_factor(),
         )
     }

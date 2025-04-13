@@ -29,7 +29,6 @@ use url::Url;
 
 pub struct WebRTCClientInterface {
     pub address: Url,
-    // pub uuid: ComInterfaceUUID,
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
@@ -37,7 +36,7 @@ pub struct WebRTCClientInterface {
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn get_sockets_(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.info.com_interface_sockets().clone()
+        self.get_sockets().clone()
     }
 }
 impl WebRTCClientInterface {
@@ -225,7 +224,7 @@ impl ComInterface for WebRTCClientInterface {
         })
     }
 
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "webrtc".to_string(),
             round_trip_time: Duration::from_millis(40),
