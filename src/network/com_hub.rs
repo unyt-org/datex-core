@@ -3,14 +3,16 @@ use crate::stdlib::{cell::RefCell, rc::Rc};
 use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info};
-use std::cell::Ref;
+use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 use tokio::task::spawn_local;
 // FIXME no-std
 
-use super::com_interfaces::com_interface::ComInterfaceError;
+use super::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceState,
+};
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
@@ -77,6 +79,8 @@ impl Default for ComHub {
 #[derive(Debug)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
+    InterfaceCloseFailed,
+    InterfaceNotConnected,
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
 }
@@ -88,8 +92,8 @@ pub enum SocketEndpointRegistrationError {
 }
 
 impl ComHub {
-    pub fn new(endpoint: Endpoint) -> Rc<RefCell<ComHub>> {
-        Rc::new(RefCell::new(ComHub {
+    pub fn new(endpoint: Endpoint) -> Arc<Mutex<ComHub>> {
+        Arc::new(Mutex::new(ComHub {
             endpoint,
             ..ComHub::default()
         }))
@@ -125,6 +129,15 @@ impl ComHub {
         self.default_interface_uuid.clone()
     }
 
+    pub fn get_interface_by_uuid_mut<T: ComInterface + 'static>(
+        &self,
+        interface_uuid: &ComInterfaceUUID,
+    ) -> Option<RefMut<T>> {
+        let iface = self.interfaces.get(interface_uuid)?;
+        let borrowed = iface.borrow_mut();
+        RefMut::filter_map(borrowed, |b| b.as_any_mut().downcast_mut::<T>())
+            .ok()
+    }
     pub fn get_interface_by_uuid<T: ComInterface + 'static>(
         &self,
         interface_uuid: &ComInterfaceUUID,
@@ -148,8 +161,9 @@ impl ComHub {
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
-        // TODO: throw if interface is not opened
-
+        if interface.borrow().get_state() != ComInterfaceState::Connected {
+            return Err(ComHubError::InterfaceNotConnected);
+        }
         let uuid = interface.borrow().get_uuid().clone();
         if self.interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
@@ -164,16 +178,27 @@ impl ComHub {
         &mut self,
         interface_uuid: ComInterfaceUUID,
     ) -> Result<(), ComHubError> {
-        // destroy the interface
-        let interface = self
+        info!("Removing interface {}", interface_uuid);
+        let interface: &Rc<RefCell<dyn ComInterface>> = self
             .interfaces
-            .get(&interface_uuid)
+            .get_mut(&interface_uuid.clone())
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
+        {
+            // Async close the interface (stop tasks, server, cleanup internal data)
+            let interface = interface.clone();
+            let mut interface = interface.borrow_mut();
+            if !interface.close().await {
+                return Err(ComHubError::InterfaceCloseFailed);
+            }
+        }
+        {
+            let interface = interface.clone();
+            let mut interface = interface.borrow_mut();
 
-        // Make this async
-        interface.borrow_mut().close().unwrap_or_else(|_| {
-            panic!("Failed to close interface {}", interface_uuid)
-        });
+            // Remove the sockets from the socket list
+            // to notify ComHub routing logic
+            interface.destroy_sockets();
+        }
 
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
@@ -405,7 +430,7 @@ impl ComHub {
             .get(interface_uuid)
             .unwrap()
             .borrow()
-            .get_properties()
+            .init_properties()
     }
 
     fn iterate_endpoint_sockets<'a>(

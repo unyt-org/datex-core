@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+
 use super::{
     com_interface::ComInterfaceSockets,
     com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
@@ -10,10 +11,10 @@ use super::{
 // }
 
 pub trait MultipleSocketProvider {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     fn get_sockets_uuids(&self) -> Vec<ComInterfaceSocketUUID> {
-        self.get_sockets()
+        self.provide_sockets()
             .lock()
             .unwrap()
             .sockets
@@ -22,28 +23,38 @@ pub trait MultipleSocketProvider {
             .collect()
     }
     fn get_sockets_count(&self) -> usize {
-        self.get_sockets().clone().lock().unwrap().sockets.len()
+        self.provide_sockets().clone().lock().unwrap().sockets.len()
     }
     fn get_socket_uuid_at(
         &self,
         index: usize,
     ) -> Option<ComInterfaceSocketUUID> {
-        self.get_sockets()
-            .lock()
-            .unwrap()
+        let sockets = self.provide_sockets();
+        let sockets = sockets.lock().unwrap();
+        let socket = sockets
             .sockets
             .values()
             .nth(index)
-            .map(|s| s.lock().unwrap().uuid.clone())
+            .map(|s| s.lock().unwrap().uuid.clone());
+        socket
+    }
+    fn get_socket_at(
+        &self,
+        index: usize,
+    ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
+        let sockets = self.provide_sockets();
+        let sockets = sockets.lock().unwrap();
+        let socket = sockets.sockets.values().nth(index).cloned();
+        socket
     }
 }
 
 pub trait SingleSocketProvider {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     fn get_socket(&self) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         return self
-            .get_sockets()
+            .provide_sockets()
             .lock()
             .unwrap()
             .sockets

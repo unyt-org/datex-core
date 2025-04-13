@@ -1,37 +1,39 @@
 use std::{future::Future, pin::Pin, sync::Mutex, time::Duration}; // FIXME no-std
 
 use crate::{
+    delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
+        com_interface::{
+            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
+            ComInterfaceUUID,
+        },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::SingleSocketProvider,
-        websocket::websocket_common::WebSocketError,
     },
     stdlib::sync::Arc,
-    utils::uuid::UUID,
 };
 
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use log::{debug, error, info};
 use tokio::{net::TcpStream, spawn};
 use tungstenite::Message;
 use url::Url;
 
-use crate::network::com_interfaces::websocket::websocket_common::parse_url;
+use super::websocket_common::{parse_url, WebSocketError};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     websocket_stream:
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
+    info: ComInterfaceInfo,
 }
 
 impl SingleSocketProvider for WebSocketClientNativeInterface {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets().clone()
     }
 }
 
@@ -41,13 +43,10 @@ impl WebSocketClientNativeInterface {
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
         let address =
             parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
-        let uuid = ComInterfaceUUID(UUID::new());
-        let com_interface_sockets =
-            Arc::new(Mutex::new(ComInterfaceSockets::default()));
+        let info = ComInterfaceInfo::new();
         let mut interface = WebSocketClientNativeInterface {
             address,
-            uuid,
-            com_interface_sockets,
+            info,
             websocket_stream: None,
         };
         interface.start().await?;
@@ -56,26 +55,25 @@ impl WebSocketClientNativeInterface {
 
     async fn start(&mut self) -> Result<(), WebSocketError> {
         let address = self.address.clone();
-        info!(
-            "Connecting to WebSocket server at {}",
-            address.host_str().unwrap()
-        );
+        info!("Connecting to WebSocket server at {}", address);
         let (stream, _) = tokio_tungstenite::connect_async(address)
             .await
             .map_err(|_| WebSocketError::ConnectionError)?;
         let (write, mut read) = stream.split();
         let socket = ComInterfaceSocket::new(
-            self.uuid.clone(),
+            self.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
             1,
         );
         self.websocket_stream = Some(write);
         let receive_queue = socket.receive_queue.clone();
-        self.com_interface_sockets
+        self.get_sockets()
             .lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
 
+        self.set_state(ComInterfaceState::Connected);
+        let state = self.get_info().get_state();
         spawn(async move {
             while let Some(msg) = read.next().await {
                 match msg {
@@ -88,6 +86,11 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {}", e);
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Closed);
+                        break;
                     }
                 }
             }
@@ -120,7 +123,7 @@ impl ComInterface for WebSocketClientNativeInterface {
         })
     }
 
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "websocket".to_string(),
             round_trip_time: Duration::from_millis(40),
@@ -129,17 +132,10 @@ impl ComInterface for WebSocketClientNativeInterface {
         }
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
+        Box::pin(async move { true })
     }
 
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    delegate_com_interface_info!();
 }

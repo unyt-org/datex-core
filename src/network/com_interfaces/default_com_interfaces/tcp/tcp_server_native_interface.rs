@@ -11,8 +11,12 @@ use tokio::net::TcpListener;
 use tokio::spawn;
 use url::Url;
 
+use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceSockets, ComInterfaceUUID,
+    ComInterface, ComInterfaceState,
+};
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -20,32 +24,26 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::network::com_interfaces::tcp::tcp_common::TCPError;
-use crate::utils::uuid::UUID;
 
-use super::super::com_interface::ComInterface;
+use super::tcp_common::TCPError;
 
 pub struct TCPServerNativeInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
+    info: ComInterfaceInfo,
 }
 
 impl TCPServerNativeInterface {
     pub async fn open(
         port: &u16,
     ) -> Result<TCPServerNativeInterface, TCPError> {
-        let uuid: ComInterfaceUUID = ComInterfaceUUID(UUID::new());
+        let info = ComInterfaceInfo::new();
         let address: String = format!("ws://127.0.0.1:{}", port);
         let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
 
         let mut interface = TCPServerNativeInterface {
             address,
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
-            uuid,
+            info,
             tx: Arc::new(Mutex::new(HashMap::new())),
         };
         interface.start().await?;
@@ -65,8 +63,8 @@ impl TCPServerNativeInterface {
             .map_err(|e| TCPError::Other(format!("{:?}", e)))?;
         info!("Server listening on {}", address);
 
-        let interface_uuid = self.uuid.clone();
-        let sockets = self.com_interface_sockets.clone();
+        let interface_uuid = self.get_uuid().clone();
+        let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
         spawn(async move {
             loop {
@@ -129,13 +127,17 @@ impl TCPServerNativeInterface {
 }
 
 impl ComInterface for TCPServerNativeInterface {
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "tcp".to_string(),
             round_trip_time: Duration::from_millis(20),
             max_bandwidth: 1000,
             ..InterfaceProperties::default()
         }
+    }
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
+        Box::pin(async move { true })
     }
     fn send_block<'a>(
         &'a mut self,
@@ -153,18 +155,5 @@ impl ComInterface for TCPServerNativeInterface {
         Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    delegate_com_interface_info!();
 }

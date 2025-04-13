@@ -3,15 +3,12 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use log::{error, warn};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::OwnedWriteHalf;
-use tokio::net::TcpStream;
-use tokio::spawn;
-use url::Url;
-
+use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceSockets, ComInterfaceUUID,
+    ComInterface, ComInterfaceState,
+};
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -20,20 +17,23 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
-use crate::network::com_interfaces::tcp::tcp_common::TCPError;
-use crate::utils::uuid::UUID;
+use log::{error, warn};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::tcp::OwnedWriteHalf;
+use tokio::net::TcpStream;
+use tokio::spawn;
+use url::Url;
 
-use super::super::com_interface::ComInterface;
+use super::tcp_common::TCPError;
 
 pub struct TCPClientNativeInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Option<Arc<Mutex<OwnedWriteHalf>>>,
+    info: ComInterfaceInfo,
 }
 impl SingleSocketProvider for TCPClientNativeInterface {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets().clone()
     }
 }
 
@@ -41,13 +41,9 @@ impl TCPClientNativeInterface {
     pub async fn open(
         address: &str,
     ) -> Result<TCPClientNativeInterface, TCPError> {
-        let uuid = ComInterfaceUUID(UUID::new());
         let mut interface = TCPClientNativeInterface {
             address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
-            uuid,
+            info: ComInterfaceInfo::new(),
             tx: None,
         };
         interface.start().await?;
@@ -67,15 +63,18 @@ impl TCPClientNativeInterface {
         self.tx = Some(Arc::new(Mutex::new(write_half)));
 
         let socket = ComInterfaceSocket::new(
-            self.uuid.clone(),
+            self.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
             1,
         );
         let receive_queue = socket.receive_queue.clone();
-        self.com_interface_sockets
+        self.get_sockets()
             .lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
+
+        self.set_state(ComInterfaceState::Connected);
+        let state = self.get_info().get_state();
         spawn(async move {
             let mut reader = read_half;
             let mut buffer = [0u8; 1024];
@@ -83,6 +82,10 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Closed);
                         break;
                     }
                     Ok(n) => {
@@ -91,6 +94,10 @@ impl TCPClientNativeInterface {
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {}", e);
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Closed);
                         break;
                     }
                 }
@@ -101,13 +108,17 @@ impl TCPClientNativeInterface {
 }
 
 impl ComInterface for TCPClientNativeInterface {
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "tcp".to_string(),
             round_trip_time: Duration::from_millis(20),
             max_bandwidth: 1000,
             ..InterfaceProperties::default()
         }
+    }
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
+        Box::pin(async move { true })
     }
     fn send_block<'a>(
         &'a mut self,
@@ -124,17 +135,5 @@ impl ComInterface for TCPClientNativeInterface {
         })
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    delegate_com_interface_info!();
 }

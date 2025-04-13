@@ -10,7 +10,7 @@ use crate::stdlib::{
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use futures_util::future::join_all;
-use log::debug;
+use log::{debug, info};
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
@@ -35,6 +35,45 @@ pub enum ComInterfaceError {
     ConnectionError,
     SendError,
     ReceiveError,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComInterfaceState {
+    Created,
+    Connecting,
+    Connected,
+    Closing,
+    Closed,
+}
+
+impl ComInterfaceState {
+    pub fn is_open(&self) -> bool {
+        matches!(self, ComInterfaceState::Connected)
+    }
+    pub fn is_closed(&self) -> bool {
+        matches!(self, ComInterfaceState::Closed)
+    }
+    pub fn is_opening(&self) -> bool {
+        matches!(self, ComInterfaceState::Connecting)
+    }
+    pub fn is_closing(&self) -> bool {
+        matches!(self, ComInterfaceState::Closing)
+    }
+    pub fn is_created(&self) -> bool {
+        matches!(self, ComInterfaceState::Created)
+    }
+    pub fn is_connecting(&self) -> bool {
+        matches!(
+            self,
+            ComInterfaceState::Connecting | ComInterfaceState::Connected
+        )
+    }
+    pub fn is_disconnecting(&self) -> bool {
+        matches!(self, ComInterfaceState::Closing | ComInterfaceState::Closed)
+    }
+    pub fn set_state(&mut self, new_state: ComInterfaceState) {
+        *self = new_state;
+    }
 }
 
 #[derive(Debug, Default)]
@@ -63,30 +102,134 @@ impl ComInterfaceSockets {
         self.sockets.get(uuid).cloned()
     }
 }
-// impl<T: Any> ComInterface for T {
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-// }
+
+pub struct ComInterfaceInfo {
+    uuid: ComInterfaceUUID,
+    state: Arc<Mutex<ComInterfaceState>>,
+    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
+    pub interface_properties: Option<InterfaceProperties>,
+}
+
+impl Default for ComInterfaceInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ComInterfaceInfo {
+    pub fn new_with_state(state: ComInterfaceState) -> Self {
+        Self {
+            uuid: ComInterfaceUUID(UUID::new()),
+            state: Arc::new(Mutex::new(state)),
+            interface_properties: None,
+            com_interface_sockets: Arc::new(Mutex::new(
+                ComInterfaceSockets::default(),
+            )),
+        }
+    }
+    pub fn new() -> Self {
+        Self {
+            uuid: ComInterfaceUUID(UUID::new()),
+            state: Arc::new(Mutex::new(ComInterfaceState::Created)),
+            interface_properties: None,
+            com_interface_sockets: Arc::new(Mutex::new(
+                ComInterfaceSockets::default(),
+            )),
+        }
+    }
+    pub fn com_interface_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.com_interface_sockets.clone()
+    }
+    pub fn get_uuid(&self) -> &ComInterfaceUUID {
+        &self.uuid
+    }
+    pub fn get_state(&self) -> Arc<Mutex<ComInterfaceState>> {
+        self.state.clone()
+    }
+    pub fn set_state(&mut self, new_state: ComInterfaceState) {
+        self.state.lock().unwrap().clone_from(&new_state);
+    }
+}
+#[macro_export]
+macro_rules! delegate_com_interface_info {
+    () => {
+        fn get_uuid(&self) -> &ComInterfaceUUID {
+            &self.info.get_uuid()
+        }
+        fn get_state(&self) -> ComInterfaceState {
+            self.info.get_state().lock().unwrap().clone()
+        }
+        fn set_state(&mut self, new_state: ComInterfaceState) {
+            self.info.set_state(new_state);
+        }
+        fn get_info(&self) -> &ComInterfaceInfo {
+            &self.info
+        }
+        fn get_info_mut(&mut self) -> &mut ComInterfaceInfo {
+            &mut self.info
+        }
+        fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+            self.info.com_interface_sockets().clone()
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+        fn get_properties(&mut self) -> &InterfaceProperties {
+            if self.get_info().interface_properties.is_some() {
+                return self.get_info().interface_properties.as_ref().unwrap();
+            } else {
+                let new_properties = self.init_properties();
+                let info = self.get_info_mut();
+                info.interface_properties = Some(new_properties);
+                info.interface_properties.as_ref().unwrap()
+            }
+        }
+    };
+}
+
 pub trait ComInterface: Any {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
-    fn get_properties(&self) -> InterfaceProperties;
+    fn init_properties(&self) -> InterfaceProperties;
+    fn get_properties(&mut self) -> &InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;
+
+    fn get_info(&self) -> &ComInterfaceInfo;
+    fn get_info_mut(&mut self) -> &mut ComInterfaceInfo;
+
+    fn get_state(&self) -> ComInterfaceState;
+    fn set_state(&mut self, new_state: ComInterfaceState);
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
-    // Destroy the interface and free all resources.
-    fn close(&mut self) -> Result<(), ComInterfaceError> {
-        // FIXME
-        Ok(())
+    // Destroy the interface and free all resources after it has been cleaned up
+    fn destroy_sockets(&mut self) {
+        info!("destroy_sockets");
+        let sockets = self.get_sockets();
+        let sockets = sockets.lock().unwrap();
+        let uuids: Vec<ComInterfaceSocketUUID> =
+            sockets.sockets.keys().cloned().collect();
+        drop(sockets);
+        for socket_uuid in uuids {
+            self.remove_socket(&socket_uuid);
+        }
+        self.set_state(ComInterfaceState::Closed);
     }
+
+    /// Close the interface and free all resources.
+    /// Has to be implemented by the interface and might be async.
+    /// Make sure to call destroy_sockets() after the interface is closed.
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
@@ -99,13 +242,13 @@ pub trait ComInterface: Any {
     }
 
     // Remove socket from the interface
-    fn remove_socket(&mut self, socket: &ComInterfaceSocket) {
+    fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         let sockets = self.get_sockets();
         let mut sockets = sockets.lock().unwrap();
 
-        sockets.deleted_sockets.push_back(socket.uuid.clone());
-        sockets.sockets.remove(&socket.uuid);
-        debug!("Socket removed: {:?}", socket.uuid);
+        sockets.deleted_sockets.push_back(socket_uuid.clone());
+        sockets.sockets.remove(socket_uuid);
+        debug!("Socket removed: {:?}", socket_uuid);
     }
 
     // Called when a endpoint is known for a specific socket (called by ComHub)
@@ -140,7 +283,7 @@ pub trait ComInterface: Any {
     }
 
     fn get_channel_factor(&self) -> u32 {
-        let properties = self.get_properties();
+        let properties = self.init_properties();
         properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
     }
 
@@ -227,7 +370,7 @@ pub trait ComInterface: Any {
         ComInterfaceSocket::new_with_receive_queue(
             self.get_uuid().clone(),
             receive_queue,
-            self.get_properties().direction,
+            self.init_properties().direction,
             self.get_channel_factor(),
         )
     }

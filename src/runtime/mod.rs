@@ -24,7 +24,7 @@ static INIT: Once = Once::new();
 pub struct Runtime {
     pub version: String,
     pub memory: Rc<RefCell<Memory>>,
-    pub com_hub: Rc<RefCell<ComHub>>,
+    pub com_hub: Arc<Mutex<ComHub>>,
     pub endpoint: Endpoint,
 }
 
@@ -77,7 +77,7 @@ impl Default for Runtime {
             endpoint: Endpoint::default(),
             version: VERSION.to_string(),
             memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: Rc::new(RefCell::new(ComHub::default())),
+            com_hub: Arc::new(Mutex::new(ComHub::default())),
         }
     }
 }

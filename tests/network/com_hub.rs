@@ -7,24 +7,16 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::future::Future;
 use std::io::Write;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 // FIXME no-std
-
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceSockets, ComInterfaceUUID,
-};
-use datex_core::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use datex_core::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
-};
-use datex_core::utils::uuid::UUID;
+use datex_core::network::com_interfaces::com_interface::ComInterface;
+use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
+use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use crate::context::init_global_context;
+
+use super::com_interfaces::mockup_interface::MockupInterface;
 
 lazy_static::lazy_static! {
     static ref ORIGIN : Endpoint = Endpoint::from_string("@origin").unwrap();
@@ -32,104 +24,19 @@ lazy_static::lazy_static! {
     static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_string("@test-b").unwrap();
 }
 
-pub struct MockupInterface {
-    pub block_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
-    uuid: ComInterfaceUUID,
-}
-
-impl MockupInterface {
-    fn last_block(&self) -> Option<Vec<u8>> {
-        self.block_queue.last().map(|(_, block)| block.clone())
-    }
-    fn last_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
-        self.block_queue
-            .last()
-            .map(|(socket_uuid, _)| socket_uuid.clone())
-    }
-
-    fn find_outgoing_block_for_socket(
-        &self,
-        socket_uuid: ComInterfaceSocketUUID,
-    ) -> Option<Vec<u8>> {
-        self.block_queue
-            .iter()
-            .find(|(uuid, _)| uuid == &socket_uuid)
-            .map(|(_, block)| block.clone())
-    }
-    fn has_outgoing_block_for_socket(
-        &self,
-        socket_uuid: ComInterfaceSocketUUID,
-    ) -> bool {
-        self.find_outgoing_block_for_socket(socket_uuid).is_some()
-    }
-
-    fn last_block_and_socket(
-        &self,
-    ) -> Option<(ComInterfaceSocketUUID, Vec<u8>)> {
-        self.block_queue.last().cloned()
-    }
-}
-
-impl Default for MockupInterface {
-    fn default() -> Self {
-        MockupInterface {
-            block_queue: Vec::new(),
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
-            uuid: ComInterfaceUUID(UUID::new()),
-        }
-    }
-}
-
-impl ComInterface for MockupInterface {
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn send_block<'a>(
-        &'a mut self,
-        block: &'a [u8],
-        socket_uuid: ComInterfaceSocketUUID,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // FIXME this should be inside the async body, why is it not working?
-        self.block_queue.push((socket_uuid, block.to_vec()));
-
-        Pin::from(Box::new(async move { true }))
-    }
-
-    fn get_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            channel: "mockup".to_string(),
-            name: Some("mockup".to_string()),
-            ..Default::default()
-        }
-    }
-
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
-}
-
-async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)
+async fn get_mock_setup() -> (Arc<Mutex<ComHub>>, Rc<RefCell<MockupInterface>>)
 {
     // init com hub
     let com_hub = ComHub::new(ORIGIN.clone());
-    let mut com_hub_mut = com_hub.borrow_mut();
 
     // init mockup interface
     let mockup_interface_ref =
         Rc::new(RefCell::new(MockupInterface::default()));
 
     // add mockup interface to com_hub
-    com_hub_mut
+    com_hub
+        .lock()
+        .unwrap()
         .add_interface(mockup_interface_ref.clone())
         .await
         .unwrap_or_else(|e| {
@@ -143,7 +50,7 @@ fn add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
 ) -> Arc<Mutex<ComInterfaceSocket>> {
     let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
-        mockup_interface_ref.borrow().uuid.clone(),
+        mockup_interface_ref.borrow().get_uuid().clone(),
         InterfaceDirection::IN_OUT,
         1,
     )));
@@ -166,13 +73,11 @@ fn register_socket_endpoint(
 }
 
 async fn get_mock_setup_with_socket() -> (
-    Rc<RefCell<ComHub>>,
+    Arc<Mutex<ComHub>>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
     let (com_hub, mockup_interface_ref) = get_mock_setup().await;
-    let mut com_hub_mut = com_hub.borrow_mut();
-
     let socket = add_socket(mockup_interface_ref.clone());
     register_socket_endpoint(
         mockup_interface_ref.clone(),
@@ -180,7 +85,7 @@ async fn get_mock_setup_with_socket() -> (
         TEST_ENDPOINT_A.clone(),
     );
 
-    com_hub_mut.update().await;
+    com_hub.lock().unwrap().update().await;
 
     (com_hub.clone(), mockup_interface_ref, socket)
 }
@@ -193,7 +98,7 @@ pub async fn test_add_and_remove() {
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));
-        let uuid = mockup_interface.borrow().uuid.clone();
+        let uuid = mockup_interface.borrow().get_uuid().clone();
         com_hub_mut
             .add_interface(mockup_interface.clone())
             .await
@@ -240,13 +145,13 @@ pub async fn test_multiple_add() {
 
 async fn send_empty_block(
     endpoints: &[Endpoint],
-    com_hub: &Rc<RefCell<ComHub>>,
+    com_hub: &Arc<Mutex<ComHub>>,
 ) -> DXBBlock {
     // send block
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(endpoints);
 
-    let mut com_hub_mut = com_hub.borrow_mut();
+    let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.send_block(&block, None);
     com_hub_mut.update().await;
     block
@@ -301,7 +206,7 @@ pub async fn send_block_to_multiple_endpoints() {
         socket.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    com_hub.borrow_mut().update().await;
+    com_hub.lock().unwrap().update().await;
 
     // send block to multiple receivers
     let block = send_empty_block(
@@ -337,7 +242,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
         socket_b.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    com_hub.borrow_mut().update().await;
+    com_hub.lock().unwrap().update().await;
 
     // send block to multiple receivers
     let _ = send_empty_block(
@@ -364,8 +269,9 @@ pub async fn default_interface_create_socket_first() {
     let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
 
     com_hub
-        .borrow_mut()
-        .set_default_interface(com_interface.borrow().uuid.clone())
+        .lock()
+        .unwrap()
+        .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
         });
@@ -383,8 +289,9 @@ pub async fn default_interface_set_default_interface_first() {
     let (com_hub, com_interface) = get_mock_setup().await;
 
     com_hub
-        .borrow_mut()
-        .set_default_interface(com_interface.borrow().uuid.clone())
+        .lock()
+        .unwrap()
+        .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
         });
@@ -398,7 +305,7 @@ pub async fn default_interface_set_default_interface_first() {
 
     // Update to let the com_hub know about the socket and call the add_socket method
     // This will set the default interface and socket
-    com_hub.borrow_mut().update().await;
+    com_hub.lock().unwrap().update().await;
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
@@ -447,7 +354,6 @@ pub async fn test_receive() {
     // init mock setup
     init_global_context();
     let (com_hub, _, socket) = get_mock_setup_with_socket().await;
-    let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
     let mut block = DXBBlock {
@@ -469,7 +375,7 @@ pub async fn test_receive() {
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         let _ = receive_queue_mut.write(block_bytes.as_slice());
     }
-
+    let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.update().await;
 
     let incoming_blocks_ref = com_hub_mut.incoming_blocks.clone();
@@ -485,7 +391,6 @@ pub async fn test_receive_multiple() {
     // init mock setup
     init_global_context();
     let (com_hub, _, socket) = get_mock_setup_with_socket().await;
-    let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
     let blocks = vec![
@@ -525,6 +430,7 @@ pub async fn test_receive_multiple() {
         }
     }
 
+    let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.update().await;
 
     let incoming_blocks_ref = com_hub_mut.incoming_blocks.clone();

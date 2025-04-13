@@ -1,11 +1,11 @@
-use std::any::Any;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceSockets, ComInterfaceUUID,
+    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -13,34 +13,30 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::utils::uuid::UUID;
 
 use super::super::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
 pub struct LocalLoopbackInterface {
-    pub uuid: ComInterfaceUUID,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Arc<Mutex<ComInterfaceSocket>>,
+    info: ComInterfaceInfo,
 }
 impl LocalLoopbackInterface {
     pub async fn new() -> LocalLoopbackInterface {
-        let uuid = ComInterfaceUUID(UUID::new());
+        let mut info = ComInterfaceInfo::new();
+        info.set_state(ComInterfaceState::Connected);
 
         let mut sockets = ComInterfaceSockets::default();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
-            uuid.clone(),
+            info.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
-            1
+            1,
         )));
         sockets.add_socket(socket.clone());
 
-        LocalLoopbackInterface {
-            com_interface_sockets: Arc::new(Mutex::new(sockets)),
-            uuid,
-            socket
-        }
+        LocalLoopbackInterface { info, socket }
     }
 }
 
@@ -51,20 +47,12 @@ impl ComInterface for LocalLoopbackInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let socket = self.socket.clone();
-        let mut socket = socket.lock().unwrap();
+        let socket = socket.lock().unwrap();
         socket.get_receive_queue().lock().unwrap().extend(block);
-        Box::pin(async {true})
+        Box::pin(async { true })
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn get_properties(&self) -> InterfaceProperties {
+    fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "local".to_string(),
             round_trip_time: Duration::from_millis(0),
@@ -72,10 +60,8 @@ impl ComInterface for LocalLoopbackInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { true })
     }
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
+    delegate_com_interface_info!();
 }
