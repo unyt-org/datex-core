@@ -11,8 +11,9 @@ use tokio::net::TcpListener;
 use tokio::spawn;
 use url::Url;
 
+use crate::delegate_socket_state;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceSockets, ComInterfaceUUID,
+    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -27,16 +28,16 @@ use super::super::com_interface::ComInterface;
 
 pub struct TCPServerNativeInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
+    info: ComInterfaceInfo,
 }
 
 impl TCPServerNativeInterface {
     pub async fn open(
         port: &u16,
     ) -> Result<TCPServerNativeInterface, TCPError> {
-        let uuid: ComInterfaceUUID = ComInterfaceUUID(UUID::new());
+        let info = ComInterfaceInfo::new();
         let address: String = format!("ws://127.0.0.1:{}", port);
         let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
 
@@ -45,7 +46,7 @@ impl TCPServerNativeInterface {
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
-            uuid,
+            info,
             tx: Arc::new(Mutex::new(HashMap::new())),
         };
         interface.start().await?;
@@ -65,7 +66,7 @@ impl TCPServerNativeInterface {
             .map_err(|e| TCPError::Other(format!("{:?}", e)))?;
         info!("Server listening on {}", address);
 
-        let interface_uuid = self.uuid.clone();
+        let interface_uuid = self.get_uuid().clone();
         let sockets = self.com_interface_sockets.clone();
         let tx = self.tx.clone();
         spawn(async move {
@@ -153,10 +154,6 @@ impl ComInterface for TCPServerNativeInterface {
         Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
@@ -167,4 +164,5 @@ impl ComInterface for TCPServerNativeInterface {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+    delegate_socket_state!();
 }

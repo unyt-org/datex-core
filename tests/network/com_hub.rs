@@ -1,4 +1,5 @@
 use datex_core::datex_values::Endpoint;
+use datex_core::delegate_socket_state;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
@@ -14,7 +15,7 @@ use std::sync::{Arc, Mutex};
 // FIXME no-std
 
 use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceSockets, ComInterfaceUUID,
+    ComInterface, ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use datex_core::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -35,7 +36,7 @@ lazy_static::lazy_static! {
 pub struct MockupInterface {
     pub block_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
-    uuid: ComInterfaceUUID,
+    info: ComInterfaceInfo,
 }
 
 impl MockupInterface {
@@ -78,7 +79,7 @@ impl Default for MockupInterface {
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
-            uuid: ComInterfaceUUID(UUID::new()),
+            info: ComInterfaceInfo::new(),
         }
     }
 }
@@ -109,13 +110,10 @@ impl ComInterface for MockupInterface {
         }
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
+    delegate_socket_state!();
 }
 
 async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)
@@ -143,7 +141,7 @@ fn add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
 ) -> Arc<Mutex<ComInterfaceSocket>> {
     let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
-        mockup_interface_ref.borrow().uuid.clone(),
+        mockup_interface_ref.borrow().get_uuid().clone(),
         InterfaceDirection::IN_OUT,
         1,
     )));
@@ -193,7 +191,7 @@ pub async fn test_add_and_remove() {
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));
-        let uuid = mockup_interface.borrow().uuid.clone();
+        let uuid = mockup_interface.borrow().get_uuid().clone();
         com_hub_mut
             .add_interface(mockup_interface.clone())
             .await
@@ -365,7 +363,7 @@ pub async fn default_interface_create_socket_first() {
 
     com_hub
         .borrow_mut()
-        .set_default_interface(com_interface.borrow().uuid.clone())
+        .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
         });
@@ -384,7 +382,7 @@ pub async fn default_interface_set_default_interface_first() {
 
     com_hub
         .borrow_mut()
-        .set_default_interface(com_interface.borrow().uuid.clone())
+        .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
         });

@@ -10,8 +10,9 @@ use tokio::net::TcpStream;
 use tokio::spawn;
 use url::Url;
 
+use crate::delegate_socket_state;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceSockets, ComInterfaceUUID,
+    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -27,9 +28,9 @@ use super::super::com_interface::ComInterface;
 
 pub struct TCPClientNativeInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Option<Arc<Mutex<OwnedWriteHalf>>>,
+    info: ComInterfaceInfo,
 }
 impl SingleSocketProvider for TCPClientNativeInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -41,13 +42,12 @@ impl TCPClientNativeInterface {
     pub async fn open(
         address: &str,
     ) -> Result<TCPClientNativeInterface, TCPError> {
-        let uuid = ComInterfaceUUID(UUID::new());
         let mut interface = TCPClientNativeInterface {
             address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
-            uuid,
+            info: ComInterfaceInfo::new(),
             tx: None,
         };
         interface.start().await?;
@@ -67,7 +67,7 @@ impl TCPClientNativeInterface {
         self.tx = Some(Arc::new(Mutex::new(write_half)));
 
         let socket = ComInterfaceSocket::new(
-            self.uuid.clone(),
+            self.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
             1,
         );
@@ -124,10 +124,6 @@ impl ComInterface for TCPClientNativeInterface {
         })
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
@@ -137,4 +133,5 @@ impl ComInterface for TCPClientNativeInterface {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+    delegate_socket_state!();
 }

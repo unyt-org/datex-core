@@ -4,8 +4,12 @@ use std::{
 }; // FIXME no-std
 
 use crate::{
+    delegate_socket_state,
     network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
+        com_interface::{
+            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
+            ComInterfaceUUID,
+        },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         websocket::websocket_common::{WebSocketError, WebSocketServerError},
@@ -28,7 +32,6 @@ use tokio_tungstenite::WebSocketStream;
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     websocket_streams: Arc<
         Mutex<
@@ -38,6 +41,7 @@ pub struct WebSocketServerNativeInterface {
             >,
         >,
     >,
+    info: ComInterfaceInfo,
 }
 
 impl WebSocketServerNativeInterface {
@@ -50,7 +54,7 @@ impl WebSocketServerNativeInterface {
         })?;
         let mut interface = WebSocketServerNativeInterface {
             address,
-            uuid: ComInterfaceUUID(UUID::new()),
+            info: ComInterfaceInfo::new(),
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
             )),
@@ -80,7 +84,7 @@ impl WebSocketServerNativeInterface {
                 WebSocketError::ConnectionError,
             )
         })?;
-        let interface_uuid = self.uuid.clone();
+        let interface_uuid = self.get_uuid().clone();
         let com_interface_sockets = self.com_interface_sockets.clone();
         let websocket_streams = self.websocket_streams.clone();
         tokio::spawn(async move {
@@ -197,10 +201,6 @@ impl ComInterface for WebSocketServerNativeInterface {
         }
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
-
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
@@ -210,4 +210,5 @@ impl ComInterface for WebSocketServerNativeInterface {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+    delegate_socket_state!();
 }

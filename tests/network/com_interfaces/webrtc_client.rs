@@ -46,7 +46,7 @@ pub async fn test_construct() {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
-    client_a
+    // client_a
 
     tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
 }

@@ -4,8 +4,9 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::delegate_socket_state;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceSockets, ComInterfaceUUID,
+    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -20,26 +21,26 @@ use super::super::com_interface::ComInterface;
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
 pub struct LocalLoopbackInterface {
-    pub uuid: ComInterfaceUUID,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Arc<Mutex<ComInterfaceSocket>>,
+    info: ComInterfaceInfo,
 }
 impl LocalLoopbackInterface {
     pub async fn new() -> LocalLoopbackInterface {
-        let uuid = ComInterfaceUUID(UUID::new());
+        let info = ComInterfaceInfo::new();
 
         let mut sockets = ComInterfaceSockets::default();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
-            uuid.clone(),
+            info.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
-            1
+            1,
         )));
         sockets.add_socket(socket.clone());
 
         LocalLoopbackInterface {
             com_interface_sockets: Arc::new(Mutex::new(sockets)),
-            uuid,
-            socket
+            info,
+            socket,
         }
     }
 }
@@ -53,7 +54,7 @@ impl ComInterface for LocalLoopbackInterface {
         let socket = self.socket.clone();
         let mut socket = socket.lock().unwrap();
         socket.get_receive_queue().lock().unwrap().extend(block);
-        Box::pin(async {true})
+        Box::pin(async { true })
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -72,10 +73,9 @@ impl ComInterface for LocalLoopbackInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
+
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
+    delegate_socket_state!();
 }
