@@ -1,3 +1,4 @@
+use datex_core::datex_values::Endpoint;
 use datex_core::stdlib::env;
 
 use datex_core::runtime::Runtime;
@@ -7,7 +8,7 @@ use datex_core::runtime::Runtime;
  */
 #[test]
 pub fn init_runtime() {
-    let runtime = Runtime::init_native();
+    let runtime = Runtime::init_native(Endpoint::default());
     assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
 }
 
