@@ -33,7 +33,7 @@ pub struct WebSocketClientNativeInterface {
 }
 
 impl SingleSocketProvider for WebSocketClientNativeInterface {
-    fn _get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets().clone()
     }
 }

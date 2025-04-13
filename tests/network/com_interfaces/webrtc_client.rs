@@ -37,7 +37,7 @@ pub fn start_server(url: &str) {
 pub async fn test_construct() {
     init_global_context();
 
-    let client_a = WebRTCClientInterface::open_reliable(
+    let mut client_a = WebRTCClientInterface::open_reliable(
         &format!("ws://invalid.interface:1234"),
         None,
     )
@@ -46,7 +46,9 @@ pub async fn test_construct() {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
-    info!("{}", client_a.get_uuid());
+    info!("{:?}", client_a.get_properties());
+    info!("{:?}", client_a.get_properties());
+    info!("{:?}", client_a.get_properties());
     // client_a
 
     tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;

@@ -13,10 +13,10 @@ use super::{
 // }
 
 pub trait MultipleSocketProvider {
-    fn get_sockets_(&self) -> Arc<Mutex<ComInterfaceSockets>>;
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     fn get_sockets_uuids(&self) -> Vec<ComInterfaceSocketUUID> {
-        self.get_sockets_()
+        self.provide_sockets()
             .lock()
             .unwrap()
             .sockets
@@ -25,13 +25,13 @@ pub trait MultipleSocketProvider {
             .collect()
     }
     fn get_sockets_count(&self) -> usize {
-        self.get_sockets_().clone().lock().unwrap().sockets.len()
+        self.provide_sockets().clone().lock().unwrap().sockets.len()
     }
     fn get_socket_uuid_at(
         &self,
         index: usize,
     ) -> Option<ComInterfaceSocketUUID> {
-        let sockets = self.get_sockets_();
+        let sockets = self.provide_sockets();
         let sockets = sockets.lock().unwrap();
         let socket = sockets
             .sockets
@@ -44,7 +44,7 @@ pub trait MultipleSocketProvider {
         &self,
         index: usize,
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
-        let sockets = self.get_sockets_();
+        let sockets = self.provide_sockets();
         let sockets = sockets.lock().unwrap();
         let socket = sockets.sockets.values().nth(index).cloned();
         socket
@@ -52,11 +52,11 @@ pub trait MultipleSocketProvider {
 }
 
 pub trait SingleSocketProvider {
-    fn _get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     fn get_socket(&self) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         return self
-            ._get_sockets()
+            .provide_sockets()
             .lock()
             .unwrap()
             .sockets

@@ -35,8 +35,8 @@ pub struct WebRTCClientInterface {
     info: ComInterfaceInfo,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
-    fn get_sockets_(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets().clone()
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        return self.get_sockets();
     }
 }
 impl WebRTCClientInterface {

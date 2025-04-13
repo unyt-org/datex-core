@@ -127,12 +127,16 @@ macro_rules! delegate_com_interface_info {
         fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
             self
         }
-        // fn get_properties(&mut self) -> InterfaceProperties {
-        //     if self.info.interface_properties.is_none() {
-        //         self.info.interface_properties = Some(self.init_properties());
-        //     }
-        //     self.info.interface_properties.unwrap()
-        // }
+        fn get_properties(&mut self) -> &InterfaceProperties {
+            if self.get_info().interface_properties.is_some() {
+                return self.get_info().interface_properties.as_ref().unwrap();
+            } else {
+                let new_properties = self.init_properties();
+                let info = self.get_info_mut();
+                info.interface_properties = Some(new_properties);
+                info.interface_properties.as_ref().unwrap()
+            }
+        }
     };
 }
 
@@ -146,16 +150,7 @@ pub trait ComInterface: Any {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     fn init_properties(&self) -> InterfaceProperties;
-    fn get_properties(&mut self) -> &InterfaceProperties {
-        if self.get_info().interface_properties.is_some() {
-            return self.get_info().interface_properties.as_ref().unwrap();
-        } else {
-            let new_properties = self.init_properties();
-            let info = self.get_info_mut();
-            info.interface_properties = Some(new_properties);
-            info.interface_properties.as_ref().unwrap()
-        }
-    }
+    fn get_properties(&mut self) -> &InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;
 
     fn get_info(&self) -> &ComInterfaceInfo;
