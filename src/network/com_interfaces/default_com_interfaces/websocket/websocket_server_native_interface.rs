@@ -12,7 +12,6 @@ use crate::{
         },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-        websocket::websocket_common::{WebSocketError, WebSocketServerError},
     },
     stdlib::sync::Arc,
 };
@@ -24,11 +23,14 @@ use tungstenite::Message;
 use url::Url;
 
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
-use crate::network::com_interfaces::websocket::websocket_common::parse_url;
 use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
 use tokio_tungstenite::WebSocketStream;
+
+use super::websocket_common::{
+    parse_url, WebSocketError, WebSocketServerError,
+};
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,

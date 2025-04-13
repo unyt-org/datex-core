@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::delegate_com_interface_info;
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceState,
+};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -15,7 +17,6 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
-use crate::network::com_interfaces::tcp::tcp_common::TCPError;
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::OwnedWriteHalf;
@@ -23,7 +24,7 @@ use tokio::net::TcpStream;
 use tokio::spawn;
 use url::Url;
 
-use super::super::com_interface::ComInterface;
+use super::tcp_common::TCPError;
 
 pub struct TCPClientNativeInterface {
     pub address: Url,

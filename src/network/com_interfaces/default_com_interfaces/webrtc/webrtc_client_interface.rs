@@ -17,7 +17,6 @@ use crate::{
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::MultipleSocketProvider,
-        webrtc::webrtc_common::WebRTCError,
     },
     utils::uuid::UUID,
 };
@@ -27,6 +26,8 @@ use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
 use tokio::spawn;
 use url::Url;
+
+use super::webrtc_common::WebRTCError;
 
 pub struct WebRTCClientInterface {
     pub address: Url,

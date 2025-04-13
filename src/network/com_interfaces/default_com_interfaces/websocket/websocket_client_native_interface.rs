@@ -10,7 +10,6 @@ use crate::{
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::SingleSocketProvider,
-        websocket::websocket_common::WebSocketError,
     },
     stdlib::sync::Arc,
 };
@@ -22,7 +21,7 @@ use tokio::{net::TcpStream, spawn};
 use tungstenite::Message;
 use url::Url;
 
-use crate::network::com_interfaces::websocket::websocket_common::parse_url;
+use super::websocket_common::{parse_url, WebSocketError};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct WebSocketClientNativeInterface {

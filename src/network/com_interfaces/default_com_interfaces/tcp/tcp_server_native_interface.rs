@@ -12,7 +12,9 @@ use tokio::spawn;
 use url::Url;
 
 use crate::delegate_com_interface_info;
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceState,
+};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -22,9 +24,8 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::network::com_interfaces::tcp::tcp_common::TCPError;
 
-use super::super::com_interface::ComInterface;
+use super::tcp_common::TCPError;
 
 pub struct TCPServerNativeInterface {
     pub address: Url,

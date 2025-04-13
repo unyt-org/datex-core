@@ -4,8 +4,9 @@ use std::net::SocketAddr;
 use crate::context::init_global_context;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
 use datex_core::network::com_interfaces::{
-    com_interface::ComInterface, socket_provider::MultipleSocketProvider,
-    webrtc::webrtc_client_interface::WebRTCClientInterface,
+    com_interface::ComInterface,
+    default_com_interfaces::webrtc::webrtc_client_interface::WebRTCClientInterface,
+    socket_provider::MultipleSocketProvider,
 };
 use futures::{select, FutureExt};
 use futures_timer::Delay;
