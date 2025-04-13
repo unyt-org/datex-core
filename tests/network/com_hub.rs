@@ -1,5 +1,5 @@
 use datex_core::datex_values::Endpoint;
-use datex_core::delegate_socket_state;
+use datex_core::delegate_com_interface_info;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
@@ -85,12 +85,6 @@ impl Default for MockupInterface {
 }
 
 impl ComInterface for MockupInterface {
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
@@ -113,7 +107,7 @@ impl ComInterface for MockupInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
-    delegate_socket_state!();
+    delegate_com_interface_info!();
 }
 
 async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)

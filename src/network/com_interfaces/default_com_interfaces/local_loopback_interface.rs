@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::delegate_socket_state;
+use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -57,14 +57,6 @@ impl ComInterface for LocalLoopbackInterface {
         Box::pin(async { true })
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "local".to_string(),
@@ -77,5 +69,5 @@ impl ComInterface for LocalLoopbackInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
-    delegate_socket_state!();
+    delegate_com_interface_info!();
 }

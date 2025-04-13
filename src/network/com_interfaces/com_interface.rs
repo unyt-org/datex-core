@@ -37,6 +37,15 @@ pub enum ComInterfaceError {
     ReceiveError,
 }
 
+#[derive(Debug)]
+pub enum ComInterfaceState {
+    Created,
+    Opening,
+    Open,
+    Closing,
+    Closed,
+}
+
 #[derive(Debug, Default)]
 pub struct ComInterfaceSockets {
     pub sockets:
@@ -65,7 +74,7 @@ impl ComInterfaceSockets {
 }
 
 pub struct ComInterfaceInfo {
-    state: String,
+    state: ComInterfaceState,
     uuid: ComInterfaceUUID,
 }
 
@@ -73,23 +82,22 @@ impl ComInterfaceInfo {
     pub fn new() -> Self {
         Self {
             uuid: ComInterfaceUUID(UUID::new()),
-            state: String::new(),
+            state: ComInterfaceState::Created,
         }
     }
 
     pub fn get_uuid(&self) -> &ComInterfaceUUID {
         &self.uuid
     }
-    pub fn get_state(&self) -> &String {
+    pub fn get_state(&self) -> &ComInterfaceState {
         &self.state
     }
-
-    pub fn set_state(&mut self, new_state: String) {
+    pub fn set_state(&mut self, new_state: ComInterfaceState) {
         self.state = new_state;
     }
 }
 #[macro_export]
-macro_rules! delegate_socket_state {
+macro_rules! delegate_com_interface_info {
     () => {
         fn get_uuid(&self) -> &ComInterfaceUUID {
             &self.info.get_uuid()
@@ -97,6 +105,13 @@ macro_rules! delegate_socket_state {
 
         fn get_info(&self) -> &ComInterfaceInfo {
             &self.info
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
         }
     };
 }
@@ -107,7 +122,7 @@ pub trait ComInterface: Any {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     fn get_properties(&self) -> InterfaceProperties;

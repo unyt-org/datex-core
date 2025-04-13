@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 use tokio::spawn;
 use url::Url;
 
-use crate::delegate_socket_state;
+use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -127,11 +127,6 @@ impl ComInterface for TCPClientNativeInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    delegate_socket_state!();
+
+    delegate_com_interface_info!();
 }
