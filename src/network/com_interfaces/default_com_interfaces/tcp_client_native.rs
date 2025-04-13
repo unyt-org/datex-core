@@ -71,6 +71,9 @@ impl TCPClientNativeInterface {
             .lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
+
+        self.set_state(ComInterfaceState::Connected);
+        let state = self.get_info().get_state();
         spawn(async move {
             let mut reader = read_half;
             let mut buffer = [0u8; 1024];
@@ -78,6 +81,10 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Closed);
                         break;
                     }
                     Ok(n) => {
@@ -86,6 +93,10 @@ impl TCPClientNativeInterface {
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {}", e);
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Closed);
                         break;
                     }
                 }
