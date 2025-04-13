@@ -213,7 +213,7 @@ pub trait ComInterface: Any {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     // Destroy the interface and free all resources after it has been cleaned up
-    fn destroy_sockets<'a>(&'a mut self) {
+    fn destroy_sockets(&mut self) {
         info!("destroy_sockets");
         let sockets = self.get_sockets();
         let sockets = sockets.lock().unwrap();
@@ -247,7 +247,7 @@ pub trait ComInterface: Any {
         let mut sockets = sockets.lock().unwrap();
 
         sockets.deleted_sockets.push_back(socket_uuid.clone());
-        sockets.sockets.remove(&socket_uuid);
+        sockets.sockets.remove(socket_uuid);
         debug!("Socket removed: {:?}", socket_uuid);
     }
 

@@ -2,11 +2,10 @@ use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use futures_util::future::join_all;
 use itertools::Itertools;
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use tokio::spawn;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{

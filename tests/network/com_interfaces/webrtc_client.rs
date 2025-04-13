@@ -34,7 +34,7 @@ pub fn start_server(url: &str) {
 pub async fn test_construct() {
     init_global_context();
     let client_a = WebRTCClientInterface::open_reliable(
-        &"ws://invalid.interface:1234".to_string(),
+        "ws://invalid.interface:1234",
         None,
     )
     .await
