@@ -110,6 +110,12 @@ pub struct ComInterfaceInfo {
     pub interface_properties: Option<InterfaceProperties>,
 }
 
+impl Default for ComInterfaceInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ComInterfaceInfo {
     pub fn new_with_state(state: ComInterfaceState) -> Self {
         Self {

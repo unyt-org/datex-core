@@ -1,5 +1,4 @@
 use datex_core::datex_values::Endpoint;
-use datex_core::delegate_com_interface_info;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
@@ -8,22 +7,12 @@ use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::future::Future;
 use std::io::Write;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 // FIXME no-std
-use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
-};
-use datex_core::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use datex_core::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
-};
-use datex_core::utils::uuid::UUID;
+use datex_core::network::com_interfaces::com_interface::ComInterface;
+use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
+use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use crate::context::init_global_context;
 

@@ -8,13 +8,8 @@ use datex_core::network::com_interfaces::{
     default_com_interfaces::webrtc::webrtc_client_interface::WebRTCClientInterface,
     socket_provider::MultipleSocketProvider,
 };
-use futures::{select, FutureExt};
-use futures_timer::Delay;
 use log::info;
 use matchbox_signaling::SignalingServer;
-use matchbox_socket::PeerState;
-use matchbox_socket::WebRtcSocket;
-use std::time::Duration;
 use tokio::spawn;
 
 pub fn start_server(url: &str) {
@@ -39,7 +34,7 @@ pub fn start_server(url: &str) {
 pub async fn test_construct() {
     init_global_context();
     let client_a = WebRTCClientInterface::open_reliable(
-        &format!("ws://invalid.interface:1234"),
+        &"ws://invalid.interface:1234".to_string(),
         None,
     )
     .await

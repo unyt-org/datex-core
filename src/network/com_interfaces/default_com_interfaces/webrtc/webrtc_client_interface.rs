@@ -38,7 +38,7 @@ pub struct WebRTCClientInterface {
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        return self.get_sockets();
+        self.get_sockets()
     }
 }
 impl WebRTCClientInterface {
@@ -72,7 +72,7 @@ impl WebRTCClientInterface {
             socket: None,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             ice_server_config: ice_server_config
-                .unwrap_or_else(|| RtcIceServerConfig::default()),
+                .unwrap_or_default(),
             info: ComInterfaceInfo::new(),
         };
         interface.start(use_reliable_connection).await?;

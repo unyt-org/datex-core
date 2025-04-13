@@ -1,7 +1,5 @@
-use core::panic;
 use std::sync::{Arc, Mutex};
 
-use log::{info, warn};
 
 use super::{
     com_interface::ComInterfaceSockets,
