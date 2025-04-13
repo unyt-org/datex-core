@@ -73,6 +73,9 @@ features = ["debug", "tokio-rt"]
 
 [dev-dependencies]
 matchbox_signaling = { version = "0.11.0" }
+futures = "0.3"
+futures-timer = { version = "3", features = ["wasm-bindgen"] }
+
 # matchbox_server = { version = "0.11.0" }
 
 

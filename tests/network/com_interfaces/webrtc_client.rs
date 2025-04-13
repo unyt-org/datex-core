@@ -1,15 +1,19 @@
 use core::panic;
 use std::net::SocketAddr;
 
+use crate::context::init_global_context;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface, socket_provider::MultipleSocketProvider,
     webrtc::webrtc_client::WebRTCClientInterface,
 };
+use futures::{select, FutureExt};
+use futures_timer::Delay;
 use log::info;
 use matchbox_signaling::SignalingServer;
+use matchbox_socket::PeerState;
+use matchbox_socket::WebRtcSocket;
+use std::time::Duration;
 use tokio::spawn;
-
-use crate::context::init_global_context;
 
 #[tokio::test]
 pub async fn test_construct() {
@@ -33,6 +37,9 @@ pub async fn test_construct() {
             .cors()
             .trace()
             .build();
+    // let server =
+    //     SignalingServer::full_mesh_builder(url.parse::<SocketAddr>().unwrap())
+    //         .build();
 
     spawn(async move {
         server.serve().await.unwrap_or_else(|e| {
@@ -41,6 +48,60 @@ pub async fn test_construct() {
     });
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    let (mut socket1, loop_fut1) =
+        WebRtcSocket::new_reliable("ws://localhost:8081/");
+
+    spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let (mut socket2, loop_fut1) =
+            WebRtcSocket::new_reliable("ws://localhost:8081/");
+        loop_fut1.await.unwrap_or_else(|e| {
+            panic!("Failed to start signaling server: {:?}", e);
+        });
+    });
+
+    let loop_fut1 = loop_fut1.fuse();
+    futures::pin_mut!(loop_fut1);
+
+    let timeout = Delay::new(Duration::from_millis(100));
+    futures::pin_mut!(timeout);
+
+    loop {
+        // Handle any new peers
+        for (peer, state) in socket1.update_peers() {
+            match state {
+                PeerState::Connected => {
+                    info!("Peer joined123: {peer}");
+                    let packet =
+                        "hello friend!".as_bytes().to_vec().into_boxed_slice();
+                    socket1.channel_mut(0).send(packet, peer);
+                }
+                PeerState::Disconnected => {
+                    info!("Peer left: {peer}");
+                }
+            }
+        }
+
+        // Accept any messages incoming
+        for (peer, packet) in socket1.channel_mut(0).receive() {
+            let message = String::from_utf8_lossy(&packet);
+            info!("Message from {peer}: {message:?}");
+        }
+
+        select! {
+            // Restart this loop every 100ms
+            _ = (&mut timeout).fuse() => {
+                timeout.reset(Duration::from_millis(100));
+            }
+
+            // Or break if the message loop ends (disconnected, closed, etc.)
+            _ = &mut loop_fut1 => {
+                break;
+            }
+        }
+    }
 
     let mut client_a = WebRTCClientInterface::open_reliable(
         &format!("ws://127.0.0.1:{}/test", PORT),

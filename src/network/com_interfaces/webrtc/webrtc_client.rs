@@ -80,10 +80,7 @@ impl WebRTCClientInterface {
         use_reliable_connection: bool,
     ) -> Result<(), WebRTCError> {
         let address = self.address.clone();
-        info!(
-            "Connecting to WebRTC server at {}",
-            address.host_str().unwrap()
-        );
+        info!("Connecting to WebRTC server at {}", address.to_string());
         let ice_config = self.ice_server_config.clone();
         let (socket, future) = if use_reliable_connection {
             WebRtcSocket::builder(address)
