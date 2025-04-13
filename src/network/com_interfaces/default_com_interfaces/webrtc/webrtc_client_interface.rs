@@ -24,17 +24,19 @@ use futures::{select, FutureExt};
 use futures_timer::Delay;
 use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
-use tokio::spawn;
+use tokio::{spawn, sync::Notify};
 use url::Url;
 
 use super::webrtc_common::WebRTCError;
 
 pub struct WebRTCClientInterface {
     pub address: Url,
-    socket: Option<Arc<Mutex<WebRtcSocket>>>,
+    websocket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
     info: ComInterfaceInfo,
+
+    shutdown_signal: Option<Arc<Notify>>,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -63,20 +65,18 @@ impl WebRTCClientInterface {
         ice_server_config: Option<RtcIceServerConfig>,
         use_reliable_connection: bool,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
-        let uuid = ComInterfaceUUID(UUID::new());
         let address =
             Url::parse(address).map_err(|_| WebRTCError::InvalidURL)?;
 
         let mut interface = WebRTCClientInterface {
             address,
-            socket: None,
+            websocket: None,
+            shutdown_signal: None,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             ice_server_config: ice_server_config.unwrap_or_default(),
             info: ComInterfaceInfo::new(),
         };
         interface.start(use_reliable_connection).await?;
-        warn!("done open");
-
         Ok(interface)
     }
 
@@ -103,7 +103,7 @@ impl WebRTCClientInterface {
 
         info!("Connected to WebRTC server");
         let socket = Arc::new(Mutex::new(socket));
-        self.socket = Some(socket.clone());
+        self.websocket = Some(socket.clone());
         let interface_uuid = self.get_uuid().clone();
         let com_interface_sockets = self.get_sockets().clone();
         let peer_socket_map = self.peer_socket_map.clone();
@@ -205,7 +205,7 @@ impl ComInterface for WebRTCClientInterface {
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let peer_socket_map = self.peer_socket_map.clone();
-        let rtc_socket = self.socket.clone();
+        let rtc_socket = self.websocket.clone();
         if rtc_socket.is_none() {
             error!("Client is not connected");
             return Box::pin(async { false });
@@ -249,8 +249,19 @@ impl ComInterface for WebRTCClientInterface {
         }
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
-        Box::pin(async move { true })
+        let shutdown_signal = self.shutdown_signal.clone();
+        let websocket = self.websocket.clone();
+        Box::pin(async move {
+            if shutdown_signal.is_some() {
+                shutdown_signal.unwrap().notified().await;
+            }
+            if websocket.is_some() {
+                let websocket: Arc<Mutex<WebRtcSocket>> = websocket.unwrap();
+                let mut websocket = websocket.lock().unwrap();
+                websocket.close();
+            }
+            true
+        })
     }
     delegate_com_interface_info!();
 }
