@@ -212,7 +212,7 @@ pub trait ComInterface: Any {
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
-    // Destroy the interface and free all resources.
+    // Destroy the interface and free all resources after it has been cleaned up
     fn destroy_sockets(&mut self) {
         let sockets = self.get_sockets();
         let sockets = sockets.lock().unwrap();
@@ -223,6 +223,9 @@ pub trait ComInterface: Any {
         self.set_state(ComInterfaceState::Closed);
     }
 
+    /// Close the interface and free all resources.
+    /// Has to be implemented by the interface and might be async.
+    /// Make sure to call destroy_sockets() after the interface is closed.
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     // Add new socket to the interface (not registered yet)

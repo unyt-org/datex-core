@@ -91,8 +91,8 @@ pub enum SocketEndpointRegistrationError {
 }
 
 impl ComHub {
-    pub fn new(endpoint: Endpoint) -> Rc<RefCell<ComHub>> {
-        Rc::new(RefCell::new(ComHub {
+    pub fn new(endpoint: Endpoint) -> Arc<Mutex<ComHub>> {
+        Arc::new(Mutex::new(ComHub {
             endpoint,
             ..ComHub::default()
         }))
@@ -177,15 +177,27 @@ impl ComHub {
         &mut self,
         interface_uuid: ComInterfaceUUID,
     ) -> Result<(), ComHubError> {
+        info!("Removing interface {}", interface_uuid);
+
+        return Ok(());
         // destroy the interface
         let interface: &Rc<RefCell<dyn ComInterface>> = self
             .interfaces
             .get(&interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
 
+        info!("Closing interface {}", interface_uuid);
+
+        // Async close the interface (stop tasks, server, cleanup internal data)
         if !interface.borrow_mut().close().await {
             return Err(ComHubError::InterfaceCloseFailed);
         }
+
+        // Remove the sockets from the socket list
+        // to notify ComHub routing logic
+        interface.borrow_mut().destroy_sockets();
+
+        info!("Destroying interface {}", interface_uuid);
 
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;

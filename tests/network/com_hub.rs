@@ -24,18 +24,19 @@ lazy_static::lazy_static! {
     static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_string("@test-b").unwrap();
 }
 
-async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)
+async fn get_mock_setup() -> (Arc<Mutex<ComHub>>, Rc<RefCell<MockupInterface>>)
 {
     // init com hub
     let com_hub = ComHub::new(ORIGIN.clone());
-    let mut com_hub_mut = com_hub.borrow_mut();
 
     // init mockup interface
     let mockup_interface_ref =
         Rc::new(RefCell::new(MockupInterface::default()));
 
     // add mockup interface to com_hub
-    com_hub_mut
+    com_hub
+        .lock()
+        .unwrap()
         .add_interface(mockup_interface_ref.clone())
         .await
         .unwrap_or_else(|e| {
@@ -72,13 +73,11 @@ fn register_socket_endpoint(
 }
 
 async fn get_mock_setup_with_socket() -> (
-    Rc<RefCell<ComHub>>,
+    Arc<Mutex<ComHub>>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
     let (com_hub, mockup_interface_ref) = get_mock_setup().await;
-    let mut com_hub_mut = com_hub.borrow_mut();
-
     let socket = add_socket(mockup_interface_ref.clone());
     register_socket_endpoint(
         mockup_interface_ref.clone(),
@@ -86,7 +85,7 @@ async fn get_mock_setup_with_socket() -> (
         TEST_ENDPOINT_A.clone(),
     );
 
-    com_hub_mut.update().await;
+    com_hub.lock().unwrap().update().await;
 
     (com_hub.clone(), mockup_interface_ref, socket)
 }
@@ -146,13 +145,13 @@ pub async fn test_multiple_add() {
 
 async fn send_empty_block(
     endpoints: &[Endpoint],
-    com_hub: &Rc<RefCell<ComHub>>,
+    com_hub: &Arc<Mutex<ComHub>>,
 ) -> DXBBlock {
     // send block
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(endpoints);
 
-    let mut com_hub_mut = com_hub.borrow_mut();
+    let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.send_block(&block, None);
     com_hub_mut.update().await;
     block
@@ -207,7 +206,7 @@ pub async fn send_block_to_multiple_endpoints() {
         socket.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    com_hub.borrow_mut().update().await;
+    com_hub.lock().unwrap().update().await;
 
     // send block to multiple receivers
     let block = send_empty_block(
@@ -243,7 +242,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
         socket_b.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    com_hub.borrow_mut().update().await;
+    com_hub.lock().unwrap().update().await;
 
     // send block to multiple receivers
     let _ = send_empty_block(
@@ -270,7 +269,8 @@ pub async fn default_interface_create_socket_first() {
     let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
 
     com_hub
-        .borrow_mut()
+        .lock()
+        .unwrap()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
@@ -289,7 +289,8 @@ pub async fn default_interface_set_default_interface_first() {
     let (com_hub, com_interface) = get_mock_setup().await;
 
     com_hub
-        .borrow_mut()
+        .lock()
+        .unwrap()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {:?}", e);
@@ -304,7 +305,7 @@ pub async fn default_interface_set_default_interface_first() {
 
     // Update to let the com_hub know about the socket and call the add_socket method
     // This will set the default interface and socket
-    com_hub.borrow_mut().update().await;
+    com_hub.lock().unwrap().update().await;
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
@@ -353,7 +354,6 @@ pub async fn test_receive() {
     // init mock setup
     init_global_context();
     let (com_hub, _, socket) = get_mock_setup_with_socket().await;
-    let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
     let mut block = DXBBlock {
@@ -375,7 +375,7 @@ pub async fn test_receive() {
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         let _ = receive_queue_mut.write(block_bytes.as_slice());
     }
-
+    let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.update().await;
 
     let incoming_blocks_ref = com_hub_mut.incoming_blocks.clone();
@@ -391,7 +391,6 @@ pub async fn test_receive_multiple() {
     // init mock setup
     init_global_context();
     let (com_hub, _, socket) = get_mock_setup_with_socket().await;
-    let mut com_hub_mut = com_hub.borrow_mut();
 
     // receive block
     let blocks = vec![
@@ -431,6 +430,7 @@ pub async fn test_receive_multiple() {
         }
     }
 
+    let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.update().await;
 
     let incoming_blocks_ref = com_hub_mut.incoming_blocks.clone();
