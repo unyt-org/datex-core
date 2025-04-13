@@ -35,7 +35,6 @@ lazy_static::lazy_static! {
 
 pub struct MockupInterface {
     pub block_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     info: ComInterfaceInfo,
 }
 
@@ -76,9 +75,6 @@ impl Default for MockupInterface {
     fn default() -> Self {
         MockupInterface {
             block_queue: Vec::new(),
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
             info: ComInterfaceInfo::new(),
         }
     }
@@ -104,9 +100,6 @@ impl ComInterface for MockupInterface {
         }
     }
 
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
     delegate_com_interface_info!();
 }
 

@@ -27,15 +27,14 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     websocket_stream:
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
     info: ComInterfaceInfo,
 }
 
 impl SingleSocketProvider for WebSocketClientNativeInterface {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
+    fn _get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets().clone()
     }
 }
 
@@ -46,12 +45,9 @@ impl WebSocketClientNativeInterface {
         let address =
             parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
         let info = ComInterfaceInfo::new();
-        let com_interface_sockets =
-            Arc::new(Mutex::new(ComInterfaceSockets::default()));
         let mut interface = WebSocketClientNativeInterface {
             address,
             info,
-            com_interface_sockets,
             websocket_stream: None,
         };
         interface.start().await?;
@@ -75,7 +71,7 @@ impl WebSocketClientNativeInterface {
         );
         self.websocket_stream = Some(write);
         let receive_queue = socket.receive_queue.clone();
-        self.com_interface_sockets
+        self.get_sockets()
             .lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
@@ -131,10 +127,6 @@ impl ComInterface for WebSocketClientNativeInterface {
             max_bandwidth: 1000,
             ..InterfaceProperties::default()
         }
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
     }
 
     delegate_com_interface_info!();

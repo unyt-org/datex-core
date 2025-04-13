@@ -76,6 +76,7 @@ impl ComInterfaceSockets {
 pub struct ComInterfaceInfo {
     state: ComInterfaceState,
     uuid: ComInterfaceUUID,
+    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
 }
 
 impl ComInterfaceInfo {
@@ -83,9 +84,14 @@ impl ComInterfaceInfo {
         Self {
             uuid: ComInterfaceUUID(UUID::new()),
             state: ComInterfaceState::Created,
+            com_interface_sockets: Arc::new(Mutex::new(
+                ComInterfaceSockets::default(),
+            )),
         }
     }
-
+    pub fn com_interface_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.com_interface_sockets.clone()
+    }
     pub fn get_uuid(&self) -> &ComInterfaceUUID {
         &self.uuid
     }
@@ -105,6 +111,9 @@ macro_rules! delegate_com_interface_info {
 
         fn get_info(&self) -> &ComInterfaceInfo {
             &self.info
+        }
+        fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+            self.info.com_interface_sockets().clone()
         }
 
         fn as_any(&self) -> &dyn std::any::Any {

@@ -32,7 +32,6 @@ use tokio_tungstenite::WebSocketStream;
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     websocket_streams: Arc<
         Mutex<
             HashMap<
@@ -55,9 +54,6 @@ impl WebSocketServerNativeInterface {
         let mut interface = WebSocketServerNativeInterface {
             address,
             info: ComInterfaceInfo::new(),
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
             websocket_streams: Arc::new(Mutex::new(HashMap::new())),
         };
         interface.start().await.map_err(|_| {
@@ -85,7 +81,7 @@ impl WebSocketServerNativeInterface {
             )
         })?;
         let interface_uuid = self.get_uuid().clone();
-        let com_interface_sockets = self.com_interface_sockets.clone();
+        let com_interface_sockets = self.get_sockets().clone();
         let websocket_streams = self.websocket_streams.clone();
         tokio::spawn(async move {
             loop {
@@ -199,10 +195,6 @@ impl ComInterface for WebSocketServerNativeInterface {
             max_bandwidth: 1000,
             ..InterfaceProperties::default()
         }
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
     }
 
     delegate_com_interface_info!();

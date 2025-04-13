@@ -30,15 +30,14 @@ use url::Url;
 pub struct WebRTCClientInterface {
     pub address: Url,
     // pub uuid: ComInterfaceUUID,
-    pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
     info: ComInterfaceInfo,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
+    fn get_sockets_(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.info.com_interface_sockets().clone()
     }
 }
 impl WebRTCClientInterface {
@@ -64,15 +63,12 @@ impl WebRTCClientInterface {
         use_reliable_connection: bool,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
         let uuid = ComInterfaceUUID(UUID::new());
-        let com_interface_sockets =
-            Arc::new(Mutex::new(ComInterfaceSockets::default()));
         let address =
             Url::parse(address).map_err(|_| WebRTCError::InvalidURL)?;
 
         let mut interface = WebRTCClientInterface {
             address,
             socket: None,
-            com_interface_sockets,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             ice_server_config: ice_server_config
                 .unwrap_or_else(|| RtcIceServerConfig::default()),
@@ -109,7 +105,7 @@ impl WebRTCClientInterface {
         let socket = Arc::new(Mutex::new(socket));
         self.socket = Some(socket.clone());
         let interface_uuid = self.get_uuid().clone();
-        let com_interface_sockets = self.com_interface_sockets.clone();
+        let com_interface_sockets = self.get_sockets().clone();
         let peer_socket_map = self.peer_socket_map.clone();
         let loop_fut = future.fuse();
 
@@ -236,10 +232,6 @@ impl ComInterface for WebRTCClientInterface {
             max_bandwidth: 1000,
             ..InterfaceProperties::default()
         }
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
     }
 
     delegate_com_interface_info!();

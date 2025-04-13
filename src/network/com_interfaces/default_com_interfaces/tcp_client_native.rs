@@ -28,13 +28,12 @@ use super::super::com_interface::ComInterface;
 
 pub struct TCPClientNativeInterface {
     pub address: Url,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Option<Arc<Mutex<OwnedWriteHalf>>>,
     info: ComInterfaceInfo,
 }
 impl SingleSocketProvider for TCPClientNativeInterface {
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
+    fn _get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets().clone()
     }
 }
 
@@ -44,9 +43,6 @@ impl TCPClientNativeInterface {
     ) -> Result<TCPClientNativeInterface, TCPError> {
         let mut interface = TCPClientNativeInterface {
             address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
             info: ComInterfaceInfo::new(),
             tx: None,
         };
@@ -72,7 +68,7 @@ impl TCPClientNativeInterface {
             1,
         );
         let receive_queue = socket.receive_queue.clone();
-        self.com_interface_sockets
+        self.get_sockets()
             .lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
@@ -122,10 +118,6 @@ impl ComInterface for TCPClientNativeInterface {
         Box::pin(async move {
             tx.unwrap().lock().unwrap().write(block).await.is_ok()
         })
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
     }
 
     delegate_com_interface_info!();

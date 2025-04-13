@@ -21,7 +21,6 @@ use super::super::com_interface::ComInterface;
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
 pub struct LocalLoopbackInterface {
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Arc<Mutex<ComInterfaceSocket>>,
     info: ComInterfaceInfo,
 }
@@ -37,11 +36,7 @@ impl LocalLoopbackInterface {
         )));
         sockets.add_socket(socket.clone());
 
-        LocalLoopbackInterface {
-            com_interface_sockets: Arc::new(Mutex::new(sockets)),
-            info,
-            socket,
-        }
+        LocalLoopbackInterface { info, socket }
     }
 }
 
@@ -66,8 +61,5 @@ impl ComInterface for LocalLoopbackInterface {
         }
     }
 
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
-    }
     delegate_com_interface_info!();
 }

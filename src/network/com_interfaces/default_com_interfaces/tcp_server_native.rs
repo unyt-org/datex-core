@@ -28,7 +28,6 @@ use super::super::com_interface::ComInterface;
 
 pub struct TCPServerNativeInterface {
     pub address: Url,
-    com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
     info: ComInterfaceInfo,
 }
@@ -43,9 +42,6 @@ impl TCPServerNativeInterface {
 
         let mut interface = TCPServerNativeInterface {
             address,
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
             info,
             tx: Arc::new(Mutex::new(HashMap::new())),
         };
@@ -67,7 +63,7 @@ impl TCPServerNativeInterface {
         info!("Server listening on {}", address);
 
         let interface_uuid = self.get_uuid().clone();
-        let sockets = self.com_interface_sockets.clone();
+        let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
         spawn(async move {
             loop {
@@ -152,10 +148,6 @@ impl ComInterface for TCPServerNativeInterface {
         }
         let tx = tx.unwrap().clone();
         Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
-    }
-
-    fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.com_interface_sockets.clone()
     }
 
     delegate_com_interface_info!();
