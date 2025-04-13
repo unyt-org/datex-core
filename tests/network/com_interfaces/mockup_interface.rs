@@ -77,6 +77,10 @@ impl ComInterface for MockupInterface {
         Pin::from(Box::new(async move { true }))
     }
 
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Pin::from(Box::new(async move { true }))
+    }
+
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             channel: "mockup".to_string(),

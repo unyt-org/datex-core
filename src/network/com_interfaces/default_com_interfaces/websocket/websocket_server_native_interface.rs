@@ -18,7 +18,11 @@ use crate::{
 
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, info};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    select,
+    sync::Notify,
+};
 use tungstenite::Message;
 use url::Url;
 
@@ -43,6 +47,7 @@ pub struct WebSocketServerNativeInterface {
         >,
     >,
     info: ComInterfaceInfo,
+    shutdown_signal: Arc<Notify>,
 }
 
 impl WebSocketServerNativeInterface {
@@ -57,6 +62,7 @@ impl WebSocketServerNativeInterface {
             address,
             info: ComInterfaceInfo::new(),
             websocket_streams: Arc::new(Mutex::new(HashMap::new())),
+            shutdown_signal: Arc::new(Notify::new()),
         };
         interface.start().await.map_err(|_| {
             WebSocketServerError::WebSocketError(
@@ -82,83 +88,166 @@ impl WebSocketServerNativeInterface {
                 WebSocketError::ConnectionError,
             )
         })?;
+
         let interface_uuid = self.get_uuid().clone();
         let com_interface_sockets = self.get_sockets().clone();
         let websocket_streams = self.websocket_streams.clone();
         self.set_state(ComInterfaceState::Connected);
+        let shutdown = self.shutdown_signal.clone();
         tokio::spawn(async move {
             loop {
-                let (stream, addr) = match listener.accept().await {
-                    Ok(pair) => pair,
-                    Err(e) => {
-                        error!("Failed to accept connection: {}", e);
-                        continue;
-                    }
-                };
-                let websocket_streams = websocket_streams.clone();
-                let interface_uuid = interface_uuid.clone();
-                let com_interface_sockets = com_interface_sockets.clone();
-                tokio::spawn(async move {
-                    match accept_async(stream).await {
-                        Ok(ws_stream) => {
-                            info!(
-                                "Accepted WebSocket connection from {}",
-                                addr
-                            );
-                            let (write, mut read) = ws_stream.split();
-                            let socket = ComInterfaceSocket::new(
-                                interface_uuid.clone(),
-                                InterfaceDirection::IN_OUT,
-                                1,
-                            );
-                            let socket_uuid = socket.uuid.clone();
-                            let socket_shared = Arc::new(Mutex::new(socket));
+                select! {
+                    res = listener.accept() => {
+                        match res {
+                            Ok((stream, addr)) => {
+                                let websocket_streams = websocket_streams.clone();
+                                let interface_uuid = interface_uuid.clone();
+                                let com_interface_sockets = com_interface_sockets.clone();
+                                tokio::spawn(async move {
+                                    match accept_async(stream).await {
+                                        Ok(ws_stream) => {
+                                            info!(
+                                                "Accepted WebSocket connection from {}",
+                                                addr
+                                            );
+                                            let (write, mut read) = ws_stream.split();
+                                            let socket = ComInterfaceSocket::new(
+                                                interface_uuid.clone(),
+                                                InterfaceDirection::IN_OUT,
+                                                1,
+                                            );
+                                            let socket_uuid = socket.uuid.clone();
+                                            let socket_shared = Arc::new(Mutex::new(socket));
 
-                            com_interface_sockets
-                                .clone()
-                                .lock()
-                                .unwrap()
-                                .add_socket(socket_shared.clone());
+                                            com_interface_sockets
+                                                .clone()
+                                                .lock()
+                                                .unwrap()
+                                                .add_socket(socket_shared.clone());
 
-                            websocket_streams
-                                .lock()
-                                .unwrap()
-                                .insert(socket_uuid, write);
+                                            websocket_streams
+                                                .lock()
+                                                .unwrap()
+                                                .insert(socket_uuid, write);
 
-                            while let Some(msg) = read.next().await {
-                                match msg {
-                                    Ok(Message::Binary(bin)) => {
-                                        debug!(
-                                            "Received binary message: {:?}",
-                                            bin
-                                        );
-                                        socket_shared
-                                            .lock()
-                                            .unwrap()
-                                            .receive_queue
-                                            .lock()
-                                            .unwrap()
-                                            .extend(bin);
+                                            while let Some(msg) = read.next().await {
+                                                match msg {
+                                                    Ok(Message::Binary(bin)) => {
+                                                        debug!(
+                                                            "Received binary message: {:?}",
+                                                            bin
+                                                        );
+                                                        socket_shared
+                                                            .lock()
+                                                            .unwrap()
+                                                            .receive_queue
+                                                            .lock()
+                                                            .unwrap()
+                                                            .extend(bin);
+                                                    }
+                                                    Ok(_) => {}
+                                                    Err(e) => {
+                                                        error!(
+                                                            "WebSocket error from {}: {}",
+                                                            addr, e
+                                                        );
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error!(
+                                                "WebSocket handshake failed with {}: {}",
+                                                addr, e
+                                            );
+                                        }
                                     }
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        error!(
-                                            "WebSocket error from {}: {}",
-                                            addr, e
-                                        );
-                                        break;
-                                    }
-                                }
+                                });
                             }
-                        }
-                        Err(e) => {
-                            error!(
-                                "WebSocket handshake failed with {}: {}",
-                                addr, e
-                            );
-                        }
+                            Err(e) => {
+                                error!("Failed to accept connection: {}", e);
+                                continue;
+                            }
+                        };
                     }
-                });
+                    _ = shutdown.notified() => {
+                        info!("Shutdown signal received, stopping server...");
+                        break;
+                    }
+                }
+
+                // let (stream, addr) = match listener.accept().await {
+                //     Ok(pair) => pair,
+                //     Err(e) => {
+                //         error!("Failed to accept connection: {}", e);
+                //         continue;
+                //     }
+                // };
+                // let websocket_streams = websocket_streams.clone();
+                // let interface_uuid = interface_uuid.clone();
+                // let com_interface_sockets = com_interface_sockets.clone();
+                // tokio::spawn(async move {
+                //     match accept_async(stream).await {
+                //         Ok(ws_stream) => {
+                //             info!(
+                //                 "Accepted WebSocket connection from {}",
+                //                 addr
+                //             );
+                //             let (write, mut read) = ws_stream.split();
+                //             let socket = ComInterfaceSocket::new(
+                //                 interface_uuid.clone(),
+                //                 InterfaceDirection::IN_OUT,
+                //                 1,
+                //             );
+                //             let socket_uuid = socket.uuid.clone();
+                //             let socket_shared = Arc::new(Mutex::new(socket));
+
+                //             com_interface_sockets
+                //                 .clone()
+                //                 .lock()
+                //                 .unwrap()
+                //                 .add_socket(socket_shared.clone());
+
+                //             websocket_streams
+                //                 .lock()
+                //                 .unwrap()
+                //                 .insert(socket_uuid, write);
+
+                //             while let Some(msg) = read.next().await {
+                //                 match msg {
+                //                     Ok(Message::Binary(bin)) => {
+                //                         debug!(
+                //                             "Received binary message: {:?}",
+                //                             bin
+                //                         );
+                //                         socket_shared
+                //                             .lock()
+                //                             .unwrap()
+                //                             .receive_queue
+                //                             .lock()
+                //                             .unwrap()
+                //                             .extend(bin);
+                //                     }
+                //                     Ok(_) => {}
+                //                     Err(e) => {
+                //                         error!(
+                //                             "WebSocket error from {}: {}",
+                //                             addr, e
+                //                         );
+                //                         break;
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //         Err(e) => {
+                //             error!(
+                //                 "WebSocket handshake failed with {}: {}",
+                //                 addr, e
+                //             );
+                //         }
+                //     }
+                // });
             }
         });
         Ok(())
@@ -200,7 +289,15 @@ impl ComInterface for WebSocketServerNativeInterface {
         }
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        Box::pin(async move { true })
+        let shutdown_signal = self.shutdown_signal.clone();
+        Box::pin(async move {
+            shutdown_signal.notify_one();
+            // let mut streams = self.websocket_streams.lock().unwrap();
+            // for (_, stream) in streams.iter_mut() {
+            //     stream.close(None).await.is_ok();
+            // }
+            true
+        })
     }
     delegate_com_interface_info!();
 }
