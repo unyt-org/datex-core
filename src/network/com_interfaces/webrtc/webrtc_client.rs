@@ -17,7 +17,7 @@ use crate::{
     utils::uuid::UUID,
 };
 use log::{debug, error, info, warn};
-use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
+use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
 use tokio::spawn;
 use url::Url;
 
@@ -27,6 +27,7 @@ pub struct WebRTCClientInterface {
     pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
+    ice_server_config: RtcIceServerConfig,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -35,19 +36,23 @@ impl MultipleSocketProvider for WebRTCClientInterface {
 }
 
 impl WebRTCClientInterface {
+    const RECONNECT_ATTEMPTS: u16 = 3;
     const CHANNEL_ID: usize = 0;
     pub async fn open_reliable(
         address: &str,
+        ice_server_config: Option<RtcIceServerConfig>,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
-        Self::open(address, true).await
+        Self::open(address, ice_server_config, true).await
     }
     pub async fn open_unreliable(
         address: &str,
+        ice_server_config: Option<RtcIceServerConfig>,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
-        Self::open(address, false).await
+        Self::open(address, ice_server_config, false).await
     }
     async fn open(
         address: &str,
+        ice_server_config: Option<RtcIceServerConfig>,
         use_reliable_connection: bool,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
         let uuid = ComInterfaceUUID(UUID::new());
@@ -62,6 +67,8 @@ impl WebRTCClientInterface {
             socket: None,
             com_interface_sockets,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
+            ice_server_config: ice_server_config
+                .unwrap_or_else(|| RtcIceServerConfig::default()),
         };
         interface.start(use_reliable_connection).await?;
         warn!("done open");
@@ -77,11 +84,19 @@ impl WebRTCClientInterface {
             "Connecting to WebRTC server at {}",
             address.host_str().unwrap()
         );
-        // TODO we should handle closing the queue here (see https://github.com/johanhelsing/matchbox/blob/883a89445ab16e8cb781b05ab435047bc9ae2b74/examples/simple/src/main.rs#L72)
+        let ice_config = self.ice_server_config.clone();
         let (socket, future) = if use_reliable_connection {
-            WebRtcSocket::new_reliable(address)
+            WebRtcSocket::builder(address)
+                .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
+                .add_reliable_channel()
+                .ice_server(ice_config)
+                .build()
         } else {
-            WebRtcSocket::new_unreliable(address)
+            WebRtcSocket::builder(address)
+                .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
+                .add_unreliable_channel()
+                .ice_server(ice_config)
+                .build()
         };
         spawn(async move {
             future
@@ -109,7 +124,7 @@ impl WebRTCClientInterface {
                     let mut peer_socket_map = peer_socket_map.lock().unwrap();
                     let mut com_interface_sockets =
                         com_interface_sockets.lock().unwrap();
-                    info!("state");
+                    info!("got state update: {peer:?} {state:?}");
                     match state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
