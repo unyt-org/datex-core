@@ -7,11 +7,11 @@ use std::{
 };
 
 use crate::{
-    implement_com_interface,
+    delegate_socket_state,
     network::com_interfaces::{
         com_interface::{
-            self, ComInterface, ComInterfaceSockets, ComInterfaceUUID,
-            SocketState,
+            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
+            ComInterfaceUUID,
         },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
@@ -29,12 +29,12 @@ use url::Url;
 
 pub struct WebRTCClientInterface {
     pub address: Url,
-    pub uuid: ComInterfaceUUID,
+    // pub uuid: ComInterfaceUUID,
     pub com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
-    pub socket_state: SocketState,
+    info: ComInterfaceInfo,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -71,12 +71,12 @@ impl WebRTCClientInterface {
 
         let mut interface = WebRTCClientInterface {
             address,
-            uuid,
             socket: None,
             com_interface_sockets,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             ice_server_config: ice_server_config
                 .unwrap_or_else(|| RtcIceServerConfig::default()),
+            info: ComInterfaceInfo::new(),
         };
         interface.start(use_reliable_connection).await?;
         warn!("done open");
@@ -108,7 +108,7 @@ impl WebRTCClientInterface {
         info!("Connected to WebRTC server");
         let socket = Arc::new(Mutex::new(socket));
         self.socket = Some(socket.clone());
-        let interface_uuid = self.uuid.clone();
+        let interface_uuid = self.get_uuid().clone();
         let com_interface_sockets = self.com_interface_sockets.clone();
         let peer_socket_map = self.peer_socket_map.clone();
         let loop_fut = future.fuse();
@@ -238,9 +238,9 @@ impl ComInterface for WebRTCClientInterface {
         }
     }
 
-    fn get_uuid(&self) -> &ComInterfaceUUID {
-        &self.uuid
-    }
+    // fn get_uuid(&self) -> &ComInterfaceUUID {
+    //     &self.uuid
+    // }
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
@@ -251,4 +251,6 @@ impl ComInterface for WebRTCClientInterface {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    delegate_socket_state!();
 }
