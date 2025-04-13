@@ -601,10 +601,10 @@ impl ComHub {
     /// Run the update loop for the ComHub.
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
-    pub fn start_update_loop(self_rc: Rc<RefCell<Self>>) {
+    pub fn start_update_loop(self_rc: Arc<Mutex<Self>>) {
         spawn_local(async move {
             loop {
-                self_rc.borrow_mut().update().await;
+                self_rc.lock().unwrap().update().await;
             }
         });
     }
