@@ -35,7 +35,7 @@ pub struct DynamicEndpointProperties {
 pub struct ComHub {
     pub endpoint: Endpoint,
 
-    pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
+    pub interfaces: HashMap<ComInterfaceUUID, Arc<Mutex<dyn ComInterface>>>,
     /// a list of all available sockets, keyed by their UUID
     /// contains the socket itself and a list of endpoints currently associated with it
     // TODO: keep socket mapping up to date
@@ -179,11 +179,10 @@ impl ComHub {
     ) -> Result<(), ComHubError> {
         info!("Removing interface {}", interface_uuid);
 
-        return Ok(());
         // destroy the interface
         let interface: &Rc<RefCell<dyn ComInterface>> = self
             .interfaces
-            .get(&interface_uuid)
+            .get_mut(&interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
 
         info!("Closing interface {}", interface_uuid);
@@ -192,6 +191,7 @@ impl ComHub {
         if !interface.borrow_mut().close().await {
             return Err(ComHubError::InterfaceCloseFailed);
         }
+        info!("Closed interface {}", interface_uuid);
 
         // Remove the sockets from the socket list
         // to notify ComHub routing logic
