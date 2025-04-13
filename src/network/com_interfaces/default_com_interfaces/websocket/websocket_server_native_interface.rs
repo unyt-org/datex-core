@@ -22,6 +22,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
     select,
     sync::Notify,
+    task::JoinHandle,
 };
 use tungstenite::Message;
 use url::Url;
@@ -94,6 +95,8 @@ impl WebSocketServerNativeInterface {
         let websocket_streams = self.websocket_streams.clone();
         self.set_state(ComInterfaceState::Connected);
         let shutdown = self.shutdown_signal.clone();
+        let mut tasks: Vec<JoinHandle<()>> = vec![];
+
         tokio::spawn(async move {
             loop {
                 select! {
@@ -103,7 +106,7 @@ impl WebSocketServerNativeInterface {
                                 let websocket_streams = websocket_streams.clone();
                                 let interface_uuid = interface_uuid.clone();
                                 let com_interface_sockets = com_interface_sockets.clone();
-                                tokio::spawn(async move {
+                                let task = tokio::spawn(async move {
                                     match accept_async(stream).await {
                                         Ok(ws_stream) => {
                                             info!(
@@ -164,6 +167,7 @@ impl WebSocketServerNativeInterface {
                                         }
                                     }
                                 });
+                                tasks.push(task);
                             }
                             Err(e) => {
                                 error!("Failed to accept connection: {}", e);
@@ -173,81 +177,12 @@ impl WebSocketServerNativeInterface {
                     }
                     _ = shutdown.notified() => {
                         info!("Shutdown signal received, stopping server...");
+                        for task in tasks {
+                            task.abort();
+                        }
                         break;
                     }
                 }
-
-                // let (stream, addr) = match listener.accept().await {
-                //     Ok(pair) => pair,
-                //     Err(e) => {
-                //         error!("Failed to accept connection: {}", e);
-                //         continue;
-                //     }
-                // };
-                // let websocket_streams = websocket_streams.clone();
-                // let interface_uuid = interface_uuid.clone();
-                // let com_interface_sockets = com_interface_sockets.clone();
-                // tokio::spawn(async move {
-                //     match accept_async(stream).await {
-                //         Ok(ws_stream) => {
-                //             info!(
-                //                 "Accepted WebSocket connection from {}",
-                //                 addr
-                //             );
-                //             let (write, mut read) = ws_stream.split();
-                //             let socket = ComInterfaceSocket::new(
-                //                 interface_uuid.clone(),
-                //                 InterfaceDirection::IN_OUT,
-                //                 1,
-                //             );
-                //             let socket_uuid = socket.uuid.clone();
-                //             let socket_shared = Arc::new(Mutex::new(socket));
-
-                //             com_interface_sockets
-                //                 .clone()
-                //                 .lock()
-                //                 .unwrap()
-                //                 .add_socket(socket_shared.clone());
-
-                //             websocket_streams
-                //                 .lock()
-                //                 .unwrap()
-                //                 .insert(socket_uuid, write);
-
-                //             while let Some(msg) = read.next().await {
-                //                 match msg {
-                //                     Ok(Message::Binary(bin)) => {
-                //                         debug!(
-                //                             "Received binary message: {:?}",
-                //                             bin
-                //                         );
-                //                         socket_shared
-                //                             .lock()
-                //                             .unwrap()
-                //                             .receive_queue
-                //                             .lock()
-                //                             .unwrap()
-                //                             .extend(bin);
-                //                     }
-                //                     Ok(_) => {}
-                //                     Err(e) => {
-                //                         error!(
-                //                             "WebSocket error from {}: {}",
-                //                             addr, e
-                //                         );
-                //                         break;
-                //                     }
-                //                 }
-                //             }
-                //         }
-                //         Err(e) => {
-                //             error!(
-                //                 "WebSocket handshake failed with {}: {}",
-                //                 addr, e
-                //             );
-                //         }
-                //     }
-                // });
             }
         });
         Ok(())
@@ -290,12 +225,10 @@ impl ComInterface for WebSocketServerNativeInterface {
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
+        let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {
-            shutdown_signal.notify_one();
-            // let mut streams = self.websocket_streams.lock().unwrap();
-            // for (_, stream) in streams.iter_mut() {
-            //     stream.close(None).await.is_ok();
-            // }
+            shutdown_signal.notified().await;
+            websocket_streams.lock().unwrap().clear();
             true
         })
     }
