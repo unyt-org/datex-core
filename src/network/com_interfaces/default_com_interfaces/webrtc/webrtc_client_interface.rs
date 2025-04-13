@@ -71,8 +71,7 @@ impl WebRTCClientInterface {
             address,
             socket: None,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
-            ice_server_config: ice_server_config
-                .unwrap_or_default(),
+            ice_server_config: ice_server_config.unwrap_or_default(),
             info: ComInterfaceInfo::new(),
         };
         interface.start(use_reliable_connection).await?;
@@ -249,6 +248,8 @@ impl ComInterface for WebRTCClientInterface {
             ..InterfaceProperties::default()
         }
     }
-
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { true })
+    }
     delegate_com_interface_info!();
 }

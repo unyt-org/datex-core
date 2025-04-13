@@ -116,6 +116,9 @@ impl ComInterface for TCPClientNativeInterface {
             ..InterfaceProperties::default()
         }
     }
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { true })
+    }
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

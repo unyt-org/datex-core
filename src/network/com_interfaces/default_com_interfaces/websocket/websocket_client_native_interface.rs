@@ -132,5 +132,9 @@ impl ComInterface for WebSocketClientNativeInterface {
         }
     }
 
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { true })
+    }
+
     delegate_com_interface_info!();
 }

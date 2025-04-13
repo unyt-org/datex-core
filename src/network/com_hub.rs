@@ -6,6 +6,7 @@ use log::{debug, error, info};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use tokio::spawn;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{
@@ -77,6 +78,7 @@ impl Default for ComHub {
 #[derive(Debug)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
+    InterfaceCloseFailed,
     InterfaceNotConnected,
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
@@ -176,15 +178,14 @@ impl ComHub {
         interface_uuid: ComInterfaceUUID,
     ) -> Result<(), ComHubError> {
         // destroy the interface
-        let interface = self
+        let interface: &Rc<RefCell<dyn ComInterface>> = self
             .interfaces
             .get(&interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
 
-        // Make this async
-        interface.borrow_mut().close().unwrap_or_else(|_| {
-            panic!("Failed to close interface {}", interface_uuid)
-        });
+        if !interface.borrow_mut().close().await {
+            return Err(ComHubError::InterfaceCloseFailed);
+        }
 
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
