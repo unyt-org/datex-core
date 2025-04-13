@@ -60,6 +60,10 @@ js-sys = { version = "0.3.77", optional = true }
 matchbox_socket = { version = "0.11.0", optional = true }         # , optional = true
 esp-idf-svc = { version = "0.51.0", optional = true }
 
+
+futures = "0.3"
+futures-timer = { version = "3", features = ["wasm-bindgen"] }
+
 [profile.release]
 opt-level = "z"
 strip = true
@@ -73,8 +77,6 @@ features = ["debug", "tokio-rt"]
 
 [dev-dependencies]
 matchbox_signaling = { version = "0.11.0" }
-futures = "0.3"
-futures-timer = { version = "3", features = ["wasm-bindgen"] }
 
 # matchbox_server = { version = "0.11.0" }
 

@@ -15,96 +15,53 @@ use matchbox_socket::WebRtcSocket;
 use std::time::Duration;
 use tokio::spawn;
 
-#[tokio::test]
-pub async fn test_construct() {
-    const PORT: u16 = 8081;
-    const CLIENT_A_TO_CLIENT_B_MSG: &[u8] = b"Hello World";
-    const CLIENT_B_TO_CLIENT_A_MSG: &[u8] = b"Nooo, this is Patrick!";
-    let url = format!("127.0.0.1:{}", PORT);
-
-    init_global_context();
-    info!("Starting signaling server on {}", url);
+pub fn start_server(url: &str) {
     let server =
         SignalingServer::full_mesh_builder(url.parse::<SocketAddr>().unwrap())
             .on_connection_request(|_| Ok(true))
             .on_id_assignment(|(socket, id)| info!("{socket} received {id}"))
             .on_peer_connected(|id| info!("Peer connected: {id}"))
             .on_peer_disconnected(|id| info!("Peer disconnected: {id}"))
-            // .on_host_connected(|id| info!("Host joined: {id}"))
-            // .on_host_disconnected(|id| info!("Host left: {id}"))
-            // .on_client_connected(|id| info!("Client joined: {id}"))
-            // .on_client_disconnected(|id| info!("Client left: {id}"))
             .cors()
             .trace()
             .build();
-    // let server =
-    //     SignalingServer::full_mesh_builder(url.parse::<SocketAddr>().unwrap())
-    //         .build();
 
     spawn(async move {
         server.serve().await.unwrap_or_else(|e| {
             panic!("Failed to start signaling server: {:?}", e);
         });
     });
+}
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+#[tokio::test]
+pub async fn test_construct() {
+    init_global_context();
 
-    let (mut socket1, loop_fut1) =
-        WebRtcSocket::new_reliable("ws://localhost:8081/");
-
-    spawn(async move {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-        let (mut socket2, loop_fut1) =
-            WebRtcSocket::new_reliable("ws://localhost:8081/");
-        loop_fut1.await.unwrap_or_else(|e| {
-            panic!("Failed to start signaling server: {:?}", e);
-        });
+    let client_a = WebRTCClientInterface::open_reliable(
+        &format!("ws://invalid.interface:1234"),
+        None,
+    )
+    .await
+    .unwrap_or_else(|e| {
+        panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
-    let loop_fut1 = loop_fut1.fuse();
-    futures::pin_mut!(loop_fut1);
+    client_a
 
-    let timeout = Delay::new(Duration::from_millis(100));
-    futures::pin_mut!(timeout);
+    tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+}
 
-    loop {
-        // Handle any new peers
-        for (peer, state) in socket1.update_peers() {
-            match state {
-                PeerState::Connected => {
-                    info!("Peer joined123: {peer}");
-                    let packet =
-                        "hello friend!".as_bytes().to_vec().into_boxed_slice();
-                    socket1.channel_mut(0).send(packet, peer);
-                }
-                PeerState::Disconnected => {
-                    info!("Peer left: {peer}");
-                }
-            }
-        }
-
-        // Accept any messages incoming
-        for (peer, packet) in socket1.channel_mut(0).receive() {
-            let message = String::from_utf8_lossy(&packet);
-            info!("Message from {peer}: {message:?}");
-        }
-
-        select! {
-            // Restart this loop every 100ms
-            _ = (&mut timeout).fuse() => {
-                timeout.reset(Duration::from_millis(100));
-            }
-
-            // Or break if the message loop ends (disconnected, closed, etc.)
-            _ = &mut loop_fut1 => {
-                break;
-            }
-        }
-    }
+#[tokio::test]
+pub async fn test_send_receive() {
+    const PORT: u16 = 8081;
+    const CLIENT_A_TO_CLIENT_B_MSG: &[u8] = b"Hello World";
+    const CLIENT_B_TO_CLIENT_A_MSG: &[u8] = b"Nooo, this is Patrick!";
+    let url = format!("127.0.0.1:{}", PORT);
+    init_global_context();
+    start_server(&url);
 
     let mut client_a = WebRTCClientInterface::open_reliable(
-        &format!("ws://127.0.0.1:{}/test", PORT),
+        &format!("ws://127.0.0.1:{}", PORT),
         None,
     )
     .await
@@ -112,29 +69,54 @@ pub async fn test_construct() {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
-    info!("client_a created");
-    let client_b = WebRTCClientInterface::open_reliable(
-        &format!("ws://127.0.0.1:{}/test", PORT),
+    let mut client_b = WebRTCClientInterface::open_reliable(
+        &format!("ws://127.0.0.1:{}", PORT),
         None,
     )
     .await
     .unwrap_or_else(|e| {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
-    info!("client_b created");
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(7)).await;
-    return;
-
-    // FIXME lock active here
-    info!("get_socket_uuid_at 1");
     assert_eq!(client_a.get_sockets_count(), 1);
     assert_eq!(client_b.get_sockets_count(), 1);
-    info!("get_socket_uuid_at 2");
 
-    let uuid = client_a.get_socket_uuid_at(0).unwrap();
+    let uuid_a_to_b = client_a.get_socket_uuid_at(0).unwrap();
+    client_a
+        .send_block(CLIENT_A_TO_CLIENT_B_MSG, uuid_a_to_b)
+        .await;
 
-    client_a.send_block(CLIENT_A_TO_CLIENT_B_MSG, uuid).await;
+    let uuid_b_to_a = client_b.get_socket_uuid_at(0).unwrap();
+    client_b
+        .send_block(CLIENT_B_TO_CLIENT_A_MSG, uuid_b_to_a)
+        .await;
+
+    let client_a_socket = client_a.get_socket_at(0).unwrap();
+    let client_b_socket = client_b.get_socket_at(0).unwrap();
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    assert_eq!(
+        CLIENT_B_TO_CLIENT_A_MSG,
+        client_a_socket
+            .lock()
+            .unwrap()
+            .receive_queue
+            .lock()
+            .unwrap()
+            .drain(..)
+            .collect::<Vec<_>>()
+    );
+
+    assert_eq!(
+        CLIENT_A_TO_CLIENT_B_MSG,
+        client_b_socket
+            .lock()
+            .unwrap()
+            .receive_queue
+            .lock()
+            .unwrap()
+            .drain(..)
+            .collect::<Vec<_>>()
+    );
 }

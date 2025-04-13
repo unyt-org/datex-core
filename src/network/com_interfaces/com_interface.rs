@@ -37,6 +37,13 @@ pub enum ComInterfaceError {
     ReceiveError,
 }
 
+#[derive(Debug)]
+pub enum ComInterfaceState {
+    Created,
+    Open,
+    Closed,
+}
+
 #[derive(Debug, Default)]
 pub struct ComInterfaceSockets {
     pub sockets:
@@ -63,11 +70,73 @@ impl ComInterfaceSockets {
         self.sockets.get(uuid).cloned()
     }
 }
-// impl<T: Any> ComInterface for T {
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-// }
+
+pub struct SocketState {
+    state: String, // You can customize the type and content of the state
+}
+
+impl SocketState {
+    pub fn new() -> Self {
+        Self {
+            state: String::new(),
+        }
+    }
+
+    pub fn get_state(&self) -> &str {
+        &self.state
+    }
+
+    pub fn set_state(&mut self, new_state: String) {
+        self.state = new_state;
+    }
+}
+#[macro_export]
+macro_rules! implement_com_interface {
+    ($struct_name:ident) => {
+        impl ComInterface for $struct_name {
+            fn send_block<'a>(
+                &'a mut self,
+                block: &'a [u8],
+                socket_uuid: ComInterfaceSocketUUID,
+            ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+                // Implement the send_block logic here
+                unimplemented!()
+            }
+            fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+                // Implement the get_sockets logic here
+                unimplemented!()
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                // Implement the send_block logic here
+                unimplemented!()
+            }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                // Implement the send_block logic here
+                unimplemented!()
+            }
+
+            fn get_properties(&self) -> InterfaceProperties {
+                // Implement the send_block logic here
+                unimplemented!()
+            }
+            fn get_uuid(&self) -> &ComInterfaceUUID {
+                // Implement the send_block logic here
+                unimplemented!()
+            }
+
+            // Automatically generated methods for get_state and set_state
+            fn get_socket_state(&self) -> &SocketState {
+                &self.socket_state
+            }
+
+            fn get_socket_state_mut(&mut self) -> &mut SocketState {
+                &mut self.socket_state
+            }
+        }
+    };
+}
+
 pub trait ComInterface: Any {
     fn send_block<'a>(
         &'a mut self,
@@ -79,6 +148,8 @@ pub trait ComInterface: Any {
 
     fn get_properties(&self) -> InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;
+    fn get_socket_state(&self) -> &SocketState;
+    fn get_socket_state_mut(&mut self) -> &mut SocketState;
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 

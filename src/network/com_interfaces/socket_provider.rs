@@ -40,6 +40,15 @@ pub trait MultipleSocketProvider {
             .map(|s| s.lock().unwrap().uuid.clone());
         socket
     }
+    fn get_socket_at(
+        &self,
+        index: usize,
+    ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
+        let sockets = self.get_sockets();
+        let sockets = sockets.lock().unwrap();
+        let socket = sockets.sockets.values().nth(index).cloned();
+        socket
+    }
 }
 
 pub trait SingleSocketProvider {

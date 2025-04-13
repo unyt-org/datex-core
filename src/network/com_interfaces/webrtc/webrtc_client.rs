@@ -7,8 +7,12 @@ use std::{
 };
 
 use crate::{
+    implement_com_interface,
     network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceSockets, ComInterfaceUUID},
+        com_interface::{
+            self, ComInterface, ComInterfaceSockets, ComInterfaceUUID,
+            SocketState,
+        },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::MultipleSocketProvider,
@@ -16,6 +20,8 @@ use crate::{
     },
     utils::uuid::UUID,
 };
+use futures::{select, FutureExt};
+use futures_timer::Delay;
 use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
 use tokio::spawn;
@@ -28,13 +34,13 @@ pub struct WebRTCClientInterface {
     socket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
+    pub socket_state: SocketState,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
     }
 }
-
 impl WebRTCClientInterface {
     const RECONNECT_ATTEMPTS: u16 = 3;
     const CHANNEL_ID: usize = 0;
@@ -44,12 +50,14 @@ impl WebRTCClientInterface {
     ) -> Result<WebRTCClientInterface, WebRTCError> {
         Self::open(address, ice_server_config, true).await
     }
+
     pub async fn open_unreliable(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
         Self::open(address, ice_server_config, false).await
     }
+
     async fn open(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
@@ -75,6 +83,7 @@ impl WebRTCClientInterface {
 
         Ok(interface)
     }
+
     async fn start(
         &mut self,
         use_reliable_connection: bool,
@@ -102,14 +111,20 @@ impl WebRTCClientInterface {
         let interface_uuid = self.uuid.clone();
         let com_interface_sockets = self.com_interface_sockets.clone();
         let peer_socket_map = self.peer_socket_map.clone();
+        let loop_fut = future.fuse();
+
         spawn(async move {
+            futures::pin_mut!(loop_fut);
+            let timeout = Delay::new(Duration::from_millis(100));
+            futures::pin_mut!(timeout);
+            let mut timeout = timeout;
+
             let rtc_socket = socket.as_ref();
             loop {
                 for (peer, state) in rtc_socket.lock().unwrap().update_peers() {
                     let mut peer_socket_map = peer_socket_map.lock().unwrap();
                     let mut com_interface_sockets =
                         com_interface_sockets.lock().unwrap();
-                    info!("got state update: {peer:?} {state:?}");
                     match state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
@@ -133,7 +148,6 @@ impl WebRTCClientInterface {
                         }
                     }
                 }
-                return;
 
                 for (peer, packet) in rtc_socket
                     .lock()
@@ -157,18 +171,17 @@ impl WebRTCClientInterface {
                     drop(queue);
                     drop(socket);
                 }
+                select! {
+                    _ = (&mut timeout).fuse() => {
+                        timeout.reset(Duration::from_millis(100));
+                    }
+                    // Break if the message loop ends (disconnected, closed, etc.)
+                    _ = &mut loop_fut => {
+                        break;
+                    }
+                }
             }
-        });
-        spawn(async move {
-            future
-                .await
-                .map_err(|_| {
-                    error!("Failed to connect to WebRTC server");
-                    WebRTCError::ConnectionError
-                })
-                .unwrap_or_else(|_| {
-                    error!("Failed to connect to WebRTC server");
-                });
+            warn!("WebRTC socket closed");
         });
         Ok(())
     }
