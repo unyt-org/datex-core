@@ -1,8 +1,8 @@
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::{
-        tcp_client_native::TCPClientNativeInterface,
-        tcp_server_native::TCPServerNativeInterface,
+        tcp_client_native_interface::TCPClientNativeInterface,
+        tcp_server_native_interface::TCPServerNativeInterface,
     },
     socket_provider::SingleSocketProvider,
 };

@@ -5,7 +5,7 @@ use crate::context::init_global_context;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface, socket_provider::MultipleSocketProvider,
-    webrtc::webrtc_client::WebRTCClientInterface,
+    webrtc::webrtc_client_interface::WebRTCClientInterface,
 };
 use futures::{select, FutureExt};
 use futures_timer::Delay;
