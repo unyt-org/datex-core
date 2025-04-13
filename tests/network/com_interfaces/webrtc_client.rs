@@ -2,8 +2,7 @@ use core::panic;
 use std::net::SocketAddr;
 
 use datex_core::network::com_interfaces::{
-    com_interface::ComInterface,
-    socket_provider::MultipleSocketProvider,
+    com_interface::ComInterface, socket_provider::MultipleSocketProvider,
     webrtc::webrtc_client::WebRTCClientInterface,
 };
 use log::info;
@@ -20,6 +19,7 @@ pub async fn test_construct() {
     let url = format!("127.0.0.1:{}", PORT);
 
     init_global_context();
+    info!("Starting signaling server on {}", url);
     let server = SignalingServer::client_server_builder(
         url.parse::<SocketAddr>().unwrap(),
     )
@@ -64,12 +64,13 @@ pub async fn test_construct() {
     });
     info!("client_b created");
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     // FIXME lock active here
     // assert_eq!(client_a.get_sockets_count(), 1);
     // assert_eq!(client_b.get_sockets_count(), 1);
     // panic!("B");
+    info!("get_socket_uuid_at");
 
     let uuid = client_a.get_socket_uuid_at(0).unwrap();
 

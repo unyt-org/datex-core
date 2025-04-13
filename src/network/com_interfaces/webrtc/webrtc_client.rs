@@ -109,6 +109,7 @@ impl WebRTCClientInterface {
                     let mut peer_socket_map = peer_socket_map.lock().unwrap();
                     let mut com_interface_sockets =
                         com_interface_sockets.lock().unwrap();
+                    info!("state");
                     match state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
@@ -132,6 +133,7 @@ impl WebRTCClientInterface {
                         }
                     }
                 }
+                return;
 
                 for (peer, packet) in rtc_socket
                     .lock()

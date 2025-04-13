@@ -1,4 +1,7 @@
+use core::panic;
 use std::sync::{Arc, Mutex};
+
+use log::{info, warn};
 
 use super::{
     com_interface::ComInterfaceSockets,
@@ -28,13 +31,14 @@ pub trait MultipleSocketProvider {
         &self,
         index: usize,
     ) -> Option<ComInterfaceSocketUUID> {
-        self.get_sockets()
-            .lock()
-            .unwrap()
+        let sockets = self.get_sockets();
+        let sockets = sockets.lock().unwrap();
+        let socket = sockets
             .sockets
             .values()
             .nth(index)
-            .map(|s| s.lock().unwrap().uuid.clone())
+            .map(|s| s.lock().unwrap().uuid.clone());
+        socket
     }
 }
 
