@@ -20,18 +20,19 @@ pub async fn test_construct() {
 
     init_global_context();
     info!("Starting signaling server on {}", url);
-    let server = SignalingServer::client_server_builder(
-        url.parse::<SocketAddr>().unwrap(),
-    )
-    .on_connection_request(|_| Ok(true))
-    .on_id_assignment(|(socket, id)| info!("{socket} received {id}"))
-    .on_host_connected(|id| info!("Host joined: {id}"))
-    .on_host_disconnected(|id| info!("Host left: {id}"))
-    .on_client_connected(|id| info!("Client joined: {id}"))
-    .on_client_disconnected(|id| info!("Client left: {id}"))
-    .cors()
-    .trace()
-    .build();
+    let server =
+        SignalingServer::full_mesh_builder(url.parse::<SocketAddr>().unwrap())
+            .on_connection_request(|_| Ok(true))
+            .on_id_assignment(|(socket, id)| info!("{socket} received {id}"))
+            .on_peer_connected(|id| info!("Peer connected: {id}"))
+            .on_peer_disconnected(|id| info!("Peer disconnected: {id}"))
+            // .on_host_connected(|id| info!("Host joined: {id}"))
+            // .on_host_disconnected(|id| info!("Host left: {id}"))
+            // .on_client_connected(|id| info!("Client joined: {id}"))
+            // .on_client_disconnected(|id| info!("Client left: {id}"))
+            .cors()
+            .trace()
+            .build();
 
     spawn(async move {
         server.serve().await.unwrap_or_else(|e| {
@@ -42,7 +43,7 @@ pub async fn test_construct() {
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     let mut client_a = WebRTCClientInterface::open_reliable(
-        &format!("ws://localhost:{}", PORT),
+        &format!("ws://127.0.0.1:{}/test", PORT),
         None,
     )
     .await
@@ -52,7 +53,7 @@ pub async fn test_construct() {
 
     info!("client_a created");
     let client_b = WebRTCClientInterface::open_reliable(
-        &format!("ws://localhost:{}", PORT),
+        &format!("ws://127.0.0.1:{}/test", PORT),
         None,
     )
     .await

@@ -98,17 +98,6 @@ impl WebRTCClientInterface {
                 .ice_server(ice_config)
                 .build()
         };
-        spawn(async move {
-            future
-                .await
-                .map_err(|_| {
-                    error!("Failed to connect to WebRTC server");
-                    WebRTCError::ConnectionError
-                })
-                .unwrap_or_else(|_| {
-                    error!("Failed to connect to WebRTC server");
-                });
-        });
 
         info!("Connected to WebRTC server");
         let socket = Arc::new(Mutex::new(socket));
@@ -116,7 +105,6 @@ impl WebRTCClientInterface {
         let interface_uuid = self.uuid.clone();
         let com_interface_sockets = self.com_interface_sockets.clone();
         let peer_socket_map = self.peer_socket_map.clone();
-
         spawn(async move {
             let rtc_socket = socket.as_ref();
             loop {
@@ -173,6 +161,17 @@ impl WebRTCClientInterface {
                     drop(socket);
                 }
             }
+        });
+        spawn(async move {
+            future
+                .await
+                .map_err(|_| {
+                    error!("Failed to connect to WebRTC server");
+                    WebRTCError::ConnectionError
+                })
+                .unwrap_or_else(|_| {
+                    error!("Failed to connect to WebRTC server");
+                });
         });
         Ok(())
     }
