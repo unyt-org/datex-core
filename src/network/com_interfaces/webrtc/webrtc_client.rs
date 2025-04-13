@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{

@@ -13,7 +13,7 @@ use std::io::Write;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 // FIXME no-std
-
+use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };

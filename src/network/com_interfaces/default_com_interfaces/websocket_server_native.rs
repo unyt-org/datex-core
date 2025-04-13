@@ -24,6 +24,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tungstenite::Message;
 use url::Url;
 
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::network::com_interfaces::websocket::websocket_common::parse_url;
 use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;

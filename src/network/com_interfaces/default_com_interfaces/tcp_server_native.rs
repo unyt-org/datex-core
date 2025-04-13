@@ -12,6 +12,7 @@ use tokio::spawn;
 use url::Url;
 
 use crate::delegate_com_interface_info;
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };

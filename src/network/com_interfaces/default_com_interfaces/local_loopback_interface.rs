@@ -14,9 +14,9 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::utils::uuid::UUID;
 
 use super::super::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.

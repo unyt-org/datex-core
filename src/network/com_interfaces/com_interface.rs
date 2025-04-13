@@ -110,7 +110,12 @@ macro_rules! delegate_com_interface_info {
         fn get_uuid(&self) -> &ComInterfaceUUID {
             &self.info.get_uuid()
         }
-
+        fn get_state(&self) -> &ComInterfaceState {
+            &self.info.get_state()
+        }
+        fn set_state(&mut self, new_state: ComInterfaceState) {
+            self.info.set_state(new_state);
+        }
         fn get_info(&self) -> &ComInterfaceInfo {
             &self.info
         }
@@ -155,7 +160,9 @@ pub trait ComInterface: Any {
 
     fn get_info(&self) -> &ComInterfaceInfo;
     fn get_info_mut(&mut self) -> &mut ComInterfaceInfo;
-    // fn get_socket_state_mut(&mut self) -> &mut ComInterfaceInfo;
+
+    fn get_state(&self) -> &ComInterfaceState;
+    fn set_state(&mut self, new_state: ComInterfaceState);
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 

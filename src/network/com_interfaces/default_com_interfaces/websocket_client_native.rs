@@ -16,6 +16,7 @@ use crate::{
     utils::uuid::UUID,
 };
 
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use log::{debug, error, info};
 use tokio::{net::TcpStream, spawn};
