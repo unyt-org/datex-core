@@ -111,6 +111,16 @@ pub struct ComInterfaceInfo {
 }
 
 impl ComInterfaceInfo {
+    pub fn new_with_state(state: ComInterfaceState) -> Self {
+        Self {
+            uuid: ComInterfaceUUID(UUID::new()),
+            state: Arc::new(Mutex::new(state)),
+            interface_properties: None,
+            com_interface_sockets: Arc::new(Mutex::new(
+                ComInterfaceSockets::default(),
+            )),
+        }
+    }
     pub fn new() -> Self {
         Self {
             uuid: ComInterfaceUUID(UUID::new()),

@@ -15,7 +15,6 @@ use crate::{
         websocket::websocket_common::{WebSocketError, WebSocketServerError},
     },
     stdlib::sync::Arc,
-    utils::uuid::UUID,
 };
 
 use futures_util::{SinkExt, StreamExt};
@@ -84,6 +83,7 @@ impl WebSocketServerNativeInterface {
         let interface_uuid = self.get_uuid().clone();
         let com_interface_sockets = self.get_sockets().clone();
         let websocket_streams = self.websocket_streams.clone();
+        self.set_state(ComInterfaceState::Connected);
         tokio::spawn(async move {
             loop {
                 let (stream, addr) = match listener.accept().await {

@@ -26,7 +26,8 @@ pub struct LocalLoopbackInterface {
 }
 impl LocalLoopbackInterface {
     pub async fn new() -> LocalLoopbackInterface {
-        let info = ComInterfaceInfo::new();
+        let mut info = ComInterfaceInfo::new();
+        info.set_state(ComInterfaceState::Connected);
 
         let mut sockets = ComInterfaceSockets::default();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
@@ -47,7 +48,7 @@ impl ComInterface for LocalLoopbackInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let socket = self.socket.clone();
-        let mut socket = socket.lock().unwrap();
+        let socket = socket.lock().unwrap();
         socket.get_receive_queue().lock().unwrap().extend(block);
         Box::pin(async { true })
     }

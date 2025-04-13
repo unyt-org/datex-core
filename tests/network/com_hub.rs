@@ -27,80 +27,12 @@ use datex_core::utils::uuid::UUID;
 
 use crate::context::init_global_context;
 
+use super::com_interfaces::mockup_interface::MockupInterface;
+
 lazy_static::lazy_static! {
     static ref ORIGIN : Endpoint = Endpoint::from_string("@origin").unwrap();
     static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_string("@test-a").unwrap();
     static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_string("@test-b").unwrap();
-}
-
-pub struct MockupInterface {
-    pub block_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
-    info: ComInterfaceInfo,
-}
-
-impl MockupInterface {
-    fn last_block(&self) -> Option<Vec<u8>> {
-        self.block_queue.last().map(|(_, block)| block.clone())
-    }
-    fn last_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
-        self.block_queue
-            .last()
-            .map(|(socket_uuid, _)| socket_uuid.clone())
-    }
-
-    fn find_outgoing_block_for_socket(
-        &self,
-        socket_uuid: ComInterfaceSocketUUID,
-    ) -> Option<Vec<u8>> {
-        self.block_queue
-            .iter()
-            .find(|(uuid, _)| uuid == &socket_uuid)
-            .map(|(_, block)| block.clone())
-    }
-    fn has_outgoing_block_for_socket(
-        &self,
-        socket_uuid: ComInterfaceSocketUUID,
-    ) -> bool {
-        self.find_outgoing_block_for_socket(socket_uuid).is_some()
-    }
-
-    fn last_block_and_socket(
-        &self,
-    ) -> Option<(ComInterfaceSocketUUID, Vec<u8>)> {
-        self.block_queue.last().cloned()
-    }
-}
-
-impl Default for MockupInterface {
-    fn default() -> Self {
-        MockupInterface {
-            block_queue: Vec::new(),
-            info: ComInterfaceInfo::new(),
-        }
-    }
-}
-
-impl ComInterface for MockupInterface {
-    fn send_block<'a>(
-        &'a mut self,
-        block: &'a [u8],
-        socket_uuid: ComInterfaceSocketUUID,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // FIXME this should be inside the async body, why is it not working?
-        self.block_queue.push((socket_uuid, block.to_vec()));
-
-        Pin::from(Box::new(async move { true }))
-    }
-
-    fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            channel: "mockup".to_string(),
-            name: Some("mockup".to_string()),
-            ..Default::default()
-        }
-    }
-
-    delegate_com_interface_info!();
 }
 
 async fn get_mock_setup() -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>)

@@ -13,7 +13,6 @@ use crate::{
         websocket::websocket_common::WebSocketError,
     },
     stdlib::sync::Arc,
-    utils::uuid::UUID,
 };
 
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
@@ -77,6 +76,8 @@ impl WebSocketClientNativeInterface {
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
 
+        self.set_state(ComInterfaceState::Connected);
+        let state = self.get_info().get_state();
         spawn(async move {
             while let Some(msg) = read.next().await {
                 match msg {
@@ -89,6 +90,11 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {}", e);
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Closed);
+                        break;
                     }
                 }
             }

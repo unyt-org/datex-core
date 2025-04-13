@@ -23,7 +23,6 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::tcp::tcp_common::TCPError;
-use crate::utils::uuid::UUID;
 
 use super::super::com_interface::ComInterface;
 
