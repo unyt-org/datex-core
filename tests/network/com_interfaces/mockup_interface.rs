@@ -78,6 +78,7 @@ impl ComInterface for MockupInterface {
     }
 
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        self.block_queue.clear();
         Pin::from(Box::new(async move { true }))
     }
 

@@ -249,6 +249,7 @@ impl ComInterface for WebRTCClientInterface {
         }
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
         Box::pin(async move { true })
     }
     delegate_com_interface_info!();

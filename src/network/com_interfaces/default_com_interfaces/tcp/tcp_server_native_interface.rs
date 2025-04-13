@@ -136,6 +136,7 @@ impl ComInterface for TCPServerNativeInterface {
         }
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
         Box::pin(async move { true })
     }
     fn send_block<'a>(
