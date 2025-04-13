@@ -193,17 +193,11 @@ impl ComHub {
         {
             let interface = interface.clone();
             let mut interface = interface.borrow_mut();
-            warn!("Before destory sockets {}", interface_uuid);
 
+            // Remove the sockets from the socket list
+            // to notify ComHub routing logic
             interface.destroy_sockets();
-            warn!("After destory sockets {}", interface_uuid);
         }
-        info!("Closed interface {}", interface_uuid);
-
-        // Remove the sockets from the socket list
-        // to notify ComHub routing logic
-
-        info!("Destroying interface {}", interface_uuid);
 
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
