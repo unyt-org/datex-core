@@ -2,7 +2,7 @@ use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use futures_util::future::join_all;
 use itertools::Itertools;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -35,7 +35,7 @@ pub struct DynamicEndpointProperties {
 pub struct ComHub {
     pub endpoint: Endpoint,
 
-    pub interfaces: HashMap<ComInterfaceUUID, Arc<Mutex<dyn ComInterface>>>,
+    pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
     /// a list of all available sockets, keyed by their UUID
     /// contains the socket itself and a list of endpoints currently associated with it
     // TODO: keep socket mapping up to date
@@ -178,24 +178,30 @@ impl ComHub {
         interface_uuid: ComInterfaceUUID,
     ) -> Result<(), ComHubError> {
         info!("Removing interface {}", interface_uuid);
-
-        // destroy the interface
         let interface: &Rc<RefCell<dyn ComInterface>> = self
             .interfaces
-            .get_mut(&interface_uuid)
+            .get_mut(&interface_uuid.clone())
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
+        {
+            // Async close the interface (stop tasks, server, cleanup internal data)
+            let interface = interface.clone();
+            let mut interface = interface.borrow_mut();
+            if !interface.close().await {
+                return Err(ComHubError::InterfaceCloseFailed);
+            }
+        }
+        {
+            let interface = interface.clone();
+            let mut interface = interface.borrow_mut();
+            warn!("Before destory sockets {}", interface_uuid);
 
-        info!("Closing interface {}", interface_uuid);
-
-        // Async close the interface (stop tasks, server, cleanup internal data)
-        if !interface.borrow_mut().close().await {
-            return Err(ComHubError::InterfaceCloseFailed);
+            interface.destroy_sockets();
+            warn!("After destory sockets {}", interface_uuid);
         }
         info!("Closed interface {}", interface_uuid);
 
         // Remove the sockets from the socket list
         // to notify ComHub routing logic
-        interface.borrow_mut().destroy_sockets();
 
         info!("Destroying interface {}", interface_uuid);
 

@@ -10,7 +10,7 @@ use crate::stdlib::{
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use futures_util::future::join_all;
-use log::debug;
+use log::{debug, info};
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
@@ -213,12 +213,15 @@ pub trait ComInterface: Any {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     // Destroy the interface and free all resources after it has been cleaned up
-    fn destroy_sockets(&mut self) {
+    fn destroy_sockets<'a>(&'a mut self) {
+        info!("destroy_sockets");
         let sockets = self.get_sockets();
         let sockets = sockets.lock().unwrap();
-        for socket in sockets.sockets.values() {
-            let socket = socket.lock().unwrap();
-            self.remove_socket(&socket);
+        let uuids: Vec<ComInterfaceSocketUUID> =
+            sockets.sockets.keys().cloned().collect();
+        drop(sockets);
+        for socket_uuid in uuids {
+            self.remove_socket(&socket_uuid);
         }
         self.set_state(ComInterfaceState::Closed);
     }
@@ -239,13 +242,13 @@ pub trait ComInterface: Any {
     }
 
     // Remove socket from the interface
-    fn remove_socket(&mut self, socket: &ComInterfaceSocket) {
+    fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         let sockets = self.get_sockets();
         let mut sockets = sockets.lock().unwrap();
 
-        sockets.deleted_sockets.push_back(socket.uuid.clone());
-        sockets.sockets.remove(&socket.uuid);
-        debug!("Socket removed: {:?}", socket.uuid);
+        sockets.deleted_sockets.push_back(socket_uuid.clone());
+        sockets.sockets.remove(&socket_uuid);
+        debug!("Socket removed: {:?}", socket_uuid);
     }
 
     // Called when a endpoint is known for a specific socket (called by ComHub)
