@@ -6,6 +6,8 @@ use log::{debug, error, info};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use std::thread::spawn;
+use tokio::task::spawn_local;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{
@@ -596,9 +598,21 @@ impl ComHub {
         }
     }
 
+    /// Run the update loop for the ComHub.
+    /// This method will continuously handle incoming data, send out
+    /// queued blocks and update the sockets.
+    pub fn start_update_loop(self_rc: Rc<RefCell<Self>>) {
+        spawn_local(async move {
+            loop {
+                self_rc.borrow_mut().update().await;
+            }
+        });
+    }
+
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     pub async fn update(&mut self) {
+        info!("running ComHub update loop...");
         self.update_sockets();
 
         // update sockets block collectors

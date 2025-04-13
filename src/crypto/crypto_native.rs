@@ -11,58 +11,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
 impl CryptoTrait for CryptoNative {
-    fn create_uuid(&self) -> String {
-        Uuid::new_v4().to_string()
-    }
-
-    fn random_bytes(&self, length: usize) -> Vec<u8> {
-        let mut rng = rand::thread_rng();
-        (0..length).map(|_| rng.gen()).collect()
-    }
-
-    fn new_encryption_key_pair(
-        &self,
-    ) -> Pin<
-        Box<
-            dyn std::prelude::rust_2024::Future<
-                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
-            >,
-        >,
-    > {
-        Box::pin(async {
-            let mut rng = OsRng;
-            let private_key = RsaPrivateKey::new(&mut rng, 4096)
-                .map_err(|_| super::crypto::CryptoError::KeyGeneratorFailed)?;
-
-            let private_key_der = private_key
-                .to_pkcs8_der()
-                .map_err(|_| super::crypto::CryptoError::KeyExportFailed)?
-                .as_bytes()
-                .to_vec();
-            let public_key = RsaPublicKey::from(&private_key);
-
-            let public_key_der = public_key
-                .to_public_key_der()
-                .map_err(|_| super::crypto::CryptoError::KeyExportFailed)?
-                .as_bytes()
-                .to_vec();
-
-            Ok((public_key_der, private_key_der))
-        })
-    }
-
-    fn new_sign_key_pair(
-        &self,
-    ) -> Pin<
-        Box<
-            dyn std::prelude::rust_2024::Future<
-                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
-            >,
-        >,
-    > {
-        todo!()
-    }
-
     fn encrypt_rsa(
         &self,
         data: Vec<u8>,
@@ -112,6 +60,58 @@ impl CryptoTrait for CryptoNative {
         Box<
             dyn std::prelude::rust_2024::Future<
                 Output = Result<bool, CryptoError>,
+            >,
+        >,
+    > {
+        todo!()
+    }
+
+    fn create_uuid(&self) -> String {
+        Uuid::new_v4().to_string()
+    }
+
+    fn random_bytes(&self, length: usize) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
+        (0..length).map(|_| rng.gen()).collect()
+    }
+
+    fn new_encryption_key_pair(
+        &self,
+    ) -> Pin<
+        Box<
+            dyn std::prelude::rust_2024::Future<
+                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
+            >,
+        >,
+    > {
+        Box::pin(async {
+            let mut rng = OsRng;
+            let private_key = RsaPrivateKey::new(&mut rng, 4096)
+                .map_err(|_| super::crypto::CryptoError::KeyGeneratorFailed)?;
+
+            let private_key_der = private_key
+                .to_pkcs8_der()
+                .map_err(|_| super::crypto::CryptoError::KeyExportFailed)?
+                .as_bytes()
+                .to_vec();
+            let public_key = RsaPublicKey::from(&private_key);
+
+            let public_key_der = public_key
+                .to_public_key_der()
+                .map_err(|_| super::crypto::CryptoError::KeyExportFailed)?
+                .as_bytes()
+                .to_vec();
+
+            Ok((public_key_der, private_key_der))
+        })
+    }
+
+    fn new_sign_key_pair(
+        &self,
+    ) -> Pin<
+        Box<
+            dyn std::prelude::rust_2024::Future<
+                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
             >,
         >,
     > {

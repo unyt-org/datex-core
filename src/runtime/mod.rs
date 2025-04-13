@@ -51,16 +51,23 @@ impl Runtime {
     }
 
     #[cfg(feature = "native_crypto")]
-    pub fn init_native() -> Runtime {
+    pub fn init_native(endpoint: Endpoint) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
         Self::init(
-            Endpoint::default(),
+            endpoint,
             GlobalContext {
                 crypto: Arc::new(Mutex::new(CryptoNative)),
                 time: Arc::new(Mutex::new(TimeNative)),
             },
         )
+    }
+
+    /// Starts the common update loop:
+    ///  - ComHub
+    pub fn start_update_loop(&self) {
+        let com_hub = self.com_hub.clone();
+        ComHub::start_update_loop(com_hub.clone());
     }
 }
 
