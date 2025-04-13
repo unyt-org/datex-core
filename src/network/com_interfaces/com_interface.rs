@@ -37,13 +37,43 @@ pub enum ComInterfaceError {
     ReceiveError,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComInterfaceState {
     Created,
-    Opening,
-    Open,
+    Connecting,
+    Connected,
     Closing,
     Closed,
+}
+
+impl ComInterfaceState {
+    pub fn is_open(&self) -> bool {
+        matches!(self, ComInterfaceState::Connected)
+    }
+    pub fn is_closed(&self) -> bool {
+        matches!(self, ComInterfaceState::Closed)
+    }
+    pub fn is_opening(&self) -> bool {
+        matches!(self, ComInterfaceState::Connecting)
+    }
+    pub fn is_closing(&self) -> bool {
+        matches!(self, ComInterfaceState::Closing)
+    }
+    pub fn is_created(&self) -> bool {
+        matches!(self, ComInterfaceState::Created)
+    }
+    pub fn is_connecting(&self) -> bool {
+        matches!(
+            self,
+            ComInterfaceState::Connecting | ComInterfaceState::Connected
+        )
+    }
+    pub fn is_disconnecting(&self) -> bool {
+        matches!(self, ComInterfaceState::Closing | ComInterfaceState::Closed)
+    }
+    pub fn set_state(&mut self, new_state: ComInterfaceState) {
+        *self = new_state;
+    }
 }
 
 #[derive(Debug, Default)]
@@ -74,8 +104,8 @@ impl ComInterfaceSockets {
 }
 
 pub struct ComInterfaceInfo {
-    state: ComInterfaceState,
     uuid: ComInterfaceUUID,
+    state: Arc<Mutex<ComInterfaceState>>,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     pub interface_properties: Option<InterfaceProperties>,
 }
@@ -84,7 +114,7 @@ impl ComInterfaceInfo {
     pub fn new() -> Self {
         Self {
             uuid: ComInterfaceUUID(UUID::new()),
-            state: ComInterfaceState::Created,
+            state: Arc::new(Mutex::new(ComInterfaceState::Created)),
             interface_properties: None,
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
@@ -97,11 +127,11 @@ impl ComInterfaceInfo {
     pub fn get_uuid(&self) -> &ComInterfaceUUID {
         &self.uuid
     }
-    pub fn get_state(&self) -> &ComInterfaceState {
-        &self.state
+    pub fn get_state(&self) -> Arc<Mutex<ComInterfaceState>> {
+        self.state.clone()
     }
     pub fn set_state(&mut self, new_state: ComInterfaceState) {
-        self.state = new_state;
+        self.state.lock().unwrap().clone_from(&new_state);
     }
 }
 #[macro_export]
@@ -110,8 +140,8 @@ macro_rules! delegate_com_interface_info {
         fn get_uuid(&self) -> &ComInterfaceUUID {
             &self.info.get_uuid()
         }
-        fn get_state(&self) -> &ComInterfaceState {
-            &self.info.get_state()
+        fn get_state(&self) -> ComInterfaceState {
+            self.info.get_state().lock().unwrap().clone()
         }
         fn set_state(&mut self, new_state: ComInterfaceState) {
             self.info.set_state(new_state);
@@ -161,7 +191,7 @@ pub trait ComInterface: Any {
     fn get_info(&self) -> &ComInterfaceInfo;
     fn get_info_mut(&mut self) -> &mut ComInterfaceInfo;
 
-    fn get_state(&self) -> &ComInterfaceState;
+    fn get_state(&self) -> ComInterfaceState;
     fn set_state(&mut self, new_state: ComInterfaceState);
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;

@@ -109,19 +109,33 @@ impl WebRTCClientInterface {
         let peer_socket_map = self.peer_socket_map.clone();
         let loop_fut = future.fuse();
 
+        let state = self.get_info().get_state();
         spawn(async move {
             futures::pin_mut!(loop_fut);
             let timeout = Delay::new(Duration::from_millis(100));
             futures::pin_mut!(timeout);
             let mut timeout = timeout;
-
+            state
+                .lock()
+                .unwrap()
+                .set_state(ComInterfaceState::Connecting);
+            let mut is_connected = false;
             let rtc_socket = socket.as_ref();
             loop {
-                for (peer, state) in rtc_socket.lock().unwrap().update_peers() {
+                for (peer, peer_state) in
+                    rtc_socket.lock().unwrap().update_peers()
+                {
                     let mut peer_socket_map = peer_socket_map.lock().unwrap();
                     let mut com_interface_sockets =
                         com_interface_sockets.lock().unwrap();
-                    match state {
+                    if !is_connected {
+                        state
+                            .lock()
+                            .unwrap()
+                            .set_state(ComInterfaceState::Connected);
+                        is_connected = true;
+                    }
+                    match peer_state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
                                 interface_uuid.clone(),
@@ -177,6 +191,7 @@ impl WebRTCClientInterface {
                     }
                 }
             }
+            state.lock().unwrap().set_state(ComInterfaceState::Closed);
             warn!("WebRTC socket closed");
         });
         Ok(())

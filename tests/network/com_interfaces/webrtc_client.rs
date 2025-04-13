@@ -2,6 +2,7 @@ use core::panic;
 use std::net::SocketAddr;
 
 use crate::context::init_global_context;
+use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface, socket_provider::MultipleSocketProvider,
     webrtc::webrtc_client::WebRTCClientInterface,
@@ -36,8 +37,7 @@ pub fn start_server(url: &str) {
 #[tokio::test]
 pub async fn test_construct() {
     init_global_context();
-
-    let mut client_a = WebRTCClientInterface::open_reliable(
+    let client_a = WebRTCClientInterface::open_reliable(
         &format!("ws://invalid.interface:1234"),
         None,
     )
@@ -45,11 +45,12 @@ pub async fn test_construct() {
     .unwrap_or_else(|e| {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
+    assert_eq!(client_a.get_state(), ComInterfaceState::Created);
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-    info!("{:?}", client_a.get_state());
-    // client_a
-
-    tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+    assert_eq!(client_a.get_state(), ComInterfaceState::Connecting);
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    assert_eq!(client_a.get_state(), ComInterfaceState::Closed);
 }
 
 #[tokio::test]
