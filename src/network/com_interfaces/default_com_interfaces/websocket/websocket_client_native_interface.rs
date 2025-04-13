@@ -55,10 +55,7 @@ impl WebSocketClientNativeInterface {
 
     async fn start(&mut self) -> Result<(), WebSocketError> {
         let address = self.address.clone();
-        info!(
-            "Connecting to WebSocket server at {}",
-            address.host_str().unwrap()
-        );
+        info!("Connecting to WebSocket server at {}", address);
         let (stream, _) = tokio_tungstenite::connect_async(address)
             .await
             .map_err(|_| WebSocketError::ConnectionError)?;

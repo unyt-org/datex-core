@@ -213,10 +213,17 @@ pub trait ComInterface: Any {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     // Destroy the interface and free all resources.
-    fn close(&mut self) -> Result<(), ComInterfaceError> {
-        // FIXME
-        Ok(())
+    fn destroy_sockets(&mut self) {
+        let sockets = self.get_sockets();
+        let sockets = sockets.lock().unwrap();
+        for socket in sockets.sockets.values() {
+            let socket = socket.lock().unwrap();
+            self.remove_socket(&socket);
+        }
+        self.set_state(ComInterfaceState::Closed);
     }
+
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {

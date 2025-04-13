@@ -3,12 +3,14 @@ use crate::stdlib::{cell::RefCell, rc::Rc};
 use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info};
-use std::cell::Ref;
+use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 // FIXME no-std
 
-use super::com_interfaces::com_interface::ComInterfaceError;
+use super::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceState,
+};
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
@@ -75,6 +77,7 @@ impl Default for ComHub {
 #[derive(Debug)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
+    InterfaceNotConnected,
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
 }
@@ -123,6 +126,15 @@ impl ComHub {
         self.default_interface_uuid.clone()
     }
 
+    pub fn get_interface_by_uuid_mut<T: ComInterface + 'static>(
+        &self,
+        interface_uuid: &ComInterfaceUUID,
+    ) -> Option<RefMut<T>> {
+        let iface = self.interfaces.get(interface_uuid)?;
+        let borrowed = iface.borrow_mut();
+        RefMut::filter_map(borrowed, |b| b.as_any_mut().downcast_mut::<T>())
+            .ok()
+    }
     pub fn get_interface_by_uuid<T: ComInterface + 'static>(
         &self,
         interface_uuid: &ComInterfaceUUID,
@@ -146,8 +158,9 @@ impl ComHub {
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
-        // TODO: throw if interface is not opened
-
+        if interface.borrow().get_state() != ComInterfaceState::Connected {
+            return Err(ComHubError::InterfaceNotConnected);
+        }
         let uuid = interface.borrow().get_uuid().clone();
         if self.interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
