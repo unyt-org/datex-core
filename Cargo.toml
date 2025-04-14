@@ -61,6 +61,11 @@ opt-level = 3
 [profile.dev.package.num-bigint-dig]
 opt-level = 3
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+criterion-macro = "0.4.0"
+
+
 [features]
 default = [
     "nostd",
