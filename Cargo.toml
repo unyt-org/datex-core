@@ -98,6 +98,7 @@ default = [
     "native_crypto",
     "native_time",
     "native_http",
+    "webrtc",
     "flexi_logger",
 
     "debug",
