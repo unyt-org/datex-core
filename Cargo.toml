@@ -60,8 +60,10 @@ js-sys = { version = "0.3.77", optional = true }
 matchbox_socket = { version = "0.11.0", optional = true }         # , optional = true
 esp-idf-svc = { version = "0.51.0", optional = true }
 axum = { version = "0.7", optional = true }
-
+tokio-stream = { version = "0.1.17", optional = true }
+hyper = { version = "1", optional = true }
 futures = "0.3"
+bytes = { version = "1" }
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
 
 [profile.release]
@@ -102,7 +104,7 @@ default = [
     "webrtc",
 ] # default to nostd
 
-native_http = ["axum"]
+native_http = ["axum", "hyper", "tokio-stream"]
 native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket
 native_tcp = []                                         # use native tcp
 native_time = []                                        # use native time
