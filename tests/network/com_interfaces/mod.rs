@@ -1,3 +1,4 @@
+pub mod http_interface;
 pub mod mockup_interface;
 pub mod tcp_native;
 pub mod webrtc_client;

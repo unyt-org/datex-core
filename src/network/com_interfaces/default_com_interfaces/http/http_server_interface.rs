@@ -44,6 +44,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 
 use super::http_common::HTTPError;
 
@@ -79,6 +80,12 @@ struct HTTPServerState {
     channels: Arc<RwLock<HashMap<String, broadcast::Sender<Bytes>>>>,
 }
 
+impl MultipleSocketProvider for HTTPServerNativeInterface {
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets().clone()
+    }
+}
+
 impl HTTPServerNativeInterface {
     pub async fn open(
         port: &u16,
@@ -102,6 +109,15 @@ impl HTTPServerNativeInterface {
         if !map.contains_key(route) {
             let (tx, _) = broadcast::channel(100);
             map.insert(route.to_string(), tx);
+            let socket = ComInterfaceSocket::new(
+                self.get_uuid().clone(),
+                InterfaceDirection::IN_OUT,
+                1,
+            );
+            let socket_uuid = socket.uuid.clone();
+            self.add_socket(Arc::new(Mutex::new(socket)));
+            self.register_socket_endpoint(socket_uuid, endpoint, 0)
+                .unwrap();
         }
     }
     pub async fn remove_channel(&mut self, route: &str) {
