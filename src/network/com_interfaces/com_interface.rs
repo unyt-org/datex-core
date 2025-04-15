@@ -108,7 +108,6 @@ impl ComInterfaceSockets {
         endpoint: Endpoint,
         distance: u32,
     ) -> Result<(), ComInterfaceError> {
-        // TODO: duplicate code in Sockets
         let socket = self.sockets.get(&socket_uuid);
         if socket.is_none() {
             return Err(ComInterfaceError::SocketNotFound);

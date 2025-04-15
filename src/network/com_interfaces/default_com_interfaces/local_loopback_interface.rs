@@ -33,12 +33,13 @@ impl LocalLoopbackInterface {
             InterfaceDirection::IN_OUT,
             1,
         )));
+
+        let uuid = socket.lock().unwrap().uuid.clone();
         info.com_interface_sockets().lock().unwrap()
             .add_socket(socket.clone());
-        
         info.com_interface_sockets().lock().unwrap()
             .register_socket_endpoint(
-                socket.lock().unwrap().uuid.clone(),
+                uuid,
                 Endpoint::LOCAL,
                 1
             ).expect("Could not register endpoint to local socket");
