@@ -59,7 +59,7 @@ ansi_term = "0.12.1"
 js-sys = { version = "0.3.77", optional = true }
 matchbox_socket = { version = "0.11.0", optional = true }         # , optional = true
 esp-idf-svc = { version = "0.51.0", optional = true }
-
+axum = { version = "0.7", optional = true }
 
 futures = "0.3"
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
@@ -95,12 +95,14 @@ default = [
     "native_uuid",
     "native_crypto",
     "native_time",
+    "native_http",
     "flexi_logger",
 
     "debug",
     "webrtc",
 ] # default to nostd
 
+native_http = ["axum"]
 native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket
 native_tcp = []                                         # use native tcp
 native_time = []                                        # use native time
