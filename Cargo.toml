@@ -98,7 +98,7 @@ default = [
     "flexi_logger",
 
     "debug",
-    "webrtc",
+    #"webrtc",
 ] # default to nostd
 
 native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket

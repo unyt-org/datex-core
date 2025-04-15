@@ -23,6 +23,7 @@ use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
@@ -97,6 +98,13 @@ impl ComHub {
             endpoint,
             ..ComHub::default()
         }))
+    }
+
+    pub async fn init(&mut self) -> Result<(), ComHubError> {
+        // add default local loopback interface
+        self.add_interface(
+            Rc::new(RefCell::new(LocalLoopbackInterface::new()))
+        ).await
     }
 
     pub fn set_default_interface(

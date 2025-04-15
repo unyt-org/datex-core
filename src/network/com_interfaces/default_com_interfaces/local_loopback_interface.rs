@@ -24,7 +24,7 @@ pub struct LocalLoopbackInterface {
     info: ComInterfaceInfo,
 }
 impl LocalLoopbackInterface {
-    pub async fn new() -> LocalLoopbackInterface {
+    pub fn new() -> LocalLoopbackInterface {
         let mut info = ComInterfaceInfo::new();
         info.set_state(ComInterfaceState::Connected);
 
