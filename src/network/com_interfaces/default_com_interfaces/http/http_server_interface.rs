@@ -5,7 +5,6 @@ use bytes::Bytes;
 
 use axum::response::{IntoResponse, Response};
 use futures::Stream;
-use nostd::slice::SlicePattern;
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::future::Future;
@@ -13,6 +12,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
@@ -27,7 +27,7 @@ use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::spawn;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, RwLock};
 use url::Url;
 
 use crate::datex_values::Endpoint;
@@ -50,26 +50,17 @@ use super::http_common::HTTPError;
 pub struct HTTPServerNativeInterface {
     pub address: Url,
     info: ComInterfaceInfo,
-    channels: Arc<Mutex<HashMap<String, mpsc::Sender<Bytes>>>>,
+    channels: Arc<RwLock<HashMap<String, broadcast::Sender<Bytes>>>>,
 }
-// use tokio_stream::wrappers::ReceiverStream;
 
-type SharedClients = Arc<
-    Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<mpsc::Sender<Bytes>>>>>,
->;
 async fn stream_handler(
     Path(route): Path<String>,
-    State(state): State<AppState>,
+    State(state): State<HTTPServerState>,
 ) -> Response {
     let map = state.channels.read().await;
-
     if let Some(sender) = map.get(&route) {
         let receiver = sender.subscribe();
-        let stream =
-            ReceiverStream::new(receiver).filter_map(|result| async move {
-                result.ok().map(axum::body::Body::from)
-            });
-
+        let stream = BroadcastStream::new(receiver);
         Response::builder()
             .header("Content-Type", "application/octet-stream")
             .header("Cache-Control", "no-cache")
@@ -85,9 +76,7 @@ async fn stream_handler(
 
 #[derive(Clone)]
 struct HTTPServerState {
-    clients: SharedClients,
-    interface_uuid: ComInterfaceUUID,
-    global_tx: broadcast::Sender<Bytes>,
+    channels: Arc<RwLock<HashMap<String, broadcast::Sender<Bytes>>>>,
 }
 
 impl HTTPServerNativeInterface {
@@ -100,7 +89,7 @@ impl HTTPServerNativeInterface {
             Url::parse(&address).map_err(|_| HTTPError::InvalidAddress)?;
 
         let mut interface = HTTPServerNativeInterface {
-            channels: Arc::new(Mutex::new(HashMap::new())),
+            channels: Arc::new(RwLock::new(HashMap::new())),
             address,
             info,
         };
@@ -108,24 +97,26 @@ impl HTTPServerNativeInterface {
         Ok(interface)
     }
 
-    pub fn add_channel(&mut self, route: &str, endpoint: Endpoint) -> String {
-        let (tx, _rx) = mpsc::channel(100);
-        self.channels.lock().unwrap().remove(route);
-        format!("/{}", route)
+    pub async fn add_channel(&mut self, route: &str, endpoint: Endpoint) {
+        let mut map = self.channels.write().await;
+        if !map.contains_key(route) {
+            let (tx, _) = broadcast::channel(100);
+            map.insert(route.to_string(), tx);
+        }
     }
-    pub fn remove_channel(&mut self, route: &str) -> String {
-        format!("/{}", route)
+    pub async fn remove_channel(&mut self, route: &str) {
+        let mut map = self.channels.write().await;
+        if let Some(sender) = map.get(route) {
+            map.remove(route);
+        }
     }
 
     async fn start(&mut self) -> Result<(), HTTPError> {
         let address = self.address.clone();
         info!("Spinning up server at {}", address);
 
-        let (global_tx, _) = broadcast::channel(100);
         let state = HTTPServerState {
-            global_tx,
-            clients: Arc::new(Mutex::new(HashMap::new())),
-            interface_uuid: self.get_uuid().clone(),
+            channels: self.channels.clone(),
         };
         let app = Router::new()
             .route("/:route/rx", get(stream_handler))
@@ -172,13 +163,9 @@ impl ComInterface for HTTPServerNativeInterface {
         let route = "test";
         let channels = self.channels.clone();
         Box::pin(async move {
-            if let Some(sender) = channels.lock().unwrap().get(route) {
-                let _ = sender.try_send(Bytes::copy_from_slice(block)).map_err(
-                    |_| {
-                        error!("Failed to send message to channel");
-                        false
-                    },
-                );
+            let map = channels.read().await;
+            if let Some(sender) = map.get(route) {
+                let _ = sender.send(Bytes::copy_from_slice(block));
                 true
             } else {
                 false
