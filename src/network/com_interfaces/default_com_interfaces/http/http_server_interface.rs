@@ -1,21 +1,27 @@
+use axum::extract::Request;
+use axum::routing::post;
 use bytes::Bytes;
 
 use axum::response::Response;
+use futures::StreamExt;
+use hyper::StatusCode;
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::spawn;
 use tokio_stream::wrappers::BroadcastStream;
 
 use axum::{
     extract::{Path, State},
-    routing::get, Router,
+    routing::get,
+    Router,
 };
-use log::info;
+use log::{debug, error, info};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{broadcast, mpsc, RwLock};
 use url::Url;
 
 use crate::datex_values::Endpoint;
@@ -36,18 +42,12 @@ use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 
 use super::http_common::HTTPError;
 
-pub struct HTTPServerNativeInterface {
-    pub address: Url,
-    info: ComInterfaceInfo,
-    channels: Arc<RwLock<HashMap<String, broadcast::Sender<Bytes>>>>,
-}
-
-async fn stream_handler(
+async fn server_to_client_handler(
     Path(route): Path<String>,
     State(state): State<HTTPServerState>,
 ) -> Response {
     let map = state.channels.read().await;
-    if let Some(sender) = map.get(&route) {
+    if let Some((sender, _)) = map.get(&route) {
         let receiver = sender.subscribe();
         let stream = BroadcastStream::new(receiver);
         Response::builder()
@@ -62,10 +62,61 @@ async fn stream_handler(
             .unwrap()
     }
 }
+async fn client_to_server_handler(
+    Path(route): Path<String>,
+    State(state): State<HTTPServerState>,
+    req: Request,
+) -> Response {
+    let map = state.channels.read().await;
+    if let Some((_, sender)) = map.get(&route) {
+        let mut stream = req.into_body().into_data_stream();
+
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    debug!("Received junk {}", chunk.len());
+                    sender
+                        .send(chunk)
+                        .await
+                        .map_err(|_| HTTPError::SendError)
+                        .unwrap();
+                }
+                Err(e) => {
+                    error!("Error reading body {}", e);
+                    return Response::builder()
+                        .status(400)
+                        .body("Bad Request".into())
+                        .unwrap();
+                }
+            }
+        }
+        Response::builder().status(200).body("OK".into()).unwrap()
+    } else {
+        Response::builder()
+            .status(404)
+            .body("Channel not found".into())
+            .unwrap()
+    }
+}
+
+pub struct HTTPServerNativeInterface {
+    pub address: Url,
+    info: ComInterfaceInfo,
+    socket_channel_mapping: Arc<Mutex<HashMap<String, ComInterfaceSocketUUID>>>,
+    channels: Arc<
+        RwLock<
+            HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>,
+        >,
+    >,
+}
 
 #[derive(Clone)]
 struct HTTPServerState {
-    channels: Arc<RwLock<HashMap<String, broadcast::Sender<Bytes>>>>,
+    channels: Arc<
+        RwLock<
+            HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>,
+        >,
+    >,
 }
 
 impl MultipleSocketProvider for HTTPServerNativeInterface {
@@ -86,6 +137,7 @@ impl HTTPServerNativeInterface {
         let mut interface = HTTPServerNativeInterface {
             channels: Arc::new(RwLock::new(HashMap::new())),
             address,
+            socket_channel_mapping: Arc::new(Mutex::new(HashMap::new())),
             info,
         };
         interface.start().await?;
@@ -95,20 +147,53 @@ impl HTTPServerNativeInterface {
     pub async fn add_channel(&mut self, route: &str, endpoint: Endpoint) {
         let mut map = self.channels.write().await;
         if !map.contains_key(route) {
-            let (tx, _) = broadcast::channel(100);
-            map.insert(route.to_string(), tx);
+            let (server_tx, _) = broadcast::channel::<Bytes>(100);
+            let (client_tx, mut rx) = mpsc::channel::<Bytes>(100); // FIXME not braodcast needed
+            map.insert(route.to_string(), (server_tx, client_tx));
             let socket = ComInterfaceSocket::new(
                 self.get_uuid().clone(),
                 InterfaceDirection::IN_OUT,
                 1,
             );
             let socket_uuid = socket.uuid.clone();
+            let receive_queue = socket.receive_queue.clone();
             self.add_socket(Arc::new(Mutex::new(socket)));
-            self.register_socket_endpoint(socket_uuid, endpoint, 0)
+            self.register_socket_endpoint(socket_uuid.clone(), endpoint, 0)
                 .unwrap();
+            self.socket_channel_mapping
+                .lock()
+                .unwrap()
+                .insert(route.to_string(), socket_uuid.clone());
+
+            spawn(async move {
+                loop {
+                    match rx.recv().await {
+                        Some(data) => {
+                            debug!(
+                                "Received data from socket {:?}: {}",
+                                data.to_vec(),
+                                socket_uuid
+                            );
+                            receive_queue.lock().unwrap().extend(data.to_vec());
+                        }
+                        None => {}
+                    }
+                }
+            });
         }
     }
+
     pub async fn remove_channel(&mut self, route: &str) {
+        let mapping = self.socket_channel_mapping.clone();
+        let socket_uuid = {
+            let mapping = mapping.lock().unwrap();
+            if let Some(socket_uuid) = mapping.get(route) {
+                socket_uuid.clone()
+            } else {
+                return;
+            }
+        };
+        self.remove_socket(&socket_uuid);
         let mut map = self.channels.write().await;
         if let Some(sender) = map.get(route) {
             map.remove(route);
@@ -123,7 +208,8 @@ impl HTTPServerNativeInterface {
             channels: self.channels.clone(),
         };
         let app = Router::new()
-            .route("/:route/rx", get(stream_handler))
+            .route("/:route/rx", get(server_to_client_handler))
+            .route("/:route/tx", post(client_to_server_handler))
             .with_state(state.clone());
 
         let addr: SocketAddr = self
@@ -141,7 +227,6 @@ impl HTTPServerNativeInterface {
                 .await
                 .unwrap();
         });
-
         Ok(())
     }
 }
@@ -164,11 +249,20 @@ impl ComInterface for HTTPServerNativeInterface {
         block: &'a [u8],
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let route = "test";
+        let route = self.socket_channel_mapping.lock().unwrap();
+        let route = route
+            .iter()
+            .find(|(_, v)| *v == &socket)
+            .map(|(k, _)| k)
+            .clone();
+        if route.is_none() {
+            return Box::pin(async { false });
+        }
+        let route = route.unwrap().to_string();
         let channels = self.channels.clone();
         Box::pin(async move {
             let map = channels.read().await;
-            if let Some(sender) = map.get(route) {
+            if let Some((sender, _)) = map.get(&route) {
                 let _ = sender.send(Bytes::copy_from_slice(block));
                 true
             } else {

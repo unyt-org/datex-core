@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+use crate::datex_values::Endpoint;
+
 use super::{
     com_interface::ComInterfaceSockets,
     com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
@@ -24,20 +26,22 @@ pub trait MultipleSocketProvider {
     fn get_sockets_count(&self) -> usize {
         self.provide_sockets().clone().lock().unwrap().sockets.len()
     }
-    // TODO
-    // fn get_socket_for_endpoint(
-    //     &self,
-    //     endpoint: &str,
-    // ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
-    //     let sockets = self.provide_sockets();
-    //     let sockets = sockets.lock().unwrap();
-    //     let socket = sockets
-    //         .sockets
-    //         .values()
-    //         .find(|s| s.lock().unwrap().direct_endpoint == endpoint)
-    //         .cloned();
-    //     socket
-    // }
+
+    fn get_socket_uuid_for_endpoint(
+        &self,
+        endpoint: Endpoint,
+    ) -> Option<ComInterfaceSocketUUID> {
+        let sockets = self.provide_sockets();
+        let sockets = sockets.lock().unwrap();
+        let socket = sockets
+            .sockets
+            .values()
+            .find(|s| {
+                s.lock().unwrap().direct_endpoint == Some(endpoint.clone())
+            })
+            .map(|s| s.lock().unwrap().uuid.clone());
+        socket
+    }
     fn get_socket_uuid_at(
         &self,
         index: usize,
