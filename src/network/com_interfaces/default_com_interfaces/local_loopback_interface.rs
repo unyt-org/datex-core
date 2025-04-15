@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
+use crate::datex_values::Endpoint;
 use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -35,7 +35,14 @@ impl LocalLoopbackInterface {
         )));
         info.com_interface_sockets().lock().unwrap()
             .add_socket(socket.clone());
-
+        
+        info.com_interface_sockets().lock().unwrap()
+            .register_socket_endpoint(
+                socket.lock().unwrap().uuid.clone(),
+                Endpoint::LOCAL,
+                1
+            ).expect("Could not register endpoint to local socket");
+        
         LocalLoopbackInterface { info, socket }
     }
 }
