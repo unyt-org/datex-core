@@ -1,9 +1,11 @@
 use axum::body::Body;
+use axum::extract::FromRef;
 use axum::Extension;
 use bytes::Bytes;
 
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use futures::Stream;
+use nostd::slice::SlicePattern;
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::future::Future;
@@ -28,6 +30,7 @@ use tokio::spawn;
 use tokio::sync::{broadcast, mpsc};
 use url::Url;
 
+use crate::datex_values::Endpoint;
 use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
@@ -47,94 +50,44 @@ use super::http_common::HTTPError;
 pub struct HTTPServerNativeInterface {
     pub address: Url,
     info: ComInterfaceInfo,
+    channels: Arc<Mutex<HashMap<String, mpsc::Sender<Bytes>>>>,
 }
+// use tokio_stream::wrappers::ReceiverStream;
 
 type SharedClients = Arc<
     Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<mpsc::Sender<Bytes>>>>>,
 >;
+async fn stream_handler(
+    Path(route): Path<String>,
+    State(state): State<AppState>,
+) -> Response {
+    let map = state.channels.read().await;
 
-// async fn connect_handler(
-//     Path(id): Path<String>,
-//     State(state): State<HTTPServerState>,
-// ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-//     let uuid = ComInterfaceSocketUUID::from(id); // Your conversion
-//     let (tx, rx) = mpsc::channel(100);
-//     state
-//         .clients
-//         .lock()
-//         .unwrap()
-//         .insert(uuid.clone(), Arc::new(Mutex::new(tx)));
+    if let Some(sender) = map.get(&route) {
+        let receiver = sender.subscribe();
+        let stream =
+            ReceiverStream::new(receiver).filter_map(|result| async move {
+                result.ok().map(axum::body::Body::from)
+            });
 
-//     let mut global_rx = state.global_tx.subscribe();
-
-//     let client_stream = ReceiverStream::new(rx)
-//         .map(Ok::<_, Infallible>)
-//         .map(|msg| msg.map(|data| Event::default().data(data)));
-
-//     let global_stream =
-//         BroadcastStream::new(global_rx).filter_map(|msg| async {
-//             msg.ok().map(|data| Ok(Event::default().data(data)))
-//         });
-
-//     Sse::new(client_stream.merge(global_stream))
-//         .keep_alive(KeepAlive::default())
-// }
-
-// async fn send_to_client_handler(
-//     Path(id): Path<String>,
-//     State(state): State<HTTPServerState>,
-//     Json(msg): Json<SendMessage>,
-// ) -> &'static str {
-//     let uuid = ComInterfaceSocketUUID::from(id); // Your conversion
-//     let map = state.clients.lock().unwrap();
-//     if let Some(sender) = map.get(&uuid) {
-//         let _ = sender.lock().unwrap().send(msg.message.clone()).await;
-//         "sent"
-//     } else {
-//         "client not found"
-//     }
-// }
+        Response::builder()
+            .header("Content-Type", "application/octet-stream")
+            .header("Cache-Control", "no-cache")
+            .body(axum::body::Body::from_stream(stream))
+            .unwrap()
+    } else {
+        Response::builder()
+            .status(404)
+            .body("Channel not found".into())
+            .unwrap()
+    }
+}
 
 #[derive(Clone)]
 struct HTTPServerState {
     clients: SharedClients,
     interface_uuid: ComInterfaceUUID,
     global_tx: broadcast::Sender<Bytes>,
-}
-async fn rx_handler(
-    Path(id): Path<String>,
-    Extension(state): Extension<Arc<HTTPServerState>>,
-) -> impl IntoResponse {
-    let socket = ComInterfaceSocket::new(
-        state.interface_uuid,
-        InterfaceDirection::IN_OUT,
-        1,
-    );
-    let uuid = socket.uuid.clone();
-    let (tx, rx) = mpsc::channel::<Bytes>(100);
-
-    state
-        .clients
-        .lock()
-        .unwrap()
-        .insert(uuid.clone(), Arc::new(Mutex::new(tx)));
-
-    // Start streaming
-    tokio_stream::wrappers::ReceiverStream::new(rx)
-        // .keep_alive(KeepAlive::default())
-        .map(|data| Event::default().data(data))
-
-    // let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
-
-    // Body::from_stream(stream)
-    // .map_err(|_| Infallible)
-    // .map(|bytes| {
-    //     let data = bytes.to_vec();
-    //     Event::default().data(data)
-    // })
-    // .into_response();
-    // Return the stream as the response
-    // stream
 }
 
 impl HTTPServerNativeInterface {
@@ -146,9 +99,22 @@ impl HTTPServerNativeInterface {
         let address =
             Url::parse(&address).map_err(|_| HTTPError::InvalidAddress)?;
 
-        let mut interface = HTTPServerNativeInterface { address, info };
+        let mut interface = HTTPServerNativeInterface {
+            channels: Arc::new(Mutex::new(HashMap::new())),
+            address,
+            info,
+        };
         interface.start().await?;
         Ok(interface)
+    }
+
+    pub fn add_channel(&mut self, route: &str, endpoint: Endpoint) -> String {
+        let (tx, _rx) = mpsc::channel(100);
+        self.channels.lock().unwrap().remove(route);
+        format!("/{}", route)
+    }
+    pub fn remove_channel(&mut self, route: &str) -> String {
+        format!("/{}", route)
     }
 
     async fn start(&mut self) -> Result<(), HTTPError> {
@@ -161,12 +127,9 @@ impl HTTPServerNativeInterface {
             clients: Arc::new(Mutex::new(HashMap::new())),
             interface_uuid: self.get_uuid().clone(),
         };
-        // let interface_uuid = self.get_uuid().clone();
         let app = Router::new()
-            .route("/:id/rx", get(rx_handler))
-            // .route("/send/:id", post(send_to_client_handler))
-            // .route("/broadcast", post(broadcast_handler))
-            .with_state(state);
+            .route("/:route/rx", get(stream_handler))
+            .with_state(state.clone());
 
         let addr: SocketAddr = self
             .address
@@ -206,15 +169,21 @@ impl ComInterface for HTTPServerNativeInterface {
         block: &'a [u8],
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // let tx_queues = self.tx.clone();
-        // let tx_queues = tx_queues.lock().unwrap();
-        // let tx = tx_queues.get(&socket);
-        // if tx.is_none() {
-        //     error!("Client is not connected");
-        //     return Box::pin(async { false });
-        // }
-        // let tx = tx.unwrap().clone();
-        Box::pin(async move { true })
+        let route = "test";
+        let channels = self.channels.clone();
+        Box::pin(async move {
+            if let Some(sender) = channels.lock().unwrap().get(route) {
+                let _ = sender.try_send(Bytes::copy_from_slice(block)).map_err(
+                    |_| {
+                        error!("Failed to send message to channel");
+                        false
+                    },
+                );
+                true
+            } else {
+                false
+            }
+        })
     }
 
     delegate_com_interface_info!();
