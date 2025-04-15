@@ -101,6 +101,33 @@ impl ComInterfaceSockets {
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         self.sockets.get(uuid).cloned()
     }
+
+    pub fn register_socket_endpoint(
+        &mut self,
+        socket_uuid: ComInterfaceSocketUUID,
+        endpoint: Endpoint,
+        distance: u32,
+    ) -> Result<(), ComInterfaceError> {
+        let socket = self.sockets.get(&socket_uuid);
+        if socket.is_none() {
+            return Err(ComInterfaceError::SocketNotFound);
+        }
+        {
+            let mut socket = socket.unwrap().lock().unwrap();
+            if socket.direct_endpoint.is_none() {
+                socket.direct_endpoint = Some(endpoint.clone());
+            }
+        }
+
+        debug!("Socket registered: {} {}", socket_uuid, endpoint);
+
+        self.socket_registrations.push_back((
+            socket_uuid,
+            distance,
+            endpoint.clone(),
+        ));
+        Ok(())
+    }
 }
 
 pub struct ComInterfaceInfo {
@@ -258,28 +285,8 @@ pub trait ComInterface: Any {
         endpoint: Endpoint,
         distance: u32,
     ) -> Result<(), ComInterfaceError> {
-        let sockets = self.get_sockets();
-        let mut sockets = sockets.lock().unwrap();
-
-        let socket = sockets.sockets.get(&socket_uuid);
-        if socket.is_none() {
-            return Err(ComInterfaceError::SocketNotFound);
-        }
-        {
-            let mut socket = socket.unwrap().lock().unwrap();
-            if socket.direct_endpoint.is_none() {
-                socket.direct_endpoint = Some(endpoint.clone());
-            }
-        }
-
-        debug!("Socket registered: {} {}", socket_uuid, endpoint);
-
-        sockets.socket_registrations.push_back((
-            socket_uuid,
-            distance,
-            endpoint.clone(),
-        ));
-        Ok(())
+        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        sockets.register_socket_endpoint(socket_uuid, endpoint, distance)
     }
 
     fn get_channel_factor(&self) -> u32 {

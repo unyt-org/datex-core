@@ -101,7 +101,7 @@ default = [
     "flexi_logger",
 
     "debug",
-    "webrtc",
+    #"webrtc",
 ] # default to nostd
 
 native_http = ["axum", "hyper", "tokio-stream"]

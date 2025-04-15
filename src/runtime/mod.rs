@@ -65,8 +65,10 @@ impl Runtime {
 
     /// Starts the common update loop:
     ///  - ComHub
-    pub fn start_update_loop(&self) {
+    pub async fn start(&self) {
+        info!("starting runtime...");
         let com_hub = self.com_hub.clone();
+        com_hub.lock().unwrap().init().await.expect("Failed to initialize ComHub");
         ComHub::start_update_loop(com_hub.clone());
     }
 }
