@@ -28,13 +28,13 @@ impl LocalLoopbackInterface {
         let mut info = ComInterfaceInfo::new();
         info.set_state(ComInterfaceState::Connected);
 
-        let mut sockets = ComInterfaceSockets::default();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
             info.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
             1,
         )));
-        sockets.add_socket(socket.clone());
+        info.com_interface_sockets().lock().unwrap()
+            .add_socket(socket.clone());
 
         LocalLoopbackInterface { info, socket }
     }
