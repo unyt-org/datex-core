@@ -23,6 +23,12 @@ pub struct LocalLoopbackInterface {
     socket: Arc<Mutex<ComInterfaceSocket>>,
     info: ComInterfaceInfo,
 }
+impl Default for LocalLoopbackInterface {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocalLoopbackInterface {
     pub fn new() -> LocalLoopbackInterface {
         let mut info = ComInterfaceInfo::new();

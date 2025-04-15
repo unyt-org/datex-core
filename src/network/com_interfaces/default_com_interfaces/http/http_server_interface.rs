@@ -4,7 +4,6 @@ use bytes::Bytes;
 
 use axum::response::Response;
 use futures::StreamExt;
-use hyper::StatusCode;
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -167,16 +166,13 @@ impl HTTPServerNativeInterface {
 
             spawn(async move {
                 loop {
-                    match rx.recv().await {
-                        Some(data) => {
-                            debug!(
-                                "Received data from socket {:?}: {}",
-                                data.to_vec(),
-                                socket_uuid
-                            );
-                            receive_queue.lock().unwrap().extend(data.to_vec());
-                        }
-                        None => {}
+                    if let Some(data) = rx.recv().await {
+                        debug!(
+                            "Received data from socket {:?}: {}",
+                            data.to_vec(),
+                            socket_uuid
+                        );
+                        receive_queue.lock().unwrap().extend(data.to_vec());
                     }
                 }
             });
@@ -253,8 +249,7 @@ impl ComInterface for HTTPServerNativeInterface {
         let route = route
             .iter()
             .find(|(_, v)| *v == &socket)
-            .map(|(k, _)| k)
-            .clone();
+            .map(|(k, _)| k);
         if route.is_none() {
             return Box::pin(async { false });
         }
