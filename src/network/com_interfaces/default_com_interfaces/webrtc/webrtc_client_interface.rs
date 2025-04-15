@@ -18,7 +18,6 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::MultipleSocketProvider,
     },
-    utils::uuid::UUID,
 };
 use futures::{select, FutureExt};
 use futures_timer::Delay;

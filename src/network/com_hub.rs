@@ -6,7 +6,6 @@ use log::{debug, error, info};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use std::thread::spawn;
 use tokio::task::spawn_local;
 // FIXME no-std
 

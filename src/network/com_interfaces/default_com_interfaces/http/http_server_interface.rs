@@ -1,33 +1,21 @@
-use axum::body::Body;
-use axum::extract::FromRef;
-use axum::Extension;
 use bytes::Bytes;
 
-use axum::response::{IntoResponse, Response};
-use futures::Stream;
-use std::collections::{HashMap, VecDeque};
-use std::convert::Infallible;
+use axum::response::Response;
+use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
 
 use axum::{
-    body::BodyDataStream,
     extract::{Path, State},
-    response::sse::{Event, KeepAlive, Sse},
-    routing::{get, post},
-    Json, Router,
+    routing::get, Router,
 };
-use log::{error, info, warn};
+use log::info;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::spawn;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, RwLock};
 use url::Url;
 
 use crate::datex_values::Endpoint;

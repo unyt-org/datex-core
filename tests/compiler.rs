@@ -4,11 +4,9 @@ use datex_core::{
         parser::{DatexParser, Rule},
     },
     decompiler::decompile_body,
-    runtime::Runtime,
 };
 use log::info;
 use pest::Parser;
-use datex_core::datex_values::Endpoint;
 
 #[test]
 pub fn compile_literals() {
