@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     future::Future,
+    io::ErrorKind,
     pin::Pin,
     sync::{Arc, Mutex},
     time::Duration,
@@ -25,6 +26,7 @@ use futures::{select, FutureExt};
 use futures_timer::Delay;
 use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
+use serialport::SerialPort;
 use tokio::{spawn, sync::Notify};
 use url::Url;
 
@@ -33,6 +35,7 @@ use super::serial_common::SerialError;
 pub struct SerialNativeInterface {
     info: ComInterfaceInfo,
     shutdown_signal: Option<Arc<Notify>>,
+    port: Arc<Mutex<Box<dyn SerialPort + Send>>>,
 }
 impl SingleSocketProvider for SerialNativeInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -40,27 +43,57 @@ impl SingleSocketProvider for SerialNativeInterface {
     }
 }
 impl SerialNativeInterface {
-    async fn open(
-        address: &str,
-        ice_server_config: Option<RtcIceServerConfig>,
-        use_reliable_connection: bool,
-    ) -> Result<SerialNativeInterface, SerialError> {
+    async fn open(address: &str) -> Result<SerialNativeInterface, SerialError> {
+        let port = serialport::new(address, 115200)
+            .timeout(Duration::from_millis(1000))
+            .open()
+            .map_err(|_| SerialError::PortNotFound)?;
+
         let mut interface = SerialNativeInterface {
             shutdown_signal: None,
             info: ComInterfaceInfo::new(),
+            port: Arc::new(Mutex::new(port)),
         };
-        interface.start(use_reliable_connection).await?;
+        let _ = interface.start();
         Ok(interface)
     }
 
-    async fn start(
-        &mut self,
-        use_reliable_connection: bool,
-    ) -> Result<(), SerialError> {
+    fn start(&mut self) -> Result<(), SerialError> {
         let state = self.get_info().get_state();
+        let port = self.port.clone();
+        let socket = ComInterfaceSocket::new(
+            self.get_uuid().clone(),
+            InterfaceDirection::IN_OUT,
+            1,
+        );
+        let receive_queue = socket.get_receive_queue().clone();
+        self.add_socket(Arc::new(Mutex::new(socket)));
         spawn(async move {
+            state
+                .lock()
+                .unwrap()
+                .set_state(ComInterfaceState::Connected);
+            let mut buffer = [0u8; 1024];
+            loop {
+                match port.lock().unwrap().read(&mut buffer) {
+                    Ok(n) if n > 0 => {
+                        let incoming = &buffer[..n];
+                        receive_queue.lock().unwrap().extend(incoming);
+                        debug!(
+                            "Received data from serial port: {:?}",
+                            incoming
+                        );
+                    }
+                    Ok(_) => continue,
+                    Err(ref e) if e.kind() == ErrorKind::TimedOut => continue,
+                    Err(e) => {
+                        error!("Serial read error: {}", e);
+                        break;
+                    }
+                }
+            }
             state.lock().unwrap().set_state(ComInterfaceState::Closed);
-            warn!("WebRTC socket closed");
+            warn!("Serial socket closed");
         });
         Ok(())
     }
@@ -70,9 +103,21 @@ impl ComInterface for SerialNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket_uuid: ComInterfaceSocketUUID,
+        _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        return Box::pin(async { false });
+        let port = self.port.clone();
+        Box::pin(async move {
+            let block = block.to_vec();
+            let result = tokio::task::spawn_blocking(move || {
+                let mut locked = port.lock().unwrap();
+                locked.write_all(&block.as_slice()).is_ok()
+            })
+            .await;
+            match result {
+                Ok(success) => success,
+                Err(_) => false,
+            }
+        })
     }
 
     fn init_properties(&self) -> InterfaceProperties {

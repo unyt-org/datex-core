@@ -4,7 +4,7 @@ use thiserror::Error;
 #[derive(Debug, Display, Error)]
 pub enum SerialError {
     Other(String),
-    InvalidAddress,
+    PortNotFound,
     ConnectionError,
     SendError,
     ReceiveError,
