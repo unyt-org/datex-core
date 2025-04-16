@@ -56,7 +56,7 @@ impl SerialNativeInterface {
             info: ComInterfaceInfo::new(),
             port: Arc::new(Mutex::new(port)),
         };
-        let _ = interface.start()?;
+        interface.start()?;
         Ok(interface)
     }
     pub fn open(

@@ -3,7 +3,7 @@ use datex_core::network::com_interfaces::{
     default_com_interfaces::serial::serial_native_interface::SerialNativeInterface,
     socket_provider::SingleSocketProvider,
 };
-use log::{info, warn};
+use log::info;
 
 use crate::context::init_global_context;
 
