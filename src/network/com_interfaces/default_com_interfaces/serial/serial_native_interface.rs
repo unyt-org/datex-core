@@ -1,6 +1,5 @@
 use std::{
     future::Future,
-    io::ErrorKind,
     pin::Pin,
     sync::{Arc, Mutex},
     time::Duration,
@@ -28,7 +27,7 @@ use super::serial_common::SerialError;
 
 pub struct SerialNativeInterface {
     info: ComInterfaceInfo,
-    shutdown_signal: Option<Arc<Notify>>,
+    shutdown_signal: Arc<Notify>,
     port: Arc<Mutex<Box<dyn SerialPort + Send>>>,
 }
 impl SingleSocketProvider for SerialNativeInterface {
@@ -54,13 +53,14 @@ impl SerialNativeInterface {
         port: Box<dyn SerialPort + Send>,
     ) -> Result<SerialNativeInterface, SerialError> {
         let mut interface = SerialNativeInterface {
-            shutdown_signal: None,
+            shutdown_signal: Arc::new(Notify::new()),
             info: ComInterfaceInfo::new(),
             port: Arc::new(Mutex::new(port)),
         };
         interface.start()?;
         Ok(interface)
     }
+
     pub fn open(
         port_name: &str,
         baud_rate: Option<u32>,
@@ -85,29 +85,56 @@ impl SerialNativeInterface {
         );
         let receive_queue = socket.get_receive_queue().clone();
         self.add_socket(Arc::new(Mutex::new(socket)));
+        let shutdown_signal = self.shutdown_signal.clone();
         spawn(async move {
             state
                 .lock()
                 .unwrap()
                 .set_state(ComInterfaceState::Connected);
-            let mut buffer = [0u8; Self::BUFFER_SIZE];
             loop {
-                match port.lock().unwrap().read(&mut buffer) {
-                    Ok(n) if n > 0 => {
-                        let incoming = &buffer[..n];
-                        receive_queue.lock().unwrap().extend(incoming);
-                        debug!(
-                            "Received data from serial port: {:?}",
-                            incoming
-                        );
-                    }
-                    Ok(_) => continue,
-                    Err(ref e) if e.kind() == ErrorKind::TimedOut => continue,
-                    Err(e) => {
-                        error!("Serial read error: {}", e);
+                tokio::select! {
+                    _ = shutdown_signal.notified() => {
+                        warn!("Shutting down serial task...");
                         break;
+                    },
+                    result = tokio::task::spawn_blocking({
+                        let port = port.clone();
+                        move || {
+                            let mut buffer = [0u8; Self::BUFFER_SIZE];
+                            match port.lock().unwrap().read(&mut buffer) {
+                                Ok(n) if n > 0 => Some(buffer[..n].to_vec()),
+                                _ => None,
+                            }
+                        }
+                    }) => {
+                        match result {
+                            Ok(Some(incoming)) => {
+                                let size = incoming.len();
+                                receive_queue.lock().unwrap().extend(incoming);
+                                debug!(
+                                    "Received data from serial port: {}",
+                                    size
+                                );
+                            }
+                            _ => {
+                                error!("Serial read error or shutdown");
+                                break;
+                            }
+                        }
                     }
                 }
+                // match bytes_read {
+                //     Ok(n) if n > 0 => {
+                //         let incoming = &buffer[..n];
+                //         receive_queue.lock().unwrap().extend(incoming);
+                //         debug!(
+                //             "Received data from serial port: {:?}",
+                //             incoming
+                //         );
+                //     }
+                //     Ok(_) => continue,
+
+                // }
             }
             state.lock().unwrap().set_state(ComInterfaceState::Closed);
             warn!("Serial socket closed");
@@ -146,9 +173,8 @@ impl ComInterface for SerialNativeInterface {
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         Box::pin(async move {
-            if shutdown_signal.is_some() {
-                shutdown_signal.unwrap().notified().await;
-            }
+            shutdown_signal.notified().await;
+            self.set_state(ComInterfaceState::Closed);
             true
         })
     }
