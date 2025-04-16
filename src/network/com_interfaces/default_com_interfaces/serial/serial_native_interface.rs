@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     future::Future,
     io::ErrorKind,
     pin::Pin,
@@ -19,16 +18,11 @@ use crate::{
         },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-        socket_provider::MultipleSocketProvider,
     },
 };
-use futures::{select, FutureExt};
-use futures_timer::Delay;
-use log::{debug, error, info, warn};
-use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
+use log::{debug, error, warn};
 use serialport::SerialPort;
 use tokio::{spawn, sync::Notify};
-use url::Url;
 
 use super::serial_common::SerialError;
 
@@ -111,13 +105,10 @@ impl ComInterface for SerialNativeInterface {
             let block = block.to_vec();
             let result = tokio::task::spawn_blocking(move || {
                 let mut locked = port.lock().unwrap();
-                locked.write_all(&block.as_slice()).is_ok()
+                locked.write_all(block.as_slice()).is_ok()
             })
             .await;
-            match result {
-                Ok(success) => success,
-                Err(_) => false,
-            }
+            result.unwrap_or(false)
         })
     }
 
