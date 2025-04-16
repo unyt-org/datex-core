@@ -107,6 +107,7 @@ impl ComInterface for SerialNativeInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let port = self.port.clone();
         Box::pin(async move {
+            // FIXME improve the lifetime issue here to avoid cloning the block twice
             let block = block.to_vec();
             let result = tokio::task::spawn_blocking(move || {
                 let mut locked = port.lock().unwrap();
