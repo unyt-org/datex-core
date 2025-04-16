@@ -37,19 +37,37 @@ impl SingleSocketProvider for SerialNativeInterface {
     }
 }
 impl SerialNativeInterface {
-    async fn open(address: &str) -> Result<SerialNativeInterface, SerialError> {
-        let port = serialport::new(address, 115200)
-            .timeout(Duration::from_millis(1000))
-            .open()
-            .map_err(|_| SerialError::PortNotFound)?;
+    const TIMEOUT: Duration = Duration::from_millis(1000);
 
+    pub fn get_available_ports() -> Vec<String> {
+        serialport::available_ports()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|port| port.port_name.into())
+            .collect()
+    }
+
+    // Allow to open interface with a configured port
+    pub fn open_with_port(
+        port: Box<dyn SerialPort + Send>,
+    ) -> Result<SerialNativeInterface, SerialError> {
         let mut interface = SerialNativeInterface {
             shutdown_signal: None,
             info: ComInterfaceInfo::new(),
             port: Arc::new(Mutex::new(port)),
         };
-        let _ = interface.start();
+        let _ = interface.start()?;
         Ok(interface)
+    }
+    pub fn open(
+        port_name: &str,
+        baud_rate: u32,
+    ) -> Result<SerialNativeInterface, SerialError> {
+        let port = serialport::new(port_name, baud_rate)
+            .timeout(Self::TIMEOUT)
+            .open()
+            .map_err(|_| SerialError::PortNotFound)?;
+        Self::open_with_port(port)
     }
 
     fn start(&mut self) -> Result<(), SerialError> {
@@ -116,7 +134,7 @@ impl ComInterface for SerialNativeInterface {
         InterfaceProperties {
             channel: "serial".to_string(),
             round_trip_time: Duration::from_millis(40),
-            max_bandwidth: 1000,
+            max_bandwidth: 100,
             ..InterfaceProperties::default()
         }
     }

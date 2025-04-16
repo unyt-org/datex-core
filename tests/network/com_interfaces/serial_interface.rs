@@ -1,0 +1,28 @@
+use datex_core::network::com_interfaces::{
+    com_interface::ComInterface,
+    default_com_interfaces::serial::serial_native_interface::SerialNativeInterface,
+    socket_provider::SingleSocketProvider,
+};
+use log::{info, warn};
+
+use crate::context::init_global_context;
+
+#[tokio::test]
+pub async fn test_construct() {
+    init_global_context();
+    let available_ports = SerialNativeInterface::get_available_ports();
+    if available_ports.is_empty() {
+        panic!("No serial ports available");
+    }
+    for port in available_ports.clone() {
+        info!("Available port: {}", port);
+    }
+    let mut interface = SerialNativeInterface::open("/dev/ttyUSB0", 115200)
+        .unwrap_or_else(|e| {
+            panic!("Failed to create SerialNativeInterface: {:?}", e);
+        });
+    let socket_uuid = interface.get_socket_uuid().unwrap();
+    assert!(interface.send_block(b"Hello World", socket_uuid).await);
+
+    interface.close().await;
+}

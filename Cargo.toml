@@ -65,7 +65,7 @@ hyper = { version = "1", optional = true }
 futures = "0.3"
 bytes = { version = "1" }
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
-serialport = "4.7.1"
+serialport = { version = "4.7.1", optional = true }
 
 [profile.release]
 opt-level = "z"
@@ -99,6 +99,7 @@ default = [
     "native_crypto",
     "native_time",
     "native_http",
+    "native_serial",
     "webrtc",
     "flexi_logger",
 
@@ -113,6 +114,7 @@ native_time = []                                        # use native time
 native_rand = ["rand"]                                  # use native websocket
 native_uuid = ["uuid"]                                  # use native uuid
 native_crypto = ["rsa"]                                 # use native crypto
+native_serial = ["serialport"]                          # use native serial
 webrtc = ["matchbox_socket"]                            # use webrtc
 
 wasm_logger = ["console_log"]
