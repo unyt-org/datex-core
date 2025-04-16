@@ -60,18 +60,17 @@ impl SerialNativeInterface {
         interface.start()?;
         Ok(interface)
     }
-
-    pub fn open(
+    pub fn open(port_name: &str) -> Result<SerialNativeInterface, SerialError> {
+        Self::open_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE)
+    }
+    pub fn open_with_baud_rate(
         port_name: &str,
-        baud_rate: Option<u32>,
+        baud_rate: u32,
     ) -> Result<SerialNativeInterface, SerialError> {
-        let port = serialport::new(
-            port_name,
-            baud_rate.unwrap_or(Self::DEFAULT_BAUD_RATE),
-        )
-        .timeout(Self::TIMEOUT)
-        .open()
-        .map_err(|_| SerialError::PortNotFound)?;
+        let port = serialport::new(port_name, baud_rate)
+            .timeout(Self::TIMEOUT)
+            .open()
+            .map_err(|_| SerialError::PortNotFound)?;
         Self::open_with_port(port)
     }
 
@@ -123,18 +122,6 @@ impl SerialNativeInterface {
                         }
                     }
                 }
-                // match bytes_read {
-                //     Ok(n) if n > 0 => {
-                //         let incoming = &buffer[..n];
-                //         receive_queue.lock().unwrap().extend(incoming);
-                //         debug!(
-                //             "Received data from serial port: {:?}",
-                //             incoming
-                //         );
-                //     }
-                //     Ok(_) => continue,
-
-                // }
             }
             state.lock().unwrap().set_state(ComInterfaceState::Closed);
             warn!("Serial socket closed");

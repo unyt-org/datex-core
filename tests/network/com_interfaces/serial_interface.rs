@@ -10,19 +10,21 @@ use crate::context::init_global_context;
 #[tokio::test]
 pub async fn test_construct() {
     init_global_context();
+    const PORT_NAME: &str = "/dev/ttyUSB0";
+    const BAUD_RATE: u32 = 115200;
     let available_ports = SerialNativeInterface::get_available_ports();
-    if available_ports.is_empty() {
-        panic!("No serial ports available");
-    }
     for port in available_ports.clone() {
         info!("Available port: {}", port);
     }
-    let mut interface = SerialNativeInterface::open("/dev/ttyUSB0", 115200)
-        .unwrap_or_else(|e| {
-            panic!("Failed to create SerialNativeInterface: {:?}", e);
-        });
+    if !available_ports.contains(&PORT_NAME.to_string()) {
+        return;
+    }
+    let mut interface =
+        SerialNativeInterface::open_with_baud_rate(PORT_NAME, BAUD_RATE)
+            .unwrap_or_else(|e| {
+                panic!("Failed to create SerialNativeInterface: {:?}", e);
+            });
     let socket_uuid = interface.get_socket_uuid().unwrap();
     assert!(interface.send_block(b"Hello World", socket_uuid).await);
-
     interface.close().await;
 }
