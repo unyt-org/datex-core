@@ -38,6 +38,8 @@ impl SingleSocketProvider for SerialNativeInterface {
 }
 impl SerialNativeInterface {
     const TIMEOUT: Duration = Duration::from_millis(1000);
+    const BUFFER_SIZE: usize = 1024;
+    const DEFAULT_BAUD_RATE: u32 = 115200;
 
     pub fn get_available_ports() -> Vec<String> {
         serialport::available_ports()
@@ -61,12 +63,15 @@ impl SerialNativeInterface {
     }
     pub fn open(
         port_name: &str,
-        baud_rate: u32,
+        baud_rate: Option<u32>,
     ) -> Result<SerialNativeInterface, SerialError> {
-        let port = serialport::new(port_name, baud_rate)
-            .timeout(Self::TIMEOUT)
-            .open()
-            .map_err(|_| SerialError::PortNotFound)?;
+        let port = serialport::new(
+            port_name,
+            baud_rate.unwrap_or(Self::DEFAULT_BAUD_RATE),
+        )
+        .timeout(Self::TIMEOUT)
+        .open()
+        .map_err(|_| SerialError::PortNotFound)?;
         Self::open_with_port(port)
     }
 
@@ -85,7 +90,7 @@ impl SerialNativeInterface {
                 .lock()
                 .unwrap()
                 .set_state(ComInterfaceState::Connected);
-            let mut buffer = [0u8; 1024];
+            let mut buffer = [0u8; Self::BUFFER_SIZE];
             loop {
                 match port.lock().unwrap().read(&mut buffer) {
                     Ok(n) if n > 0 => {
