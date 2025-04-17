@@ -12,12 +12,13 @@ use crate::{
         socket_provider::SingleSocketProvider,
     },
     stdlib::sync::Arc,
+    tasks::spawn,
 };
 
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use log::{debug, error, info};
-use tokio::{net::TcpStream, spawn};
+use tokio::net::TcpStream;
 use tungstenite::Message;
 use url::Url;
 

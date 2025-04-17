@@ -5,9 +5,6 @@ use std::{
     time::Duration,
 };
 
-use crate::network::com_interfaces::{
-    com_interface::ComInterfaceState, socket_provider::SingleSocketProvider,
-};
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
@@ -19,9 +16,16 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
 };
+use crate::{
+    network::com_interfaces::{
+        com_interface::ComInterfaceState, socket_provider::SingleSocketProvider,
+    },
+    tasks::spawn,
+    tasks::spawn_blocking,
+};
 use log::{debug, error, warn};
 use serialport::SerialPort;
-use tokio::{spawn, sync::Notify};
+use tokio::sync::Notify;
 
 use super::serial_common::SerialError;
 
@@ -96,7 +100,7 @@ impl SerialNativeInterface {
                         warn!("Shutting down serial task...");
                         break;
                     },
-                    result = tokio::task::spawn_blocking({
+                    result = spawn_blocking({
                         let port = port.clone();
                         move || {
                             let mut buffer = [0u8; Self::BUFFER_SIZE];
@@ -140,7 +144,7 @@ impl ComInterface for SerialNativeInterface {
         Box::pin(async move {
             // FIXME improve the lifetime issue here to avoid cloning the block twice
             let block = block.to_vec();
-            let result = tokio::task::spawn_blocking(move || {
+            let result = spawn_blocking(move || {
                 let mut locked = port.lock().unwrap();
                 locked.write_all(block.as_slice()).is_ok()
             })

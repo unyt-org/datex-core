@@ -2,6 +2,7 @@ use axum::extract::Request;
 use axum::routing::post;
 use bytes::Bytes;
 
+use crate::tasks::spawn;
 use axum::response::Response;
 use futures::StreamExt;
 use std::collections::HashMap;
@@ -10,7 +11,6 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::spawn;
 use tokio_stream::wrappers::BroadcastStream;
 
 use axum::{
@@ -19,7 +19,6 @@ use axum::{
     Router,
 };
 use log::{debug, error, info};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{broadcast, mpsc, RwLock};
 use url::Url;
 
@@ -217,7 +216,7 @@ impl HTTPServerNativeInterface {
             .ok_or(HTTPError::InvalidAddress)?;
 
         println!("HTTP server starting on http://{}", addr);
-        tokio::spawn(async move {
+        spawn(async move {
             let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
             axum::serve(listener, app.into_make_service())
                 .await

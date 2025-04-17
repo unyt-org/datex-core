@@ -14,6 +14,7 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
     stdlib::sync::Arc,
+    tasks::spawn,
 };
 
 use futures_util::{SinkExt, StreamExt};
@@ -97,7 +98,7 @@ impl WebSocketServerNativeInterface {
         let shutdown = self.shutdown_signal.clone();
         let mut tasks: Vec<JoinHandle<()>> = vec![];
 
-        tokio::spawn(async move {
+        spawn(async move {
             loop {
                 select! {
                     res = listener.accept() => {
@@ -106,7 +107,7 @@ impl WebSocketServerNativeInterface {
                                 let websocket_streams = websocket_streams.clone();
                                 let interface_uuid = interface_uuid.clone();
                                 let com_interface_sockets = com_interface_sockets.clone();
-                                let task = tokio::spawn(async move {
+                                let task = spawn(async move {
                                     match accept_async(stream).await {
                                         Ok(ws_stream) => {
                                             info!(

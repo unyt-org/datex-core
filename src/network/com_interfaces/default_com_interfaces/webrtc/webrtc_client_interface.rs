@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::tasks::spawn;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
@@ -23,7 +24,7 @@ use futures::{select, FutureExt};
 use futures_timer::Delay;
 use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
-use tokio::{spawn, sync::Notify};
+use tokio::sync::Notify;
 use url::Url;
 
 use super::webrtc_common::WebRTCError;
