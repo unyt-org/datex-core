@@ -33,6 +33,13 @@ thiserror = "2.0.11"
 url = "2.5.4"
 num-traits = "0.2.19"
 async-trait = "0.1.87"
+hex = "0.4.3"
+log = { version = "0.4", features = ["std", "serde"] }
+cfg-if = "0.1"
+ansi_term = "0.12.1"
+futures = "0.3"
+bytes = { version = "1" }
+futures-util = { version = "0.3" }
 tokio = { version = "1.43.0", features = [
     "sync",
     "macros",
@@ -40,13 +47,6 @@ tokio = { version = "1.43.0", features = [
     "rt",
     "time",
 ] }
-tokio-tungstenite = { version = "0.21", optional = true }
-tungstenite = { version = "0.21", optional = true }
-futures-util = { version = "0.3" }
-
-hex = "0.4.3"
-log = { version = "0.4", features = ["std", "serde"] }
-cfg-if = "0.1"
 
 # optional dependencies
 nostd = { version = "0.1.4", optional = true }
@@ -55,17 +55,27 @@ uuid = { version = "1.15.1", features = ["v4"], optional = true }
 rsa = { version = "0.9.8", optional = true }
 flexi_logger = { version = "0.29.8", optional = true }
 console_log = { version = "1.0.0", optional = true }
-ansi_term = "0.12.1"
-js-sys = { version = "0.3.77", optional = true }
-matchbox_socket = { version = "0.11.0", optional = true }                   # , optional = true
+matchbox_socket = { version = "0.11.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
 axum = { version = "0.7", optional = true }
 tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
 hyper = { version = "1", optional = true }
-futures = "0.3"
-bytes = { version = "1" }
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
 serialport = { version = "4.7.1", optional = true }
+tokio-tungstenite = { version = "0.21", optional = true }
+tungstenite = { version = "0.21", optional = true }
+
+
+# [target.'cfg(target_arch = "wasm32")'.dependencies]
+# web-sys = { version = "0.3", features = [
+#     "Document",
+#     "Location", # for getting args from query string
+# ] }
+# serde_qs = "0.13"
+# console_log = "1.0"
+# wasm-bindgen = "0.2"
+# futures = { version = "0.3", default-features = false }
+# wasm-bindgen-futures = "0.4.29"
 
 [profile.release]
 opt-level = "z"
@@ -80,9 +90,6 @@ features = ["debug", "tokio-rt"]
 
 [dev-dependencies]
 matchbox_signaling = { version = "0.11.0" }
-
-# matchbox_server = { version = "0.11.0" }
-
 
 # see https://docs.rs/rsa/latest/rsa/
 [profile.dev.package.num-bigint-dig]
@@ -102,9 +109,7 @@ default = [
     "native_serial",
     "webrtc",
     "flexi_logger",
-
     "debug",
-    #"webrtc",
 ] # default to nostd
 
 native_http = ["axum", "hyper", "tokio-stream"]
