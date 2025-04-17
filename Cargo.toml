@@ -39,7 +39,7 @@ cfg-if = "0.1"
 ansi_term = "0.12.1"
 bytes = { version = "1" }
 futures-util = { version = "0.3" }
-tokio = { version = "1.43.0", features = [
+tokio = { version = "1.43.0", optional = true, features = [
     "sync",
     "macros",
     "io-util",
@@ -67,7 +67,8 @@ serialport = { version = "4.7.1", optional = true }
 tokio-tungstenite = { version = "0.21", optional = true }
 tungstenite = { version = "0.21", optional = true }
 
-# [target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = { optional = true, version = "0.4.29" }
 # web-sys = { version = "0.3", features = [
 #     "Document",
 #     "Location", # for getting args from query string
@@ -110,6 +111,7 @@ default = [
     "webrtc",
     "flexi_logger",
     "debug",
+    "tokio-runtime",
 ] # default to nostd
 
 # com interfaces
@@ -126,6 +128,10 @@ webrtc = ["matchbox_socket", "futures"]                    # use webrtc
 # logger
 wasm_logger = ["console_log"]
 esp_logger = ["esp-idf-svc"]
+
+# runtime
+tokio-runtime = ["dep:tokio"]
+wasm-runtime = ["dep:wasm-bindgen-futures"]
 
 # utils
 std = []   # use std
