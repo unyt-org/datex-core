@@ -17,7 +17,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
-use crate::tasks::spawn;
+use crate::task::spawn;
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::OwnedWriteHalf;

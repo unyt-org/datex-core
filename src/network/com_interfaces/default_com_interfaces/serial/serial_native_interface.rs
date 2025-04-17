@@ -20,8 +20,8 @@ use crate::{
     network::com_interfaces::{
         com_interface::ComInterfaceState, socket_provider::SingleSocketProvider,
     },
-    tasks::spawn,
-    tasks::spawn_blocking,
+    task::spawn,
+    task::spawn_blocking,
 };
 use log::{debug, error, warn};
 use serialport::SerialPort;

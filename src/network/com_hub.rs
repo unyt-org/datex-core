@@ -1,6 +1,6 @@
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::tasks::spawn_local;
+use crate::task::spawn_local;
 use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info};

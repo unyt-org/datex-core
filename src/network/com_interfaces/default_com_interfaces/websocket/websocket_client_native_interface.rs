@@ -12,7 +12,7 @@ use crate::{
         socket_provider::SingleSocketProvider,
     },
     stdlib::sync::Arc,
-    tasks::spawn,
+    task::spawn,
 };
 
 use crate::network::com_interfaces::com_interface::ComInterfaceState;

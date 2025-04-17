@@ -14,7 +14,7 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
     stdlib::sync::Arc,
-    tasks::spawn,
+    task::spawn,
 };
 
 use futures_util::{SinkExt, StreamExt};

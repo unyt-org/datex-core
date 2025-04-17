@@ -16,7 +16,7 @@ pub mod logger;
 pub mod network;
 pub mod parser;
 pub mod runtime;
-pub mod tasks;
+pub mod task;
 pub mod utils;
 
 #[cfg(feature = "std")]

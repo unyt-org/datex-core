@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
-use crate::tasks::spawn;
+use crate::task::spawn;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
