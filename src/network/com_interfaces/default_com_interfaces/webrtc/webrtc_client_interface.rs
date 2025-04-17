@@ -24,7 +24,6 @@ use futures::{select, FutureExt};
 use futures_timer::Delay;
 use log::{debug, error, info, warn};
 use matchbox_socket::{PeerId, PeerState, RtcIceServerConfig, WebRtcSocket};
-use tokio::sync::Notify;
 use url::Url;
 
 use super::webrtc_common::WebRTCError;
@@ -35,8 +34,6 @@ pub struct WebRTCClientInterface {
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
     info: ComInterfaceInfo,
-
-    shutdown_signal: Option<Arc<Notify>>,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -71,7 +68,6 @@ impl WebRTCClientInterface {
         let mut interface = WebRTCClientInterface {
             address,
             websocket: None,
-            shutdown_signal: None,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             ice_server_config: ice_server_config.unwrap_or_default(),
             info: ComInterfaceInfo::new(),
@@ -249,12 +245,8 @@ impl ComInterface for WebRTCClientInterface {
         }
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let shutdown_signal = self.shutdown_signal.clone();
         let websocket = self.websocket.clone();
         Box::pin(async move {
-            if shutdown_signal.is_some() {
-                shutdown_signal.unwrap().notified().await;
-            }
             if websocket.is_some() {
                 let websocket: Arc<Mutex<WebRtcSocket>> = websocket.unwrap();
                 let mut websocket = websocket.lock().unwrap();
