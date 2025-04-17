@@ -69,15 +69,7 @@ tungstenite = { version = "0.21", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = { optional = true, version = "0.4.29" }
-# web-sys = { version = "0.3", features = [
-#     "Document",
-#     "Location", # for getting args from query string
-# ] }
-# serde_qs = "0.13"
-# console_log = "1.0"
-# wasm-bindgen = "0.2"
-# futures = { version = "0.3", default-features = false }
-# wasm-bindgen-futures = "0.4.29"
+
 
 [profile.release]
 opt-level = "z"
@@ -90,8 +82,16 @@ panic = "abort"
 opt-level = 3
 features = ["debug", "tokio-rt"]
 
+# Development dependencies
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 matchbox_signaling = { version = "0.11.0" }
+tokio = { version = "1.43.0", features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+], default-features = false }
 
 # see https://docs.rs/rsa/latest/rsa/
 [profile.dev.package.num-bigint-dig]
@@ -111,7 +111,7 @@ default = [
     "webrtc",
     "flexi_logger",
     "debug",
-    "tokio-runtime",
+    "tokio_runtime",
 ] # default to nostd
 
 # com interfaces
@@ -130,8 +130,8 @@ wasm_logger = ["console_log"]
 esp_logger = ["esp-idf-svc"]
 
 # runtime
-tokio-runtime = ["dep:tokio"]
-wasm-runtime = ["dep:wasm-bindgen-futures"]
+tokio_runtime = ["dep:tokio"]
+wasm_runtime = ["dep:wasm-bindgen-futures"]
 
 # utils
 std = []   # use std

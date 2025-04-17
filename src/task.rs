@@ -1,7 +1,7 @@
 use cfg_if::cfg_if;
 
 cfg_if! {
-    if #[cfg(feature = "tokio-runtime")] {
+    if #[cfg(feature = "tokio_runtime")] {
         pub fn spawn_local<F>(fut: F)
         where
             F: std::future::Future<Output = ()> + 'static,
@@ -22,7 +22,7 @@ cfg_if! {
             tokio::task::spawn_blocking(f)
         }
 
-    } else if #[cfg(feature = "wasm-runtime")] {
+    } else if #[cfg(feature = "wasm_runtime")] {
         pub fn spawn_local<F>(fut: F)
         where
             F: std::future::Future<Output = ()> + 'static,
@@ -42,6 +42,6 @@ cfg_if! {
             panic!("`spawn_blocking` is not supported in the wasm runtime.");
         }
     } else {
-        compile_error!("Unsupported runtime. Please enable either 'tokio-runtime' or 'wasm-runtime' feature.");
+        compile_error!("Unsupported runtime. Please enable either 'tokio_runtime' or 'wasm_runtime' feature.");
     }
 }
