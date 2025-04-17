@@ -37,7 +37,6 @@ hex = "0.4.3"
 log = { version = "0.4", features = ["std", "serde"] }
 cfg-if = "0.1"
 ansi_term = "0.12.1"
-futures = "0.3"
 bytes = { version = "1" }
 futures-util = { version = "0.3" }
 tokio = { version = "1.43.0", features = [
@@ -46,9 +45,10 @@ tokio = { version = "1.43.0", features = [
     "io-util",
     "rt",
     "time",
-] }
+], default-features = false }
 
 # optional dependencies
+futures = { version = "0.3", optional = true }
 nostd = { version = "0.1.4", optional = true }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
@@ -64,7 +64,6 @@ futures-timer = { version = "3", features = ["wasm-bindgen"] }
 serialport = { version = "4.7.1", optional = true }
 tokio-tungstenite = { version = "0.21", optional = true }
 tungstenite = { version = "0.21", optional = true }
-
 
 # [target.'cfg(target_arch = "wasm32")'.dependencies]
 # web-sys = { version = "0.3", features = [
@@ -98,7 +97,6 @@ opt-level = 3
 [features]
 default = [
     "nostd",
-
     "native_websocket",
     "native_tcp",
     "native_rand",
@@ -112,17 +110,21 @@ default = [
     "debug",
 ] # default to nostd
 
-native_http = ["axum", "hyper", "tokio-stream"]
-native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket
-native_tcp = []                                         # use native tcp
-native_time = []                                        # use native time
-native_rand = ["rand"]                                  # use native websocket
-native_uuid = ["uuid"]                                  # use native uuid
-native_crypto = ["rsa"]                                 # use native crypto
-native_serial = ["serialport"]                          # use native serial
-webrtc = ["matchbox_socket"]                            # use webrtc
+# com interfaces
+native_http = ["futures", "axum", "hyper", "tokio-stream"]
+native_websocket = ["tokio-tungstenite", "tungstenite"]    # use native websocket
+native_tcp = []                                            # use native tcp
+native_time = []                                           # use native time
+native_rand = ["rand"]                                     # use native websocket
+native_uuid = ["uuid"]                                     # use native uuid
+native_crypto = ["rsa"]                                    # use native crypto
+native_serial = ["serialport"]                             # use native serial
+webrtc = ["matchbox_socket", "futures"]                    # use webrtc
 
+# logger
 wasm_logger = ["console_log"]
 esp_logger = ["esp-idf-svc"]
-std = []                      # use std
+
+# utils
+std = []   # use std
 debug = []

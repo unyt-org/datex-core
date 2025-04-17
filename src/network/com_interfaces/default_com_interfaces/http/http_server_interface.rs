@@ -246,10 +246,7 @@ impl ComInterface for HTTPServerNativeInterface {
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let route = self.socket_channel_mapping.lock().unwrap();
-        let route = route
-            .iter()
-            .find(|(_, v)| *v == &socket)
-            .map(|(k, _)| k);
+        let route = route.iter().find(|(_, v)| *v == &socket).map(|(k, _)| k);
         if route.is_none() {
             return Box::pin(async { false });
         }
