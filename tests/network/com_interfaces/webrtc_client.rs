@@ -1,34 +1,13 @@
 use core::panic;
-use std::net::SocketAddr;
 
 use crate::context::init_global_context;
+use crate::network::helpers::webrtc_signaling_server::start_server;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::webrtc::webrtc_client_interface::WebRTCClientInterface,
     socket_provider::MultipleSocketProvider,
 };
-use log::info;
-use matchbox_signaling::SignalingServer;
-use tokio::spawn;
-
-pub fn start_server(url: &str) {
-    let server =
-        SignalingServer::full_mesh_builder(url.parse::<SocketAddr>().unwrap())
-            .on_connection_request(|_| Ok(true))
-            .on_id_assignment(|(socket, id)| info!("{socket} received {id}"))
-            .on_peer_connected(|id| info!("Peer connected: {id}"))
-            .on_peer_disconnected(|id| info!("Peer disconnected: {id}"))
-            .cors()
-            .trace()
-            .build();
-
-    spawn(async move {
-        server.serve().await.unwrap_or_else(|e| {
-            panic!("Failed to start signaling server: {:?}", e);
-        });
-    });
-}
 
 #[tokio::test]
 pub async fn test_construct() {
@@ -51,7 +30,7 @@ pub async fn test_construct() {
 
 #[tokio::test]
 pub async fn test_send_receive() {
-    const PORT: u16 = 8081;
+    const PORT: u16 = 8080;
     const CLIENT_A_TO_CLIENT_B_MSG: &[u8] = b"Hello World";
     const CLIENT_B_TO_CLIENT_A_MSG: &[u8] = b"Nooo, this is Patrick!";
     let url = format!("127.0.0.1:{}", PORT);

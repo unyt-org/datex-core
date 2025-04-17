@@ -16,7 +16,7 @@ use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocke
 
 use crate::context::init_global_context;
 
-use super::com_interfaces::mockup_interface::MockupInterface;
+use super::helpers::mockup_interface::MockupInterface;
 
 lazy_static::lazy_static! {
     static ref ORIGIN : Endpoint = Endpoint::from_string("@origin").unwrap();
