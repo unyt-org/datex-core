@@ -99,11 +99,9 @@ impl ComHub {
         }))
     }
 
-    pub async fn init(&mut self) -> Result<(), ComHubError> {
+    pub fn init(&mut self) -> Result<(), ComHubError> {
         // add default local loopback interface
-        self.add_interface(
-            Rc::new(RefCell::new(LocalLoopbackInterface::new()))
-        ).await
+        self.add_interface(Rc::new(RefCell::new(LocalLoopbackInterface::new())))
     }
 
     pub fn set_default_interface(
@@ -145,6 +143,10 @@ impl ComHub {
         RefMut::filter_map(borrowed, |b| b.as_any_mut().downcast_mut::<T>())
             .ok()
     }
+
+    pub fn has_interface(&self, interface_uuid: &ComInterfaceUUID) -> bool {
+        self.interfaces.contains_key(interface_uuid)
+    }
     pub fn get_interface_by_uuid<T: ComInterface + 'static>(
         &self,
         interface_uuid: &ComInterfaceUUID,
@@ -154,17 +156,17 @@ impl ComHub {
         Ref::filter_map(borrowed, |b| b.as_any().downcast_ref::<T>()).ok()
     }
 
-    pub async fn add_default_interface(
+    pub fn add_default_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
-        self.add_interface(interface.clone()).await?;
+        self.add_interface(interface.clone())?;
         let uuid = interface.borrow().get_uuid().clone();
         self.set_default_interface(uuid)?;
         Ok(())
     }
 
-    pub async fn add_interface(
+    pub fn add_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {

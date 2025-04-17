@@ -38,7 +38,6 @@ async fn get_mock_setup() -> (Arc<Mutex<ComHub>>, Rc<RefCell<MockupInterface>>)
         .lock()
         .unwrap()
         .add_interface(mockup_interface_ref.clone())
-        .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {:?}", e);
         });
@@ -101,7 +100,6 @@ pub async fn test_add_and_remove() {
         let uuid = mockup_interface.borrow().get_uuid().clone();
         com_hub_mut
             .add_interface(mockup_interface.clone())
-            .await
             .unwrap_or_else(|e| {
                 panic!("Error adding interface: {:?}", e);
             });
@@ -122,24 +120,20 @@ pub async fn test_multiple_add() {
 
     com_hub_mut
         .add_interface(mockup_interface1.clone())
-        .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {:?}", e);
         });
     com_hub_mut
         .add_interface(mockup_interface2.clone())
-        .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {:?}", e);
         });
 
     assert!(com_hub_mut
         .add_interface(mockup_interface1.clone())
-        .await
         .is_err());
     assert!(com_hub_mut
         .add_interface(mockup_interface2.clone())
-        .await
         .is_err());
 }
 
