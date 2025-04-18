@@ -65,7 +65,7 @@ impl Runtime {
 
     /// Starts the common update loop:
     ///  - ComHub
-    pub async fn start(&self) {
+    pub fn start(&self) {
         info!("starting runtime...");
         let com_hub = self.com_hub.clone();
         com_hub
