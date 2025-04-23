@@ -121,10 +121,10 @@ impl ComInterface for BaseInterface {
         if let Some(socket) = self.get_socket_with_uuid(socket) {
             let socket = socket.lock().unwrap();
             socket.receive_queue.lock().unwrap().extend(block);
-            return Box::pin(async move { true });
+            Box::pin(async move { true })
         } else {
             error!("Socket not found");
-            return Box::pin(async move { false });
+            Box::pin(async move { false })
         }
     }
 
