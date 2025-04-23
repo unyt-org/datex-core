@@ -30,6 +30,16 @@ impl Default for BaseInterface {
     }
 }
 
+use strum::Display;
+use thiserror::Error;
+
+#[derive(Debug, Display, Error)]
+pub enum BaseInterfaceError {
+    SendError,
+    ReceiveError,
+    SocketNotFound,
+}
+
 impl BaseInterface {
     pub fn new_with_single_socket(
         name: &str,
@@ -81,14 +91,15 @@ impl BaseInterface {
         &mut self,
         socket: ComInterfaceSocketUUID,
         data: Vec<u8>,
-    ) -> Result<(), String> {
+    ) -> Result<(), BaseInterfaceError> {
         if let Some(socket) = self.get_socket_with_uuid(socket) {
             let socket = socket.lock().unwrap();
             let receive_queue = socket.get_receive_queue();
             receive_queue.lock().unwrap().extend(data);
             Ok(())
         } else {
-            Err("Socket not found".to_string())
+            error!("Socket not found");
+            Err(BaseInterfaceError::SocketNotFound)
         }
     }
 }
