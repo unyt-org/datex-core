@@ -39,6 +39,43 @@ impl BaseInterface {
             info,
         }
     }
+
+    pub fn create_socket(
+        &mut self,
+        direction: InterfaceDirection,
+    ) -> ComInterfaceSocketUUID {
+        let socket =
+            ComInterfaceSocket::new(self.get_uuid().clone(), direction, 1);
+        let socket_uuid = socket.uuid.clone();
+        let socket = Arc::new(Mutex::new(socket));
+        self.add_socket(socket);
+        socket_uuid
+    }
+    pub fn create_socket_with_endpoint(
+        &mut self,
+        direction: InterfaceDirection,
+        endpoint: Endpoint,
+    ) -> ComInterfaceSocketUUID {
+        let socket_uuid = self.create_socket(direction);
+        self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
+            .unwrap();
+        socket_uuid
+    }
+
+    pub fn receive(
+        &mut self,
+        socket: ComInterfaceSocketUUID,
+        data: Vec<u8>,
+    ) -> Result<(), String> {
+        if let Some(socket) = self.get_socket_with_uuid(socket) {
+            let socket = socket.lock().unwrap();
+            let receive_queue = socket.get_receive_queue();
+            receive_queue.lock().unwrap().extend(data);
+            Ok(())
+        } else {
+            Err("Socket not found".to_string())
+        }
+    }
 }
 
 impl MultipleSocketProvider for BaseInterface {
