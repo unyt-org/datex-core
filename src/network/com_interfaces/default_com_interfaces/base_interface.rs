@@ -116,6 +116,8 @@ impl ComInterface for BaseInterface {
         block: &'a [u8],
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO: Implement send_block
+        // This is a placeholder implementation
         if let Some(socket) = self.get_socket_with_uuid(socket) {
             let socket = socket.lock().unwrap();
             socket.receive_queue.lock().unwrap().extend(block);
