@@ -1,8 +1,7 @@
-
+use strum::EnumString;
 
 use crate::stdlib::time::Duration;
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, EnumString)]
 pub enum InterfaceDirection {
     IN,
     OUT,

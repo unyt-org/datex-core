@@ -26,11 +26,26 @@ pub struct BaseInterface {
 }
 impl Default for BaseInterface {
     fn default() -> Self {
-        Self::new("base")
+        Self::new("unknown")
     }
 }
 
 impl BaseInterface {
+    pub fn new_with_single_socket(
+        name: &str,
+        direction: InterfaceDirection,
+    ) -> BaseInterface {
+        let interface = BaseInterface::new(name);
+        let socket =
+            ComInterfaceSocket::new(interface.get_uuid().clone(), direction, 1);
+        let socket_uuid = socket.uuid.clone();
+        let socket = Arc::new(Mutex::new(socket));
+        interface.add_socket(socket);
+        interface
+            .register_socket_endpoint(socket_uuid, Endpoint::default(), 1)
+            .unwrap();
+        interface
+    }
     pub fn new(name: &str) -> BaseInterface {
         let info =
             ComInterfaceInfo::new_with_state(ComInterfaceState::Connected);
@@ -40,7 +55,7 @@ impl BaseInterface {
         }
     }
 
-    pub fn register_socket(
+    pub fn register_new_socket(
         &mut self,
         direction: InterfaceDirection,
     ) -> ComInterfaceSocketUUID {
@@ -51,12 +66,12 @@ impl BaseInterface {
         self.add_socket(socket);
         socket_uuid
     }
-    pub fn register_socket_with_endpoint(
+    pub fn register_new_socket_with_endpoint(
         &mut self,
         direction: InterfaceDirection,
         endpoint: Endpoint,
     ) -> ComInterfaceSocketUUID {
-        let socket_uuid = self.register_socket(direction);
+        let socket_uuid = self.register_new_socket(direction);
         self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
             .unwrap();
         socket_uuid

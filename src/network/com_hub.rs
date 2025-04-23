@@ -156,6 +156,13 @@ impl ComHub {
         Ref::filter_map(borrowed, |b| b.as_any().downcast_ref::<T>()).ok()
     }
 
+    pub fn get_interface_ref_by_uuid(
+        &self,
+        uuid: &ComInterfaceUUID,
+    ) -> Option<Rc<RefCell<dyn ComInterface>>> {
+        self.interfaces.get(uuid).cloned()
+    }
+
     pub fn add_default_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
