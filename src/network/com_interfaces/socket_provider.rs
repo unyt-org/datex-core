@@ -64,6 +64,16 @@ pub trait MultipleSocketProvider {
         let socket = sockets.sockets.values().nth(index).cloned();
         socket
     }
+
+    fn get_socket_with_uuid(
+        &self,
+        socket_uuid: ComInterfaceSocketUUID,
+    ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
+        let sockets = self.provide_sockets();
+        let sockets = sockets.lock().unwrap();
+        let socket = sockets.sockets.get(&socket_uuid).cloned();
+        socket
+    }
 }
 
 pub trait SingleSocketProvider {
