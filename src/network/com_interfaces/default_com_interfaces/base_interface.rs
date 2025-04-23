@@ -40,7 +40,7 @@ impl BaseInterface {
         }
     }
 
-    pub fn create_socket(
+    pub fn register_socket(
         &mut self,
         direction: InterfaceDirection,
     ) -> ComInterfaceSocketUUID {
@@ -51,12 +51,12 @@ impl BaseInterface {
         self.add_socket(socket);
         socket_uuid
     }
-    pub fn create_socket_with_endpoint(
+    pub fn register_socket_with_endpoint(
         &mut self,
         direction: InterfaceDirection,
         endpoint: Endpoint,
     ) -> ComInterfaceSocketUUID {
-        let socket_uuid = self.create_socket(direction);
+        let socket_uuid = self.register_socket(direction);
         self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
             .unwrap();
         socket_uuid
@@ -92,11 +92,8 @@ impl ComInterface for BaseInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         if let Some(socket) = self.get_socket_with_uuid(socket) {
             let socket = socket.lock().unwrap();
-            // socket.s
-            // let mut block = block.to_vec();
-            // socket.send(&block).unwrap_or(0);
-
-            return Box::pin(async move { false });
+            socket.receive_queue.lock().unwrap().extend(block);
+            return Box::pin(async move { true });
         } else {
             error!("Socket not found");
             return Box::pin(async move { false });

@@ -1,3 +1,4 @@
+pub mod base_interface;
 pub mod http_interface;
 pub mod serial_interface;
 pub mod tcp_native;
