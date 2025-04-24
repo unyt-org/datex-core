@@ -115,7 +115,7 @@ impl WebSocketServerNativeInterface {
                                                 addr
                                             );
                                             let (write, mut read) = ws_stream.split();
-                                            let mut socket = ComInterfaceSocket::new(
+                                            let socket = ComInterfaceSocket::new(
                                                 interface_uuid.clone(),
                                                 InterfaceDirection::IN_OUT,
                                                 1,

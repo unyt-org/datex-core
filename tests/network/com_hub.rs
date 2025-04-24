@@ -410,7 +410,7 @@ pub async fn test_receive_multiple() {
         },
     ];
 
-    for mut block in &mut blocks {
+    for block in &mut blocks {
         // set receiver to ORIGIN
         block.set_receivers(&[ORIGIN.clone()]);
     }

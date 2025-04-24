@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use log::info;
 use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
@@ -100,7 +99,7 @@ pub async fn test_create_socket_connection() {
 
     let runtime = Runtime::init_native(Endpoint::default());
 
-    let mut server = Rc::new(RefCell::new(
+    let server = Rc::new(RefCell::new(
         WebSocketServerNativeInterface::open(PORT)
             .await
             .unwrap_or_else(|e| {
@@ -108,7 +107,7 @@ pub async fn test_create_socket_connection() {
             })
     ));
 
-    let mut client = Rc::new(RefCell::new(
+    let client = Rc::new(RefCell::new(
         WebSocketClientNativeInterface::open(&format!(
             "ws://localhost:{}",
             PORT

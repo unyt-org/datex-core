@@ -547,7 +547,7 @@ impl ComHub {
                     exact_instance: false,
                     exclude_socket,
                 };
-                for socket in self.iterate_endpoint_sockets(endpoint, options) {
+                if let Some(socket) = self.iterate_endpoint_sockets(endpoint, options).next() {
                     // TODO
                     return Some(socket);
                 }
@@ -562,7 +562,7 @@ impl ComHub {
                     exact_instance: true,
                     exclude_socket,
                 };
-                for socket in self.iterate_endpoint_sockets(endpoint, options) {
+                if let Some(socket) = self.iterate_endpoint_sockets(endpoint, options).next() {
                     return Some(socket);
                 }
                 None
@@ -775,7 +775,7 @@ impl ComHub {
         for (socket, _) in self.sockets.values() {
             let mut socket_ref = socket.lock().unwrap();
             let uuid = socket_ref.uuid.clone();
-            let mut block_queue = socket_ref.get_incoming_block_queue();
+            let block_queue = socket_ref.get_incoming_block_queue();
             blocks.push((uuid, block_queue.drain(..).collect::<Vec<_>>()));
         }
 
