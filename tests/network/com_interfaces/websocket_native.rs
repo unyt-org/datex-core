@@ -1,3 +1,9 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+use log::info;
+use datex_core::datex_values::Endpoint;
+use datex_core::global::dxb_block::DXBBlock;
+use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::{
@@ -6,7 +12,7 @@ use datex_core::network::com_interfaces::{
     },
     socket_provider::SingleSocketProvider,
 };
-
+use datex_core::runtime::Runtime;
 use crate::context::init_global_context;
 
 #[tokio::test]
@@ -17,7 +23,7 @@ pub async fn test_construct() {
 
     init_global_context();
 
-    let mut server = WebSocketServerNativeInterface::open(&PORT)
+    let mut server = WebSocketServerNativeInterface::open(PORT)
         .await
         .unwrap_or_else(|e| {
             panic!("Failed to create WebSocketServerInterface: {}", e);
@@ -77,4 +83,90 @@ pub async fn test_construct() {
             .collect::<Vec<_>>(),
         CLIENT_TO_SERVER_MSG
     );
+}
+
+
+#[tokio::test]
+pub async fn test_create_socket_connection() {
+    const PORT: u16 = 8080;
+
+    let block = DXBBlock {
+        routing_header: RoutingHeader {
+            sender: Endpoint::from_string("@test").unwrap(),
+            ..RoutingHeader::default()
+        },
+        ..DXBBlock::default()
+    };
+
+    let runtime = Runtime::init_native(Endpoint::default());
+
+    let mut server = Rc::new(RefCell::new(
+        WebSocketServerNativeInterface::open(PORT)
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Failed to create WebSocketServerInterface: {}", e);
+            })
+    ));
+
+    let mut client = Rc::new(RefCell::new(
+        WebSocketClientNativeInterface::open(&format!(
+            "ws://localhost:{}",
+            PORT
+        ))
+        .await
+        .unwrap_or_else(|e| {
+            panic!("Failed to create WebSocketClientInterface: {}", e);
+        })
+    ));
+
+    runtime.com_hub.lock().unwrap().add_interface(server.clone()).unwrap();
+    runtime.com_hub.lock().unwrap().add_interface(client.clone()).unwrap();
+
+    let client_uuid = client.borrow().get_socket_uuid().unwrap();
+    assert!(
+        client
+            .borrow_mut()
+            .send_block(&block.to_bytes().unwrap(), client_uuid)
+            .await
+    );
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    runtime.com_hub.lock().unwrap().update().await;
+
+    // TODO: assert that endpoint socket was registered
+
+}
+
+#[ignore]
+#[tokio::test]
+pub async fn test_construct_client() {
+    const PORT: u16 = 1234;
+
+    let block = DXBBlock {
+        routing_header: RoutingHeader {
+            sender: Endpoint::from_string("@test").unwrap(),
+            ..RoutingHeader::default()
+        },
+        ..DXBBlock::default()
+    };
+
+    init_global_context();
+
+    let mut client = WebSocketClientNativeInterface::open(&format!(
+        "ws://localhost:{}",
+        PORT
+    ))
+        .await
+        .unwrap_or_else(|e| {
+            panic!("Failed to create WebSocketClientInterface: {}", e);
+        });
+
+    assert!(
+        client
+            .send_block(&block.to_bytes().unwrap(), client.get_socket_uuid().unwrap())
+            .await
+    );
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
 }

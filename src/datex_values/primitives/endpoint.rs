@@ -50,7 +50,7 @@ pub enum EndpointType {
     Anonymous = 2,
 }
 
-#[derive(BinWrite, BinRead, Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(BinWrite, BinRead, Debug, Clone, Hash, PartialEq, Eq)]
 #[brw(little)]
 pub struct Endpoint {
     // 1 byte type, 18 bytes name, 2 bytes instance
@@ -58,6 +58,13 @@ pub struct Endpoint {
     pub identifier: [u8; 18],
     pub instance: EndpointInstance,
 }
+
+impl Default for Endpoint {
+    fn default() -> Self {
+        Endpoint::LOCAL
+    }
+}
+
 
 #[derive(PartialEq, Debug)]
 pub enum InvalidEndpointError {

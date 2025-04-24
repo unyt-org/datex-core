@@ -46,7 +46,7 @@ impl ComInterfaceSocket {
         self.receive_queue.clone()
     }
 
-    pub fn get_incoming_block_queue(&self) -> &VecDeque<DXBBlock> {
+    pub fn get_incoming_block_queue(&mut self) -> &mut VecDeque<DXBBlock> {
         self.block_collector.get_block_queue()
     }
 
@@ -94,7 +94,7 @@ impl ComInterfaceSocket {
             block_collector: BlockCollector::new(receive_queue.clone()),
             interface_uuid,
             direct_endpoint: None,
-            is_connected: false,
+            is_connected: true,
             is_open: false,
             is_destroyed: false,
             uuid: ComInterfaceSocketUUID(UUID::new()),

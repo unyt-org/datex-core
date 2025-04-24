@@ -41,8 +41,8 @@ impl BlockCollector {
         }
     }
 
-    pub fn get_block_queue(&self) -> &VecDeque<DXBBlock> {
-        &self.block_queue
+    pub fn get_block_queue(&mut self) -> &mut VecDeque<DXBBlock> {
+        &mut self.block_queue
     }
 
     fn receive_slice(&mut self, slice: &[u8]) {

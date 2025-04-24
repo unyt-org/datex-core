@@ -53,7 +53,6 @@ fn add_socket(
         InterfaceDirection::IN_OUT,
         1,
     )));
-    socket.lock().unwrap().is_connected = true;
     mockup_interface_ref.borrow().add_socket(socket.clone());
     socket
 }

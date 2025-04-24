@@ -125,7 +125,7 @@ pub struct Receivers {
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
     pub version: u8,
-    pub ttl: u8,
+    pub distance: u8,
     pub flags: Flags,
 
     pub scope_id: u32,
@@ -159,7 +159,7 @@ impl Default for RoutingHeader {
     fn default() -> Self {
         RoutingHeader {
             version: 1,
-            ttl: 0,
+            distance: 0,
             flags: Flags::new(),
             scope_id: 0,
             block_index: 0,

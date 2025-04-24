@@ -54,7 +54,7 @@ pub struct WebSocketServerNativeInterface {
 
 impl WebSocketServerNativeInterface {
     pub async fn open(
-        port: &u16,
+        port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
         let address: String = format!("127.0.0.1:{}", port);
         let address = parse_url(&address).map_err(|_| {
@@ -115,14 +115,13 @@ impl WebSocketServerNativeInterface {
                                                 addr
                                             );
                                             let (write, mut read) = ws_stream.split();
-                                            let socket = ComInterfaceSocket::new(
+                                            let mut socket = ComInterfaceSocket::new(
                                                 interface_uuid.clone(),
                                                 InterfaceDirection::IN_OUT,
                                                 1,
                                             );
                                             let socket_uuid = socket.uuid.clone();
                                             let socket_shared = Arc::new(Mutex::new(socket));
-
                                             com_interface_sockets
                                                 .clone()
                                                 .lock()

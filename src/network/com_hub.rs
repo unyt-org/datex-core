@@ -28,7 +28,7 @@ use crate::network::com_interfaces::default_com_interfaces::local_loopback_inter
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
     pub known_since: u64,
-    pub distance: u32,
+    pub distance: u8,
     pub is_direct: bool,
     pub channel_factor: u32,
     pub direction: InterfaceDirection,
@@ -236,9 +236,9 @@ impl ComHub {
     }
 
     pub(crate) fn receive_block(
-        &self,
+        &mut self,
         block: &DXBBlock,
-        socket_uuid: &ComInterfaceSocketUUID,
+        socket_uuid: ComInterfaceSocketUUID,
     ) {
         info!("Received block addressed to {:?}", block.receivers());
 
@@ -266,17 +266,39 @@ impl ComHub {
             if !remaining_receivers.is_empty() {
                 let block = &mut block.clone();
                 block.set_receivers(remaining_receivers);
-                self.send_block(block, Some(socket_uuid));
+                // increment distance for next hop
+                block.routing_header.distance += 1;
+                self.send_block(block, Some(&socket_uuid));
             }
         }
 
-        // own incoming blocks
+        // assign endpoint to socket if none is assigned
+        let socket = self.get_socket_by_uuid(&socket_uuid);
+        let mut socket_ref = socket.lock().unwrap();
+
+        let distance = block.routing_header.distance;
+        let sender = block.routing_header.sender.clone();
+
+        // set as direct endpoint if distance = 0
+        if socket_ref.direct_endpoint.is_none() && distance == 0 {
+            info!(
+                "Setting direct endpoint for socket {}: {}",
+                socket_ref.uuid, sender
+            );
+            socket_ref.direct_endpoint = Some(sender.clone());
+        }
+
+        if socket_ref.direct_endpoint.is_some() {
+            drop(socket_ref);
+            self.register_socket_endpoint(
+                socket.clone(),
+                sender,
+                distance,
+            ).expect("Failed to register socket endpoint");
+        }
     }
 
-    // TODO this method is currently not beeing invoked
-    // We have to finalize the get_com_interface_sockets logic and empty the add registered endpoint socket queue
-    // to call the register_socket_endpoint on the comhub during updates to be able to sort the endpoint sockets
-    // for priority
+    // TODO: prevent duplicate endpoint registrations
 
     /// registers a new endpoint that is reachable over the socket
     /// if the socket is not already registered, it will be added to the socket list
@@ -286,9 +308,10 @@ impl ComHub {
         &mut self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
         endpoint: Endpoint,
-        distance: u32,
+        distance: u8,
     ) -> Result<(), SocketEndpointRegistrationError> {
         let socket_ref = socket.lock().unwrap();
+
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
         let is_direct = socket_ref.direct_endpoint == Some(endpoint.clone());
@@ -326,7 +349,7 @@ impl ComHub {
         &mut self,
         endpoint: &Endpoint,
         socket_uuid: ComInterfaceSocketUUID,
-        distance: u32,
+        distance: u8,
         is_direct: bool,
         channel_factor: u32,
         direction: InterfaceDirection,
@@ -747,13 +770,18 @@ impl ComHub {
     /// Collect all blocks from the receive queues of all sockets and process them
     /// in the receive_block method.
     fn receive_incoming_blocks(&mut self) {
+        let mut blocks = vec![];
         // iterate over all sockets
         for (socket, _) in self.sockets.values() {
-            let socket_ref = socket.lock().unwrap();
-            let block_queue = socket_ref.get_incoming_block_queue();
-            let uuid = &socket_ref.uuid;
-            for block in block_queue {
-                self.receive_block(block, uuid);
+            let mut socket_ref = socket.lock().unwrap();
+            let uuid = socket_ref.uuid.clone();
+            let mut block_queue = socket_ref.get_incoming_block_queue();
+            blocks.push((uuid, block_queue.drain(..).collect::<Vec<_>>()));
+        }
+
+        for (uuid, blocks) in blocks {
+            for block in blocks.iter() {
+                self.receive_block(block, uuid.clone());
             }
         }
     }

@@ -80,7 +80,7 @@ impl ComInterfaceState {
 pub struct ComInterfaceSockets {
     pub sockets:
         HashMap<ComInterfaceSocketUUID, Arc<Mutex<ComInterfaceSocket>>>,
-    pub socket_registrations: VecDeque<(ComInterfaceSocketUUID, u32, Endpoint)>,
+    pub socket_registrations: VecDeque<(ComInterfaceSocketUUID, u8, Endpoint)>,
     pub new_sockets: VecDeque<Arc<Mutex<ComInterfaceSocket>>>,
     pub deleted_sockets: VecDeque<ComInterfaceSocketUUID>,
 }
@@ -108,7 +108,7 @@ impl ComInterfaceSockets {
         &mut self,
         socket_uuid: ComInterfaceSocketUUID,
         endpoint: Endpoint,
-        distance: u32,
+        distance: u8,
     ) -> Result<(), ComInterfaceError> {
         let socket = self.sockets.get(&socket_uuid);
         if socket.is_none() {
@@ -277,7 +277,7 @@ pub trait ComInterface: Any {
         &self,
         socket_uuid: ComInterfaceSocketUUID,
         endpoint: Endpoint,
-        distance: u32,
+        distance: u8,
     ) -> Result<(), ComInterfaceError> {
         let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
         sockets.register_socket_endpoint(socket_uuid, endpoint, distance)
@@ -297,9 +297,6 @@ pub trait ComInterface: Any {
             let mut socket_mut = socket_ref.lock().unwrap();
             let blocks: Vec<Vec<u8>> =
                 socket_mut.send_queue.drain(..).collect::<Vec<_>>();
-
-            debug!("Flushing {} blocks", blocks.len());
-            debug!("Socket: {:?}", socket_mut.uuid);
             blocks
         }
 
@@ -346,7 +343,6 @@ pub trait ComInterface: Any {
                     .flatten(),
             )
             .await;
-            debug!("Flushed all outgoing blocks");
         })
     }
 

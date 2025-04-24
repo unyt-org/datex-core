@@ -61,7 +61,7 @@ impl WebSocketClientNativeInterface {
             .await
             .map_err(|_| WebSocketError::ConnectionError)?;
         let (write, mut read) = stream.split();
-        let socket = ComInterfaceSocket::new(
+        let mut socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
             InterfaceDirection::IN_OUT,
             1,
