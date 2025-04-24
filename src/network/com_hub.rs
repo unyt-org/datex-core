@@ -7,6 +7,7 @@ use log::{debug, error, info};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use tokio::task::yield_now;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{
@@ -621,6 +622,7 @@ impl ComHub {
         spawn_local(async move {
             loop {
                 self_rc.lock().unwrap().update().await;
+                yield_now().await; // let other tasks run
             }
         });
     }

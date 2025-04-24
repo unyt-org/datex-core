@@ -88,12 +88,14 @@ pub struct ComInterfaceSockets {
 impl ComInterfaceSockets {
     pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         let uuid = socket.lock().unwrap().uuid.clone();
-        self.sockets.insert(uuid, socket.clone());
+        self.sockets.insert(uuid.clone(), socket.clone());
         self.new_sockets.push_back(socket);
+        debug!("Socket added: {}", uuid);
     }
-    pub fn remove_socket(&mut self, socket: &ComInterfaceSocketUUID) {
-        self.sockets.remove(socket);
-        self.deleted_sockets.push_back(socket.clone());
+    pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
+        self.sockets.remove(socket_uuid);
+        self.deleted_sockets.push_back(socket_uuid.clone());
+        debug!("Socket removed: {:?}", socket_uuid);
     }
     pub fn get_socket_by_uuid(
         &self,
@@ -260,25 +262,17 @@ pub trait ComInterface: Any {
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        let sockets = self.get_sockets();
-        let mut sockets = sockets.lock().unwrap();
-        sockets.new_sockets.push_back(socket.clone());
-        let uuid = socket.clone().lock().unwrap().uuid.clone();
-        sockets.sockets.insert(uuid.clone(), socket.clone());
-        debug!("Socket added: {}", uuid);
+        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        sockets.add_socket(socket);
     }
 
     // Remove socket from the interface
     fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
-        let sockets = self.get_sockets();
-        let mut sockets = sockets.lock().unwrap();
-
-        sockets.deleted_sockets.push_back(socket_uuid.clone());
-        sockets.sockets.remove(socket_uuid);
-        debug!("Socket removed: {:?}", socket_uuid);
+        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        sockets.remove_socket(socket_uuid);
     }
 
-    // Called when a endpoint is known for a specific socket (called by ComHub)
+    // Called when an endpoint is known for a specific socket (called by ComHub)
     fn register_socket_endpoint(
         &self,
         socket_uuid: ComInterfaceSocketUUID,

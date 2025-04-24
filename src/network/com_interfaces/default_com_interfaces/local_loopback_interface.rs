@@ -39,6 +39,8 @@ impl LocalLoopbackInterface {
             InterfaceDirection::IN_OUT,
             1,
         )));
+        
+        socket.lock().unwrap().is_connected = true;
 
         let uuid = socket.lock().unwrap().uuid.clone();
         info.com_interface_sockets().lock().unwrap()
