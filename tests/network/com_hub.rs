@@ -386,7 +386,7 @@ pub async fn test_receive_multiple() {
     let (com_hub, _, socket) = get_mock_setup_with_socket().await;
 
     // receive block
-    let blocks = vec![
+    let mut blocks = vec![
         DXBBlock {
             routing_header: RoutingHeader {
                 block_index: 0,
@@ -409,6 +409,12 @@ pub async fn test_receive_multiple() {
             ..Default::default()
         },
     ];
+
+    for mut block in &mut blocks {
+        // set receiver to ORIGIN
+        block.set_receivers(&[ORIGIN.clone()]);
+    }
+
     let block_bytes: Vec<Vec<u8>> = blocks
         .iter()
         .map(|block| block.to_bytes().unwrap())

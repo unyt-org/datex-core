@@ -30,7 +30,7 @@ pub async fn test_construct() {
 
 #[tokio::test]
 pub async fn test_send_receive() {
-    const PORT: u16 = 8080;
+    const PORT: u16 = 8087;
     const CLIENT_A_TO_CLIENT_B_MSG: &[u8] = b"Hello World";
     const CLIENT_B_TO_CLIENT_A_MSG: &[u8] = b"Nooo, this is Patrick!";
     let url = format!("127.0.0.1:{}", PORT);

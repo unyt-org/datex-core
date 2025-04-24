@@ -88,7 +88,7 @@ pub async fn test_construct() {
 
 #[tokio::test]
 pub async fn test_create_socket_connection() {
-    const PORT: u16 = 8080;
+    const PORT: u16 = 8085;
 
     let block = DXBBlock {
         routing_header: RoutingHeader {
