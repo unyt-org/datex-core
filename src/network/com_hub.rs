@@ -9,7 +9,6 @@ use log::{debug, error, info, warn};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use tokio::runtime::Runtime;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -126,7 +125,7 @@ impl ComHub {
                 self.default_socket_uuid =
                     Some(socket.lock().unwrap().uuid.clone());
             } else {
-                debug!("No sockets found for interface {}", interface_uuid);
+                debug!("No sockets found for interface {interface_uuid}");
             }
 
             Ok(())
@@ -199,7 +198,7 @@ impl ComHub {
         &mut self,
         interface_uuid: ComInterfaceUUID,
     ) -> Result<(), ComHubError> {
-        info!("Removing interface {}", interface_uuid);
+        info!("Removing interface {interface_uuid}");
         let interface: &Rc<RefCell<dyn ComInterface>> = self
             .interfaces
             .get_mut(&interface_uuid.clone())
@@ -326,7 +325,7 @@ impl ComHub {
                     );
                 }
                 Err(error) => {
-                    panic!("Failed to register socket endpoint {}: {:?}", sender, error);
+                    panic!("Failed to register socket endpoint {sender}: {error:?}");
                 },
                 Ok(_) => { }
             }
@@ -442,7 +441,7 @@ impl ComHub {
     fn delete_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets
             .remove(socket_uuid)
-            .or_else(|| panic!("Socket {} not found in ComHub", socket_uuid));
+            .or_else(|| panic!("Socket {socket_uuid} not found in ComHub"));
 
         // remove socket from endpoint socket list
         // remove endpoint key from endpoint_sockets if not sockets present
@@ -500,7 +499,7 @@ impl ComHub {
             .get(socket_uuid)
             .map(|socket| socket.0.clone())
             .unwrap_or_else(|| {
-                panic!("Socket for uuid {} not found", socket_uuid)
+                panic!("Socket for uuid {socket_uuid} not found")
             })
     }
 
@@ -511,7 +510,7 @@ impl ComHub {
         self.interfaces
             .get(interface_uuid)
             .unwrap_or_else(|| {
-                panic!("Interface for uuid {} not found", interface_uuid)
+                panic!("Interface for uuid {interface_uuid} not found")
             })
             .clone()
     }
@@ -541,7 +540,7 @@ impl ComHub {
                 }
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
-                        info!("Socket UUID 123: {:?}", socket_uuid);
+                        info!("Socket UUID 123: {socket_uuid:?}");
                         let socket = self.get_socket_by_uuid(socket_uuid);
                         let socket = socket.lock().unwrap();
 
@@ -552,15 +551,14 @@ impl ComHub {
                                 == endpoint
                         {
                             debug!(
-                                "No direct socket found for endpoint {}. Skipping...",
-                                endpoint
+                                "No direct socket found for endpoint {endpoint}. Skipping..."
                             );
                             continue;
                         }
 
                         // check if the socket is excluded if exclude_socket is set
-                        if let Some(exclude_socket) = &options.exclude_socket {
-                            if &socket.uuid == *exclude_socket {
+                        if let Some(exclude_socket) = &options.exclude_socket
+                            && &socket.uuid == *exclude_socket {
                                 debug!(
                                     "Socket {} is excluded for endpoint {}. Skipping...",
                                     socket.uuid,
@@ -568,7 +566,6 @@ impl ComHub {
                                 );
                                 continue;
                             }
-                        }
 
                         // only yield outgoing sockets
                         // if a non-outgoing socket is found, all following sockets
@@ -578,8 +575,7 @@ impl ComHub {
                         }
                     }
                     debug!(
-                        "Found matching socket {} for endpoint {}",
-                        socket_uuid, endpoint
+                        "Found matching socket {socket_uuid} for endpoint {endpoint}"
                     );
                     yield socket_uuid.clone()
                 }
@@ -779,7 +775,7 @@ impl ComHub {
                 socket_ref.queue_outgoing_block(bytes);
             }
             Err(err) => {
-                error!("Failed to convert block to bytes: {:?}", err);
+                error!("Failed to convert block to bytes: {err:?}");
             }
         }
     }
@@ -810,8 +806,7 @@ impl ComHub {
             self.register_socket_endpoint(socket, endpoint.clone(), distance)
                 .unwrap_or_else(|e| {
                     error!(
-                        "Failed to register socket {} for endpoint {} {:?}",
-                        socket_uuid, endpoint, e
+                        "Failed to register socket {socket_uuid} for endpoint {endpoint} {e:?}"
                     );
                 });
         }

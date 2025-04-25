@@ -28,7 +28,7 @@ cfg_if! {
             flexi_logger::Logger::try_with_env_or_str(LOG_ENV).expect("Failed to initialize logger")
                 .start()
                 .expect("Failed to start logger");
-            info!("Logger initialized! (Using flexi_logger) {}", LOG_ENV);
+            info!("Logger initialized! (Using flexi_logger) {LOG_ENV}");
         }
     }
 

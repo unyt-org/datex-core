@@ -56,7 +56,7 @@ impl WebSocketClientNativeInterface {
 
     async fn start(&mut self) -> Result<(), WebSocketError> {
         let address = self.address.clone();
-        info!("Connecting to WebSocket server at {}", address);
+        info!("Connecting to WebSocket server at {address}");
         let (stream, _) = tokio_tungstenite::connect_async(address)
             .await
             .map_err(|_| WebSocketError::ConnectionError)?;
@@ -86,7 +86,7 @@ impl WebSocketClientNativeInterface {
                         error!("Invalid message type received");
                     }
                     Err(e) => {
-                        error!("WebSocket read error: {}", e);
+                        error!("WebSocket read error: {e}");
                         state
                             .lock()
                             .unwrap()
@@ -112,12 +112,12 @@ impl ComInterface for WebSocketClientNativeInterface {
                 error!("Client is not connected");
                 return false;
             }
-            debug!("Sending block: {:?}", block);
+            debug!("Sending block: {block:?}");
             tx.unwrap()
                 .send(Message::Binary(block.to_vec()))
                 .await
                 .map_err(|e| {
-                    error!("Error sending message: {:?}", e);
+                    error!("Error sending message: {e:?}");
                     false
                 })
                 .is_ok()

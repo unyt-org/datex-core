@@ -56,7 +56,7 @@ impl WebSocketServerNativeInterface {
     pub async fn open(
         port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
-        let address: String = format!("127.0.0.1:{}", port);
+        let address: String = format!("127.0.0.1:{port}");
         let address = parse_url(&address).map_err(|_| {
             WebSocketServerError::WebSocketError(WebSocketError::InvalidURL)
         })?;
@@ -76,7 +76,7 @@ impl WebSocketServerNativeInterface {
 
     async fn start(&mut self) -> Result<(), WebSocketServerError> {
         let address = self.address.clone();
-        info!("Spinning up server at {}", address);
+        info!("Spinning up server at {address}");
         let addr = format!(
             "{}:{}",
             address.host_str().unwrap(),
@@ -111,8 +111,7 @@ impl WebSocketServerNativeInterface {
                                     match accept_async(stream).await {
                                         Ok(ws_stream) => {
                                             info!(
-                                                "Accepted WebSocket connection from {}",
-                                                addr
+                                                "Accepted WebSocket connection from {addr}"
                                             );
                                             let (write, mut read) = ws_stream.split();
                                             let socket = ComInterfaceSocket::new(
@@ -137,8 +136,7 @@ impl WebSocketServerNativeInterface {
                                                 match msg {
                                                     Ok(Message::Binary(bin)) => {
                                                         debug!(
-                                                            "Received binary message: {:?}",
-                                                            bin
+                                                            "Received binary message: {bin:?}"
                                                         );
                                                         socket_shared
                                                             .lock()
@@ -151,8 +149,7 @@ impl WebSocketServerNativeInterface {
                                                     Ok(_) => {}
                                                     Err(e) => {
                                                         error!(
-                                                            "WebSocket error from {}: {}",
-                                                            addr, e
+                                                            "WebSocket error from {addr}: {e}"
                                                         );
                                                         break;
                                                     }
@@ -161,8 +158,7 @@ impl WebSocketServerNativeInterface {
                                         }
                                         Err(e) => {
                                             error!(
-                                                "WebSocket handshake failed with {}: {}",
-                                                addr, e
+                                                "WebSocket handshake failed with {addr}: {e}"
                                             );
                                         }
                                     }
@@ -170,7 +166,7 @@ impl WebSocketServerNativeInterface {
                                 tasks.push(task);
                             }
                             Err(e) => {
-                                error!("Failed to accept connection: {}", e);
+                                error!("Failed to accept connection: {e}");
                                 continue;
                             }
                         };
@@ -203,12 +199,12 @@ impl ComInterface for WebSocketServerNativeInterface {
                 error!("Client is not connected");
                 return false;
             }
-            debug!("Sending block: {:?}", block);
+            debug!("Sending block: {block:?}");
             tx.unwrap()
                 .send(Message::Binary(block.to_vec()))
                 .await
                 .map_err(|e| {
-                    error!("Error sending message: {:?}", e);
+                    error!("Error sending message: {e:?}");
                     false
                 })
                 .is_ok()

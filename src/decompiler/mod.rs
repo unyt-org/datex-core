@@ -419,7 +419,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                 let label = state.get_insert_label(
                     primitive_value.get_as_unsigned_integer(),
                 );
-                out += &format!("jmp {}", label);
+                out += &format!("jmp {label}");
                 if state.colorized {
                     out += &Color::DEFAULT.as_ansi_rgb();
                 }
@@ -429,13 +429,13 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                 let label = state.get_insert_label(
                     primitive_value.get_as_unsigned_integer(),
                 );
-                out += &format!("jtr {}", label)
+                out += &format!("jtr {label}")
             }
             BinaryCode::JFA => {
                 let label = state.get_insert_label(
                     primitive_value.get_as_unsigned_integer(),
                 );
-                out += &format!("jfa {}", label)
+                out += &format!("jfa {label}")
             }
 
             // scope

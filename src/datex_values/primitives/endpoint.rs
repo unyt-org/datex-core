@@ -491,7 +491,7 @@ impl Display for Endpoint {
         match self.instance {
             EndpointInstance::Any => (),
             EndpointInstance::All => f.write_str("/*")?,
-            EndpointInstance::Instance(instance) => write!(f, "/{}", instance)?,
+            EndpointInstance::Instance(instance) => write!(f, "/{instance}")?,
         };
 
         Ok(())

@@ -80,7 +80,7 @@ async fn client_to_server_handler(
                         .unwrap();
                 }
                 Err(e) => {
-                    error!("Error reading body {}", e);
+                    error!("Error reading body {e}");
                     return Response::builder()
                         .status(400)
                         .body("Bad Request".into())
@@ -128,7 +128,7 @@ impl HTTPServerNativeInterface {
         port: &u16,
     ) -> Result<HTTPServerNativeInterface, HTTPError> {
         let info = ComInterfaceInfo::new();
-        let address: String = format!("http://127.0.0.1:{}", port);
+        let address: String = format!("http://127.0.0.1:{port}");
         let address =
             Url::parse(&address).map_err(|_| HTTPError::InvalidAddress)?;
 
@@ -197,7 +197,7 @@ impl HTTPServerNativeInterface {
 
     async fn start(&mut self) -> Result<(), HTTPError> {
         let address = self.address.clone();
-        info!("Spinning up server at {}", address);
+        info!("Spinning up server at {address}");
 
         let state = HTTPServerState {
             channels: self.channels.clone(),
@@ -215,7 +215,7 @@ impl HTTPServerNativeInterface {
             .cloned()
             .ok_or(HTTPError::InvalidAddress)?;
 
-        println!("HTTP server starting on http://{}", addr);
+        println!("HTTP server starting on http://{addr}");
         spawn(async move {
             let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
             axum::serve(listener, app.into_make_service())

@@ -58,7 +58,7 @@ impl BlockCollector {
             if self.current_block_specified_length.is_none() {
                 let length_result =
                     DXBBlock::extract_dxb_block_length(&self.current_block);
-                info!("length_result B {:?}", length_result);
+                info!("length_result B {length_result:?}");
 
                 match length_result {
                     Ok(length) => {
@@ -68,7 +68,7 @@ impl BlockCollector {
                         break;
                     }
                     Err(err) => {
-                        error!("Received invalid block header: {:?}", err);
+                        error!("Received invalid block header: {err:?}");
                         self.current_block.clear();
                         self.current_block_specified_length = None;
                     }
@@ -92,7 +92,7 @@ impl BlockCollector {
                             self.current_block_specified_length = None;
                         }
                         Err(err) => {
-                            error!("Received invalid block header: {:?}", err);
+                            error!("Received invalid block header: {err:?}");
                             self.current_block.clear();
                             self.current_block_specified_length = None;
                         }
@@ -112,7 +112,7 @@ impl BlockCollector {
         let queue = self.receive_queue.clone();
         let mut receive_queue = queue.lock().unwrap();
         let len = receive_queue.len();
-        info!("Update block collector (length={})", len);
+        info!("Update block collector (length={len})");
         if len == 0 {
             return;
         }

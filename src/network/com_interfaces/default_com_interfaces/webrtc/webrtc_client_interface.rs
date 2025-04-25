@@ -81,7 +81,7 @@ impl WebRTCClientInterface {
         use_reliable_connection: bool,
     ) -> Result<(), WebRTCError> {
         let address = self.address.clone();
-        info!("Connecting to WebRTC server at {}", address);
+        info!("Connecting to WebRTC server at {address}");
         let ice_config = self.ice_server_config.clone();
         let (socket, future) = if use_reliable_connection {
             WebRtcSocket::builder(address)
@@ -222,14 +222,14 @@ impl ComInterface for WebRTCClientInterface {
 
         let rtc_socket = rtc_socket.unwrap();
         Box::pin(async move {
-            debug!("Sending block: {:?}", block);
+            debug!("Sending block: {block:?}");
             rtc_socket
                 .lock()
                 .unwrap()
                 .channel_mut(Self::CHANNEL_ID)
                 .try_send(block.into(), peer_id.unwrap())
                 .map_err(|e| {
-                    error!("Error sending message: {:?}", e);
+                    error!("Error sending message: {e:?}");
                     false
                 })
                 .is_ok()

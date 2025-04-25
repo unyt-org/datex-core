@@ -90,12 +90,12 @@ impl ComInterfaceSockets {
         let uuid = socket.lock().unwrap().uuid.clone();
         self.sockets.insert(uuid.clone(), socket.clone());
         self.new_sockets.push_back(socket);
-        debug!("Socket added: {}", uuid);
+        debug!("Socket added: {uuid}");
     }
     pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets.remove(socket_uuid);
         self.deleted_sockets.push_back(socket_uuid.clone());
-        debug!("Socket removed: {:?}", socket_uuid);
+        debug!("Socket removed: {socket_uuid:?}");
     }
     pub fn get_socket_by_uuid(
         &self,
@@ -121,7 +121,7 @@ impl ComInterfaceSockets {
             }
         }
 
-        debug!("Socket registered: {} {}", socket_uuid, endpoint);
+        debug!("Socket registered: {socket_uuid} {endpoint}");
 
         self.socket_registrations.push_back((
             socket_uuid,

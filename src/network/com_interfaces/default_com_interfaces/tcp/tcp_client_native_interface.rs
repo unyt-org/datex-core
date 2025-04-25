@@ -53,7 +53,7 @@ impl TCPClientNativeInterface {
     async fn start(&mut self) -> Result<(), TCPError> {
         let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
         let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-        let address = format!("{}:{}", host, port);
+        let address = format!("{host}:{port}");
 
         let stream = TcpStream::connect(address)
             .await
@@ -93,7 +93,7 @@ impl TCPClientNativeInterface {
                         queue.extend(&buffer[..n]);
                     }
                     Err(e) => {
-                        error!("Failed to read from socket: {}", e);
+                        error!("Failed to read from socket: {e}");
                         state
                             .lock()
                             .unwrap()

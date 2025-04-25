@@ -38,7 +38,7 @@ impl TCPServerNativeInterface {
         port: &u16,
     ) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
-        let address: String = format!("ws://127.0.0.1:{}", port);
+        let address: String = format!("ws://127.0.0.1:{port}");
         let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
 
         let mut interface = TCPServerNativeInterface {
@@ -52,16 +52,16 @@ impl TCPServerNativeInterface {
 
     async fn start(&mut self) -> Result<(), TCPError> {
         let address = self.address.clone();
-        info!("Spinning up server at {}", address);
+        info!("Spinning up server at {address}");
 
         let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
         let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-        let address = format!("{}:{}", host, port);
+        let address = format!("{host}:{port}");
 
         let listener = TcpListener::bind(address.clone())
             .await
-            .map_err(|e| TCPError::Other(format!("{:?}", e)))?;
-        info!("Server listening on {}", address);
+            .map_err(|e| TCPError::Other(format!("{e:?}")))?;
+        info!("Server listening on {address}");
 
         let interface_uuid = self.get_uuid().clone();
         let sockets = self.get_sockets().clone();
@@ -92,7 +92,7 @@ impl TCPServerNativeInterface {
                         });
                     }
                     Err(e) => {
-                        error!("Failed to accept connection: {}", e);
+                        error!("Failed to accept connection: {e}");
                         continue;
                     }
                 }
@@ -118,7 +118,7 @@ impl TCPServerNativeInterface {
                     queue.extend(&buffer[..n]);
                 }
                 Err(e) => {
-                    error!("Failed to read from socket: {}", e);
+                    error!("Failed to read from socket: {e}");
                     break;
                 }
             }

@@ -20,14 +20,14 @@ pub async fn test_construct() {
     let mut server = TCPServerNativeInterface::open(&PORT)
         .await
         .unwrap_or_else(|e| {
-            panic!("Failed to create TCPServerInterface: {:?}", e);
+            panic!("Failed to create TCPServerInterface: {e:?}");
         });
 
     let mut client =
-        TCPClientNativeInterface::open(&format!("ws://localhost:{}", PORT))
+        TCPClientNativeInterface::open(&format!("ws://localhost:{PORT}"))
             .await
             .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketClientInterface: {}", e);
+                panic!("Failed to create WebSocketClientInterface: {e}");
             });
 
     assert!(

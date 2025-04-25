@@ -33,12 +33,12 @@ pub async fn test_send_receive() {
     const PORT: u16 = 8087;
     const CLIENT_A_TO_CLIENT_B_MSG: &[u8] = b"Hello World";
     const CLIENT_B_TO_CLIENT_A_MSG: &[u8] = b"Nooo, this is Patrick!";
-    let url = format!("127.0.0.1:{}", PORT);
+    let url = format!("127.0.0.1:{PORT}");
     init_global_context();
     start_server(&url);
 
     let mut client_a = WebRTCClientInterface::open_reliable(
-        &format!("ws://127.0.0.1:{}", PORT),
+        &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
     .await
@@ -47,7 +47,7 @@ pub async fn test_send_receive() {
     });
 
     let mut client_b = WebRTCClientInterface::open_reliable(
-        &format!("ws://127.0.0.1:{}", PORT),
+        &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
     .await

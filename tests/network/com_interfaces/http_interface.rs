@@ -17,7 +17,7 @@ pub async fn test_construct() {
     let mut server = HTTPServerNativeInterface::open(&PORT)
         .await
         .unwrap_or_else(|e| {
-            panic!("Failed to create HTTPServerInterface: {:?}", e);
+            panic!("Failed to create HTTPServerInterface: {e:?}");
         });
 
     let endpoint = Endpoint::from_string("@jonas").unwrap();

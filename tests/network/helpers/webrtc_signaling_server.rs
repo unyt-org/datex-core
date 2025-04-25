@@ -17,7 +17,7 @@ pub fn start_server(url: &str) {
             .build();
     spawn(async move {
         server.serve().await.unwrap_or_else(|e| {
-            panic!("Failed to start signaling server: {:?}", e);
+            panic!("Failed to start signaling server: {e:?}");
         });
     });
 }
@@ -27,8 +27,8 @@ pub fn start_server(url: &str) {
 pub async fn run() {
     init_global_context();
     const PORT: u16 = 8080;
-    let url = format!("127.0.0.1:{}", PORT);
+    let url = format!("127.0.0.1:{PORT}");
     start_server(&url);
-    info!("Signaling server started at {}", url);
+    info!("Signaling server started at {url}");
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 }

@@ -100,6 +100,6 @@ impl ComHub {
 
     pub fn print_metadata(&self) {
         let metadata = self.get_metadata();
-        debug!("ComHub Metadata: {}", metadata);
+        debug!("ComHub Metadata: {metadata}");
     }
 }

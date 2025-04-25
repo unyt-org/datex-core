@@ -115,8 +115,7 @@ impl SerialNativeInterface {
                                 let size = incoming.len();
                                 receive_queue.lock().unwrap().extend(incoming);
                                 debug!(
-                                    "Received data from serial port: {}",
-                                    size
+                                    "Received data from serial port: {size}"
                                 );
                             }
                             _ => {

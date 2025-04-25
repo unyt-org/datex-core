@@ -79,7 +79,7 @@ fn execute_loop(
             // push subscope result to stack
             else {
                 let res = sub_result.ok().unwrap();
-                info!("sub result: {}", res);
+                info!("sub result: {res}");
                 stack.push(res);
             }
         }
@@ -151,7 +151,7 @@ fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
     // binary operation
     match s2.binary_operation(code, s1) {
         Ok(result) => {
-            info!("binary op result: {}", result);
+            info!("binary op result: {result}");
             stack.push(result);
             None
         }

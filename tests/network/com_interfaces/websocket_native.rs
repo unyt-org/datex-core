@@ -25,16 +25,15 @@ pub async fn test_construct() {
     let mut server = WebSocketServerNativeInterface::open(PORT)
         .await
         .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketServerInterface: {}", e);
+            panic!("Failed to create WebSocketServerInterface: {e}");
         });
 
     let mut client = WebSocketClientNativeInterface::open(&format!(
-        "ws://localhost:{}",
-        PORT
+        "ws://localhost:{PORT}"
     ))
     .await
     .unwrap_or_else(|e| {
-        panic!("Failed to create WebSocketClientInterface: {}", e);
+        panic!("Failed to create WebSocketClientInterface: {e}");
     });
 
     assert!(
@@ -103,18 +102,17 @@ pub async fn test_create_socket_connection() {
         WebSocketServerNativeInterface::open(PORT)
             .await
             .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketServerInterface: {}", e);
+                panic!("Failed to create WebSocketServerInterface: {e}");
             })
     ));
 
     let client = Rc::new(RefCell::new(
         WebSocketClientNativeInterface::open(&format!(
-            "ws://localhost:{}",
-            PORT
+            "ws://localhost:{PORT}"
         ))
         .await
         .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketClientInterface: {}", e);
+            panic!("Failed to create WebSocketClientInterface: {e}");
         })
     ));
 
@@ -153,12 +151,11 @@ pub async fn test_construct_client() {
     init_global_context();
 
     let mut client = WebSocketClientNativeInterface::open(&format!(
-        "ws://localhost:{}",
-        PORT
+        "ws://localhost:{PORT}"
     ))
         .await
         .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketClientInterface: {}", e);
+            panic!("Failed to create WebSocketClientInterface: {e}");
         });
 
     assert!(

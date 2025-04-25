@@ -14,7 +14,7 @@ pub async fn test_construct() {
     const BAUD_RATE: u32 = 115200;
     let available_ports = SerialNativeInterface::get_available_ports();
     for port in available_ports.clone() {
-        info!("Available port: {}", port);
+        info!("Available port: {port}");
     }
     if !available_ports.contains(&PORT_NAME.to_string()) {
         return;
@@ -22,7 +22,7 @@ pub async fn test_construct() {
     let mut interface =
         SerialNativeInterface::open_with_baud_rate(PORT_NAME, BAUD_RATE)
             .unwrap_or_else(|e| {
-                panic!("Failed to create SerialNativeInterface: {:?}", e);
+                panic!("Failed to create SerialNativeInterface: {e:?}");
             });
     let socket_uuid = interface.get_socket_uuid().unwrap();
     assert!(interface.send_block(b"Hello World", socket_uuid).await);

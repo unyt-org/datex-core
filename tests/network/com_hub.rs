@@ -39,7 +39,7 @@ async fn get_mock_setup() -> (Arc<Mutex<ComHub>>, Rc<RefCell<MockupInterface>>)
         .unwrap()
         .add_interface(mockup_interface_ref.clone())
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {:?}", e);
+            panic!("Error adding interface: {e:?}");
         });
 
     (com_hub.clone(), mockup_interface_ref.clone())
@@ -100,7 +100,7 @@ pub async fn test_add_and_remove() {
         com_hub_mut
             .add_interface(mockup_interface.clone())
             .unwrap_or_else(|e| {
-                panic!("Error adding interface: {:?}", e);
+                panic!("Error adding interface: {e:?}");
             });
         uuid
     };
@@ -120,12 +120,12 @@ pub async fn test_multiple_add() {
     com_hub_mut
         .add_interface(mockup_interface1.clone())
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {:?}", e);
+            panic!("Error adding interface: {e:?}");
         });
     com_hub_mut
         .add_interface(mockup_interface2.clone())
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {:?}", e);
+            panic!("Error adding interface: {e:?}");
         });
 
     assert!(com_hub_mut
@@ -266,7 +266,7 @@ pub async fn default_interface_create_socket_first() {
         .unwrap()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
-            panic!("Error setting default interface: {:?}", e);
+            panic!("Error setting default interface: {e:?}");
         });
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
@@ -286,7 +286,7 @@ pub async fn default_interface_set_default_interface_first() {
         .unwrap()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
-            panic!("Error setting default interface: {:?}", e);
+            panic!("Error setting default interface: {e:?}");
         });
 
     let socket = add_socket(com_interface.clone());

@@ -112,7 +112,7 @@ impl Quantity {
         }
         // fraction
         else {
-            format!("{}/{}", numerator, denominator)
+            format!("{numerator}/{denominator}")
         }
     }
 

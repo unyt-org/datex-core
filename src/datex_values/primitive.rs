@@ -98,7 +98,7 @@ impl Value for PrimitiveValue {
 
                 let mut s = String::with_capacity(2 * n);
                 for byte in value {
-                    write!(s, "{:02X}", byte).expect("could not parse buffer")
+                    write!(s, "{byte:02X}").expect("could not parse buffer")
                 }
                 format!("`{s}`")
             }
