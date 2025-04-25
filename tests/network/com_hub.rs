@@ -5,11 +5,10 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
-use datex_core::runtime::global_context::set_global_context;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::io::Write;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::mpsc;
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,

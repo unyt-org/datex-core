@@ -98,7 +98,7 @@ impl ComInterface for MockupInterface {
         self.outgoing_queue.push((socket_uuid, block.to_vec()));
 
         if let Some(sender) = &self.sender {
-            if let Err(_) = sender.send(block.to_vec()) {
+            if sender.send(block.to_vec()).is_err() {
                 return Pin::from(Box::new(async move { false }));
             }
         }
