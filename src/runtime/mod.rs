@@ -19,8 +19,6 @@ use self::memory::Memory;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static INIT: Once = Once::new();
-
 pub struct Runtime {
     pub version: String,
     pub memory: Rc<RefCell<Memory>>,
