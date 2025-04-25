@@ -3,9 +3,9 @@ use strum::EnumString;
 use crate::stdlib::time::Duration;
 #[derive(PartialEq, Debug, Clone, EnumString)]
 pub enum InterfaceDirection {
-    IN,
-    OUT,
-    IN_OUT,
+    In,
+    Out,
+    InOut,
 }
 
 #[derive(Debug)]
@@ -55,17 +55,17 @@ pub struct InterfaceProperties {
 impl InterfaceProperties {
     pub fn can_send(&self) -> bool {
         match self.direction {
-            InterfaceDirection::IN => false,
-            InterfaceDirection::OUT => true,
-            InterfaceDirection::IN_OUT => true,
+            InterfaceDirection::In => false,
+            InterfaceDirection::Out => true,
+            InterfaceDirection::InOut => true,
         }
     }
 
     pub fn can_receive(&self) -> bool {
         match self.direction {
-            InterfaceDirection::IN => true,
-            InterfaceDirection::OUT => false,
-            InterfaceDirection::IN_OUT => true,
+            InterfaceDirection::In => true,
+            InterfaceDirection::Out => false,
+            InterfaceDirection::InOut => true,
         }
     }
 }
@@ -75,7 +75,7 @@ impl Default for InterfaceProperties {
         InterfaceProperties {
             channel: "".to_string(),
             name: None,
-            direction: InterfaceDirection::IN_OUT,
+            direction: InterfaceDirection::InOut,
             reconnect_interval: None,
             round_trip_time: Duration::from_millis(0),
             max_bandwidth: u32::MAX,

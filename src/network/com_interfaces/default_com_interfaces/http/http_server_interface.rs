@@ -150,7 +150,7 @@ impl HTTPServerNativeInterface {
             map.insert(route.to_string(), (server_tx, client_tx));
             let socket = ComInterfaceSocket::new(
                 self.get_uuid().clone(),
-                InterfaceDirection::IN_OUT,
+                InterfaceDirection::InOut,
                 1,
             );
             let socket_uuid = socket.uuid.clone();

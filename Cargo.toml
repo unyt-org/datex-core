@@ -1,3 +1,5 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "datex-core"
 version = "0.0.4"
@@ -82,6 +84,7 @@ panic = "abort"
 [profile.dev]
 opt-level = 3
 features = ["debug", "tokio-rt"]
+
 
 # Development dependencies
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

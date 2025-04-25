@@ -1,12 +1,15 @@
+use crate::global::protocol_structures::routing_header::SignatureType;
+use crate::runtime::global_context::get_global_context;
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::spawn_local;
 use futures_util::future::join_all;
 use itertools::Itertools;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use tokio::runtime::Runtime;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -37,7 +40,6 @@ pub struct DynamicEndpointProperties {
 
 pub struct ComHub {
     pub endpoint: Endpoint,
-
     pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
     /// a list of all available sockets, keyed by their UUID
     /// contains the socket itself and a list of endpoints currently associated with it
@@ -91,6 +93,7 @@ pub enum ComHubError {
 pub enum SocketEndpointRegistrationError {
     SocketDisconnected,
     SocketUninitialized,
+    SocketEndpointAlreadyRegistered,
 }
 
 impl ComHub {
@@ -218,6 +221,9 @@ impl ComHub {
             interface.destroy_sockets();
         }
 
+        // Remove old sockets from ComHub that have been deleted by the interface destroy_sockets()
+        self.update_sockets();
+
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
 
@@ -242,6 +248,24 @@ impl ComHub {
         socket_uuid: ComInterfaceSocketUUID,
     ) {
         info!("Received block addressed to {:?}", block.receivers());
+        let is_signed =
+            block.routing_header.flags.signature_type() != SignatureType::None;
+
+        if !is_signed {
+            let endpoint = block.routing_header.sender.clone();
+            // TODO Check if the sender is trusted (endpoint + interface) connection
+            let is_trusted = false
+                || (cfg!(feature = "debug")
+                    && get_global_context().debug_flags.allow_unsigned_blocks);
+            if !is_trusted {
+                warn!("Block by {endpoint} is not signed. Dropping block...");
+                return;
+            }
+        } else {
+            // TODO: verify signature and abort if invalid
+            // Check if signature is following in some later block and add them to
+            // a pool of incoming blocks awaiting some signature
+        }
 
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
             let is_for_own = receivers.endpoints.contains(&self.endpoint);
@@ -291,17 +315,28 @@ impl ComHub {
 
         if socket_ref.direct_endpoint.is_some() {
             drop(socket_ref);
-            self.register_socket_endpoint(socket.clone(), sender, distance)
-                .expect("Failed to register socket endpoint");
+            match self.register_socket_endpoint(
+                socket.clone(),
+                sender.clone(),
+                distance,
+            ) {
+                Err(SocketEndpointRegistrationError::SocketEndpointAlreadyRegistered) => {
+                    debug!(
+                        "Socket already registered for endpoint {sender}",
+                    );
+                }
+                Err(error) => {
+                    panic!("Failed to register socket endpoint {}: {:?}", sender, error);
+                },
+                Ok(_) => { }
+            }
         }
     }
 
-    // TODO: prevent duplicate endpoint registrations
-
-    /// registers a new endpoint that is reachable over the socket
-    /// if the socket is not already registered, it will be added to the socket list
-    /// if the provided endpoint is not the same as the socket endpoint,
-    /// it is registered as an indirect socket to the endpoint
+    /// Registers a new endpoint that is reachable over the socket if the socket is not
+    /// already registered, it will be added to the socket list.
+    /// If the provided endpoint is not the same as the socket endpoint, it is registered
+    /// as an indirect socket to the endpoint
     pub fn register_socket_endpoint(
         &mut self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
@@ -322,6 +357,15 @@ impl ComHub {
         // cannot register endpoint if socket is not initialized (no endpoint assigned)
         if socket_ref.direct_endpoint.is_none() {
             return Err(SocketEndpointRegistrationError::SocketUninitialized);
+        }
+
+        // check if the socket is already registered for the endpoint
+        if let Some(entries) = self.endpoint_sockets.get(&endpoint)
+            && entries
+                .iter()
+                .any(|(socket_uuid, _)| socket_uuid == &socket_ref.uuid)
+        {
+            return Err(SocketEndpointRegistrationError::SocketEndpointAlreadyRegistered);
         }
 
         // add endpoint to socket endpoint list
@@ -399,6 +443,18 @@ impl ComHub {
         self.sockets
             .remove(socket_uuid)
             .or_else(|| panic!("Socket {} not found in ComHub", socket_uuid));
+
+        // remove socket from endpoint socket list
+        // remove endpoint key from endpoint_sockets if not sockets present
+        self.endpoint_sockets.retain(|_, sockets| {
+            sockets.retain(|(uuid, _)| uuid != socket_uuid);
+            !sockets.is_empty()
+        });
+
+        // remove socket if it is the default socket
+        if self.default_socket_uuid == Some(socket_uuid.clone()) {
+            self.default_socket_uuid = None;
+        }
     }
 
     fn add_socket_endpoint(

@@ -51,10 +51,10 @@ impl Runtime {
 
         Self::init(
             endpoint,
-            GlobalContext {
-                crypto: Arc::new(Mutex::new(CryptoNative)),
-                time: Arc::new(Mutex::new(TimeNative)),
-            },
+            GlobalContext::new(
+                Arc::new(Mutex::new(CryptoNative)),
+                Arc::new(Mutex::new(TimeNative)),
+            ),
         )
     }
 

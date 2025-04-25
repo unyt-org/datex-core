@@ -83,7 +83,7 @@ impl SerialNativeInterface {
         let port = self.port.clone();
         let socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
-            InterfaceDirection::IN_OUT,
+            InterfaceDirection::InOut,
             1,
         );
         let receive_queue = socket.get_receive_queue().clone();

@@ -72,7 +72,7 @@ impl TCPServerNativeInterface {
                     Ok((stream, _)) => {
                         let socket = ComInterfaceSocket::new(
                             interface_uuid.clone(),
-                            InterfaceDirection::IN_OUT,
+                            InterfaceDirection::InOut,
                             1,
                         );
                         let (read_half, write_half) = stream.into_split();

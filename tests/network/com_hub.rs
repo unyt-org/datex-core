@@ -50,7 +50,7 @@ fn add_socket(
 ) -> Arc<Mutex<ComInterfaceSocket>> {
     let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
         mockup_interface_ref.borrow().get_uuid().clone(),
-        InterfaceDirection::IN_OUT,
+        InterfaceDirection::InOut,
         1,
     )));
     mockup_interface_ref.borrow().add_socket(socket.clone());

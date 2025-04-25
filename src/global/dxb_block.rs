@@ -153,7 +153,6 @@ impl DXBBlock {
                 Some(signature)
             }
             SignatureType::None => None,
-            SignatureType::Invalid => todo!(),
         };
 
         // TODO: validate the signature

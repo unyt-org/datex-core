@@ -16,9 +16,9 @@ pub async fn test_construct() {
     let mut base_interface = BaseInterface::new("mockup");
 
     let socket_a_uuid =
-        base_interface.register_new_socket(InterfaceDirection::IN_OUT);
+        base_interface.register_new_socket(InterfaceDirection::InOut);
     let socket_b_uuid =
-        base_interface.register_new_socket(InterfaceDirection::IN_OUT);
+        base_interface.register_new_socket(InterfaceDirection::InOut);
     // FIXME
     return;
     assert!(

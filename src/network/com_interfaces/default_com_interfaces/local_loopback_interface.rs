@@ -1,7 +1,3 @@
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use crate::datex_values::Endpoint;
 use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
@@ -13,6 +9,10 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
@@ -36,20 +36,21 @@ impl LocalLoopbackInterface {
 
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
             info.get_uuid().clone(),
-            InterfaceDirection::IN_OUT,
+            InterfaceDirection::InOut,
             1,
         )));
-        
+
         let uuid = socket.lock().unwrap().uuid.clone();
-        info.com_interface_sockets().lock().unwrap()
+        info.com_interface_sockets()
+            .lock()
+            .unwrap()
             .add_socket(socket.clone());
-        info.com_interface_sockets().lock().unwrap()
-            .register_socket_endpoint(
-                uuid,
-                Endpoint::LOCAL,
-                1
-            ).expect("Could not register endpoint to local socket");
-        
+        info.com_interface_sockets()
+            .lock()
+            .unwrap()
+            .register_socket_endpoint(uuid, Endpoint::LOCAL, 1)
+            .expect("Could not register endpoint to local socket");
+
         LocalLoopbackInterface { info, socket }
     }
 }

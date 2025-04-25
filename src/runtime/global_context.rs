@@ -1,10 +1,41 @@
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use std::sync::{Arc, Mutex}; // FIXME no-std
 
+#[cfg(feature = "debug")]
+#[derive(Clone, Debug)]
+pub struct DebugFlags {
+    pub allow_unsigned_blocks: bool,
+}
+#[cfg(feature = "debug")]
+impl Default for DebugFlags {
+    fn default() -> Self {
+        DebugFlags {
+            allow_unsigned_blocks: true,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct GlobalContext {
     pub crypto: Arc<Mutex<dyn CryptoTrait>>,
     pub time: Arc<Mutex<dyn TimeTrait>>,
+
+    #[cfg(feature = "debug")]
+    pub debug_flags: DebugFlags,
+}
+
+impl GlobalContext {
+    pub fn new(
+        crypto: Arc<Mutex<dyn CryptoTrait>>,
+        time: Arc<Mutex<dyn TimeTrait>>,
+    ) -> GlobalContext {
+        GlobalContext {
+            crypto,
+            time,
+            #[cfg(feature = "debug")]
+            debug_flags: DebugFlags::default(),
+        }
+    }
 }
 
 lazy_static::lazy_static! {

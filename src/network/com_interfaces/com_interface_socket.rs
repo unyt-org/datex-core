@@ -60,13 +60,13 @@ impl ComInterfaceSocket {
     }
 
     pub fn can_send(&self) -> bool {
-        self.direction == InterfaceDirection::OUT
-            || self.direction == InterfaceDirection::IN_OUT
+        self.direction == InterfaceDirection::Out
+            || self.direction == InterfaceDirection::InOut
     }
 
     pub fn can_receive(&self) -> bool {
-        self.direction == InterfaceDirection::IN
-            || self.direction == InterfaceDirection::IN_OUT
+        self.direction == InterfaceDirection::In
+            || self.direction == InterfaceDirection::InOut
     }
 
     pub fn new(

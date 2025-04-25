@@ -5,10 +5,10 @@ use modular_bitfield::prelude::*;
 
 // 2 bit
 #[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
+#[bits = 2]
 pub enum SignatureType {
     #[default]
     None = 0b00,
-    Invalid = 0b01,
     Unencrypted = 0b10,
     Encrypted = 0b11,
 }

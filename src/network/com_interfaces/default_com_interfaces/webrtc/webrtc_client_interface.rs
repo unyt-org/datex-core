@@ -135,7 +135,7 @@ impl WebRTCClientInterface {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
                                 interface_uuid.clone(),
-                                InterfaceDirection::IN_OUT,
+                                InterfaceDirection::InOut,
                                 1,
                             );
                             let socket_uuid = socket.uuid.clone();

@@ -1,3 +1,4 @@
+use datex_core::runtime::global_context;
 use datex_core::stdlib::sync::Arc;
 use datex_core::utils::time_native::TimeNative;
 use std::sync::{Mutex, Once}; // FIXME no-std
@@ -9,11 +10,10 @@ use datex_core::{
 };
 
 pub fn init_global_context() {
-    let global_ctx = GlobalContext {
-        crypto: Arc::new(Mutex::new(CryptoNative)),
-        time: Arc::new(Mutex::new(TimeNative)),
-    };
-
+    let global_ctx = GlobalContext::new(
+        Arc::new(Mutex::new(CryptoNative)),
+        Arc::new(Mutex::new(TimeNative)),
+    );
     set_global_context(global_ctx);
     init_logger();
 }

@@ -64,7 +64,7 @@ impl TCPClientNativeInterface {
 
         let socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
-            InterfaceDirection::IN_OUT,
+            InterfaceDirection::InOut,
             1,
         );
         let receive_queue = socket.receive_queue.clone();
