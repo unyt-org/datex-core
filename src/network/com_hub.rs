@@ -1,3 +1,4 @@
+use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::collections::VecDeque;
@@ -246,7 +247,18 @@ impl ComHub {
         block: &DXBBlock,
         socket_uuid: ComInterfaceSocketUUID,
     ) {
-        info!("Received block addressed to {:?}", block.receivers());
+        // TODO check for creation time, withdraw if too old (TBD) or in the future
+        info!(
+            "Received block addressed to {}",
+            block
+                .receivers()
+                .map(|endpoint| endpoint
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "))
+                .unwrap_or("none".to_string())
+        );
         let is_signed =
             block.routing_header.flags.signature_type() != SignatureType::None;
 
@@ -267,32 +279,46 @@ impl ComHub {
         }
 
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
-            let is_for_own = receivers.endpoints.contains(&self.endpoint);
+            let is_for_own = receivers.endpoints.iter().any(|e| {
+                e == &self.endpoint
+                    || e == &Endpoint::ANY
+                    || e == &Endpoint::ANY_ALL_INSTANCES
+            });
+            let mut shall_relay = true;
             // check if the block is for own endpoint
             if is_for_own {
                 info!("Block is for this endpoint");
-                let mut incoming_blocks = self.incoming_blocks.borrow_mut();
-                incoming_blocks.push_back(Rc::new(block.clone()));
+                if block.block_header.flags_and_timestamp.block_type()
+                    == BlockType::Hello
+                {
+                    // Don't relay hello frames sent to me
+                    shall_relay = false;
+                } else {
+                    let mut incoming_blocks = self.incoming_blocks.borrow_mut();
+                    incoming_blocks.push_back(Rc::new(block.clone()));
+                }
             }
+            if shall_relay {
+                // get all receivers that the block must be relayed to
+                let remaining_receivers = if is_for_own {
+                    &receivers
+                        .endpoints
+                        .iter()
+                        .filter(|e| e != &&self.endpoint)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                } else {
+                    &receivers.endpoints
+                };
 
-            // get all receivers that the block must be relayed to
-            let remaining_receivers = if is_for_own {
-                &receivers
-                    .endpoints
-                    .iter()
-                    .filter(|e| e != &&self.endpoint)
-                    .cloned()
-                    .collect::<Vec<_>>()
-            } else {
-                &receivers.endpoints
-            };
-
-            if !remaining_receivers.is_empty() {
-                let block = &mut block.clone();
-                block.set_receivers(remaining_receivers);
-                // increment distance for next hop
-                block.routing_header.distance += 1;
-                self.send_block(block, Some(&socket_uuid));
+                // relay the block to all receivers
+                if !remaining_receivers.is_empty() {
+                    let mut block = block.clone();
+                    block.set_receivers(remaining_receivers);
+                    // increment distance for next hop
+                    block.routing_header.distance += 1;
+                    self.send_block(block, Some(&socket_uuid));
+                }
             }
         }
 
@@ -312,23 +338,21 @@ impl ComHub {
             socket_ref.direct_endpoint = Some(sender.clone());
         }
 
-        if socket_ref.direct_endpoint.is_some() {
-            drop(socket_ref);
-            match self.register_socket_endpoint(
-                socket.clone(),
-                sender.clone(),
-                distance,
-            ) {
-                Err(SocketEndpointRegistrationError::SocketEndpointAlreadyRegistered) => {
-                    debug!(
-                        "Socket already registered for endpoint {sender}",
-                    );
-                }
-                Err(error) => {
-                    panic!("Failed to register socket endpoint {sender}: {error:?}");
-                },
-                Ok(_) => { }
+        drop(socket_ref);
+        match self.register_socket_endpoint(
+            socket.clone(),
+            sender.clone(),
+            distance,
+        ) {
+            Err(SocketEndpointRegistrationError::SocketEndpointAlreadyRegistered) => {
+                debug!(
+                    "Socket already registered for endpoint {sender}",
+                );
             }
+            Err(error) => {
+                panic!("Failed to register socket endpoint {sender}: {error:?}");
+            },
+            Ok(_) => { }
         }
     }
 
@@ -351,11 +375,6 @@ impl ComHub {
         // cannot register endpoint if socket is not connected
         if !socket_ref.state.is_open() {
             return Err(SocketEndpointRegistrationError::SocketDisconnected);
-        }
-
-        // cannot register endpoint if socket is not initialized (no endpoint assigned)
-        if socket_ref.direct_endpoint.is_none() {
-            return Err(SocketEndpointRegistrationError::SocketUninitialized);
         }
 
         // check if the socket is already registered for the endpoint
@@ -414,7 +433,7 @@ impl ComHub {
 
     fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         let socket_ref = socket.lock().unwrap();
-
+        let socket_uuid = socket_ref.uuid.clone();
         if self.sockets.contains_key(&socket_ref.uuid) {
             panic!("Socket {} already exists in ComHub", socket_ref.uuid);
         }
@@ -436,6 +455,23 @@ impl ComHub {
             );
             self.default_socket_uuid = Some(socket_ref.uuid.clone());
         }
+
+        // send empty block to socket to say hello
+        let mut block: DXBBlock = DXBBlock::default();
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::Hello);
+        block
+            .routing_header
+            .flags
+            .set_signature_type(SignatureType::Unencrypted);
+        // TODO include fingerprint of the own public key into body
+
+        let block = self.prepare_own_block(block);
+
+        drop(socket_ref);
+        self.send_block_addressed(block, &socket_uuid, &[Endpoint::ANY]);
     }
 
     fn delete_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
@@ -722,18 +758,35 @@ impl ComHub {
         self.flush_outgoing_blocks().await;
     }
 
+    fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
+        // TODO to encryption
+        let now = get_global_context().clone().time.lock().unwrap().now();
+        block.routing_header.sender = self.endpoint.clone();
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_creation_timestamp(now);
+        block
+    }
+
+    pub fn send_own_block(&self, mut block: DXBBlock) {
+        // TODO to encryption
+        block = self.prepare_own_block(block);
+        self.send_block(block, None);
+    }
+
     /// Send a block to all endpoints specified in the block header.
     /// The routing algorithm decides which sockets are used to send the block, based on the endpoint.
     /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
     /// The original_socket parameter is used to prevent sending the block back to the sender.
     /// When this method is called, the block is queued in the send queue.
-    pub fn send_block(
+    fn send_block(
         &self,
-        block: &DXBBlock,
+        block: DXBBlock,
         original_socket: Option<&ComInterfaceSocketUUID>,
     ) {
         let outbound_receiver_groups =
-            self.get_outbound_receiver_groups(block, original_socket);
+            self.get_outbound_receiver_groups(&block, original_socket);
 
         if outbound_receiver_groups.is_none() {
             error!("No outbound receiver groups found for block");
@@ -744,7 +797,7 @@ impl ComHub {
 
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket) = receiver_socket {
-                self.send_block_addressed(block, &socket, &endpoints);
+                self.send_block_addressed(block.clone(), &socket, &endpoints);
             } else {
                 error!("Cannot send block, no receiver sockets found for endpoints {:?}", endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
             }
@@ -755,16 +808,28 @@ impl ComHub {
     /// Before the block is sent, it is modified to include the list of endpoints as receivers.
     fn send_block_addressed(
         &self,
-        block: &DXBBlock,
+        mut block: DXBBlock,
         socket_uuid: &ComInterfaceSocketUUID,
         endpoints: &[Endpoint],
     ) {
-        let mut addressed_block = block.clone();
-        addressed_block.set_receivers(endpoints);
+        block.set_receivers(endpoints);
 
         let socket = self.get_socket_by_uuid(socket_uuid);
         let mut socket_ref = socket.lock().unwrap();
-        match &addressed_block.to_bytes() {
+
+        let is_broadcast = endpoints
+            .iter()
+            .any(|e| e == &Endpoint::ANY_ALL_INSTANCES || e == &Endpoint::ANY);
+
+        if is_broadcast
+            && let Some(direct_endpoint) = &socket_ref.direct_endpoint
+            && (direct_endpoint == &self.endpoint
+                || direct_endpoint == &Endpoint::LOCAL)
+        {
+            return;
+        }
+
+        match &block.to_bytes() {
             Ok(bytes) => {
                 info!(
                     "Sending block to socket {}: {}",

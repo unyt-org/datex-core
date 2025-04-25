@@ -5,10 +5,11 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
+use datex_core::runtime::global_context::set_global_context;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
@@ -18,9 +19,12 @@ use datex_core::network::com_interfaces::com_interface_socket::SocketState;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     add_socket, get_mock_setup, get_mock_setup_with_socket,
-    register_socket_endpoint, ORIGIN, TEST_ENDPOINT_A, TEST_ENDPOINT_B,
+    register_socket_endpoint, send_block_with_body, send_empty_block, ORIGIN,
+    TEST_ENDPOINT_A, TEST_ENDPOINT_B,
 };
 use crate::network::helpers::mockup_interface::MockupInterface;
+
+use super::helpers::mock_setup::get_mock_setup_with_socket_and_endpoint;
 
 #[tokio::test]
 pub async fn test_add_and_remove() {
@@ -68,20 +72,6 @@ pub async fn test_multiple_add() {
     assert!(com_hub_mut
         .add_interface(mockup_interface2.clone())
         .is_err());
-}
-
-async fn send_empty_block(
-    endpoints: &[Endpoint],
-    com_hub: &Arc<Mutex<ComHub>>,
-) -> DXBBlock {
-    // send block
-    let mut block: DXBBlock = DXBBlock::default();
-    block.set_receivers(endpoints);
-
-    let mut com_hub_mut = com_hub.lock().unwrap();
-    com_hub_mut.send_block(&block, None);
-    com_hub_mut.update().await;
-    block
 }
 
 #[tokio::test]
@@ -147,7 +137,7 @@ pub async fn send_block_to_multiple_endpoints() {
     let mockup_interface_out = mockup_interface_out.borrow();
     let block_bytes = mockup_interface_out.last_block().unwrap();
 
-    assert_eq!(mockup_interface_out.block_queue.len(), 1);
+    assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
     assert!(mockup_interface_out.last_block().is_some());
     assert_eq!(block_bytes, block.to_bytes().unwrap());
 }
@@ -180,7 +170,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
 
     let mockup_interface_out = com_interface.clone();
     let mockup_interface_out = mockup_interface_out.borrow();
-    assert_eq!(mockup_interface_out.block_queue.len(), 2);
+    assert_eq!(mockup_interface_out.outgoing_queue.len(), 2);
 
     assert!(mockup_interface_out
         .has_outgoing_block_for_socket(socket_a.lock().unwrap().uuid.clone()));
@@ -207,7 +197,7 @@ pub async fn default_interface_create_socket_first() {
 
     let mockup_interface_out = com_interface.clone();
     let mockup_interface_out = mockup_interface_out.borrow();
-    assert_eq!(mockup_interface_out.block_queue.len(), 1);
+    assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
 }
 
 #[tokio::test]
@@ -238,7 +228,7 @@ pub async fn default_interface_set_default_interface_first() {
 
     let mockup_interface_out = com_interface.clone();
     let mockup_interface_out = mockup_interface_out.borrow();
-    assert_eq!(mockup_interface_out.block_queue.len(), 1);
+    assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
 }
 
 #[test]
@@ -413,4 +403,56 @@ pub async fn test_add_and_remove_interface_and_sockets() {
     );
 
     assert_eq!(socket.lock().unwrap().state, SocketState::Destroyed);
+}
+
+#[tokio::test]
+pub async fn test_basic_routing() {
+    init_global_context();
+    let (sender_a, receiver_a) = mpsc::channel::<Vec<u8>>();
+    let (sender_b, receiver_b) = mpsc::channel::<Vec<u8>>();
+
+    let (com_hub_mut_a, com_interface_a, socket_a) =
+        get_mock_setup_with_socket_and_endpoint(
+            TEST_ENDPOINT_A.clone(),
+            None,
+            Some(sender_a),
+            Some(receiver_b),
+        )
+        .await;
+
+    let (com_hub_mut_b, com_interface_b, socket_b) =
+        get_mock_setup_with_socket_and_endpoint(
+            TEST_ENDPOINT_B.clone(),
+            None,
+            Some(sender_b),
+            Some(receiver_a),
+        )
+        .await;
+
+    com_interface_a.borrow_mut().update();
+    com_interface_b.borrow_mut().update();
+
+    com_hub_mut_a.lock().unwrap().update().await;
+    com_hub_mut_b.lock().unwrap().update().await;
+
+    let block_a_to_b = send_block_with_body(
+        &[TEST_ENDPOINT_B.clone()],
+        b"Hello world",
+        &com_hub_mut_a,
+    )
+    .await;
+
+    com_interface_b.borrow_mut().update();
+    com_hub_mut_b.lock().unwrap().update().await;
+
+    let blocks = com_hub_mut_b
+        .lock()
+        .unwrap()
+        .incoming_blocks
+        .borrow_mut()
+        .drain(..)
+        .collect::<Vec<_>>();
+
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(block_a_to_b.body, blocks[0].body);
 }

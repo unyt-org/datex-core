@@ -9,8 +9,7 @@ pub enum BlockType {
     #[default]
     Request = 0,
     Response = 1,
-    #[allow(unused)]
-    Unused0,
+    Hello = 2,
     #[allow(unused)]
     Unused1,
     #[allow(unused)]

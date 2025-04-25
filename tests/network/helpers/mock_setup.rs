@@ -1,8 +1,9 @@
 use datex_core::datex_values::Endpoint;
+use datex_core::global::dxb_block::DXBBlock;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
@@ -11,6 +12,8 @@ use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocke
 use super::mockup_interface::MockupInterface;
 
 lazy_static::lazy_static! {
+    pub static ref ANY : Endpoint = Endpoint::ANY.clone();
+
     pub static ref ORIGIN : Endpoint = Endpoint::from_string("@origin").unwrap();
     pub static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_string("@test-a").unwrap();
     pub static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_string("@test-b").unwrap();
@@ -73,25 +76,69 @@ pub async fn get_mock_setup_with_socket() -> (
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
-    get_mock_setup_with_socket_and_endpoint(TEST_ENDPOINT_A.clone()).await
+    get_mock_setup_with_socket_and_endpoint(
+        ORIGIN.clone(),
+        Some(TEST_ENDPOINT_A.clone()),
+        None,
+        None,
+    )
+    .await
 }
 
 pub async fn get_mock_setup_with_socket_and_endpoint(
-    endpoint: Endpoint,
+    local_endpoint: Endpoint,
+    remote_endpoint: Option<Endpoint>,
+    sender: Option<mpsc::Sender<Vec<u8>>>,
+    receiver: Option<mpsc::Receiver<Vec<u8>>>,
 ) -> (
     Arc<Mutex<ComHub>>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
-    let (com_hub, mockup_interface_ref) = get_mock_setup().await;
+    let (com_hub, mockup_interface_ref) =
+        get_mock_setup_with_endpoint(local_endpoint).await;
+
+    mockup_interface_ref.borrow_mut().sender = sender;
+    mockup_interface_ref.borrow_mut().receiver = receiver;
+
     let socket = add_socket(mockup_interface_ref.clone());
-    register_socket_endpoint(
-        mockup_interface_ref.clone(),
-        socket.clone(),
-        endpoint,
-    );
+    if remote_endpoint.is_some() {
+        register_socket_endpoint(
+            mockup_interface_ref.clone(),
+            socket.clone(),
+            remote_endpoint.unwrap(),
+        );
+    }
 
     com_hub.lock().unwrap().update().await;
 
     (com_hub.clone(), mockup_interface_ref, socket)
+}
+
+pub async fn send_block_with_body(
+    to: &[Endpoint],
+    body: &[u8],
+    com_hub: &Arc<Mutex<ComHub>>,
+) -> DXBBlock {
+    let mut com_hub_mut = com_hub.lock().unwrap();
+    let mut block: DXBBlock = DXBBlock::default();
+    block.set_receivers(to);
+    block.body = body.to_vec();
+    com_hub_mut.send_own_block(block.clone());
+    com_hub_mut.update().await;
+    block
+}
+
+pub async fn send_empty_block(
+    to: &[Endpoint],
+    com_hub: &Arc<Mutex<ComHub>>,
+) -> DXBBlock {
+    // send block
+    let mut block: DXBBlock = DXBBlock::default();
+    block.set_receivers(to);
+
+    let mut com_hub_mut = com_hub.lock().unwrap();
+    com_hub_mut.send_own_block(block.clone());
+    com_hub_mut.update().await;
+    block
 }
