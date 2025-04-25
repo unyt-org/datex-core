@@ -8,8 +8,6 @@ use datex_core::{
     runtime::global_context::{set_global_context, GlobalContext},
 };
 
-static INIT: Once = Once::new();
-
 pub fn init_global_context() {
     let global_ctx = GlobalContext {
         crypto: Arc::new(Mutex::new(CryptoNative)),
@@ -17,8 +15,5 @@ pub fn init_global_context() {
     };
 
     set_global_context(global_ctx);
-
-    INIT.call_once(|| {
-        init_logger();
-    });
+    init_logger();
 }

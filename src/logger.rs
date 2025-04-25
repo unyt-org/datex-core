@@ -1,3 +1,5 @@
+use std::sync::Once;
+
 use cfg_if::cfg_if;
 use log::info;
 
@@ -10,12 +12,19 @@ cfg_if! {
         const LOG_ENV: &str = "datex_core=info,matchbox_socket=info";
     }
 }
+static INIT: Once = Once::new();
+
+pub fn init_logger() {
+    INIT.call_once(|| {
+        init();
+    });
+}
 
 cfg_if! {
 
     if #[cfg(feature = "flexi_logger")] {
         use flexi_logger;
-        pub fn init_logger() {
+        fn init() {
             flexi_logger::Logger::try_with_env_or_str(LOG_ENV).expect("Failed to initialize logger")
                 .start()
                 .expect("Failed to start logger");
@@ -25,7 +34,7 @@ cfg_if! {
 
     else if #[cfg(feature = "wasm_logger")]
     {
-        pub fn init_logger() {
+        fn init() {
             use log::Level;
             console_log::init_with_level(
                 if LOG_LEVEL == "debug" {
@@ -40,7 +49,7 @@ cfg_if! {
 
     else if #[cfg(feature = "env_logger")] {
         use env_logger;
-        pub fn init_logger() {
+        fn init() {
             env_logger::init();
             info!("Logger initialized! (Using env_logger)");
         }
@@ -48,13 +57,13 @@ cfg_if! {
 
     else if #[cfg(feature = "esp_logger")] {
         use esp_idf_svc::log::EspLogger;
-        pub fn init_logger() {
+        fn init() {
             EspLogger::initialize_default();
         }
     }
 
     else {
-        pub fn init_logger() {
+        fn init() {
             println!("No logger enabled. Logs will not be recorded.");
         }
     }

@@ -39,14 +39,11 @@ impl Runtime {
     }
     pub fn init(endpoint: Endpoint, global_context: GlobalContext) -> Runtime {
         set_global_context(global_context);
-        INIT.call_once(|| {
-            init_logger();
-
-            info!(
-                "Runtime initialized - Version {VERSION} Time: {}",
-                get_global_context().time.lock().unwrap().now()
-            );
-        });
+        init_logger();
+        info!(
+            "Runtime initialized - Version {VERSION} Time: {}",
+            get_global_context().time.lock().unwrap().now()
+        );
         Self::new(endpoint)
     }
 
