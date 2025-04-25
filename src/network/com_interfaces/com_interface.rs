@@ -1,6 +1,8 @@
 use super::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
-    com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
+    com_interface_socket::{
+        ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
+    },
 };
 use crate::stdlib::{
     cell::RefCell,
@@ -71,7 +73,7 @@ impl ComInterfaceState {
     pub fn is_disconnecting(&self) -> bool {
         matches!(self, ComInterfaceState::Closing | ComInterfaceState::Closed)
     }
-    pub fn set_state(&mut self, new_state: ComInterfaceState) {
+    pub fn set(&mut self, new_state: ComInterfaceState) {
         *self = new_state;
     }
 }
@@ -88,6 +90,7 @@ pub struct ComInterfaceSockets {
 impl ComInterfaceSockets {
     pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         let uuid = socket.lock().unwrap().uuid.clone();
+        socket.lock().unwrap().state = SocketState::Open;
         self.sockets.insert(uuid.clone(), socket.clone());
         self.new_sockets.push_back(socket);
         debug!("Socket added: {uuid}");
@@ -96,6 +99,9 @@ impl ComInterfaceSockets {
         self.sockets.remove(socket_uuid);
         self.deleted_sockets.push_back(socket_uuid.clone());
         debug!("Socket removed: {socket_uuid:?}");
+        if let Some(socket) = self.sockets.get(socket_uuid) {
+            socket.lock().unwrap().state = SocketState::Destroyed;
+        }
     }
     pub fn get_socket_by_uuid(
         &self,
@@ -134,7 +140,7 @@ impl ComInterfaceSockets {
 
 pub struct ComInterfaceInfo {
     uuid: ComInterfaceUUID,
-    state: Arc<Mutex<ComInterfaceState>>,
+    pub state: Arc<Mutex<ComInterfaceState>>,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     pub interface_properties: Option<InterfaceProperties>,
 }
@@ -172,8 +178,8 @@ impl ComInterfaceInfo {
     pub fn get_uuid(&self) -> &ComInterfaceUUID {
         &self.uuid
     }
-    pub fn get_state(&self) -> Arc<Mutex<ComInterfaceState>> {
-        self.state.clone()
+    pub fn get_state(&self) -> ComInterfaceState {
+        self.state.lock().unwrap().clone()
     }
     pub fn set_state(&mut self, new_state: ComInterfaceState) {
         self.state.lock().unwrap().clone_from(&new_state);
@@ -186,7 +192,7 @@ macro_rules! delegate_com_interface_info {
             &self.info.get_uuid()
         }
         fn get_state(&self) -> ComInterfaceState {
-            self.info.get_state().lock().unwrap().clone()
+            self.info.get_state()
         }
         fn set_state(&mut self, new_state: ComInterfaceState) {
             self.info.set_state(new_state);
@@ -269,6 +275,8 @@ pub trait ComInterface: Any {
     // Remove socket from the interface
     fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let socket = sockets.get_socket_by_uuid(socket_uuid);
+        socket.unwrap().lock().unwrap().state = SocketState::Destroyed;
         sockets.remove_socket(socket_uuid);
     }
 

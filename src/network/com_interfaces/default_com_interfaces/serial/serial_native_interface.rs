@@ -79,7 +79,7 @@ impl SerialNativeInterface {
     }
 
     fn start(&mut self) -> Result<(), SerialError> {
-        let state = self.get_info().get_state();
+        let state = self.get_info().state.clone();
         let port = self.port.clone();
         let socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
@@ -90,10 +90,7 @@ impl SerialNativeInterface {
         self.add_socket(Arc::new(Mutex::new(socket)));
         let shutdown_signal = self.shutdown_signal.clone();
         spawn(async move {
-            state
-                .lock()
-                .unwrap()
-                .set_state(ComInterfaceState::Connected);
+            state.lock().unwrap().set(ComInterfaceState::Connecting);
             loop {
                 tokio::select! {
                     _ = shutdown_signal.notified() => {
@@ -126,7 +123,7 @@ impl SerialNativeInterface {
                     }
                 }
             }
-            state.lock().unwrap().set_state(ComInterfaceState::Closed);
+            state.lock().unwrap().set(ComInterfaceState::Closed);
             warn!("Serial socket closed");
         });
         Ok(())

@@ -1,4 +1,6 @@
 use log::info;
+use strum::EnumDiscriminants;
+use strum_macros::EnumIs;
 
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
@@ -10,11 +12,11 @@ use crate::{datex_values::Endpoint, global::dxb_block::DXBBlock};
 use std::sync::Mutex;
 // FIXME no-std
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {
-    Closed,
+    Created,
     Open,
-    Error,
+    Destroyed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -28,9 +30,7 @@ impl Display for ComInterfaceSocketUUID {
 #[derive(Debug)]
 pub struct ComInterfaceSocket {
     pub direct_endpoint: Option<Endpoint>,
-    pub is_connected: bool,
-    pub is_open: bool,
-    pub is_destroyed: bool,
+    pub state: SocketState,
     pub uuid: ComInterfaceSocketUUID,
     pub interface_uuid: ComInterfaceUUID,
     pub connection_timestamp: u64,
@@ -94,9 +94,7 @@ impl ComInterfaceSocket {
             block_collector: BlockCollector::new(receive_queue.clone()),
             interface_uuid,
             direct_endpoint: None,
-            is_connected: true,
-            is_open: false,
-            is_destroyed: false,
+            state: SocketState::Created,
             uuid: ComInterfaceSocketUUID(UUID::new()),
             connection_timestamp: 0,
             channel_factor,

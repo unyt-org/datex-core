@@ -10,9 +10,13 @@ use datex_core::stdlib::rc::Rc;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 // FIXME no-std
-use datex_core::network::com_interfaces::com_interface::ComInterface;
+use datex_core::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceState,
+};
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
+use datex_core::network::com_interfaces::com_interface_socket::{
+    ComInterfaceSocket, SocketState,
+};
 
 use crate::context::init_global_context;
 
@@ -447,3 +451,39 @@ pub async fn test_receive_multiple() {
 
 #[test]
 pub fn test_send_receive() {}
+
+#[tokio::test]
+pub async fn test_add_and_remove_interface_and_sockets() {
+    init_global_context();
+
+    let (com_hub_mut, com_interface, socket) =
+        get_mock_setup_with_socket().await;
+
+    let mut com_hub_mut = com_hub_mut.lock().unwrap();
+    assert_eq!(com_hub_mut.interfaces.len(), 1);
+    assert_eq!(com_hub_mut.sockets.len(), 1);
+    assert_eq!(com_hub_mut.endpoint_sockets.len(), 1);
+
+    assert_eq!(
+        com_interface.borrow_mut().get_info().get_state(),
+        ComInterfaceState::Connected
+    );
+
+    assert_eq!(socket.lock().unwrap().state, SocketState::Open);
+
+    let uuid = com_interface.borrow().get_uuid().clone();
+
+    // remove interface
+    assert!(com_hub_mut.remove_interface(uuid).await.is_ok());
+
+    assert_eq!(com_hub_mut.interfaces.len(), 0);
+    assert_eq!(com_hub_mut.sockets.len(), 0);
+    assert_eq!(com_hub_mut.endpoint_sockets.len(), 0);
+
+    assert_eq!(
+        com_interface.borrow_mut().get_info().get_state(),
+        ComInterfaceState::Closed
+    );
+
+    assert_eq!(socket.lock().unwrap().state, SocketState::Destroyed);
+}

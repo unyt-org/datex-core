@@ -74,7 +74,7 @@ impl WebSocketClientNativeInterface {
             .add_socket(Arc::new(Mutex::new(socket)));
 
         self.set_state(ComInterfaceState::Connected);
-        let state = self.get_info().get_state();
+        let state = self.get_info().state.clone();
         spawn(async move {
             while let Some(msg) = read.next().await {
                 match msg {
@@ -87,10 +87,7 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {e}");
-                        state
-                            .lock()
-                            .unwrap()
-                            .set_state(ComInterfaceState::Closed);
+                        state.lock().unwrap().set(ComInterfaceState::Closed);
                         break;
                     }
                 }

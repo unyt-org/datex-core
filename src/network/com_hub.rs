@@ -349,7 +349,7 @@ impl ComHub {
         let is_direct = socket_ref.direct_endpoint == Some(endpoint.clone());
 
         // cannot register endpoint if socket is not connected
-        if !socket_ref.is_connected {
+        if !socket_ref.state.is_open() {
             return Err(SocketEndpointRegistrationError::SocketDisconnected);
         }
 
@@ -558,14 +558,15 @@ impl ComHub {
 
                         // check if the socket is excluded if exclude_socket is set
                         if let Some(exclude_socket) = &options.exclude_socket
-                            && &socket.uuid == *exclude_socket {
-                                debug!(
+                            && &socket.uuid == *exclude_socket
+                        {
+                            debug!(
                                     "Socket {} is excluded for endpoint {}. Skipping...",
                                     socket.uuid,
                                     endpoint
                                 );
-                                continue;
-                            }
+                            continue;
+                        }
 
                         // only yield outgoing sockets
                         // if a non-outgoing socket is found, all following sockets
