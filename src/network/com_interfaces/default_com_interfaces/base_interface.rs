@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::error;
 
 use crate::datex_values::Endpoint;
 use crate::delegate_com_interface_info;
