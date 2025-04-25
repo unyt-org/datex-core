@@ -1,5 +1,3 @@
-use axum::routing::get;
-use datex_core::datex_values::internal_slot::ENDPOINT;
 use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::encrypted_header::{
@@ -15,10 +13,7 @@ use std::sync::{Arc, Mutex};
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
 };
-use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, SocketState,
-};
+use datex_core::network::com_interfaces::com_interface_socket::SocketState;
 
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{

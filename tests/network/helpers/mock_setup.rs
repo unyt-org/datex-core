@@ -1,24 +1,12 @@
-use axum::routing::get;
-use datex_core::datex_values::internal_slot::ENDPOINT;
 use datex_core::datex_values::Endpoint;
-use datex_core::global::dxb_block::DXBBlock;
-use datex_core::global::protocol_structures::encrypted_header::{
-    self, EncryptedHeader,
-};
-use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use std::io::Write;
 use std::sync::{Arc, Mutex};
 // FIXME no-std
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceState,
-};
+use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, SocketState,
-};
+use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use super::mockup_interface::MockupInterface;
 
