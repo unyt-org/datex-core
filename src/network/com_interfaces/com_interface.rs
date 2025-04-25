@@ -179,7 +179,7 @@ impl ComInterfaceInfo {
         &self.uuid
     }
     pub fn get_state(&self) -> ComInterfaceState {
-        self.state.lock().unwrap().clone()
+        *self.state.lock().unwrap()
     }
     pub fn set_state(&mut self, new_state: ComInterfaceState) {
         self.state.lock().unwrap().clone_from(&new_state);
