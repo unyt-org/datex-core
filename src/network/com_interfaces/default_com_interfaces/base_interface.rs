@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, info};
 
 use crate::datex_values::Endpoint;
 use crate::delegate_com_interface_info;
@@ -19,12 +19,15 @@ use std::time::Duration;
 
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
-type OnSendCallback = dyn Fn(
-        &[u8],
-        ComInterfaceSocketUUID,
-    ) -> Pin<Box<dyn Future<Output = bool> + Send>>
-    + Send
-    + Sync;
+// pub type OnSendCallback = dyn Fn(
+//         &[u8],
+//         ComInterfaceSocketUUID,
+//     ) -> Pin<Box<dyn Future<Output = bool> + Send>>
+//     + Send
+//     + Sync;
+
+pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
+    + 'static;
 
 pub struct BaseInterface {
     name: String,
@@ -95,6 +98,14 @@ impl BaseInterface {
         socket_uuid
     }
 
+    pub fn set_on_send_callback(
+        &mut self,
+        on_send: Box<OnSendCallback>,
+    ) -> &mut Self {
+        self.on_send = Some(on_send);
+        self
+    }
+
     pub fn receive(
         &mut self,
         socket: ComInterfaceSocketUUID,
@@ -125,6 +136,13 @@ impl ComInterface for BaseInterface {
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         if let Some(on_send) = &self.on_send {
+            // Box::pin(async move {
+            //     let socket = socket.clone();
+            //     let block = block.to_vec();
+            //     let result = on_send(&block, socket).await;
+            //     info!("Send result: {:?}", result);
+            //     result
+            // })
             on_send(block, socket)
         } else {
             Box::pin(async move { false })

@@ -7,6 +7,7 @@ use log::{debug, error, info};
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
 
@@ -290,11 +291,8 @@ impl ComHub {
 
         if socket_ref.direct_endpoint.is_some() {
             drop(socket_ref);
-            self.register_socket_endpoint(
-                socket.clone(),
-                sender,
-                distance,
-            ).expect("Failed to register socket endpoint");
+            self.register_socket_endpoint(socket.clone(), sender, distance)
+                .expect("Failed to register socket endpoint");
         }
     }
 
@@ -547,7 +545,9 @@ impl ComHub {
                     exact_instance: false,
                     exclude_socket,
                 };
-                if let Some(socket) = self.iterate_endpoint_sockets(endpoint, options).next() {
+                if let Some(socket) =
+                    self.iterate_endpoint_sockets(endpoint, options).next()
+                {
                     // TODO
                     return Some(socket);
                 }
@@ -562,7 +562,9 @@ impl ComHub {
                     exact_instance: true,
                     exclude_socket,
                 };
-                if let Some(socket) = self.iterate_endpoint_sockets(endpoint, options).next() {
+                if let Some(socket) =
+                    self.iterate_endpoint_sockets(endpoint, options).next()
+                {
                     return Some(socket);
                 }
                 None
@@ -645,6 +647,7 @@ impl ComHub {
         spawn_local(async move {
             loop {
                 self_rc.lock().unwrap().update().await;
+                #[cfg(feature = "tokio_runtime")]
                 yield_now().await; // let other tasks run
             }
         });
