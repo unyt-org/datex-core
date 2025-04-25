@@ -19,10 +19,17 @@ use std::time::Duration;
 
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
+type OnSendCallback = dyn Fn(
+        &[u8],
+        ComInterfaceSocketUUID,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send>>
+    + Send
+    + Sync;
 
 pub struct BaseInterface {
     name: String,
     info: ComInterfaceInfo,
+    on_send: Option<Box<OnSendCallback>>,
 }
 impl Default for BaseInterface {
     fn default() -> Self {
@@ -62,6 +69,7 @@ impl BaseInterface {
         BaseInterface {
             name: name.to_string(),
             info,
+            on_send: None,
         }
     }
 
@@ -116,14 +124,9 @@ impl ComInterface for BaseInterface {
         block: &'a [u8],
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO: Implement send_block
-        // This is a placeholder implementation
-        if let Some(socket) = self.get_socket_with_uuid(socket) {
-            let socket = socket.lock().unwrap();
-            socket.receive_queue.lock().unwrap().extend(block);
-            Box::pin(async move { true })
+        if let Some(on_send) = &self.on_send {
+            on_send(block, socket)
         } else {
-            error!("Socket not found");
             Box::pin(async move { false })
         }
     }
