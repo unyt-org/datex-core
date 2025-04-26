@@ -109,10 +109,10 @@ impl BaseInterface {
 
     pub fn receive(
         &mut self,
-        socket: ComInterfaceSocketUUID,
+        receiver_socket_uuid: ComInterfaceSocketUUID,
         data: Vec<u8>,
     ) -> Result<(), BaseInterfaceError> {
-        if let Some(socket) = self.get_socket_with_uuid(socket) {
+        if let Some(socket) = self.get_socket_with_uuid(receiver_socket_uuid) {
             let socket = socket.lock().unwrap();
             let receive_queue = socket.get_receive_queue();
             receive_queue.lock().unwrap().extend(data);
