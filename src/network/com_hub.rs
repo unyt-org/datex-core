@@ -120,7 +120,7 @@ impl ComHub {
     pub async fn init(&mut self) -> Result<(), ComHubError> {
         // add default local loopback interface
         let local_interface = LocalLoopbackInterface::new();
-        self.add_interface(Rc::new(RefCell::new(local_interface)))
+        self.open_and_add_interface(Rc::new(RefCell::new(local_interface)))
             .await
     }
 
@@ -188,13 +188,25 @@ impl ComHub {
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
-        self.add_interface(interface.clone()).await?;
+        self.open_and_add_interface(interface.clone()).await?;
         let uuid = interface.borrow().get_uuid().clone();
         self.set_default_interface(uuid)?;
         Ok(())
     }
 
-    pub async fn add_interface(
+    pub async fn open_and_add_interface(
+        &mut self,
+        interface: Rc<RefCell<dyn ComInterface>>,
+    ) -> Result<(), ComHubError> {
+        if interface.borrow().get_state() != ComInterfaceState::Connected {
+            // If interface is not connected, open it
+            // and wait for it to be connected
+            interface.borrow_mut().handle_open().await;
+        }
+        self.add_interface(interface.clone())
+    }
+
+    pub fn add_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
@@ -202,13 +214,7 @@ impl ComHub {
         if self.interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
         }
-        if interface.borrow().get_state() != ComInterfaceState::Connected {
-            // If interface is not connected, open it
-            // and wait for it to be connected
-            interface.borrow_mut().handle_open().await;
-        }
         self.interfaces.insert(uuid, interface);
-
         Ok(())
     }
 
@@ -237,7 +243,7 @@ impl ComHub {
 
             // Remove the sockets from the socket list
             // to notify ComHub routing logic
-            interface.destroy_sockets();
+            interface.destroy();
         }
 
         // Remove old sockets from ComHub that have been deleted by the interface destroy_sockets()

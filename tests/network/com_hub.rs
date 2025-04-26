@@ -35,7 +35,7 @@ pub async fn test_add_and_remove() {
             Rc::new(RefCell::new(MockupInterface::default()));
         let uuid = mockup_interface.borrow().get_uuid().clone();
         com_hub_mut
-            .add_interface(mockup_interface.clone())
+            .open_and_add_interface(mockup_interface.clone())
             .await
             .unwrap_or_else(|e| {
                 panic!("Error adding interface: {e:?}");
@@ -56,24 +56,24 @@ pub async fn test_multiple_add() {
     let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
 
     com_hub_mut
-        .add_interface(mockup_interface1.clone())
+        .open_and_add_interface(mockup_interface1.clone())
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
     com_hub_mut
-        .add_interface(mockup_interface2.clone())
+        .open_and_add_interface(mockup_interface2.clone())
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
 
     assert!(com_hub_mut
-        .add_interface(mockup_interface1.clone())
+        .open_and_add_interface(mockup_interface1.clone())
         .await
         .is_err());
     assert!(com_hub_mut
-        .add_interface(mockup_interface2.clone())
+        .open_and_add_interface(mockup_interface2.clone())
         .await
         .is_err());
 }

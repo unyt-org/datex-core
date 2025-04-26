@@ -41,9 +41,9 @@ pub enum ComInterfaceError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIs)]
 pub enum ComInterfaceState {
-    Created,
+    NotConnected,
     Connected,
-    Reconnecting,
+    Connecting,
     Destroyed,
 }
 
@@ -73,7 +73,6 @@ impl ComInterfaceSockets {
     pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets.remove(socket_uuid);
         self.deleted_sockets.push_back(socket_uuid.clone());
-        debug!("Socket removed: {socket_uuid:?}");
         if let Some(socket) = self.sockets.get(socket_uuid) {
             socket.lock().unwrap().state = SocketState::Destroyed;
         }
@@ -140,7 +139,7 @@ impl ComInterfaceInfo {
     pub fn new() -> Self {
         Self {
             uuid: ComInterfaceUUID(UUID::new()),
-            state: Arc::new(Mutex::new(ComInterfaceState::Created)),
+            state: Arc::new(Mutex::new(ComInterfaceState::NotConnected)),
             interface_properties: None,
             com_interface_sockets: Arc::new(Mutex::new(
                 ComInterfaceSockets::default(),
@@ -167,7 +166,16 @@ macro_rules! set_opener {
         fn handle_open<'a>(
             &'a mut self,
         ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-            Box::pin(async move { self.$opener().await.is_ok() })
+            self.set_state(ComInterfaceState::Connecting);
+            Box::pin(async move {
+                let res = self.$opener().await.is_ok();
+                if res {
+                    self.set_state(ComInterfaceState::Connected);
+                } else {
+                    self.set_state(ComInterfaceState::NotConnected);
+                }
+                res
+            })
         }
     };
 }
@@ -246,13 +254,14 @@ pub trait ComInterface: Any {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     // Destroy the interface and free all resources after it has been cleaned up
-    fn destroy_sockets(&mut self) {
-        info!("destroy_sockets");
+    fn destroy(&mut self) {
         let sockets = self.get_sockets();
         let sockets = sockets.lock().unwrap();
         let uuids: Vec<ComInterfaceSocketUUID> =
             sockets.sockets.keys().cloned().collect();
         drop(sockets);
+        info!("Destroy com interface with {} sockets", uuids.len());
+
         for socket_uuid in uuids {
             self.remove_socket(&socket_uuid);
         }

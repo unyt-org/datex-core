@@ -113,14 +113,14 @@ pub async fn test_create_socket_connection() {
         .com_hub
         .lock()
         .unwrap()
-        .add_interface(server.clone())
+        .open_and_add_interface(server.clone())
         .await
         .unwrap();
     runtime
         .com_hub
         .lock()
         .unwrap()
-        .add_interface(client.clone())
+        .open_and_add_interface(client.clone())
         .await
         .unwrap();
 
