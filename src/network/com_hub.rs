@@ -39,11 +39,14 @@ pub struct DynamicEndpointProperties {
 }
 
 pub struct ComHub {
+    /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
+
+    /// a list of all available interfaces, keyed by their UUID
     pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
+
     /// a list of all available sockets, keyed by their UUID
     /// contains the socket itself and a list of endpoints currently associated with it
-    // TODO: keep socket mapping up to date
     pub sockets: HashMap<
         ComInterfaceSocketUUID,
         (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
@@ -54,8 +57,17 @@ pub struct ComHub {
         Endpoint,
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
+
+    /// a queue of incoming blocks for the own endpoint
+    /// that can be processed by the runtime
     pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
+
+    /// the default socket for the hub to send outgoing block to
+    /// if no socket is available for a receiver endpoint
     pub default_socket_uuid: Option<ComInterfaceSocketUUID>,
+
+    /// the default interface for the hub to send outgoing block to
+    /// if no interface is available for a receiver endpoint
     pub default_interface_uuid: Option<ComInterfaceUUID>,
 }
 
@@ -193,7 +205,7 @@ impl ComHub {
         Ok(())
     }
 
-    /// User can remove an interface from the hub.
+    /// User can proactively remove an interface from the hub.
     /// This will destroy the interface and it's sockets (perform deep cleanup)
     pub async fn remove_interface(
         &mut self,
@@ -230,14 +242,19 @@ impl ComHub {
         Ok(())
     }
 
+    /// The internal cleanup function that removes the interface from the hub
+    /// and disabled the default interface if it was set to this interface
     fn cleanup_interface(
         &mut self,
         interface_uuid: ComInterfaceUUID,
     ) -> Option<Rc<RefCell<dyn ComInterface>>> {
         let interface = self.interfaces.remove(&interface_uuid).or(None)?;
 
-        if self.default_interface_uuid == Some(interface_uuid) {
+        if self.default_interface_uuid == Some(interface_uuid.clone()) {
             self.default_interface_uuid = None;
+            warn!(
+                "Default interface {interface_uuid} removed. No default interface set."
+            );
         }
         Some(interface)
     }
@@ -264,19 +281,19 @@ impl ComHub {
 
         if !is_signed {
             let endpoint = block.routing_header.sender.clone();
-            // TODO Check if the sender is trusted (endpoint + interface) connection
             let is_trusted = {
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "debug")] {
                         get_global_context().debug_flags.allow_unsigned_blocks
                     }
                     else {
+                        // TODO Check if the sender is trusted (endpoint + interface) connection
                         false
                     }
                 }
             };
             if !is_trusted {
-                warn!("Block by {endpoint} is not signed. Dropping block...");
+                warn!("Block received by {endpoint} is not signed. Dropping block...");
                 return;
             }
         } else {
@@ -702,7 +719,7 @@ impl ComHub {
     }
 
     /// returns all receivers to which the block has to be sent, grouped by the
-    /// outbound socket
+    /// outbound socket uuids
     fn get_outbound_receiver_groups(
         &self,
         block: &DXBBlock,
@@ -753,6 +770,7 @@ impl ComHub {
     /// collecting incoming data and sending out queued blocks.
     pub async fn update(&mut self) {
         info!("running ComHub update loop...");
+        // update own socket lists for routing
         self.update_sockets();
 
         // update sockets block collectors
@@ -765,8 +783,10 @@ impl ComHub {
         self.flush_outgoing_blocks().await;
     }
 
+    /// Prepare a block for sending out by updating the creation timestamp,
+    /// sender and add signature and encryption if needed.
     fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
-        // TODO to encryption
+        // TODO signature & encryption
         let now = get_global_context().clone().time.lock().unwrap().now();
         block.routing_header.sender = self.endpoint.clone();
         block
@@ -776,8 +796,8 @@ impl ComHub {
         block
     }
 
+    /// Public method to send an outgoing block from this endpoint. Called by the runtime.
     pub fn send_own_block(&self, mut block: DXBBlock) {
-        // TODO to encryption
         block = self.prepare_own_block(block);
         self.send_block(block, None);
     }
@@ -853,6 +873,8 @@ impl ComHub {
         }
     }
 
+    /// Update all known sockets for all interfaces to update routing
+    /// information, remove deleted sockets and add new sockets and endpoint relations
     fn update_sockets(&mut self) {
         let mut new_sockets = Vec::new();
         let mut deleted_sockets = Vec::new();
@@ -885,6 +907,8 @@ impl ComHub {
         }
     }
 
+    /// Collect incoming data slices from all sockets. The sockets will call their
+    /// BlockCollector to collect the data into blocks.
     fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
         info!("Collecting incoming data from all sockets");
