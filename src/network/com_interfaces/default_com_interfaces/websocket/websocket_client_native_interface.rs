@@ -1,7 +1,4 @@
 use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
-use std::any::Any;
-use std::cell::RefCell;
-use std::rc::Rc;
 // FIXME no-std
 
 use crate::{

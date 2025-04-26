@@ -1,5 +1,3 @@
-use std::any::Any;
-use std::cell::RefCell;
 use crate::datex_values::Endpoint;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -13,7 +11,6 @@ use crate::network::com_interfaces::com_interface_socket::{
 use crate::{delegate_com_interface_info, set_sync_opener};
 use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
