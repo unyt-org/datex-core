@@ -107,7 +107,7 @@ impl ComInterface for TCPClientNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO
         Box::pin(async move { true })
     }

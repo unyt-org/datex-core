@@ -237,14 +237,6 @@ impl ComHub {
                 return Err(ComHubError::InterfaceCloseFailed);
             }
         }
-        {
-            let interface = interface.clone();
-            let mut interface = interface.borrow_mut();
-
-            // Remove the sockets from the socket list
-            // to notify ComHub routing logic
-            interface.destroy();
-        }
 
         // Remove old sockets from ComHub that have been deleted by the interface destroy_sockets()
         self.update_sockets();

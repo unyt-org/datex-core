@@ -12,7 +12,7 @@ use crate::stdlib::{
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use futures_util::future::join_all;
-use log::{debug, info};
+use log::{debug, error, info, warn};
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
@@ -254,7 +254,7 @@ pub trait ComInterface: Any {
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     // Destroy the interface and free all resources after it has been cleaned up
-    fn destroy(&mut self) {
+    fn destroy_sockets(&mut self) {
         let sockets = self.get_sockets();
         let sockets = sockets.lock().unwrap();
         let uuids: Vec<ComInterfaceSocketUUID> =
@@ -265,13 +265,40 @@ pub trait ComInterface: Any {
         for socket_uuid in uuids {
             self.remove_socket(&socket_uuid);
         }
-        self.set_state(ComInterfaceState::Destroyed);
     }
 
     /// Close the interface and free all resources.
     /// Has to be implemented by the interface and might be async.
-    /// Make sure to call destroy_sockets() after the interface is closed.
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
+    /// Public API to close the interface and clean up all sockets.
+    /// This will set the state to `NotConnected` or `Destroyed` depending on
+    /// if the interface could be closed or not.
+    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        let uuid = self.get_uuid().clone();
+        Box::pin(async move {
+            let ok = self.handle_close().await;
+            if ok {
+                self.set_state(ComInterfaceState::NotConnected);
+            } else {
+                error!("Failed to close interface {uuid}");
+                // If the interface could not be closed, we set it to destroyed
+                // to make sure it is cleaned up
+                // and not left in a dangling state.
+
+                // When we can't close an interface, we won't reconnect it
+                self.set_state(ComInterfaceState::Destroyed);
+            }
+
+            // Remove the sockets from the interface socket list
+            // to notify ComHub routing logic
+            self.destroy_sockets();
+            ok
+        })
+    }
+
     fn handle_open<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;

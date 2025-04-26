@@ -255,7 +255,7 @@ impl ComInterface for WebRTCClientInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let webrtcsocket = self.websocket.clone();
         Box::pin(async move {
             if webrtcsocket.is_some() {

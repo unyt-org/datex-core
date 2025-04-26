@@ -215,7 +215,7 @@ impl ComInterface for WebSocketServerNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {

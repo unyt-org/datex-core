@@ -14,7 +14,8 @@ use crate::{
         },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-    }, set_sync_opener,
+    },
+    set_sync_opener,
 };
 use crate::{
     network::com_interfaces::{
@@ -156,7 +157,9 @@ impl ComInterface for SerialNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         Box::pin(async move {
             shutdown_signal.notified().await;
