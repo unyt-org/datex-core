@@ -12,7 +12,7 @@ use crate::stdlib::{
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use futures_util::future::join_all;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
