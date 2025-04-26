@@ -162,6 +162,7 @@ impl ComInterface for SerialNativeInterface {
 
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: "serial".to_string(),
             channel: "serial".to_string(),
             round_trip_time: Duration::from_millis(40),
             max_bandwidth: 100,

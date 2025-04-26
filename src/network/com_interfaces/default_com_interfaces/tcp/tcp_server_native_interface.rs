@@ -136,6 +136,7 @@ impl TCPServerNativeInterface {
 impl ComInterface for TCPServerNativeInterface {
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: "tcp-server".to_string(),
             channel: "tcp".to_string(),
             round_trip_time: Duration::from_millis(20),
             max_bandwidth: 1000,

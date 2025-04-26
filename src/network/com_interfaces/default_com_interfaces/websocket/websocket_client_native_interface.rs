@@ -1,4 +1,8 @@
-use std::{future::Future, pin::Pin, sync::Mutex, time::Duration}; // FIXME no-std
+use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
+use std::any::Any;
+use std::cell::RefCell;
+use std::rc::Rc;
+// FIXME no-std
 
 use crate::{
     delegate_com_interface, delegate_com_interface_info,
@@ -16,7 +20,7 @@ use crate::{
     task::spawn,
 };
 
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory, ComInterfaceState};
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use log::{debug, error, info};
 use tokio::net::TcpStream;
@@ -37,6 +41,10 @@ impl SingleSocketProvider for WebSocketClientNativeInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets().clone()
     }
+}
+
+struct WebSocketClientNativeInterfaceSetupData {
+    address: String
 }
 
 impl WebSocketClientNativeInterface {
@@ -109,6 +117,26 @@ impl WebSocketClientNativeInterface {
     }
 }
 
+impl ComInterfaceFactory<WebSocketClientNativeInterfaceSetupData> for WebSocketClientNativeInterface {
+    fn create(
+        setup_data: WebSocketClientNativeInterfaceSetupData,
+    ) -> Result<WebSocketClientNativeInterface, ComInterfaceError> {
+        WebSocketClientNativeInterface::new(&setup_data.address).map_err(|_|
+            ComInterfaceError::InvalidSetupData
+        )
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "websocket-client".to_string(),
+            channel: "websocket".to_string(),
+            round_trip_time: Duration::from_millis(40),
+            max_bandwidth: 1000,
+            ..InterfaceProperties::default()
+        }
+    }
+}
+
 impl ComInterface for WebSocketClientNativeInterface {
     fn send_block<'a>(
         &'a mut self,
@@ -134,12 +162,7 @@ impl ComInterface for WebSocketClientNativeInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            channel: "websocket".to_string(),
-            round_trip_time: Duration::from_millis(40),
-            max_bandwidth: 1000,
-            ..InterfaceProperties::default()
-        }
+        WebSocketClientNativeInterface::get_default_properties()
     }
 
     fn handle_close<'a>(
