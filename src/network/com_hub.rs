@@ -265,9 +265,16 @@ impl ComHub {
         if !is_signed {
             let endpoint = block.routing_header.sender.clone();
             // TODO Check if the sender is trusted (endpoint + interface) connection
-            let is_trusted = false
-                || (cfg!(feature = "debug")
-                    && get_global_context().debug_flags.allow_unsigned_blocks);
+            let is_trusted = {
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "debug")] {
+                        get_global_context().debug_flags.allow_unsigned_blocks
+                    }
+                    else {
+                        false
+                    }
+                }
+            };
             if !is_trusted {
                 warn!("Block by {endpoint} is not signed. Dropping block...");
                 return;
