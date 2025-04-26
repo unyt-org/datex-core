@@ -65,6 +65,15 @@ pub trait MultipleSocketProvider {
         socket
     }
 
+    fn has_socket_with_uuid(
+        &self,
+        socket_uuid: ComInterfaceSocketUUID,
+    ) -> bool {
+        let sockets = self.provide_sockets();
+        let sockets = sockets.lock().unwrap();
+        sockets.sockets.contains_key(&socket_uuid)
+    }
+
     fn get_socket_with_uuid(
         &self,
         socket_uuid: ComInterfaceSocketUUID,
@@ -92,5 +101,13 @@ pub trait SingleSocketProvider {
 
     fn get_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
         self.get_socket().map(|s| s.lock().unwrap().uuid.clone())
+    }
+    fn has_socket_with_uuid(
+        &self,
+        socket_uuid: ComInterfaceSocketUUID,
+    ) -> bool {
+        self.get_socket_uuid()
+            .map(|uuid| uuid == socket_uuid)
+            .unwrap_or(false)
     }
 }

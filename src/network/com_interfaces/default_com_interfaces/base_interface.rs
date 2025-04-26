@@ -133,17 +133,13 @@ impl ComInterface for BaseInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket: ComInterfaceSocketUUID,
+        socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        if !self.has_socket_with_uuid(socket_uuid.clone()) {
+            return Box::pin(async move { false });
+        }
         if let Some(on_send) = &self.on_send {
-            // Box::pin(async move {
-            //     let socket = socket.clone();
-            //     let block = block.to_vec();
-            //     let result = on_send(&block, socket).await;
-            //     info!("Send result: {:?}", result);
-            //     result
-            // })
-            on_send(block, socket)
+            on_send(block, socket_uuid)
         } else {
             Box::pin(async move { false })
         }
