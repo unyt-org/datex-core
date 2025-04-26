@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use crate::task::spawn;
+use crate::{delegate_com_interface, task::spawn};
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
@@ -44,6 +44,7 @@ impl MultipleSocketProvider for WebRTCClientInterface {
     }
 }
 impl WebRTCClientInterface {
+    delegate_com_interface!();
     const RECONNECT_ATTEMPTS: u16 = 3;
     const CHANNEL_ID: usize = 0;
     pub fn new_reliable(

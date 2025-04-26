@@ -17,7 +17,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::task::spawn;
-use crate::{delegate_com_interface_info, set_opener};
+use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::OwnedWriteHalf;
@@ -38,6 +38,7 @@ impl SingleSocketProvider for TCPClientNativeInterface {
 }
 
 impl TCPClientNativeInterface {
+    delegate_com_interface!();
     pub fn new(address: &str) -> Result<TCPClientNativeInterface, TCPError> {
         let interface = TCPClientNativeInterface {
             address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,

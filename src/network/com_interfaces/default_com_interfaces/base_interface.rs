@@ -11,7 +11,9 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::{delegate_com_interface_info, set_sync_opener};
+use crate::{
+    delegate_com_interface, delegate_com_interface_info, set_sync_opener,
+};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -19,12 +21,6 @@ use std::time::Duration;
 
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
-// pub type OnSendCallback = dyn Fn(
-//         &[u8],
-//         ComInterfaceSocketUUID,
-//     ) -> Pin<Box<dyn Future<Output = bool> + Send>>
-//     + Send
-//     + Sync;
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -51,6 +47,7 @@ pub enum BaseInterfaceError {
 }
 
 impl BaseInterface {
+    delegate_com_interface!();
     pub fn new_with_single_socket(
         name: &str,
         direction: InterfaceDirection,
@@ -157,7 +154,9 @@ impl ComInterface for BaseInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
     }
     delegate_com_interface_info!();

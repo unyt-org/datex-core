@@ -8,7 +8,9 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::{delegate_com_interface_info, set_sync_opener};
+use crate::{
+    delegate_com_interface, delegate_com_interface_info, set_sync_opener,
+};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -30,6 +32,7 @@ impl Default for LocalLoopbackInterface {
 }
 
 impl LocalLoopbackInterface {
+    delegate_com_interface!();
     pub fn new() -> LocalLoopbackInterface {
         let info = ComInterfaceInfo::new();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
@@ -70,7 +73,9 @@ impl ComInterface for LocalLoopbackInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
     }
     delegate_com_interface_info!();

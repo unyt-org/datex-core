@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    delegate_com_interface_info,
+    delegate_com_interface, delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -44,6 +44,7 @@ impl SerialNativeInterface {
     const TIMEOUT: Duration = Duration::from_millis(1000);
     const BUFFER_SIZE: usize = 1024;
     const DEFAULT_BAUD_RATE: u32 = 115200;
+    delegate_com_interface!();
 
     pub fn get_available_ports() -> Vec<String> {
         serialport::available_ports()

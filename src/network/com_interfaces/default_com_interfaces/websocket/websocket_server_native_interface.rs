@@ -4,7 +4,7 @@ use std::{
 }; // FIXME no-std
 
 use crate::{
-    delegate_com_interface_info,
+    delegate_com_interface, delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -54,6 +54,7 @@ pub struct WebSocketServerNativeInterface {
 }
 
 impl WebSocketServerNativeInterface {
+    delegate_com_interface!();
     pub fn new(
         port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {

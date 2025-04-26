@@ -36,7 +36,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::{delegate_com_interface_info, set_opener};
+use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
 
 use super::http_common::HTTPError;
 
@@ -124,6 +124,8 @@ impl MultipleSocketProvider for HTTPServerNativeInterface {
 }
 
 impl HTTPServerNativeInterface {
+    delegate_com_interface!();
+
     pub fn new(port: &u16) -> Result<HTTPServerNativeInterface, HTTPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("http://127.0.0.1:{port}");

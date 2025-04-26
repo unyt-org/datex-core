@@ -165,6 +165,16 @@ impl ComInterfaceInfo {
         self.state.lock().unwrap().clone_from(&new_state);
     }
 }
+extern crate proc_macro;
+
+#[macro_export]
+macro_rules! delegate_com_interface {
+    () => {
+        pub async fn destroy(mut self) {
+            self.handle_destroy().await;
+        }
+    };
+}
 
 #[macro_export]
 macro_rules! set_opener {
@@ -321,7 +331,9 @@ pub trait ComInterface: Any {
     }
 
     /// Public API to destroy the interface and free all resources.
-    fn destroy<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+    fn handle_destroy<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         if self.get_state().is_destroyed() {
             panic!(
                 "Interface {} is already destroyed. Not destroying again.",
