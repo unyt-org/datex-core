@@ -10,10 +10,8 @@ pub enum BlockType {
     Request = 0,
     Response = 1,
     Hello = 2,
-    #[allow(unused)]
-    Unused1,
-    #[allow(unused)]
-    Unused2,
+    Trace = 3,
+    TraceBack = 4,
     #[allow(unused)]
     Unused3,
     #[allow(unused)]
