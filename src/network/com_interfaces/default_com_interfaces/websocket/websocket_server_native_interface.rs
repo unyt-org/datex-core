@@ -98,6 +98,7 @@ impl WebSocketServerNativeInterface {
 
             spawn(async move {
                 loop {
+                    debug!("ipdating...");
                     select! {
                         res = listener.accept() => {
                             match res {
@@ -230,7 +231,10 @@ impl ComInterface for WebSocketServerNativeInterface {
         let shutdown_signal = self.shutdown_signal.clone();
         let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {
+            debug!("fire");
             shutdown_signal.notified().await;
+            debug!("fire d");
+
             websocket_streams.lock().unwrap().clear();
             true
         })

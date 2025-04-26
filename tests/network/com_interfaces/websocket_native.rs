@@ -84,6 +84,8 @@ pub async fn test_construct() {
     client.destroy().await;
 }
 
+// FIXME this runs forever, because of a bug in the websocket server implementation
+
 #[tokio::test]
 pub async fn test_create_socket_connection() {
     const PORT: u16 = 8085;
@@ -134,8 +136,8 @@ pub async fn test_create_socket_connection() {
             .await
     );
 
-    // tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-    // runtime.com_hub.lock().unwrap().update().await;
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    runtime.com_hub.lock().unwrap().update().await;
     info!("LLE1");
 
     let lock = server.clone();
