@@ -87,4 +87,7 @@ pub async fn test_send_receive() {
             .drain(..)
             .collect::<Vec<_>>()
     );
+
+    client_a.destroy().await;
+    client_b.destroy().await;
 }

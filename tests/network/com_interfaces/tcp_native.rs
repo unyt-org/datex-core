@@ -73,4 +73,7 @@ pub async fn test_construct() {
             .collect::<Vec<_>>(),
         CLIENT_TO_SERVER_MSG
     );
+
+    server.destroy().await;
+    client.destroy().await;
 }

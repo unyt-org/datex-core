@@ -173,6 +173,9 @@ macro_rules! delegate_com_interface {
         pub async fn destroy(mut self) {
             self.handle_destroy().await;
         }
+        pub async fn destroy_ref(&mut self) {
+            self.handle_destroy().await;
+        }
     };
 }
 
@@ -341,8 +344,11 @@ pub trait ComInterface: Any {
             );
         }
         Box::pin(async move {
+            debug!("handle_close...");
             self.handle_close().await;
+            debug!("destroy_sockets...");
             self.destroy_sockets();
+            debug!("set_state...");
             self.set_state(ComInterfaceState::Destroyed);
         })
     }
