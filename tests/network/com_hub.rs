@@ -79,15 +79,22 @@ pub async fn test_send() {
     init_global_context();
     let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
 
-    let block = send_empty_block(&[TEST_ENDPOINT_A.clone()], &com_hub).await;
+    let block = send_block_with_body(
+        &[TEST_ENDPOINT_A.clone()],
+        b"Hello world!",
+        &com_hub,
+    )
+    .await;
 
     // get last block that was sent
     let mockup_interface_out = com_interface.clone();
     let mockup_interface_out = mockup_interface_out.borrow();
-    let block_bytes = mockup_interface_out.last_block().unwrap();
+    let block_bytes =
+        DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+            .unwrap();
 
     assert!(mockup_interface_out.last_block().is_some());
-    assert_eq!(block_bytes, block.to_bytes().unwrap());
+    assert_eq!(block_bytes.body, block.body);
 }
 
 #[tokio::test]
@@ -125,8 +132,9 @@ pub async fn send_block_to_multiple_endpoints() {
     com_hub.lock().unwrap().update().await;
 
     // send block to multiple receivers
-    let block = send_empty_block(
+    let block = send_block_with_body(
         &[TEST_ENDPOINT_A.clone(), TEST_ENDPOINT_B.clone()],
+        b"Hello world",
         &com_hub,
     )
     .await;
@@ -134,11 +142,13 @@ pub async fn send_block_to_multiple_endpoints() {
     // get last block that was sent
     let mockup_interface_out = com_interface.clone();
     let mockup_interface_out = mockup_interface_out.borrow();
-    let block_bytes = mockup_interface_out.last_block().unwrap();
+    let block_bytes =
+        DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+            .unwrap();
 
     assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
     assert!(mockup_interface_out.last_block().is_some());
-    assert_eq!(block_bytes, block.to_bytes().unwrap());
+    assert_eq!(block_bytes.body, block.body);
 }
 
 #[tokio::test]
