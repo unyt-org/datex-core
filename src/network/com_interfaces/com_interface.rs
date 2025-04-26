@@ -51,6 +51,12 @@ impl ComInterfaceState {
     pub fn set(&mut self, new_state: ComInterfaceState) {
         *self = new_state;
     }
+    pub fn is_destroyed_or_not_connected(&self) -> bool {
+        matches!(
+            self,
+            ComInterfaceState::Destroyed | ComInterfaceState::NotConnected
+        )
+    }
 }
 
 #[derive(Debug, Default)]
@@ -186,7 +192,16 @@ macro_rules! set_sync_opener {
         fn handle_open<'a>(
             &'a mut self,
         ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-            Box::pin(async move { self.$opener().is_ok() })
+            self.set_state(ComInterfaceState::Connecting);
+            Box::pin(async move {
+                let res = self.$opener().is_ok();
+                if res {
+                    self.set_state(ComInterfaceState::Connected);
+                } else {
+                    self.set_state(ComInterfaceState::NotConnected);
+                }
+                res
+            })
         }
     };
 }
@@ -253,15 +268,15 @@ pub trait ComInterface: Any {
 
     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
-    // Destroy the interface and free all resources after it has been cleaned up
+    /// Destroy all sockets of the interface
+    /// This will add the sockets to the deleted_sockets list
+    /// to be consumed by the ComHub
     fn destroy_sockets(&mut self) {
         let sockets = self.get_sockets();
         let sockets = sockets.lock().unwrap();
         let uuids: Vec<ComInterfaceSocketUUID> =
             sockets.sockets.keys().cloned().collect();
         drop(sockets);
-        info!("Destroy com interface with {} sockets", uuids.len());
-
         for socket_uuid in uuids {
             self.remove_socket(&socket_uuid);
         }
@@ -269,6 +284,7 @@ pub trait ComInterface: Any {
 
     /// Close the interface and free all resources.
     /// Has to be implemented by the interface and might be async.
+    /// The state is set by the close that calls the handler function
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
@@ -278,12 +294,17 @@ pub trait ComInterface: Any {
     /// if the interface could be closed or not.
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let uuid = self.get_uuid().clone();
+        if self.get_state().is_destroyed_or_not_connected() {
+            warn!("Interface {uuid} is already closed. Not closing again.");
+            return Box::pin(async move { false });
+        }
         Box::pin(async move {
             let ok = self.handle_close().await;
             if ok {
+                debug!("Successfully closed interface {uuid}");
                 self.set_state(ComInterfaceState::NotConnected);
             } else {
-                error!("Failed to close interface {uuid}");
+                error!("Error while closing interface {uuid}");
                 // If the interface could not be closed, we set it to destroyed
                 // to make sure it is cleaned up
                 // and not left in a dangling state.
