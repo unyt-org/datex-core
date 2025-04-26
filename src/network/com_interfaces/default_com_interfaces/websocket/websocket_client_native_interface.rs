@@ -63,45 +63,56 @@ impl WebSocketClientNativeInterface {
     }
 
     pub async fn open(&mut self) -> Result<(), WebSocketError> {
-        let address = self.address.clone();
-        info!("Connecting to WebSocket server at {address}");
-        let (stream, _) = tokio_tungstenite::connect_async(address)
-            .await
-            .map_err(|_| WebSocketError::ConnectionError)?;
-        let (write, mut read) = stream.split();
-        let socket = ComInterfaceSocket::new(
-            self.get_uuid().clone(),
-            InterfaceDirection::InOut,
-            1,
-        );
-        self.websocket_stream = Some(write);
-        let receive_queue = socket.receive_queue.clone();
-        self.get_sockets()
-            .lock()
-            .unwrap()
-            .add_socket(Arc::new(Mutex::new(socket)));
+        let res = {
+            let address = self.address.clone();
+            info!("Connecting to WebSocket server at {address}");
+            let (stream, _) = tokio_tungstenite::connect_async(address)
+                .await
+                .map_err(|_| WebSocketError::ConnectionError)?;
+            let (write, mut read) = stream.split();
+            let socket = ComInterfaceSocket::new(
+                self.get_uuid().clone(),
+                InterfaceDirection::InOut,
+                1,
+            );
+            self.websocket_stream = Some(write);
+            let receive_queue = socket.receive_queue.clone();
+            self.get_sockets()
+                .lock()
+                .unwrap()
+                .add_socket(Arc::new(Mutex::new(socket)));
 
-        self.set_state(ComInterfaceState::Connected);
-        let state = self.get_info().state.clone();
-        spawn(async move {
-            while let Some(msg) = read.next().await {
-                match msg {
-                    Ok(Message::Binary(data)) => {
-                        let mut queue = receive_queue.lock().unwrap();
-                        queue.extend(data);
-                    }
-                    Ok(_) => {
-                        error!("Invalid message type received");
-                    }
-                    Err(e) => {
-                        error!("WebSocket read error: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
-                        break;
+            self.set_state(ComInterfaceState::Connected);
+            let state = self.get_info().state.clone();
+            spawn(async move {
+                while let Some(msg) = read.next().await {
+                    match msg {
+                        Ok(Message::Binary(data)) => {
+                            let mut queue = receive_queue.lock().unwrap();
+                            queue.extend(data);
+                        }
+                        Ok(_) => {
+                            error!("Invalid message type received");
+                        }
+                        Err(e) => {
+                            error!("WebSocket read error: {e}");
+                            state
+                                .lock()
+                                .unwrap()
+                                .set(ComInterfaceState::Destroyed);
+                            break;
+                        }
                     }
                 }
-            }
-        });
-        Ok(())
+            });
+            Ok(())
+        };
+        if res.is_ok() {
+            self.set_state(ComInterfaceState::Connected);
+        } else {
+            self.set_state(ComInterfaceState::NotConnected);
+        }
+        res
     }
 }
 
@@ -153,7 +164,9 @@ impl ComInterface for WebSocketClientNativeInterface {
         WebSocketClientNativeInterface::get_default_properties()
     }
 
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO
         Box::pin(async move { true })
     }

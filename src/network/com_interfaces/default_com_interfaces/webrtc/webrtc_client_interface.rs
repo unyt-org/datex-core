@@ -79,130 +79,141 @@ impl WebRTCClientInterface {
     }
 
     pub async fn open(&mut self) -> Result<(), WebRTCError> {
-        let address = self.address.clone();
-        info!("Connecting to WebRTC server at {address}");
-        let ice_config = self.ice_server_config.clone();
-        let (socket, future) = if self.use_reliable_connection {
-            WebRtcSocket::builder(address)
-                .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
-                .add_reliable_channel()
-                .ice_server(ice_config)
-                .build()
-        } else {
-            WebRtcSocket::builder(address)
-                .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
-                .add_unreliable_channel()
-                .ice_server(ice_config)
-                .build()
-        };
+        self.set_state(ComInterfaceState::Connecting);
+        let res = {
+            let address = self.address.clone();
+            info!("Connecting to WebRTC server at {address}");
+            let ice_config = self.ice_server_config.clone();
+            let (socket, future) = if self.use_reliable_connection {
+                WebRtcSocket::builder(address)
+                    .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
+                    .add_reliable_channel()
+                    .ice_server(ice_config)
+                    .build()
+            } else {
+                WebRtcSocket::builder(address)
+                    .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
+                    .add_unreliable_channel()
+                    .ice_server(ice_config)
+                    .build()
+            };
 
-        info!("Connected to WebRTC server");
-        let socket = Arc::new(Mutex::new(socket));
-        self.websocket = Some(socket.clone());
-        let interface_uuid = self.get_uuid().clone();
-        let com_interface_sockets = self.get_sockets().clone();
-        let peer_socket_map = self.peer_socket_map.clone();
-        let loop_fut = future.fuse();
+            info!("Connected to WebRTC server");
+            let socket = Arc::new(Mutex::new(socket));
+            self.websocket = Some(socket.clone());
+            let interface_uuid = self.get_uuid().clone();
+            let com_interface_sockets = self.get_sockets().clone();
+            let peer_socket_map = self.peer_socket_map.clone();
+            let loop_fut = future.fuse();
 
-        let state = self.get_info().state.clone();
-        spawn(async move {
-            futures::pin_mut!(loop_fut);
-            let timeout = Delay::new(Duration::from_millis(100));
-            futures::pin_mut!(timeout);
-            let mut timeout = timeout;
-            let rtc_socket = socket.as_ref();
-            let mut is_connected = false;
-            loop {
-                let id = socket.lock().unwrap().id();
-                if !is_connected && id.is_some() {
-                    state.lock().unwrap().set(ComInterfaceState::Connected);
-                    is_connected = true;
-                }
+            let state = self.get_info().state.clone();
+            spawn(async move {
+                futures::pin_mut!(loop_fut);
+                let timeout = Delay::new(Duration::from_millis(100));
+                futures::pin_mut!(timeout);
+                let mut timeout = timeout;
+                let rtc_socket = socket.as_ref();
+                let mut is_connected = false;
+                loop {
+                    let id = socket.lock().unwrap().id();
+                    if !is_connected && id.is_some() {
+                        state.lock().unwrap().set(ComInterfaceState::Connected);
+                        is_connected = true;
+                    }
 
-                for (peer, peer_state) in
-                    rtc_socket.lock().unwrap().update_peers()
-                {
-                    let mut peer_socket_map = peer_socket_map.lock().unwrap();
-                    let mut com_interface_sockets =
-                        com_interface_sockets.lock().unwrap();
-                    match peer_state {
-                        PeerState::Connected => {
-                            let socket = ComInterfaceSocket::new(
-                                interface_uuid.clone(),
-                                InterfaceDirection::InOut,
-                                1,
-                            );
-                            let socket_uuid = socket.uuid.clone();
-                            com_interface_sockets
-                                .add_socket(Arc::new(Mutex::new(socket)));
-                            info!("Socket joined: {socket_uuid}");
-                            peer_socket_map.insert(peer, socket_uuid);
+                    for (peer, peer_state) in
+                        rtc_socket.lock().unwrap().update_peers()
+                    {
+                        let mut peer_socket_map =
+                            peer_socket_map.lock().unwrap();
+                        let mut com_interface_sockets =
+                            com_interface_sockets.lock().unwrap();
+                        match peer_state {
+                            PeerState::Connected => {
+                                let socket = ComInterfaceSocket::new(
+                                    interface_uuid.clone(),
+                                    InterfaceDirection::InOut,
+                                    1,
+                                );
+                                let socket_uuid = socket.uuid.clone();
+                                com_interface_sockets
+                                    .add_socket(Arc::new(Mutex::new(socket)));
+                                info!("Socket joined: {socket_uuid}");
+                                peer_socket_map.insert(peer, socket_uuid);
+                            }
+                            PeerState::Disconnected => {
+                                let socket_uuid =
+                                    peer_socket_map.get(&peer).unwrap();
+                                info!("Socket disconnected: {socket_uuid}");
+
+                                com_interface_sockets
+                                    .remove_socket(socket_uuid);
+                                peer_socket_map.remove(&peer);
+                            }
                         }
-                        PeerState::Disconnected => {
-                            let socket_uuid =
-                                peer_socket_map.get(&peer).unwrap();
-                            info!("Socket disconnected: {socket_uuid}");
+                    }
 
-                            com_interface_sockets.remove_socket(socket_uuid);
-                            peer_socket_map.remove(&peer);
+                    for (peer, packet) in rtc_socket
+                        .lock()
+                        .unwrap()
+                        .channel_mut(Self::CHANNEL_ID)
+                        .receive()
+                    {
+                        let peer_socket_map = peer_socket_map.lock().unwrap();
+                        let socket_uuid = peer_socket_map.get(&peer).unwrap();
+
+                        let sockets = com_interface_sockets.lock().unwrap();
+                        let socket =
+                            sockets.get_socket_by_uuid(socket_uuid).unwrap();
+                        let socket = socket.lock().unwrap();
+                        let receive_queue = socket.receive_queue.clone();
+                        let mut queue = receive_queue.lock().unwrap();
+                        let message = String::from_utf8_lossy(&packet);
+                        debug!("Message from {socket_uuid}: {message:?}");
+
+                        queue.extend(packet);
+                        drop(queue);
+                        drop(socket);
+                    }
+                    select! {
+                        _ = (&mut timeout).fuse() => {
+                            timeout.reset(Duration::from_millis(100));
+                        }
+                        // Break if the message loop ends (disconnected, closed, etc.)
+                        _ = &mut loop_fut => {
+                            break;
                         }
                     }
                 }
+                state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                warn!("WebRTC socket closed");
+            });
 
-                for (peer, packet) in rtc_socket
-                    .lock()
-                    .unwrap()
-                    .channel_mut(Self::CHANNEL_ID)
-                    .receive()
-                {
-                    let peer_socket_map = peer_socket_map.lock().unwrap();
-                    let socket_uuid = peer_socket_map.get(&peer).unwrap();
-
-                    let sockets = com_interface_sockets.lock().unwrap();
-                    let socket =
-                        sockets.get_socket_by_uuid(socket_uuid).unwrap();
-                    let socket = socket.lock().unwrap();
-                    let receive_queue = socket.receive_queue.clone();
-                    let mut queue = receive_queue.lock().unwrap();
-                    let message = String::from_utf8_lossy(&packet);
-                    debug!("Message from {socket_uuid}: {message:?}");
-
-                    queue.extend(packet);
-                    drop(queue);
-                    drop(socket);
+            // Wait for the connection to be established
+            let timeout = Delay::new(Duration::from_millis(1000));
+            futures::pin_mut!(timeout);
+            loop {
+                let state = self.get_state();
+                if state == ComInterfaceState::Connected {
+                    break;
+                }
+                if state == ComInterfaceState::Destroyed {
+                    return Err(WebRTCError::ConnectionError);
                 }
                 select! {
                     _ = (&mut timeout).fuse() => {
-                        timeout.reset(Duration::from_millis(100));
-                    }
-                    // Break if the message loop ends (disconnected, closed, etc.)
-                    _ = &mut loop_fut => {
-                        break;
+                        timeout.reset(Duration::from_millis(1000));
                     }
                 }
             }
-            state.lock().unwrap().set(ComInterfaceState::Destroyed);
-            warn!("WebRTC socket closed");
-        });
-
-        // Wait for the connection to be established
-        let timeout = Delay::new(Duration::from_millis(1000));
-        futures::pin_mut!(timeout);
-        loop {
-            let state = self.get_state();
-            if state == ComInterfaceState::Connected {
-                break;
-            }
-            if state == ComInterfaceState::Destroyed {
-                return Err(WebRTCError::ConnectionError);
-            }
-            select! {
-                _ = (&mut timeout).fuse() => {
-                    timeout.reset(Duration::from_millis(1000));
-                }
-            }
+            Ok(())
+        };
+        if res.is_ok() {
+            self.set_state(ComInterfaceState::Connected);
+        } else {
+            self.set_state(ComInterfaceState::NotConnected);
         }
-        Ok(())
+        res
     }
 }
 
@@ -256,7 +267,9 @@ impl ComInterface for WebRTCClientInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let webrtcsocket = self.websocket.clone();
         Box::pin(async move {
             if webrtcsocket.is_some() {

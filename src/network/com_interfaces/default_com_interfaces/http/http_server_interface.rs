@@ -192,36 +192,44 @@ impl HTTPServerNativeInterface {
         }
     }
 
-    pub async fn open(
-        &mut self,
-    ) -> Result<&HTTPServerNativeInterface, HTTPError> {
-        let address = self.address.clone();
-        info!("Spinning up server at {address}");
+    pub async fn open(&mut self) -> Result<(), HTTPError> {
+        self.set_state(ComInterfaceState::Connecting);
+        let res = {
+            let address = self.address.clone();
+            info!("Spinning up server at {address}");
 
-        let state = HTTPServerState {
-            channels: self.channels.clone(),
+            let state = HTTPServerState {
+                channels: self.channels.clone(),
+            };
+            let app = Router::new()
+                .route("/:route/rx", get(server_to_client_handler))
+                .route("/:route/tx", post(client_to_server_handler))
+                .with_state(state.clone());
+
+            let addr: SocketAddr = self
+                .address
+                .socket_addrs(|| None)
+                .map_err(|_| HTTPError::InvalidAddress)?
+                .first()
+                .cloned()
+                .ok_or(HTTPError::InvalidAddress)?;
+
+            println!("HTTP server starting on http://{addr}");
+            spawn(async move {
+                let listener =
+                    tokio::net::TcpListener::bind(&addr).await.unwrap();
+                axum::serve(listener, app.into_make_service())
+                    .await
+                    .unwrap();
+            });
+            Ok(())
         };
-        let app = Router::new()
-            .route("/:route/rx", get(server_to_client_handler))
-            .route("/:route/tx", post(client_to_server_handler))
-            .with_state(state.clone());
-
-        let addr: SocketAddr = self
-            .address
-            .socket_addrs(|| None)
-            .map_err(|_| HTTPError::InvalidAddress)?
-            .first()
-            .cloned()
-            .ok_or(HTTPError::InvalidAddress)?;
-
-        println!("HTTP server starting on http://{addr}");
-        spawn(async move {
-            let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-            axum::serve(listener, app.into_make_service())
-                .await
-                .unwrap();
-        });
-        Ok(self)
+        if res.is_ok() {
+            self.set_state(ComInterfaceState::Connected);
+        } else {
+            self.set_state(ComInterfaceState::NotConnected);
+        }
+        res
     }
 }
 
@@ -235,7 +243,9 @@ impl ComInterface for HTTPServerNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO
         Box::pin(async move { true })
     }
