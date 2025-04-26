@@ -233,9 +233,7 @@ impl ComHub {
             // Async close the interface (stop tasks, server, cleanup internal data)
             let interface = interface.clone();
             let mut interface = interface.borrow_mut();
-            if !interface.close().await {
-                return Err(ComHubError::InterfaceCloseFailed);
-            }
+            interface.destroy().await;
         }
 
         // Remove old sockets from ComHub that have been deleted by the interface destroy_sockets()

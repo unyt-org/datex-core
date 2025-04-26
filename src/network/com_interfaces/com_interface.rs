@@ -320,6 +320,21 @@ pub trait ComInterface: Any {
         })
     }
 
+    /// Public API to destroy the interface and free all resources.
+    fn destroy<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+        if self.get_state().is_destroyed() {
+            panic!(
+                "Interface {} is already destroyed. Not destroying again.",
+                self.get_uuid()
+            );
+        }
+        Box::pin(async move {
+            self.handle_close().await;
+            self.destroy_sockets();
+            self.set_state(ComInterfaceState::Destroyed);
+        })
+    }
+
     fn handle_open<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
