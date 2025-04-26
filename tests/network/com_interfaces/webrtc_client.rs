@@ -11,9 +11,10 @@ use datex_core::network::com_interfaces::{
 #[tokio::test]
 pub async fn test_construct() {
     init_global_context();
-    let result =
+    let mut client =
         WebRTCClientInterface::new_reliable("ws://interface.invalid", None)
-            .await;
+            .unwrap();
+    let result = client.open().await;
     assert!(result.is_err(), "Connection should fail");
 }
 
@@ -30,8 +31,9 @@ pub async fn test_send_receive() {
         &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
-    .await
-    .unwrap_or_else(|e| {
+    .unwrap();
+
+    client_a.open().await.unwrap_or_else(|e| {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
@@ -39,8 +41,8 @@ pub async fn test_send_receive() {
         &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
-    .await
-    .unwrap_or_else(|e| {
+    .unwrap();
+    client_b.open().await.unwrap_or_else(|e| {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;

@@ -11,7 +11,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::{delegate_com_interface_info, set_opener, set_sync_opener};
+use crate::{delegate_com_interface_info, set_sync_opener};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};

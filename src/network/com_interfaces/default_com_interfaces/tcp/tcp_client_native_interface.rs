@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceState,
+    ComInterface, ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -47,7 +47,7 @@ impl TCPClientNativeInterface {
         Ok(interface)
     }
 
-    async fn open(&mut self) -> Result<(), TCPError> {
+    pub async fn open(&mut self) -> Result<(), TCPError> {
         let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
         let port = self.address.port().ok_or(TCPError::InvalidURL)?;
         let address = format!("{host}:{port}");

@@ -18,6 +18,7 @@ use datex_core::{
         com_interface_socket::ComInterfaceSocketUUID,
         socket_provider::SingleSocketProvider,
     },
+    set_sync_opener,
 };
 
 pub struct MockupInterface {
@@ -76,6 +77,11 @@ impl MockupInterface {
             }
         }
     }
+
+    pub fn open(&mut self) -> Result<(), ()> {
+        self.set_state(ComInterfaceState::Connected);
+        Ok(())
+    }
 }
 
 impl Default for MockupInterface {
@@ -84,9 +90,7 @@ impl Default for MockupInterface {
             outgoing_queue: Vec::new(),
             sender: None,
             receiver: None,
-            info: ComInterfaceInfo::new_with_state(
-                ComInterfaceState::Connected,
-            ),
+            info: ComInterfaceInfo::default(),
         }
     }
 }
@@ -131,4 +135,5 @@ impl ComInterface for MockupInterface {
     }
 
     delegate_com_interface_info!();
+    set_sync_opener!(open);
 }

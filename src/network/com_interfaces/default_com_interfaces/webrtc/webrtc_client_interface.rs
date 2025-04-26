@@ -78,7 +78,7 @@ impl WebRTCClientInterface {
         Ok(interface)
     }
 
-    async fn open(&mut self) -> Result<(), WebRTCError> {
+    pub async fn open(&mut self) -> Result<(), WebRTCError> {
         let address = self.address.clone();
         info!("Connecting to WebRTC server at {address}");
         let ice_config = self.ice_server_config.clone();

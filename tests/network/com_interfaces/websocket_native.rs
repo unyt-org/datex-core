@@ -22,18 +22,17 @@ pub async fn test_construct() {
 
     init_global_context();
 
-    let mut server = WebSocketServerNativeInterface::new(PORT)
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketServerInterface: {e}");
-        });
+    let mut server = WebSocketServerNativeInterface::new(PORT).unwrap();
+    server.open().await.unwrap_or_else(|e| {
+        panic!("Failed to create WebSocketServerInterface: {e}");
+    });
 
     let mut client =
         WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
-            .await
-            .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketClientInterface: {e}");
-            });
+            .unwrap();
+    client.open().await.unwrap_or_else(|e| {
+        panic!("Failed to create WebSocketClientInterface: {e}");
+    });
 
     assert!(
         client
@@ -97,32 +96,32 @@ pub async fn test_create_socket_connection() {
     let runtime = Runtime::init_native(Endpoint::default());
 
     let server = Rc::new(RefCell::new(
-        WebSocketServerNativeInterface::new(PORT)
-            .await
-            .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketServerInterface: {e}");
-            }),
+        WebSocketServerNativeInterface::new(PORT).unwrap(),
     ));
+    server.borrow_mut().open().await.unwrap_or_else(|e| {
+        panic!("Failed to create WebSocketServerInterface: {e}");
+    });
 
     let client = Rc::new(RefCell::new(
         WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
-            .await
-            .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketClientInterface: {e}");
-            }),
+            .unwrap(),
     ));
-
+    client.borrow_mut().open().await.unwrap_or_else(|e| {
+        panic!("Failed to create WebSocketClientInterface: {e}");
+    });
     runtime
         .com_hub
         .lock()
         .unwrap()
         .add_interface(server.clone())
+        .await
         .unwrap();
     runtime
         .com_hub
         .lock()
         .unwrap()
         .add_interface(client.clone())
+        .await
         .unwrap();
 
     let client_uuid = client.borrow().get_socket_uuid().unwrap();
@@ -157,10 +156,10 @@ pub async fn test_construct_client() {
 
     let mut client =
         WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
-            .await
-            .unwrap_or_else(|e| {
-                panic!("Failed to create WebSocketClientInterface: {e}");
-            });
+            .unwrap();
+    client.open().await.unwrap_or_else(|e| {
+        panic!("Failed to create WebSocketClientInterface: {e}");
+    });
 
     assert!(
         client

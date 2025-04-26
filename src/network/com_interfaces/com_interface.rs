@@ -5,7 +5,6 @@ use super::{
     },
 };
 use crate::stdlib::{
-    self,
     cell::RefCell,
     hash::{Hash, Hasher},
     rc::Rc,

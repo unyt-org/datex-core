@@ -14,8 +14,7 @@ use crate::{
         },
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-    },
-    set_opener, set_sync_opener,
+    }, set_sync_opener,
 };
 use crate::{
     network::com_interfaces::{

@@ -39,6 +39,7 @@ pub async fn get_mock_setup_with_endpoint(
         .lock()
         .unwrap()
         .add_interface(mockup_interface_ref.clone())
+        .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });

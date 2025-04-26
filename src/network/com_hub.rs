@@ -117,9 +117,11 @@ impl ComHub {
         }))
     }
 
-    pub fn init(&mut self) -> Result<(), ComHubError> {
+    pub async fn init(&mut self) -> Result<(), ComHubError> {
         // add default local loopback interface
-        self.add_interface(Rc::new(RefCell::new(LocalLoopbackInterface::new())))
+        let local_interface = LocalLoopbackInterface::new();
+        self.add_interface(Rc::new(RefCell::new(local_interface)))
+            .await
     }
 
     pub fn set_default_interface(
@@ -182,28 +184,31 @@ impl ComHub {
         self.interfaces.get(uuid).cloned()
     }
 
-    pub fn add_default_interface(
+    pub async fn add_default_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
-        self.add_interface(interface.clone())?;
+        self.add_interface(interface.clone()).await?;
         let uuid = interface.borrow().get_uuid().clone();
         self.set_default_interface(uuid)?;
         Ok(())
     }
 
-    pub fn add_interface(
+    pub async fn add_interface(
         &mut self,
         interface: Rc<RefCell<dyn ComInterface>>,
     ) -> Result<(), ComHubError> {
-        if interface.borrow().get_state() != ComInterfaceState::Connected {
-            return Err(ComHubError::InterfaceNotConnected);
-        }
         let uuid = interface.borrow().get_uuid().clone();
         if self.interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
         }
+        if interface.borrow().get_state() != ComInterfaceState::Connected {
+            // If interface is not connected, open it
+            // and wait for it to be connected
+            interface.borrow_mut().handle_open().await;
+        }
         self.interfaces.insert(uuid, interface);
+
         Ok(())
     }
 

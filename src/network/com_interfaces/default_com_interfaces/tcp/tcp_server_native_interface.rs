@@ -46,7 +46,7 @@ impl TCPServerNativeInterface {
         Ok(interface)
     }
 
-    async fn open(&mut self) -> Result<(), TCPError> {
+    pub async fn open(&mut self) -> Result<(), TCPError> {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
 
