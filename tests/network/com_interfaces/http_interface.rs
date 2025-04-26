@@ -19,7 +19,6 @@ pub async fn test_construct() {
             panic!("Failed to create HTTPServerInterface: {e:?}");
         });
     server.open().await.unwrap();
-
     let endpoint = Endpoint::from_string("@jonas").unwrap();
 
     server

@@ -24,7 +24,7 @@ use tokio::net::TcpStream;
 use tungstenite::Message;
 use url::Url;
 
-use super::websocket_common::{parse_url, WebSocketError};
+use super::websocket_common::{parse_url, WebSocketClientInterfaceSetupData, WebSocketError};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct WebSocketClientNativeInterface {
@@ -38,10 +38,6 @@ impl SingleSocketProvider for WebSocketClientNativeInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets().clone()
     }
-}
-
-struct WebSocketClientNativeInterfaceSetupData {
-    address: String
 }
 
 impl WebSocketClientNativeInterface {
@@ -114,9 +110,9 @@ impl WebSocketClientNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<WebSocketClientNativeInterfaceSetupData> for WebSocketClientNativeInterface {
+impl ComInterfaceFactory<WebSocketClientInterfaceSetupData> for WebSocketClientNativeInterface {
     fn create(
-        setup_data: WebSocketClientNativeInterfaceSetupData,
+        setup_data: WebSocketClientInterfaceSetupData,
     ) -> Result<WebSocketClientNativeInterface, ComInterfaceError> {
         WebSocketClientNativeInterface::new(&setup_data.address).map_err(|_|
             ComInterfaceError::InvalidSetupData

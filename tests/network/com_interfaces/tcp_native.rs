@@ -17,7 +17,7 @@ pub async fn test_construct() {
 
     init_global_context();
 
-    let mut server = TCPServerNativeInterface::new(&PORT).unwrap();
+    let mut server = TCPServerNativeInterface::new(PORT).unwrap();
     server.open().await.unwrap_or_else(|e| {
         panic!("Failed to create TCPServerInterface: {e:?}");
     });

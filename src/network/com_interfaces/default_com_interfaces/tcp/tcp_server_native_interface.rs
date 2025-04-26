@@ -11,9 +11,7 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use url::Url;
 
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceState,
-};
+use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -24,8 +22,8 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
-
-use super::tcp_common::TCPError;
+use crate::network::com_interfaces::default_com_interfaces::tcp::tcp_client_native_interface::TCPClientNativeInterface;
+use super::tcp_common::{TCPClientInterfaceSetupData, TCPError, TCPServerInterfaceSetupData};
 
 pub struct TCPServerNativeInterface {
     pub address: Url,
@@ -35,7 +33,7 @@ pub struct TCPServerNativeInterface {
 
 impl TCPServerNativeInterface {
     delegate_com_interface!();
-    pub fn new(port: &u16) -> Result<TCPServerNativeInterface, TCPError> {
+    pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("ws://127.0.0.1:{port}");
         let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
@@ -133,8 +131,16 @@ impl TCPServerNativeInterface {
     }
 }
 
-impl ComInterface for TCPServerNativeInterface {
-    fn init_properties(&self) -> InterfaceProperties {
+impl ComInterfaceFactory<TCPServerInterfaceSetupData> for TCPServerNativeInterface {
+    fn create(
+        setup_data: TCPServerInterfaceSetupData,
+    ) -> Result<TCPServerNativeInterface, ComInterfaceError> {
+        TCPServerNativeInterface::new(setup_data.port).map_err(|_|
+            ComInterfaceError::InvalidSetupData
+        )
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
         InterfaceProperties {
             interface_type: "tcp-server".to_string(),
             channel: "tcp".to_string(),
@@ -143,12 +149,9 @@ impl ComInterface for TCPServerNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
-        Box::pin(async move { true })
-    }
+}
+
+impl ComInterface for TCPServerNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
@@ -163,6 +166,15 @@ impl ComInterface for TCPServerNativeInterface {
         }
         let tx = tx.unwrap().clone();
         Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
+    }
+    fn init_properties(&self) -> InterfaceProperties {
+        TCPServerNativeInterface::get_default_properties()
+    }
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
+        Box::pin(async move { true })
     }
 
     delegate_com_interface_info!();

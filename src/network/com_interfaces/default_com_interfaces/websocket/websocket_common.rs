@@ -2,6 +2,15 @@ use strum::Display;
 use thiserror::Error;
 use url::Url;
 
+pub struct WebSocketClientInterfaceSetupData {
+    pub address: String
+}
+
+pub struct WebSocketServerInterfaceSetupData {
+    pub port: u16,
+}
+
+
 #[derive(Debug)]
 pub enum URLError {
     InvalidURL,

@@ -1,7 +1,9 @@
 use std::{
     collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
     sync::Mutex,
-}; // FIXME no-std
+};
+use std::time::Duration;
+// FIXME no-std
 
 use crate::{
     delegate_com_interface, delegate_com_interface_info,
@@ -29,15 +31,12 @@ use tokio::{
 use tungstenite::Message;
 use url::Url;
 
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory, ComInterfaceState};
 use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
 use tokio_tungstenite::WebSocketStream;
-
-use super::websocket_common::{
-    parse_url, WebSocketError, WebSocketServerError,
-};
+use super::websocket_common::{parse_url, WebSocketError, WebSocketServerError, WebSocketServerInterfaceSetupData};
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
@@ -191,11 +190,31 @@ impl WebSocketServerNativeInterface {
     }
 }
 
+impl ComInterfaceFactory<WebSocketServerInterfaceSetupData> for WebSocketServerNativeInterface {
+    fn create(
+        setup_data: WebSocketServerInterfaceSetupData,
+    ) -> Result<WebSocketServerNativeInterface, ComInterfaceError> {
+        WebSocketServerNativeInterface::new(setup_data.port).map_err(|_|
+            ComInterfaceError::InvalidSetupData
+        )
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "websocket-server".to_string(),
+            channel: "websocket".to_string(),
+            round_trip_time: Duration::from_millis(40),
+            max_bandwidth: 1000,
+            ..InterfaceProperties::default()
+        }
+    }
+}
+
 impl ComInterface for WebSocketServerNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
-        socket_uuid: crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID,
+        socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let tx = self.websocket_streams.clone();
         Box::pin(async move {
@@ -218,13 +237,7 @@ impl ComInterface for WebSocketServerNativeInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            interface_type: "websocket-server".to_string(),
-            channel: "websocket".to_string(),
-            round_trip_time: std::time::Duration::from_millis(40),
-            max_bandwidth: 1000,
-            ..InterfaceProperties::default()
-        }
+        WebSocketServerNativeInterface::get_default_properties()
     }
     fn handle_close<'a>(
         &'a mut self,

@@ -1,6 +1,14 @@
 use strum::Display;
 use thiserror::Error;
 
+pub struct TCPClientInterfaceSetupData {
+    pub address: String
+}
+
+pub struct TCPServerInterfaceSetupData {
+    pub port: u16,
+}
+
 #[derive(Debug, Display, Error)]
 pub enum TCPError {
     Other(String),

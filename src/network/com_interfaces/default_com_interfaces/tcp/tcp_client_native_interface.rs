@@ -3,9 +3,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceState,
-};
+use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -23,8 +21,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
 use url::Url;
-
-use super::tcp_common::TCPError;
+use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 
 pub struct TCPClientNativeInterface {
     pub address: Url,
@@ -115,8 +112,16 @@ impl TCPClientNativeInterface {
     }
 }
 
-impl ComInterface for TCPClientNativeInterface {
-    fn init_properties(&self) -> InterfaceProperties {
+impl ComInterfaceFactory<TCPClientInterfaceSetupData> for TCPClientNativeInterface {
+    fn create(
+        setup_data: TCPClientInterfaceSetupData,
+    ) -> Result<TCPClientNativeInterface, ComInterfaceError> {
+        TCPClientNativeInterface::new(&setup_data.address).map_err(|_|
+            ComInterfaceError::InvalidSetupData
+        )
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
         InterfaceProperties {
             interface_type: "tcp-client".to_string(),
             channel: "tcp".to_string(),
@@ -125,12 +130,9 @@ impl ComInterface for TCPClientNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
-        Box::pin(async move { true })
-    }
+}
+
+impl ComInterface for TCPClientNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
@@ -144,6 +146,15 @@ impl ComInterface for TCPClientNativeInterface {
         Box::pin(async move {
             tx.unwrap().lock().unwrap().write(block).await.is_ok()
         })
+    }
+    fn init_properties(&self) -> InterfaceProperties {
+        TCPClientNativeInterface::get_default_properties()
+    }
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO
+        Box::pin(async move { true })
     }
 
     delegate_com_interface_info!();
