@@ -228,6 +228,7 @@ impl HTTPServerNativeInterface {
 impl ComInterface for HTTPServerNativeInterface {
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: "http-server".to_string(),
             channel: "http".to_string(),
             round_trip_time: Duration::from_millis(20),
             max_bandwidth: 1000,

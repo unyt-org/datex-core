@@ -249,6 +249,7 @@ impl ComInterface for WebRTCClientInterface {
 
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: "webrtc".to_string(),
             channel: "webrtc".to_string(),
             round_trip_time: Duration::from_millis(40),
             max_bandwidth: 1000,

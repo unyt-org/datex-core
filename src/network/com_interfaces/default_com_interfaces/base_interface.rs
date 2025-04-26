@@ -151,6 +151,7 @@ impl ComInterface for BaseInterface {
 
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: self.name.clone(),
             channel: self.name.clone(),
             round_trip_time: Duration::from_millis(0),
             max_bandwidth: u32::MAX,

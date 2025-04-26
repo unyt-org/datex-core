@@ -22,6 +22,7 @@ use std::{
     future::Future,
     sync::{Arc, Mutex},
 };
+use crate::network::com_hub::ComHub;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -37,6 +38,7 @@ pub enum ComInterfaceError {
     ConnectionError,
     SendError,
     ReceiveError,
+    InvalidSetupData
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIs)]
@@ -232,7 +234,79 @@ macro_rules! delegate_com_interface_info {
     };
 }
 
+/// This trait can be implemented by any ComInterface impl that wants to
+/// support a factory method for creating instances of the interface.
+/// Example:
+/// ```
+/// # use std::cell::RefCell;
+/// # use std::rc::Rc;
+/// # use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory};///
+/// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;///
+///
+/// use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
+///
+/// struct BaseInterfaceSetupData {
+///    pub example_data: String,
+/// }
+///
+/// impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
+///     fn create(setup_data: BaseInterfaceSetupData) -> Result<BaseInterface, ComInterfaceError> {
+///         // ...
+///         Ok(BaseInterface::new("example"))
+///     }
+///     fn get_default_properties() -> InterfaceProperties {
+///         InterfaceProperties {
+///             interface_type: "example".to_string(),
+///             ..Default::default()
+///         }
+///     }
+/// }
+pub trait ComInterfaceFactory<T>
+where
+    Self: Sized + ComInterface,
+    T: 'static,
+{
+    /// The factory method that is called from the ComHub on a registered interface
+    /// to create a new instance of the interface.
+    /// The setup data is passed as a Box<dyn Any> and has to be downcasted
+    fn factory(setup_data: Box<dyn Any>) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError> {
+        match setup_data.downcast::<T>() {
+            Ok(init_data) => {
+                let init_data = *init_data;
+                let interface = Self::create(init_data);
+                match interface {
+                    Ok(interface) => {
+                        Ok(Rc::new(RefCell::new(interface)))
+                    }
+                    Err(e) => Err(e)
+                }
+            }
+            Err(_) => panic!("Invalid setup data for com interface factory"),
+        }
+    }
+
+    /// Register the interface on which the factory is implemented
+    /// on the given ComHub.
+    fn register_on_com_hub(
+        com_hub: &mut ComHub
+    ) {
+        let interface_type = Self::get_default_properties().interface_type;
+        com_hub.register_interface_factory(interface_type, Self::factory);
+    }
+
+    /// Create a new instance of the interface with the given setup data.
+    /// If no instance could be created with the given setup data,
+    /// None is returned.
+    fn create(
+        setup_data: T
+    ) -> Result<Self, ComInterfaceError>;
+
+    /// Get the default interface properties for the interface.
+    fn get_default_properties() -> InterfaceProperties;
+}
+
 pub trait ComInterface: Any {
+
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

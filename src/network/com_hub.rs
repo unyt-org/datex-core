@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::runtime::global_context::get_global_context;
@@ -38,9 +39,15 @@ pub struct DynamicEndpointProperties {
     pub direction: InterfaceDirection,
 }
 
+pub type ComInterfaceFactoryFn =
+    fn(setup_data: Box<dyn Any>) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
+
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
+
+    /// a list of all available interface factories, keyed by their interface type
+    pub interface_factories: HashMap<String, ComInterfaceFactoryFn>,
 
     /// a list of all available interfaces, keyed by their UUID
     pub interfaces: HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
@@ -83,6 +90,7 @@ impl Default for ComHub {
     fn default() -> Self {
         ComHub {
             endpoint: Endpoint::default(),
+            interface_factories: HashMap::new(),
             interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
             incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
@@ -122,6 +130,32 @@ impl ComHub {
         let local_interface = LocalLoopbackInterface::new();
         self.open_and_add_interface(Rc::new(RefCell::new(local_interface)))
             .await
+    }
+
+    /// Register a new interface factory for a specific interface implementation.
+    /// This allows the ComHub to create new instances of the interface on demand.
+    pub fn register_interface_factory(&mut self, interface_type: String, factory: ComInterfaceFactoryFn) {
+        self.interface_factories.insert(interface_type, factory);
+    }
+
+    /// Create a new interface instance using the registered factory
+    /// for the specified interface type if it exists.
+    /// The interface is opened and added to the ComHub.
+    pub async fn create_interface(
+        &mut self,
+        interface_type: String,
+        setup_data: Box<dyn Any>
+    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
+        if let Some(factory) = self.interface_factories.get(&interface_type) {
+            let interface = factory(setup_data).map_err(|e| {
+                ComHubError::InterfaceError(e)
+            })?;
+            self.open_and_add_interface(interface.clone())
+                .await
+                .map(|_| interface)
+        } else {
+            Err(ComHubError::InterfaceDoesNotExist)
+        }
     }
 
     pub fn set_default_interface(

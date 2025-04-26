@@ -1,3 +1,5 @@
+use std::any::Any;
+use std::cell::RefCell;
 use crate::datex_values::Endpoint;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -11,6 +13,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 use crate::{delegate_com_interface_info, set_sync_opener};
 use std::future::Future;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -51,6 +54,7 @@ impl LocalLoopbackInterface {
 }
 
 impl ComInterface for LocalLoopbackInterface {
+    
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
@@ -64,6 +68,7 @@ impl ComInterface for LocalLoopbackInterface {
 
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: "local".to_string(),
             channel: "local".to_string(),
             round_trip_time: Duration::from_millis(0),
             max_bandwidth: u32::MAX,

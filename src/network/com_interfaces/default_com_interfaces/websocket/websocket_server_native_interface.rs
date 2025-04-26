@@ -209,6 +209,7 @@ impl ComInterface for WebSocketServerNativeInterface {
 
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
+            interface_type: "websocket-server".to_string(),
             channel: "websocket".to_string(),
             round_trip_time: std::time::Duration::from_millis(40),
             max_bandwidth: 1000,
