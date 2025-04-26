@@ -106,7 +106,7 @@ impl ComInterface for MockupInterface {
                 false
             }
         };
-        if (!is_hello) {
+        if !is_hello {
             self.outgoing_queue.push((socket_uuid, block.to_vec()));
         }
         if let Some(sender) = &self.sender {
