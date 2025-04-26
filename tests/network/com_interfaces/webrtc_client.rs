@@ -2,7 +2,6 @@ use core::panic;
 
 use crate::context::init_global_context;
 use crate::network::helpers::webrtc_signaling_server::start_server;
-use datex_core::network::com_interfaces::com_interface::ComInterfaceState;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::webrtc::webrtc_client_interface::WebRTCClientInterface,
