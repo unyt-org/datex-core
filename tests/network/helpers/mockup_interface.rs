@@ -21,6 +21,7 @@ use datex_core::{
     set_sync_opener,
 };
 
+#[derive(Default)]
 pub struct MockupInterface {
     pub outgoing_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
 
@@ -84,16 +85,6 @@ impl MockupInterface {
     }
 }
 
-impl Default for MockupInterface {
-    fn default() -> Self {
-        MockupInterface {
-            outgoing_queue: Vec::new(),
-            sender: None,
-            receiver: None,
-            info: ComInterfaceInfo::default(),
-        }
-    }
-}
 
 impl ComInterface for MockupInterface {
     fn send_block<'a>(
