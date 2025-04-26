@@ -35,6 +35,8 @@ cfg_if! {
     {
         fn init() {
             use log::Level;
+            use console_error_panic_hook;
+
             console_log::init_with_level(
                 if LOG_LEVEL == "debug" {
                     Level::Debug
@@ -42,6 +44,8 @@ cfg_if! {
                     Level::Info
                 },
             ).expect("Failed to initialize logger");
+            console_error_panic_hook::set_once();
+
             info!("Logger initialized! (Using wasm_logger)");
         }
     }

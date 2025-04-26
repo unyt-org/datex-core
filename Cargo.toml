@@ -61,6 +61,7 @@ console_log = { version = "1.0.0", optional = true }
 matchbox_socket = { default-features = false, git = "https://github.com/unyt-org/matchbox", optional = true } #{ version = "0.11.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
 futures-timer = { version = "3" }
+console_error_panic_hook = { version = "0.1.7", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.7", optional = true }
@@ -131,7 +132,7 @@ native_serial = ["serialport"]                             # use native serial
 webrtc = ["matchbox_socket", "futures"]                    # use webrtc
 
 # logger
-wasm_logger = ["console_log"]
+wasm_logger = ["console_log", "console_error_panic_hook"]
 esp_logger = ["esp-idf-svc"]
 
 # runtime
