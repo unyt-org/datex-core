@@ -11,8 +11,8 @@ use datex_core::network::com_interfaces::{
     socket_provider::SingleSocketProvider,
 };
 use datex_core::runtime::Runtime;
-use std::cell::RefCell;
-use std::rc::Rc;
+use log::info;
+use std::{cell::RefCell, rc::Rc};
 
 #[tokio::test]
 pub async fn test_construct() {
@@ -79,7 +79,12 @@ pub async fn test_construct() {
             .collect::<Vec<_>>(),
         CLIENT_TO_SERVER_MSG
     );
+
+    server.destroy().await;
+    client.destroy().await;
 }
+
+// FIXME this runs forever, because of a bug in the websocket server implementation
 
 #[tokio::test]
 pub async fn test_create_socket_connection() {
@@ -95,10 +100,8 @@ pub async fn test_create_socket_connection() {
 
     let runtime = Runtime::init_native(Endpoint::default());
 
-    let server = Rc::new(RefCell::new(
-        WebSocketServerNativeInterface::new(PORT).unwrap(),
-    ));
-    server.borrow_mut().open().await.unwrap_or_else(|e| {
+    let mut server = WebSocketServerNativeInterface::new(PORT).unwrap();
+    server.open().await.unwrap_or_else(|e| {
         panic!("Failed to create WebSocketServerInterface: {e}");
     });
 
@@ -109,6 +112,7 @@ pub async fn test_create_socket_connection() {
     client.borrow_mut().open().await.unwrap_or_else(|e| {
         panic!("Failed to create WebSocketClientInterface: {e}");
     });
+    let server = Rc::new(RefCell::new(server));
     runtime
         .com_hub
         .lock()
@@ -132,11 +136,14 @@ pub async fn test_create_socket_connection() {
             .await
     );
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     runtime.com_hub.lock().unwrap().update().await;
+    info!("LLE1");
 
-    // TODO: assert that endpoint socket was registered
+    let lock = server.clone();
+    let mut lock = lock.borrow_mut();
+    info!("LLE2");
+    lock.destroy_ref().await;
 }
 
 #[ignore]

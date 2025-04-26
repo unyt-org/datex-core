@@ -26,5 +26,5 @@ pub async fn test_construct() {
             });
     let socket_uuid = interface.get_socket_uuid().unwrap();
     assert!(interface.send_block(b"Hello World", socket_uuid).await);
-    interface.close().await;
+    interface.destroy().await;
 }

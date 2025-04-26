@@ -1,5 +1,8 @@
+use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc};
+
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface, com_interface_properties::InterfaceDirection,
+    com_interface_socket::ComInterfaceSocketUUID,
     default_com_interfaces::base_interface::BaseInterface,
     socket_provider::MultipleSocketProvider,
 };
@@ -10,43 +13,106 @@ use crate::context::init_global_context;
 pub async fn test_construct() {
     const MESSAGE_A_TO_B: &[u8] = b"Hello from A";
     const MESSAGE_B_TO_A: &[u8] = b"Hello from B";
-    const MESSAGE_C_TO_A: &[u8] = b"Hello from C";
 
     init_global_context();
-    let mut base_interface = BaseInterface::new("mockup");
+    let base_interface_a =
+        Rc::new(RefCell::new(BaseInterface::new("mockup-a")));
+    let base_interface_b =
+        Rc::new(RefCell::new(BaseInterface::new("mockup-b")));
 
-    let socket_a_uuid =
-        base_interface.register_new_socket(InterfaceDirection::InOut);
-    let socket_b_uuid =
-        base_interface.register_new_socket(InterfaceDirection::InOut);
-    // FIXME
-    return;
-    assert!(
-        base_interface
-            .send_block(MESSAGE_A_TO_B, socket_a_uuid.clone())
-            .await
-    );
-    assert!(
-        base_interface
-            .send_block(MESSAGE_B_TO_A, socket_b_uuid.clone())
-            .await
-    );
+    // This is a socket of mockup-a connected to mockup-b
+    let socket_a_uuid = base_interface_a
+        .clone()
+        .borrow_mut()
+        .register_new_socket(InterfaceDirection::Out);
 
+    // This is a socket of mockup-b connected to mockup-a
+    let socket_b_uuid = base_interface_b
+        .clone()
+        .borrow_mut()
+        .register_new_socket(InterfaceDirection::Out);
+
+    let base_interface_b_clone = base_interface_b.clone();
     {
-        // check socket a queue
-        let socket = base_interface
-            .get_socket_with_uuid(socket_a_uuid.clone())
-            .unwrap();
-        let queue = socket.lock().unwrap().receive_queue.clone();
-        let mut queue = queue.lock().unwrap();
-        let vec: Vec<u8> = queue.iter().cloned().collect();
-        assert_eq!(vec, MESSAGE_A_TO_B);
-        queue.clear();
+        let socket_b_uuid = socket_b_uuid.clone();
+        let socket_a_uuid = socket_a_uuid.clone();
+
+        // This method get's called when we call the sendBlock of mockup-a to
+        // send a message to mockup-b via socket_a
+        base_interface_a.borrow_mut().set_on_send_callback(Box::new(
+            move |data: &[u8],
+                  receiver_socket_uuid: ComInterfaceSocketUUID|
+                  -> Pin<Box<dyn Future<Output = bool>>> {
+                // Make sure the receiver socket is the one we expect
+                assert_eq!(
+                    receiver_socket_uuid, socket_a_uuid,
+                    "Receiver socket uuid does not match"
+                );
+                let ok = base_interface_b_clone
+                    .borrow_mut()
+                    .receive(socket_b_uuid.clone(), data.to_vec())
+                    .is_ok();
+                assert!(ok, "Failed to receive data");
+                Box::pin(async move { ok })
+            },
+        ));
     }
+
+    let base_interface_a_clone = base_interface_a.clone();
     {
-        // check socket b queue
-        let socket = base_interface
-            .get_socket_with_uuid(socket_b_uuid.clone())
+        let socket_a_uuid = socket_a_uuid.clone();
+        let socket_b_uuid = socket_b_uuid.clone();
+
+        // This method get's called when we call the sendBlock of mockup-b to
+        // send a message to mockup-a via socket_b
+        base_interface_b.borrow_mut().set_on_send_callback(Box::new(
+            move |data: &[u8],
+                  receiver_socket_uuid: ComInterfaceSocketUUID|
+                  -> Pin<Box<dyn Future<Output = bool>>> {
+                // Make sure the receiver socket is the one we expect
+                assert_eq!(
+                    receiver_socket_uuid, socket_b_uuid,
+                    "Receiver socket uuid does not match"
+                );
+
+                let ok = base_interface_a_clone
+                    .borrow_mut()
+                    .receive(socket_a_uuid.clone(), data.to_vec())
+                    .is_ok();
+                assert!(ok, "Failed to receive data");
+                Box::pin(async move { ok })
+            },
+        ));
+    }
+
+    // Send a message from mockup-a to mockup-b via socket_a
+    let base_interface_a_clone = base_interface_a.clone();
+    assert!(
+        base_interface_a_clone
+            .clone()
+            .borrow_mut()
+            .send_block(MESSAGE_A_TO_B, socket_a_uuid.clone())
+            .await,
+        "Failed to send message from A to B"
+    );
+
+    // Send a message from mockup-b to mockup-a via socket_b
+    let base_interface_b_clone = base_interface_b.clone();
+    assert!(
+        base_interface_b_clone
+            .clone()
+            .borrow_mut()
+            .send_block(MESSAGE_B_TO_A, socket_b_uuid.clone())
+            .await,
+        "Failed to send message from B to A"
+    );
+
+    {
+        // check receive queue of socket_a
+        let socket = base_interface_a
+            .clone()
+            .borrow_mut()
+            .get_socket_with_uuid(socket_a_uuid.clone())
             .unwrap();
         let queue = socket.lock().unwrap().receive_queue.clone();
         let mut queue = queue.lock().unwrap();
@@ -54,17 +120,20 @@ pub async fn test_construct() {
         assert_eq!(vec, MESSAGE_B_TO_A);
         queue.clear();
     }
-
-    assert!(base_interface
-        .receive(socket_a_uuid.clone(), MESSAGE_C_TO_A.to_vec())
-        .is_ok());
     {
-        let socket = base_interface
-            .get_socket_with_uuid(socket_a_uuid.clone())
+        // check receive queue of socket_b
+        let socket = base_interface_b
+            .clone()
+            .borrow_mut()
+            .get_socket_with_uuid(socket_b_uuid.clone())
             .unwrap();
         let queue = socket.lock().unwrap().receive_queue.clone();
-        let queue = queue.lock().unwrap();
+        let mut queue = queue.lock().unwrap();
         let vec: Vec<u8> = queue.iter().cloned().collect();
-        assert_eq!(vec, MESSAGE_C_TO_A);
+        assert_eq!(vec, MESSAGE_A_TO_B);
+        queue.clear();
     }
+
+    base_interface_a.take().destroy().await;
+    base_interface_b.take().destroy().await;
 }

@@ -4,7 +4,7 @@ use std::{
 }; // FIXME no-std
 
 use crate::{
-    delegate_com_interface_info,
+    delegate_com_interface, delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -54,6 +54,7 @@ pub struct WebSocketServerNativeInterface {
 }
 
 impl WebSocketServerNativeInterface {
+    delegate_com_interface!();
     pub fn new(
         port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
@@ -97,6 +98,7 @@ impl WebSocketServerNativeInterface {
 
             spawn(async move {
                 loop {
+                    debug!("ipdating...");
                     select! {
                         res = listener.accept() => {
                             match res {
@@ -230,7 +232,10 @@ impl ComInterface for WebSocketServerNativeInterface {
         let shutdown_signal = self.shutdown_signal.clone();
         let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {
+            debug!("fire");
             shutdown_signal.notified().await;
+            debug!("fire d");
+
             websocket_streams.lock().unwrap().clear();
             true
         })

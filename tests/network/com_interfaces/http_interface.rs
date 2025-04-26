@@ -37,5 +37,5 @@ pub async fn test_construct() {
     }
 
     server.remove_channel("my-secret-channel").await;
-    server.close().await;
+    server.destroy().await;
 }

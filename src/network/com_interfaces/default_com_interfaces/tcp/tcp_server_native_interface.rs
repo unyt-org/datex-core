@@ -23,7 +23,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::{delegate_com_interface_info, set_opener};
+use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
 
 use super::tcp_common::TCPError;
 
@@ -34,6 +34,7 @@ pub struct TCPServerNativeInterface {
 }
 
 impl TCPServerNativeInterface {
+    delegate_com_interface!();
     pub fn new(port: &u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("ws://127.0.0.1:{port}");

@@ -2,7 +2,7 @@ use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
 // FIXME no-std
 
 use crate::{
-    delegate_com_interface_info,
+    delegate_com_interface, delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -45,6 +45,7 @@ struct WebSocketClientNativeInterfaceSetupData {
 }
 
 impl WebSocketClientNativeInterface {
+    delegate_com_interface!();
     pub fn new(
         address: &str,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
