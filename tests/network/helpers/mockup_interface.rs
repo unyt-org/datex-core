@@ -6,6 +6,9 @@ use std::{
 
 use datex_core::{
     delegate_com_interface_info,
+    global::{
+        dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
+    },
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -95,8 +98,17 @@ impl ComInterface for MockupInterface {
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // FIXME this should be inside the async body, why is it not working?
-        self.outgoing_queue.push((socket_uuid, block.to_vec()));
-
+        let is_hello = {
+            if let Ok(block) = DXBBlock::from_bytes(block) {
+                block.block_header.flags_and_timestamp.block_type()
+                    == BlockType::Hello
+            } else {
+                false
+            }
+        };
+        if (!is_hello) {
+            self.outgoing_queue.push((socket_uuid, block.to_vec()));
+        }
         if let Some(sender) = &self.sender {
             if sender.send(block.to_vec()).is_err() {
                 return Pin::from(Box::new(async move { false }));
