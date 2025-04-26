@@ -237,7 +237,7 @@ impl ComInterface for WebSocketServerNativeInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        WebSocketServerNativeInterface::get_default_properties()
+        Self::get_default_properties()
     }
     fn handle_close<'a>(
         &'a mut self,

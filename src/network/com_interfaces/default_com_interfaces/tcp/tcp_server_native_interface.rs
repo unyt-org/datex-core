@@ -168,7 +168,7 @@ impl ComInterface for TCPServerNativeInterface {
         Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
     }
     fn init_properties(&self) -> InterfaceProperties {
-        TCPServerNativeInterface::get_default_properties()
+        Self::get_default_properties()
     }
     fn handle_close<'a>(
         &'a mut self,

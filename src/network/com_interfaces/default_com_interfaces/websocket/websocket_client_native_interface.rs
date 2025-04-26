@@ -155,7 +155,7 @@ impl ComInterface for WebSocketClientNativeInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        WebSocketClientNativeInterface::get_default_properties()
+        Self::get_default_properties()
     }
 
     fn handle_close<'a>(

@@ -27,8 +27,8 @@ use crate::{
 use log::{debug, error, warn};
 use serialport::SerialPort;
 use tokio::sync::Notify;
-
-use super::serial_common::SerialError;
+use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory};
+use super::serial_common::{SerialError, SerialInterfaceSetupData};
 
 pub struct SerialNativeInterface {
     info: ComInterfaceInfo,
@@ -141,6 +141,26 @@ impl SerialNativeInterface {
     }
 }
 
+impl ComInterfaceFactory<SerialInterfaceSetupData> for SerialNativeInterface {
+    fn create(
+        setup_data: SerialInterfaceSetupData,
+    ) -> Result<SerialNativeInterface, ComInterfaceError> {
+        SerialNativeInterface::new(&setup_data.port_name).map_err(|_|
+            ComInterfaceError::InvalidSetupData
+        )
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "serial".to_string(),
+            channel: "serial".to_string(),
+            round_trip_time: Duration::from_millis(40),
+            max_bandwidth: 100,
+            ..InterfaceProperties::default()
+        }
+    }
+}
+
 impl ComInterface for SerialNativeInterface {
     fn send_block<'a>(
         &'a mut self,
@@ -161,13 +181,7 @@ impl ComInterface for SerialNativeInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            interface_type: "serial".to_string(),
-            channel: "serial".to_string(),
-            round_trip_time: Duration::from_millis(40),
-            max_bandwidth: 100,
-            ..InterfaceProperties::default()
-        }
+        Self::get_default_properties()
     }
     fn handle_close<'a>(
         &'a mut self,
