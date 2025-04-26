@@ -106,14 +106,20 @@ impl WebRTCClientInterface {
         let loop_fut = future.fuse();
 
         let state = self.get_info().state.clone();
-        self.set_state(ComInterfaceState::Connected);
         spawn(async move {
             futures::pin_mut!(loop_fut);
             let timeout = Delay::new(Duration::from_millis(100));
             futures::pin_mut!(timeout);
             let mut timeout = timeout;
             let rtc_socket = socket.as_ref();
+            let mut is_connected = false;
             loop {
+                let id = socket.lock().unwrap().id();
+                if !is_connected && id.is_some() {
+                    state.lock().unwrap().set(ComInterfaceState::Connected);
+                    is_connected = true;
+                }
+
                 for (peer, peer_state) in
                     rtc_socket.lock().unwrap().update_peers()
                 {
@@ -183,13 +189,12 @@ impl WebRTCClientInterface {
         let timeout = Delay::new(Duration::from_millis(1000));
         futures::pin_mut!(timeout);
         loop {
-            info!("polling...");
-            if self.get_state() == ComInterfaceState::Destroyed {
-                return Err(WebRTCError::ConnectionError);
-            }
-            if !peer_socket_map.lock().unwrap().is_empty() {
-                info!("WebRTC socket opened");
+            let state = self.get_state();
+            if state == ComInterfaceState::Connected {
                 break;
+            }
+            if state == ComInterfaceState::Destroyed {
+                return Err(WebRTCError::ConnectionError);
             }
             select! {
                 _ = (&mut timeout).fuse() => {

@@ -8,7 +8,7 @@ use crate::context::init_global_context;
 pub fn start_server(url: &str) {
     let server =
         SignalingServer::full_mesh_builder(url.parse::<SocketAddr>().unwrap())
-            .on_connection_request(|_| Ok(true))
+            .on_connection_request(|e| Ok(true))
             .on_id_assignment(|(socket, id)| info!("{socket} received {id}"))
             .on_peer_connected(|id| info!("Peer connected: {id}"))
             .on_peer_disconnected(|id| info!("Peer disconnected: {id}"))

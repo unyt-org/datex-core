@@ -6,7 +6,7 @@ use log::info;
 cfg_if! {
     if #[cfg(feature = "debug")] {
         const LOG_LEVEL: &str = "debug";
-        const LOG_ENV: &str = "datex_core=trace,r#mod=trace,matchbox_socket=info";
+        const LOG_ENV: &str = "datex_core=trace,r#mod=trace,matchbox_socket=trace";
     } else {
         const LOG_LEVEL: &str = "info";
         const LOG_ENV: &str = "datex_core=info,matchbox_socket=info";
