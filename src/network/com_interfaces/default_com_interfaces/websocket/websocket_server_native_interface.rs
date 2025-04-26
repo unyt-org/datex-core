@@ -13,6 +13,7 @@ use crate::{
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
+    set_opener,
     stdlib::sync::Arc,
     task::spawn,
 };
@@ -53,28 +54,23 @@ pub struct WebSocketServerNativeInterface {
 }
 
 impl WebSocketServerNativeInterface {
-    pub async fn open(
+    pub fn new(
         port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
         let address: String = format!("127.0.0.1:{port}");
         let address = parse_url(&address).map_err(|_| {
             WebSocketServerError::WebSocketError(WebSocketError::InvalidURL)
         })?;
-        let mut interface = WebSocketServerNativeInterface {
+        let interface = WebSocketServerNativeInterface {
             address,
             info: ComInterfaceInfo::new(),
             websocket_streams: Arc::new(Mutex::new(HashMap::new())),
             shutdown_signal: Arc::new(Notify::new()),
         };
-        interface.start().await.map_err(|_| {
-            WebSocketServerError::WebSocketError(
-                WebSocketError::ConnectionError,
-            )
-        })?;
         Ok(interface)
     }
 
-    async fn start(&mut self) -> Result<(), WebSocketServerError> {
+    async fn open(&mut self) -> Result<(), WebSocketServerError> {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
         let addr = format!(
@@ -229,4 +225,5 @@ impl ComInterface for WebSocketServerNativeInterface {
         })
     }
     delegate_com_interface_info!();
+    set_opener!(open);
 }

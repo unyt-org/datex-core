@@ -11,7 +11,6 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use url::Url;
 
-use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
 };
@@ -24,6 +23,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use crate::{delegate_com_interface_info, set_opener};
 
 use super::tcp_common::TCPError;
 
@@ -34,23 +34,19 @@ pub struct TCPServerNativeInterface {
 }
 
 impl TCPServerNativeInterface {
-    pub async fn open(
-        port: &u16,
-    ) -> Result<TCPServerNativeInterface, TCPError> {
+    pub fn new(port: &u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("ws://127.0.0.1:{port}");
         let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
-
-        let mut interface = TCPServerNativeInterface {
+        let interface = TCPServerNativeInterface {
             address,
             info,
             tx: Arc::new(Mutex::new(HashMap::new())),
         };
-        interface.start().await?;
         Ok(interface)
     }
 
-    async fn start(&mut self) -> Result<(), TCPError> {
+    async fn open(&mut self) -> Result<(), TCPError> {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
 
@@ -156,4 +152,5 @@ impl ComInterface for TCPServerNativeInterface {
     }
 
     delegate_com_interface_info!();
+    set_opener!(open);
 }

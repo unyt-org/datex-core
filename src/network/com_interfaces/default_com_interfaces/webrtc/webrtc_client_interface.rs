@@ -6,7 +6,6 @@ use std::{
     time::Duration,
 };
 
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::task::spawn;
 use crate::{
     delegate_com_interface_info,
@@ -19,6 +18,9 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::MultipleSocketProvider,
     },
+};
+use crate::{
+    network::com_interfaces::com_interface::ComInterfaceState, set_opener,
 };
 use futures::{select, FutureExt};
 use futures_timer::Delay;
@@ -34,6 +36,7 @@ pub struct WebRTCClientInterface {
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
     ice_server_config: RtcIceServerConfig,
     info: ComInterfaceInfo,
+    use_reliable_connection: bool,
 }
 impl MultipleSocketProvider for WebRTCClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -43,47 +46,43 @@ impl MultipleSocketProvider for WebRTCClientInterface {
 impl WebRTCClientInterface {
     const RECONNECT_ATTEMPTS: u16 = 3;
     const CHANNEL_ID: usize = 0;
-    pub async fn open_reliable(
+    pub fn new_reliable(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
-        Self::open(address, ice_server_config, true).await
+        Self::new(address, ice_server_config, true)
     }
 
-    pub async fn open_unreliable(
+    pub fn new_unreliable(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
-        Self::open(address, ice_server_config, false).await
+        Self::new(address, ice_server_config, false)
     }
 
-    async fn open(
+    fn new(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
         use_reliable_connection: bool,
     ) -> Result<WebRTCClientInterface, WebRTCError> {
         let address =
             Url::parse(address).map_err(|_| WebRTCError::InvalidURL)?;
-
-        let mut interface = WebRTCClientInterface {
+        let interface = WebRTCClientInterface {
             address,
             websocket: None,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
             ice_server_config: ice_server_config.unwrap_or_default(),
             info: ComInterfaceInfo::new(),
+            use_reliable_connection,
         };
-        interface.start(use_reliable_connection).await?;
         Ok(interface)
     }
 
-    async fn start(
-        &mut self,
-        use_reliable_connection: bool,
-    ) -> Result<(), WebRTCError> {
+    async fn open(&mut self) -> Result<(), WebRTCError> {
         let address = self.address.clone();
         info!("Connecting to WebRTC server at {address}");
         let ice_config = self.ice_server_config.clone();
-        let (socket, future) = if use_reliable_connection {
+        let (socket, future) = if self.use_reliable_connection {
             WebRtcSocket::builder(address)
                 .reconnect_attempts(Some(Self::RECONNECT_ATTEMPTS))
                 .add_reliable_channel()
@@ -185,7 +184,8 @@ impl WebRTCClientInterface {
             state.lock().unwrap().set(ComInterfaceState::Destroyed);
             warn!("WebRTC socket closed");
         });
-        let peer_socket_map = self.peer_socket_map.clone();
+
+        // Wait for the connection to be established
         let timeout = Delay::new(Duration::from_millis(1000));
         futures::pin_mut!(timeout);
         loop {
@@ -218,7 +218,6 @@ impl ComInterface for WebRTCClientInterface {
             error!("Client is not connected");
             return Box::pin(async { false });
         }
-        warn!("sendblock");
         let peer_id = {
             let peer_socket_map = peer_socket_map.lock().unwrap();
             peer_socket_map
@@ -257,10 +256,10 @@ impl ComInterface for WebRTCClientInterface {
         }
     }
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let websocket = self.websocket.clone();
+        let webrtcsocket = self.websocket.clone();
         Box::pin(async move {
-            if websocket.is_some() {
-                let websocket: Arc<Mutex<WebRtcSocket>> = websocket.unwrap();
+            if webrtcsocket.is_some() {
+                let websocket: Arc<Mutex<WebRtcSocket>> = webrtcsocket.unwrap();
                 let mut websocket = websocket.lock().unwrap();
                 websocket.close();
             }
@@ -268,4 +267,5 @@ impl ComInterface for WebRTCClientInterface {
         })
     }
     delegate_com_interface_info!();
+    set_opener!(open);
 }

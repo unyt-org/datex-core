@@ -12,7 +12,7 @@ use datex_core::network::com_interfaces::{
 pub async fn test_construct() {
     init_global_context();
     let result =
-        WebRTCClientInterface::open_reliable("ws://interface.invalid", None)
+        WebRTCClientInterface::new_reliable("ws://interface.invalid", None)
             .await;
     assert!(result.is_err(), "Connection should fail");
 }
@@ -26,7 +26,7 @@ pub async fn test_send_receive() {
     init_global_context();
     start_server(&url);
 
-    let mut client_a = WebRTCClientInterface::open_reliable(
+    let mut client_a = WebRTCClientInterface::new_reliable(
         &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
@@ -35,7 +35,7 @@ pub async fn test_send_receive() {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
-    let mut client_b = WebRTCClientInterface::open_reliable(
+    let mut client_b = WebRTCClientInterface::new_reliable(
         &format!("ws://127.0.0.1:{PORT}"),
         None,
     )

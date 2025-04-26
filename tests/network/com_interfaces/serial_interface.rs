@@ -20,7 +20,7 @@ pub async fn test_construct() {
         return;
     }
     let mut interface =
-        SerialNativeInterface::open_with_baud_rate(PORT_NAME, BAUD_RATE)
+        SerialNativeInterface::new_with_baud_rate(PORT_NAME, BAUD_RATE)
             .unwrap_or_else(|e| {
                 panic!("Failed to create SerialNativeInterface: {e:?}");
             });

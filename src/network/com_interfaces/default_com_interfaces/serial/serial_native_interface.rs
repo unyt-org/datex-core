@@ -15,6 +15,7 @@ use crate::{
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
+    set_opener, set_sync_opener,
 };
 use crate::{
     network::com_interfaces::{
@@ -52,22 +53,21 @@ impl SerialNativeInterface {
             .collect()
     }
 
+    pub fn new(port_name: &str) -> Result<SerialNativeInterface, SerialError> {
+        Self::new_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE)
+    }
     // Allow to open interface with a configured port
-    pub fn open_with_port(
+    pub fn new_with_port(
         port: Box<dyn SerialPort + Send>,
     ) -> Result<SerialNativeInterface, SerialError> {
-        let mut interface = SerialNativeInterface {
+        let interface = SerialNativeInterface {
             shutdown_signal: Arc::new(Notify::new()),
             info: ComInterfaceInfo::new(),
             port: Arc::new(Mutex::new(port)),
         };
-        interface.start()?;
         Ok(interface)
     }
-    pub fn open(port_name: &str) -> Result<SerialNativeInterface, SerialError> {
-        Self::open_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE)
-    }
-    pub fn open_with_baud_rate(
+    pub fn new_with_baud_rate(
         port_name: &str,
         baud_rate: u32,
     ) -> Result<SerialNativeInterface, SerialError> {
@@ -75,10 +75,10 @@ impl SerialNativeInterface {
             .timeout(Self::TIMEOUT)
             .open()
             .map_err(|_| SerialError::PortNotFound)?;
-        Self::open_with_port(port)
+        Self::new_with_port(port)
     }
 
-    fn start(&mut self) -> Result<(), SerialError> {
+    fn open(&mut self) -> Result<(), SerialError> {
         let state = self.get_info().state.clone();
         let port = self.port.clone();
         let socket = ComInterfaceSocket::new(
@@ -166,4 +166,5 @@ impl ComInterface for SerialNativeInterface {
         })
     }
     delegate_com_interface_info!();
+    set_sync_opener!(open);
 }

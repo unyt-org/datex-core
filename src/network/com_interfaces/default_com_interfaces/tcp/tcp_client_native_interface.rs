@@ -3,9 +3,8 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceState,
+    ComInterface, ComInterfaceError, ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -18,6 +17,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::task::spawn;
+use crate::{delegate_com_interface_info, set_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::OwnedWriteHalf;
@@ -38,19 +38,16 @@ impl SingleSocketProvider for TCPClientNativeInterface {
 }
 
 impl TCPClientNativeInterface {
-    pub async fn open(
-        address: &str,
-    ) -> Result<TCPClientNativeInterface, TCPError> {
-        let mut interface = TCPClientNativeInterface {
+    pub fn new(address: &str) -> Result<TCPClientNativeInterface, TCPError> {
+        let interface = TCPClientNativeInterface {
             address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,
             info: ComInterfaceInfo::new(),
             tx: None,
         };
-        interface.start().await?;
         Ok(interface)
     }
 
-    async fn start(&mut self) -> Result<(), TCPError> {
+    async fn open(&mut self) -> Result<(), TCPError> {
         let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
         let port = self.address.port().ok_or(TCPError::InvalidURL)?;
         let address = format!("{host}:{port}");
@@ -130,4 +127,5 @@ impl ComInterface for TCPClientNativeInterface {
     }
 
     delegate_com_interface_info!();
+    set_opener!(open);
 }

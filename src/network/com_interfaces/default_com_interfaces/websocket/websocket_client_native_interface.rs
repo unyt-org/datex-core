@@ -11,6 +11,7 @@ use crate::{
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::SingleSocketProvider,
     },
+    set_opener,
     stdlib::sync::Arc,
     task::spawn,
 };
@@ -39,22 +40,21 @@ impl SingleSocketProvider for WebSocketClientNativeInterface {
 }
 
 impl WebSocketClientNativeInterface {
-    pub async fn open(
+    pub fn new(
         address: &str,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
         let address =
             parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
         let info = ComInterfaceInfo::new();
-        let mut interface = WebSocketClientNativeInterface {
+        let interface = WebSocketClientNativeInterface {
             address,
             info,
             websocket_stream: None,
         };
-        interface.start().await?;
         Ok(interface)
     }
 
-    async fn start(&mut self) -> Result<(), WebSocketError> {
+    async fn open(&mut self) -> Result<(), WebSocketError> {
         let address = self.address.clone();
         info!("Connecting to WebSocket server at {address}");
         let (stream, _) = tokio_tungstenite::connect_async(address)
@@ -136,4 +136,5 @@ impl ComInterface for WebSocketClientNativeInterface {
     }
 
     delegate_com_interface_info!();
+    set_opener!(open);
 }

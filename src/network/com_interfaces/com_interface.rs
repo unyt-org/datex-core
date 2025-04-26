@@ -5,6 +5,7 @@ use super::{
     },
 };
 use crate::stdlib::{
+    self,
     cell::RefCell,
     hash::{Hash, Hasher},
     rc::Rc,
@@ -160,6 +161,29 @@ impl ComInterfaceInfo {
         self.state.lock().unwrap().clone_from(&new_state);
     }
 }
+
+#[macro_export]
+macro_rules! set_opener {
+    ($opener:ident) => {
+        fn handle_open<'a>(
+            &'a mut self,
+        ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+            Box::pin(async move { self.$opener().await.is_ok() })
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! set_sync_opener {
+    ($opener:ident) => {
+        fn handle_open<'a>(
+            &'a mut self,
+        ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+            Box::pin(async move { self.$opener().is_ok() })
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! delegate_com_interface_info {
     () => {
@@ -240,6 +264,9 @@ pub trait ComInterface: Any {
     /// Has to be implemented by the interface and might be async.
     /// Make sure to call destroy_sockets() after the interface is closed.
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+    fn handle_open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {

@@ -1,5 +1,4 @@
 use crate::datex_values::Endpoint;
-use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -9,6 +8,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use crate::{delegate_com_interface_info, set_sync_opener};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -31,27 +31,21 @@ impl Default for LocalLoopbackInterface {
 
 impl LocalLoopbackInterface {
     pub fn new() -> LocalLoopbackInterface {
-        let mut info = ComInterfaceInfo::new();
-        info.set_state(ComInterfaceState::Connected);
-
+        let info = ComInterfaceInfo::new();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
             info.get_uuid().clone(),
             InterfaceDirection::InOut,
             1,
         )));
-
-        let uuid = socket.lock().unwrap().uuid.clone();
-        info.com_interface_sockets()
-            .lock()
-            .unwrap()
-            .add_socket(socket.clone());
-        info.com_interface_sockets()
-            .lock()
-            .unwrap()
-            .register_socket_endpoint(uuid, Endpoint::LOCAL, 1)
-            .expect("Could not register endpoint to local socket");
-
         LocalLoopbackInterface { info, socket }
+    }
+
+    pub fn open(&mut self) -> Result<(), ()> {
+        let uuid = self.socket.lock().unwrap().uuid.clone();
+        self.add_socket(self.socket.clone());
+        self.register_socket_endpoint(uuid, Endpoint::LOCAL, 0);
+        self.set_state(ComInterfaceState::Connected);
+        Ok(())
     }
 }
 
@@ -79,4 +73,5 @@ impl ComInterface for LocalLoopbackInterface {
         Box::pin(async move { true })
     }
     delegate_com_interface_info!();
+    set_sync_opener!(open);
 }

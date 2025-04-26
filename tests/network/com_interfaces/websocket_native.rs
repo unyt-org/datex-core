@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::context::init_global_context;
 use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
@@ -12,7 +11,8 @@ use datex_core::network::com_interfaces::{
     socket_provider::SingleSocketProvider,
 };
 use datex_core::runtime::Runtime;
-use crate::context::init_global_context;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[tokio::test]
 pub async fn test_construct() {
@@ -22,19 +22,18 @@ pub async fn test_construct() {
 
     init_global_context();
 
-    let mut server = WebSocketServerNativeInterface::open(PORT)
+    let mut server = WebSocketServerNativeInterface::new(PORT)
         .await
         .unwrap_or_else(|e| {
             panic!("Failed to create WebSocketServerInterface: {e}");
         });
 
-    let mut client = WebSocketClientNativeInterface::open(&format!(
-        "ws://localhost:{PORT}"
-    ))
-    .await
-    .unwrap_or_else(|e| {
-        panic!("Failed to create WebSocketClientInterface: {e}");
-    });
+    let mut client =
+        WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Failed to create WebSocketClientInterface: {e}");
+            });
 
     assert!(
         client
@@ -83,7 +82,6 @@ pub async fn test_construct() {
     );
 }
 
-
 #[tokio::test]
 pub async fn test_create_socket_connection() {
     const PORT: u16 = 8085;
@@ -99,25 +97,33 @@ pub async fn test_create_socket_connection() {
     let runtime = Runtime::init_native(Endpoint::default());
 
     let server = Rc::new(RefCell::new(
-        WebSocketServerNativeInterface::open(PORT)
+        WebSocketServerNativeInterface::new(PORT)
             .await
             .unwrap_or_else(|e| {
                 panic!("Failed to create WebSocketServerInterface: {e}");
-            })
+            }),
     ));
 
     let client = Rc::new(RefCell::new(
-        WebSocketClientNativeInterface::open(&format!(
-            "ws://localhost:{PORT}"
-        ))
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketClientInterface: {e}");
-        })
+        WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Failed to create WebSocketClientInterface: {e}");
+            }),
     ));
 
-    runtime.com_hub.lock().unwrap().add_interface(server.clone()).unwrap();
-    runtime.com_hub.lock().unwrap().add_interface(client.clone()).unwrap();
+    runtime
+        .com_hub
+        .lock()
+        .unwrap()
+        .add_interface(server.clone())
+        .unwrap();
+    runtime
+        .com_hub
+        .lock()
+        .unwrap()
+        .add_interface(client.clone())
+        .unwrap();
 
     let client_uuid = client.borrow().get_socket_uuid().unwrap();
     assert!(
@@ -132,7 +138,6 @@ pub async fn test_create_socket_connection() {
     runtime.com_hub.lock().unwrap().update().await;
 
     // TODO: assert that endpoint socket was registered
-
 }
 
 #[ignore]
@@ -150,17 +155,19 @@ pub async fn test_construct_client() {
 
     init_global_context();
 
-    let mut client = WebSocketClientNativeInterface::open(&format!(
-        "ws://localhost:{PORT}"
-    ))
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketClientInterface: {e}");
-        });
+    let mut client =
+        WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
+            .await
+            .unwrap_or_else(|e| {
+                panic!("Failed to create WebSocketClientInterface: {e}");
+            });
 
     assert!(
         client
-            .send_block(&block.to_bytes().unwrap(), client.get_socket_uuid().unwrap())
+            .send_block(
+                &block.to_bytes().unwrap(),
+                client.get_socket_uuid().unwrap()
+            )
             .await
     );
 

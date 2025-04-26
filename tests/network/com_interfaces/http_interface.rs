@@ -14,11 +14,13 @@ pub async fn test_construct() {
     const PORT: u16 = 8081;
     init_global_context();
 
-    let mut server = HTTPServerNativeInterface::open(&PORT)
-        .await
+    let mut server = HTTPServerNativeInterface::new(&PORT)
         .unwrap_or_else(|e| {
             panic!("Failed to create HTTPServerInterface: {e:?}");
-        });
+        })
+        .open()
+        .await
+        .unwrap();
 
     let endpoint = Endpoint::from_string("@jonas").unwrap();
 

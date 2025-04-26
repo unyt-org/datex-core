@@ -1,7 +1,6 @@
 use log::error;
 
 use crate::datex_values::Endpoint;
-use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -12,6 +11,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use crate::{delegate_com_interface_info, set_opener, set_sync_opener};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -66,14 +66,18 @@ impl BaseInterface {
             .unwrap();
         interface
     }
+
     pub fn new(name: &str) -> BaseInterface {
-        let info =
-            ComInterfaceInfo::new_with_state(ComInterfaceState::Connected);
         BaseInterface {
             name: name.to_string(),
-            info,
+            info: ComInterfaceInfo::default(),
             on_send: None,
         }
+    }
+
+    pub fn open(&mut self) -> Result<(), ()> {
+        self.set_state(ComInterfaceState::Connected);
+        Ok(())
     }
 
     pub fn register_new_socket(
@@ -157,4 +161,5 @@ impl ComInterface for BaseInterface {
         Box::pin(async move { true })
     }
     delegate_com_interface_info!();
+    set_sync_opener!(open);
 }

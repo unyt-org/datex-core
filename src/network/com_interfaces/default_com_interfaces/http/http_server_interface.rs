@@ -23,7 +23,6 @@ use tokio::sync::{broadcast, mpsc, RwLock};
 use url::Url;
 
 use crate::datex_values::Endpoint;
-use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
 };
@@ -37,6 +36,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use crate::{delegate_com_interface_info, set_opener};
 
 use super::http_common::HTTPError;
 
@@ -124,21 +124,18 @@ impl MultipleSocketProvider for HTTPServerNativeInterface {
 }
 
 impl HTTPServerNativeInterface {
-    pub async fn open(
-        port: &u16,
-    ) -> Result<HTTPServerNativeInterface, HTTPError> {
+    pub fn new(port: &u16) -> Result<HTTPServerNativeInterface, HTTPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("http://127.0.0.1:{port}");
         let address =
             Url::parse(&address).map_err(|_| HTTPError::InvalidAddress)?;
 
-        let mut interface = HTTPServerNativeInterface {
+        let interface = HTTPServerNativeInterface {
             channels: Arc::new(RwLock::new(HashMap::new())),
             address,
             socket_channel_mapping: Arc::new(Mutex::new(HashMap::new())),
             info,
         };
-        interface.start().await?;
         Ok(interface)
     }
 
@@ -195,7 +192,9 @@ impl HTTPServerNativeInterface {
         }
     }
 
-    async fn start(&mut self) -> Result<(), HTTPError> {
+    pub async fn open(
+        &mut self,
+    ) -> Result<&HTTPServerNativeInterface, HTTPError> {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
 
@@ -222,7 +221,7 @@ impl HTTPServerNativeInterface {
                 .await
                 .unwrap();
         });
-        Ok(())
+        Ok(self)
     }
 }
 
@@ -263,4 +262,5 @@ impl ComInterface for HTTPServerNativeInterface {
     }
 
     delegate_com_interface_info!();
+    set_opener!(open);
 }
