@@ -20,6 +20,7 @@ use datex_core::{
     },
     set_sync_opener,
 };
+use datex_core::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory};
 
 #[derive(Default)]
 pub struct MockupInterface {
@@ -33,6 +34,23 @@ pub struct MockupInterface {
 impl SingleSocketProvider for MockupInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets().clone()
+    }
+}
+
+impl ComInterfaceFactory<()> for MockupInterface {
+    fn create(
+        _setup_data: (),
+    ) -> Result<MockupInterface, ComInterfaceError> {
+        Ok(MockupInterface::default())
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "mockup".to_string(),
+            channel: "mockup".to_string(),
+            name: Some("mockup".to_string()),
+            ..Default::default()
+        }
     }
 }
 
@@ -112,17 +130,13 @@ impl ComInterface for MockupInterface {
         Pin::from(Box::new(async move { true }))
     }
 
+    fn init_properties(&self) -> InterfaceProperties {
+        MockupInterface::get_default_properties()
+    }
+
     fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         self.outgoing_queue.clear();
         Pin::from(Box::new(async move { true }))
-    }
-
-    fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            channel: "mockup".to_string(),
-            name: Some("mockup".to_string()),
-            ..Default::default()
-        }
     }
 
     delegate_com_interface_info!();

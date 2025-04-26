@@ -10,11 +10,8 @@ use datex_core::stdlib::rc::Rc;
 use std::io::Write;
 use std::sync::mpsc;
 // FIXME no-std
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceState,
-};
+use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceFactory, ComInterfaceState};
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
-
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     add_socket, get_mock_setup, get_mock_setup_with_socket,
@@ -469,4 +466,22 @@ pub async fn test_basic_routing() {
 
     assert_eq!(blocks.len(), 1);
     assert_eq!(block_a_to_b.body, blocks[0].body);
+}
+
+#[tokio::test]
+pub async fn register_factory() {
+    init_global_context();
+    let mut com_hub = ComHub::default();
+    MockupInterface::register_on_com_hub(&mut com_hub);
+
+    assert_eq!(com_hub.interface_factories.len(), 1);
+    assert!(com_hub.interface_factories.get("mockup").is_some());
+
+    // create a new mockup interface from the com_hub
+    let mockup_interface = com_hub
+        .create_interface("mockup", Box::new(()))
+        .await
+        .unwrap();
+
+    assert_eq!(mockup_interface.borrow_mut().get_properties().interface_type, "mockup");
 }

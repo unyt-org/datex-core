@@ -108,6 +108,7 @@ pub enum ComHubError {
     InterfaceNotConnected,
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
+    InterfaceTypeDoesNotExist
 }
 
 #[derive(Debug)]
@@ -143,10 +144,10 @@ impl ComHub {
     /// The interface is opened and added to the ComHub.
     pub async fn create_interface(
         &mut self,
-        interface_type: String,
+        interface_type: &str,
         setup_data: Box<dyn Any>
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-        if let Some(factory) = self.interface_factories.get(&interface_type) {
+        if let Some(factory) = self.interface_factories.get(interface_type) {
             let interface = factory(setup_data).map_err(|e| {
                 ComHubError::InterfaceError(e)
             })?;
@@ -154,7 +155,7 @@ impl ComHub {
                 .await
                 .map(|_| interface)
         } else {
-            Err(ComHubError::InterfaceDoesNotExist)
+            Err(ComHubError::InterfaceTypeDoesNotExist)
         }
     }
 
