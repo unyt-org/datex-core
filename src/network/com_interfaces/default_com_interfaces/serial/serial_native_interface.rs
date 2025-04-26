@@ -79,54 +79,64 @@ impl SerialNativeInterface {
     }
 
     fn open(&mut self) -> Result<(), SerialError> {
-        let state = self.get_info().state.clone();
-        let port = self.port.clone();
-        let socket = ComInterfaceSocket::new(
-            self.get_uuid().clone(),
-            InterfaceDirection::InOut,
-            1,
-        );
-        let receive_queue = socket.get_receive_queue().clone();
-        self.add_socket(Arc::new(Mutex::new(socket)));
-        let shutdown_signal = self.shutdown_signal.clone();
-        spawn(async move {
-            state.lock().unwrap().set(ComInterfaceState::Connected);
-            loop {
-                tokio::select! {
-                    _ = shutdown_signal.notified() => {
-                        warn!("Shutting down serial task...");
-                        break;
-                    },
-                    result = spawn_blocking({
-                        let port = port.clone();
-                        move || {
-                            let mut buffer = [0u8; Self::BUFFER_SIZE];
-                            match port.lock().unwrap().read(&mut buffer) {
-                                Ok(n) if n > 0 => Some(buffer[..n].to_vec()),
-                                _ => None,
+        self.set_state(ComInterfaceState::Connecting);
+        let res = {
+            let state = self.get_info().state.clone();
+            let port = self.port.clone();
+            let socket = ComInterfaceSocket::new(
+                self.get_uuid().clone(),
+                InterfaceDirection::InOut,
+                1,
+            );
+            let receive_queue = socket.get_receive_queue().clone();
+            self.add_socket(Arc::new(Mutex::new(socket)));
+            let shutdown_signal = self.shutdown_signal.clone();
+            spawn(async move {
+                loop {
+                    tokio::select! {
+                        _ = shutdown_signal.notified() => {
+                            warn!("Shutting down serial task...");
+                            break;
+                        },
+                        result = spawn_blocking({
+                            let port = port.clone();
+                            move || {
+                                let mut buffer = [0u8; Self::BUFFER_SIZE];
+                                match port.lock().unwrap().read(&mut buffer) {
+                                    Ok(n) if n > 0 => Some(buffer[..n].to_vec()),
+                                    _ => None,
+                                }
                             }
-                        }
-                    }) => {
-                        match result {
-                            Ok(Some(incoming)) => {
-                                let size = incoming.len();
-                                receive_queue.lock().unwrap().extend(incoming);
-                                debug!(
-                                    "Received data from serial port: {size}"
-                                );
-                            }
-                            _ => {
-                                error!("Serial read error or shutdown");
-                                break;
+                        }) => {
+                            match result {
+                                Ok(Some(incoming)) => {
+                                    let size = incoming.len();
+                                    receive_queue.lock().unwrap().extend(incoming);
+                                    debug!(
+                                        "Received data from serial port: {size}"
+                                    );
+                                }
+                                _ => {
+                                    error!("Serial read error or shutdown");
+                                    break;
+                                }
                             }
                         }
                     }
                 }
-            }
-            state.lock().unwrap().set(ComInterfaceState::Destroyed);
-            warn!("Serial socket closed");
-        });
-        Ok(())
+                // FIXME add reconnect logic (close gracefully and reopen)
+                state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                warn!("Serial socket closed");
+            });
+            Ok(())
+        };
+
+        if res.is_ok() {
+            self.set_state(ComInterfaceState::Connected);
+        } else {
+            self.set_state(ComInterfaceState::NotConnected);
+        }
+        res
     }
 }
 
@@ -163,7 +173,6 @@ impl ComInterface for SerialNativeInterface {
         let shutdown_signal = self.shutdown_signal.clone();
         Box::pin(async move {
             shutdown_signal.notified().await;
-            self.set_state(ComInterfaceState::Destroyed);
             true
         })
     }

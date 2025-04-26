@@ -48,53 +48,69 @@ impl TCPClientNativeInterface {
     }
 
     pub async fn open(&mut self) -> Result<(), TCPError> {
-        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
-        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-        let address = format!("{host}:{port}");
+        self.set_state(ComInterfaceState::Connecting);
 
-        let stream = TcpStream::connect(address)
-            .await
-            .map_err(|_| TCPError::ConnectionError)?;
+        let res = {
+            let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
+            let port = self.address.port().ok_or(TCPError::InvalidURL)?;
+            let address = format!("{host}:{port}");
+            let stream = TcpStream::connect(address)
+                .await
+                .map_err(|_| TCPError::ConnectionError)?;
 
-        let (read_half, write_half) = stream.into_split();
-        self.tx = Some(Arc::new(Mutex::new(write_half)));
+            let (read_half, write_half) = stream.into_split();
+            self.tx = Some(Arc::new(Mutex::new(write_half)));
 
-        let socket = ComInterfaceSocket::new(
-            self.get_uuid().clone(),
-            InterfaceDirection::InOut,
-            1,
-        );
-        let receive_queue = socket.receive_queue.clone();
-        self.get_sockets()
-            .lock()
-            .unwrap()
-            .add_socket(Arc::new(Mutex::new(socket)));
+            let socket = ComInterfaceSocket::new(
+                self.get_uuid().clone(),
+                InterfaceDirection::InOut,
+                1,
+            );
+            let receive_queue = socket.receive_queue.clone();
+            self.get_sockets()
+                .lock()
+                .unwrap()
+                .add_socket(Arc::new(Mutex::new(socket)));
 
-        self.set_state(ComInterfaceState::Connected);
-        let state = self.get_info().state.clone();
-        spawn(async move {
-            let mut reader = read_half;
-            let mut buffer = [0u8; 1024];
-            loop {
-                match reader.read(&mut buffer).await {
-                    Ok(0) => {
-                        warn!("Connection closed by peer");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
-                        break;
-                    }
-                    Ok(n) => {
-                        let mut queue = receive_queue.lock().unwrap();
-                        queue.extend(&buffer[..n]);
-                    }
-                    Err(e) => {
-                        error!("Failed to read from socket: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
-                        break;
+            self.set_state(ComInterfaceState::Connected);
+            let state = self.get_info().state.clone();
+            spawn(async move {
+                let mut reader = read_half;
+                let mut buffer = [0u8; 1024];
+                loop {
+                    match reader.read(&mut buffer).await {
+                        Ok(0) => {
+                            warn!("Connection closed by peer");
+                            state
+                                .lock()
+                                .unwrap()
+                                .set(ComInterfaceState::Destroyed);
+                            break;
+                        }
+                        Ok(n) => {
+                            let mut queue = receive_queue.lock().unwrap();
+                            queue.extend(&buffer[..n]);
+                        }
+                        Err(e) => {
+                            error!("Failed to read from socket: {e}");
+                            state
+                                .lock()
+                                .unwrap()
+                                .set(ComInterfaceState::Destroyed);
+                            break;
+                        }
                     }
                 }
-            }
-        });
-        Ok(())
+            });
+            Ok(())
+        };
+
+        if res.is_ok() {
+            self.set_state(ComInterfaceState::Connected);
+        } else {
+            self.set_state(ComInterfaceState::NotConnected);
+        }
+        res
     }
 }
 
@@ -107,7 +123,9 @@ impl ComInterface for TCPClientNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO
         Box::pin(async move { true })
     }
