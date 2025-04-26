@@ -51,6 +51,7 @@ pub struct ComHub {
         ComInterfaceSocketUUID,
         (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
     >,
+
     /// a list of all available sockets for each endpoint, with additional
     /// DynamicEndpointProperties metadata
     pub endpoint_sockets: HashMap<
@@ -164,6 +165,7 @@ impl ComHub {
     pub fn has_interface(&self, interface_uuid: &ComInterfaceUUID) -> bool {
         self.interfaces.contains_key(interface_uuid)
     }
+
     pub fn get_interface_by_uuid<T: ComInterface + 'static>(
         &self,
         interface_uuid: &ComInterfaceUUID,
@@ -870,6 +872,13 @@ impl ComHub {
             Err(err) => {
                 error!("Failed to convert block to bytes: {err:?}");
             }
+        }
+    }
+
+    fn update_interfaces(&mut self) {
+        for interface in self.interfaces.values() {
+            // let mut interface = interface.borrow_mut();
+            let state = interface.borrow().get_state();
         }
     }
 

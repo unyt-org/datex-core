@@ -408,7 +408,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
 
     assert_eq!(
         com_interface.borrow_mut().get_info().get_state(),
-        ComInterfaceState::Closed
+        ComInterfaceState::Destroyed
     );
 
     assert_eq!(socket.lock().unwrap().state, SocketState::Destroyed);

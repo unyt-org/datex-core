@@ -90,7 +90,7 @@ impl SerialNativeInterface {
         self.add_socket(Arc::new(Mutex::new(socket)));
         let shutdown_signal = self.shutdown_signal.clone();
         spawn(async move {
-            state.lock().unwrap().set(ComInterfaceState::Connecting);
+            state.lock().unwrap().set(ComInterfaceState::Connected);
             loop {
                 tokio::select! {
                     _ = shutdown_signal.notified() => {
@@ -123,7 +123,7 @@ impl SerialNativeInterface {
                     }
                 }
             }
-            state.lock().unwrap().set(ComInterfaceState::Closed);
+            state.lock().unwrap().set(ComInterfaceState::Destroyed);
             warn!("Serial socket closed");
         });
         Ok(())
@@ -161,7 +161,7 @@ impl ComInterface for SerialNativeInterface {
         let shutdown_signal = self.shutdown_signal.clone();
         Box::pin(async move {
             shutdown_signal.notified().await;
-            self.set_state(ComInterfaceState::Closed);
+            self.set_state(ComInterfaceState::Destroyed);
             true
         })
     }

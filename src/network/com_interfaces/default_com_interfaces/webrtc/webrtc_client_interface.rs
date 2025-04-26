@@ -106,13 +106,12 @@ impl WebRTCClientInterface {
         let loop_fut = future.fuse();
 
         let state = self.get_info().state.clone();
+        self.set_state(ComInterfaceState::Connected);
         spawn(async move {
             futures::pin_mut!(loop_fut);
             let timeout = Delay::new(Duration::from_millis(100));
             futures::pin_mut!(timeout);
             let mut timeout = timeout;
-            state.lock().unwrap().set(ComInterfaceState::Connecting);
-            let mut is_connected = false;
             let rtc_socket = socket.as_ref();
             loop {
                 for (peer, peer_state) in
@@ -121,10 +120,6 @@ impl WebRTCClientInterface {
                     let mut peer_socket_map = peer_socket_map.lock().unwrap();
                     let mut com_interface_sockets =
                         com_interface_sockets.lock().unwrap();
-                    if !is_connected {
-                        state.lock().unwrap().set(ComInterfaceState::Connected);
-                        is_connected = true;
-                    }
                     match peer_state {
                         PeerState::Connected => {
                             let socket = ComInterfaceSocket::new(
@@ -181,9 +176,27 @@ impl WebRTCClientInterface {
                     }
                 }
             }
-            state.lock().unwrap().set(ComInterfaceState::Closed);
+            state.lock().unwrap().set(ComInterfaceState::Destroyed);
             warn!("WebRTC socket closed");
         });
+        let peer_socket_map = self.peer_socket_map.clone();
+        let timeout = Delay::new(Duration::from_millis(1000));
+        futures::pin_mut!(timeout);
+        loop {
+            info!("polling...");
+            if self.get_state() == ComInterfaceState::Destroyed {
+                return Err(WebRTCError::ConnectionError);
+            }
+            if !peer_socket_map.lock().unwrap().is_empty() {
+                info!("WebRTC socket opened");
+                break;
+            }
+            select! {
+                _ = (&mut timeout).fuse() => {
+                    timeout.reset(Duration::from_millis(1000));
+                }
+            }
+        }
         Ok(())
     }
 }

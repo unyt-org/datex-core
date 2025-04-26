@@ -87,7 +87,7 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Closed);
+                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

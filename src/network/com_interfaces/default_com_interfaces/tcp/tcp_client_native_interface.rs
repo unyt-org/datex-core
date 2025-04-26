@@ -82,7 +82,7 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
-                        state.lock().unwrap().set(ComInterfaceState::Closed);
+                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                     Ok(n) => {
@@ -91,7 +91,7 @@ impl TCPClientNativeInterface {
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Closed);
+                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

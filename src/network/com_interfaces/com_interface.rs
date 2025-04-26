@@ -39,40 +39,15 @@ pub enum ComInterfaceError {
     ReceiveError,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIs)]
 pub enum ComInterfaceState {
     Created,
-    Connecting,
     Connected,
-    Closing,
-    Closed,
+    Reconnecting,
+    Destroyed,
 }
 
 impl ComInterfaceState {
-    pub fn is_open(&self) -> bool {
-        matches!(self, ComInterfaceState::Connected)
-    }
-    pub fn is_closed(&self) -> bool {
-        matches!(self, ComInterfaceState::Closed)
-    }
-    pub fn is_opening(&self) -> bool {
-        matches!(self, ComInterfaceState::Connecting)
-    }
-    pub fn is_closing(&self) -> bool {
-        matches!(self, ComInterfaceState::Closing)
-    }
-    pub fn is_created(&self) -> bool {
-        matches!(self, ComInterfaceState::Created)
-    }
-    pub fn is_connecting(&self) -> bool {
-        matches!(
-            self,
-            ComInterfaceState::Connecting | ComInterfaceState::Connected
-        )
-    }
-    pub fn is_disconnecting(&self) -> bool {
-        matches!(self, ComInterfaceState::Closing | ComInterfaceState::Closed)
-    }
     pub fn set(&mut self, new_state: ComInterfaceState) {
         *self = new_state;
     }
@@ -258,7 +233,7 @@ pub trait ComInterface: Any {
         for socket_uuid in uuids {
             self.remove_socket(&socket_uuid);
         }
-        self.set_state(ComInterfaceState::Closed);
+        self.set_state(ComInterfaceState::Destroyed);
     }
 
     /// Close the interface and free all resources.
