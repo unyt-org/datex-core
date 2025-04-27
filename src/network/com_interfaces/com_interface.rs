@@ -169,42 +169,18 @@ impl ComInterfaceInfo {
 }
 extern crate proc_macro;
 
-#[macro_export]
-macro_rules! auto_open_interface {
-    (async fn $name:ident(&mut self) -> $result:ty $body:block) => {
-        // Create the internal method with the same signature and body
-        async fn internal_$name(&mut self) -> $result $body;
-
-        // Create the public method with the same signature and body,
-        // adding prints before and after calling the internal method
-        async fn $name(&mut self) -> $result {
-            println!("Before calling internal_{}", stringify!($name));
-            let result = self.internal_$name().await;
-            println!("After calling internal_{}", stringify!($name));
-            result
-        }
-    };
-
-    // (
-    //     $(#[$meta:meta])*
-    //     $vis:vis fn $name:ident ( $($arg:tt)* ) -> $ret:ty $body:block
-    // ) => {
-    //     $(#[$meta])*
-    //     // Same for non-async case: internal function gets a valid name.
-    //     $vis fn internal_open_$name( $($arg)* ) -> $ret $body
-
-    //     $vis fn $name(&mut self) -> $ret {
-    //         self.set_state(ComInterfaceState::Connecting);
-    //         let res = self.internal_open_$name($($arg)*);
-    //         if res.is_ok() {
-    //             self.set_state(ComInterfaceState::Connected);
-    //         } else {
-    //             self.set_state(ComInterfaceState::NotConnected);
-    //         }
-    //         res
-    //     }
-    // };
-}
+// #[macro_export]
+// macro_rules! create_open_pub {
+//     // The macro doesn't take parameters other than the method signature and the body of the function
+//     ($name:ident, $open_fn:ident) => {
+//         pub async fn $name(&mut self) -> Result<(), TCPError> {
+//             println!("a");
+//             let result = self.$open_fn().await; // Call the original `open` function
+//             println!("b");
+//             result // Return the result of `open`
+//         }
+//     };
+// }
 
 #[macro_export]
 macro_rules! delegate_com_interface {
