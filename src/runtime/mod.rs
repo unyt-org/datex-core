@@ -32,7 +32,7 @@ impl Runtime {
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             endpoint,
-            com_hub,
+            com_hub: Arc::new(Mutex::new(com_hub)),
             ..Runtime::default()
         }
     }

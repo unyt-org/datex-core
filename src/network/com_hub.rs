@@ -119,11 +119,11 @@ pub enum SocketEndpointRegistrationError {
 }
 
 impl ComHub {
-    pub fn new(endpoint: Endpoint) -> Arc<Mutex<ComHub>> {
-        Arc::new(Mutex::new(ComHub {
-            endpoint,
+    pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
+        ComHub {
+            endpoint: endpoint.into(),
             ..ComHub::default()
-        }))
+        }
     }
 
     pub async fn init(&mut self) -> Result<(), ComHubError> {
@@ -302,7 +302,6 @@ impl ComHub {
         block: &DXBBlock,
         socket_uuid: ComInterfaceSocketUUID,
     ) {
-        // TODO check for creation time, withdraw if too old (TBD) or in the future
         info!(
             "Received block addressed to {}",
             block
@@ -314,30 +313,11 @@ impl ComHub {
                     .join(", "))
                 .unwrap_or("none".to_string())
         );
-        let is_signed =
-            block.routing_header.flags.signature_type() != SignatureType::None;
-
-        if !is_signed {
-            let endpoint = block.routing_header.sender.clone();
-            let is_trusted = {
-                cfg_if::cfg_if! {
-                    if #[cfg(feature = "debug")] {
-                        get_global_context().debug_flags.allow_unsigned_blocks
-                    }
-                    else {
-                        // TODO Check if the sender is trusted (endpoint + interface) connection
-                        false
-                    }
-                }
-            };
-            if !is_trusted {
-                warn!("Block received by {endpoint} is not signed. Dropping block...");
-                return;
-            }
-        } else {
-            // TODO: verify signature and abort if invalid
-            // Check if signature is following in some later block and add them to
-            // a pool of incoming blocks awaiting some signature
+        
+        // ignore invalid blocks (e.g. invalid signature)
+        if !self.validate_block(block) {
+            warn!("Block validation failed. Dropping block...");
+            return;
         }
 
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
@@ -346,21 +326,22 @@ impl ComHub {
                     || e == &Endpoint::ANY
                     || e == &Endpoint::ANY_ALL_INSTANCES
             });
-            let mut shall_relay = true;
-            // check if the block is for own endpoint
-            if is_for_own {
+            let block_type = block.block_header.flags_and_timestamp.block_type();
+            let should_relay =
+                // don't relay "Hello" blocks sent to own endpoint
+                !(
+                    is_for_own && block_type == BlockType::Hello
+                );
+            
+            // handle blocks for own endpoint
+            if is_for_own && block_type != BlockType::Hello {
                 info!("Block is for this endpoint");
-                if block.block_header.flags_and_timestamp.block_type()
-                    == BlockType::Hello
-                {
-                    // Don't relay hello frames sent to me
-                    shall_relay = false;
-                } else {
-                    let mut incoming_blocks = self.incoming_blocks.borrow_mut();
-                    incoming_blocks.push_back(Rc::new(block.clone()));
-                }
+                let mut incoming_blocks = self.incoming_blocks.borrow_mut();
+                incoming_blocks.push_back(Rc::new(block.clone()));
             }
-            if shall_relay {
+            
+            // relay the block to other endpoints
+            if should_relay {
                 // get all receivers that the block must be relayed to
                 let remaining_receivers = if is_for_own {
                     &receivers
@@ -375,16 +356,29 @@ impl ComHub {
 
                 // relay the block to all receivers
                 if !remaining_receivers.is_empty() {
-                    let mut block = block.clone();
-                    block.set_receivers(remaining_receivers);
-                    // increment distance for next hop
-                    block.routing_header.distance += 1;
-                    self.send_block(block, Some(&socket_uuid));
+                    self.relay_block(
+                        block.clone(),
+                        remaining_receivers,
+                        socket_uuid.clone()
+                    );
                 }
             }
         }
 
         // assign endpoint to socket if none is assigned
+        self.register_socket_endpoint_from_incoming_block(
+            socket_uuid,
+            block,
+        );
+    }
+    
+    /// Registers the socket endpoint from an incoming block
+    /// if the endpoint is not already registered for the socket
+    fn register_socket_endpoint_from_incoming_block(
+        &mut self,
+        socket_uuid: ComInterfaceSocketUUID,
+        block: &DXBBlock,
+    ) {
         let socket = self.get_socket_by_uuid(&socket_uuid);
         let mut socket_ref = socket.lock().unwrap();
 
@@ -415,6 +409,60 @@ impl ComHub {
                 panic!("Failed to register socket endpoint {sender}: {error:?}");
             },
             Ok(_) => { }
+        }
+    }
+    
+    /// Prepare a block and relay it to the given receivers.
+    /// The routing distance is incremented by 1.
+    fn relay_block(
+        &self, 
+        block: DXBBlock, 
+        receivers: &[Endpoint],
+        original_socket: ComInterfaceSocketUUID
+    ) {
+        let mut block = block.clone();
+        block.set_receivers(receivers);
+        // increment distance for next hop
+        block.routing_header.distance += 1;
+        self.send_block(block, Some(&original_socket));
+    }
+    
+    fn validate_block(&self, block: &DXBBlock) -> bool {
+        // TODO check for creation time, withdraw if too old (TBD) or in the future
+
+        let is_signed =
+            block.routing_header.flags.signature_type() != SignatureType::None;
+
+        match is_signed {
+            true => {
+                // TODO: verify signature and abort if invalid
+                // Check if signature is following in some later block and add them to
+                // a pool of incoming blocks awaiting some signature
+                true
+            },
+            false => {
+                let endpoint = block.routing_header.sender.clone();
+                let is_trusted = {
+                    cfg_if::cfg_if! {
+                    if #[cfg(feature = "debug")] {
+                        get_global_context().debug_flags.allow_unsigned_blocks
+                    }
+                    else {
+                        // TODO Check if the sender is trusted (endpoint + interface) connection
+                        false
+                    }
+                }
+                };
+                match is_trusted {
+                    true => {
+                        true
+                    }
+                    false => {
+                        warn!("Block received by {endpoint} is not signed. Dropping block...");
+                        false
+                    }
+                }
+            }
         }
     }
 

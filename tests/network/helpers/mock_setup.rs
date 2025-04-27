@@ -28,7 +28,7 @@ pub async fn get_mock_setup_with_endpoint(
     endpoint: Endpoint,
 ) -> (Arc<Mutex<ComHub>>, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let com_hub = ComHub::new(endpoint);
+    let mut com_hub = ComHub::new(endpoint);
 
     // init mockup interface
     let mockup_interface_ref =
@@ -36,15 +36,13 @@ pub async fn get_mock_setup_with_endpoint(
 
     // add mockup interface to com_hub
     com_hub
-        .lock()
-        .unwrap()
         .open_and_add_interface(mockup_interface_ref.clone())
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
 
-    (com_hub.clone(), mockup_interface_ref.clone())
+    (Arc::new(Mutex::new(com_hub)), mockup_interface_ref.clone())
 }
 
 pub fn add_socket(
