@@ -29,7 +29,7 @@ pub async fn test_client_no_connection() {
 
 #[tokio::test]
 pub async fn test_construct() {
-    const PORT: u16 = 8081;
+    const PORT: u16 = 8088;
     const CLIENT_TO_SERVER_MSG: &[u8] = b"Hello World";
     const SERVER_TO_CLIENT_MSG: &[u8] = b"Nooo, this is Patrick!";
 
