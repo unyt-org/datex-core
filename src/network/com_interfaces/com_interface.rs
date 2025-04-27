@@ -4,6 +4,7 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
+use crate::network::com_hub::ComHub;
 use crate::stdlib::{
     cell::RefCell,
     hash::{Hash, Hasher},
@@ -22,7 +23,6 @@ use std::{
     future::Future,
     sync::{Arc, Mutex},
 };
-use crate::network::com_hub::ComHub;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -38,7 +38,7 @@ pub enum ComInterfaceError {
     ConnectionError,
     SendError,
     ReceiveError,
-    InvalidSetupData
+    InvalidSetupData,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIs)]
@@ -170,6 +170,43 @@ impl ComInterfaceInfo {
 extern crate proc_macro;
 
 #[macro_export]
+macro_rules! auto_open_interface {
+    (async fn $name:ident(&mut self) -> $result:ty $body:block) => {
+        // Create the internal method with the same signature and body
+        async fn internal_$name(&mut self) -> $result $body;
+
+        // Create the public method with the same signature and body,
+        // adding prints before and after calling the internal method
+        async fn $name(&mut self) -> $result {
+            println!("Before calling internal_{}", stringify!($name));
+            let result = self.internal_$name().await;
+            println!("After calling internal_{}", stringify!($name));
+            result
+        }
+    };
+
+    // (
+    //     $(#[$meta:meta])*
+    //     $vis:vis fn $name:ident ( $($arg:tt)* ) -> $ret:ty $body:block
+    // ) => {
+    //     $(#[$meta])*
+    //     // Same for non-async case: internal function gets a valid name.
+    //     $vis fn internal_open_$name( $($arg)* ) -> $ret $body
+
+    //     $vis fn $name(&mut self) -> $ret {
+    //         self.set_state(ComInterfaceState::Connecting);
+    //         let res = self.internal_open_$name($($arg)*);
+    //         if res.is_ok() {
+    //             self.set_state(ComInterfaceState::Connected);
+    //         } else {
+    //             self.set_state(ComInterfaceState::NotConnected);
+    //         }
+    //         res
+    //     }
+    // };
+}
+
+#[macro_export]
 macro_rules! delegate_com_interface {
     () => {
         pub async fn destroy(mut self) {
@@ -297,16 +334,16 @@ where
     /// The factory method that is called from the ComHub on a registered interface
     /// to create a new instance of the interface.
     /// The setup data is passed as a Box<dyn Any> and has to be downcasted
-    fn factory(setup_data: Box<dyn Any>) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError> {
+    fn factory(
+        setup_data: Box<dyn Any>,
+    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError> {
         match setup_data.downcast::<T>() {
             Ok(init_data) => {
                 let init_data = *init_data;
                 let interface = Self::create(init_data);
                 match interface {
-                    Ok(interface) => {
-                        Ok(Rc::new(RefCell::new(interface)))
-                    }
-                    Err(e) => Err(e)
+                    Ok(interface) => Ok(Rc::new(RefCell::new(interface))),
+                    Err(e) => Err(e),
                 }
             }
             Err(_) => panic!("Invalid setup data for com interface factory"),
@@ -315,9 +352,7 @@ where
 
     /// Register the interface on which the factory is implemented
     /// on the given ComHub.
-    fn register_on_com_hub(
-        com_hub: &mut ComHub
-    ) {
+    fn register_on_com_hub(com_hub: &mut ComHub) {
         let interface_type = Self::get_default_properties().interface_type;
         com_hub.register_interface_factory(interface_type, Self::factory);
     }
@@ -325,16 +360,13 @@ where
     /// Create a new instance of the interface with the given setup data.
     /// If no instance could be created with the given setup data,
     /// None is returned.
-    fn create(
-        setup_data: T
-    ) -> Result<Self, ComInterfaceError>;
+    fn create(setup_data: T) -> Result<Self, ComInterfaceError>;
 
     /// Get the default interface properties for the interface.
     fn get_default_properties() -> InterfaceProperties;
 }
 
 pub trait ComInterface: Any {
-
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
