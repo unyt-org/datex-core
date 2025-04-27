@@ -47,7 +47,9 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
     {
         panic!("The function is public. Remove the public modifier",);
     }
-    let expanded = {
+    
+
+    {
         if original_open.sig.asyncness.is_some() {
             quote! {
                 async fn #new_internal_name(&mut self) #return_type {
@@ -81,7 +83,5 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
                 }
             }
         }
-    };
-
-    expanded
+    }
 }
