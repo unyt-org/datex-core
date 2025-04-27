@@ -23,7 +23,7 @@ use crate::{
 use datex_macros::{com_interface, create_opener};
 
 use futures_util::{SinkExt, StreamExt};
-use log::{debug, error, info};
+use log::{error, info};
 use tokio::{
     net::{TcpListener, TcpStream},
     select,

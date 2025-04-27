@@ -1,7 +1,4 @@
 use crate::context::init_global_context;
-use datex_core::datex_values::Endpoint;
-use datex_core::global::dxb_block::DXBBlock;
-use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_interfaces::default_com_interfaces::websocket::websocket_common::WebSocketError;
 use datex_core::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use datex_core::network::com_interfaces::{
@@ -86,15 +83,13 @@ pub async fn test_construct_client() {
 
     // Test with a invalid URL
     assert_eq!(
-        WebSocketClientNativeInterface::new(&format!("ftp://localhost:1234"))
+        WebSocketClientNativeInterface::new(&"ftp://localhost:1234".to_string())
             .unwrap_err(),
         WebSocketError::InvalidURL
     );
 
     // We expect a connection error here, as the server can't be reached
-    let mut client = WebSocketClientNativeInterface::new(&format!(
-        "ws://localhost.invalid:1234"
-    ))
+    let mut client = WebSocketClientNativeInterface::new(&"ws://localhost.invalid:1234".to_string())
     .unwrap();
 
     assert_eq!(
