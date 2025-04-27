@@ -9,6 +9,7 @@ use datex_core::{
 
 use crate::context::init_global_context;
 
+// $ head -c 48192 /dev/zero | curl -X POST http://localhost:8081/my-secret-channel/tx --data-binary @-
 #[tokio::test]
 pub async fn test_construct() {
     const PORT: u16 = 8081;
@@ -27,9 +28,7 @@ pub async fn test_construct() {
     let socket_uuid = server.get_socket_uuid_for_endpoint(endpoint).unwrap();
     let mut it = 0;
 
-    // head -c 48192 /dev/zero | curl -X POST http://localhost:8081/test/tx --data-binary @-
-
-    while it < 10 {
+    while it < 5 {
         server.send_block(b"Hello World", socket_uuid.clone()).await;
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         it += 1;

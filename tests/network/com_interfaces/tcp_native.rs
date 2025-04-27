@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::tcp::{
@@ -7,6 +9,7 @@ use datex_core::network::com_interfaces::{
     },
     socket_provider::SingleSocketProvider,
 };
+use futures::future::join_all;
 
 use crate::context::init_global_context;
 
@@ -15,8 +18,7 @@ pub async fn test_client_no_connection() {
     init_global_context();
 
     let mut client =
-        TCPClientNativeInterface::new("ws://localhost.invalid:8080")
-            .unwrap();
+        TCPClientNativeInterface::new("ws://localhost.invalid:8080").unwrap();
     assert!(client.get_state().is_not_connected());
     let res = client.open().await;
     assert!(res.is_err());
@@ -44,10 +46,11 @@ pub async fn test_construct() {
     client.open().await.unwrap_or_else(|e| {
         panic!("Failed to create WebSocketClientInterface: {e}");
     });
+    let client_uuid = client.get_socket_uuid().unwrap();
 
     assert!(
         client
-            .send_block(CLIENT_TO_SERVER_MSG, client.get_socket_uuid().unwrap())
+            .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
             .await
     );
     tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
@@ -55,11 +58,11 @@ pub async fn test_construct() {
     let server_sockets = server.get_sockets().clone();
     let server_socket = server_sockets.lock().unwrap();
     let server_socket = server_socket.sockets.values().next().unwrap().clone();
-    let uuid = {
+    let server_uuid = {
         let server_socket = server_socket.lock().unwrap();
         server_socket.uuid.clone()
     };
-    assert!(server.send_block(SERVER_TO_CLIENT_MSG, uuid).await);
+    assert!(server.send_block(SERVER_TO_CLIENT_MSG, server_uuid).await);
     tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
 
     // Check if the client received the message
@@ -90,6 +93,23 @@ pub async fn test_construct() {
         CLIENT_TO_SERVER_MSG
     );
 
-    server.destroy().await;
-    client.destroy().await;
+    let client = Arc::new(Mutex::new((client)));
+    let mut futures = vec![];
+    for _ in 0..5 {
+        let client = client.clone(); // assuming client is Arc or Cloneable
+        let client_uuid = client_uuid.clone();
+        futures.push(async move {
+            client
+                .lock()
+                .unwrap()
+                .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
+                .await;
+        });
+    }
+    join_all(futures).await;
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    // server.destroy().await;
+    // client.destroy().await;
 }
