@@ -27,7 +27,8 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new(endpoint: Endpoint) -> Runtime {
+    pub fn new(endpoint: impl Into<Endpoint>) -> Runtime {
+        let endpoint = endpoint.into();
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             endpoint,
@@ -35,7 +36,7 @@ impl Runtime {
             ..Runtime::default()
         }
     }
-    pub fn init(endpoint: Endpoint, global_context: GlobalContext) -> Runtime {
+    pub fn init(endpoint: impl Into<Endpoint>, global_context: GlobalContext) -> Runtime {
         set_global_context(global_context);
         init_logger();
         info!(
@@ -46,7 +47,7 @@ impl Runtime {
     }
 
     #[cfg(feature = "native_crypto")]
-    pub fn init_native(endpoint: Endpoint) -> Runtime {
+    pub fn init_native(endpoint: impl Into<Endpoint>) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
         Self::init(

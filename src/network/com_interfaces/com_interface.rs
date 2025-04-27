@@ -332,6 +332,7 @@ pub trait ComInterface: Any {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     fn init_properties(&self) -> InterfaceProperties;
+    // TODO: no mut, wrap self.info in RefCell
     fn get_properties(&mut self) -> &InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;
 

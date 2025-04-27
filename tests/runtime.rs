@@ -8,7 +8,7 @@ use datex_core::runtime::Runtime;
  */
 #[test]
 pub fn init_runtime() {
-    let runtime = Runtime::init_native(Endpoint::default());
+    let runtime = Runtime::init_native("@test");
     assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
 }
 

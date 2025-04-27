@@ -65,6 +65,12 @@ impl Default for Endpoint {
     }
 }
 
+impl From<&str> for Endpoint {
+    fn from(name: &str) -> Self {
+        Endpoint::from_string(name).expect("Invalid endpoint")
+    }
+}
+
 
 #[derive(PartialEq, Debug)]
 pub enum InvalidEndpointError {
