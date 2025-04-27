@@ -1,6 +1,6 @@
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
-use crate::global::protocol_structures::routing_header::RoutingHeader;
+use crate::global::protocol_structures::block_header::{BlockHeader, BlockType, FlagsAndTimestamp};
 use crate::network::com_hub::ComHub;
 
 pub struct NetworkTrace {
@@ -12,18 +12,29 @@ pub struct NetworkTrace {
 impl ComHub {
     pub fn create_network_trace(
         &self,
-        endpoint: Endpoint
+        endpoint: impl Into<Endpoint>
     ) -> Option<NetworkTrace> {
-        
-        let trace_block = DXBBlock {
-            routing_header: RoutingHeader {
-                ..RoutingHeader::default()
+        let endpoint = endpoint.into();
+
+        let mut trace_block = DXBBlock {
+            block_header: BlockHeader {
+                flags_and_timestamp: FlagsAndTimestamp::default()
+                    .with_block_type(
+                        BlockType::Trace
+                    ),
+                ..BlockHeader::default()
             },
             ..DXBBlock::default()
         };
-        
+
+        trace_block.set_receivers(&[endpoint.clone()]);
+
         self.send_own_block(trace_block);
-        
-        todo!()
+
+        Some(NetworkTrace {
+            endpoint: endpoint.clone(),
+            hops_outgoing: vec![],
+            hops_incoming: vec![]
+        })
     }
 }
