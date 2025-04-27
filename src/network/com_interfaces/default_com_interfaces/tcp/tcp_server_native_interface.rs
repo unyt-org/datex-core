@@ -22,8 +22,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
-use crate::network::com_interfaces::default_com_interfaces::tcp::tcp_client_native_interface::TCPClientNativeInterface;
-use super::tcp_common::{TCPClientInterfaceSetupData, TCPError, TCPServerInterfaceSetupData};
+use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
 
 pub struct TCPServerNativeInterface {
     pub address: Url,

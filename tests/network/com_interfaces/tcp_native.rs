@@ -15,7 +15,7 @@ pub async fn test_client_no_connection() {
     init_global_context();
 
     let mut client =
-        TCPClientNativeInterface::new(&format!("ws://localhost.invalid:8080"))
+        TCPClientNativeInterface::new(&"ws://localhost.invalid:8080".to_string())
             .unwrap();
     assert!(client.get_state().is_not_connected());
     let res = client.open().await;

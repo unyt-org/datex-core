@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 use crate::network::com_interfaces::com_interface::{
-    self, ComInterface, ComInterfaceError, ComInterfaceFactory,
+    ComInterface, ComInterfaceError, ComInterfaceFactory,
     ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface::{
@@ -19,7 +19,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::task::spawn;
-use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
+use crate::delegate_com_interface_info;
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
