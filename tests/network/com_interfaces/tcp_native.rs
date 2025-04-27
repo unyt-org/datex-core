@@ -1,13 +1,28 @@
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
-    default_com_interfaces::{
-        tcp::tcp_client_native_interface::TCPClientNativeInterface,
-        tcp::tcp_server_native_interface::TCPServerNativeInterface,
+    default_com_interfaces::tcp::{
+        tcp_client_native_interface::TCPClientNativeInterface,
+        tcp_common::TCPError,
+        tcp_server_native_interface::TCPServerNativeInterface,
     },
     socket_provider::SingleSocketProvider,
 };
 
 use crate::context::init_global_context;
+
+#[tokio::test]
+pub async fn test_client_no_connection() {
+    init_global_context();
+
+    let mut client =
+        TCPClientNativeInterface::new(&format!("ws://localhost.invalid:8080"))
+            .unwrap();
+    assert!(client.get_state().is_not_connected());
+    let res = client.open().await;
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), TCPError::ConnectionError);
+    assert!(client.get_state().is_not_connected());
+}
 
 #[tokio::test]
 pub async fn test_construct() {
