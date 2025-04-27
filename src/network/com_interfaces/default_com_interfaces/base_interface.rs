@@ -11,9 +11,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::{
-    delegate_com_interface, delegate_com_interface_info, set_sync_opener,
-};
+use crate::{delegate_com_interface_info, set_sync_opener};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -36,6 +34,7 @@ impl Default for BaseInterface {
     }
 }
 
+use datex_macros::{com_interface, create_opener};
 use strum::Display;
 use thiserror::Error;
 
@@ -46,8 +45,8 @@ pub enum BaseInterfaceError {
     SocketNotFound,
 }
 
+#[com_interface]
 impl BaseInterface {
-    delegate_com_interface!();
     pub fn new_with_single_socket(
         name: &str,
         direction: InterfaceDirection,
@@ -72,7 +71,8 @@ impl BaseInterface {
         }
     }
 
-    pub fn open(&mut self) -> Result<(), ()> {
+    #[create_opener]
+    fn open(&mut self) -> Result<(), ()> {
         self.set_state(ComInterfaceState::Connected);
         Ok(())
     }

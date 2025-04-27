@@ -4,9 +4,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
+use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceFactory,
-    ComInterfaceState,
+    ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -19,7 +19,6 @@ use crate::network::com_interfaces::com_interface_socket::{
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::task::spawn;
-use crate::delegate_com_interface_info;
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -99,27 +98,6 @@ impl TCPClientNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<TCPClientInterfaceSetupData>
-    for TCPClientNativeInterface
-{
-    fn create(
-        setup_data: TCPClientInterfaceSetupData,
-    ) -> Result<TCPClientNativeInterface, ComInterfaceError> {
-        TCPClientNativeInterface::new(&setup_data.address)
-            .map_err(|_| ComInterfaceError::InvalidSetupData)
-    }
-
-    fn get_default_properties() -> InterfaceProperties {
-        InterfaceProperties {
-            interface_type: "tcp-client".to_string(),
-            channel: "tcp".to_string(),
-            round_trip_time: Duration::from_millis(20),
-            max_bandwidth: 1000,
-            ..InterfaceProperties::default()
-        }
-    }
-}
-
 impl ComInterface for TCPClientNativeInterface {
     fn send_block<'a>(
         &'a mut self,
@@ -151,5 +129,26 @@ impl ComInterface for TCPClientNativeInterface {
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         unreachable!("");
+    }
+}
+
+impl ComInterfaceFactory<TCPClientInterfaceSetupData>
+    for TCPClientNativeInterface
+{
+    fn create(
+        setup_data: TCPClientInterfaceSetupData,
+    ) -> Result<TCPClientNativeInterface, ComInterfaceError> {
+        TCPClientNativeInterface::new(&setup_data.address)
+            .map_err(|_| ComInterfaceError::InvalidSetupData)
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "tcp-client".to_string(),
+            channel: "tcp".to_string(),
+            round_trip_time: Duration::from_millis(20),
+            max_bandwidth: 1000,
+            ..InterfaceProperties::default()
+        }
     }
 }

@@ -1,7 +1,8 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, Ident, ImplItemFn, ItemImpl};
+use syn::{Ident, ImplItemFn, ItemImpl};
 pub fn com_interface_impl(input_impl: ItemImpl) -> TokenStream {
+    let name = &input_impl.self_ty;
     let method_content = quote! {
         /// This method is used to destroy the interface.
         /// It will close the socket and set the state to Destroyed.
@@ -22,13 +23,13 @@ pub fn com_interface_impl(input_impl: ItemImpl) -> TokenStream {
     let expanded = quote! {
         #input_impl
 
-        impl TCPClientNativeInterface {
+        impl #name {
             #method_content
         }
     };
 
     // Convert the generated code into a TokenStream
-    TokenStream::from(expanded)
+    expanded
 }
 pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
     let return_type = &original_open.sig.output;
@@ -36,7 +37,7 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
     let original_body = original_open.block;
 
     let new_internal_name =
-        Ident::new(&format!("internal_{}", original_name), Span::call_site());
+        Ident::new(&format!("internal_{original_name}"), Span::call_site());
 
     if original_open
         .vis
@@ -46,22 +47,41 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
     {
         panic!("The function is public. Remove the public modifier",);
     }
-
-    let expanded = quote! {
-        pub async fn #new_internal_name(&mut self) #return_type {
-            #original_body
-        }
-        pub async fn #original_name(&mut self) #return_type {
-            self.set_state(ComInterfaceState::Connecting);
-            let res = self.#new_internal_name().await;
-            if res.is_ok() {
-                self.set_state(ComInterfaceState::Connected);
-            } else {
-                self.set_state(ComInterfaceState::NotConnected);
+    let expanded = {
+        if original_open.sig.asyncness.is_some() {
+            quote! {
+                async fn #new_internal_name(&mut self) #return_type {
+                    #original_body
+                }
+                pub async fn #original_name(&mut self) #return_type {
+                    self.set_state(ComInterfaceState::Connecting);
+                    let res = self.#new_internal_name().await;
+                    if res.is_ok() {
+                        self.set_state(ComInterfaceState::Connected);
+                    } else {
+                        self.set_state(ComInterfaceState::NotConnected);
+                    }
+                    res
+                }
             }
-            res
+        } else {
+            quote! {
+                fn #new_internal_name(&mut self) #return_type {
+                    #original_body
+                }
+                pub fn #original_name(&mut self) #return_type {
+                    self.set_state(ComInterfaceState::Connecting);
+                    let res = self.#new_internal_name();
+                    if res.is_ok() {
+                        self.set_state(ComInterfaceState::Connected);
+                    } else {
+                        self.set_state(ComInterfaceState::NotConnected);
+                    }
+                    res
+                }
+            }
         }
     };
 
-    return TokenStream::from(expanded);
+    expanded
 }

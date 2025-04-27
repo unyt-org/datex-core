@@ -5,8 +5,12 @@ use std::{
     time::Duration,
 };
 
+use super::serial_common::{SerialError, SerialInterfaceSetupData};
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceFactory,
+};
 use crate::{
-    delegate_com_interface, delegate_com_interface_info,
+    delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -27,8 +31,6 @@ use crate::{
 use log::{debug, error, warn};
 use serialport::SerialPort;
 use tokio::sync::Notify;
-use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory};
-use super::serial_common::{SerialError, SerialInterfaceSetupData};
 
 pub struct SerialNativeInterface {
     info: ComInterfaceInfo,
@@ -40,11 +42,13 @@ impl SingleSocketProvider for SerialNativeInterface {
         self.get_sockets()
     }
 }
+
+use datex_macros::{com_interface, create_opener};
+#[com_interface]
 impl SerialNativeInterface {
     const TIMEOUT: Duration = Duration::from_millis(1000);
     const BUFFER_SIZE: usize = 1024;
     const DEFAULT_BAUD_RATE: u32 = 115200;
-    delegate_com_interface!();
 
     pub fn get_available_ports() -> Vec<String> {
         serialport::available_ports()
@@ -79,6 +83,7 @@ impl SerialNativeInterface {
         Self::new_with_port(port)
     }
 
+    #[create_opener]
     fn open(&mut self) -> Result<(), SerialError> {
         self.set_state(ComInterfaceState::Connecting);
         let res = {
@@ -145,9 +150,8 @@ impl ComInterfaceFactory<SerialInterfaceSetupData> for SerialNativeInterface {
     fn create(
         setup_data: SerialInterfaceSetupData,
     ) -> Result<SerialNativeInterface, ComInterfaceError> {
-        SerialNativeInterface::new(&setup_data.port_name).map_err(|_|
-            ComInterfaceError::InvalidSetupData
-        )
+        SerialNativeInterface::new(&setup_data.port_name)
+            .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
 
     fn get_default_properties() -> InterfaceProperties {

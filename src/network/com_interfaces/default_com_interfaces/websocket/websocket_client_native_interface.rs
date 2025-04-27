@@ -2,7 +2,7 @@ use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
 // FIXME no-std
 
 use crate::{
-    delegate_com_interface, delegate_com_interface_info,
+    delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
@@ -16,15 +16,20 @@ use crate::{
     stdlib::sync::Arc,
     task::spawn,
 };
+use datex_macros::{com_interface, create_opener};
 
-use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory, ComInterfaceState};
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+};
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use log::{debug, error, info};
 use tokio::net::TcpStream;
 use tungstenite::Message;
 use url::Url;
 
-use super::websocket_common::{parse_url, WebSocketClientInterfaceSetupData, WebSocketError};
+use super::websocket_common::{
+    parse_url, WebSocketClientInterfaceSetupData, WebSocketError,
+};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct WebSocketClientNativeInterface {
@@ -40,8 +45,8 @@ impl SingleSocketProvider for WebSocketClientNativeInterface {
     }
 }
 
+#[com_interface]
 impl WebSocketClientNativeInterface {
-    delegate_com_interface!();
     pub fn new(
         address: &str,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
@@ -56,7 +61,8 @@ impl WebSocketClientNativeInterface {
         Ok(interface)
     }
 
-    pub async fn open(&mut self) -> Result<(), WebSocketError> {
+    #[create_opener]
+    async fn open(&mut self) -> Result<(), WebSocketError> {
         let res = {
             let address = self.address.clone();
             info!("Connecting to WebSocket server at {address}");
@@ -110,13 +116,14 @@ impl WebSocketClientNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<WebSocketClientInterfaceSetupData> for WebSocketClientNativeInterface {
+impl ComInterfaceFactory<WebSocketClientInterfaceSetupData>
+    for WebSocketClientNativeInterface
+{
     fn create(
         setup_data: WebSocketClientInterfaceSetupData,
     ) -> Result<WebSocketClientNativeInterface, ComInterfaceError> {
-        WebSocketClientNativeInterface::new(&setup_data.address).map_err(|_|
-            ComInterfaceError::InvalidSetupData
-        )
+        WebSocketClientNativeInterface::new(&setup_data.address)
+            .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
 
     fn get_default_properties() -> InterfaceProperties {

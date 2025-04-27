@@ -18,6 +18,7 @@ use axum::{
     routing::get,
     Router,
 };
+use datex_macros::{com_interface, create_opener};
 use log::{debug, error, info};
 use tokio::sync::{broadcast, mpsc, RwLock};
 use url::Url;
@@ -36,7 +37,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
+use crate::{delegate_com_interface_info, set_opener};
 
 use super::http_common::HTTPError;
 
@@ -123,9 +124,8 @@ impl MultipleSocketProvider for HTTPServerNativeInterface {
     }
 }
 
+#[com_interface]
 impl HTTPServerNativeInterface {
-    delegate_com_interface!();
-
     pub fn new(port: &u16) -> Result<HTTPServerNativeInterface, HTTPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("http://127.0.0.1:{port}");
@@ -194,7 +194,8 @@ impl HTTPServerNativeInterface {
         }
     }
 
-    pub async fn open(&mut self) -> Result<(), HTTPError> {
+    #[create_opener]
+    async fn open(&mut self) -> Result<(), HTTPError> {
         self.set_state(ComInterfaceState::Connecting);
         let res = {
             let address = self.address.clone();

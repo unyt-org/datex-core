@@ -8,9 +8,8 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::{
-    delegate_com_interface, delegate_com_interface_info, set_sync_opener,
-};
+use crate::{delegate_com_interface_info, set_sync_opener};
+use datex_macros::{com_interface, create_opener};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -31,8 +30,8 @@ impl Default for LocalLoopbackInterface {
     }
 }
 
+#[com_interface]
 impl LocalLoopbackInterface {
-    delegate_com_interface!();
     pub fn new() -> LocalLoopbackInterface {
         let info = ComInterfaceInfo::new();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
@@ -43,7 +42,8 @@ impl LocalLoopbackInterface {
         LocalLoopbackInterface { info, socket }
     }
 
-    pub fn open(&mut self) -> Result<(), ()> {
+    #[create_opener]
+    fn open(&mut self) -> Result<(), ()> {
         let uuid = self.socket.lock().unwrap().uuid.clone();
         self.add_socket(self.socket.clone());
         self.register_socket_endpoint(uuid, Endpoint::LOCAL, 0)
@@ -54,7 +54,6 @@ impl LocalLoopbackInterface {
 }
 
 impl ComInterface for LocalLoopbackInterface {
-    
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

@@ -182,17 +182,17 @@ extern crate proc_macro;
 //     };
 // }
 
-#[macro_export]
-macro_rules! delegate_com_interface {
-    () => {
-        pub async fn destroy(mut self) {
-            self.handle_destroy().await;
-        }
-        pub async fn destroy_ref(&mut self) {
-            self.handle_destroy().await;
-        }
-    };
-}
+// #[macro_export]
+// macro_rules! delegate_com_interface {
+//     () => {
+//         pub async fn destroy(mut self) {
+//             self.handle_destroy().await;
+//         }
+//         pub async fn destroy_ref(&mut self) {
+//             self.handle_destroy().await;
+//         }
+//     };
+// }
 
 #[macro_export]
 macro_rules! set_opener {

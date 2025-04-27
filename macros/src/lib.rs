@@ -21,6 +21,10 @@ pub fn create_opener(_attr: TokenStream, item: TokenStream) -> TokenStream {
     create_opener_impl(original_open).into()
 }
 
+/// This macro is used to create a COM interface.
+/// It will add the following methods to the interface:
+/// - `destroy`: This method is used to destroy the interface.
+/// - `destroy_ref`: This method is used to destroy the interface per reference.
 #[proc_macro_attribute]
 pub fn com_interface(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_impl = parse_macro_input!(input as ItemImpl);

@@ -1,3 +1,4 @@
+use datex_macros::{com_interface, create_opener};
 use std::{
     collections::HashMap,
     future::Future,
@@ -6,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{delegate_com_interface, task::spawn};
+use crate::task::spawn;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
@@ -43,8 +44,8 @@ impl MultipleSocketProvider for WebRTCClientInterface {
         self.get_sockets()
     }
 }
+#[com_interface]
 impl WebRTCClientInterface {
-    delegate_com_interface!();
     const RECONNECT_ATTEMPTS: u16 = 3;
     const CHANNEL_ID: usize = 0;
     pub fn new_reliable(
@@ -79,7 +80,8 @@ impl WebRTCClientInterface {
         Ok(interface)
     }
 
-    pub async fn open(&mut self) -> Result<(), WebRTCError> {
+    #[create_opener]
+    async fn open(&mut self) -> Result<(), WebRTCError> {
         self.set_state(ComInterfaceState::Connecting);
         let res = {
             let address = self.address.clone();

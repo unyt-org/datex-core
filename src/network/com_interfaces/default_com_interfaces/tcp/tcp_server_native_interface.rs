@@ -5,13 +5,17 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::task::spawn;
+use datex_macros::{com_interface, create_opener};
 use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use url::Url;
 
-use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState};
+use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
 };
@@ -21,17 +25,15 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
-use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
+use crate::{delegate_com_interface_info, set_opener};
 
 pub struct TCPServerNativeInterface {
     pub address: Url,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
     info: ComInterfaceInfo,
 }
-
+#[com_interface]
 impl TCPServerNativeInterface {
-    delegate_com_interface!();
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
         let address: String = format!("ws://127.0.0.1:{port}");
@@ -44,7 +46,8 @@ impl TCPServerNativeInterface {
         Ok(interface)
     }
 
-    pub async fn open(&mut self) -> Result<(), TCPError> {
+    #[create_opener]
+    async fn open(&mut self) -> Result<(), TCPError> {
         self.set_state(ComInterfaceState::Connecting);
         let res = {
             let address = self.address.clone();
@@ -130,13 +133,14 @@ impl TCPServerNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<TCPServerInterfaceSetupData> for TCPServerNativeInterface {
+impl ComInterfaceFactory<TCPServerInterfaceSetupData>
+    for TCPServerNativeInterface
+{
     fn create(
         setup_data: TCPServerInterfaceSetupData,
     ) -> Result<TCPServerNativeInterface, ComInterfaceError> {
-        TCPServerNativeInterface::new(setup_data.port).map_err(|_|
-            ComInterfaceError::InvalidSetupData
-        )
+        TCPServerNativeInterface::new(setup_data.port)
+            .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
 
     fn get_default_properties() -> InterfaceProperties {
