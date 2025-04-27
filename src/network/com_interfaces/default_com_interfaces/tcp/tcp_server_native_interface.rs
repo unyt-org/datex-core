@@ -4,6 +4,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::task::spawn;
 use datex_macros::{com_interface, create_opener};
 use log::{error, info, warn};
@@ -32,6 +33,13 @@ pub struct TCPServerNativeInterface {
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
     info: ComInterfaceInfo,
 }
+
+impl MultipleSocketProvider for TCPServerNativeInterface {
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets()
+    }
+}
+
 #[com_interface]
 impl TCPServerNativeInterface {
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {

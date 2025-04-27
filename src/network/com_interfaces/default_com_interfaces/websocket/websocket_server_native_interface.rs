@@ -5,6 +5,7 @@ use std::{
 };
 // FIXME no-std
 
+use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
@@ -56,6 +57,12 @@ pub struct WebSocketServerNativeInterface {
     >,
     info: ComInterfaceInfo,
     shutdown_signal: Arc<Notify>,
+}
+
+impl MultipleSocketProvider for WebSocketServerNativeInterface {
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        self.get_sockets()
+    }
 }
 
 #[com_interface]

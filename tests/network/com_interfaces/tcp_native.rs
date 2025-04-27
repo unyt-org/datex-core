@@ -7,7 +7,7 @@ use datex_core::network::com_interfaces::{
         tcp_common::TCPError,
         tcp_server_native_interface::TCPServerNativeInterface,
     },
-    socket_provider::SingleSocketProvider,
+    socket_provider::{MultipleSocketProvider, SingleSocketProvider},
 };
 use futures::future::join_all;
 
@@ -55,14 +55,12 @@ pub async fn test_construct() {
     );
     tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
 
-    let server_sockets = server.get_sockets().clone();
-    let server_socket = server_sockets.lock().unwrap();
-    let server_socket = server_socket.sockets.values().next().unwrap().clone();
-    let server_uuid = {
-        let server_socket = server_socket.lock().unwrap();
-        server_socket.uuid.clone()
-    };
-    assert!(server.send_block(SERVER_TO_CLIENT_MSG, server_uuid).await);
+    let server_uuid = server.get_socket_uuid_at(0).unwrap();
+    assert!(
+        server
+            .send_block(SERVER_TO_CLIENT_MSG, server_uuid.clone())
+            .await
+    );
     tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
 
     // Check if the client received the message
@@ -80,23 +78,27 @@ pub async fn test_construct() {
         SERVER_TO_CLIENT_MSG
     );
 
-    // Check if the server received the message
-    assert_eq!(
-        server_socket
-            .lock()
-            .unwrap()
-            .receive_queue
-            .lock()
-            .unwrap()
-            .drain(..)
-            .collect::<Vec<_>>(),
-        CLIENT_TO_SERVER_MSG
-    );
+    {
+        // Check if the server received the message
+        let server_socket = server.get_socket_with_uuid(server_uuid).unwrap();
+        assert_eq!(
+            server_socket
+                .lock()
+                .unwrap()
+                .receive_queue
+                .lock()
+                .unwrap()
+                .drain(..)
+                .collect::<Vec<_>>(),
+            CLIENT_TO_SERVER_MSG
+        );
+    }
 
-    let client = Arc::new(Mutex::new((client)));
+    // Parallel sending
+    let client = Arc::new(Mutex::new(client));
     let mut futures = vec![];
     for _ in 0..5 {
-        let client = client.clone(); // assuming client is Arc or Cloneable
+        let client = client.clone();
         let client_uuid = client_uuid.clone();
         futures.push(async move {
             client
@@ -108,8 +110,10 @@ pub async fn test_construct() {
     }
     join_all(futures).await;
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    // We take ownership of the client
+    let client = Arc::into_inner(client).unwrap();
+    let client = Mutex::into_inner(client).unwrap();
+    client.destroy().await;
 
-    // server.destroy().await;
-    // client.destroy().await;
+    server.destroy().await;
 }

@@ -113,20 +113,17 @@ pub async fn test_create_socket_connection() {
         panic!("Failed to create WebSocketClientInterface: {e}");
     });
     let server = Rc::new(RefCell::new(server));
-    runtime
-        .com_hub
-        .lock()
-        .unwrap()
-        .open_and_add_interface(server.clone())
-        .await
-        .unwrap();
-    runtime
-        .com_hub
-        .lock()
-        .unwrap()
-        .open_and_add_interface(client.clone())
-        .await
-        .unwrap();
+    {
+        let mut com_hub = runtime.com_hub.lock().unwrap();
+        com_hub
+            .open_and_add_interface(server.clone())
+            .await
+            .unwrap();
+        com_hub
+            .open_and_add_interface(client.clone())
+            .await
+            .unwrap();
+    }
 
     let client_uuid = client.borrow().get_socket_uuid().unwrap();
     assert!(
@@ -136,14 +133,13 @@ pub async fn test_create_socket_connection() {
             .await
     );
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     runtime.com_hub.lock().unwrap().update().await;
-    info!("LLE1");
 
-    let lock = server.clone();
-    let mut lock = lock.borrow_mut();
-    info!("LLE2");
-    lock.destroy_ref().await;
+    let client = &mut *client.borrow_mut();
+    client.destroy_ref().await;
+    // let server = &mut *server.borrow_mut();
+    // server.destroy_ref().await;
 }
 
 #[ignore]

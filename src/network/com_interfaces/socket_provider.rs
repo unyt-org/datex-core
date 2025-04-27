@@ -6,11 +6,9 @@ use super::{
     com_interface::ComInterfaceSockets,
     com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
 };
-
-// pub trait SocketProvider {
-//     fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
-// }
-
+// TODO we can put them to the datex_core as macro
+// We might consider using #[com_interface(multiple)] and #[com_interface(single)]
+// to generate the code for us
 pub trait MultipleSocketProvider {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
