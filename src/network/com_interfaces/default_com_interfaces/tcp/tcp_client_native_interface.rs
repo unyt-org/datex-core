@@ -5,7 +5,8 @@ use std::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+    self, ComInterface, ComInterfaceError, ComInterfaceFactory,
+    ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -19,7 +20,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::task::spawn;
 use crate::{delegate_com_interface, delegate_com_interface_info, set_opener};
-use datex_macros::create_opener;
+use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::OwnedWriteHalf;
@@ -37,8 +38,8 @@ impl SingleSocketProvider for TCPClientNativeInterface {
     }
 }
 
+#[com_interface]
 impl TCPClientNativeInterface {
-    delegate_com_interface!();
     pub fn new(address: &str) -> Result<TCPClientNativeInterface, TCPError> {
         let interface = TCPClientNativeInterface {
             address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,

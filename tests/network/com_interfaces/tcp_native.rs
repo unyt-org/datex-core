@@ -22,6 +22,7 @@ pub async fn test_client_no_connection() {
     assert!(res.is_err());
     assert_eq!(res.unwrap_err(), TCPError::ConnectionError);
     assert!(client.get_state().is_not_connected());
+    client.destroy().await;
 }
 
 #[tokio::test]

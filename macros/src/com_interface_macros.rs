@@ -1,10 +1,35 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{
-    parse_macro_input, spanned::Spanned, Ident, ImplItemFn, ItemFn, ItemImpl,
-    LitStr,
-};
+use syn::{spanned::Spanned, Ident, ImplItemFn, ItemImpl};
+pub fn com_interface_impl(input_impl: ItemImpl) -> TokenStream {
+    let method_content = quote! {
+        /// This method is used to destroy the interface.
+        /// It will close the socket and set the state to Destroyed.
+        pub async fn destroy(mut self) {
+            self.handle_destroy().await;
+        }
 
+        /// This method is used to destroy the interface per reference.
+        /// It will close the socket and set the state to Destroyed.
+        /// It is used when the interface is used in a context where
+        /// the interface is not owned by the caller.
+        pub async fn destroy_ref(&mut self) {
+            self.handle_destroy().await;
+        }
+    };
+
+    // Generate the expanded code by appending the new method
+    let expanded = quote! {
+        #input_impl
+
+        impl TCPClientNativeInterface {
+            #method_content
+        }
+    };
+
+    // Convert the generated code into a TokenStream
+    TokenStream::from(expanded)
+}
 pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
     let return_type = &original_open.sig.output;
     let original_name = &original_open.sig.ident;
