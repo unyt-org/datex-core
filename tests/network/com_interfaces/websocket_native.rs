@@ -11,9 +11,6 @@ use datex_core::network::com_interfaces::{
     },
     socket_provider::SingleSocketProvider,
 };
-use datex_core::runtime::global_context::set_global_context;
-use datex_core::runtime::Runtime;
-use log::info;
 use std::{cell::RefCell, rc::Rc};
 
 #[tokio::test]
@@ -114,7 +111,7 @@ pub async fn test_create_socket_connection() {
     assert!(
         client
             .borrow_mut()
-            .send_block(&CLIENT_TO_SERVER_MSG, client_uuid.clone())
+            .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
             .await
     );
 
@@ -122,7 +119,7 @@ pub async fn test_create_socket_connection() {
     assert!(
         server
             .borrow_mut()
-            .send_block(&SERVER_TO_CLIENT_MSG, server_uuid.clone())
+            .send_block(SERVER_TO_CLIENT_MSG, server_uuid.clone())
             .await
     );
 
