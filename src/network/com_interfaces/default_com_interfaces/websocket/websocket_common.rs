@@ -3,13 +3,12 @@ use thiserror::Error;
 use url::Url;
 
 pub struct WebSocketClientInterfaceSetupData {
-    pub address: String
+    pub address: String,
 }
 
 pub struct WebSocketServerInterfaceSetupData {
     pub port: u16,
 }
-
 
 #[derive(Debug)]
 pub enum URLError {
@@ -17,7 +16,7 @@ pub enum URLError {
     InvalidScheme,
 }
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Error, Clone, PartialEq)]
 pub enum WebSocketError {
     Other(String),
     InvalidURL,
@@ -26,7 +25,7 @@ pub enum WebSocketError {
     ReceiveError,
 }
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Error, Clone, PartialEq)]
 pub enum WebSocketServerError {
     WebSocketError(WebSocketError),
     InvalidPort,

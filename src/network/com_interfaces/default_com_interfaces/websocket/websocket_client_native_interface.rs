@@ -32,6 +32,7 @@ use super::websocket_common::{
 };
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
+#[derive(Debug)]
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
     websocket_stream:

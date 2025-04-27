@@ -57,6 +57,7 @@ pub struct WebSocketServerNativeInterface {
     >,
     info: ComInterfaceInfo,
     shutdown_signal: Arc<Notify>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl MultipleSocketProvider for WebSocketServerNativeInterface {
@@ -79,6 +80,7 @@ impl WebSocketServerNativeInterface {
             info: ComInterfaceInfo::new(),
             websocket_streams: Arc::new(Mutex::new(HashMap::new())),
             shutdown_signal: Arc::new(Notify::new()),
+            handle: None,
         };
         Ok(interface)
     }
@@ -106,9 +108,8 @@ impl WebSocketServerNativeInterface {
         let websocket_streams = self.websocket_streams.clone();
         let shutdown = self.shutdown_signal.clone();
         let mut tasks: Vec<JoinHandle<()>> = vec![];
-        spawn(async move {
+        self.handle = Some(spawn(async move {
             loop {
-                debug!("ipdating...");
                 select! {
                     res = listener.accept() => {
                         match res {
@@ -144,9 +145,6 @@ impl WebSocketServerNativeInterface {
                                             while let Some(msg) = read.next().await {
                                                 match msg {
                                                     Ok(Message::Binary(bin)) => {
-                                                        debug!(
-                                                            "Received binary message: {bin:?}"
-                                                        );
                                                         socket_shared
                                                             .lock()
                                                             .unwrap()
@@ -189,7 +187,7 @@ impl WebSocketServerNativeInterface {
                     }
                 }
             }
-        });
+        }));
         Ok(())
     }
 }
@@ -229,7 +227,6 @@ impl ComInterface for WebSocketServerNativeInterface {
                 error!("Client is not connected");
                 return false;
             }
-            debug!("Sending block: {block:?}");
             tx.unwrap()
                 .send(Message::Binary(block.to_vec()))
                 .await
@@ -250,10 +247,10 @@ impl ComInterface for WebSocketServerNativeInterface {
         let shutdown_signal = self.shutdown_signal.clone();
         let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {
-            debug!("fire");
-            shutdown_signal.notified().await;
-            debug!("fire d");
-
+            shutdown_signal.notify_waiters();
+            if let Some(handle) = self.handle.take() {
+                let _ = handle.await;
+            }
             websocket_streams.lock().unwrap().clear();
             true
         })

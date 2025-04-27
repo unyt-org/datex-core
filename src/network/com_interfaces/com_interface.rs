@@ -120,6 +120,7 @@ impl ComInterfaceSockets {
     }
 }
 
+#[derive(Debug)]
 pub struct ComInterfaceInfo {
     uuid: ComInterfaceUUID,
     pub state: Arc<Mutex<ComInterfaceState>>,
