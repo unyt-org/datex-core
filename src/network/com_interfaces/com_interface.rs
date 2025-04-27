@@ -167,33 +167,11 @@ impl ComInterfaceInfo {
         self.state.lock().unwrap().clone_from(&new_state);
     }
 }
-extern crate proc_macro;
 
-// #[macro_export]
-// macro_rules! create_open_pub {
-//     // The macro doesn't take parameters other than the method signature and the body of the function
-//     ($name:ident, $open_fn:ident) => {
-//         pub async fn $name(&mut self) -> Result<(), TCPError> {
-//             println!("a");
-//             let result = self.$open_fn().await; // Call the original `open` function
-//             println!("b");
-//             result // Return the result of `open`
-//         }
-//     };
-// }
-
-// #[macro_export]
-// macro_rules! delegate_com_interface {
-//     () => {
-//         pub async fn destroy(mut self) {
-//             self.handle_destroy().await;
-//         }
-//         pub async fn destroy_ref(&mut self) {
-//             self.handle_destroy().await;
-//         }
-//     };
-// }
-
+/// This macro is used to create a new opener function for the ComInterface that
+/// returns a boolean indicating if the opener was successful or not.
+/// The method shall be only called by the ComHub that doesn't know the
+/// actual return value of the specific opener function.
 #[macro_export]
 macro_rules! set_opener {
     ($opener:ident) => {
@@ -234,6 +212,7 @@ macro_rules! set_sync_opener {
     };
 }
 
+// TODO use procedual macros instead
 #[macro_export]
 macro_rules! delegate_com_interface_info {
     () => {

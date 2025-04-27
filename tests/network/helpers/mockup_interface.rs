@@ -4,6 +4,9 @@ use std::{
     sync::{mpsc, Arc, Mutex},
 };
 
+use datex_core::network::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceFactory,
+};
 use datex_core::{
     delegate_com_interface_info,
     global::{
@@ -20,7 +23,7 @@ use datex_core::{
     },
     set_sync_opener,
 };
-use datex_core::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory};
+use datex_macros::{com_interface, create_opener};
 
 #[derive(Default)]
 pub struct MockupInterface {
@@ -38,9 +41,7 @@ impl SingleSocketProvider for MockupInterface {
 }
 
 impl ComInterfaceFactory<()> for MockupInterface {
-    fn create(
-        _setup_data: (),
-    ) -> Result<MockupInterface, ComInterfaceError> {
+    fn create(_setup_data: ()) -> Result<MockupInterface, ComInterfaceError> {
         Ok(MockupInterface::default())
     }
 
@@ -54,6 +55,7 @@ impl ComInterfaceFactory<()> for MockupInterface {
     }
 }
 
+#[com_interface]
 impl MockupInterface {
     pub fn last_block(&self) -> Option<Vec<u8>> {
         self.outgoing_queue.last().map(|(_, block)| block.clone())
@@ -96,13 +98,11 @@ impl MockupInterface {
             }
         }
     }
-
-    pub fn open(&mut self) -> Result<(), ()> {
-        self.set_state(ComInterfaceState::Connected);
+    #[create_opener]
+    fn open(&mut self) -> Result<(), ()> {
         Ok(())
     }
 }
-
 
 impl ComInterface for MockupInterface {
     fn send_block<'a>(
@@ -134,7 +134,9 @@ impl ComInterface for MockupInterface {
         Self::get_default_properties()
     }
 
-    fn handle_close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         self.outgoing_queue.clear();
         Pin::from(Box::new(async move { true }))
     }

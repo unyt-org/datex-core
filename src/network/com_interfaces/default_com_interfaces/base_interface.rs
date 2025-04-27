@@ -73,7 +73,6 @@ impl BaseInterface {
 
     #[create_opener]
     fn open(&mut self) -> Result<(), ()> {
-        self.set_state(ComInterfaceState::Connected);
         Ok(())
     }
 

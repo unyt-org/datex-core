@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
-use crate::delegate_com_interface_info;
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
 };
@@ -19,6 +18,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
 use crate::task::spawn;
+use crate::{delegate_com_interface_info, set_opener};
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -124,12 +124,7 @@ impl ComInterface for TCPClientNativeInterface {
     }
 
     delegate_com_interface_info!();
-    // set_opener!(open);
-    fn handle_open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        unreachable!("");
-    }
+    set_opener!(open);
 }
 
 impl ComInterfaceFactory<TCPClientInterfaceSetupData>

@@ -48,7 +48,6 @@ impl LocalLoopbackInterface {
         self.add_socket(self.socket.clone());
         self.register_socket_endpoint(uuid, Endpoint::LOCAL, 0)
             .unwrap();
-        self.set_state(ComInterfaceState::Connected);
         Ok(())
     }
 }

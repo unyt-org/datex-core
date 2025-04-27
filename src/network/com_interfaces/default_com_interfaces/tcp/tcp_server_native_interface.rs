@@ -48,64 +48,54 @@ impl TCPServerNativeInterface {
 
     #[create_opener]
     async fn open(&mut self) -> Result<(), TCPError> {
-        self.set_state(ComInterfaceState::Connecting);
-        let res = {
-            let address = self.address.clone();
-            info!("Spinning up server at {address}");
+        let address = self.address.clone();
+        info!("Spinning up server at {address}");
 
-            let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
-            let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-            let address = format!("{host}:{port}");
+        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
+        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
+        let address = format!("{host}:{port}");
 
-            let listener = TcpListener::bind(address.clone())
-                .await
-                .map_err(|e| TCPError::Other(format!("{e:?}")))?;
-            info!("Server listening on {address}");
+        let listener = TcpListener::bind(address.clone())
+            .await
+            .map_err(|e| TCPError::Other(format!("{e:?}")))?;
+        info!("Server listening on {address}");
 
-            let interface_uuid = self.get_uuid().clone();
-            let sockets = self.get_sockets().clone();
-            let tx = self.tx.clone();
-            spawn(async move {
-                loop {
-                    match listener.accept().await {
-                        Ok((stream, _)) => {
-                            let socket = ComInterfaceSocket::new(
-                                interface_uuid.clone(),
-                                InterfaceDirection::InOut,
-                                1,
-                            );
-                            let (read_half, write_half) = stream.into_split();
-                            tx.lock().unwrap().insert(
-                                socket.uuid.clone(),
-                                Arc::new(Mutex::new(write_half)),
-                            );
+        let interface_uuid = self.get_uuid().clone();
+        let sockets = self.get_sockets().clone();
+        let tx = self.tx.clone();
+        spawn(async move {
+            loop {
+                match listener.accept().await {
+                    Ok((stream, _)) => {
+                        let socket = ComInterfaceSocket::new(
+                            interface_uuid.clone(),
+                            InterfaceDirection::InOut,
+                            1,
+                        );
+                        let (read_half, write_half) = stream.into_split();
+                        tx.lock().unwrap().insert(
+                            socket.uuid.clone(),
+                            Arc::new(Mutex::new(write_half)),
+                        );
 
-                            let receive_queue = socket.receive_queue.clone();
-                            sockets
-                                .lock()
-                                .unwrap()
-                                .add_socket(Arc::new(Mutex::new(socket)));
+                        let receive_queue = socket.receive_queue.clone();
+                        sockets
+                            .lock()
+                            .unwrap()
+                            .add_socket(Arc::new(Mutex::new(socket)));
 
-                            spawn(async move {
-                                Self::handle_client(read_half, receive_queue)
-                                    .await
-                            });
-                        }
-                        Err(e) => {
-                            error!("Failed to accept connection: {e}");
-                            continue;
-                        }
+                        spawn(async move {
+                            Self::handle_client(read_half, receive_queue).await
+                        });
+                    }
+                    Err(e) => {
+                        error!("Failed to accept connection: {e}");
+                        continue;
                     }
                 }
-            });
-            Ok(())
-        };
-        if res.is_ok() {
-            self.set_state(ComInterfaceState::Connected);
-        } else {
-            self.set_state(ComInterfaceState::NotConnected);
-        }
-        res
+            }
+        });
+        Ok(())
     }
 
     async fn handle_client(

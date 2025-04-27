@@ -78,122 +78,112 @@ impl WebSocketServerNativeInterface {
 
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebSocketServerError> {
-        let res = {
-            let address = self.address.clone();
-            info!("Spinning up server at {address}");
-            let addr = format!(
-                "{}:{}",
-                address.host_str().unwrap(),
-                address.port().unwrap()
+        let address = self.address.clone();
+        info!("Spinning up server at {address}");
+        let addr = format!(
+            "{}:{}",
+            address.host_str().unwrap(),
+            address.port().unwrap()
+        )
+        .parse::<SocketAddr>()
+        .map_err(|_| WebSocketServerError::InvalidPort)?;
+
+        let listener = TcpListener::bind(&addr).await.map_err(|_| {
+            WebSocketServerError::WebSocketError(
+                WebSocketError::ConnectionError,
             )
-            .parse::<SocketAddr>()
-            .map_err(|_| WebSocketServerError::InvalidPort)?;
+        })?;
 
-            let listener = TcpListener::bind(&addr).await.map_err(|_| {
-                WebSocketServerError::WebSocketError(
-                    WebSocketError::ConnectionError,
-                )
-            })?;
+        let interface_uuid = self.get_uuid().clone();
+        let com_interface_sockets = self.get_sockets().clone();
+        let websocket_streams = self.websocket_streams.clone();
+        let shutdown = self.shutdown_signal.clone();
+        let mut tasks: Vec<JoinHandle<()>> = vec![];
+        spawn(async move {
+            loop {
+                debug!("ipdating...");
+                select! {
+                    res = listener.accept() => {
+                        match res {
+                            Ok((stream, addr)) => {
+                                let websocket_streams = websocket_streams.clone();
+                                let interface_uuid = interface_uuid.clone();
+                                let com_interface_sockets = com_interface_sockets.clone();
+                                let task = spawn(async move {
+                                    match accept_async(stream).await {
+                                        Ok(ws_stream) => {
+                                            info!(
+                                                "Accepted WebSocket connection from {addr}"
+                                            );
+                                            let (write, mut read) = ws_stream.split();
+                                            let socket = ComInterfaceSocket::new(
+                                                interface_uuid.clone(),
+                                                InterfaceDirection::InOut,
+                                                1,
+                                            );
+                                            let socket_uuid = socket.uuid.clone();
+                                            let socket_shared = Arc::new(Mutex::new(socket));
+                                            com_interface_sockets
+                                                .clone()
+                                                .lock()
+                                                .unwrap()
+                                                .add_socket(socket_shared.clone());
 
-            let interface_uuid = self.get_uuid().clone();
-            let com_interface_sockets = self.get_sockets().clone();
-            let websocket_streams = self.websocket_streams.clone();
-            self.set_state(ComInterfaceState::Connected);
-            let shutdown = self.shutdown_signal.clone();
-            let mut tasks: Vec<JoinHandle<()>> = vec![];
+                                            websocket_streams
+                                                .lock()
+                                                .unwrap()
+                                                .insert(socket_uuid, write);
 
-            spawn(async move {
-                loop {
-                    debug!("ipdating...");
-                    select! {
-                        res = listener.accept() => {
-                            match res {
-                                Ok((stream, addr)) => {
-                                    let websocket_streams = websocket_streams.clone();
-                                    let interface_uuid = interface_uuid.clone();
-                                    let com_interface_sockets = com_interface_sockets.clone();
-                                    let task = spawn(async move {
-                                        match accept_async(stream).await {
-                                            Ok(ws_stream) => {
-                                                info!(
-                                                    "Accepted WebSocket connection from {addr}"
-                                                );
-                                                let (write, mut read) = ws_stream.split();
-                                                let socket = ComInterfaceSocket::new(
-                                                    interface_uuid.clone(),
-                                                    InterfaceDirection::InOut,
-                                                    1,
-                                                );
-                                                let socket_uuid = socket.uuid.clone();
-                                                let socket_shared = Arc::new(Mutex::new(socket));
-                                                com_interface_sockets
-                                                    .clone()
-                                                    .lock()
-                                                    .unwrap()
-                                                    .add_socket(socket_shared.clone());
-
-                                                websocket_streams
-                                                    .lock()
-                                                    .unwrap()
-                                                    .insert(socket_uuid, write);
-
-                                                while let Some(msg) = read.next().await {
-                                                    match msg {
-                                                        Ok(Message::Binary(bin)) => {
-                                                            debug!(
-                                                                "Received binary message: {bin:?}"
-                                                            );
-                                                            socket_shared
-                                                                .lock()
-                                                                .unwrap()
-                                                                .receive_queue
-                                                                .lock()
-                                                                .unwrap()
-                                                                .extend(bin);
-                                                        }
-                                                        Ok(_) => {}
-                                                        Err(e) => {
-                                                            error!(
-                                                                "WebSocket error from {addr}: {e}"
-                                                            );
-                                                            break;
-                                                        }
+                                            while let Some(msg) = read.next().await {
+                                                match msg {
+                                                    Ok(Message::Binary(bin)) => {
+                                                        debug!(
+                                                            "Received binary message: {bin:?}"
+                                                        );
+                                                        socket_shared
+                                                            .lock()
+                                                            .unwrap()
+                                                            .receive_queue
+                                                            .lock()
+                                                            .unwrap()
+                                                            .extend(bin);
+                                                    }
+                                                    Ok(_) => {}
+                                                    Err(e) => {
+                                                        error!(
+                                                            "WebSocket error from {addr}: {e}"
+                                                        );
+                                                        break;
                                                     }
                                                 }
                                             }
-                                            Err(e) => {
-                                                error!(
-                                                    "WebSocket handshake failed with {addr}: {e}"
-                                                );
-                                            }
                                         }
-                                    });
-                                    tasks.push(task);
-                                }
-                                Err(e) => {
-                                    error!("Failed to accept connection: {e}");
-                                    continue;
-                                }
-                            };
-                        }
-                        _ = shutdown.notified() => {
-                            info!("Shutdown signal received, stopping server...");
-                            for task in tasks {
-                                task.abort();
+                                        Err(e) => {
+                                            error!(
+                                                "WebSocket handshake failed with {addr}: {e}"
+                                            );
+                                        }
+                                    }
+                                });
+                                tasks.push(task);
                             }
-                            break;
+                            Err(e) => {
+                                error!("Failed to accept connection: {e}");
+                                continue;
+                            }
+                        };
+                    }
+                    _ = shutdown.notified() => {
+                        info!("Shutdown signal received, stopping server...");
+                        for task in tasks {
+                            task.abort();
                         }
+                        break;
                     }
                 }
-            });
-            Ok(())
-        };
-        if res.is_ok() {
-            self.set_state(ComInterfaceState::Connected);
-        } else {
-            self.set_state(ComInterfaceState::NotConnected);
-        }
-        res
+            }
+        });
+        Ok(())
     }
 }
 
