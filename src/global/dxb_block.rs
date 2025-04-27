@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::io::{Cursor, Read}; // FIXME no-std
 
 use crate::datex_values::Endpoint;
@@ -203,5 +204,26 @@ impl DXBBlock {
             .receivers
             .flags
             .set_has_endpoints(!receivers.is_empty());
+    }
+}
+
+impl Display for DXBBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let block_type = self.block_header.flags_and_timestamp.block_type();
+        let sender = &self.routing_header.sender;
+        let receivers = self
+            .receivers()
+            .map(|endpoints| {
+                endpoints
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .unwrap_or("none".to_string());
+
+        write!(f, "[{}] {} -> {}", block_type, sender, receivers)?;
+
+        Ok(())
     }
 }

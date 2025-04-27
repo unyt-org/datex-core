@@ -5,10 +5,14 @@ mod com_interface_macros;
 
 /// This macro is used to create an opener for a interface.
 /// ```
+/// # use datex_macros::create_opener;
+/// # struct MyInterface;
+/// # struct MyError;
 /// impl MyInterface {
 ///     #[create_opener]
 ///     async fn open(&mut self) -> Result<(), MyError> {
-///         // Your implementation here
+///         // ...
+///         # Ok(())
 ///     }
 /// }
 /// ```

@@ -2,9 +2,10 @@ use super::serializable::Serializable;
 use crate::datex_values::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{bitfield, prelude::B43, BitfieldSpecifier};
+use strum_macros::Display;
 
 // 4 bit
-#[derive(Debug, PartialEq, Clone, Copy, Default, BitfieldSpecifier)]
+#[derive(Debug, Display, PartialEq, Clone, Copy, Default, BitfieldSpecifier)]
 pub enum BlockType {
     #[default]
     Request = 0,

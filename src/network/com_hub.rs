@@ -1,6 +1,6 @@
 use std::any::Any;
 use crate::global::protocol_structures::block_header::BlockType;
-use crate::global::protocol_structures::routing_header::SignatureType;
+use crate::global::protocol_structures::routing_header::{ReceiverEndpoints, SignatureType};
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
@@ -303,22 +303,18 @@ impl ComHub {
         socket_uuid: ComInterfaceSocketUUID,
     ) {
         info!(
-            "Received block addressed to {}",
+            "{} received block: {}",
+            self.endpoint,
             block
-                .receivers()
-                .map(|endpoint| endpoint
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", "))
-                .unwrap_or("none".to_string())
         );
-        
+
         // ignore invalid blocks (e.g. invalid signature)
         if !self.validate_block(block) {
             warn!("Block validation failed. Dropping block...");
             return;
         }
+
+        let block_type = block.block_header.flags_and_timestamp.block_type();
 
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
             let is_for_own = receivers.endpoints.iter().any(|e| {
@@ -326,41 +322,58 @@ impl ComHub {
                     || e == &Endpoint::ANY
                     || e == &Endpoint::ANY_ALL_INSTANCES
             });
-            let block_type = block.block_header.flags_and_timestamp.block_type();
             let should_relay =
                 // don't relay "Hello" blocks sent to own endpoint
                 !(
                     is_for_own && block_type == BlockType::Hello
                 );
-            
+
             // handle blocks for own endpoint
             if is_for_own && block_type != BlockType::Hello {
                 info!("Block is for this endpoint");
-                let mut incoming_blocks = self.incoming_blocks.borrow_mut();
-                incoming_blocks.push_back(Rc::new(block.clone()));
+
+                match block_type {
+                    BlockType::Trace => {
+                        self.handle_trace_block(block, socket_uuid);
+                        return;
+                    },
+                    BlockType::TraceBack => {
+                        self.handle_trace_back_block(block, socket_uuid);
+                        return;
+                    },
+                    _ => {
+                        let mut incoming_blocks = self.incoming_blocks.borrow_mut();
+                        incoming_blocks.push_back(Rc::new(block.clone()));
+                    }
+                };
             }
-            
+
             // relay the block to other endpoints
             if should_relay {
                 // get all receivers that the block must be relayed to
                 let remaining_receivers = if is_for_own {
-                    &receivers
-                        .endpoints
-                        .iter()
-                        .filter(|e| e != &&self.endpoint)
-                        .cloned()
-                        .collect::<Vec<_>>()
+                    &self.get_remote_receivers(&receivers)
                 } else {
                     &receivers.endpoints
                 };
 
                 // relay the block to all receivers
                 if !remaining_receivers.is_empty() {
-                    self.relay_block(
-                        block.clone(),
-                        remaining_receivers,
-                        socket_uuid.clone()
-                    );
+                    match block_type {
+                        BlockType::Trace => {
+                            self.redirect_trace_block(block, socket_uuid.clone());
+                        },
+                        BlockType::TraceBack => {
+                            self.redirect_trace_block(block, socket_uuid.clone());
+                        },
+                        _ => {
+                            self.relay_block(
+                                block.clone(),
+                                remaining_receivers,
+                                socket_uuid.clone()
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -371,7 +384,48 @@ impl ComHub {
             block,
         );
     }
-    
+
+    /// returns a list of all receivers from a given ReceiverEndpoints
+    /// excluding the local endpoint
+    fn get_remote_receivers(
+        &self,
+        receiver_endpoints: &ReceiverEndpoints
+    ) -> Vec<Endpoint> {
+        receiver_endpoints
+            .endpoints
+            .iter()
+            .filter(|e| e != &&self.endpoint)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    fn handle_trace_block(
+        &mut self,
+        block: &DXBBlock,
+        original_socket: ComInterfaceSocketUUID,
+    ) {
+        let sender = block.routing_header.sender.clone();
+        info!("Received trace block from {sender}");
+    }
+
+    fn handle_trace_back_block(
+        &mut self,
+        block: &DXBBlock,
+        original_socket: ComInterfaceSocketUUID,
+    ) {
+        let sender = block.routing_header.sender.clone();
+        info!("Received trace back block from {sender}");
+    }
+
+    fn redirect_trace_block(
+        &mut self,
+        block: &DXBBlock,
+        original_socket: ComInterfaceSocketUUID,
+    ) {
+        let sender = block.routing_header.sender.clone();
+        info!("Redirecting trace block from {sender}");
+    }
+
     /// Registers the socket endpoint from an incoming block
     /// if the endpoint is not already registered for the socket
     fn register_socket_endpoint_from_incoming_block(
@@ -411,12 +465,12 @@ impl ComHub {
             Ok(_) => { }
         }
     }
-    
+
     /// Prepare a block and relay it to the given receivers.
     /// The routing distance is incremented by 1.
     fn relay_block(
-        &self, 
-        block: DXBBlock, 
+        &self,
+        block: DXBBlock,
         receivers: &[Endpoint],
         original_socket: ComInterfaceSocketUUID
     ) {
@@ -426,7 +480,7 @@ impl ComHub {
         block.routing_header.distance += 1;
         self.send_block(block, Some(&original_socket));
     }
-    
+
     fn validate_block(&self, block: &DXBBlock) -> bool {
         // TODO check for creation time, withdraw if too old (TBD) or in the future
 

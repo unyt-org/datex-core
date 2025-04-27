@@ -10,7 +10,7 @@ pub struct NetworkTrace {
 }
 
 impl ComHub {
-    pub fn create_network_trace(
+    pub fn record_trace(
         &self,
         endpoint: impl Into<Endpoint>
     ) -> Option<NetworkTrace> {

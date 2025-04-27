@@ -28,11 +28,17 @@ async fn create_network_trace() {
         )
             .await;
 
+    // mutual introduction
+    com_interface_a.borrow_mut().update();
+    com_interface_b.borrow_mut().update();
+    com_hub_mut_a.lock().unwrap().update().await;
+    com_hub_mut_b.lock().unwrap().update().await;
 
+    // send trace from A to B
     let network_trace = com_hub_mut_a
         .lock()
         .unwrap()
-        .create_network_trace(TEST_ENDPOINT_B.clone());
+        .record_trace(TEST_ENDPOINT_B.clone());
 
     com_hub_mut_a.lock().unwrap().update().await;
     com_interface_b.borrow_mut().update();
