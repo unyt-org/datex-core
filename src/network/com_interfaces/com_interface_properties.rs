@@ -1,7 +1,7 @@
 use strum::EnumString;
 
 use crate::stdlib::time::Duration;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Deserialize)]
 
