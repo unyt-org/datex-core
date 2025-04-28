@@ -8,9 +8,6 @@ impl UUID {
     pub fn new() -> UUID {
         UUID::default()
     }
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
     pub fn from_string(uuid: String) -> UUID {
         UUID(uuid)
     }
