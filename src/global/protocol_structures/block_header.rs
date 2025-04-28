@@ -75,11 +75,17 @@ pub struct FlagsAndTimestamp {
     pub creation_timestamp: B43,
 }
 
-// min: 8 byte
-// max 8 byte + 4 byte + 21 byte + 16 byte = 49 byte
+// min: 16 byte
+// max 8 + 8 byte + 4 byte + 21 byte + 16 byte = 57 byte
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct BlockHeader {
+    // id, relevant for Request->Response
+    pub scope_id: u32,
+    pub block_index: u16,
+    // block increment for sub-blocks
+    pub block_increment: u16,
+
     pub flags_and_timestamp: FlagsAndTimestamp,
 
     #[brw(if(flags_and_timestamp.has_lifetime()))]

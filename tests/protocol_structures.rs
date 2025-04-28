@@ -62,9 +62,6 @@ pub fn parse_routing_header() {
         flags: Flags::new(),
         block_size_u16: Some(0),
         block_size_u32: None,
-        scope_id: 0,
-        block_index: 0,
-        block_increment: 0,
         sender: Endpoint {
             type_: EndpointType::Person,
             identifier: [0; 18],

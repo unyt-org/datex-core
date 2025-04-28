@@ -9,6 +9,7 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::io::Write;
 use std::sync::mpsc;
+use datex_core::global::protocol_structures::block_header::BlockHeader;
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceFactory, ComInterfaceState};
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
@@ -324,6 +325,9 @@ pub async fn test_receive_multiple() {
     let mut blocks = vec![
         DXBBlock {
             routing_header: RoutingHeader {
+                ..Default::default()
+            },
+            block_header: BlockHeader {
                 block_index: 0,
                 ..Default::default()
             },
@@ -331,6 +335,9 @@ pub async fn test_receive_multiple() {
         },
         DXBBlock {
             routing_header: RoutingHeader {
+                ..Default::default()
+            },
+            block_header: BlockHeader {
                 block_index: 1,
                 ..Default::default()
             },
@@ -338,6 +345,9 @@ pub async fn test_receive_multiple() {
         },
         DXBBlock {
             routing_header: RoutingHeader {
+                ..Default::default()
+            },
+            block_header: BlockHeader {
                 block_index: 2,
                 ..Default::default()
             },

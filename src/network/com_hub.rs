@@ -322,11 +322,6 @@ impl ComHub {
                     || e == &Endpoint::ANY
                     || e == &Endpoint::ANY_ALL_INSTANCES
             });
-            let should_relay =
-                // don't relay "Hello" blocks sent to own endpoint
-                !(
-                    is_for_own && block_type == BlockType::Hello
-                );
 
             // handle blocks for own endpoint
             if is_for_own && block_type != BlockType::Hello {
@@ -347,6 +342,13 @@ impl ComHub {
                     }
                 };
             }
+
+            let should_relay =
+                // don't relay "Hello" blocks sent to own endpoint
+                !(
+                    is_for_own && block_type == BlockType::Hello
+                );
+
 
             // relay the block to other endpoints
             if should_relay {
@@ -399,32 +401,7 @@ impl ComHub {
             .collect::<Vec<_>>()
     }
 
-    fn handle_trace_block(
-        &mut self,
-        block: &DXBBlock,
-        original_socket: ComInterfaceSocketUUID,
-    ) {
-        let sender = block.routing_header.sender.clone();
-        info!("Received trace block from {sender}");
-    }
 
-    fn handle_trace_back_block(
-        &mut self,
-        block: &DXBBlock,
-        original_socket: ComInterfaceSocketUUID,
-    ) {
-        let sender = block.routing_header.sender.clone();
-        info!("Received trace back block from {sender}");
-    }
-
-    fn redirect_trace_block(
-        &mut self,
-        block: &DXBBlock,
-        original_socket: ComInterfaceSocketUUID,
-    ) {
-        let sender = block.routing_header.sender.clone();
-        info!("Redirecting trace block from {sender}");
-    }
 
     /// Registers the socket endpoint from an incoming block
     /// if the endpoint is not already registered for the socket
@@ -713,6 +690,15 @@ impl ComHub {
                 panic!("Interface for uuid {interface_uuid} not found")
             })
             .clone()
+    }
+
+    pub(crate) fn get_com_interface_from_socket_uuid(
+        &self,
+        socket_uuid: &ComInterfaceSocketUUID,
+    ) -> Rc<RefCell<dyn ComInterface>> {
+        let socket = self.get_socket_by_uuid(socket_uuid);
+        let socket = socket.lock().unwrap();
+        self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
 
     fn get_socket_interface_properties(

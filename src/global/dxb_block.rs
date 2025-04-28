@@ -39,6 +39,11 @@ impl PartialEq for DXBBlock {
     }
 }
 
+const ROUTING_HEADER_FLAGS_POSITION: usize = 4;
+const SIZE_BYTE_POSITION: usize = ROUTING_HEADER_FLAGS_POSITION + 1;
+const MAX_SIZE_BYTE_LENGTH: usize = 4;
+const ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION: u8 = 3;
+
 impl DXBBlock {
     pub fn new(
         routing_header: RoutingHeader,
@@ -90,7 +95,6 @@ impl DXBBlock {
         let size = bytes.len() as u32;
         let is_small_size = size <= u16::MAX as u32;
 
-        const SIZE_BYTE_POSITION: usize = 13;
 
         if is_small_size {
             // replace u32 size with u16 size
@@ -108,9 +112,9 @@ impl DXBBlock {
 
         // update small size flag
         if is_small_size {
-            clear_bit(&mut bytes, 5, 3);
+            clear_bit(&mut bytes, ROUTING_HEADER_FLAGS_POSITION, ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION);
         } else {
-            set_bit(&mut bytes, 5, 3);
+            set_bit(&mut bytes, ROUTING_HEADER_FLAGS_POSITION, ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION);
         }
         bytes
     }
@@ -122,7 +126,7 @@ impl DXBBlock {
     pub fn extract_dxb_block_length(
         dxb: &[u8],
     ) -> Result<u32, HeaderParsingError> {
-        if dxb.len() < 6 {
+        if dxb.len() < SIZE_BYTE_POSITION + MAX_SIZE_BYTE_LENGTH {
             return Err(HeaderParsingError::InsufficientLength);
         }
         let routing_header = RoutingHeader::read(&mut Cursor::new(dxb))

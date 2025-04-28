@@ -37,9 +37,6 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
         flags: routing_header::Flags::new(),
         block_size_u16: Some(0),
         block_size_u32: None,
-        scope_id: 0,
-        block_index: 0,
-        block_increment: 0,
         sender: Endpoint::LOCAL,
         receivers: routing_header::Receivers {
             flags: routing_header::ReceiverFlags::new()

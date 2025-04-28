@@ -6,6 +6,8 @@ use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME no-std
 use std::io::Cursor;
+use std::str::FromStr;
+use strum::Display;
 use crate::stdlib::str;
 
 #[derive(
@@ -72,7 +74,7 @@ impl From<&str> for Endpoint {
 }
 
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Display)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
@@ -501,6 +503,14 @@ impl Display for Endpoint {
         };
 
         Ok(())
+    }
+}
+
+impl FromStr for Endpoint {
+    type Err = InvalidEndpointError;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        Endpoint::from_string(name)
     }
 }
 

@@ -290,7 +290,7 @@ macro_rules! delegate_com_interface_info {
 /// impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
 ///     fn create(setup_data: BaseInterfaceSetupData) -> Result<BaseInterface, ComInterfaceError> {
 ///         // ...
-///         Ok(BaseInterface::new("example"))
+///         Ok(BaseInterface::new_with_name("example"))
 ///     }
 ///     fn get_default_properties() -> InterfaceProperties {
 ///         InterfaceProperties {

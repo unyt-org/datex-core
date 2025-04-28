@@ -128,10 +128,6 @@ pub struct RoutingHeader {
     pub distance: u8,
     pub flags: Flags,
 
-    pub scope_id: u32,
-    pub block_index: u16,
-    pub block_increment: u16,
-
     #[brw(
         if(flags.block_size() == BlockSize::Default)
     )]
@@ -161,9 +157,6 @@ impl Default for RoutingHeader {
             version: 1,
             distance: 0,
             flags: Flags::new(),
-            scope_id: 0,
-            block_index: 0,
-            block_increment: 0,
             block_size_u16: Some(26),
             block_size_u32: None,
             sender: Endpoint::default(),
