@@ -1,14 +1,17 @@
 use strum::EnumString;
 
 use crate::stdlib::time::Duration;
-#[derive(PartialEq, Debug, Clone, EnumString)]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Debug, Clone, EnumString, Deserialize)]
+
 pub enum InterfaceDirection {
     In,
     Out,
     InOut,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct InterfaceProperties {
     /// the type of the interface, by which it is identified
     /// e.g. "tcp-client", "websocket-server",
@@ -57,14 +60,18 @@ pub struct InterfaceProperties {
     pub close_timestamp: Option<Duration>,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub enum ReconnectionConfig {
     #[default]
     NoReconnect,
     InstantReconnect,
-    ReconnectWithTimeout { timeout: Duration },
-    ReconnectWithTimeoutAndAttempts { timeout: Duration, attempts: u8 },
+    ReconnectWithTimeout {
+        timeout: Duration,
+    },
+    ReconnectWithTimeoutAndAttempts {
+        timeout: Duration,
+        attempts: u8,
+    },
 }
 
 impl InterfaceProperties {

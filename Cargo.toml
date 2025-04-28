@@ -65,6 +65,7 @@ matchbox_socket = { default-features = false, git = "https://github.com/unyt-org
 esp-idf-svc = { version = "0.51.0", optional = true }
 futures-timer = { version = "3" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
+serde = "1.0.219"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.7", optional = true }

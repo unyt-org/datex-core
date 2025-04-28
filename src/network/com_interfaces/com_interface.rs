@@ -404,8 +404,7 @@ pub trait ComInterface: Any {
             } else {
                 error!("Error while closing interface {uuid}");
                 // If the interface could not be closed, we set it to destroyed
-                // to make sure it is cleaned up
-                // and not left in a dangling state.
+                // to make sure it is cleaned up and not left in a dangling state.
 
                 // When we can't close an interface, we won't reconnect it
                 self.set_state(ComInterfaceState::Destroyed);
@@ -415,9 +414,9 @@ pub trait ComInterface: Any {
             // to notify ComHub routing logic
             self.destroy_sockets();
 
-            // Update the close timestamp
-            // This is used to determine if the interface shall be reopened
-            if self.get_properties().shall_reconnect() {
+            // Update the close timestamp for interfaces that support reconnect
+            // This is used to determine when the interface shall be reopened
+            if ok && self.get_properties().shall_reconnect() {
                 let time = get_global_context().time.lock().unwrap().now();
                 let properties = self.get_properties_mut();
                 properties.close_timestamp = Some(Duration::from_millis(time));
