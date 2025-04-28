@@ -89,8 +89,9 @@ pub async fn test_construct_client() {
     );
 
     // We expect a connection error here, as the server can't be reached
-    let mut client = WebSocketClientNativeInterface::new("ws://localhost.invalid:1234")
-    .unwrap();
+    let mut client =
+        WebSocketClientNativeInterface::new("ws://localhost.invalid:1234")
+            .unwrap();
 
     assert_eq!(
         client.open().await.unwrap_err(),

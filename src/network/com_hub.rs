@@ -1,6 +1,7 @@
-use std::any::Any;
 use crate::global::protocol_structures::block_header::BlockType;
-use crate::global::protocol_structures::routing_header::{ReceiverEndpoints, SignatureType};
+use crate::global::protocol_structures::routing_header::{
+    ReceiverEndpoints, SignatureType,
+};
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
@@ -8,6 +9,7 @@ use crate::task::spawn_local;
 use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
+use std::any::Any;
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -40,7 +42,9 @@ pub struct DynamicEndpointProperties {
 }
 
 pub type ComInterfaceFactoryFn =
-    fn(setup_data: Box<dyn Any>) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
+    fn(
+        setup_data: Box<dyn Any>,
+    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
@@ -108,7 +112,7 @@ pub enum ComHubError {
     InterfaceNotConnected,
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
-    InterfaceTypeDoesNotExist
+    InterfaceTypeDoesNotExist,
 }
 
 #[derive(Debug)]
@@ -135,7 +139,11 @@ impl ComHub {
 
     /// Register a new interface factory for a specific interface implementation.
     /// This allows the ComHub to create new instances of the interface on demand.
-    pub fn register_interface_factory(&mut self, interface_type: String, factory: ComInterfaceFactoryFn) {
+    pub fn register_interface_factory(
+        &mut self,
+        interface_type: String,
+        factory: ComInterfaceFactoryFn,
+    ) {
         self.interface_factories.insert(interface_type, factory);
     }
 
@@ -145,12 +153,11 @@ impl ComHub {
     pub async fn create_interface(
         &mut self,
         interface_type: &str,
-        setup_data: Box<dyn Any>
+        setup_data: Box<dyn Any>,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         if let Some(factory) = self.interface_factories.get(interface_type) {
-            let interface = factory(setup_data).map_err(|e| {
-                ComHubError::InterfaceError(e)
-            })?;
+            let interface = factory(setup_data)
+                .map_err(|e| ComHubError::InterfaceError(e))?;
             self.open_and_add_interface(interface.clone())
                 .await
                 .map(|_| interface)
@@ -302,11 +309,7 @@ impl ComHub {
         block: &DXBBlock,
         socket_uuid: ComInterfaceSocketUUID,
     ) {
-        info!(
-            "{} received block: {}",
-            self.endpoint,
-            block
-        );
+        info!("{} received block: {}", self.endpoint, block);
 
         // ignore invalid blocks (e.g. invalid signature)
         if !self.validate_block(block) {
@@ -331,13 +334,14 @@ impl ComHub {
                     BlockType::Trace => {
                         self.handle_trace_block(block, socket_uuid);
                         return;
-                    },
+                    }
                     BlockType::TraceBack => {
                         self.handle_trace_back_block(block, socket_uuid);
                         return;
-                    },
+                    }
                     _ => {
-                        let mut incoming_blocks = self.incoming_blocks.borrow_mut();
+                        let mut incoming_blocks =
+                            self.incoming_blocks.borrow_mut();
                         incoming_blocks.push_back(Rc::new(block.clone()));
                     }
                 };
@@ -348,7 +352,6 @@ impl ComHub {
                 !(
                     is_for_own && block_type == BlockType::Hello
                 );
-
 
             // relay the block to other endpoints
             if should_relay {
@@ -363,16 +366,22 @@ impl ComHub {
                 if !remaining_receivers.is_empty() {
                     match block_type {
                         BlockType::Trace => {
-                            self.redirect_trace_block(block, socket_uuid.clone());
-                        },
+                            self.redirect_trace_block(
+                                block,
+                                socket_uuid.clone(),
+                            );
+                        }
                         BlockType::TraceBack => {
-                            self.redirect_trace_block(block, socket_uuid.clone());
-                        },
+                            self.redirect_trace_block(
+                                block,
+                                socket_uuid.clone(),
+                            );
+                        }
                         _ => {
                             self.relay_block(
                                 block.clone(),
                                 remaining_receivers,
-                                socket_uuid.clone()
+                                socket_uuid.clone(),
                             );
                         }
                     }
@@ -381,17 +390,14 @@ impl ComHub {
         }
 
         // assign endpoint to socket if none is assigned
-        self.register_socket_endpoint_from_incoming_block(
-            socket_uuid,
-            block,
-        );
+        self.register_socket_endpoint_from_incoming_block(socket_uuid, block);
     }
 
     /// returns a list of all receivers from a given ReceiverEndpoints
     /// excluding the local endpoint
     fn get_remote_receivers(
         &self,
-        receiver_endpoints: &ReceiverEndpoints
+        receiver_endpoints: &ReceiverEndpoints,
     ) -> Vec<Endpoint> {
         receiver_endpoints
             .endpoints
@@ -400,8 +406,6 @@ impl ComHub {
             .cloned()
             .collect::<Vec<_>>()
     }
-
-
 
     /// Registers the socket endpoint from an incoming block
     /// if the endpoint is not already registered for the socket
@@ -449,7 +453,7 @@ impl ComHub {
         &self,
         block: DXBBlock,
         receivers: &[Endpoint],
-        original_socket: ComInterfaceSocketUUID
+        original_socket: ComInterfaceSocketUUID,
     ) {
         let mut block = block.clone();
         block.set_receivers(receivers);
@@ -470,24 +474,22 @@ impl ComHub {
                 // Check if signature is following in some later block and add them to
                 // a pool of incoming blocks awaiting some signature
                 true
-            },
+            }
             false => {
                 let endpoint = block.routing_header.sender.clone();
                 let is_trusted = {
                     cfg_if::cfg_if! {
-                    if #[cfg(feature = "debug")] {
-                        get_global_context().debug_flags.allow_unsigned_blocks
+                        if #[cfg(feature = "debug")] {
+                            get_global_context().debug_flags.allow_unsigned_blocks
+                        }
+                        else {
+                            // TODO Check if the sender is trusted (endpoint + interface) connection
+                            false
+                        }
                     }
-                    else {
-                        // TODO Check if the sender is trusted (endpoint + interface) connection
-                        false
-                    }
-                }
                 };
                 match is_trusted {
-                    true => {
-                        true
-                    }
+                    true => true,
                     false => {
                         warn!("Block received by {endpoint} is not signed. Dropping block...");
                         false

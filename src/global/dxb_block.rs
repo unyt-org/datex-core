@@ -95,7 +95,6 @@ impl DXBBlock {
         let size = bytes.len() as u32;
         let is_small_size = size <= u16::MAX as u32;
 
-
         if is_small_size {
             // replace u32 size with u16 size
             if routing_header.flags.block_size() == BlockSize::Large {
@@ -112,9 +111,17 @@ impl DXBBlock {
 
         // update small size flag
         if is_small_size {
-            clear_bit(&mut bytes, ROUTING_HEADER_FLAGS_POSITION, ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION);
+            clear_bit(
+                &mut bytes,
+                ROUTING_HEADER_FLAGS_POSITION,
+                ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION,
+            );
         } else {
-            set_bit(&mut bytes, ROUTING_HEADER_FLAGS_POSITION, ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION);
+            set_bit(
+                &mut bytes,
+                ROUTING_HEADER_FLAGS_POSITION,
+                ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION,
+            );
         }
         bytes
     }

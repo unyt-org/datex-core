@@ -1,5 +1,6 @@
 use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
+use datex_core::global::protocol_structures::block_header::BlockHeader;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
 };
@@ -9,10 +10,7 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::io::Write;
 use std::sync::mpsc;
-use datex_core::global::protocol_structures::block_header::BlockHeader;
 // FIXME no-std
-use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceFactory, ComInterfaceState};
-use datex_core::network::com_interfaces::com_interface_socket::SocketState;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     add_socket, get_mock_setup, get_mock_setup_with_socket,
@@ -20,6 +18,10 @@ use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B,
 };
 use crate::network::helpers::mockup_interface::MockupInterface;
+use datex_core::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceFactory, ComInterfaceState,
+};
+use datex_core::network::com_interfaces::com_interface_socket::SocketState;
 
 use super::helpers::mock_setup::get_mock_setup_with_socket_and_endpoint;
 
@@ -493,5 +495,11 @@ pub async fn register_factory() {
         .await
         .unwrap();
 
-    assert_eq!(mockup_interface.borrow_mut().get_properties().interface_type, "mockup");
+    assert_eq!(
+        mockup_interface
+            .borrow_mut()
+            .get_properties()
+            .interface_type,
+        "mockup"
+    );
 }

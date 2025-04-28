@@ -272,8 +272,7 @@ pub fn buffer_to_hex_advanced(
             // 0 count, max 15
             if zero_count <= 0xf {
                 i += 1;
-                write!(s, "x{zero_count:01X}")
-                    .expect("could not parse buffer");
+                write!(s, "x{zero_count:01X}").expect("could not parse buffer");
             } else {
                 i = initial_i;
                 write!(s, "{byte:02X}").expect("could not parse buffer");

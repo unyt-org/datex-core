@@ -5,10 +5,10 @@ use crate::utils::buffers::buffer_to_hex;
 use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME no-std
+use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
 use strum::Display;
-use crate::stdlib::str;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -72,7 +72,6 @@ impl From<&str> for Endpoint {
         Endpoint::from_string(name).expect("Invalid endpoint")
     }
 }
-
 
 #[derive(PartialEq, Debug, Display)]
 pub enum InvalidEndpointError {

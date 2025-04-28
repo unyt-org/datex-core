@@ -36,7 +36,10 @@ impl Runtime {
             ..Runtime::default()
         }
     }
-    pub fn init(endpoint: impl Into<Endpoint>, global_context: GlobalContext) -> Runtime {
+    pub fn init(
+        endpoint: impl Into<Endpoint>,
+        global_context: GlobalContext,
+    ) -> Runtime {
         set_global_context(global_context);
         init_logger();
         info!(

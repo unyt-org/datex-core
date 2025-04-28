@@ -1,12 +1,14 @@
+use crate::datex_values::Endpoint;
+use crate::global::dxb_block::DXBBlock;
+use crate::global::protocol_structures::block_header::{
+    BlockHeader, BlockType, FlagsAndTimestamp,
+};
+use crate::network::com_hub::ComHub;
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use crate::datex_values::Endpoint;
-use crate::global::dxb_block::DXBBlock;
-use crate::global::protocol_structures::block_header::{BlockHeader, BlockType, FlagsAndTimestamp};
-use crate::network::com_hub::ComHub;
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
 #[derive(Serialize, Deserialize)]
 pub struct NetworkTraceHopSocket {
@@ -40,7 +42,7 @@ pub struct NetworkTraceResult {
 impl ComHub {
     pub fn record_trace(
         &self,
-        endpoint: impl Into<Endpoint>
+        endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
         let endpoint = endpoint.into();
 
@@ -49,9 +51,7 @@ impl ComHub {
         let mut trace_block = DXBBlock {
             block_header: BlockHeader {
                 flags_and_timestamp: FlagsAndTimestamp::default()
-                    .with_block_type(
-                        BlockType::Trace
-                    ),
+                    .with_block_type(BlockType::Trace),
                 ..BlockHeader::default()
             },
             ..DXBBlock::default()
@@ -64,10 +64,9 @@ impl ComHub {
         Some(NetworkTraceResult {
             endpoint: endpoint.clone(),
             hops_outgoing: vec![],
-            hops_incoming: vec![]
+            hops_incoming: vec![],
         })
     }
-
 
     pub(crate) fn handle_trace_block(
         &mut self,
@@ -75,9 +74,12 @@ impl ComHub {
         original_socket: ComInterfaceSocketUUID,
     ) -> Option<()> {
         let sender = block.routing_header.sender.clone();
-        let com_interface_properties = self.get_com_interface_from_socket_uuid(&original_socket);
-        let mut com_interface_properties = com_interface_properties.borrow_mut();
-        let com_interface_properties = com_interface_properties.get_properties();
+        let com_interface_properties =
+            self.get_com_interface_from_socket_uuid(&original_socket);
+        let mut com_interface_properties =
+            com_interface_properties.borrow_mut();
+        let com_interface_properties =
+            com_interface_properties.get_properties();
 
         info!("Received trace block from {sender}");
         // get hops vector
@@ -99,7 +101,7 @@ impl ComHub {
 
         Some(())
     }
-    
+
     fn create_trace_block(
         &self,
         hops: Vec<NetworkTraceHop>,
@@ -114,7 +116,7 @@ impl ComHub {
             },
             ..DXBBlock::default()
         };
-        
+
         self.set_trace_data_of_block(&mut trace_block, hops);
 
         trace_block.set_receivers(&[receiver_endpoint.clone()]);
