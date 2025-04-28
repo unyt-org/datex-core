@@ -4,7 +4,6 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::network::com_hub::ComHub;
 use crate::stdlib::{
     cell::RefCell,
     hash::{Hash, Hasher},
@@ -12,12 +11,16 @@ use crate::stdlib::{
 };
 use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
+use crate::{
+    network::com_hub::ComHub, runtime::global_context::get_global_context,
+};
 use futures_util::future::join_all;
 use log::{debug, error, warn};
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
     pin::Pin,
+    time::Duration,
 };
 use std::{
     future::Future,
@@ -252,6 +255,20 @@ macro_rules! delegate_com_interface_info {
                 info.interface_properties.as_ref().unwrap()
             }
         }
+        fn get_properties_mut(&mut self) -> &mut InterfaceProperties {
+            if self.get_info().interface_properties.is_some() {
+                return self
+                    .get_info_mut()
+                    .interface_properties
+                    .as_mut()
+                    .unwrap();
+            } else {
+                let new_properties = self.init_properties();
+                let info = self.get_info_mut();
+                info.interface_properties = Some(new_properties);
+                info.interface_properties.as_mut().unwrap()
+            }
+        }
     };
 }
 
@@ -334,6 +351,7 @@ pub trait ComInterface: Any {
     fn init_properties(&self) -> InterfaceProperties;
     // TODO: no mut, wrap self.info in RefCell
     fn get_properties(&mut self) -> &InterfaceProperties;
+    fn get_properties_mut(&mut self) -> &mut InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;
 
     fn get_info(&self) -> &ComInterfaceInfo;
@@ -396,6 +414,14 @@ pub trait ComInterface: Any {
             // Remove the sockets from the interface socket list
             // to notify ComHub routing logic
             self.destroy_sockets();
+
+            // Update the close timestamp
+            // This is used to determine if the interface shall be reopened
+            if self.get_properties().shall_reconnect() {
+                let time = get_global_context().time.lock().unwrap().now();
+                let properties = self.get_properties_mut();
+                properties.close_timestamp = Some(Duration::from_millis(time));
+            }
             ok
         })
     }

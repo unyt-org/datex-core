@@ -1,7 +1,10 @@
-use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc};
+use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc, time::Duration};
 
 use datex_core::network::com_interfaces::{
-    com_interface::ComInterface, com_interface_properties::InterfaceDirection,
+    com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceState},
+    com_interface_properties::{
+        InterfaceDirection, InterfaceProperties, ReconnectionConfig,
+    },
     com_interface_socket::ComInterfaceSocketUUID,
     default_com_interfaces::base_interface::BaseInterface,
     socket_provider::MultipleSocketProvider,
@@ -10,15 +13,40 @@ use datex_core::network::com_interfaces::{
 use crate::context::init_global_context;
 
 #[tokio::test]
+pub async fn test_close() {
+    init_global_context();
+    // Create a new interface
+    let mut base_interface =
+        BaseInterface::new_with_properties(InterfaceProperties {
+            reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
+                timeout: Duration::from_secs(1),
+            },
+            ..InterfaceProperties::default()
+        });
+    assert_eq!(base_interface.get_state(), ComInterfaceState::NotConnected);
+    assert!(base_interface.get_properties().close_timestamp.is_none());
+
+    // Open the interface
+    base_interface.open().unwrap();
+    assert_eq!(base_interface.get_state(), ComInterfaceState::Connected);
+    assert!(base_interface.get_properties().close_timestamp.is_none());
+
+    // Close the interface
+    assert!(base_interface.close().await);
+    assert_eq!(base_interface.get_state(), ComInterfaceState::NotConnected);
+    assert!(base_interface.get_properties().close_timestamp.is_some());
+}
+
+#[tokio::test]
 pub async fn test_construct() {
     const MESSAGE_A_TO_B: &[u8] = b"Hello from A";
     const MESSAGE_B_TO_A: &[u8] = b"Hello from B";
 
     init_global_context();
     let base_interface_a =
-        Rc::new(RefCell::new(BaseInterface::new("mockup-a")));
+        Rc::new(RefCell::new(BaseInterface::new_with_name("mockup-a")));
     let base_interface_b =
-        Rc::new(RefCell::new(BaseInterface::new("mockup-b")));
+        Rc::new(RefCell::new(BaseInterface::new_with_name("mockup-b")));
 
     // This is a socket of mockup-a connected to mockup-b
     let socket_a_uuid = base_interface_a

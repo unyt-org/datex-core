@@ -24,13 +24,13 @@ pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn F
     + 'static;
 
 pub struct BaseInterface {
-    name: String,
     info: ComInterfaceInfo,
     on_send: Option<Box<OnSendCallback>>,
+    properties: InterfaceProperties,
 }
 impl Default for BaseInterface {
     fn default() -> Self {
-        Self::new("unknown")
+        Self::new_with_name("unknown")
     }
 }
 
@@ -51,7 +51,7 @@ impl BaseInterface {
         name: &str,
         direction: InterfaceDirection,
     ) -> BaseInterface {
-        let interface = BaseInterface::new(name);
+        let interface = BaseInterface::new_with_name(name);
         let socket =
             ComInterfaceSocket::new(interface.get_uuid().clone(), direction, 1);
         let socket_uuid = socket.uuid.clone();
@@ -63,10 +63,24 @@ impl BaseInterface {
         interface
     }
 
-    pub fn new(name: &str) -> BaseInterface {
+    pub fn new() -> BaseInterface {
+        Self::new_with_name("unknown")
+    }
+
+    pub fn new_with_name(name: &str) -> BaseInterface {
+        Self::new_with_properties(InterfaceProperties {
+            interface_type: name.to_string(),
+            round_trip_time: Duration::from_millis(0),
+            max_bandwidth: u32::MAX,
+            ..InterfaceProperties::default()
+        })
+    }
+    pub fn new_with_properties(
+        properties: InterfaceProperties,
+    ) -> BaseInterface {
         BaseInterface {
-            name: name.to_string(),
             info: ComInterfaceInfo::default(),
+            properties,
             on_send: None,
         }
     }
@@ -146,13 +160,7 @@ impl ComInterface for BaseInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            interface_type: self.name.clone(),
-            channel: self.name.clone(),
-            round_trip_time: Duration::from_millis(0),
-            max_bandwidth: u32::MAX,
-            ..InterfaceProperties::default()
-        }
+        self.properties.clone()
     }
     fn handle_close<'a>(
         &'a mut self,

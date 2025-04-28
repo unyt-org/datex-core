@@ -1,6 +1,6 @@
 use strum::EnumString;
 
-use crate::stdlib::time::Duration;
+use crate::{datex_values::Time, stdlib::time::Duration};
 #[derive(PartialEq, Debug, Clone, EnumString)]
 pub enum InterfaceDirection {
     In,
@@ -8,7 +8,7 @@ pub enum InterfaceDirection {
     InOut,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterfaceProperties {
     /// the type of the interface, by which it is identified
     /// e.g. "tcp-client", "websocket-server",
@@ -51,6 +51,10 @@ pub struct InterfaceProperties {
     // Defines the reconnection strategy for the interface
     // If the interface is not able to reconnect, it will be destroyed
     pub reconnection_config: ReconnectionConfig,
+
+    /// Timestamp of the interface close event
+    /// This is used to determine if the interface shall be reopened
+    pub close_timestamp: Option<Duration>,
 }
 
 #[derive(Debug, Clone)]
@@ -94,8 +98,8 @@ impl InterfaceProperties {
 impl Default for InterfaceProperties {
     fn default() -> Self {
         InterfaceProperties {
-            interface_type: "".to_string(),
-            channel: "".to_string(),
+            interface_type: "unknown".to_string(),
+            channel: "unknown".to_string(),
             name: None,
             direction: InterfaceDirection::InOut,
             round_trip_time: Duration::from_millis(0),
@@ -104,6 +108,7 @@ impl Default for InterfaceProperties {
             allow_redirects: true,
             is_secure_channel: false,
             reconnection_config: ReconnectionConfig::default(),
+            close_timestamp: None,
         }
     }
 }
