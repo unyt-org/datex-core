@@ -222,7 +222,7 @@ impl Display for DXBBlock {
             })
             .unwrap_or("none".to_string());
 
-        write!(f, "[{}] {} -> {}", block_type, sender, receivers)?;
+        write!(f, "[{block_type}] {sender} -> {receivers}")?;
 
         Ok(())
     }

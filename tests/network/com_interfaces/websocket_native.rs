@@ -83,13 +83,13 @@ pub async fn test_construct_client() {
 
     // Test with a invalid URL
     assert_eq!(
-        WebSocketClientNativeInterface::new(&"ftp://localhost:1234".to_string())
+        WebSocketClientNativeInterface::new("ftp://localhost:1234")
             .unwrap_err(),
         WebSocketError::InvalidURL
     );
 
     // We expect a connection error here, as the server can't be reached
-    let mut client = WebSocketClientNativeInterface::new(&"ws://localhost.invalid:1234".to_string())
+    let mut client = WebSocketClientNativeInterface::new("ws://localhost.invalid:1234")
     .unwrap();
 
     assert_eq!(

@@ -352,7 +352,7 @@ impl ComHub {
             if should_relay {
                 // get all receivers that the block must be relayed to
                 let remaining_receivers = if is_for_own {
-                    &self.get_remote_receivers(&receivers)
+                    &self.get_remote_receivers(receivers)
                 } else {
                     &receivers.endpoints
                 };

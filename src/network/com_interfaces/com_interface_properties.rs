@@ -1,6 +1,6 @@
 use strum::EnumString;
 
-use crate::{datex_values::Time, stdlib::time::Duration};
+use crate::stdlib::time::Duration;
 #[derive(PartialEq, Debug, Clone, EnumString)]
 pub enum InterfaceDirection {
     In,
@@ -58,16 +58,13 @@ pub struct InterfaceProperties {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum ReconnectionConfig {
+    #[default]
     NoReconnect,
     InstantReconnect,
     ReconnectWithTimeout { timeout: Duration },
     ReconnectWithTimeoutAndAttempts { timeout: Duration, attempts: u8 },
-}
-impl Default for ReconnectionConfig {
-    fn default() -> Self {
-        ReconnectionConfig::NoReconnect
-    }
 }
 
 impl InterfaceProperties {

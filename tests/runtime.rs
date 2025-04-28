@@ -1,4 +1,3 @@
-use datex_core::datex_values::Endpoint;
 use datex_core::stdlib::env;
 
 use datex_core::runtime::Runtime;
