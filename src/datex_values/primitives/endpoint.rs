@@ -189,7 +189,7 @@ impl Endpoint {
     }
 
     // create endpoint from string (@person/42, @@local, @+unyt)
-    pub fn from_string(name: &str) -> Result<Endpoint, InvalidEndpointError> {
+    fn from_string(name: &str) -> Result<Endpoint, InvalidEndpointError> {
         let name = name.to_string();
         if name
             == format!("{}{}", Endpoint::PREFIX_ANONYMOUS, Endpoint::ALIAS_ANY)

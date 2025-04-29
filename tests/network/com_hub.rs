@@ -9,6 +9,7 @@ use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::io::Write;
+use std::str::FromStr;
 use std::sync::mpsc;
 // FIXME no-std
 use crate::context::init_global_context;
@@ -258,7 +259,7 @@ pub fn test_recalculate() {
         },
         routing_header: RoutingHeader {
             block_size_u16: Some(420),
-            sender: Endpoint::from_string("@test").unwrap(),
+            sender: Endpoint::from_str("@test").unwrap(),
             ..Default::default()
         },
         ..DXBBlock::default()

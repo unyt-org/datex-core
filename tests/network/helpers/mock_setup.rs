@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use datex_core::datex_values::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::network::com_hub::ComHub;
@@ -14,9 +15,9 @@ use super::mockup_interface::MockupInterface;
 lazy_static::lazy_static! {
     pub static ref ANY : Endpoint = Endpoint::ANY.clone();
 
-    pub static ref ORIGIN : Endpoint = Endpoint::from_string("@origin").unwrap();
-    pub static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_string("@test-a").unwrap();
-    pub static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_string("@test-b").unwrap();
+    pub static ref ORIGIN : Endpoint = Endpoint::from_str("@origin").unwrap();
+    pub static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_str("@test-a").unwrap();
+    pub static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_str("@test-b").unwrap();
 }
 
 pub async fn get_mock_setup(

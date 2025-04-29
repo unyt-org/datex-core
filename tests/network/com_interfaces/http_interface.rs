@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use datex_core::{
     datex_values::Endpoint,
     network::com_interfaces::{
@@ -20,7 +21,7 @@ pub async fn test_construct() {
             panic!("Failed to create HTTPServerInterface: {e:?}");
         });
     server.open().await.unwrap();
-    let endpoint = Endpoint::from_string("@jonas").unwrap();
+    let endpoint = Endpoint::from_str("@jonas").unwrap();
 
     server
         .add_channel("my-secret-channel", endpoint.clone())
