@@ -158,11 +158,14 @@ pub async fn send_block_with_body(
     body: &[u8],
     com_hub: &Arc<Mutex<ComHub>>,
 ) -> DXBBlock {
-    let com_hub_ref = com_hub.lock().unwrap();
-    let mut block: DXBBlock = DXBBlock::default();
-    block.set_receivers(to);
-    block.body = body.to_vec();
-    com_hub_ref.send_own_block(block.clone());
+    let block = {
+        let com_hub_ref = com_hub.lock().unwrap();
+        let mut block: DXBBlock = DXBBlock::default();
+        block.set_receivers(to);
+        block.body = body.to_vec();
+        com_hub_ref.send_own_block(block.clone());
+        block
+    };
     ComHub::update(com_hub.clone()).await;
     block
 }
@@ -174,9 +177,10 @@ pub async fn send_empty_block(
     // send block
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
-
-    let com_hub_ref = com_hub.lock().unwrap();
-    com_hub_ref.send_own_block(block.clone());
+    {
+        let com_hub_ref = com_hub.lock().unwrap();
+        com_hub_ref.send_own_block(block.clone());
+    }
     ComHub::update(com_hub.clone()).await;
     block
 }
