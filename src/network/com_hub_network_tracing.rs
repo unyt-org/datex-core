@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::fmt::Display;
-use std::sync::{Arc, Mutex};
+use std::rc::Rc;
+use std::sync::Mutex;
 use std::time::Duration;
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
@@ -105,13 +107,13 @@ impl Display for NetworkTraceResult {
 
 impl ComHub {
     pub async fn record_trace(
-        self_rc: Arc<Mutex<Self>>,
+        self_rc: Rc<RefCell<Self>>,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
         let endpoint = endpoint.into();
 
         let trace_block = {
-            let self_ref = self_rc.lock().unwrap();
+            let self_ref = self_rc.borrow();
             let scope_id = self_ref.block_handler.borrow_mut().get_new_scope_id().clone();
             let mut trace_block = self_ref.create_trace_block(
                 vec![],
@@ -133,7 +135,7 @@ impl ComHub {
         if let Ok(response) = response {
             match response {
                 ResponseBlocks::SingleBlock(block) => {
-                    let self_ref = self_rc.lock().unwrap();
+                    let self_ref = self_rc.borrow();
                     let hops = self_ref.get_trace_data_from_block(&block)?;
                     Some(NetworkTraceResult {
                         sender: self_ref.endpoint.clone(),

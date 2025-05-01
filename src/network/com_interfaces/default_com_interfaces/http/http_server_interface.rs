@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use axum::extract::Request;
 use axum::routing::post;
 use bytes::Bytes;
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
@@ -101,7 +103,7 @@ async fn client_to_server_handler(
 pub struct HTTPServerNativeInterface {
     pub address: Url,
     info: ComInterfaceInfo,
-    socket_channel_mapping: Arc<Mutex<HashMap<String, ComInterfaceSocketUUID>>>,
+    socket_channel_mapping: Rc<RefCell<HashMap<String, ComInterfaceSocketUUID>>>,
     channels: Arc<
         RwLock<
             HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>,
@@ -135,7 +137,7 @@ impl HTTPServerNativeInterface {
         let interface = HTTPServerNativeInterface {
             channels: Arc::new(RwLock::new(HashMap::new())),
             address,
-            socket_channel_mapping: Arc::new(Mutex::new(HashMap::new())),
+            socket_channel_mapping: Rc::new(RefCell::new(HashMap::new())),
             info,
         };
         Ok(interface)
@@ -158,8 +160,7 @@ impl HTTPServerNativeInterface {
             self.register_socket_endpoint(socket_uuid.clone(), endpoint, 0)
                 .unwrap();
             self.socket_channel_mapping
-                .lock()
-                .unwrap()
+                .borrow_mut()
                 .insert(route.to_string(), socket_uuid.clone());
 
             spawn(async move {
@@ -180,7 +181,7 @@ impl HTTPServerNativeInterface {
     pub async fn remove_channel(&mut self, route: &str) {
         let mapping = self.socket_channel_mapping.clone();
         let socket_uuid = {
-            let mapping = mapping.lock().unwrap();
+            let mapping = mapping.borrow();
             if let Some(socket_uuid) = mapping.get(route) {
                 socket_uuid.clone()
             } else {
@@ -247,7 +248,7 @@ impl ComInterface for HTTPServerNativeInterface {
         block: &'a [u8],
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let route = self.socket_channel_mapping.lock().unwrap();
+        let route = self.socket_channel_mapping.borrow();
         let route = route.iter().find(|(_, v)| *v == &socket).map(|(k, _)| k);
         if route.is_none() {
             return Box::pin(async { false });

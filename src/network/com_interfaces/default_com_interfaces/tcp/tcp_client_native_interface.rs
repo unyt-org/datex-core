@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -28,7 +30,7 @@ use url::Url;
 
 pub struct TCPClientNativeInterface {
     pub address: Url,
-    tx: Option<Arc<Mutex<OwnedWriteHalf>>>,
+    tx: Option<Rc<RefCell<OwnedWriteHalf>>>,
     info: ComInterfaceInfo,
 }
 impl SingleSocketProvider for TCPClientNativeInterface {
@@ -58,7 +60,7 @@ impl TCPClientNativeInterface {
             .map_err(|_| TCPError::ConnectionError)?;
 
         let (read_half, write_half) = stream.into_split();
-        self.tx = Some(Arc::new(Mutex::new(write_half)));
+        self.tx = Some(Rc::new(RefCell::new(write_half)));
 
         let socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
@@ -110,7 +112,7 @@ impl ComInterface for TCPClientNativeInterface {
             return Box::pin(async { false });
         }
         Box::pin(async move {
-            tx.unwrap().lock().unwrap().write(block).await.is_ok()
+            tx.unwrap().borrow_mut().write(block).await.is_ok()
         })
     }
     fn init_properties(&self) -> InterfaceProperties {

@@ -216,7 +216,7 @@ macro_rules! set_sync_opener {
     };
 }
 
-// TODO use procedual macros instead
+// TODO use procedural macros instead
 #[macro_export]
 macro_rules! delegate_com_interface_info {
     () => {
@@ -515,7 +515,6 @@ pub trait ComInterface: Any {
 
                                 // socket will return a boolean indicating of a block could be sent
                                 let has_been_send = shared_self
-                                    .clone()
                                     .borrow_mut()
                                     .send_block(
                                         &block,

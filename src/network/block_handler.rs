@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
 use futures::channel::oneshot;
 use log::info;
-use tokio::task::yield_now;
 use crate::global::dxb_block::DXBBlock;
 
 pub type IncomingScopeId = u32;

@@ -16,7 +16,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-use tokio::time::timeout;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{
@@ -884,7 +883,7 @@ impl ComHub {
     /// Run the update loop for the ComHub.
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
-    pub fn start_update_loop(self_rc: Arc<Mutex<Self>>) {
+    pub fn start_update_loop(self_rc: Rc<RefCell<Self>>) {
         spawn_local(async move {
             loop {
                 ComHub::update(self_rc.clone()).await;
@@ -896,11 +895,11 @@ impl ComHub {
 
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    pub async fn update(self_rc: Arc<Mutex<Self>>) {
+    pub async fn update(self_rc: Rc<RefCell<Self>>) {
         // 1. self_rc.lock
         {
             info!("running ComHub update loop...");
-            let mut self_ref = self_rc.lock().unwrap();
+            let mut self_ref = self_rc.borrow_mut();
             // update own socket lists for routing
             self_ref.update_sockets();
 
@@ -937,13 +936,13 @@ impl ComHub {
 
     /// Send a block and wait for a response block.
     pub async fn send_own_block_await_response(
-        self_rc: Arc<Mutex<Self>>,
+        self_rc: Rc<RefCell<Self>>,
         block: DXBBlock,
     ) -> Result<ResponseBlocks, ComHubError> {
         let scope_id = block.block_header.scope_id;
         let block_index = block.block_header.block_index;
         {
-            let self_ref = self_rc.lock().unwrap();
+            let self_ref = self_rc.borrow();
             self_ref.send_own_block(block);
         }
         // yield
@@ -951,7 +950,7 @@ impl ComHub {
         yield_now().await;
         log::info!("awaited blok");
 
-        let block_handler = self_rc.lock().unwrap().block_handler.clone();
+        let block_handler = self_rc.borrow().block_handler.clone();
         let res = block_handler.borrow().wait_for_incoming_response_block(scope_id, block_index).await
             .ok_or_else(|| ComHubError::NoResponse);
 
@@ -1118,10 +1117,10 @@ impl ComHub {
     }
 
     /// Send all queued blocks from all interfaces.
-    async fn flush_outgoing_blocks(self_rc: Arc<Mutex<Self>>) {
+    async fn flush_outgoing_blocks(self_rc: Rc<RefCell<Self>>) {
         // TODO: more efficient way than cloning into vec? self_rc lock must not exist after this
         let interfaces = {
-            let guard = self_rc.lock().unwrap();
+            let guard = self_rc.borrow();
             guard.interfaces.values().cloned().collect::<Vec<_>>()
         };
         join_all(interfaces.iter().map(|interface| {

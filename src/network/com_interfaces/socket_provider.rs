@@ -22,7 +22,7 @@ pub trait MultipleSocketProvider {
             .collect()
     }
     fn get_sockets_count(&self) -> usize {
-        self.provide_sockets().clone().lock().unwrap().sockets.len()
+        self.provide_sockets().lock().unwrap().sockets.len()
     }
 
     fn get_socket_uuid_for_endpoint(
@@ -87,14 +87,14 @@ pub trait SingleSocketProvider {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     fn get_socket(&self) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
-        return self
+        self
             .provide_sockets()
             .lock()
             .unwrap()
             .sockets
             .values()
             .next()
-            .cloned();
+            .cloned()
     }
 
     fn get_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {

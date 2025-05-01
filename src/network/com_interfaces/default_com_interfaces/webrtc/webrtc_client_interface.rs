@@ -268,10 +268,10 @@ impl ComInterface for WebRTCClientInterface {
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let webrtcsocket = self.websocket.clone();
+        let webrtc_socket = self.websocket.clone();
         Box::pin(async move {
-            if webrtcsocket.is_some() {
-                let websocket: Arc<Mutex<WebRtcSocket>> = webrtcsocket.unwrap();
+            if webrtc_socket.is_some() {
+                let websocket = webrtc_socket.unwrap();
                 let mut websocket = websocket.lock().unwrap();
                 websocket.close();
             }

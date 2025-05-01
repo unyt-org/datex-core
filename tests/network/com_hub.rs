@@ -199,8 +199,7 @@ pub async fn default_interface_create_socket_first() {
     let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
 
     com_hub
-        .lock()
-        .unwrap()
+        .borrow_mut()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {e:?}");
@@ -219,8 +218,7 @@ pub async fn default_interface_set_default_interface_first() {
     let (com_hub, com_interface) = get_mock_setup().await;
 
     com_hub
-        .lock()
-        .unwrap()
+        .borrow_mut()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {e:?}");
@@ -306,7 +304,7 @@ pub async fn test_receive() {
         let _ = receive_queue_mut.write(block_bytes.as_slice());
     }
     ComHub::update(com_hub.clone()).await;
-    let com_hub = com_hub.lock().unwrap();
+    let com_hub = com_hub.borrow();
 
     let last_block = get_last_received_single_block_from_com_hub(&com_hub);
     assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
@@ -372,7 +370,7 @@ pub async fn test_receive_multiple() {
     }
 
     ComHub::update(com_hub.clone()).await;
-    let com_hub = com_hub.lock().unwrap();
+    let com_hub = com_hub.borrow();
 
     let incoming_blocks = get_all_received_single_blocks_from_com_hub(&com_hub);
 
@@ -391,7 +389,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
     let (com_hub_mut, com_interface, socket) =
         get_mock_setup_with_socket().await;
 
-    let mut com_hub_mut = com_hub_mut.lock().unwrap();
+    let mut com_hub_mut = com_hub_mut.borrow_mut();
     assert_eq!(com_hub_mut.interfaces.len(), 1);
     assert_eq!(com_hub_mut.sockets.len(), 1);
     assert_eq!(com_hub_mut.endpoint_sockets.len(), 1);
@@ -460,7 +458,7 @@ pub async fn test_basic_routing() {
     com_interface_b.borrow_mut().update();
     ComHub::update(com_hub_mut_b.clone()).await;
 
-    let last_block = get_last_received_single_block_from_com_hub(&*com_hub_mut_b.lock().unwrap());
+    let last_block = get_last_received_single_block_from_com_hub(&*com_hub_mut_b.borrow());
     assert_eq!(block_a_to_b.body, last_block.body);
 }
 
