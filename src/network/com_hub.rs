@@ -337,6 +337,10 @@ impl ComHub {
                     BlockType::Trace => {
                         self.handle_trace_block(block, socket_uuid);
                         return;
+                    },
+                    BlockType::TraceBack => {
+                        self.handle_trace_back_block(block, socket_uuid);
+                        return;
                     }
                     _ => {
                         self.block_handler.borrow().handle_incoming_block(block.clone());

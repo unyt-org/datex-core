@@ -1,10 +1,8 @@
-use std::{future, thread};
-use std::str::FromStr;
+use std::{thread};
 use crate::context::init_global_context;
-use crate::network::helpers::mock_setup::{get_mock_setup_with_socket_and_endpoint, get_mock_setup_with_socket_and_endpoint_update_loop, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
-use std::sync::{mpsc, Arc, Mutex};
+use crate::network::helpers::mock_setup::{get_mock_setup_with_socket_and_endpoint_update_loop, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
+use std::sync::{mpsc};
 use tokio::task;
-use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::ComHub;
 
 #[tokio::test(flavor = "current_thread")]
@@ -37,8 +35,8 @@ async fn create_network_trace() {
             )
                 .await;
 
-        // sleep
         log::info!("Sending trace from A to B");
+        // sleep required to handle message transfer
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // send trace from A to B
@@ -46,10 +44,9 @@ async fn create_network_trace() {
             com_hub_mut_a,
             TEST_ENDPOINT_B.clone(),
         ).await;
-        
-        log::info!("Network trace: {:?}", network_trace);
-        
+
         assert!(network_trace.is_some());
+        log::info!("Network trace:\n{}", network_trace.unwrap());
 
     }).await;
 }
@@ -82,17 +79,19 @@ async fn create_network_trace_separate_threads() {
                         true
                     ).await;
 
-                // required, otherwise the test will just freeze/panic? (TODO: debug)
-                tokio::task::yield_now().await;
 
                 log::info!("Sending trace from A to B");
+                // sleep required to handle message transfer
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
                 // send trace from A to B
                 let network_trace = ComHub::record_trace(
                     com_hub_mut_a,
                     TEST_ENDPOINT_B.clone(),
                 ).await;
+
                 assert!(network_trace.is_some());
+                log::info!("Network trace:\n{}", network_trace.unwrap());
             }).await;
         });
     });
@@ -118,11 +117,8 @@ async fn create_network_trace_separate_threads() {
                         true
                     ).await;
 
-                // required, otherwise the test will just freeze/panic? (TODO: debug)
-                tokio::task::yield_now().await;
-
                 // sleep 2s to ensure that the other thread has finished
-                tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
+                tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
             }).await;
         });
     });
