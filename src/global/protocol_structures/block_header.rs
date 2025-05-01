@@ -39,9 +39,18 @@ pub enum BlockType {
     Unused13,
 }
 
+impl BlockType {
+    pub fn is_response(&self) -> bool {
+        match self {
+            BlockType::Response | BlockType::TraceBack => true,
+            _ => false,
+        }
+    }
+}
+
 // 21 bit + 43 bit = 64 bit
 #[bitfield]
-#[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
+#[derive(BinWrite, BinRead, Clone, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct FlagsAndTimestamp {
@@ -75,6 +84,21 @@ pub struct FlagsAndTimestamp {
     unused_8: bool,
 
     pub creation_timestamp: B43,
+}
+
+impl Default for FlagsAndTimestamp {
+    fn default() -> Self {
+        FlagsAndTimestamp::new()
+            .with_block_type(BlockType::Request)
+            .with_allow_execution(false)
+            .with_is_end_of_block(true)
+            .with_is_end_of_scope(true)
+            .with_has_lifetime(false)
+            .with_has_represented_by(false)
+            .with_has_iv(false)
+            .with_is_compressed(false)
+            .with_is_signature_in_last_subblock(false)
+    }
 }
 
 // min: 16 byte

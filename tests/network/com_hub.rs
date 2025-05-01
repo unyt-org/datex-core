@@ -11,13 +11,11 @@ use datex_core::stdlib::rc::Rc;
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::mpsc;
+use itertools::Itertools;
+use datex_core::network::block_handler::ScopeBlocks;
 // FIXME no-std
 use crate::context::init_global_context;
-use crate::network::helpers::mock_setup::{
-    add_socket, get_mock_setup, get_mock_setup_with_socket,
-    register_socket_endpoint, send_block_with_body, send_empty_block, ORIGIN,
-    TEST_ENDPOINT_A, TEST_ENDPOINT_B,
-};
+use crate::network::helpers::mock_setup::{add_socket, get_all_received_single_blocks_from_com_hub, get_last_received_single_block_from_com_hub, get_mock_setup, get_mock_setup_with_socket, register_socket_endpoint, send_block_with_body, send_empty_block, ORIGIN, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
 use crate::network::helpers::mockup_interface::MockupInterface;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
@@ -310,12 +308,8 @@ pub async fn test_receive() {
     let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.update().await;
 
-    let incoming_blocks_ref = com_hub_mut.incoming_blocks.clone();
-    let incoming_blocks = incoming_blocks_ref.borrow();
-
-    assert_eq!(incoming_blocks.len(), 1);
-    let incoming_block = incoming_blocks.front().unwrap();
-    assert_eq!(incoming_block.raw_bytes.clone().unwrap(), block_bytes);
+    let last_block = get_last_received_single_block_from_com_hub(&com_hub_mut);
+    assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
 }
 
 #[tokio::test]
@@ -380,10 +374,7 @@ pub async fn test_receive_multiple() {
     let mut com_hub_mut = com_hub.lock().unwrap();
     com_hub_mut.update().await;
 
-    let incoming_blocks_ref = com_hub_mut.incoming_blocks.clone();
-    let incoming_blocks = incoming_blocks_ref.borrow();
-
-    assert_eq!(incoming_blocks.len(), blocks.len());
+    let incoming_blocks = get_all_received_single_blocks_from_com_hub(&com_hub_mut);
 
     for (incoming_block, block) in incoming_blocks.iter().zip(blocks.iter()) {
         assert_eq!(
@@ -469,16 +460,8 @@ pub async fn test_basic_routing() {
     com_interface_b.borrow_mut().update();
     com_hub_mut_b.lock().unwrap().update().await;
 
-    let blocks = com_hub_mut_b
-        .lock()
-        .unwrap()
-        .incoming_blocks
-        .borrow_mut()
-        .drain(..)
-        .collect::<Vec<_>>();
-
-    assert_eq!(blocks.len(), 1);
-    assert_eq!(block_a_to_b.body, blocks[0].body);
+    let last_block = get_last_received_single_block_from_com_hub(&*com_hub_mut_b.lock().unwrap());
+    assert_eq!(block_a_to_b.body, last_block.body);
 }
 
 #[tokio::test]

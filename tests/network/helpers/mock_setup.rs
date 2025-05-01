@@ -5,6 +5,7 @@ use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::sync::{mpsc, Arc, Mutex};
+use datex_core::network::block_handler::ScopeBlocks;
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
@@ -141,4 +142,41 @@ pub async fn send_empty_block(
     com_hub_mut.send_own_block(block.clone());
     com_hub_mut.update().await;
     block
+}
+
+pub fn get_last_received_single_block_from_com_hub(com_hub: &ComHub) -> DXBBlock {
+    let scopes = com_hub.block_handler.request_scopes.values().collect::<Vec<_>>();
+
+    assert_eq!(scopes.len(), 1);
+    let blocks = scopes[0].blocks.values().next().unwrap().borrow();
+
+    match &*blocks {
+        ScopeBlocks::SingleBlock(block) => {
+            block.clone()
+        }
+        _ => {
+            panic!("Expected single block, but got block stream");
+        }
+    }
+}
+pub fn get_all_received_single_blocks_from_com_hub(com_hub: &ComHub) -> Vec<DXBBlock> {
+    let scopes = com_hub.block_handler.request_scopes.values().collect::<Vec<_>>();
+
+    let mut blocks = vec![];
+    
+    for scope in scopes {
+        let blocks_in_scope = scope.blocks.values().collect::<Vec<_>>();
+        for block in blocks_in_scope {
+            match &*block.borrow() {
+                ScopeBlocks::SingleBlock(block) => {
+                    blocks.push(block.clone());
+                }
+                _ => {
+                    panic!("Expected single block, but got block stream");
+                }
+            }
+        }
+    };
+    
+    blocks
 }

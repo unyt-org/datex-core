@@ -25,6 +25,8 @@ use super::com_interfaces::{
 };
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::DXBBlock;
+use crate::network::block_handler::BlockHandler;
+use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
@@ -69,10 +71,8 @@ pub struct ComHub {
         Endpoint,
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
-
-    /// a queue of incoming blocks for the own endpoint
-    /// that can be processed by the runtime
-    pub incoming_blocks: Rc<RefCell<VecDeque<Rc<DXBBlock>>>>,
+    
+    pub block_handler: BlockHandler,
 
     /// the default socket for the hub to send outgoing block to
     /// if no socket is available for a receiver endpoint
@@ -97,7 +97,7 @@ impl Default for ComHub {
             interface_factories: HashMap::new(),
             interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
-            incoming_blocks: Rc::new(RefCell::new(VecDeque::new())),
+            block_handler: BlockHandler::new(),
             sockets: HashMap::new(),
             default_interface_uuid: None,
             default_socket_uuid: None,
@@ -340,9 +340,7 @@ impl ComHub {
                         return;
                     }
                     _ => {
-                        let mut incoming_blocks =
-                            self.incoming_blocks.borrow_mut();
-                        incoming_blocks.push_back(Rc::new(block.clone()));
+                        self.block_handler.handle_incoming_block(block.clone());
                     }
                 };
             }
@@ -935,7 +933,7 @@ impl ComHub {
     /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
     /// The original_socket parameter is used to prevent sending the block back to the sender.
     /// When this method is called, the block is queued in the send queue.
-    fn send_block(
+    pub fn send_block(
         &self,
         block: DXBBlock,
         original_socket: Option<&ComInterfaceSocketUUID>,
@@ -968,6 +966,23 @@ impl ComHub {
         endpoints: &[Endpoint],
     ) {
         block.set_receivers(endpoints);
+        
+        // if type is Trace or TraceBack, add the outgoing socket to the hops
+        match block.block_header.flags_and_timestamp.block_type() {
+            BlockType::Trace | BlockType::TraceBack => {
+                self.add_hop_to_block_trace_data(
+                    &mut block,
+                    NetworkTraceHop {
+                        endpoint: self.endpoint.clone(),
+                        socket: NetworkTraceHopSocket::new(
+                            self.get_com_interface_from_socket_uuid(&socket_uuid).borrow_mut().get_properties(),
+                            socket_uuid.clone()),
+                        direction: NetworkTraceHopDirection::Outgoing,
+                    },
+                );
+            }
+            _ => {}
+        }
 
         let socket = self.get_socket_by_uuid(socket_uuid);
         let mut socket_ref = socket.lock().unwrap();

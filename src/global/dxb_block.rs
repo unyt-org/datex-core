@@ -20,6 +20,15 @@ pub enum HeaderParsingError {
     InsufficientLength,
 }
 
+// TODO: should we do something like this?
+/*pub enum DXBBlock {
+    /// A DXB block that has been received from the network.
+    Received(DXBBlockData, Vec<u8>),
+    /// A DXB block that has been created and is ready to be sent.
+    Created(DXBBlockData),
+    Addressed(DXBBlockData),
+}*/
+
 // TODO fix partial eq
 #[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
