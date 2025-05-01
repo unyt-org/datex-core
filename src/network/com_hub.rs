@@ -25,7 +25,7 @@ use super::com_interfaces::{
 };
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::DXBBlock;
-use crate::network::block_handler::BlockHandler;
+use crate::network::block_handler::{BlockHandler, ResponseBlocks};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
@@ -71,7 +71,7 @@ pub struct ComHub {
         Endpoint,
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
-    
+
     pub block_handler: BlockHandler,
 
     /// the default socket for the hub to send outgoing block to
@@ -113,6 +113,7 @@ pub enum ComHubError {
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
     InterfaceTypeDoesNotExist,
+    NoResponse,
 }
 
 #[derive(Debug)]
@@ -726,7 +727,6 @@ impl ComHub {
                 }
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
-                        info!("Socket UUID 123: {socket_uuid:?}");
                         let socket = self.get_socket_by_uuid(socket_uuid);
                         let socket = socket.lock().unwrap();
 
@@ -928,6 +928,23 @@ impl ComHub {
         self.send_block(block, None);
     }
 
+    /// Send a block and wait for a response block.
+    pub async fn send_own_block_await_response(
+        &mut self,
+        block: DXBBlock,
+    ) -> Result<ResponseBlocks, ComHubError> {
+        let scope_id = block.block_header.scope_id;
+        let block_index = block.block_header.block_index;
+        self.send_own_block(block);
+        // wait
+        log::info!("Waiting for response block {scope_id} {block_index}");
+        // sleep for a while to give the block time to be sent
+        yield_now().await;
+        log::info!("Waited 1s");
+        self.block_handler.wait_for_incoming_response_block(scope_id, block_index).await
+            .ok_or_else(|| ComHubError::NoResponse)
+    }
+
     /// Send a block to all endpoints specified in the block header.
     /// The routing algorithm decides which sockets are used to send the block, based on the endpoint.
     /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
@@ -966,7 +983,7 @@ impl ComHub {
         endpoints: &[Endpoint],
     ) {
         block.set_receivers(endpoints);
-        
+
         // if type is Trace or TraceBack, add the outgoing socket to the hops
         match block.block_header.flags_and_timestamp.block_type() {
             BlockType::Trace | BlockType::TraceBack => {

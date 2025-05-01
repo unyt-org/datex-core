@@ -3,7 +3,10 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
-
+use std::cell::RefCell;
+use std::rc::Rc;
+use log::info;
+use tokio::task::yield_now;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };
@@ -23,6 +26,7 @@ use datex_core::{
     },
     set_sync_opener,
 };
+use datex_core::task::spawn_local;
 use datex_macros::{com_interface, create_opener};
 
 #[derive(Default)]
@@ -90,17 +94,30 @@ impl MockupInterface {
 
     pub fn update(&mut self) {
         if let Some(receiver) = &self.receiver {
-            let socket = self.get_socket().unwrap();
-            let socket = socket.lock().unwrap();
-            let mut receive_queue = socket.receive_queue.lock().unwrap();
-            while let Ok(block) = receiver.try_recv() {
-                receive_queue.extend(block);
+            let socket = self.get_socket();
+            if let Some(socket) = socket {
+                let socket = socket.lock().unwrap();
+                log::info!("Updating MockupInterface (receiving from socket {})", socket.uuid);
+                let mut receive_queue = socket.receive_queue.lock().unwrap();
+                while let Ok(block) = receiver.try_recv() {
+                    receive_queue.extend(block);
+                }
             }
         }
     }
     #[create_opener]
     fn open(&mut self) -> Result<(), ()> {
         Ok(())
+    }
+
+    pub fn start_update_loop(self_rc: Rc<RefCell<Self>>) {
+        spawn_local(async move {
+            loop {
+                self_rc.borrow_mut().update();
+                #[cfg(feature = "tokio_runtime")]
+                yield_now().await; // let other tasks run
+            }
+        });
     }
 }
 

@@ -5,7 +5,7 @@ use datex_core::network::com_hub::ComHub;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::sync::{mpsc, Arc, Mutex};
-use datex_core::network::block_handler::ScopeBlocks;
+use datex_core::network::block_handler::ResponseBlocks;
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
@@ -96,11 +96,43 @@ pub async fn get_mock_setup_with_socket_and_endpoint(
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
+    get_mock_setup_with_socket_and_endpoint_update_loop(
+        local_endpoint,
+        remote_endpoint,
+        sender,
+        receiver,
+        false,
+    ).await
+}
+
+
+pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
+    local_endpoint: Endpoint,
+    remote_endpoint: Option<Endpoint>,
+    sender: Option<mpsc::Sender<Vec<u8>>>,
+    receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    enable_update_loop: bool,
+) -> (
+    Arc<Mutex<ComHub>>,
+    Rc<RefCell<MockupInterface>>,
+    Arc<Mutex<ComInterfaceSocket>>,
+) {
     let (com_hub, mockup_interface_ref) =
         get_mock_setup_with_endpoint(local_endpoint).await;
 
     mockup_interface_ref.borrow_mut().sender = sender;
     mockup_interface_ref.borrow_mut().receiver = receiver;
+
+    if enable_update_loop {
+        ComHub::start_update_loop(com_hub.clone());
+
+        // start mockup interface update loop
+        MockupInterface::start_update_loop(
+            mockup_interface_ref.clone(),
+        );
+
+        tokio::task::yield_now().await;
+    }
 
     let socket = add_socket(mockup_interface_ref.clone());
     if remote_endpoint.is_some() {
@@ -111,7 +143,12 @@ pub async fn get_mock_setup_with_socket_and_endpoint(
         );
     }
 
-    com_hub.lock().unwrap().update().await;
+    if !enable_update_loop {
+        com_hub.lock().unwrap().update().await;
+    }
+    else {
+        tokio::task::yield_now().await;
+    }
 
     (com_hub.clone(), mockup_interface_ref, socket)
 }
@@ -148,10 +185,10 @@ pub fn get_last_received_single_block_from_com_hub(com_hub: &ComHub) -> DXBBlock
     let scopes = com_hub.block_handler.request_scopes.values().collect::<Vec<_>>();
 
     assert_eq!(scopes.len(), 1);
-    let blocks = scopes[0].blocks.values().next().unwrap().borrow();
+    let blocks = scopes[0].blocks.values().next().unwrap();
 
-    match &*blocks {
-        ScopeBlocks::SingleBlock(block) => {
+    match blocks {
+        ResponseBlocks::SingleBlock(block) => {
             block.clone()
         }
         _ => {
@@ -163,12 +200,12 @@ pub fn get_all_received_single_blocks_from_com_hub(com_hub: &ComHub) -> Vec<DXBB
     let scopes = com_hub.block_handler.request_scopes.values().collect::<Vec<_>>();
 
     let mut blocks = vec![];
-    
+
     for scope in scopes {
         let blocks_in_scope = scope.blocks.values().collect::<Vec<_>>();
         for block in blocks_in_scope {
-            match &*block.borrow() {
-                ScopeBlocks::SingleBlock(block) => {
+            match block {
+                ResponseBlocks::SingleBlock(block) => {
                     blocks.push(block.clone());
                 }
                 _ => {
@@ -177,6 +214,6 @@ pub fn get_all_received_single_blocks_from_com_hub(com_hub: &ComHub) -> Vec<DXBB
             }
         }
     };
-    
+
     blocks
 }

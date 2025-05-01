@@ -12,7 +12,7 @@ use std::io::Write;
 use std::str::FromStr;
 use std::sync::mpsc;
 use itertools::Itertools;
-use datex_core::network::block_handler::ScopeBlocks;
+use datex_core::network::block_handler::ResponseBlocks;
 // FIXME no-std
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{add_socket, get_all_received_single_blocks_from_com_hub, get_last_received_single_block_from_com_hub, get_mock_setup, get_mock_setup_with_socket, register_socket_endpoint, send_block_with_body, send_empty_block, ORIGIN, TEST_ENDPOINT_A, TEST_ENDPOINT_B};

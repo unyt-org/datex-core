@@ -13,11 +13,11 @@ pub type OutgoingBlockIndex = u16;
 pub type OutgoingBlockIncrement = u16;
 
 #[derive(Debug, Clone)]
-pub enum ScopeBlocks {
+pub enum ResponseBlocks {
     SingleBlock(DXBBlock),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream(VecDeque<DXBBlock>),
+    BlockStream(Rc<RefCell<VecDeque<DXBBlock>>>),
 }
 
 // TODO: store scope memory
@@ -26,7 +26,7 @@ pub struct ScopeContext {
     pub current_block_index: IncomingBlockIndex,
     pub current_block_increment: IncomingBlockIncrement,
     // one or multiple blocks for each block index
-    pub blocks: BTreeMap<IncomingBlockIndex, Rc<RefCell<ScopeBlocks>>>
+    pub blocks: BTreeMap<IncomingBlockIndex, ResponseBlocks>
 }
 
 /// A scope context storing scopes of incoming DXB blocks
@@ -42,7 +42,7 @@ impl ScopeContext {
 }
 
 // fn that gets a scope context as callback
-type ScopeObserver = Box<dyn FnMut(Rc<RefCell<ScopeBlocks>>) -> ()>;
+type ScopeObserver = Box<dyn FnMut(ResponseBlocks) -> ()>;
 
 pub struct BlockHandler {
     pub current_scope_id: OutgoingScopeId,
@@ -97,7 +97,7 @@ impl BlockHandler {
             if is_end_of_block {
                 scope_context.blocks.insert(
                     block_index,
-                    Rc::new(RefCell::new(ScopeBlocks::SingleBlock(block))),
+                    ResponseBlocks::SingleBlock(block),
                 );
             } else {
                 // block stream
@@ -105,7 +105,7 @@ impl BlockHandler {
                 blocks.push_back(block);
                 scope_context.blocks.insert(
                     block_index,
-                    Rc::new(RefCell::new(ScopeBlocks::BlockStream(blocks))),
+                    ResponseBlocks::BlockStream(Rc::new(RefCell::new(blocks))),
                 );
             }
         }
@@ -114,20 +114,20 @@ impl BlockHandler {
         else {
             let blocks = scope_context.blocks.get_mut(&block_index).unwrap();
             // must be a block stream
-            if let ScopeBlocks::BlockStream(block_stream) = &mut *blocks.borrow_mut() {
-                block_stream.push_back(block);
+            if let ResponseBlocks::BlockStream(block_stream) = blocks {
+                block_stream.borrow_mut().push_back(block);
             } else {
                 log::error!("Block index {block_index} only has a single block, but received a block stream");
                 // TODO:
             }
         }
-
-        let blocks = scope_context.blocks.get(&block_index).unwrap();
-
+        
         // handle observers if response block
         if is_response {
-            if let Some(observer) = self.scope_observers.get_mut(&(scope_id, block_index)) {
-                observer(blocks.clone());
+            if let Some(mut observer) = self.scope_observers.remove(&(scope_id, block_index)) {
+                // TODO: optimize: don't add and remove block from context if directly moved into observer afterwards
+                let blocks = scope_context.blocks.remove(&block_index).unwrap();
+                observer(blocks);
             }
         }
     }
@@ -142,12 +142,12 @@ impl BlockHandler {
         &mut self,
         scope_id: OutgoingScopeId,
         block_index: OutgoingBlockIndex
-    ) -> Option<Rc<RefCell<ScopeBlocks>>> {
+    ) -> Option<ResponseBlocks> {
         let (tx, rx) = oneshot::channel();
-        let mut tx = Some(tx); // Option<Sender<_>>
+        let mut tx = Some(tx);
 
         // create observer callback for scope id + block index
-        let observer = move |blocks: Rc<RefCell<ScopeBlocks>>| {
+        let observer = move |blocks: ResponseBlocks| {
             if let Some(tx) = tx.take() {
                 tx.send(blocks).expect("Failed to send block queue from observer");
             }
@@ -161,7 +161,6 @@ impl BlockHandler {
 
         // Await the result from the callback
         let res = rx.await.ok();
-        self.scope_observers.remove(&(scope_id, block_index));
 
         res
     }

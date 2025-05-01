@@ -56,7 +56,7 @@ pub struct NetworkTraceResult {
 }
 
 impl ComHub {
-    pub fn record_trace(
+    pub async fn record_trace(
         &mut self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
@@ -70,7 +70,9 @@ impl ComHub {
         );
         trace_block.set_receivers(&[endpoint.clone()]);
 
-        self.send_own_block(trace_block);
+        let response = self.send_own_block_await_response(trace_block).await;
+
+        assert!(response.is_ok());
 
         Some(NetworkTraceResult {
             endpoint: endpoint.clone(),
@@ -134,7 +136,7 @@ impl ComHub {
         let mut block = block.clone();
         let sender = block.routing_header.sender.clone();
         info!("Redirecting trace block from {sender}");
-        
+
         // add incoming socket hop
         self.add_hop_to_block_trace_data(
             &mut block,
@@ -193,7 +195,7 @@ impl ComHub {
         let hops_json = serde_json::to_string(&hops).unwrap();
         block.body = hops_json.into_bytes();
     }
-    
+
     pub(crate) fn add_hop_to_block_trace_data(
         &self,
         block: &mut DXBBlock,
