@@ -133,7 +133,7 @@ pub async fn send_block_to_multiple_endpoints() {
         socket.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    com_hub.lock().unwrap().update().await;
+    ComHub::update(com_hub.clone()).await;
 
     // send block to multiple receivers
     let block = send_block_with_body(
@@ -172,7 +172,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
         socket_b.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    com_hub.lock().unwrap().update().await;
+    ComHub::update(com_hub.clone()).await;
 
     // send block to multiple receivers
     let _ = send_empty_block(
@@ -235,7 +235,7 @@ pub async fn default_interface_set_default_interface_first() {
 
     // Update to let the com_hub know about the socket and call the add_socket method
     // This will set the default interface and socket
-    com_hub.lock().unwrap().update().await;
+    ComHub::update(com_hub.clone()).await;
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
@@ -305,10 +305,10 @@ pub async fn test_receive() {
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         let _ = receive_queue_mut.write(block_bytes.as_slice());
     }
-    let mut com_hub_mut = com_hub.lock().unwrap();
-    com_hub_mut.update().await;
+    ComHub::update(com_hub.clone()).await;
+    let com_hub = com_hub.lock().unwrap();
 
-    let last_block = get_last_received_single_block_from_com_hub(&com_hub_mut);
+    let last_block = get_last_received_single_block_from_com_hub(&com_hub);
     assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
 }
 
@@ -371,10 +371,10 @@ pub async fn test_receive_multiple() {
         }
     }
 
-    let mut com_hub_mut = com_hub.lock().unwrap();
-    com_hub_mut.update().await;
+    ComHub::update(com_hub.clone()).await;
+    let com_hub = com_hub.lock().unwrap();
 
-    let incoming_blocks = get_all_received_single_blocks_from_com_hub(&com_hub_mut);
+    let incoming_blocks = get_all_received_single_blocks_from_com_hub(&com_hub);
 
     for (incoming_block, block) in incoming_blocks.iter().zip(blocks.iter()) {
         assert_eq!(
@@ -447,8 +447,8 @@ pub async fn test_basic_routing() {
     com_interface_a.borrow_mut().update();
     com_interface_b.borrow_mut().update();
 
-    com_hub_mut_a.lock().unwrap().update().await;
-    com_hub_mut_b.lock().unwrap().update().await;
+    ComHub::update(com_hub_mut_a.clone()).await;
+    ComHub::update(com_hub_mut_b.clone()).await;
 
     let block_a_to_b = send_block_with_body(
         &[TEST_ENDPOINT_B.clone()],
@@ -458,7 +458,7 @@ pub async fn test_basic_routing() {
     .await;
 
     com_interface_b.borrow_mut().update();
-    com_hub_mut_b.lock().unwrap().update().await;
+    ComHub::update(com_hub_mut_b.clone()).await;
 
     let last_block = get_last_received_single_block_from_com_hub(&*com_hub_mut_b.lock().unwrap());
     assert_eq!(block_a_to_b.body, last_block.body);

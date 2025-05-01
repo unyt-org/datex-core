@@ -13,8 +13,10 @@ use std::any::Any;
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
+use tokio::time::timeout;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{
@@ -72,7 +74,7 @@ pub struct ComHub {
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
 
-    pub block_handler: BlockHandler,
+    pub block_handler: Rc<RefCell<BlockHandler>>,
 
     /// the default socket for the hub to send outgoing block to
     /// if no socket is available for a receiver endpoint
@@ -97,7 +99,7 @@ impl Default for ComHub {
             interface_factories: HashMap::new(),
             interfaces: HashMap::new(),
             endpoint_sockets: HashMap::new(),
-            block_handler: BlockHandler::new(),
+            block_handler: Rc::new(RefCell::new(BlockHandler::new())),
             sockets: HashMap::new(),
             default_interface_uuid: None,
             default_socket_uuid: None,
@@ -336,12 +338,8 @@ impl ComHub {
                         self.handle_trace_block(block, socket_uuid);
                         return;
                     }
-                    BlockType::TraceBack => {
-                        self.handle_trace_back_block(block, socket_uuid);
-                        return;
-                    }
                     _ => {
-                        self.block_handler.handle_incoming_block(block.clone());
+                        self.block_handler.borrow().handle_incoming_block(block.clone());
                     }
                 };
             }
@@ -885,28 +883,33 @@ impl ComHub {
     pub fn start_update_loop(self_rc: Arc<Mutex<Self>>) {
         spawn_local(async move {
             loop {
-                self_rc.lock().unwrap().update().await;
+                ComHub::update(self_rc.clone()).await;
                 #[cfg(feature = "tokio_runtime")]
-                yield_now().await; // let other tasks run
+                tokio::time::sleep(Duration::from_millis(1)).await;
             }
         });
     }
 
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    pub async fn update(&mut self) {
-        info!("running ComHub update loop...");
-        // update own socket lists for routing
-        self.update_sockets();
+    pub async fn update(self_rc: Arc<Mutex<Self>>) {
+        // 1. self_rc.lock
+        {
+            info!("running ComHub update loop...");
+            let mut self_ref = self_rc.lock().unwrap();
+            // update own socket lists for routing
+            self_ref.update_sockets();
 
-        // update sockets block collectors
-        self.collect_incoming_data();
+            // update sockets block collectors
+            self_ref.collect_incoming_data();
 
-        // receive blocks from all sockets
-        self.receive_incoming_blocks();
+            // receive blocks from all sockets
+            self_ref.receive_incoming_blocks();
+            info!("done...");
+        }
 
         // send all queued blocks from all interfaces
-        self.flush_outgoing_blocks().await;
+        ComHub::flush_outgoing_blocks(self_rc.clone()).await;
     }
 
     /// Prepare a block for sending out by updating the creation timestamp,
@@ -930,19 +933,25 @@ impl ComHub {
 
     /// Send a block and wait for a response block.
     pub async fn send_own_block_await_response(
-        &mut self,
+        self_rc: Arc<Mutex<Self>>,
         block: DXBBlock,
     ) -> Result<ResponseBlocks, ComHubError> {
         let scope_id = block.block_header.scope_id;
         let block_index = block.block_header.block_index;
-        self.send_own_block(block);
-        // wait
-        log::info!("Waiting for response block {scope_id} {block_index}");
-        // sleep for a while to give the block time to be sent
+        {
+            let self_ref = self_rc.lock().unwrap();
+            self_ref.send_own_block(block);
+        }
+        // yield
+        #[cfg(feature = "tokio_runtime")]
         yield_now().await;
-        log::info!("Waited 1s");
-        self.block_handler.wait_for_incoming_response_block(scope_id, block_index).await
-            .ok_or_else(|| ComHubError::NoResponse)
+        log::info!("awaited blok");
+
+        let block_handler = self_rc.lock().unwrap().block_handler.clone();
+        let res = block_handler.borrow().wait_for_incoming_response_block(scope_id, block_index).await
+            .ok_or_else(|| ComHubError::NoResponse);
+
+        return res;
     }
 
     /// Send a block to all endpoints specified in the block header.
@@ -1105,8 +1114,13 @@ impl ComHub {
     }
 
     /// Send all queued blocks from all interfaces.
-    async fn flush_outgoing_blocks(&mut self) {
-        join_all(self.interfaces.values().map(|interface| {
+    async fn flush_outgoing_blocks(self_rc: Arc<Mutex<Self>>) {
+        // TODO: more efficient way than cloning into vec? self_rc lock must not exist after this
+        let interfaces = {
+            let guard = self_rc.lock().unwrap();
+            guard.interfaces.values().cloned().collect::<Vec<_>>()
+        };
+        join_all(interfaces.iter().map(|interface| {
             Box::pin(async move {
                 let mut interface = interface.borrow_mut();
                 interface.flush_outgoing_blocks().await

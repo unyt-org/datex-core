@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::{
@@ -5,14 +6,14 @@ use crate::global::protocol_structures::block_header::{
 };
 use crate::network::com_hub::ComHub;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use log::info;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use crate::network::block_handler::OutgoingScopeId;
+use crate::network::block_handler::{OutgoingScopeId, ResponseBlocks};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NetworkTraceHopSocket {
     pub interface_type: String,
     pub interface_name: Option<String>,
@@ -34,14 +35,14 @@ impl NetworkTraceHopSocket {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum NetworkTraceHopDirection {
     Outgoing,
     Incoming,
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NetworkTraceHop {
     #[serde_as(as = "DisplayFromStr")]
     pub endpoint: Endpoint,
@@ -49,36 +50,54 @@ pub struct NetworkTraceHop {
     pub direction: NetworkTraceHopDirection,
 }
 
+#[derive(Debug)]
 pub struct NetworkTraceResult {
     pub endpoint: Endpoint,
-    pub hops_outgoing: Vec<NetworkTraceHop>,
-    pub hops_incoming: Vec<NetworkTraceHop>,
+    pub hops: Vec<NetworkTraceHop>,
 }
 
 impl ComHub {
     pub async fn record_trace(
-        &mut self,
+        self_rc: Arc<Mutex<Self>>,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
         let endpoint = endpoint.into();
-        let scope_id = self.block_handler.get_new_scope_id();
-        let mut trace_block = self.create_trace_block(
-            vec![],
-            endpoint.clone(),
-            BlockType::Trace,
-            scope_id,
-        );
-        trace_block.set_receivers(&[endpoint.clone()]);
 
-        let response = self.send_own_block_await_response(trace_block).await;
+        let trace_block = {
+            let self_ref = self_rc.lock().unwrap();
+            let scope_id = self_ref.block_handler.borrow_mut().get_new_scope_id().clone();
+            let mut trace_block = self_ref.create_trace_block(
+                vec![],
+                endpoint.clone(),
+                BlockType::Trace,
+                scope_id,
+            );
+            trace_block.set_receivers(&[endpoint.clone()]);
+            trace_block
+        };
+
+        let response = ComHub::send_own_block_await_response(self_rc.clone(), trace_block).await;
 
         assert!(response.is_ok());
-
-        Some(NetworkTraceResult {
-            endpoint: endpoint.clone(),
-            hops_outgoing: vec![],
-            hops_incoming: vec![],
-        })
+        if let Ok(response) = response {
+            match response {
+                ResponseBlocks::SingleBlock(block) => {
+                    let hops = self_rc.lock().unwrap().get_trace_data_from_block(&block)?;
+                    Some(NetworkTraceResult {
+                        endpoint: endpoint.clone(),
+                        hops,
+                    })
+                }
+                _ => {
+                    error!("Expected single block, but got block stream");
+                    None
+                }
+            }
+        }
+        else {
+            error!("Failed to receive trace back block");
+            None
+        }
     }
 
     /// Handles a trace block received from another endpoint that
@@ -114,20 +133,11 @@ impl ComHub {
         );
 
         // send trace back block
-        self.send_block(trace_back_block, Some(&original_socket));
+        self.send_block(trace_back_block, None);
 
         Some(())
     }
-
-    pub(crate) fn handle_trace_back_block(
-        &mut self,
-        block: &DXBBlock,
-        original_socket: ComInterfaceSocketUUID,
-    ) {
-        let sender = block.routing_header.sender.clone();
-        info!("Received trace back block from {sender}");
-    }
-
+    
     pub(crate) fn redirect_trace_block(
         &mut self,
         block: &DXBBlock,

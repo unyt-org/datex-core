@@ -5,6 +5,7 @@ use std::{
 };
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 use log::info;
 use tokio::task::yield_now;
 use datex_core::network::com_interfaces::com_interface::{
@@ -115,7 +116,7 @@ impl MockupInterface {
             loop {
                 self_rc.borrow_mut().update();
                 #[cfg(feature = "tokio_runtime")]
-                yield_now().await; // let other tasks run
+                tokio::time::sleep(Duration::from_millis(1)).await;
             }
         });
     }

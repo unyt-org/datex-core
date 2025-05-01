@@ -144,7 +144,7 @@ pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
     }
 
     if !enable_update_loop {
-        com_hub.lock().unwrap().update().await;
+        ComHub::update(com_hub.clone()).await;
     }
     else {
         tokio::task::yield_now().await;
@@ -158,12 +158,12 @@ pub async fn send_block_with_body(
     body: &[u8],
     com_hub: &Arc<Mutex<ComHub>>,
 ) -> DXBBlock {
-    let mut com_hub_mut = com_hub.lock().unwrap();
+    let com_hub_ref = com_hub.lock().unwrap();
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
     block.body = body.to_vec();
-    com_hub_mut.send_own_block(block.clone());
-    com_hub_mut.update().await;
+    com_hub_ref.send_own_block(block.clone());
+    ComHub::update(com_hub.clone()).await;
     block
 }
 
@@ -175,14 +175,16 @@ pub async fn send_empty_block(
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
 
-    let mut com_hub_mut = com_hub.lock().unwrap();
-    com_hub_mut.send_own_block(block.clone());
-    com_hub_mut.update().await;
+    let com_hub_ref = com_hub.lock().unwrap();
+    com_hub_ref.send_own_block(block.clone());
+    ComHub::update(com_hub.clone()).await;
     block
 }
 
 pub fn get_last_received_single_block_from_com_hub(com_hub: &ComHub) -> DXBBlock {
-    let scopes = com_hub.block_handler.request_scopes.values().collect::<Vec<_>>();
+    let block_handler = com_hub.block_handler.borrow();
+    let scopes = block_handler.request_scopes.borrow();
+    let scopes = scopes.values().collect::<Vec<_>>();
 
     assert_eq!(scopes.len(), 1);
     let blocks = scopes[0].blocks.values().next().unwrap();
@@ -197,7 +199,9 @@ pub fn get_last_received_single_block_from_com_hub(com_hub: &ComHub) -> DXBBlock
     }
 }
 pub fn get_all_received_single_blocks_from_com_hub(com_hub: &ComHub) -> Vec<DXBBlock> {
-    let scopes = com_hub.block_handler.request_scopes.values().collect::<Vec<_>>();
+    let block_handler = com_hub.block_handler.borrow();
+    let scopes = block_handler.request_scopes.borrow();
+    let scopes = scopes.values().collect::<Vec<_>>();
 
     let mut blocks = vec![];
 

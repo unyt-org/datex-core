@@ -1,8 +1,9 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
 use futures::channel::oneshot;
 use log::info;
+use tokio::task::yield_now;
 use crate::global::dxb_block::DXBBlock;
 
 pub type IncomingScopeId = u32;
@@ -48,26 +49,27 @@ pub struct BlockHandler {
     pub current_scope_id: OutgoingScopeId,
 
     /// a map of active request scopes for incoming blocks
-    pub request_scopes: HashMap<IncomingScopeId, ScopeContext>,
+    pub request_scopes: Rc<RefCell<HashMap<IncomingScopeId, ScopeContext>>>,
     /// a map of active response scopes for incoming blocks
     /// TODO: what to do with responses that are not handled by an observer?
-    pub response_scopes: HashMap<IncomingScopeId, ScopeContext>,
+    pub response_scopes: Rc<RefCell<HashMap<IncomingScopeId, ScopeContext>>>,
 
     /// a map of observers for incoming response blocks (by scope_id + block_index)
-    pub scope_observers: HashMap<(IncomingScopeId, IncomingBlockIndex), ScopeObserver>,
+    pub scope_observers: Rc<RefCell<HashMap<(IncomingScopeId, IncomingBlockIndex), ScopeObserver>>>,
 }
 
 impl BlockHandler {
     pub fn new() -> BlockHandler {
         BlockHandler {
             current_scope_id: 0,
-            request_scopes: HashMap::new(),
-            response_scopes: HashMap::new(),
-            scope_observers: HashMap::new(),
+            request_scopes: Rc::new(RefCell::new(HashMap::new())),
+            response_scopes: Rc::new(RefCell::new(HashMap::new())),
+            scope_observers: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
-    pub fn handle_incoming_block(&mut self, block: DXBBlock) {
+    pub fn handle_incoming_block(&self, block: DXBBlock) {
+        info!("Handling incoming block...");
         let scope_id = block.block_header.scope_id;
         let block_index = block.block_header.block_index;
         // TODO: correct sorting of incoming blocks
@@ -78,10 +80,10 @@ impl BlockHandler {
         info!("Received block (sid={scope_id}, block={block_index}, inc={block_increment})");
 
         // either store block in request or response scopes
-        let scopes = if is_response {
-            &mut self.response_scopes
+        let mut scopes = if is_response {
+            self.response_scopes.borrow_mut()
         } else {
-            &mut self.request_scopes
+            self.request_scopes.borrow_mut()
         };
 
         // create scope context if it doesn't exist
@@ -124,7 +126,7 @@ impl BlockHandler {
         
         // handle observers if response block
         if is_response {
-            if let Some(mut observer) = self.scope_observers.remove(&(scope_id, block_index)) {
+            if let Some(mut observer) = self.scope_observers.borrow_mut().remove(&(scope_id, block_index)) {
                 // TODO: optimize: don't add and remove block from context if directly moved into observer afterwards
                 let blocks = scope_context.blocks.remove(&block_index).unwrap();
                 observer(blocks);
@@ -139,7 +141,7 @@ impl BlockHandler {
 
     /// wait for incoming response block with a specific scope id and block index
     pub async fn wait_for_incoming_response_block(
-        &mut self,
+        &self,
         scope_id: OutgoingScopeId,
         block_index: OutgoingBlockIndex
     ) -> Option<ResponseBlocks> {
@@ -154,7 +156,7 @@ impl BlockHandler {
         };
 
         // add new scope observer
-        self.scope_observers.insert(
+        self.scope_observers.borrow_mut().insert(
             (scope_id, block_index),
             Box::new(observer)
         );
