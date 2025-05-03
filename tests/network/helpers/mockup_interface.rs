@@ -6,8 +6,6 @@ use std::{
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
-use log::info;
-use tokio::task::yield_now;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };

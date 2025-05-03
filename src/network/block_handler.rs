@@ -1,4 +1,4 @@
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
 use futures::channel::oneshot;
@@ -42,7 +42,7 @@ impl ScopeContext {
 }
 
 // fn that gets a scope context as callback
-type ScopeObserver = Box<dyn FnMut(ResponseBlocks) -> ()>;
+type ScopeObserver = Box<dyn FnMut(ResponseBlocks)>;
 
 pub struct BlockHandler {
     pub current_scope_id: OutgoingScopeId,
@@ -55,6 +55,12 @@ pub struct BlockHandler {
 
     /// a map of observers for incoming response blocks (by scope_id + block_index)
     pub scope_observers: Rc<RefCell<HashMap<(IncomingScopeId, IncomingBlockIndex), ScopeObserver>>>,
+}
+
+impl Default for BlockHandler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BlockHandler {
@@ -86,33 +92,22 @@ impl BlockHandler {
         };
 
         // create scope context if it doesn't exist
-        if !scopes.contains_key(&scope_id) {
-            scopes.insert(scope_id, ScopeContext::new(scope_id));
-        }
+        scopes.entry(scope_id).or_insert_with(|| ScopeContext::new(scope_id));
 
         let scope_context = scopes.get_mut(&scope_id).unwrap();
 
         // create a new block entry if it doesn't exist
-        if !scope_context.blocks.contains_key(&block_index) {
+        if let std::collections::btree_map::Entry::Vacant(e) = scope_context.blocks.entry(block_index) {
             // single block
             if is_end_of_block {
-                scope_context.blocks.insert(
-                    block_index,
-                    ResponseBlocks::SingleBlock(block),
-                );
+                e.insert(ResponseBlocks::SingleBlock(block));
             } else {
                 // block stream
                 let mut blocks = VecDeque::new();
                 blocks.push_back(block);
-                scope_context.blocks.insert(
-                    block_index,
-                    ResponseBlocks::BlockStream(Rc::new(RefCell::new(blocks))),
-                );
+                e.insert(ResponseBlocks::BlockStream(Rc::new(RefCell::new(blocks))));
             }
-        }
-
-        // add block to the existing block entry
-        else {
+        } else {
             let blocks = scope_context.blocks.get_mut(&block_index).unwrap();
             // must be a block stream
             if let ResponseBlocks::BlockStream(block_stream) = blocks {
@@ -124,13 +119,12 @@ impl BlockHandler {
         }
         
         // handle observers if response block
-        if is_response {
-            if let Some(mut observer) = self.scope_observers.borrow_mut().remove(&(scope_id, block_index)) {
+        if is_response
+            && let Some(mut observer) = self.scope_observers.borrow_mut().remove(&(scope_id, block_index)) {
                 // TODO: optimize: don't add and remove block from context if directly moved into observer afterwards
                 let blocks = scope_context.blocks.remove(&block_index).unwrap();
                 observer(blocks);
             }
-        }
     }
 
     pub fn get_new_scope_id(&mut self) -> OutgoingScopeId {

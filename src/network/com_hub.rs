@@ -3,7 +3,6 @@ use crate::global::protocol_structures::routing_header::{
     ReceiverEndpoints, SignatureType,
 };
 use crate::runtime::global_context::get_global_context;
-use crate::stdlib::collections::VecDeque;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::spawn_local;
 use futures_util::future::join_all;
@@ -159,7 +158,7 @@ impl ComHub {
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         if let Some(factory) = self.interface_factories.get(interface_type) {
             let interface = factory(setup_data)
-                .map_err(|e| ComHubError::InterfaceError(e))?;
+                .map_err(ComHubError::InterfaceError)?;
             self.open_and_add_interface(interface.clone())
                 .await
                 .map(|_| interface)
@@ -952,9 +951,9 @@ impl ComHub {
 
         let block_handler = self_rc.borrow().block_handler.clone();
         let res = block_handler.borrow().wait_for_incoming_response_block(scope_id, block_index).await
-            .ok_or_else(|| ComHubError::NoResponse);
+            .ok_or(ComHubError::NoResponse);
 
-        return res;
+        res
     }
 
     /// Send a block to all endpoints specified in the block header.
@@ -1004,7 +1003,7 @@ impl ComHub {
                     NetworkTraceHop {
                         endpoint: self.endpoint.clone(),
                         socket: NetworkTraceHopSocket::new(
-                            self.get_com_interface_from_socket_uuid(&socket_uuid).borrow_mut().get_properties(),
+                            self.get_com_interface_from_socket_uuid(socket_uuid).borrow_mut().get_properties(),
                             socket_uuid.clone()),
                         direction: NetworkTraceHopDirection::Outgoing,
                     },

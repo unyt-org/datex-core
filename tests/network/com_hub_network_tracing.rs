@@ -124,6 +124,6 @@ async fn create_network_trace_separate_threads() {
     });
 
     // Wait for both threads to finish
-    let _ = thread_a.join().expect("Thread A panicked");
-    let _ = thread_b.join().expect("Thread B panicked");
+    thread_a.join().expect("Thread A panicked");
+    thread_b.join().expect("Thread B panicked");
 }

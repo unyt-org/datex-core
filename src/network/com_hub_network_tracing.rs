@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
-use std::sync::Mutex;
 use std::time::Duration;
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::DXBBlock;
@@ -114,7 +113,7 @@ impl ComHub {
 
         let trace_block = {
             let self_ref = self_rc.borrow();
-            let scope_id = self_ref.block_handler.borrow_mut().get_new_scope_id().clone();
+            let scope_id = self_ref.block_handler.borrow_mut().get_new_scope_id();
             let mut trace_block = self_ref.create_trace_block(
                 vec![],
                 endpoint.clone(),
@@ -169,7 +168,7 @@ impl ComHub {
         info!("Received trace block from {sender}");
 
         // get hops vector
-        let mut hops = self.get_trace_data_from_block(&block)?;
+        let mut hops = self.get_trace_data_from_block(block)?;
 
         // add incoming socket hop
         hops.push(NetworkTraceHop {
@@ -185,7 +184,7 @@ impl ComHub {
             hops,
             sender.clone(),
             BlockType::TraceBack,
-            block.block_header.scope_id.clone(),
+            block.block_header.scope_id,
         );
 
         // send trace back block
