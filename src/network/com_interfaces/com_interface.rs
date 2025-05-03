@@ -415,7 +415,7 @@ pub trait ComInterface: Any {
             if ok && self.get_properties().shall_reconnect() {
                 let time = get_global_context().time.lock().unwrap().now();
                 let properties = self.get_properties_mut();
-                properties.close_timestamp = Some(Duration::from_millis(time));
+                properties.close_timestamp = Some(time);
             }
             ok
         })

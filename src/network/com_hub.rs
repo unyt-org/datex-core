@@ -29,7 +29,7 @@ use crate::network::block_handler::{BlockHandler, ResponseBlocks};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
+    InterfaceDirection, InterfaceProperties, ReconnectionConfig,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
@@ -1058,15 +1058,74 @@ impl ComHub {
         }
     }
 
+    /// Update all interfaces to handle reconnections if the interface can be reconnected
+    /// or remove the interface if it cannot be reconnected.
     fn update_interfaces(&mut self) {
+        let mut to_remove = Vec::new();
         for interface in self.interfaces.values() {
-            // let mut interface = interface.borrow_mut();
+            let uuid = interface.borrow().get_uuid().clone();
             let state = interface.borrow().get_state();
-            info!(
-                "Updating interface {}: {:?}",
-                interface.borrow().get_uuid(),
-                state
-            );
+            if state.is_destroyed() {
+                info!(
+                    "Destroying interface on the ComHub {}",
+                    interface.borrow().get_uuid()
+                );
+                to_remove.push(uuid);
+            } else if state.is_not_connected()
+                && interface.borrow_mut().get_properties().shall_reconnect()
+            {
+                let mut config = interface.borrow_mut();
+                let config = config.get_properties_mut();
+
+                let reconnect_now = match &config.reconnection_config {
+                    ReconnectionConfig::InstantReconnect => true,
+                    ReconnectionConfig::ReconnectWithTimeout { timeout } => {
+                        let close_timestamp = config.close_timestamp;
+                        if close_timestamp.is_none() {
+                            return; // FIXME wtf why can't i return false here?
+                        }
+
+                        let close_timestamp = close_timestamp.unwrap();
+                        let now =
+                            get_global_context().time.lock().unwrap().now();
+                        let elapsed =
+                            Duration::from_millis(now - close_timestamp);
+                        if elapsed < *timeout {
+                            info!(
+                                "Not reconnecting interface {} yet. Elapsed time: {:?}",
+                                interface.borrow().get_uuid(),
+                                elapsed
+                            );
+                            return;
+                        }
+                        true
+                    }
+                    ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
+                        timeout,
+                        attempts,
+                    } => {
+                        // TODO
+                        true
+                    }
+                    ReconnectionConfig::NoReconnect => false,
+                };
+                if reconnect_now {
+                    info!(
+                        "Reconnecting interface {}",
+                        interface.borrow().get_uuid()
+                    );
+                    // config.handle_open().await;
+                } else {
+                    info!(
+                        "Not reconnecting interface {}",
+                        interface.borrow().get_uuid()
+                    );
+                }
+            }
+        }
+
+        for uuid in to_remove {
+            self.cleanup_interface(uuid);
         }
     }
 

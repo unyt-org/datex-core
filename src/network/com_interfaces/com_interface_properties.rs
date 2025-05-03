@@ -1,4 +1,6 @@
+use crate::runtime::global_context::get_global_context;
 use crate::stdlib::time::Duration;
+use log::info;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::{DurationMilliSeconds, DurationSeconds};
@@ -60,11 +62,11 @@ pub struct InterfaceProperties {
 
     /// Timestamp of the interface close event
     /// This is used to determine if the interface shall be reopened
-    pub close_timestamp: Option<Duration>,
+    pub close_timestamp: Option<u64>,
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 pub enum ReconnectionConfig {
     #[default]
     NoReconnect,
@@ -78,6 +80,64 @@ pub enum ReconnectionConfig {
         timeout: Duration,
         attempts: u8,
     },
+}
+
+impl ReconnectionConfig {
+    pub fn check_reconnect(
+        close_timestamp: Option<u64>,
+        timeout: &Duration,
+    ) -> bool {
+        match self {
+            ReconnectionConfig::InstantReconnect => true,
+            ReconnectionConfig::ReconnectWithTimeout { timeout } => {
+                if close_timestamp.is_none() {
+                    return false;
+                }
+
+                let close_timestamp = close_timestamp.unwrap();
+                let now = get_global_context().time.lock().unwrap().now();
+                let elapsed = Duration::from_millis(now - close_timestamp);
+                if elapsed < *timeout {
+                    return false;
+                }
+                true
+            }
+            ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
+                timeout,
+                attempts,
+            } => {
+                // TODO
+                true
+            }
+            ReconnectionConfig::NoReconnect => false,
+        }
+    }
+
+    pub fn get_timeout(&self) -> Option<Duration> {
+        match self {
+            ReconnectionConfig::NoReconnect => None,
+            ReconnectionConfig::InstantReconnect => None,
+            ReconnectionConfig::ReconnectWithTimeout { timeout } => {
+                Some(*timeout)
+            }
+            ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
+                timeout,
+                ..
+            } => Some(*timeout),
+        }
+    }
+
+    pub fn get_attempts(&self) -> Option<u8> {
+        match self {
+            ReconnectionConfig::NoReconnect => None,
+            ReconnectionConfig::InstantReconnect => None,
+            ReconnectionConfig::ReconnectWithTimeout { .. } => None,
+            ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
+                attempts,
+                ..
+            } => Some(*attempts),
+        }
+    }
 }
 
 impl InterfaceProperties {
