@@ -157,7 +157,7 @@ impl HTTPServerNativeInterface {
             let socket_uuid = socket.uuid.clone();
             let receive_queue = socket.receive_queue.clone();
             self.add_socket(Arc::new(Mutex::new(socket)));
-            self.register_socket_endpoint(socket_uuid.clone(), endpoint, 0)
+            self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
                 .unwrap();
             self.socket_channel_mapping
                 .borrow_mut()

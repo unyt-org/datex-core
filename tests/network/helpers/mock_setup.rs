@@ -1,11 +1,10 @@
 use std::str::FromStr;
 use datex_core::datex_values::Endpoint;
-use datex_core::global::dxb_block::DXBBlock;
-use datex_core::network::com_hub::ComHub;
+use datex_core::global::dxb_block::{DXBBlock, ResponseBlocks};
+use datex_core::network::com_hub::{ComHub, InterfacePriority};
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::sync::{mpsc, Arc, Mutex};
-use datex_core::network::block_handler::ResponseBlocks;
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
@@ -25,11 +24,12 @@ lazy_static::lazy_static! {
 
 pub async fn get_mock_setup(
 ) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
-    get_mock_setup_with_endpoint(ORIGIN.clone()).await
+    get_mock_setup_with_endpoint(ORIGIN.clone(), InterfacePriority::default()).await
 }
 
 pub async fn get_mock_setup_with_endpoint(
     endpoint: Endpoint,
+    priority: InterfacePriority
 ) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
     // init com hub
     let com_hub = ComHub::new(endpoint);
@@ -40,7 +40,7 @@ pub async fn get_mock_setup_with_endpoint(
 
     // add mockup interface to com_hub
     com_hub
-        .open_and_add_interface(mockup_interface_ref.clone())
+        .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
@@ -68,45 +68,66 @@ pub fn register_socket_endpoint(
         .unwrap();
 }
 
-pub async fn get_mock_setup_with_socket() -> (
+pub async fn get_mock_setup_and_socket() -> (
     Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
-    get_mock_setup_with_socket_and_endpoint(
+    get_mock_setup_and_socket_for_endpoint(
         ORIGIN.clone(),
         Some(TEST_ENDPOINT_A.clone()),
         None,
         None,
+        InterfacePriority::default(),
     )
     .await
 }
 
-pub async fn get_mock_setup_with_socket_and_endpoint(
-    local_endpoint: Endpoint,
-    remote_endpoint: Option<Endpoint>,
-    sender: Option<mpsc::Sender<Vec<u8>>>,
-    receiver: Option<mpsc::Receiver<Vec<u8>>>,
+pub async fn get_mock_setup_and_socket_for_priority(
+    priority: InterfacePriority
 ) -> (
     Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
-    get_mock_setup_with_socket_and_endpoint_update_loop(
+    get_mock_setup_and_socket_for_endpoint(
+        ORIGIN.clone(),
+        Some(TEST_ENDPOINT_A.clone()),
+        None,
+        None,
+        priority,
+    )
+        .await
+}
+
+pub async fn get_mock_setup_and_socket_for_endpoint(
+    local_endpoint: Endpoint,
+    remote_endpoint: Option<Endpoint>,
+    sender: Option<mpsc::Sender<Vec<u8>>>,
+    receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    priority: InterfacePriority,
+) -> (
+    Rc<ComHub>,
+    Rc<RefCell<MockupInterface>>,
+    Arc<Mutex<ComInterfaceSocket>>,
+) {
+    get_mock_setup_and_socket_for_endpoint_and_update_loop(
         local_endpoint,
         remote_endpoint,
         sender,
         receiver,
+        priority,
         false,
     ).await
 }
 
 
-pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
+pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     local_endpoint: Endpoint,
     remote_endpoint: Option<Endpoint>,
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    priority: InterfacePriority,
     enable_update_loop: bool,
 ) -> (
     Rc<ComHub>,
@@ -114,7 +135,7 @@ pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
     let (com_hub, mockup_interface_ref) =
-        get_mock_setup_with_endpoint(local_endpoint).await;
+        get_mock_setup_with_endpoint(local_endpoint, priority).await;
 
     mockup_interface_ref.borrow_mut().sender = sender;
     mockup_interface_ref.borrow_mut().receiver = Rc::new(RefCell::new(receiver));
@@ -178,8 +199,7 @@ pub async fn send_empty_block(
 }
 
 pub fn get_last_received_single_block_from_com_hub(com_hub: &ComHub) -> DXBBlock {
-    let block_handler = com_hub.block_handler.borrow();
-    let scopes = block_handler.request_scopes.borrow();
+    let scopes = com_hub.block_handler.request_scopes.borrow();
     let scopes = scopes.values().collect::<Vec<_>>();
 
     assert_eq!(scopes.len(), 1);
@@ -195,8 +215,7 @@ pub fn get_last_received_single_block_from_com_hub(com_hub: &ComHub) -> DXBBlock
     }
 }
 pub fn get_all_received_single_blocks_from_com_hub(com_hub: &ComHub) -> Vec<DXBBlock> {
-    let block_handler = com_hub.block_handler.borrow();
-    let scopes = block_handler.request_scopes.borrow();
+    let scopes = com_hub.block_handler.request_scopes.borrow();
     let scopes = scopes.values().collect::<Vec<_>>();
 
     let mut blocks = vec![];

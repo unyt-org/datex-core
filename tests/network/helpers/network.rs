@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::mpsc;
 use rsa::pkcs1::der::asn1::Int;
 use datex_core::datex_values::{Endpoint, PrimitiveValue};
-use datex_core::network::com_hub::ComInterfaceFactoryFn;
+use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::runtime::Runtime;
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
@@ -11,14 +11,16 @@ use crate::network::helpers::webrtc_signaling_server::run;
 
 pub struct InterfaceConnection {
     interface_type: String,
+    priority: InterfacePriority,
     pub setup_data: Option<Box<dyn Any>>,
     pub endpoint: Option<Endpoint>,
 }
 
 impl InterfaceConnection {
-    pub fn new<T: Any>(interface_type: &str, setup_data: T) -> Self {
+    pub fn new<T: Any>(interface_type: &str, priority: InterfacePriority, setup_data: T) -> Self {
         InterfaceConnection {
             interface_type: interface_type.to_string(),
+            priority,
             setup_data: Some(Box::new(setup_data)),
             endpoint: None,
         }
@@ -32,7 +34,7 @@ impl InterfaceConnection {
 
 pub struct Node {
     pub endpoint: Endpoint,
-    pub connections: Vec<(InterfaceConnection, bool)>,
+    pub connections: Vec<InterfaceConnection>,
     pub runtime: Option<Runtime>,
 }
 
@@ -46,16 +48,7 @@ impl Node {
     }
 
     pub fn with_connection(mut self, connection: InterfaceConnection) -> Self {
-        self.connections.push((connection, false));
-        self
-    }
-
-    pub fn with_default_connection(mut self, connection: InterfaceConnection) -> Self {
-        // check if no default connection is set
-        if self.connections.iter().any(|(_, is_default)| *is_default) {
-            panic!("Default connection already set");
-        }
-        self.connections.push((connection, true));
+        self.connections.push(connection);
         self
     }
 }
@@ -83,7 +76,7 @@ impl Network {
 
         // iterate over all endpoints and handle mockup endpoints
         for endpoint in endpoints.iter_mut() {
-            for (connection, _) in endpoint.connections.iter_mut() {
+            for connection in endpoint.connections.iter_mut() {
                 if connection.interface_type == "mockup" {
                     Network::init_mockup_endpoint(
                         connection,
@@ -167,11 +160,11 @@ impl Network {
             }
 
             // add com interfaces
-            for (connection, set_as_default) in endpoint.connections.iter_mut() {
+            for connection in endpoint.connections.iter_mut() {
                 runtime.com_hub.create_interface(
                     &connection.interface_type,
                     connection.setup_data.take().unwrap(),
-                    set_as_default.clone()
+                    connection.priority
                 ).await.expect("failed to create interface");
             }
             runtime.start().await;

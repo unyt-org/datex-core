@@ -33,7 +33,6 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
 
     let routing_header = RoutingHeader {
         version: 2,
-        distance: 0,
         flags: routing_header::Flags::new(),
         block_size_u16: Some(0),
         block_size_u32: None,
@@ -47,6 +46,7 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
             endpoints: None,
             endpoints_with_keys: None,
         },
+        ..RoutingHeader::default()
     };
 
     let block_header = BlockHeader::default();

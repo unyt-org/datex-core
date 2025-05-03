@@ -1,5 +1,9 @@
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::fmt::Display;
-use std::io::{Cursor, Read}; // FIXME no-std
+use std::io::{Cursor, Read};
+use std::rc::Rc;
+// FIXME no-std
 
 use crate::datex_values::Endpoint;
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
@@ -48,10 +52,39 @@ impl PartialEq for DXBBlock {
     }
 }
 
-const ROUTING_HEADER_FLAGS_POSITION: usize = 4;
+const ROUTING_HEADER_FLAGS_POSITION: usize = 5;
 const SIZE_BYTE_POSITION: usize = ROUTING_HEADER_FLAGS_POSITION + 1;
 const MAX_SIZE_BYTE_LENGTH: usize = 4;
 const ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION: u8 = 3;
+
+pub type IncomingScopeId = u32;
+pub type IncomingBlockIndex = u16;
+pub type IncomingBlockIncrement = u16;
+pub type OutgoingScopeId = u32;
+pub type OutgoingBlockIndex = u16;
+pub type OutgoingBlockIncrement = u16;
+
+#[derive(Debug, Clone)]
+pub enum ResponseBlocks {
+    SingleBlock(DXBBlock),
+    /// a stream of blocks
+    /// the stream is finished when a block has the end_of_block flag set
+    BlockStream(Rc<RefCell<VecDeque<DXBBlock>>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IncomingEndpointScopeId {
+    pub sender: Endpoint,
+    pub scope_id: IncomingScopeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BlockId {
+    pub endpoint_scope_id: IncomingEndpointScopeId,
+    pub current_block_index: IncomingBlockIndex,
+    pub current_block_increment: IncomingBlockIncrement,
+}
+
 
 impl DXBBlock {
     pub fn new(
@@ -224,6 +257,17 @@ impl DXBBlock {
             .receivers
             .flags
             .set_has_endpoints(!receivers.is_empty());
+    }
+    
+    pub fn get_block_id(&self) -> BlockId {
+        BlockId {
+            endpoint_scope_id: IncomingEndpointScopeId {
+                sender: self.routing_header.sender.clone(),
+                scope_id: self.block_header.scope_id,
+            },
+            current_block_index: self.block_header.block_index,
+            current_block_increment: self.block_header.block_increment,
+        }
     }
 }
 

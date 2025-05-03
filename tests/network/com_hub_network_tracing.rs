@@ -1,9 +1,10 @@
 use std::{thread};
 use crate::context::init_global_context;
-use crate::network::helpers::mock_setup::{get_mock_setup_with_socket_and_endpoint_update_loop, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
+use crate::network::helpers::mock_setup::{get_mock_setup_and_socket_for_endpoint_and_update_loop, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
 use std::sync::{mpsc};
 use ntest_timeout::timeout;
 use tokio::task;
+use datex_core::network::com_hub::InterfacePriority;
 
 #[tokio::test(flavor = "current_thread")]
 #[timeout(1000)]
@@ -16,21 +17,23 @@ async fn create_network_trace() {
         let (sender_b, receiver_b) = mpsc::channel::<Vec<u8>>();
 
         let (com_hub_mut_a, com_interface_a, socket_a) =
-            get_mock_setup_with_socket_and_endpoint_update_loop(
+            get_mock_setup_and_socket_for_endpoint_and_update_loop(
                 TEST_ENDPOINT_A.clone(),
                 None,
                 Some(sender_a),
                 Some(receiver_b),
+                InterfacePriority::default(),
                 true
             )
                 .await;
 
         let (com_hub_mut_b, com_interface_b, socket_b) =
-            get_mock_setup_with_socket_and_endpoint_update_loop(
+            get_mock_setup_and_socket_for_endpoint_and_update_loop(
                 TEST_ENDPOINT_B.clone(),
                 None,
                 Some(sender_b),
                 Some(receiver_a),
+                InterfacePriority::default(),
                 true
             )
                 .await;
@@ -83,11 +86,12 @@ async fn create_network_trace_separate_threads() {
                 init_global_context();
 
                 let (com_hub_mut_a, com_interface_a, socket_a) =
-                    get_mock_setup_with_socket_and_endpoint_update_loop(
+                    get_mock_setup_and_socket_for_endpoint_and_update_loop(
                         TEST_ENDPOINT_A.clone(),
                         None,
                         Some(sender_a),
                         Some(receiver_b),
+                        InterfacePriority::default(),
                         true
                     ).await;
 
@@ -127,11 +131,12 @@ async fn create_network_trace_separate_threads() {
                 init_global_context();
 
                 let (com_hub_mut_b, com_interface_b, socket_b) =
-                    get_mock_setup_with_socket_and_endpoint_update_loop(
+                    get_mock_setup_and_socket_for_endpoint_and_update_loop(
                         TEST_ENDPOINT_B.clone(),
                         None,
                         Some(sender_b),
                         Some(receiver_a),
+                        InterfacePriority::default(),
                         true
                     ).await;
 

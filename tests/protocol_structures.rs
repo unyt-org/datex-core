@@ -58,7 +58,6 @@ pub fn parse_block_header() {
 pub fn parse_routing_header() {
     let routing_header = RoutingHeader {
         version: 2,
-        distance: 0,
         flags: Flags::new(),
         block_size_u16: Some(0),
         block_size_u32: None,
@@ -76,6 +75,7 @@ pub fn parse_routing_header() {
             endpoints: None,
             endpoints_with_keys: None,
         },
+        ..Default::default()
     };
     let mut writer = Cursor::new(Vec::new());
     routing_header.write(&mut writer).unwrap();

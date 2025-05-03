@@ -46,7 +46,7 @@ impl LocalLoopbackInterface {
     fn open(&mut self) -> Result<(), ()> {
         let uuid = self.socket.lock().unwrap().uuid.clone();
         self.add_socket(self.socket.clone());
-        self.register_socket_endpoint(uuid, Endpoint::LOCAL, 0)
+        self.register_socket_endpoint(uuid, Endpoint::LOCAL, 1)
             .unwrap();
         Ok(())
     }

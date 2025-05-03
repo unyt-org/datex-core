@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 use std::time::Duration;
 use crate::datex_values::Endpoint;
-use crate::global::dxb_block::DXBBlock;
+use crate::global::dxb_block::{DXBBlock, OutgoingScopeId, ResponseBlocks};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
@@ -13,7 +13,6 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use crate::network::block_handler::{OutgoingScopeId, ResponseBlocks};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -138,7 +137,7 @@ impl ComHub {
         let endpoint = endpoint.into();
 
         let trace_block = {
-            let scope_id = self.block_handler.borrow_mut().get_new_scope_id();
+            let scope_id = self.block_handler.get_new_scope_id();
             let mut trace_block = self.create_trace_block(
                 vec![],
                 endpoint.clone(),
@@ -212,7 +211,7 @@ impl ComHub {
         );
 
         // send trace back block
-        self.send_block(trace_back_block, None);
+        self.send_own_block(trace_back_block);
 
         Some(())
     }
@@ -238,13 +237,14 @@ impl ComHub {
         );
 
         // send network trace result to the receiver
-        self.block_handler.borrow().handle_incoming_block(block);
+        self.block_handler.handle_incoming_block(block);
         Some(())
     }
 
     pub(crate) fn redirect_trace_block(
         &self,
         block: &DXBBlock,
+        receivers: &[Endpoint],
         original_socket: ComInterfaceSocketUUID,
     ) -> Option<()> {
         let mut block = block.clone();
@@ -264,7 +264,7 @@ impl ComHub {
         );
 
         // resend trace block
-        self.send_block(block.clone(), Some(&original_socket));
+        self.redirect_block(block.clone(), receivers, original_socket);
 
         Some(())
     }

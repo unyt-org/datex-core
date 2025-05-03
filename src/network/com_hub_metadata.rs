@@ -23,6 +23,7 @@ pub struct ComHubMetadataInterface {
 }
 
 pub struct ComHubMetadata {
+    pub endpoint: Endpoint,
     pub interfaces: Vec<ComHubMetadataInterface>,
     pub endpoint_sockets: HashMap<
         Endpoint,
@@ -32,25 +33,47 @@ pub struct ComHubMetadata {
 
 impl Display for ComHubMetadata {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "ComHubMetadata {{")?;
+        writeln!(f, "ComHub ({})", self.endpoint)?;
+
+        // print interfaces
         for interface in &self.interfaces {
-            writeln!(f, "  Interface: {}", interface.uuid)?;
-            writeln!(f, "    Properties: {:?}", interface.properties)?;
+            writeln!(
+                f,
+                "  {}/{}{}:",
+                interface.properties.interface_type,
+                interface.properties.channel,
+                interface.properties.name.clone().map(|n| format!(" ({})", n)).unwrap_or("".to_string())
+            )?;
+
+            // print sockets
             for socket in &interface.sockets {
                 writeln!(
                     f,
-                    "    Socket: {} ({}), Properties: {:?}",
-                    socket.uuid, socket.endpoint, socket.properties
+                    "   {} {}{} (distance: {}, uuid: {})",
+                    match socket.direction {
+                        InterfaceDirection::In => "──▶".to_string(),
+                        InterfaceDirection::Out => "◀──".to_string(),
+                        InterfaceDirection::InOut => "◀──▶".to_string(),
+                    },
+                    match socket.properties.is_direct {
+                        true => "".to_string(),
+                        false => "[INDIRECT] ".to_string(),
+                    },
+                    socket.endpoint,
+                    socket.properties.distance,
+                    socket.uuid
                 )?;
             }
         }
-        writeln!(f, "}}")
+
+        Ok(())
     }
 }
 
 impl ComHub {
     pub fn get_metadata(&self) -> ComHubMetadata {
         let mut metadata = ComHubMetadata {
+            endpoint: self.endpoint.clone(),
             interfaces: Vec::new(),
             endpoint_sockets: HashMap::new(),
         };
@@ -83,7 +106,7 @@ impl ComHub {
             }
         }
 
-        for interface in self.interfaces.borrow().values() {
+        for (interface, _) in self.interfaces.borrow().values() {
             let interface = interface.borrow();
 
             metadata.interfaces.push(ComHubMetadataInterface {
@@ -100,6 +123,6 @@ impl ComHub {
 
     pub fn print_metadata(&self) {
         let metadata = self.get_metadata();
-        debug!("ComHub Metadata: {metadata}");
+        debug!("ComHub Metadata:\n{metadata}");
     }
 }

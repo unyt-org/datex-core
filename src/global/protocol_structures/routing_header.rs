@@ -126,6 +126,7 @@ pub struct Receivers {
 pub struct RoutingHeader {
     pub version: u8,
     pub distance: u8,
+    pub ttl: u8,
     pub flags: Flags,
 
     #[brw(
@@ -156,6 +157,7 @@ impl Default for RoutingHeader {
         RoutingHeader {
             version: 1,
             distance: 0,
+            ttl: 42,
             flags: Flags::new(),
             block_size_u16: Some(26),
             block_size_u32: None,

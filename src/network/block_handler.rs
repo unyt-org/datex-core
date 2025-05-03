@@ -1,28 +1,15 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
 use futures::channel::oneshot;
 use log::info;
-use crate::global::dxb_block::DXBBlock;
-
-pub type IncomingScopeId = u32;
-pub type IncomingBlockIndex = u16;
-pub type IncomingBlockIncrement = u16;
-pub type OutgoingScopeId = u32;
-pub type OutgoingBlockIndex = u16;
-pub type OutgoingBlockIncrement = u16;
-
-#[derive(Debug, Clone)]
-pub enum ResponseBlocks {
-    SingleBlock(DXBBlock),
-    /// a stream of blocks
-    /// the stream is finished when a block has the end_of_block flag set
-    BlockStream(Rc<RefCell<VecDeque<DXBBlock>>>),
-}
+use ringmap::RingMap;
+use crate::global::dxb_block::{BlockId, DXBBlock, IncomingBlockIncrement, IncomingBlockIndex, IncomingEndpointScopeId, IncomingScopeId, OutgoingBlockIndex, OutgoingScopeId, ResponseBlocks};
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
 // TODO: store scope memory
 pub struct ScopeContext {
-    pub scope_id: IncomingScopeId,
+    pub endpoint_scope_id: IncomingEndpointScopeId,
     pub current_block_index: IncomingBlockIndex,
     pub current_block_increment: IncomingBlockIncrement,
     // one or multiple blocks for each block index
@@ -31,9 +18,9 @@ pub struct ScopeContext {
 
 /// A scope context storing scopes of incoming DXB blocks
 impl ScopeContext {
-    pub fn new(scope_id: IncomingScopeId) -> ScopeContext {
+    pub fn new(endpoint_scope_id: IncomingEndpointScopeId) -> ScopeContext {
         ScopeContext {
-            scope_id,
+            endpoint_scope_id,
             current_block_index: 0,
             current_block_increment: 0,
             blocks: BTreeMap::new(),
@@ -44,17 +31,25 @@ impl ScopeContext {
 // fn that gets a scope context as callback
 type ScopeObserver = Box<dyn FnMut(ResponseBlocks)>;
 
+#[derive(Clone, Debug)]
+pub struct BlockHistoryData {
+    incoming_socket_uuid: ComInterfaceSocketUUID,
+}
+
 pub struct BlockHandler {
-    pub current_scope_id: OutgoingScopeId,
+    pub current_scope_id: RefCell<OutgoingScopeId>,
 
     /// a map of active request scopes for incoming blocks
-    pub request_scopes: Rc<RefCell<HashMap<IncomingScopeId, ScopeContext>>>,
+    pub request_scopes: RefCell<HashMap<IncomingEndpointScopeId, ScopeContext>>,
     /// a map of active response scopes for incoming blocks
     /// TODO: what to do with responses that are not handled by an observer?
-    pub response_scopes: Rc<RefCell<HashMap<IncomingScopeId, ScopeContext>>>,
+    pub response_scopes: RefCell<HashMap<IncomingEndpointScopeId, ScopeContext>>,
 
     /// a map of observers for incoming response blocks (by scope_id + block_index)
-    pub scope_observers: Rc<RefCell<HashMap<(IncomingScopeId, IncomingBlockIndex), ScopeObserver>>>,
+    pub scope_observers: RefCell<HashMap<(IncomingScopeId, IncomingBlockIndex), ScopeObserver>>,
+
+    /// history of all incoming blocks
+    pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData>>
 }
 
 impl Default for BlockHandler {
@@ -66,11 +61,33 @@ impl Default for BlockHandler {
 impl BlockHandler {
     pub fn new() -> BlockHandler {
         BlockHandler {
-            current_scope_id: 0,
-            request_scopes: Rc::new(RefCell::new(HashMap::new())),
-            response_scopes: Rc::new(RefCell::new(HashMap::new())),
-            scope_observers: Rc::new(RefCell::new(HashMap::new())),
+            current_scope_id: RefCell::new(0),
+            request_scopes: RefCell::new(HashMap::new()),
+            response_scopes: RefCell::new(HashMap::new()),
+            scope_observers: RefCell::new(HashMap::new()),
+            incoming_blocks_history: RefCell::new(RingMap::with_capacity(500)),
         }
+    }
+
+    pub fn add_block_to_history(&self, block: &DXBBlock, socket_uuid: ComInterfaceSocketUUID) {
+        let mut history = self.incoming_blocks_history.borrow_mut();
+        let block_id = block.get_block_id();
+        // only add if original block
+        if !history.contains_key(&block_id) {
+            let block_data = BlockHistoryData {
+                incoming_socket_uuid: socket_uuid,
+            };
+            history.insert(block_id, block_data);
+        }
+    }
+
+    pub fn get_block_data_from_history(
+        &self,
+        block: &DXBBlock
+    ) -> Option<BlockHistoryData> {
+        let history = self.incoming_blocks_history.borrow();
+        let block_id = block.get_block_id();
+        history.get(&block_id).cloned()
     }
 
     pub fn handle_incoming_block(&self, block: DXBBlock) {
@@ -81,6 +98,10 @@ impl BlockHandler {
         let block_increment = block.block_header.block_increment;
         let is_end_of_block = block.block_header.flags_and_timestamp.is_end_of_block();
         let is_response = block.block_header.flags_and_timestamp.block_type().is_response();
+        let endpoint_scope_id = IncomingEndpointScopeId {
+            sender: block.routing_header.sender.clone(),
+            scope_id,
+        };
 
         info!("Received block (sid={scope_id}, block={block_index}, inc={block_increment})");
 
@@ -92,9 +113,9 @@ impl BlockHandler {
         };
 
         // create scope context if it doesn't exist
-        scopes.entry(scope_id).or_insert_with(|| ScopeContext::new(scope_id));
+        scopes.entry(endpoint_scope_id.clone()).or_insert_with(|| ScopeContext::new(endpoint_scope_id.clone()));
 
-        let scope_context = scopes.get_mut(&scope_id).unwrap();
+        let scope_context = scopes.get_mut(&endpoint_scope_id).unwrap();
 
         // create a new block entry if it doesn't exist
         if let std::collections::btree_map::Entry::Vacant(e) = scope_context.blocks.entry(block_index) {
@@ -119,6 +140,7 @@ impl BlockHandler {
         }
         
         // handle observers if response block
+        // TODO: if expecting multiple responses, handle them, otherwise the observer can directly be removed
         if is_response
             && let Some(mut observer) = self.scope_observers.borrow_mut().remove(&(scope_id, block_index)) {
                 // TODO: optimize: don't add and remove block from context if directly moved into observer afterwards
@@ -127,15 +149,15 @@ impl BlockHandler {
             }
     }
 
-    pub fn get_new_scope_id(&mut self) -> OutgoingScopeId {
-        self.current_scope_id += 1;
-        self.current_scope_id
+    pub fn get_new_scope_id(&self) -> OutgoingScopeId {
+        *self.current_scope_id.borrow_mut() += 1;
+        self.current_scope_id.borrow().clone()
     }
 
     /// wait for incoming response block with a specific scope id and block index
     pub async fn wait_for_incoming_response_block(
         &self,
-        scope_id: OutgoingScopeId,
+        endpoint_scope_id: OutgoingScopeId,
         block_index: OutgoingBlockIndex
     ) -> Option<ResponseBlocks> {
         let (tx, rx) = oneshot::channel();
@@ -150,7 +172,7 @@ impl BlockHandler {
 
         // add new scope observer
         self.scope_observers.borrow_mut().insert(
-            (scope_id, block_index),
+            (endpoint_scope_id.clone(), block_index),
             Box::new(observer)
         );
 
