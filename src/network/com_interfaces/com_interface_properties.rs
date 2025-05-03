@@ -1,9 +1,10 @@
+use crate::stdlib::time::Duration;
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use serde_with::DurationMilliSeconds;
 use strum::EnumString;
 
-use crate::stdlib::time::Duration;
-use serde::Deserialize;
-
-#[derive(PartialEq, Debug, Clone, EnumString, Deserialize)]
+#[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
 
 pub enum InterfaceDirection {
     In,
@@ -11,7 +12,8 @@ pub enum InterfaceDirection {
     InOut,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InterfaceProperties {
     /// the type of the interface, by which it is identified
     /// e.g. "tcp-client", "websocket-server",
@@ -33,6 +35,7 @@ pub struct InterfaceProperties {
 
     /// Estimated mean latency for this interface type in milliseconds (round trip time).
     /// Lower latency interfaces are preferred over higher latency channels
+    #[serde_as(as = "DurationMilliSeconds<f64>")]
     pub round_trip_time: Duration,
 
     /// Bandwidth in bytes per second
@@ -60,7 +63,7 @@ pub struct InterfaceProperties {
     pub close_timestamp: Option<Duration>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum ReconnectionConfig {
     #[default]
     NoReconnect,
