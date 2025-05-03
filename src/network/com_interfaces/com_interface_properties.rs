@@ -1,7 +1,7 @@
 use crate::stdlib::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use serde_with::DurationMilliSeconds;
+use serde_with::{DurationMilliSeconds, DurationSeconds};
 use strum::EnumString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
@@ -63,15 +63,18 @@ pub struct InterfaceProperties {
     pub close_timestamp: Option<Duration>,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum ReconnectionConfig {
     #[default]
     NoReconnect,
     InstantReconnect,
     ReconnectWithTimeout {
+        #[serde_as(as = "DurationSeconds<f64>")]
         timeout: Duration,
     },
     ReconnectWithTimeoutAndAttempts {
+        #[serde_as(as = "DurationSeconds<f64>")]
         timeout: Duration,
         attempts: u8,
     },
