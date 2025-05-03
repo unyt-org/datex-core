@@ -48,6 +48,7 @@ pub enum NetworkTraceHopDirection {
 pub struct NetworkTraceHop {
     #[serde_as(as = "DisplayFromStr")]
     pub endpoint: Endpoint,
+    pub distance: u8,
     pub socket: NetworkTraceHopSocket,
     pub direction: NetworkTraceHopDirection,
 }
@@ -92,6 +93,7 @@ impl Display for NetworkTraceResult {
         writeln!(f, "  Outbound path:")?;
         let mut hop = 1;
         let mut is_return_path = false;
+        let mut receiver_distance = 0;
         for hops in self.hops.chunks(2) {
             // missing hops
             if hops.len() < 2 {
@@ -108,12 +110,21 @@ impl Display for NetworkTraceResult {
             let hop_1 = &hops[0];
             let hop_2 = &hops[1];
 
+            let distance_from_sender = if is_return_path {
+                receiver_distance - hop_2.distance
+            } else {
+                hop_2.distance
+            };
+
             write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
-            writeln!(f, "{} ({}) ──▶ {} ({})",
+            writeln!(f, "{} ({}) ──▶ {} ({})  | distance from {}: {}",
                      hop_1.endpoint,
                      hop_1.socket.interface_name.clone().unwrap_or(hop_1.socket.interface_type.clone()),
                      hop_2.endpoint,
-                     hop_2.socket.interface_name.clone().unwrap_or(hop_2.socket.interface_type.clone()))?;
+                     hop_2.socket.interface_name.clone().unwrap_or(hop_2.socket.interface_type.clone()),
+                     self.sender,
+                     distance_from_sender
+            )?;
 
             // increment hop number
             hop += 1;
@@ -121,6 +132,7 @@ impl Display for NetworkTraceResult {
             if !is_return_path && hop_2.endpoint == self.receiver {
                 writeln!(f, "  Return path:")?;
                 is_return_path = true;
+                receiver_distance = hop_2.distance;
                 hop = 1;
             }
         }
@@ -196,6 +208,7 @@ impl ComHub {
         // add incoming socket hop
         hops.push(NetworkTraceHop {
             endpoint: self.endpoint.clone(),
+            distance: block.routing_header.distance,
             socket: NetworkTraceHopSocket::new(
                 self.get_com_interface_from_socket_uuid(&original_socket).borrow_mut().get_properties(),
                 original_socket.clone()),
@@ -225,10 +238,12 @@ impl ComHub {
         let sender = block.routing_header.sender.clone();
         info!("Received trace back block from {sender}");
 
+        let distance = block.routing_header.distance;
         self.add_hop_to_block_trace_data(
             &mut block,
             NetworkTraceHop {
                 endpoint: self.endpoint.clone(),
+                distance,
                 socket: NetworkTraceHopSocket::new(
                     self.get_com_interface_from_socket_uuid(&original_socket).borrow_mut().get_properties(),
                     original_socket.clone()),
@@ -252,10 +267,12 @@ impl ComHub {
         info!("Redirecting trace block from {sender}");
 
         // add incoming socket hop
+        let distance = block.routing_header.distance;
         self.add_hop_to_block_trace_data(
             &mut block,
             NetworkTraceHop {
                 endpoint: self.endpoint.clone(),
+                distance,
                 socket: NetworkTraceHopSocket::new(
                     self.get_com_interface_from_socket_uuid(&original_socket).borrow_mut().get_properties(),
                     original_socket.clone()),

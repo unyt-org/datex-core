@@ -9,7 +9,6 @@ use crate::network::helpers::mock_setup::{TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST
 use crate::network::helpers::mockup_interface::{MockupInterface, MockupInterfaceSetupData};
 use crate::network::helpers::network::{InterfaceConnection, Network, Node};
 
-
 #[tokio::test]
 #[timeout(100)]
 async fn create_network_with_two_nodes() {
@@ -114,12 +113,12 @@ async fn get_test_network_1() -> Network {
                 .with_connection(InterfaceConnection::new(
                     "mockup",
                     InterfacePriority::default(),
-                    MockupInterfaceSetupData::new("bc")
+                    MockupInterfaceSetupData::new("ab")
                 ))
                 .with_connection(InterfaceConnection::new(
                     "mockup",
                     InterfacePriority::default(),
-                    MockupInterfaceSetupData::new("ab")
+                    MockupInterfaceSetupData::new("bc")
                 )),
             // @test-c
             Node::new(TEST_ENDPOINT_C.clone())
@@ -138,6 +137,59 @@ async fn get_test_network_1() -> Network {
                 .with_connection(InterfaceConnection::new(
                     "mockup",
                     InterfacePriority::default(),
+                    MockupInterfaceSetupData::new("cd")
+                ))
+        ]
+    );
+    network.register_interface(
+        "mockup",
+        MockupInterface::factory
+    );
+
+    network.start().await;
+    network
+}
+
+
+async fn get_test_network_1_with_deterministic_priorities() -> Network {
+    let mut network = Network::create(
+        vec![
+            // @test-a
+            Node::new(TEST_ENDPOINT_A.clone())
+                .with_connection(InterfaceConnection::new(
+                    "mockup",
+                    InterfacePriority::Priority(0),
+                    MockupInterfaceSetupData::new("ab")
+                )),
+            // @test-b
+            Node::new(TEST_ENDPOINT_B.clone())
+                .with_connection(InterfaceConnection::new(
+                    "mockup",
+                    InterfacePriority::Priority(0),
+                    MockupInterfaceSetupData::new("ab")
+                ))
+                .with_connection(InterfaceConnection::new(
+                    "mockup",
+                    InterfacePriority::Priority(1),
+                    MockupInterfaceSetupData::new("bc")
+                )),
+            // @test-c
+            Node::new(TEST_ENDPOINT_C.clone())
+                .with_connection(InterfaceConnection::new(
+                    "mockup",
+                    InterfacePriority::Priority(0),
+                    MockupInterfaceSetupData::new("bc")
+                ))
+                .with_connection(InterfaceConnection::new(
+                    "mockup",
+                    InterfacePriority::Priority(1),
+                    MockupInterfaceSetupData::new("cd")
+                )),
+            // @test-d
+            Node::new(TEST_ENDPOINT_D.clone())
+                .with_connection(InterfaceConnection::new(
+                    "mockup",
+                    InterfacePriority::Priority(0),
                     MockupInterfaceSetupData::new("cd")
                 ))
         ]
@@ -218,9 +270,22 @@ async fn network_routing_with_four_nodes_2() {
         let runtime_a = network.get_runtime(TEST_ENDPOINT_A.clone());
         let runtime_b = network.get_runtime(TEST_ENDPOINT_B.clone());
         let runtime_c = network.get_runtime(TEST_ENDPOINT_C.clone());
-        
+
 
         // send trace from C to A
+        // this first trace does not route deterministically depending on the
+        // order in the priority list
+        // after the first trace, the routing should be deterministic
+        let network_trace = runtime_c.com_hub.record_trace(
+            TEST_ENDPOINT_A.clone(),
+        ).await;
+        assert!(network_trace.is_some());
+        info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+
+        // clear endpoint blacklist to make sure it has no influence on the following routing
+        runtime_c.com_hub.endpoint_sockets_blacklist.borrow_mut().clear();
+
+        // send trace from C to A again
         let network_trace = runtime_c.com_hub.record_trace(
             TEST_ENDPOINT_A.clone(),
         ).await;
@@ -263,7 +328,7 @@ async fn network_routing_with_four_nodes_3() {
         let runtime_a = network.get_runtime(TEST_ENDPOINT_A.clone());
         let runtime_b = network.get_runtime(TEST_ENDPOINT_B.clone());
         let runtime_c = network.get_runtime(TEST_ENDPOINT_C.clone());
-        
+
         // send trace from A to D
         let network_trace = runtime_a.com_hub.record_trace(
             TEST_ENDPOINT_D.clone(),
@@ -284,7 +349,7 @@ async fn network_routing_with_four_nodes_3() {
             (TEST_ENDPOINT_B.clone(), "mockup"),
             (TEST_ENDPOINT_A.clone(), "mockup")
         ]));
-        
+
     }).await;
 }
 
@@ -312,8 +377,22 @@ async fn network_routing_with_four_nodes_4() {
         let runtime_a = network.get_runtime(TEST_ENDPOINT_A.clone());
         let runtime_b = network.get_runtime(TEST_ENDPOINT_B.clone());
         let runtime_c = network.get_runtime(TEST_ENDPOINT_C.clone());
-        
+
         // send trace from B to D
+        // this first trace does not route deterministically depending on the
+        // order in the priority list
+        // after the first trace, the routing should be deterministic
+        let network_trace = runtime_b.com_hub.record_trace(
+            TEST_ENDPOINT_D.clone(),
+        ).await;
+        assert!(network_trace.is_some());
+        info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+
+        // clear endpoint blacklist to make sure it has no influence on the following routing
+        runtime_c.com_hub.endpoint_sockets_blacklist.borrow_mut().clear();
+
+
+        // send trace from B to D again
         let network_trace = runtime_b.com_hub.record_trace(
             TEST_ENDPOINT_D.clone(),
         ).await;
@@ -328,6 +407,101 @@ async fn network_routing_with_four_nodes_4() {
             (TEST_ENDPOINT_C.clone(), "mockup"),
             (TEST_ENDPOINT_C.clone(), "mockup"),
             (TEST_ENDPOINT_B.clone(), "mockup")
+        ]));
+
+    }).await;
+}
+
+
+
+#[tokio::test]
+#[timeout(1000)]
+async fn network_routing_with_four_nodes_5_deterministic_priorities() {
+    let local = task::LocalSet::new();
+    local.run_until(async {
+        init_global_context();
+
+        let network = get_test_network_1_with_deterministic_priorities().await;
+
+        // sleep 100ms
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        info!("Network started");
+
+        for endpoint in network.endpoints.iter() {
+            if let Some(runtime) = &endpoint.runtime {
+                runtime.com_hub.print_metadata();
+            }
+        }
+
+        let runtime_a = network.get_runtime(TEST_ENDPOINT_A.clone());
+        let runtime_b = network.get_runtime(TEST_ENDPOINT_B.clone());
+        let runtime_c = network.get_runtime(TEST_ENDPOINT_C.clone());
+
+        // send trace from B to D
+
+        let network_trace = runtime_b.com_hub.record_trace(
+            TEST_ENDPOINT_D.clone(),
+        ).await;
+        assert!(network_trace.is_some());
+        info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+        assert!(network_trace.unwrap().matches_hops(&[
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_D.clone(), "mockup"),
+            (TEST_ENDPOINT_D.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup")
+        ]));
+
+    }).await;
+}
+
+
+#[tokio::test]
+#[timeout(1000)]
+async fn network_routing_with_four_nodes_6_deterministic_priorities() {
+    let local = task::LocalSet::new();
+    local.run_until(async {
+        init_global_context();
+
+        let network = get_test_network_1_with_deterministic_priorities().await;
+
+        // sleep 100ms
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        info!("Network started");
+
+        for endpoint in network.endpoints.iter() {
+            if let Some(runtime) = &endpoint.runtime {
+                runtime.com_hub.print_metadata();
+            }
+        }
+
+        let runtime_c = network.get_runtime(TEST_ENDPOINT_C.clone());
+
+        // send trace from C A
+
+        let network_trace = runtime_c.com_hub.record_trace(
+            TEST_ENDPOINT_A.clone(),
+        ).await;
+        assert!(network_trace.is_some());
+        info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+        assert!(network_trace.unwrap().matches_hops(&[
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_D.clone(), "mockup"),
+            (TEST_ENDPOINT_D.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_A.clone(), "mockup"),
+            (TEST_ENDPOINT_A.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_C.clone(), "mockup"),
         ]));
 
     }).await;

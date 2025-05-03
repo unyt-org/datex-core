@@ -33,7 +33,7 @@ type ScopeObserver = Box<dyn FnMut(ResponseBlocks)>;
 
 #[derive(Clone, Debug)]
 pub struct BlockHistoryData {
-    incoming_socket_uuid: ComInterfaceSocketUUID,
+    pub original_socket_uuid: ComInterfaceSocketUUID,
 }
 
 pub struct BlockHandler {
@@ -69,16 +69,26 @@ impl BlockHandler {
         }
     }
 
+    /// Add a block to the history of incoming blocks
+    /// if the block is not already in the history
+    /// returns true if the block was added and not already in the history
     pub fn add_block_to_history(&self, block: &DXBBlock, socket_uuid: ComInterfaceSocketUUID) {
         let mut history = self.incoming_blocks_history.borrow_mut();
         let block_id = block.get_block_id();
         // only add if original block
         if !history.contains_key(&block_id) {
             let block_data = BlockHistoryData {
-                incoming_socket_uuid: socket_uuid,
+                original_socket_uuid: socket_uuid,
             };
             history.insert(block_id, block_data);
         }
+    }
+
+    /// check if a block is already in the history
+    pub fn is_block_in_history(&self, block: &DXBBlock) -> bool {
+        let history = self.incoming_blocks_history.borrow();
+        let block_id = block.get_block_id();
+        history.contains_key(&block_id)
     }
 
     pub fn get_block_data_from_history(

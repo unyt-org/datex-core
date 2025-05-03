@@ -65,6 +65,12 @@ pub struct ComHub {
         (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
     >>,
 
+    /// a blacklist of sockets that are not allowed to be used for a specific endpoint
+    pub endpoint_sockets_blacklist: RefCell<HashMap<
+        Endpoint,
+        HashSet<ComInterfaceSocketUUID>,
+    >>,
+
     /// fallback sockets that are used if no direct endpoint reachable socket is available
     /// sorted by priority
     pub fallback_sockets: RefCell<Vec<(ComInterfaceSocketUUID, u16)>>,
@@ -96,6 +102,7 @@ impl Default for ComHub {
             block_handler: BlockHandler::new(),
             sockets: RefCell::new(HashMap::new()),
             fallback_sockets: RefCell::new(Vec::new()),
+            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
         }
     }
 }
@@ -307,8 +314,13 @@ impl ComHub {
 
         let block_type = block.block_header.flags_and_timestamp.block_type();
 
+        // register in block history
+        let is_new_block = !self.block_handler.is_block_in_history(block);
         // assign endpoint to socket if none is assigned
-        self.register_socket_endpoint_from_incoming_block(socket_uuid.clone(), block);
+        // only if a new block and the sender in not the local endpoint
+        if is_new_block && block.routing_header.sender != self.endpoint {
+            self.register_socket_endpoint_from_incoming_block(socket_uuid.clone(), block);
+        }
 
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
             let is_for_own = receivers.endpoints.iter().any(|e| {
@@ -370,6 +382,12 @@ impl ComHub {
                     }
                 }
             }
+        }
+
+        // add to block history
+        if is_new_block {
+            self.block_handler
+                .add_block_to_history(block, socket_uuid);
         }
     }
 
@@ -433,23 +451,61 @@ impl ComHub {
         &self,
         block: DXBBlock,
         receivers: &[Endpoint],
-        original_socket: ComInterfaceSocketUUID,
+        incoming_socket: ComInterfaceSocketUUID,
     ) {
+        // check if block has already passed this endpoint (-> bounced back block)
+        // and add to blacklist for all receiver endpoints
+        let history_block_data = self.block_handler.get_block_data_from_history(&block);
+        if history_block_data.is_some() {
+            for receiver in receivers {
+                if receiver != &self.endpoint {
+                    info!("{}: Adding socket {} to blacklist for receiver {}",
+                        self.endpoint,
+                        incoming_socket,
+                        receiver
+                    );
+                    self.endpoint_sockets_blacklist
+                        .borrow_mut()
+                        .entry(receiver.clone())
+                        .or_insert_with(HashSet::new)
+                        .insert(incoming_socket.clone());
+                }
+            }
+        }
+
         let mut block = block.clone();
         block.set_receivers(receivers);
         // increment distance for next hop
         block.routing_header.distance += 1;
-        let res = self.send_block(block.clone(), &[original_socket.clone()]);
+        let res = self.send_block(block.clone(), Some(incoming_socket.clone()));
 
         // send block for unreachable endpoints back to the sender
         if let Err(unreachable_endpoints) = res {
+            // try to send back to original socket
+            // if already in history, get original socket from history
+            // otherwise, directly send back to the incoming socket
+            let original_socket = if let Some(history_block_data) = history_block_data {
+                history_block_data.original_socket_uuid
+            } else {
+                incoming_socket
+            };
+            
+            let socket_endpoint = self.get_socket_by_uuid(&original_socket).lock().unwrap().direct_endpoint.clone();
+
+            info!("Sending block for {} back to original socket: {} ({})",
+                    unreachable_endpoints.iter().map(|e| e.to_string()).join(","),
+                    original_socket,
+                    socket_endpoint.as_ref().map(|e| e.to_string()).unwrap_or("Unknown".to_string())
+                );
             // decrement distance because we are going back
             if block.routing_header.distance <= 1 {
-                panic!("Distance for redirect block is <= 1. Cannot decrement.");
-            } else {
                 block.routing_header.distance -= 1;
+                //panic!("Distance for redirect block is <= 1. Cannot decrement.");
+            } else {
+                block.routing_header.distance -= 2;
             }
             self.send_block_addressed(block, &original_socket, &unreachable_endpoints)
+
         }
     }
 
@@ -858,6 +914,14 @@ impl ComHub {
         else {
             let sockets = self.fallback_sockets.borrow();
             for (socket_uuid, _) in sockets.iter() {
+                let socket = self.get_socket_by_uuid(socket_uuid);
+                info!("{}: Find best for {}: {} ({}); excluded:{}",
+                    self.endpoint,
+                    endpoint,
+                    socket_uuid,
+                    socket.lock().unwrap().direct_endpoint.as_ref().unwrap(),
+                    exclude_sockets.contains(socket_uuid)
+                );
                 if !exclude_sockets.contains(socket_uuid) {
                     return Some(socket_uuid.clone());
                 }
@@ -871,15 +935,27 @@ impl ComHub {
     fn get_outbound_receiver_groups(
         &self,
         block: &DXBBlock,
-        exclude_sockets: &[ComInterfaceSocketUUID],
+        incoming_socket: Option<ComInterfaceSocketUUID>,
     ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
         if let Some(receivers) = block.receivers() {
             if !receivers.is_empty() {
                 let endpoint_sockets = receivers
                     .iter()
                     .map(|e| {
+                        let mut exclude_sockets = vec![];
+                        if let Some(original_socket) = &incoming_socket {
+                            exclude_sockets.push(original_socket.clone());
+                        }
+                        // add sockets from endpoint blacklist
+                        if let Some(blacklist) = self
+                            .endpoint_sockets_blacklist
+                            .borrow()
+                            .get(e)
+                        {
+                            exclude_sockets.extend(blacklist.iter().cloned());
+                        }
                         let socket =
-                            self.find_best_endpoint_socket(e, exclude_sockets);
+                            self.find_best_endpoint_socket(e, &exclude_sockets);
                         (socket, e)
                     })
                     .group_by(|(socket, _)| socket.clone())
@@ -949,8 +1025,8 @@ impl ComHub {
             .flags_and_timestamp
             .set_creation_timestamp(now);
 
-        // increment distance for next hop
-        block.routing_header.distance += 1;
+        // set distance to 1
+        block.routing_header.distance = 1;
 
         block
     }
@@ -958,7 +1034,7 @@ impl ComHub {
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
     pub fn send_own_block(&self, mut block: DXBBlock) {
         block = self.prepare_own_block(block);
-        self.send_block(block, &[]);
+        self.send_block(block, None);
     }
 
     /// Send a block and wait for a response block.
@@ -991,10 +1067,10 @@ impl ComHub {
     pub fn send_block(
         &self,
         block: DXBBlock,
-        exclude_sockets: &[ComInterfaceSocketUUID],
+        incoming_socket: Option<ComInterfaceSocketUUID>,
     ) -> Result<(), Vec<Endpoint>> {
         let outbound_receiver_groups =
-            self.get_outbound_receiver_groups(&block, exclude_sockets);
+            self.get_outbound_receiver_groups(&block, incoming_socket);
 
         if outbound_receiver_groups.is_none() {
             error!("No outbound receiver groups found for block");
@@ -1033,10 +1109,12 @@ impl ComHub {
         // if type is Trace or TraceBack, add the outgoing socket to the hops
         match block.block_header.flags_and_timestamp.block_type() {
             BlockType::Trace | BlockType::TraceBack => {
+                let distance = block.routing_header.distance;
                 self.add_hop_to_block_trace_data(
                     &mut block,
                     NetworkTraceHop {
                         endpoint: self.endpoint.clone(),
+                        distance: distance,
                         socket: NetworkTraceHopSocket::new(
                             self.get_com_interface_from_socket_uuid(
                                 socket_uuid,
