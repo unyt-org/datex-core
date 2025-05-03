@@ -4,10 +4,10 @@ use crate::global::protocol_structures::routing_header::{
 };
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{spawn, spawn_local};
+use crate::task::spawn_local;
 use futures_util::future::join_all;
 use itertools::Itertools;
-use log::{debug, error, info, log, warn};
+use log::{debug, error, info, warn};
 use std::any::Any;
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
@@ -1064,9 +1064,9 @@ impl ComHub {
         let mut to_remove = Vec::new();
         for interface in self.interfaces.values() {
             let uuid = interface.borrow().get_uuid().clone();
-            let state = interface.borrow().get_state().clone();
+            let state = interface.borrow().get_state();
             if state.is_destroyed() {
-                info!("Destroying interface on the ComHub {}", uuid);
+                info!("Destroying interface on the ComHub {uuid}");
                 to_remove.push(uuid);
             } else if state.is_not_connected()
                 && interface.borrow_mut().get_properties().shall_reconnect()
@@ -1108,7 +1108,7 @@ impl ComHub {
                 };
                 drop(interface);
                 if reconnect_now {
-                    info!("Reconnecting interface {}", uuid);
+                    info!("Reconnecting interface {uuid}");
                     return; // FIXME
                     spawn_local(async move {
                         // FIXME
@@ -1129,7 +1129,7 @@ impl ComHub {
                         }
                     });
                 } else {
-                    info!("Not reconnecting interface {}", uuid);
+                    info!("Not reconnecting interface {uuid}");
                 }
             }
         }

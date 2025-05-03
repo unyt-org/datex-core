@@ -7,7 +7,7 @@ use datex_core::global::protocol_structures::encrypted_header::{
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
 use datex_core::network::com_interfaces::com_interface_properties::{InterfaceProperties, ReconnectionConfig};
-use datex_core::network::com_interfaces::default_com_interfaces::base_interface::{self, BaseInterface};
+use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use itertools::Itertools;

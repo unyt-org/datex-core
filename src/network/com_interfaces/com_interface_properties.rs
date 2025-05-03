@@ -1,6 +1,5 @@
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::time::Duration;
-use log::info;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::{DurationMilliSeconds, DurationSeconds};
