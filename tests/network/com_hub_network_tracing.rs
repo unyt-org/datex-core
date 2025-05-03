@@ -50,7 +50,14 @@ async fn create_network_trace() {
         ).await;
 
         assert!(network_trace.is_some());
-        log::info!("Network trace:\n{}", network_trace.unwrap());
+        log::info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+
+        assert!(network_trace.unwrap().matches_hops(&[
+            (TEST_ENDPOINT_A.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_B.clone(), "mockup"),
+            (TEST_ENDPOINT_A.clone(), "mockup")
+        ]));
 
     }).await;
 }
@@ -95,7 +102,14 @@ async fn create_network_trace_separate_threads() {
                 ).await;
 
                 assert!(network_trace.is_some());
-                log::info!("Network trace:\n{}", network_trace.unwrap());
+                log::info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+
+                assert!(network_trace.unwrap().matches_hops(&[
+                    (TEST_ENDPOINT_A.clone(), "mockup"),
+                    (TEST_ENDPOINT_B.clone(), "mockup"),
+                    (TEST_ENDPOINT_B.clone(), "mockup"),
+                    (TEST_ENDPOINT_A.clone(), "mockup")
+                ]));
             }).await;
         });
     });

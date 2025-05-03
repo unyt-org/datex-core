@@ -19,6 +19,8 @@ lazy_static::lazy_static! {
     pub static ref ORIGIN : Endpoint = Endpoint::from_str("@origin").unwrap();
     pub static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_str("@test-a").unwrap();
     pub static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_str("@test-b").unwrap();
+    pub static ref TEST_ENDPOINT_C: Endpoint = Endpoint::from_str("@test-c").unwrap();
+    pub static ref TEST_ENDPOINT_D: Endpoint = Endpoint::from_str("@test-d").unwrap();
 }
 
 pub async fn get_mock_setup(
@@ -50,13 +52,7 @@ pub async fn get_mock_setup_with_endpoint(
 pub fn add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
 ) -> Arc<Mutex<ComInterfaceSocket>> {
-    let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
-        mockup_interface_ref.borrow().get_uuid().clone(),
-        InterfaceDirection::InOut,
-        1,
-    )));
-    mockup_interface_ref.borrow().add_socket(socket.clone());
-    socket
+    mockup_interface_ref.borrow_mut().init_socket()
 }
 
 pub fn register_socket_endpoint(
@@ -121,15 +117,13 @@ pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
         get_mock_setup_with_endpoint(local_endpoint).await;
 
     mockup_interface_ref.borrow_mut().sender = sender;
-    mockup_interface_ref.borrow_mut().receiver = receiver;
+    mockup_interface_ref.borrow_mut().receiver = Rc::new(RefCell::new(receiver));
 
     if enable_update_loop {
         ComHub::start_update_loop(com_hub.clone());
 
         // start mockup interface update loop
-        MockupInterface::start_update_loop(
-            mockup_interface_ref.clone(),
-        );
+        mockup_interface_ref.borrow_mut().start_update_loop();
 
         tokio::task::yield_now().await;
     }

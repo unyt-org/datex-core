@@ -58,8 +58,9 @@ impl ComInterface for LocalLoopbackInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let socket = self.socket.clone();
-        let socket = socket.lock().unwrap();
+        log::info!("LocalLoopbackInterface Sending block: {:?}", block);
+        let socket = self.socket.lock().unwrap();
+        log::info!("LocalLoopbackInterface sent block");
         socket.get_receive_queue().lock().unwrap().extend(block);
         Box::pin(async { true })
     }

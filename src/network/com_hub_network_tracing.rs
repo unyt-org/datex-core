@@ -16,7 +16,7 @@ use serde_with::DisplayFromStr;
 use crate::network::block_handler::{OutgoingScopeId, ResponseBlocks};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
     pub interface_type: String,
     pub interface_name: Option<String>,
@@ -38,14 +38,14 @@ impl NetworkTraceHopSocket {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum NetworkTraceHopDirection {
     Outgoing,
     Incoming,
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHop {
     #[serde_as(as = "DisplayFromStr")]
     pub endpoint: Endpoint,
@@ -53,12 +53,36 @@ pub struct NetworkTraceHop {
     pub direction: NetworkTraceHopDirection,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NetworkTraceResult {
     pub sender: Endpoint,
     pub receiver: Endpoint,
     pub hops: Vec<NetworkTraceHop>,
     pub round_trip_time: Duration,
+}
+
+impl NetworkTraceResult {
+    /// Checks if the hops in the network trace result match the given hops.
+    /// A hop consists of an endpoint and an interface type.
+    pub fn matches_hops(
+        &self,
+        hops: &[(Endpoint, &str)],
+    ) -> bool {
+        if self.hops.len() != hops.len() {
+            return false;
+        }
+
+        for (hop, expected_hop) in self.hops.iter().zip(hops) {
+            if hop.endpoint != expected_hop.0 {
+                return false;
+            }
+            if hop.socket.interface_type != expected_hop.1 {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl Display for NetworkTraceResult {
@@ -68,6 +92,7 @@ impl Display for NetworkTraceResult {
         writeln!(f, "  Round trip time: {:?}", self.round_trip_time)?;
         writeln!(f, "  Outbound path:")?;
         let mut hop = 1;
+        let mut is_return_path = false;
         for hops in self.hops.chunks(2) {
             // missing hops
             if hops.len() < 2 {
@@ -94,8 +119,9 @@ impl Display for NetworkTraceResult {
             // increment hop number
             hop += 1;
             // add return trip label if hop_2 endpoint is the receiver
-            if hop_2.endpoint == self.receiver {
+            if !is_return_path && hop_2.endpoint == self.receiver {
                 writeln!(f, "  Return path:")?;
+                is_return_path = true;
                 hop = 1;
             }
         }

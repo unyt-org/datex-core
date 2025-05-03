@@ -502,22 +502,22 @@ pub trait ComInterface: Any {
                             // Send the block
                             let socket_ref = socket_ref.clone();
                             Box::pin(async move {
-                                let mut socket_borrow =
-                                    socket_ref.lock().unwrap();
+                                let uuid =
+                                    socket_ref.lock().unwrap().uuid.clone();
 
                                 // socket will return a boolean indicating of a block could be sent
                                 let has_been_send = shared_self
                                     .borrow_mut()
                                     .send_block(
                                         &block,
-                                        socket_borrow.uuid.clone(),
+                                        uuid,
                                     )
                                     .await;
 
                                 // If the block could not be sent, push it back to the send queue to be sent later
                                 if !has_been_send {
                                     debug!("Failed to send block");
-                                    socket_borrow.send_queue.push_back(block);
+                                    socket_ref.lock().unwrap().send_queue.push_back(block);
                                 }
                             })
                         })

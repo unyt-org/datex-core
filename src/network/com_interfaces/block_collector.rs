@@ -112,7 +112,6 @@ impl BlockCollector {
         let queue = self.receive_queue.clone();
         let mut receive_queue = queue.lock().unwrap();
         let len = receive_queue.len();
-        info!("Update block collector (length={len})");
         if len == 0 {
             return;
         }

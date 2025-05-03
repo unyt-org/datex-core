@@ -54,7 +54,7 @@ pub struct ComHub {
     pub endpoint: Endpoint,
 
     /// a list of all available interface factories, keyed by their interface type
-    pub interface_factories: HashMap<String, ComInterfaceFactoryFn>,
+    pub interface_factories: RefCell<HashMap<String, ComInterfaceFactoryFn>>,
 
     /// a list of all available interfaces, keyed by their UUID
     pub interfaces: RefCell<HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>>,
@@ -95,7 +95,7 @@ impl Default for ComHub {
     fn default() -> Self {
         ComHub {
             endpoint: Endpoint::default(),
-            interface_factories: HashMap::new(),
+            interface_factories: RefCell::new(HashMap::new()),
             interfaces: RefCell::new(HashMap::new()),
             endpoint_sockets: RefCell::new(HashMap::new()),
             block_handler: Rc::new(RefCell::new(BlockHandler::new())),
@@ -142,11 +142,11 @@ impl ComHub {
     /// Register a new interface factory for a specific interface implementation.
     /// This allows the ComHub to create new instances of the interface on demand.
     pub fn register_interface_factory(
-        &mut self,
+        &self,
         interface_type: String,
         factory: ComInterfaceFactoryFn,
     ) {
-        self.interface_factories.insert(interface_type, factory);
+        self.interface_factories.borrow_mut().insert(interface_type, factory);
     }
 
     /// Create a new interface instance using the registered factory
@@ -156,13 +156,20 @@ impl ComHub {
         &self,
         interface_type: &str,
         setup_data: Box<dyn Any>,
+        set_as_default: bool,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-        if let Some(factory) = self.interface_factories.get(interface_type) {
+        info!("creating interface {}", interface_type);
+        if let Some(factory) = self.interface_factories.borrow().get(interface_type) {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
-            self.open_and_add_interface(interface.clone())
+            let uuid = interface.borrow().get_uuid().clone();
+            let res = self.open_and_add_interface(interface.clone())
                 .await
-                .map(|_| interface)
+                .map(|_| interface);
+            if set_as_default && res.is_ok() {
+                self.set_default_interface(uuid)?;
+            }
+            res
         } else {
             Err(ComHubError::InterfaceTypeDoesNotExist)
         }
@@ -849,6 +856,13 @@ impl ComHub {
         endpoint: &Endpoint,
         exclude_socket: Option<&ComInterfaceSocketUUID>,
     ) -> Option<ComInterfaceSocketUUID> {
+
+        // if the endpoint is the same as the hub endpoint, try to find an interface
+        // that redirects @@local
+        if endpoint == &self.endpoint && let Some(socket) = self.find_known_endpoint_socket(&Endpoint::LOCAL, exclude_socket) {
+            return Some(socket);
+        }
+
         // find best known socket for endpoint
         let matching_socket =
             self.find_known_endpoint_socket(endpoint, exclude_socket);
@@ -935,7 +949,6 @@ impl ComHub {
 
             // receive blocks from all sockets
             self.receive_incoming_blocks();
-            info!("done...");
         }
 
         // send all queued blocks from all interfaces
@@ -974,7 +987,6 @@ impl ComHub {
         // yield
         #[cfg(feature = "tokio_runtime")]
         yield_now().await;
-        log::info!("awaited blok");
 
         let block_handler = self.block_handler.clone();
         let res = block_handler
@@ -1210,7 +1222,6 @@ impl ComHub {
     /// BlockCollector to collect the data into blocks.
     fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
-        info!("Collecting incoming data from all sockets");
         for (socket, _) in self.sockets.borrow().values() {
             let mut socket_ref = socket.lock().unwrap();
             socket_ref.collect_incoming_data();

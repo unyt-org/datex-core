@@ -3,7 +3,8 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Duration;
 use datex_core::network::com_interfaces::com_interface::{
@@ -25,8 +26,12 @@ use datex_core::{
     },
     set_sync_opener,
 };
+use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
+use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 use datex_core::task::spawn_local;
 use datex_macros::{com_interface, create_opener};
+
+
 
 #[derive(Default)]
 pub struct MockupInterface {
@@ -34,7 +39,38 @@ pub struct MockupInterface {
 
     info: ComInterfaceInfo,
     pub sender: Option<mpsc::Sender<Vec<u8>>>,
-    pub receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    pub receiver: Rc<RefCell<Option<mpsc::Receiver<Vec<u8>>>>>,
+}
+
+impl MockupInterface {
+    pub fn new(
+        setup_data: MockupInterfaceSetupData,
+    ) -> Self {
+        let mut mockup_interface = MockupInterface::default();
+        mockup_interface.info.interface_properties = Some(MockupInterface::get_default_properties());
+        if let Some(interface_properties) = &mut mockup_interface.info.interface_properties {
+            interface_properties.name = Some(setup_data.name.clone());
+        }
+
+        if let Some(sender) = setup_data.sender {
+            mockup_interface.sender = Some(sender);
+        }
+        if let Some(receiver) = setup_data.receiver {
+            mockup_interface.receiver = Rc::new(RefCell::new(Some(receiver)));
+        }
+
+        mockup_interface
+    }
+
+    pub fn init_socket(&mut self) -> Arc<Mutex<ComInterfaceSocket>> {
+        let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
+            self.get_uuid().clone(),
+            InterfaceDirection::InOut,
+            1,
+        )));
+        self.add_socket(socket.clone());
+        socket
+    }
 }
 
 impl SingleSocketProvider for MockupInterface {
@@ -43,9 +79,31 @@ impl SingleSocketProvider for MockupInterface {
     }
 }
 
-impl ComInterfaceFactory<()> for MockupInterface {
-    fn create(_setup_data: ()) -> Result<MockupInterface, ComInterfaceError> {
-        Ok(MockupInterface::default())
+pub struct MockupInterfaceSetupData {
+    pub sender: Option<mpsc::Sender<Vec<u8>>>,
+    pub receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    pub name: String,
+}
+
+impl MockupInterfaceSetupData {
+    pub fn new(
+        name: &str,
+    ) -> MockupInterfaceSetupData {
+        MockupInterfaceSetupData {
+            name: name.to_string(),
+            receiver: None,
+            sender: None,
+        }
+    }
+}
+
+impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
+    fn create(setup_data: MockupInterfaceSetupData) -> Result<MockupInterface, ComInterfaceError> {
+        let mut interface = MockupInterface::new(setup_data);
+        interface.init_socket();
+        interface.start_update_loop();
+        log::info!("started update loop");
+        Ok(interface)
     }
 
     fn get_default_properties() -> InterfaceProperties {
@@ -92,11 +150,21 @@ impl MockupInterface {
     }
 
     pub fn update(&mut self) {
-        if let Some(receiver) = &self.receiver {
-            let socket = self.get_socket();
+        MockupInterface::_update(
+            self.receiver.clone(),
+            self.info.com_interface_sockets(),
+        );
+    }
+
+    pub fn _update(
+        receiver: Rc<RefCell<Option<mpsc::Receiver<Vec<u8>>>>>,
+        sockets: Arc<Mutex<ComInterfaceSockets>>,
+    ) {
+        if let Some(receiver) = &*receiver.borrow() {
+            let sockets = sockets.lock().unwrap();
+            let socket = sockets.sockets.values().next();
             if let Some(socket) = socket {
                 let socket = socket.lock().unwrap();
-                log::info!("Updating MockupInterface (receiving from socket {})", socket.uuid);
                 let mut receive_queue = socket.receive_queue.lock().unwrap();
                 while let Ok(block) = receiver.try_recv() {
                     receive_queue.extend(block);
@@ -109,10 +177,15 @@ impl MockupInterface {
         Ok(())
     }
 
-    pub fn start_update_loop(self_rc: Rc<RefCell<Self>>) {
+    pub fn start_update_loop(&mut self) {
+        let receiver = self.receiver.clone();
+        let sockets = self.info.com_interface_sockets();
         spawn_local(async move {
             loop {
-                self_rc.borrow_mut().update();
+                MockupInterface::_update(
+                    receiver.clone(),
+                    sockets.clone(),
+                );
                 #[cfg(feature = "tokio_runtime")]
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }

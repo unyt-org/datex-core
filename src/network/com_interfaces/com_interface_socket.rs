@@ -50,7 +50,6 @@ impl ComInterfaceSocket {
     }
 
     pub fn collect_incoming_data(&mut self) {
-        info!("Collecting incoming data for {}", &self.uuid);
         self.block_collector.update();
     }
 
