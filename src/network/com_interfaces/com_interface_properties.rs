@@ -60,9 +60,16 @@ pub struct InterfaceProperties {
     // If the interface is not able to reconnect, it will be destroyed
     pub reconnection_config: ReconnectionConfig,
 
+    /* private field */
     /// Timestamp of the interface close event
     /// This is used to determine if the interface shall be reopened
-    pub close_timestamp: Option<u64>,
+    pub close_timestamp: Option<u64>, /*(crate) FIXME */
+
+    /* private field */
+    /// Number of reconnection attempts already made
+    /// This is used to determine if the interface shall be reopened
+    /// and if the interface shall be destroyed
+    pub reconnect_attempts: Option<u8>,
 }
 
 #[serde_as]
@@ -83,34 +90,20 @@ pub enum ReconnectionConfig {
 }
 
 impl ReconnectionConfig {
-    pub fn check_reconnect(
+    pub fn check_reconnect_timeout(
         close_timestamp: Option<u64>,
         timeout: &Duration,
     ) -> bool {
-        match self {
-            ReconnectionConfig::InstantReconnect => true,
-            ReconnectionConfig::ReconnectWithTimeout { timeout } => {
-                if close_timestamp.is_none() {
-                    return false;
-                }
-
-                let close_timestamp = close_timestamp.unwrap();
-                let now = get_global_context().time.lock().unwrap().now();
-                let elapsed = Duration::from_millis(now - close_timestamp);
-                if elapsed < *timeout {
-                    return false;
-                }
-                true
-            }
-            ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
-                timeout,
-                attempts,
-            } => {
-                // TODO
-                true
-            }
-            ReconnectionConfig::NoReconnect => false,
+        let close_timestamp = match close_timestamp {
+            Some(ts) => ts,
+            None => return false,
+        };
+        let now = get_global_context().time.lock().unwrap().now();
+        let elapsed = Duration::from_millis(now - close_timestamp);
+        if elapsed < *timeout {
+            return false;
         }
+        true
     }
 
     pub fn get_timeout(&self) -> Option<Duration> {
@@ -179,6 +172,7 @@ impl Default for InterfaceProperties {
             is_secure_channel: false,
             reconnection_config: ReconnectionConfig::default(),
             close_timestamp: None,
+            reconnect_attempts: None,
         }
     }
 }

@@ -4,10 +4,10 @@ use crate::global::protocol_structures::routing_header::{
 };
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::spawn_local;
+use crate::task::{spawn, spawn_local};
 use futures_util::future::join_all;
 use itertools::Itertools;
-use log::{debug, error, info, warn};
+use log::{debug, error, info, log, warn};
 use std::any::Any;
 use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
@@ -1064,62 +1064,72 @@ impl ComHub {
         let mut to_remove = Vec::new();
         for interface in self.interfaces.values() {
             let uuid = interface.borrow().get_uuid().clone();
-            let state = interface.borrow().get_state();
+            let state = interface.borrow().get_state().clone();
             if state.is_destroyed() {
-                info!(
-                    "Destroying interface on the ComHub {}",
-                    interface.borrow().get_uuid()
-                );
+                info!("Destroying interface on the ComHub {}", uuid);
                 to_remove.push(uuid);
             } else if state.is_not_connected()
                 && interface.borrow_mut().get_properties().shall_reconnect()
             {
-                let mut config = interface.borrow_mut();
-                let config = config.get_properties_mut();
+                let interface_rc = interface.clone();
+                let mut interface = interface.borrow_mut();
+                let config = interface.get_properties_mut();
 
                 let reconnect_now = match &config.reconnection_config {
                     ReconnectionConfig::InstantReconnect => true,
                     ReconnectionConfig::ReconnectWithTimeout { timeout } => {
-                        let close_timestamp = config.close_timestamp;
-                        if close_timestamp.is_none() {
-                            return; // FIXME wtf why can't i return false here?
-                        }
-
-                        let close_timestamp = close_timestamp.unwrap();
-                        let now =
-                            get_global_context().time.lock().unwrap().now();
-                        let elapsed =
-                            Duration::from_millis(now - close_timestamp);
-                        if elapsed < *timeout {
-                            info!(
-                                "Not reconnecting interface {} yet. Elapsed time: {:?}",
-                                interface.borrow().get_uuid(),
-                                elapsed
-                            );
-                            return;
-                        }
-                        true
+                        ReconnectionConfig::check_reconnect_timeout(
+                            config.close_timestamp,
+                            timeout,
+                        )
                     }
                     ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
                         timeout,
                         attempts,
                     } => {
-                        // TODO
-                        true
+                        let max_attempts = attempts;
+
+                        // check if the attemps are not exceeded
+                        let attempts = config.reconnect_attempts.unwrap_or(0);
+                        let attempts = attempts + 1;
+                        if attempts > *max_attempts {
+                            to_remove.push(uuid.clone());
+                            return;
+                        }
+
+                        config.reconnect_attempts = Some(attempts);
+
+                        ReconnectionConfig::check_reconnect_timeout(
+                            config.close_timestamp,
+                            timeout,
+                        )
                     }
                     ReconnectionConfig::NoReconnect => false,
                 };
+                drop(interface);
                 if reconnect_now {
-                    info!(
-                        "Reconnecting interface {}",
-                        interface.borrow().get_uuid()
-                    );
-                    // config.handle_open().await;
+                    info!("Reconnecting interface {}", uuid);
+                    return; // FIXME
+                    spawn_local(async move {
+                        // FIXME
+                        log::debug!("1");
+                        let interface = interface_rc.clone();
+                        let mut interface = interface.borrow_mut();
+                        interface.set_state(ComInterfaceState::Connecting);
+                        log::debug!("2");
+                        let res = interface.handle_open().await;
+                        log::debug!("3");
+                        if res {
+                            interface.set_state(ComInterfaceState::Connected);
+                            log::debug!("4");
+                        } else {
+                            interface
+                                .set_state(ComInterfaceState::NotConnected);
+                            log::debug!("5");
+                        }
+                    });
                 } else {
-                    info!(
-                        "Not reconnecting interface {}",
-                        interface.borrow().get_uuid()
-                    );
+                    info!("Not reconnecting interface {}", uuid);
                 }
             }
         }

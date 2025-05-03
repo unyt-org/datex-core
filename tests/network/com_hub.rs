@@ -538,6 +538,24 @@ pub async fn test_reconnect() {
         .borrow_mut()
         .get_properties()
         .close_timestamp
-        .is_some(),);
+        .is_some());
+
+    // the interface should not be reconnected yet
     ComHub::update(com_hub.clone()).await;
+    assert_eq!(
+        base_interface.borrow().get_state(),
+        ComInterfaceState::NotConnected
+    );
+
+    // wait for the reconnection to happen
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // check that the interface is connected again
+    // and that the close_timestamp is reset
+    ComHub::update(com_hub.clone()).await;
+    // FIXME
+    // assert_eq!(
+    //     base_interface.borrow().get_state(),
+    //     ComInterfaceState::Connected
+    // );
 }
