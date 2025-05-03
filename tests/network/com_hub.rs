@@ -6,15 +6,22 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::com_hub::ComHub;
+use datex_core::network::com_interfaces::com_interface_properties::{InterfaceProperties, ReconnectionConfig};
+use datex_core::network::com_interfaces::default_com_interfaces::base_interface::{self, BaseInterface};
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
+use itertools::Itertools;
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::mpsc;
-use itertools::Itertools;
 // FIXME no-std
 use crate::context::init_global_context;
-use crate::network::helpers::mock_setup::{add_socket, get_all_received_single_blocks_from_com_hub, get_last_received_single_block_from_com_hub, get_mock_setup, get_mock_setup_with_socket, register_socket_endpoint, send_block_with_body, send_empty_block, ORIGIN, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
+use crate::network::helpers::mock_setup::{
+    add_socket, get_all_received_single_blocks_from_com_hub,
+    get_last_received_single_block_from_com_hub, get_mock_setup,
+    get_mock_setup_with_socket, register_socket_endpoint, send_block_with_body,
+    send_empty_block, ORIGIN, TEST_ENDPOINT_A, TEST_ENDPOINT_B,
+};
 use crate::network::helpers::mockup_interface::MockupInterface;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
@@ -457,7 +464,8 @@ pub async fn test_basic_routing() {
     com_interface_b.borrow_mut().update();
     ComHub::update(com_hub_mut_b.clone()).await;
 
-    let last_block = get_last_received_single_block_from_com_hub(&com_hub_mut_b.borrow());
+    let last_block =
+        get_last_received_single_block_from_com_hub(&com_hub_mut_b.borrow());
     assert_eq!(block_a_to_b.body, last_block.body);
 }
 
@@ -482,5 +490,27 @@ pub async fn register_factory() {
             .get_properties()
             .interface_type,
         "mockup"
+    );
+}
+
+#[tokio::test]
+pub async fn test_reconnect() {
+    init_global_context();
+    let mut com_hub = ComHub::default();
+
+    let mut base_interface =
+        BaseInterface::new_with_properties(InterfaceProperties {
+            reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
+                timeout: std::time::Duration::from_secs(1),
+            },
+            ..InterfaceProperties::default()
+        });
+    base_interface.open().unwrap();
+    let base_interface = Rc::new(RefCell::new(base_interface));
+    com_hub.add_interface(base_interface.clone()).unwrap();
+
+    assert_eq!(
+        base_interface.borrow().get_state(),
+        ComInterfaceState::Connected
     );
 }
