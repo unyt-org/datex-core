@@ -553,9 +553,8 @@ pub async fn test_reconnect() {
     // check that the interface is connected again
     // and that the close_timestamp is reset
     ComHub::update(com_hub.clone()).await;
-    // FIXME
-    // assert_eq!(
-    //     base_interface.borrow().get_state(),
-    //     ComInterfaceState::Connected
-    // );
+    assert_eq!(
+        base_interface.borrow().get_state(),
+        ComInterfaceState::Connected
+    );
 }

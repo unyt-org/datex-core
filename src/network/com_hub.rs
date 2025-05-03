@@ -903,7 +903,7 @@ impl ComHub {
             let mut self_ref = self_rc.borrow_mut();
 
             // update all interfaces
-            self_ref.update_interfaces();
+            self_ref.update_interfaces().await;
 
             // update own socket lists for routing
             self_ref.update_sockets();
@@ -1060,17 +1060,25 @@ impl ComHub {
 
     /// Update all interfaces to handle reconnections if the interface can be reconnected
     /// or remove the interface if it cannot be reconnected.
-    fn update_interfaces(&mut self) {
+    async fn update_interfaces(&mut self) {
+        let local_set = tokio::task::LocalSet::new();
+
         let mut to_remove = Vec::new();
         for interface in self.interfaces.values() {
             let uuid = interface.borrow().get_uuid().clone();
             let state = interface.borrow().get_state();
+
+            // If the interface has been proactively destroyed, remove it from the hub
+            // and clean up the sockets. This happens when the user calls the destroy
+            // method on the interface and not the remove_interface on the ComHub.
             if state.is_destroyed() {
                 info!("Destroying interface on the ComHub {uuid}");
                 to_remove.push(uuid);
             } else if state.is_not_connected()
                 && interface.borrow_mut().get_properties().shall_reconnect()
             {
+                // If the interface is disconnected and the interface has
+                // reconnection enabled, check if the interface should be reconnected
                 let interface_rc = interface.clone();
                 let mut interface = interface.borrow_mut();
                 let config = interface.get_properties_mut();
@@ -1108,28 +1116,31 @@ impl ComHub {
                 };
                 drop(interface);
                 if reconnect_now {
-                    info!("Reconnecting interface {uuid}");
-                    return; // FIXME
-                    spawn_local(async move {
+                    debug!("Reconnecting interface {uuid}");
+                    local_set.spawn_local(async move {
                         // FIXME
-                        log::debug!("1");
                         let interface = interface_rc.clone();
                         let mut interface = interface.borrow_mut();
                         interface.set_state(ComInterfaceState::Connecting);
-                        log::debug!("2");
+
+                        let config = interface.get_properties_mut();
+                        config.close_timestamp = None;
+
+                        let current_attempts =
+                            config.reconnect_attempts.unwrap_or(0);
+                        config.reconnect_attempts = Some(current_attempts + 1);
+
                         let res = interface.handle_open().await;
-                        log::debug!("3");
                         if res {
                             interface.set_state(ComInterfaceState::Connected);
-                            log::debug!("4");
+                            // config.reconnect_attempts = None;
                         } else {
                             interface
                                 .set_state(ComInterfaceState::NotConnected);
-                            log::debug!("5");
                         }
                     });
                 } else {
-                    info!("Not reconnecting interface {uuid}");
+                    debug!("Not reconnecting interface {uuid}");
                 }
             }
         }
@@ -1137,6 +1148,7 @@ impl ComHub {
         for uuid in to_remove {
             self.cleanup_interface(uuid);
         }
+        local_set.await;
     }
 
     /// Update all known sockets for all interfaces to update routing
