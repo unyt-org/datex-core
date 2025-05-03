@@ -157,8 +157,8 @@ impl ComHub {
         setup_data: Box<dyn Any>,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         if let Some(factory) = self.interface_factories.get(interface_type) {
-            let interface = factory(setup_data)
-                .map_err(ComHubError::InterfaceError)?;
+            let interface =
+                factory(setup_data).map_err(ComHubError::InterfaceError)?;
             self.open_and_add_interface(interface.clone())
                 .await
                 .map(|_| interface)
@@ -335,13 +335,15 @@ impl ComHub {
                     BlockType::Trace => {
                         self.handle_trace_block(block, socket_uuid);
                         return;
-                    },
+                    }
                     BlockType::TraceBack => {
                         self.handle_trace_back_block(block, socket_uuid);
                         return;
                     }
                     _ => {
-                        self.block_handler.borrow().handle_incoming_block(block.clone());
+                        self.block_handler
+                            .borrow()
+                            .handle_incoming_block(block.clone());
                     }
                 };
             }
@@ -899,6 +901,10 @@ impl ComHub {
         {
             info!("running ComHub update loop...");
             let mut self_ref = self_rc.borrow_mut();
+
+            // update all interfaces
+            self_ref.update_interfaces();
+
             // update own socket lists for routing
             self_ref.update_sockets();
 
@@ -950,7 +956,10 @@ impl ComHub {
         log::info!("awaited blok");
 
         let block_handler = self_rc.borrow().block_handler.clone();
-        let res = block_handler.borrow().wait_for_incoming_response_block(scope_id, block_index).await
+        let res = block_handler
+            .borrow()
+            .wait_for_incoming_response_block(scope_id, block_index)
+            .await
             .ok_or(ComHubError::NoResponse);
 
         res
@@ -1003,8 +1012,13 @@ impl ComHub {
                     NetworkTraceHop {
                         endpoint: self.endpoint.clone(),
                         socket: NetworkTraceHopSocket::new(
-                            self.get_com_interface_from_socket_uuid(socket_uuid).borrow_mut().get_properties(),
-                            socket_uuid.clone()),
+                            self.get_com_interface_from_socket_uuid(
+                                socket_uuid,
+                            )
+                            .borrow_mut()
+                            .get_properties(),
+                            socket_uuid.clone(),
+                        ),
                         direction: NetworkTraceHopDirection::Outgoing,
                     },
                 );
@@ -1048,6 +1062,11 @@ impl ComHub {
         for interface in self.interfaces.values() {
             // let mut interface = interface.borrow_mut();
             let state = interface.borrow().get_state();
+            info!(
+                "Updating interface {}: {:?}",
+                interface.borrow().get_uuid(),
+                state
+            );
         }
     }
 

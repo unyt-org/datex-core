@@ -367,14 +367,10 @@ pub trait ComInterface: Any {
     /// to be consumed by the ComHub
     fn destroy_sockets(&mut self) {
         let sockets = self.get_sockets();
-        debug!("getting sockets lock");
         let sockets = sockets.lock().unwrap();
-        debug!("got sockets lock");
         let uuids: Vec<ComInterfaceSocketUUID> =
             sockets.sockets.keys().cloned().collect();
         drop(sockets);
-
-        debug!("destroying sockets");
         for socket_uuid in uuids {
             self.remove_socket(&socket_uuid);
         }

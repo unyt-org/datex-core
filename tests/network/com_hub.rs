@@ -498,6 +498,7 @@ pub async fn test_reconnect() {
     init_global_context();
     let mut com_hub = ComHub::default();
 
+    // create a new interface, open it and add it to the com_hub
     let mut base_interface =
         BaseInterface::new_with_properties(InterfaceProperties {
             reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
@@ -509,8 +510,34 @@ pub async fn test_reconnect() {
     let base_interface = Rc::new(RefCell::new(base_interface));
     com_hub.add_interface(base_interface.clone()).unwrap();
 
+    // check that the interface is connected
     assert_eq!(
         base_interface.borrow().get_state(),
         ComInterfaceState::Connected
     );
+
+    // check that the interface is in the com_hub
+    assert_eq!(com_hub.interfaces.len(), 1);
+    assert!(com_hub.has_interface(base_interface.borrow().get_uuid()));
+
+    let com_hub = Rc::new(RefCell::new(com_hub));
+
+    // simulate a disconnection by closing the interface
+    // This action is normally done by the interface itself
+    // but we do it manually here to test the reconnection
+    assert!(base_interface.borrow_mut().close().await);
+
+    // check that the interface is not connected
+    // and that the close_timestamp is set
+    assert_eq!(
+        base_interface.borrow().get_state(),
+        ComInterfaceState::NotConnected
+    );
+
+    assert!(base_interface
+        .borrow_mut()
+        .get_properties()
+        .close_timestamp
+        .is_some(),);
+    ComHub::update(com_hub.clone()).await;
 }
