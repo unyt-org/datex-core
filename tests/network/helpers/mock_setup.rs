@@ -22,15 +22,15 @@ lazy_static::lazy_static! {
 }
 
 pub async fn get_mock_setup(
-) -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>) {
+) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
     get_mock_setup_with_endpoint(ORIGIN.clone()).await
 }
 
 pub async fn get_mock_setup_with_endpoint(
     endpoint: Endpoint,
-) -> (Rc<RefCell<ComHub>>, Rc<RefCell<MockupInterface>>) {
+) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let mut com_hub = ComHub::new(endpoint);
+    let com_hub = ComHub::new(endpoint);
 
     // init mockup interface
     let mockup_interface_ref =
@@ -44,7 +44,7 @@ pub async fn get_mock_setup_with_endpoint(
             panic!("Error adding interface: {e:?}");
         });
 
-    (Rc::new(RefCell::new(com_hub)), mockup_interface_ref.clone())
+    (Rc::new(com_hub), mockup_interface_ref.clone())
 }
 
 pub fn add_socket(
@@ -73,7 +73,7 @@ pub fn register_socket_endpoint(
 }
 
 pub async fn get_mock_setup_with_socket() -> (
-    Rc<RefCell<ComHub>>,
+    Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
@@ -92,7 +92,7 @@ pub async fn get_mock_setup_with_socket_and_endpoint(
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
 ) -> (
-    Rc<RefCell<ComHub>>,
+    Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
@@ -113,7 +113,7 @@ pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
     enable_update_loop: bool,
 ) -> (
-    Rc<RefCell<ComHub>>,
+    Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
@@ -144,7 +144,7 @@ pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
     }
 
     if !enable_update_loop {
-        ComHub::update(com_hub.clone()).await;
+        com_hub.update().await;
     }
     else {
         tokio::task::yield_now().await;
@@ -156,32 +156,30 @@ pub async fn get_mock_setup_with_socket_and_endpoint_update_loop(
 pub async fn send_block_with_body(
     to: &[Endpoint],
     body: &[u8],
-    com_hub: &Rc<RefCell<ComHub>>,
+    com_hub: &Rc<ComHub>,
 ) -> DXBBlock {
     let block = {
-        let com_hub_ref = com_hub.borrow();
         let mut block: DXBBlock = DXBBlock::default();
         block.set_receivers(to);
         block.body = body.to_vec();
-        com_hub_ref.send_own_block(block.clone());
+        com_hub.send_own_block(block.clone());
         block
     };
-    ComHub::update(com_hub.clone()).await;
+    com_hub.update().await;
     block
 }
 
 pub async fn send_empty_block(
     to: &[Endpoint],
-    com_hub: &Rc<RefCell<ComHub>>,
+    com_hub: &Rc<ComHub>,
 ) -> DXBBlock {
     // send block
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
     {
-        let com_hub_ref = com_hub.borrow();
-        com_hub_ref.send_own_block(block.clone());
+        com_hub.send_own_block(block.clone());
     }
-    ComHub::update(com_hub.clone()).await;
+    com_hub.update().await;
     block
 }
 

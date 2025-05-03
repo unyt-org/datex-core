@@ -60,7 +60,7 @@ impl ComHub {
             Vec<ComHubMetadataInterfaceSocket>,
         > = HashMap::new();
 
-        for (endpoint, sockets) in &self.endpoint_sockets {
+        for (endpoint, sockets) in self.endpoint_sockets.borrow().iter() {
             for (socket_uuid, properties) in sockets {
                 let socket = self.get_socket_by_uuid(socket_uuid);
                 let socket = socket.lock().unwrap();
@@ -83,7 +83,7 @@ impl ComHub {
             }
         }
 
-        for interface in self.interfaces.values() {
+        for interface in self.interfaces.borrow().values() {
             let interface = interface.borrow();
 
             metadata.interfaces.push(ComHubMetadataInterface {

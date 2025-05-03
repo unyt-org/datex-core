@@ -33,13 +33,12 @@ use super::helpers::mock_setup::get_mock_setup_with_socket_and_endpoint;
 #[tokio::test]
 pub async fn test_add_and_remove() {
     init_global_context();
-    let com_hub = Rc::new(RefCell::new(ComHub::default()));
-    let mut com_hub_mut = com_hub.borrow_mut();
+    let com_hub = Rc::new(ComHub::default());
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));
         let uuid = mockup_interface.borrow().get_uuid().clone();
-        com_hub_mut
+        com_hub
             .open_and_add_interface(mockup_interface.clone())
             .await
             .unwrap_or_else(|e| {
@@ -47,7 +46,7 @@ pub async fn test_add_and_remove() {
             });
         uuid
     };
-    assert!(com_hub_mut.remove_interface(uuid).await.is_ok());
+    assert!(com_hub.remove_interface(uuid).await.is_ok());
 }
 
 #[tokio::test]
@@ -139,7 +138,7 @@ pub async fn send_block_to_multiple_endpoints() {
         socket.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    ComHub::update(com_hub.clone()).await;
+    com_hub.update().await;
 
     // send block to multiple receivers
     let block = send_block_with_body(
@@ -178,7 +177,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
         socket_b.clone(),
         TEST_ENDPOINT_B.clone(),
     );
-    ComHub::update(com_hub.clone()).await;
+    com_hub.update().await;
 
     // send block to multiple receivers
     let _ = send_empty_block(
@@ -205,7 +204,6 @@ pub async fn default_interface_create_socket_first() {
     let (com_hub, com_interface, _) = get_mock_setup_with_socket().await;
 
     com_hub
-        .borrow_mut()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {e:?}");
@@ -224,7 +222,6 @@ pub async fn default_interface_set_default_interface_first() {
     let (com_hub, com_interface) = get_mock_setup().await;
 
     com_hub
-        .borrow_mut()
         .set_default_interface(com_interface.borrow().get_uuid().clone())
         .unwrap_or_else(|e| {
             panic!("Error setting default interface: {e:?}");
@@ -239,7 +236,7 @@ pub async fn default_interface_set_default_interface_first() {
 
     // Update to let the com_hub know about the socket and call the add_socket method
     // This will set the default interface and socket
-    ComHub::update(com_hub.clone()).await;
+    com_hub.update().await;
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
@@ -309,8 +306,7 @@ pub async fn test_receive() {
         let mut receive_queue_mut = receive_queue.lock().unwrap();
         let _ = receive_queue_mut.write(block_bytes.as_slice());
     }
-    ComHub::update(com_hub.clone()).await;
-    let com_hub = com_hub.borrow();
+    com_hub.update().await;
 
     let last_block = get_last_received_single_block_from_com_hub(&com_hub);
     assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
@@ -375,8 +371,7 @@ pub async fn test_receive_multiple() {
         }
     }
 
-    ComHub::update(com_hub.clone()).await;
-    let com_hub = com_hub.borrow();
+    com_hub.update().await;
 
     let incoming_blocks = get_all_received_single_blocks_from_com_hub(&com_hub);
 
@@ -392,13 +387,12 @@ pub async fn test_receive_multiple() {
 pub async fn test_add_and_remove_interface_and_sockets() {
     init_global_context();
 
-    let (com_hub_mut, com_interface, socket) =
+    let (com_hub, com_interface, socket) =
         get_mock_setup_with_socket().await;
 
-    let mut com_hub_mut = com_hub_mut.borrow_mut();
-    assert_eq!(com_hub_mut.interfaces.len(), 1);
-    assert_eq!(com_hub_mut.sockets.len(), 1);
-    assert_eq!(com_hub_mut.endpoint_sockets.len(), 1);
+    assert_eq!(com_hub.interfaces.borrow().len(), 1);
+    assert_eq!(com_hub.sockets.borrow().len(), 1);
+    assert_eq!(com_hub.endpoint_sockets.borrow().len(), 1);
 
     assert_eq!(
         com_interface.borrow_mut().get_info().get_state(),
@@ -410,11 +404,11 @@ pub async fn test_add_and_remove_interface_and_sockets() {
     let uuid = com_interface.borrow().get_uuid().clone();
 
     // remove interface
-    assert!(com_hub_mut.remove_interface(uuid).await.is_ok());
+    assert!(com_hub.remove_interface(uuid).await.is_ok());
 
-    assert_eq!(com_hub_mut.interfaces.len(), 0);
-    assert_eq!(com_hub_mut.sockets.len(), 0);
-    assert_eq!(com_hub_mut.endpoint_sockets.len(), 0);
+    assert_eq!(com_hub.interfaces.borrow().len(), 0);
+    assert_eq!(com_hub.sockets.borrow().len(), 0);
+    assert_eq!(com_hub.endpoint_sockets.borrow().len(), 0);
 
     assert_eq!(
         com_interface.borrow_mut().get_info().get_state(),
@@ -451,8 +445,8 @@ pub async fn test_basic_routing() {
     com_interface_a.borrow_mut().update();
     com_interface_b.borrow_mut().update();
 
-    ComHub::update(com_hub_mut_a.clone()).await;
-    ComHub::update(com_hub_mut_b.clone()).await;
+    com_hub_mut_a.update().await;
+    com_hub_mut_b.update().await;
 
     let block_a_to_b = send_block_with_body(
         &[TEST_ENDPOINT_B.clone()],
@@ -462,10 +456,10 @@ pub async fn test_basic_routing() {
     .await;
 
     com_interface_b.borrow_mut().update();
-    ComHub::update(com_hub_mut_b.clone()).await;
+    com_hub_mut_b.update().await;
 
     let last_block =
-        get_last_received_single_block_from_com_hub(&com_hub_mut_b.borrow());
+        get_last_received_single_block_from_com_hub(&com_hub_mut_b);
     assert_eq!(block_a_to_b.body, last_block.body);
 }
 
@@ -517,7 +511,7 @@ pub async fn test_reconnect() {
     );
 
     // check that the interface is in the com_hub
-    assert_eq!(com_hub.interfaces.len(), 1);
+    assert_eq!(com_hub.interfaces.borrow().len(), 1);
     assert!(com_hub.has_interface(base_interface.borrow().get_uuid()));
 
     let com_hub = Rc::new(RefCell::new(com_hub));
@@ -541,7 +535,7 @@ pub async fn test_reconnect() {
         .is_some());
 
     // the interface should not be reconnected yet
-    ComHub::update(com_hub.clone()).await;
+    com_hub.borrow().update().await;
     assert_eq!(
         base_interface.borrow().get_state(),
         ComInterfaceState::NotConnected
@@ -552,7 +546,7 @@ pub async fn test_reconnect() {
 
     // check that the interface is connected again
     // and that the close_timestamp is reset
-    ComHub::update(com_hub.clone()).await;
+    com_hub.borrow().update().await;
     assert_eq!(
         base_interface.borrow().get_state(),
         ComInterfaceState::Connected

@@ -22,7 +22,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Runtime {
     pub version: String,
     pub memory: Rc<RefCell<Memory>>,
-    pub com_hub: Rc<RefCell<ComHub>>,
+    pub com_hub: Rc<ComHub>,
     pub endpoint: Endpoint,
 }
 
@@ -32,7 +32,7 @@ impl Runtime {
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             endpoint,
-            com_hub: Rc::new(RefCell::new(com_hub)),
+            com_hub: Rc::new(com_hub),
             ..Runtime::default()
         }
     }
@@ -68,7 +68,6 @@ impl Runtime {
         info!("starting runtime...");
         let com_hub = self.com_hub.clone();
         com_hub
-            .borrow_mut()
             .init()
             .await
             .expect("Failed to initialize ComHub");
@@ -82,7 +81,7 @@ impl Default for Runtime {
             endpoint: Endpoint::default(),
             version: VERSION.to_string(),
             memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: Rc::new(RefCell::new(ComHub::default())),
+            com_hub: Rc::new(ComHub::default()),
         }
     }
 }

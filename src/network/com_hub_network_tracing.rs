@@ -106,15 +106,14 @@ impl Display for NetworkTraceResult {
 
 impl ComHub {
     pub async fn record_trace(
-        self_rc: Rc<RefCell<Self>>,
+        &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
         let endpoint = endpoint.into();
 
         let trace_block = {
-            let self_ref = self_rc.borrow();
-            let scope_id = self_ref.block_handler.borrow_mut().get_new_scope_id();
-            let mut trace_block = self_ref.create_trace_block(
+            let scope_id = self.block_handler.borrow_mut().get_new_scope_id();
+            let mut trace_block = self.create_trace_block(
                 vec![],
                 endpoint.clone(),
                 BlockType::Trace,
@@ -127,17 +126,16 @@ impl ComHub {
         // measure round trip time
         let start_time = std::time::Instant::now();
 
-        let response = ComHub::send_own_block_await_response(self_rc.clone(), trace_block).await;
+        let response = self.send_own_block_await_response(trace_block).await;
         let round_trip_time = start_time.elapsed();
 
         assert!(response.is_ok());
         if let Ok(response) = response {
             match response {
                 ResponseBlocks::SingleBlock(block) => {
-                    let self_ref = self_rc.borrow();
-                    let hops = self_ref.get_trace_data_from_block(&block)?;
+                    let hops = self.get_trace_data_from_block(&block)?;
                     Some(NetworkTraceResult {
-                        sender: self_ref.endpoint.clone(),
+                        sender: self.endpoint.clone(),
                         receiver: endpoint.clone(),
                         hops,
                         round_trip_time
@@ -159,7 +157,7 @@ impl ComHub {
     /// is addressed to this endpoint.
     /// A new trace block is created and sent back to the sender.
     pub(crate) fn handle_trace_block(
-        &mut self,
+        &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
     ) -> Option<()> {
@@ -194,7 +192,7 @@ impl ComHub {
     }
 
     pub(crate) fn handle_trace_back_block(
-        &mut self,
+        &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
     ) -> Option<()> {
@@ -219,7 +217,7 @@ impl ComHub {
     }
 
     pub(crate) fn redirect_trace_block(
-        &mut self,
+        &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
     ) -> Option<()> {
