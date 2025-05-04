@@ -142,7 +142,7 @@ native_crypto = ["rsa"]                                 # use native crypto
 native_serial = ["serialport"]                          # use native serial
 native_webrtc = ["webrtc"]                              # use webrtc
 
-wasm_webrtc = ["matchbox_socket", "futures"] # use webrtc
+wasm_webrtc = ["matchbox_socket"] # use webrtc
 
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
