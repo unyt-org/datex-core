@@ -11,6 +11,7 @@ use std::{
 use bytes::Bytes;
 use datex_macros::{com_interface, create_opener};
 use log::{debug, info};
+use serde::{de::DeserializeOwned, Serialize};
 use webrtc::{
     api::{media_engine::MediaEngine, APIBuilder},
     data_channel::{
@@ -27,6 +28,7 @@ use webrtc::{
         peer_connection_state::RTCPeerConnectionState,
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
+    sdp::description,
     turn::proto::data,
 };
 
@@ -58,7 +60,7 @@ pub struct WebRTCNewClientInterface {
     info: ComInterfaceInfo,
     peer_connection: Option<Arc<RTCPeerConnection>>,
     pub remote_endpoint: Endpoint,
-    pub ice_candidates: Arc<Mutex<VecDeque<RTCIceCandidateInit>>>,
+    pub ice_candidates: Arc<Mutex<VecDeque<Vec<u8>>>>,
     data_channel: Arc<Mutex<Option<Arc<RTCDataChannel>>>>,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
@@ -102,17 +104,25 @@ impl WebRTCNewClientInterface {
                 let mut lock = data_channel_store.lock().unwrap();
                 *lock = Some(data_channel.clone());
             }
-            data_channel.on_message(Box::new(move |msg| {
+            data_channel.clone().on_message(Box::new(move |msg| {
                 let data = msg.data;
                 debug!("Received message: {:?}", data);
-                Box::pin(async {})
+                let data_channel = data_channel.clone();
+                Box::pin(async move {
+                    data_channel.send(&Bytes::from("pong")).await.unwrap();
+                })
             }));
             Box::pin(async {})
         }));
         Ok(())
     }
 
-    pub async fn create_offer(&mut self) -> RTCSessionDescription {
+    pub async fn create_offer(&mut self) -> Vec<u8> {
+        let offer = self._create_offer().await;
+        Self::serialize(&offer).unwrap()
+    }
+
+    async fn _create_offer(&mut self) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
             let channel_config = RTCDataChannelInit {
                 ordered: Some(true),
@@ -137,15 +147,28 @@ impl WebRTCNewClientInterface {
         }
     }
 
-    pub async fn set_remote_description(&self, sdp: RTCSessionDescription) {
-        if let Some(peer_connection) = &self.peer_connection {
-            peer_connection.set_remote_description(sdp).await.unwrap();
+    pub async fn set_remote_description(
+        &self,
+        description: Vec<u8>,
+    ) -> Result<(), WebRTCError> {
+        let sdp = Self::deserialize::<RTCSessionDescription>(&description);
+        if sdp.is_err() {
+            return Err(WebRTCError::InvalidSdp);
+        }
+        if let Some(peer_connection) = &self.peer_connection
+            && sdp.is_ok()
+        {
+            peer_connection
+                .set_remote_description(sdp.unwrap())
+                .await
+                .unwrap();
+            Ok(())
         } else {
             panic!("Peer connection not initialized");
         }
     }
 
-    pub async fn create_answer(&self) -> RTCSessionDescription {
+    pub async fn create_answer(&self) -> Vec<u8> {
         if let Some(peer_connection) = &self.peer_connection {
             let answer = peer_connection.create_answer(None).await.unwrap();
             let mut gather_complete =
@@ -157,19 +180,26 @@ impl WebRTCNewClientInterface {
                 .unwrap();
 
             let _ = gather_complete.recv().await;
-            peer_connection.local_description().await.unwrap()
+            let description =
+                peer_connection.local_description().await.unwrap();
+            Self::serialize(&description).unwrap()
         } else {
             panic!("Peer connection not initialized");
         }
     }
 
-    pub async fn add_ice_candidate(&mut self, candidate: RTCIceCandidateInit) {
+    pub async fn add_ice_candidate(
+        &mut self,
+        candidate: Vec<u8>,
+    ) -> Result<(), WebRTCError> {
+        let candidate = Self::deserialize::<RTCIceCandidateInit>(&candidate)
+            .map_err(|_| WebRTCError::InvalidCandidate)?;
         if let Some(peer_connection) = &self.peer_connection {
             if self
                 .get_socket_uuid_for_endpoint(self.remote_endpoint.clone())
                 .is_some()
             {
-                return;
+                return Ok(());
             }
 
             peer_connection.add_ice_candidate(candidate).await.unwrap();
@@ -186,7 +216,23 @@ impl WebRTCNewClientInterface {
                 1,
             )
             .unwrap();
+            Ok(())
+        } else {
+            panic!("Peer connection not initialized");
         }
+    }
+
+    fn serialize<T: Serialize>(
+        value: &T,
+    ) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_string(value).map(|s| s.into_bytes())
+    }
+
+    fn deserialize<T: DeserializeOwned>(
+        value: &[u8],
+    ) -> Result<T, serde_json::Error> {
+        let string = std::str::from_utf8(value).unwrap();
+        serde_json::from_str(string)
     }
 
     fn setup_ice_candidate_handler(&mut self) {
@@ -197,13 +243,13 @@ impl WebRTCNewClientInterface {
             peer_connection.on_ice_candidate(Box::new(
                 move |candidate: Option<RTCIceCandidate>| {
                     if let Some(candidate) = candidate {
-                        let candidate_init = candidate.to_json().unwrap();
-                        // info!(
-                        //     "{}: New ICE candidate: {:?}",
-                        //     name, candidate.port
-                        // );
-                        let mut candidates = candidates.lock().unwrap();
-                        candidates.push_back(candidate_init);
+                        let candidate_init = candidate.to_json();
+                        if let Ok(candidate) = &candidate_init {
+                            let mut candidates = candidates.lock().unwrap();
+                            candidates.push_back(
+                                Self::serialize(&candidate).unwrap(),
+                            );
+                        }
                     }
                     Box::pin(async {})
                 },

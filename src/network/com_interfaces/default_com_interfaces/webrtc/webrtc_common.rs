@@ -7,4 +7,7 @@ pub enum WebRTCError {
     ConnectionError,
     SendError,
     ReceiveError,
+
+    InvalidCandidate,
+    InvalidSdp,
 }

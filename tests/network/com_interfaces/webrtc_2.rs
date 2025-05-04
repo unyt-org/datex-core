@@ -30,10 +30,10 @@ pub async fn test_send_receive() {
     interface_b.open().await.unwrap();
 
     let offer = interface_a.create_offer().await;
-    interface_b.set_remote_description(offer).await;
+    interface_b.set_remote_description(offer).await.unwrap();
 
     let answer = interface_b.create_answer().await;
-    interface_a.set_remote_description(answer).await;
+    interface_a.set_remote_description(answer).await.unwrap();
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     for _ in 0..2 {
