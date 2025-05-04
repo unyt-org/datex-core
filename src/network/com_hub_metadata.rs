@@ -1,4 +1,4 @@
-use log::debug;
+use log::info;
 
 use crate::datex_values::Endpoint;
 use crate::network::com_hub::{ComHub, DynamicEndpointProperties};
@@ -123,6 +123,6 @@ impl ComHub {
 
     pub fn print_metadata(&self) {
         let metadata = self.get_metadata();
-        debug!("ComHub Metadata:\n{metadata}");
+        info!("ComHub Metadata:\n{metadata}");
     }
 }
