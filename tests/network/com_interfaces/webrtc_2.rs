@@ -9,11 +9,26 @@ use crate::context::init_global_context;
 // #[timeout(2000)]
 pub async fn test_send_receive() {
     init_global_context();
-    let mut interface = WebRTCNewClientInterface::new("test");
-    interface.open().await.unwrap();
+    let mut interface_a = WebRTCNewClientInterface::new("a");
+    interface_a.open().await.unwrap();
 
-    let session_request = interface.create_offer().await;
-    info!("Session request: {:?}", session_request);
+    let mut interface_b = WebRTCNewClientInterface::new("b");
+    interface_b.open().await.unwrap();
+
+    let session_request_a_to_b = interface_a.create_offer("@b").await;
+    info!("Session request: {:?}", session_request_a_to_b);
+
+    let session_request_b_to_a = interface_b.create_offer("@a").await;
+    info!("Session request: {:?}", session_request_b_to_a);
+
+    interface_a
+        .set_offer("@b", session_request_b_to_a)
+        .await
+        .unwrap();
+    // interface_b
+    //     .set_offer("@a", session_request_a_to_b)
+    //     .await
+    //     .unwrap();
 
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 }

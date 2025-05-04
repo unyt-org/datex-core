@@ -1,5 +1,7 @@
 use std::{
+    collections::HashMap,
     future::Future,
+    hash::Hash,
     io::Error,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -40,6 +42,7 @@ use super::webrtc_common::WebRTCError;
 
 pub struct WebRTCNewClientInterface {
     info: ComInterfaceInfo,
+    peer_connections: HashMap<String, Arc<RTCPeerConnection>>,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -51,7 +54,10 @@ impl MultipleSocketProvider for WebRTCNewClientInterface {
 impl WebRTCNewClientInterface {
     pub fn new(name: &str) -> WebRTCNewClientInterface {
         let info = ComInterfaceInfo::new();
-        WebRTCNewClientInterface { info }
+        WebRTCNewClientInterface {
+            info,
+            peer_connections: HashMap::new(),
+        }
     }
 
     #[create_opener]
@@ -59,18 +65,42 @@ impl WebRTCNewClientInterface {
         Ok(())
     }
 
-    pub async fn create_offer(&mut self) -> RTCSessionDescription {
+    pub async fn set_offer(
+        &mut self,
+        id: &str,
+        offer: RTCSessionDescription,
+    ) -> Result<(), WebRTCError> {
+        let peer_connection = self
+            .peer_connections
+            .get(id)
+            .ok_or(WebRTCError::InvalidURL)?;
+
+        peer_connection.set_remote_description(offer).await.unwrap();
+        // let answer = peer_connection.create_answer(None).await.unwrap();
+
+        // let mut gather_complete =
+        //     peer_connection.gathering_complete_promise().await;
+
+        // peer_connection.set_local_description(answer).await.unwrap();
+        // let _ = gather_complete.recv().await;
+        // let local_desc = peer_connection.local_description().await.unwrap();
+        // info!("Local description: {:?}", local_desc);
+        Ok(())
+    }
+
+    pub async fn create_offer(&mut self, id: &str) -> RTCSessionDescription {
         let mut media_engine = MediaEngine::default();
         media_engine.register_default_codecs().unwrap();
 
-        let api = APIBuilder::new().with_media_engine(media_engine).build();
+        let api = APIBuilder::new() /*.with_media_engine(media_engine) */
+            .build();
         let config = RTCConfiguration::default(); // FIXME allow custom config
         let peer_connection =
             Arc::new(api.new_peer_connection(config).await.unwrap());
         let (done_tx, mut done_rx) = tokio::sync::mpsc::channel::<()>(1);
 
         self.setup_ice_candidates(peer_connection.clone()).await;
-        self.setup_tracks(peer_connection.clone()).await;
+        // self.setup_tracks(peer_connection.clone()).await;
         peer_connection.on_peer_connection_state_change(Box::new(
             move |s: RTCPeerConnectionState| {
                 info!("Peer connection state changed: {:?}", s);
@@ -131,12 +161,25 @@ impl WebRTCNewClientInterface {
                     }));
                 })
             }));
-
-        let offer = peer_connection.create_offer(None).await.unwrap();
+        self.peer_connections
+            .insert(id.to_string(), peer_connection.clone());
+        let mut offer = peer_connection.create_offer(None).await.unwrap();
         spawn(async move {
             done_rx.recv().await;
         });
-        offer
+
+        let mut gather_complete =
+            peer_connection.gathering_complete_promise().await;
+
+        peer_connection.set_local_description(offer).await.unwrap();
+        let _ = gather_complete.recv().await;
+
+        if let Some(local_desc) = peer_connection.local_description().await {
+            info!("Local description: {:?}", local_desc);
+            return local_desc;
+        } else {
+            panic!("Failed to get local description");
+        }
     }
 
     async fn setup_ice_candidates(
