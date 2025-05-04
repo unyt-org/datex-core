@@ -42,7 +42,7 @@ impl Display for ComHubMetadata {
                 "  {}/{}{}:",
                 interface.properties.interface_type,
                 interface.properties.channel,
-                interface.properties.name.clone().map(|n| format!(" ({})", n)).unwrap_or("".to_string())
+                interface.properties.name.clone().map(|n| format!(" ({n})")).unwrap_or("".to_string())
             )?;
 
             // print sockets

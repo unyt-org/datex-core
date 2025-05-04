@@ -1,13 +1,10 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::mpsc;
-use rsa::pkcs1::der::asn1::Int;
-use datex_core::datex_values::{Endpoint, PrimitiveValue};
+use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
-use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::runtime::Runtime;
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
-use crate::network::helpers::webrtc_signaling_server::run;
 
 pub struct InterfaceConnection {
     interface_type: String,
@@ -103,7 +100,7 @@ impl Network {
                 .downcast_mut::<MockupInterfaceSetupData>()
                 .expect("MockupInterfaceSetupData is required for interface of type mockup");
             let channel = Network::get_mockup_interface_channel(
-                &mut mockup_interface_channels,
+                mockup_interface_channels,
                 setup_data.name.clone()
             );
             setup_data.receiver = Some(channel.receiver);
@@ -135,7 +132,7 @@ impl Network {
         }
 
         else {
-            panic!("Channel {} is already used", name);
+            panic!("Channel {name} is already used");
         }
 
     }
@@ -156,7 +153,7 @@ impl Network {
 
             // register factories
             for (interface_type, factory) in self.com_interface_factories.iter() {
-                runtime.com_hub.register_interface_factory(interface_type.clone(), factory.clone())
+                runtime.com_hub.register_interface_factory(interface_type.clone(), *factory)
             }
 
             // add com interfaces
@@ -179,7 +176,7 @@ impl Network {
                 return node.runtime.as_ref().unwrap();
             }
         }
-        panic!("Endpoint {} not found in network", endpoint);
+        panic!("Endpoint {endpoint} not found in network");
     }
 
 }

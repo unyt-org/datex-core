@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::fmt::Display;
-use std::rc::Rc;
 use std::time::Duration;
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::{DXBBlock, OutgoingScopeId, ResponseBlocks};

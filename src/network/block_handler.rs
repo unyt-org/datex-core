@@ -1,4 +1,4 @@
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
 use futures::channel::oneshot;
@@ -161,7 +161,7 @@ impl BlockHandler {
 
     pub fn get_new_scope_id(&self) -> OutgoingScopeId {
         *self.current_scope_id.borrow_mut() += 1;
-        self.current_scope_id.borrow().clone()
+        *self.current_scope_id.borrow()
     }
 
     /// wait for incoming response block with a specific scope id and block index
@@ -182,7 +182,7 @@ impl BlockHandler {
 
         // add new scope observer
         self.scope_observers.borrow_mut().insert(
-            (endpoint_scope_id.clone(), block_index),
+            (endpoint_scope_id, block_index),
             Box::new(observer)
         );
 

@@ -1,8 +1,6 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     future::Future,
-    hash::Hash,
-    io::Error,
     pin::Pin,
     sync::{Arc, Mutex},
     time::Duration,
@@ -10,7 +8,7 @@ use std::{
 
 use bytes::Bytes;
 use datex_macros::{com_interface, create_opener};
-use log::{debug, info};
+use log::debug;
 use serde::{de::DeserializeOwned, Serialize};
 use webrtc::{
     api::{
@@ -18,25 +16,17 @@ use webrtc::{
         media_engine::MediaEngine, APIBuilder,
     },
     data_channel::{
-        self, data_channel_init::RTCDataChannelInit,
-        data_channel_message::DataChannelMessage, OnOpenHdlrFn, RTCDataChannel,
+        data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
     },
     ice_transport::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
-        ice_gatherer::OnLocalCandidateHdlrFn,
         ice_server::RTCIceServer,
     },
     interceptor::registry::Registry,
-    mdns::message::name,
-    mux::endpoint,
     peer_connection::{
         configuration::RTCConfiguration,
-        peer_connection_state::RTCPeerConnectionState,
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
-    sdp::description,
-    turn::proto::data,
-    util::vnet::interface,
 };
 
 use crate::{
@@ -57,7 +47,6 @@ use crate::{
         },
         com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocketUUID,
-        socket_provider::MultipleSocketProvider,
     },
     set_opener,
 };
@@ -176,7 +165,7 @@ impl WebRTCNewClientInterface {
                 let socket = sockets.sockets.values().next().unwrap();
                 let socket = socket.lock().unwrap();
                 let mut receive_queue = socket.receive_queue.lock().unwrap();
-                debug!("Received message: {:?}", data);
+                debug!("Received message: {data:?}");
                 receive_queue.extend(data);
             }
             Box::pin(async move {

@@ -1,15 +1,8 @@
-use std::{cell::RefCell, rc::Rc};
 
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::webrtc::webrtc_new_client_interface::WebRTCNewClientInterface,
-    socket_provider::{MultipleSocketProvider, SingleSocketProvider},
-};
-use log::info;
-use ntest_timeout::timeout;
-use webrtc::{
-    ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
-    media::audio::buffer::info,
+    socket_provider::SingleSocketProvider,
 };
 
 use crate::{

@@ -50,7 +50,7 @@ pub async fn test_multiple_add() {
     init_global_context();
 
     let com_hub = Rc::new(RefCell::new(ComHub::default()));
-    let mut com_hub_mut = com_hub.borrow_mut();
+    let com_hub_mut = com_hub.borrow_mut();
 
     let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
     let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
@@ -480,7 +480,7 @@ pub async fn register_factory() {
 #[tokio::test]
 pub async fn test_reconnect() {
     init_global_context();
-    let mut com_hub = ComHub::default();
+    let com_hub = ComHub::default();
 
     // create a new interface, open it and add it to the com_hub
     let mut base_interface =

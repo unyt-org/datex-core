@@ -9,7 +9,6 @@ use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
-use std::cell::{Ref, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -177,7 +176,7 @@ impl ComHub {
         setup_data: Box<dyn Any>,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-        info!("creating interface {}", interface_type);
+        info!("creating interface {interface_type}");
         if let Some(factory) = self.interface_factories.borrow().get(interface_type) {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
@@ -467,7 +466,7 @@ impl ComHub {
                     self.endpoint_sockets_blacklist
                         .borrow_mut()
                         .entry(receiver.clone())
-                        .or_insert_with(HashSet::new)
+                        .or_default()
                         .insert(incoming_socket.clone());
                 }
             }
@@ -626,7 +625,7 @@ impl ComHub {
                 direction,
             },
         ));
-        info!("endpoint_sockets: {:?}", endpoint_sockets);
+        info!("endpoint_sockets: {endpoint_sockets:?}");
     }
 
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>, priority: InterfacePriority) {
@@ -1114,7 +1113,7 @@ impl ComHub {
                     &mut block,
                     NetworkTraceHop {
                         endpoint: self.endpoint.clone(),
-                        distance: distance,
+                        distance,
                         socket: NetworkTraceHopSocket::new(
                             self.get_com_interface_from_socket_uuid(
                                 socket_uuid,
@@ -1268,7 +1267,7 @@ impl ComHub {
 
             registered_sockets
                 .extend(socket_updates.socket_registrations.drain(..));
-            new_sockets.extend(socket_updates.new_sockets.drain(..).map(|s| (s, priority.clone())));
+            new_sockets.extend(socket_updates.new_sockets.drain(..).map(|s| (s, *priority)));
             deleted_sockets.extend(socket_updates.deleted_sockets.drain(..));
         }
 

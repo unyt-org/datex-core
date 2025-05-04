@@ -3,8 +3,7 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
-use std::cell::{Ref, RefCell};
-use std::collections::HashMap;
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 use datex_core::network::com_interfaces::com_interface::{

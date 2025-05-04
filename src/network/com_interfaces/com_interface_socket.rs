@@ -1,4 +1,3 @@
-use log::info;
 use strum_macros::EnumIs;
 
 use super::block_collector::BlockCollector;

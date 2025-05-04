@@ -7,7 +7,6 @@ use datex_core::stdlib::rc::Rc;
 use std::sync::{mpsc, Arc, Mutex};
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
-use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 
 use super::mockup_interface::MockupInterface;
