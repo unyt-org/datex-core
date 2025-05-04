@@ -24,6 +24,7 @@ use webrtc::{
     ice_transport::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
         ice_gatherer::OnLocalCandidateHdlrFn,
+        ice_server::RTCIceServer,
     },
     interceptor::registry::Registry,
     mdns::message::name,
@@ -34,6 +35,7 @@ use webrtc::{
     },
     sdp::description,
     turn::proto::data,
+    util::vnet::interface,
 };
 
 use crate::{
@@ -66,6 +68,8 @@ pub struct WebRTCNewClientInterface {
     pub remote_endpoint: Endpoint,
     pub ice_candidates: Arc<Mutex<VecDeque<Vec<u8>>>>,
     data_channel: Arc<Mutex<Option<Arc<RTCDataChannel>>>>,
+    has_media_support: bool,
+    rtc_configuration: RTCConfiguration,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -83,6 +87,8 @@ impl WebRTCNewClientInterface {
             remote_endpoint: endpoint.clone(),
             ice_candidates: Arc::new(Mutex::new(VecDeque::new())),
             data_channel: Arc::new(Mutex::new(None)),
+            has_media_support: false,
+            rtc_configuration: RTCConfiguration::default(),
         };
         let mut properties = interface.init_properties();
         properties.name = Some(endpoint.to_string());
@@ -90,12 +96,26 @@ impl WebRTCNewClientInterface {
         interface
     }
 
+    pub fn set_ice_servers(
+        mut self,
+        ice_servers: Vec<RTCIceServer>,
+    ) -> WebRTCNewClientInterface {
+        self.rtc_configuration.ice_servers = ice_servers;
+        self
+    }
+
+    pub fn new_with_media_support(
+        endpoint: impl Into<Endpoint>,
+    ) -> WebRTCNewClientInterface {
+        let mut interface = WebRTCNewClientInterface::new(endpoint.into());
+        interface.has_media_support = true;
+        interface
+    }
+
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
-        let with_media = true;
-
         let api = APIBuilder::new();
-        let api = if with_media {
+        let api = if self.has_media_support {
             let mut media_engine = MediaEngine::default();
             media_engine
                 .register_default_codecs()
@@ -112,7 +132,9 @@ impl WebRTCNewClientInterface {
         .build();
 
         let peer_connection = Arc::new(
-            api.new_peer_connection(Default::default()).await.unwrap(),
+            api.new_peer_connection(self.rtc_configuration.clone())
+                .await
+                .unwrap(),
         );
         self.peer_connection = Some(peer_connection.clone());
         self.setup_ice_candidate_handler();
