@@ -1,7 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
 use datex_core::network::com_interfaces::default_com_interfaces::webrtc::webrtc_new_client_interface::WebRTCNewClientInterface;
 use log::info;
 use ntest_timeout::timeout;
-use webrtc::{ice_transport::ice_candidate::RTCIceCandidate, media::audio::buffer::info};
+use webrtc::{ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit}, media::audio::buffer::info};
 
 use crate::context::init_global_context;
 
@@ -15,21 +17,36 @@ pub async fn test_send_receive() {
     let mut interface_b = WebRTCNewClientInterface::new("b");
     interface_b.open().await.unwrap();
 
-    // interface_a.on_ice_candidate(Box::new(
-    //     |candidate: Option<RTCIceCandidate>| {
-    //         if let Some(candidate) = candidate {
-    //             info!("New ICE candidate: {:?}", candidate);
-    //         }
-    //         Box::pin(async {
-    //             interface_b.add_ice_candidate(candidate).await.unwrap();
-    //         })
-    //     },
-    // ));
+    let interface_b = Rc::new(RefCell::new(interface_b));
+
+    interface_a.on_ice_candidate(Box::new(
+        |candidate: Option<RTCIceCandidate>| {
+            if let Some(candidate) = candidate {
+                info!("New ICE candidate: {:?}", candidate);
+                let candidate_init = RTCIceCandidateInit {
+                    candidate: candidate.to_string(),
+                    ..Default::default()
+                };
+                interface_b
+                    .borrow()
+                    .add_ice_candidate(candidate_init.into());
+                // let interface_b = interface_b.clone();
+                // Box::pin(async {
+                //     interface_b
+                //         .borrow()
+                //         .add_ice_candidate(candidate_init.into())
+                //         .await;
+                // });
+            }
+
+            Box::pin(async {})
+        },
+    ));
 
     let offer = interface_a.create_offer().await;
-    interface_b.set_remote_description(offer).await;
+    interface_b.borrow_mut().set_remote_description(offer).await;
 
-    let answer = interface_b.create_answer().await;
+    let answer = interface_b.borrow_mut().create_answer().await;
     interface_a.set_remote_description(answer).await;
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 

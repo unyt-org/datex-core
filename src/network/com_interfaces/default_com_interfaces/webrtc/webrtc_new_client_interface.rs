@@ -44,6 +44,7 @@ use super::webrtc_common::WebRTCError;
 pub struct WebRTCNewClientInterface {
     info: ComInterfaceInfo,
     peer_connection: Option<Arc<RTCPeerConnection>>,
+    ice_candidates: Arc<Mutex<Vec<RTCIceCandidate>>>,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -58,6 +59,7 @@ impl WebRTCNewClientInterface {
         WebRTCNewClientInterface {
             info,
             peer_connection: None,
+            ice_candidates: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -67,15 +69,8 @@ impl WebRTCNewClientInterface {
         let peer_connection = Arc::new(
             api.new_peer_connection(Default::default()).await.unwrap(),
         );
-        peer_connection.on_ice_candidate(Box::new(
-            |candidate: Option<RTCIceCandidate>| {
-                if let Some(candidate) = candidate {
-                    info!("New ICE candidate: {:?}", candidate);
-                }
-                Box::pin(async {})
-            },
-        ));
         self.peer_connection = Some(peer_connection.clone());
+        self.setup_ice_candidate_handler();
         Ok(())
     }
 
@@ -131,13 +126,36 @@ impl WebRTCNewClientInterface {
         }
     }
 
-    pub fn on_ice_candidate(&self, f: OnLocalCandidateHdlrFn) {
+    fn setup_ice_candidate_handler(&self) {
         if let Some(peer_connection) = &self.peer_connection {
-            peer_connection.on_ice_candidate(f);
+            let candidates = self.ice_candidates.clone();
+
+            peer_connection.on_ice_candidate(Box::new(
+                |candidate: Option<RTCIceCandidate>| {
+                    if let Some(candidate) = candidate {
+                        let candidate_init = RTCIceCandidateInit {
+                            candidate: candidate.to_string(),
+                            ..Default::default()
+                        };
+                        info!("New ICE candidate: {:?}", candidate);
+                        let mut candidatexs = candidates.lock().unwrap();
+                        candidatexs.push(candidate.clone());
+                    }
+                    Box::pin(async {})
+                },
+            ));
         } else {
             panic!("Peer connection not initialized");
         }
     }
+
+    // pub fn on_ice_candidate(&self, f: OnLocalCandidateHdlrFn) {
+    //     if let Some(peer_connection) = &self.peer_connection {
+    //         peer_connection.on_ice_candidate(f);
+    //     } else {
+    //         panic!("Peer connection not initialized");
+    //     }
+    // }
 
     // pub async fn set_offer(
     //     &mut self,
