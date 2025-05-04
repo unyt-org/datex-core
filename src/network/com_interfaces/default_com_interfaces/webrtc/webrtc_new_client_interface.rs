@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+use bytes::Bytes;
 use datex_macros::{com_interface, create_opener};
 use log::{debug, info};
 use webrtc::{
@@ -23,9 +24,17 @@ use webrtc::{
         peer_connection_state::RTCPeerConnectionState,
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
+    turn::proto::data,
 };
 
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::{
+    datex_values::Endpoint,
+    network::com_interfaces::{
+        com_interface::ComInterfaceState,
+        com_interface_properties::InterfaceDirection,
+        com_interface_socket::ComInterfaceSocket,
+    },
+};
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
@@ -45,7 +54,9 @@ use super::webrtc_common::WebRTCError;
 pub struct WebRTCNewClientInterface {
     info: ComInterfaceInfo,
     peer_connection: Option<Arc<RTCPeerConnection>>,
+    pub remote_endpoint: Endpoint,
     pub ice_candidates: Arc<Mutex<VecDeque<RTCIceCandidateInit>>>,
+    data_channel: Option<Arc<RTCDataChannel>>,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -55,14 +66,17 @@ impl MultipleSocketProvider for WebRTCNewClientInterface {
 
 #[com_interface]
 impl WebRTCNewClientInterface {
-    pub fn new(name: &str) -> WebRTCNewClientInterface {
+    pub fn new(endpoint: impl Into<Endpoint>) -> WebRTCNewClientInterface {
+        let endpoint: Endpoint = endpoint.into();
         let mut interface = WebRTCNewClientInterface {
             info: ComInterfaceInfo::new(),
             peer_connection: None,
+            remote_endpoint: endpoint.clone(),
             ice_candidates: Arc::new(Mutex::new(VecDeque::new())),
+            data_channel: None,
         };
         let mut properties = interface.init_properties();
-        properties.name = Some(name.to_string());
+        properties.name = Some(endpoint.to_string());
         interface.info.interface_properties = Some(properties);
         interface
     }
@@ -78,12 +92,13 @@ impl WebRTCNewClientInterface {
         Ok(())
     }
 
-    pub async fn create_offer(&self) -> RTCSessionDescription {
+    pub async fn create_offer(&mut self) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
-            let _ = peer_connection
+            let data_channel = peer_connection
                 .create_data_channel("datex", None)
                 .await
                 .unwrap();
+            self.data_channel = Some(data_channel.clone());
             let offer = peer_connection.create_offer(None).await.unwrap();
             let mut gather_complete =
                 peer_connection.gathering_complete_promise().await;
@@ -124,9 +139,29 @@ impl WebRTCNewClientInterface {
         }
     }
 
-    pub async fn add_ice_candidate(&self, candidate: RTCIceCandidateInit) {
+    pub async fn add_ice_candidate(&mut self, candidate: RTCIceCandidateInit) {
         if let Some(peer_connection) = &self.peer_connection {
+            if self
+                .get_socket_uuid_for_endpoint(self.remote_endpoint.clone())
+                .is_some()
+            {
+                return;
+            }
+
             peer_connection.add_ice_candidate(candidate).await.unwrap();
+            let socket = ComInterfaceSocket::new(
+                self.get_uuid().clone(),
+                InterfaceDirection::InOut,
+                1,
+            );
+            let socket_uuid = socket.uuid.clone();
+            self.add_socket(Arc::new(Mutex::new(socket)));
+            self.register_socket_endpoint(
+                socket_uuid,
+                self.remote_endpoint.clone(),
+                1,
+            )
+            .unwrap();
         }
     }
 
@@ -139,10 +174,10 @@ impl WebRTCNewClientInterface {
                 move |candidate: Option<RTCIceCandidate>| {
                     if let Some(candidate) = candidate {
                         let candidate_init = candidate.to_json().unwrap();
-                        info!(
-                            "{}: New ICE candidate: {:?}",
-                            name, candidate.port
-                        );
+                        // info!(
+                        //     "{}: New ICE candidate: {:?}",
+                        //     name, candidate.port
+                        // );
                         let mut candidates = candidates.lock().unwrap();
                         candidates.push_back(candidate_init);
                     }
@@ -153,152 +188,6 @@ impl WebRTCNewClientInterface {
             panic!("Peer connection not initialized");
         }
     }
-
-    // pub fn on_ice_candidate(&self, f: OnLocalCandidateHdlrFn) {
-    //     if let Some(peer_connection) = &self.peer_connection {
-    //         peer_connection.on_ice_candidate(f);
-    //     } else {
-    //         panic!("Peer connection not initialized");
-    //     }
-    // }
-
-    // pub async fn set_offer(
-    //     &mut self,
-    //     id: &str,
-    //     offer: RTCSessionDescription,
-    // ) -> Result<(), WebRTCError> {
-    //     let peer_connection = self
-    //         .peer_connections
-    //         .get(id)
-    //         .ok_or(WebRTCError::InvalidURL)?;
-
-    //     peer_connection.set_remote_description(offer).await.unwrap();
-    //     // let answer = peer_connection.create_answer(None).await.unwrap();
-
-    //     // let mut gather_complete =
-    //     //     peer_connection.gathering_complete_promise().await;
-
-    //     // peer_connection.set_local_description(answer).await.unwrap();
-    //     // let _ = gather_complete.recv().await;
-    //     // let local_desc = peer_connection.local_description().await.unwrap();
-    //     // info!("Local description: {:?}", local_desc);
-    //     Ok(())
-    // }
-
-    // pub async fn create_offer(&mut self, id: &str) -> RTCSessionDescription {
-    //     let mut media_engine = MediaEngine::default();
-    //     media_engine.register_default_codecs().unwrap();
-
-    //     let api = APIBuilder::new() /*.with_media_engine(media_engine) */
-    //         .build();
-    //     let config = RTCConfiguration::default(); // FIXME allow custom config
-    //     let peer_connection =
-    //         Arc::new(api.new_peer_connection(config).await.unwrap());
-    //     let (done_tx, mut done_rx) = tokio::sync::mpsc::channel::<()>(1);
-
-    //     self.setup_ice_candidates(peer_connection.clone()).await;
-    //     // self.setup_tracks(peer_connection.clone()).await;
-    //     peer_connection.on_peer_connection_state_change(Box::new(
-    //         move |s: RTCPeerConnectionState| {
-    //             info!("Peer connection state changed: {:?}", s);
-    //             match s {
-    //                 RTCPeerConnectionState::Connected => {
-    //                     info!("Peer connection is connected");
-
-    //                     let _ = done_tx.try_send(());
-    //                 }
-    //                 RTCPeerConnectionState::Disconnected => {
-    //                     info!("Peer connection is disconnected");
-
-    //                     let _ = done_tx.try_send(());
-    //                 }
-    //                 RTCPeerConnectionState::Failed => {
-    //                     info!("Peer connection failed");
-    //                     let _ = done_tx.try_send(());
-    //                 }
-    //                 _ => {}
-    //             }
-    //             Box::pin(async {})
-    //         },
-    //     ));
-
-    //     peer_connection
-    //         .on_data_channel(Box::new(move |channel: Arc<RTCDataChannel>| {
-    //             let channel_label = channel.label().to_owned();
-    //             let channel_id = channel.id();
-    //             println!("New DataChannel {} {}", channel_label, channel_id);
-
-    //             // Register channel opening handling
-    //             Box::pin(async move {
-    //                 let channel_clone = Arc::clone(&channel);
-    //                 let channel_label_clone = channel_label.clone();
-    //                 let channel_id = channel_id.clone();
-    //                 channel.on_open(Box::new(move || {
-    //                     info!("Data channel '{}'-'{}' open.", channel_label_clone, channel_id);
-    //                     Box::pin(async move {
-    //                         let mut result = Result::<usize, webrtc::Error>::Ok(0);
-    //                         while result.is_ok() {
-    //                             let timeout = tokio::time::sleep(Duration::from_secs(5));
-    //                             tokio::pin!(timeout);
-
-    //                             tokio::select! {
-    //                                 _ = timeout.as_mut() =>{
-    //                                     result = channel_clone.send_text("hello").await.map_err(Into::into);
-    //                                 }
-    //                             };
-    //                         }
-    //                     })
-    //                 }));
-
-    //                 // Register text message handling
-    //                 channel.on_message(Box::new(move |msg: DataChannelMessage| {
-    //                     let msg_str = String::from_utf8(msg.data.to_vec()).unwrap();
-    //                     println!("Message from DataChannel '{}': '{}'", channel_label, msg_str);
-    //                     Box::pin(async {})
-    //                 }));
-    //             })
-    //         }));
-    //     self.peer_connections
-    //         .insert(id.to_string(), peer_connection.clone());
-    //     let mut offer = peer_connection.create_offer(None).await.unwrap();
-    //     spawn(async move {
-    //         done_rx.recv().await;
-    //     });
-
-    //     let mut gather_complete =
-    //         peer_connection.gathering_complete_promise().await;
-
-    //     peer_connection.set_local_description(offer).await.unwrap();
-    //     let _ = gather_complete.recv().await;
-
-    //     if let Some(local_desc) = peer_connection.local_description().await {
-    //         info!("Local description: {:?}", local_desc);
-    //         return local_desc;
-    //     } else {
-    //         panic!("Failed to get local description");
-    //     }
-    // }
-
-    // async fn setup_ice_candidates(
-    //     &self,
-    //     peer_connection: Arc<RTCPeerConnection>,
-    // ) {
-    //     peer_connection.on_ice_candidate(Box::new(
-    //         |candidate: Option<RTCIceCandidate>| {
-    //             if let Some(candidate) = candidate {
-    //                 info!("New ICE candidate: {:?}", candidate);
-    //                 // Send the candidate to the remote peer through signaling server
-    //             }
-    //             Box::pin(async {})
-    //         },
-    //     ));
-    // }
-    // async fn setup_tracks(&self, peer_connection: Arc<RTCPeerConnection>) {
-    //     peer_connection.on_track(Box::new(|track, _, _| {
-    //         info!("New track received: {:?}", track);
-    //         Box::pin(async {})
-    //     }));
-    // }
 }
 
 impl ComInterface for WebRTCNewClientInterface {
@@ -307,10 +196,14 @@ impl ComInterface for WebRTCNewClientInterface {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        Box::pin(async move {
-            debug!("Sending block: {block:?}");
-            true
-        })
+        if let Some(data_channel) = self.data_channel.clone() {
+            Box::pin(async move {
+                let bytes = Bytes::from(block.to_vec());
+                data_channel.send(&bytes).await.is_ok()
+            })
+        } else {
+            Box::pin(async move { false })
+        }
     }
 
     fn init_properties(&self) -> InterfaceProperties {

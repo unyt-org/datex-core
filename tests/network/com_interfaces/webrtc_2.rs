@@ -1,20 +1,32 @@
 use std::{cell::RefCell, rc::Rc};
 
-use datex_core::network::com_interfaces::default_com_interfaces::webrtc::webrtc_new_client_interface::WebRTCNewClientInterface;
+use datex_core::network::com_interfaces::{
+    com_interface::ComInterface,
+    default_com_interfaces::webrtc::webrtc_new_client_interface::WebRTCNewClientInterface,
+    socket_provider::MultipleSocketProvider,
+};
 use log::info;
 use ntest_timeout::timeout;
-use webrtc::{ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit}, media::audio::buffer::info};
+use webrtc::{
+    ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
+    media::audio::buffer::info,
+};
 
-use crate::context::init_global_context;
+use crate::{
+    context::init_global_context,
+    network::helpers::mock_setup::{TEST_ENDPOINT_A, TEST_ENDPOINT_B},
+};
 
 #[tokio::test]
 // #[timeout(2000)]
 pub async fn test_send_receive() {
     init_global_context();
-    let mut interface_a = WebRTCNewClientInterface::new("a");
+    let mut interface_a =
+        WebRTCNewClientInterface::new(TEST_ENDPOINT_B.clone());
     interface_a.open().await.unwrap();
 
-    let mut interface_b = WebRTCNewClientInterface::new("b");
+    let mut interface_b =
+        WebRTCNewClientInterface::new(TEST_ENDPOINT_A.clone());
     interface_b.open().await.unwrap();
 
     let offer = interface_a.create_offer().await;
@@ -24,17 +36,23 @@ pub async fn test_send_receive() {
     interface_a.set_remote_description(answer).await;
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-    for _ in 0..10 {
+    for _ in 0..2 {
         for candidate in interface_a.ice_candidates.lock().unwrap().drain(..) {
-            info!("Candidate A: {:?}", candidate);
+            // info!("Candidate A: {:?}", candidate);
             interface_b.add_ice_candidate(candidate).await;
         }
         for candidate in interface_b.ice_candidates.lock().unwrap().drain(..) {
-            info!("Candidate B: {:?}", candidate);
+            // info!("Candidate B: {:?}", candidate);
             interface_a.add_ice_candidate(candidate).await;
         }
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
+
+    let socket_a = interface_a.get_socket_uuid_at(0).unwrap();
+    assert!(
+        interface_a.send_block(b"Hello from A", socket_a).await,
+        "Failed to send message from A"
+    );
 
     // let session_request_a_to_b = interface_a.create_offer("@b").await;
     // info!("Session request: {:?}", session_request_a_to_b);
