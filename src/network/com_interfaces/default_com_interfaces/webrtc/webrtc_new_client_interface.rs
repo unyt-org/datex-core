@@ -13,7 +13,10 @@ use datex_macros::{com_interface, create_opener};
 use log::{debug, info};
 use webrtc::{
     api::{media_engine::MediaEngine, APIBuilder},
-    data_channel::{data_channel_message::DataChannelMessage, RTCDataChannel},
+    data_channel::{
+        data_channel_init::RTCDataChannelInit,
+        data_channel_message::DataChannelMessage, RTCDataChannel,
+    },
     ice_transport::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
         ice_gatherer::OnLocalCandidateHdlrFn,
@@ -56,7 +59,7 @@ pub struct WebRTCNewClientInterface {
     peer_connection: Option<Arc<RTCPeerConnection>>,
     pub remote_endpoint: Endpoint,
     pub ice_candidates: Arc<Mutex<VecDeque<RTCIceCandidateInit>>>,
-    data_channel: Option<Arc<RTCDataChannel>>,
+    data_channel: Arc<Mutex<Option<Arc<RTCDataChannel>>>>,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -73,7 +76,7 @@ impl WebRTCNewClientInterface {
             peer_connection: None,
             remote_endpoint: endpoint.clone(),
             ice_candidates: Arc::new(Mutex::new(VecDeque::new())),
-            data_channel: None,
+            data_channel: Arc::new(Mutex::new(None)),
         };
         let mut properties = interface.init_properties();
         properties.name = Some(endpoint.to_string());
@@ -89,16 +92,37 @@ impl WebRTCNewClientInterface {
         );
         self.peer_connection = Some(peer_connection.clone());
         self.setup_ice_candidate_handler();
+
+        let data_channel_store = self.data_channel.clone();
+
+        peer_connection.on_data_channel(Box::new(move |dc| {
+            let data_channel = dc.clone();
+            let name = data_channel.label();
+            {
+                let mut lock = data_channel_store.lock().unwrap();
+                *lock = Some(data_channel.clone());
+            }
+            data_channel.on_message(Box::new(move |msg| {
+                let data = msg.data;
+                debug!("Received message: {:?}", data);
+                Box::pin(async {})
+            }));
+            Box::pin(async {})
+        }));
         Ok(())
     }
 
     pub async fn create_offer(&mut self) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
+            let channel_config = RTCDataChannelInit {
+                ordered: Some(true),
+                ..Default::default()
+            };
             let data_channel = peer_connection
-                .create_data_channel("datex", None)
+                .create_data_channel("datex", Some(channel_config))
                 .await
                 .unwrap();
-            self.data_channel = Some(data_channel.clone());
+            self.data_channel = Arc::new(Mutex::new(Some(data_channel)));
             let offer = peer_connection.create_offer(None).await.unwrap();
             let mut gather_complete =
                 peer_connection.gathering_complete_promise().await;
@@ -196,7 +220,8 @@ impl ComInterface for WebRTCNewClientInterface {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        if let Some(data_channel) = self.data_channel.clone() {
+        let channel_guard = self.data_channel.lock().unwrap();
+        if let Some(data_channel) = channel_guard.clone() {
             Box::pin(async move {
                 let bytes = Bytes::from(block.to_vec());
                 data_channel.send(&bytes).await.is_ok()

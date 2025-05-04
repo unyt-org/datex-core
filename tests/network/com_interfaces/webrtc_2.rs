@@ -53,19 +53,5 @@ pub async fn test_send_receive() {
         interface_a.send_block(b"Hello from A", socket_a).await,
         "Failed to send message from A"
     );
-
-    // let session_request_a_to_b = interface_a.create_offer("@b").await;
-    // info!("Session request: {:?}", session_request_a_to_b);
-
-    // let session_request_b_to_a = interface_b.create_offer("@a").await;
-    // info!("Session request: {:?}", session_request_b_to_a);
-
-    // interface_a
-    //     .set_offer("@b", session_request_b_to_a)
-    //     .await
-    //     .unwrap();
-    // interface_b
-    //     .set_offer("@a", session_request_a_to_b)
-    //     .await
-    //     .unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 }
