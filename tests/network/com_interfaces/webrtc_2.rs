@@ -27,11 +27,10 @@ pub async fn test_send_receive() {
     // ));
 
     let offer = interface_a.create_offer().await;
-    info!("Offer: {:?}", offer.sdp);
     interface_b.set_remote_description(offer).await;
 
-    // let answer = interface_b.create_answer().await;
-    // interface_a.set_remote_description(answer).await;
+    let answer = interface_b.create_answer().await;
+    interface_a.set_remote_description(answer).await;
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // let session_request_a_to_b = interface_a.create_offer("@b").await;
