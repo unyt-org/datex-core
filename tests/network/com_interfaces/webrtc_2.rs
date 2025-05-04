@@ -29,7 +29,7 @@ pub async fn test_send_receive() {
         WebRTCNewClientInterface::new(TEST_ENDPOINT_A.clone());
     interface_b.open().await.unwrap();
 
-    let offer = interface_a.create_offer().await;
+    let offer = interface_a.create_offer(true).await;
     interface_b.set_remote_description(offer).await.unwrap();
 
     let answer = interface_b.create_answer().await;
@@ -39,11 +39,11 @@ pub async fn test_send_receive() {
     for _ in 0..2 {
         for candidate in interface_a.ice_candidates.lock().unwrap().drain(..) {
             // info!("Candidate A: {:?}", candidate);
-            interface_b.add_ice_candidate(candidate).await;
+            interface_b.add_ice_candidate(candidate).await.unwrap();
         }
         for candidate in interface_b.ice_candidates.lock().unwrap().drain(..) {
             // info!("Candidate B: {:?}", candidate);
-            interface_a.add_ice_candidate(candidate).await;
+            interface_a.add_ice_candidate(candidate).await.unwrap();
         }
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }

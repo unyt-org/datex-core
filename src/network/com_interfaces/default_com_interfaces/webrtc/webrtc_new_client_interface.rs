@@ -13,7 +13,10 @@ use datex_macros::{com_interface, create_opener};
 use log::{debug, info};
 use serde::{de::DeserializeOwned, Serialize};
 use webrtc::{
-    api::{media_engine::MediaEngine, APIBuilder},
+    api::{
+        interceptor_registry::register_default_interceptors,
+        media_engine::MediaEngine, APIBuilder,
+    },
     data_channel::{
         data_channel_init::RTCDataChannelInit,
         data_channel_message::DataChannelMessage, RTCDataChannel,
@@ -22,6 +25,7 @@ use webrtc::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
         ice_gatherer::OnLocalCandidateHdlrFn,
     },
+    interceptor::registry::Registry,
     mdns::message::name,
     peer_connection::{
         configuration::RTCConfiguration,
@@ -88,7 +92,25 @@ impl WebRTCNewClientInterface {
 
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
-        let api = APIBuilder::new().build();
+        let with_media = true;
+
+        let api = APIBuilder::new();
+        let api = if with_media {
+            let mut media_engine = MediaEngine::default();
+            media_engine
+                .register_default_codecs()
+                .map_err(|_| WebRTCError::MediaEngineError)?;
+            let mut registry = Registry::new();
+            registry =
+                register_default_interceptors(registry, &mut media_engine)
+                    .map_err(|_| WebRTCError::MediaEngineError)?;
+            api.with_media_engine(media_engine)
+                .with_interceptor_registry(registry)
+        } else {
+            api
+        }
+        .build();
+
         let peer_connection = Arc::new(
             api.new_peer_connection(Default::default()).await.unwrap(),
         );
@@ -117,17 +139,25 @@ impl WebRTCNewClientInterface {
         Ok(())
     }
 
-    pub async fn create_offer(&mut self) -> Vec<u8> {
-        let offer = self._create_offer().await;
+    /// Creates an offer for the WebRTC connection.
+    /// This function sets up a single data channel
+    pub async fn create_offer(
+        &mut self,
+        use_reliable_connection: bool,
+    ) -> Vec<u8> {
+        let channel_config = RTCDataChannelInit {
+            ordered: Some(use_reliable_connection),
+            ..Default::default()
+        };
+        let offer = self.create_session_description(channel_config).await;
         Self::serialize(&offer).unwrap()
     }
 
-    async fn _create_offer(&mut self) -> RTCSessionDescription {
+    async fn create_session_description(
+        &mut self,
+        channel_config: RTCDataChannelInit,
+    ) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
-            let channel_config = RTCDataChannelInit {
-                ordered: Some(true),
-                ..Default::default()
-            };
             let data_channel = peer_connection
                 .create_data_channel("datex", Some(channel_config))
                 .await

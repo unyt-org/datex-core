@@ -10,4 +10,5 @@ pub enum WebRTCError {
 
     InvalidCandidate,
     InvalidSdp,
+    MediaEngineError,
 }
