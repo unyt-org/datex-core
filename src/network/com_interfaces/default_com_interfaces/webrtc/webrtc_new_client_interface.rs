@@ -10,12 +10,15 @@ use std::{
 
 use datex_macros::{com_interface, create_opener};
 use log::{debug, info};
+use tokio::sync::Notify;
 use webrtc::{
     api::{media_engine::MediaEngine, APIBuilder},
     data_channel::{data_channel_message::DataChannelMessage, RTCDataChannel},
     ice_transport::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
         ice_gatherer::OnLocalCandidateHdlrFn,
+        ice_gatherer_state::RTCIceGathererState,
+        ice_gathering_state::RTCIceGatheringState,
     },
     peer_connection::{
         configuration::RTCConfiguration,
@@ -73,12 +76,25 @@ impl WebRTCNewClientInterface {
 
     pub async fn create_offer(&self) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
+            let notify = Arc::new(Notify::new());
+            let notify_clone = notify.clone();
+
+            peer_connection.on_ice_gathering_state_change(Box::new(
+                move |state| {
+                    if state == RTCIceGathererState::Complete {
+                        notify_clone.notify_one();
+                    }
+                    Box::pin(async {})
+                },
+            ));
+
             let offer = peer_connection.create_offer(None).await.unwrap();
-            peer_connection
-                .set_local_description(offer.clone())
-                .await
-                .unwrap();
-            offer
+            peer_connection.set_local_description(offer).await.unwrap();
+
+            // ✅ Wait for ICE gathering to be complete
+            notify.notified().await;
+
+            peer_connection.local_description().await.unwrap()
         } else {
             panic!("Peer connection not initialized");
         }
@@ -95,11 +111,16 @@ impl WebRTCNewClientInterface {
     pub async fn create_answer(&self) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
             let answer = peer_connection.create_answer(None).await.unwrap();
+            let mut gather_complete =
+                peer_connection.gathering_complete_promise().await;
+
             peer_connection
                 .set_local_description(answer.clone())
                 .await
                 .unwrap();
-            answer
+
+            let _ = gather_complete.recv().await;
+            peer_connection.local_description().await.unwrap()
         } else {
             panic!("Peer connection not initialized");
         }
