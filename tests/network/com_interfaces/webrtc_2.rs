@@ -17,38 +17,24 @@ pub async fn test_send_receive() {
     let mut interface_b = WebRTCNewClientInterface::new("b");
     interface_b.open().await.unwrap();
 
-    let interface_b = Rc::new(RefCell::new(interface_b));
-
-    interface_a.on_ice_candidate(Box::new(
-        |candidate: Option<RTCIceCandidate>| {
-            if let Some(candidate) = candidate {
-                info!("New ICE candidate: {:?}", candidate);
-                let candidate_init = RTCIceCandidateInit {
-                    candidate: candidate.to_string(),
-                    ..Default::default()
-                };
-                interface_b
-                    .borrow()
-                    .add_ice_candidate(candidate_init.into());
-                // let interface_b = interface_b.clone();
-                // Box::pin(async {
-                //     interface_b
-                //         .borrow()
-                //         .add_ice_candidate(candidate_init.into())
-                //         .await;
-                // });
-            }
-
-            Box::pin(async {})
-        },
-    ));
-
     let offer = interface_a.create_offer().await;
-    interface_b.borrow_mut().set_remote_description(offer).await;
+    interface_b.set_remote_description(offer).await;
 
-    let answer = interface_b.borrow_mut().create_answer().await;
+    let answer = interface_b.create_answer().await;
     interface_a.set_remote_description(answer).await;
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+    for _ in 0..10 {
+        for candidate in interface_a.ice_candidates.lock().unwrap().drain(..) {
+            info!("Candidate A: {:?}", candidate);
+            interface_b.add_ice_candidate(candidate).await;
+        }
+        for candidate in interface_b.ice_candidates.lock().unwrap().drain(..) {
+            info!("Candidate B: {:?}", candidate);
+            interface_a.add_ice_candidate(candidate).await;
+        }
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
 
     // let session_request_a_to_b = interface_a.create_offer("@b").await;
     // info!("Session request: {:?}", session_request_a_to_b);

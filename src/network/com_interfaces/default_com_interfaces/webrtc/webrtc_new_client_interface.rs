@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     future::Future,
     hash::Hash,
     io::Error,
@@ -17,6 +17,7 @@ use webrtc::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
         ice_gatherer::OnLocalCandidateHdlrFn,
     },
+    mdns::message::name,
     peer_connection::{
         configuration::RTCConfiguration,
         peer_connection_state::RTCPeerConnectionState,
@@ -44,7 +45,7 @@ use super::webrtc_common::WebRTCError;
 pub struct WebRTCNewClientInterface {
     info: ComInterfaceInfo,
     peer_connection: Option<Arc<RTCPeerConnection>>,
-    ice_candidates: Arc<Mutex<Vec<RTCIceCandidate>>>,
+    pub ice_candidates: Arc<Mutex<VecDeque<RTCIceCandidateInit>>>,
 }
 impl MultipleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
@@ -55,12 +56,15 @@ impl MultipleSocketProvider for WebRTCNewClientInterface {
 #[com_interface]
 impl WebRTCNewClientInterface {
     pub fn new(name: &str) -> WebRTCNewClientInterface {
-        let info = ComInterfaceInfo::new();
-        WebRTCNewClientInterface {
-            info,
+        let mut interface = WebRTCNewClientInterface {
+            info: ComInterfaceInfo::new(),
             peer_connection: None,
-            ice_candidates: Arc::new(Mutex::new(vec![])),
-        }
+            ice_candidates: Arc::new(Mutex::new(VecDeque::new())),
+        };
+        let mut properties = interface.init_properties();
+        properties.name = Some(name.to_string());
+        interface.info.interface_properties = Some(properties);
+        interface
     }
 
     #[create_opener]
@@ -126,20 +130,21 @@ impl WebRTCNewClientInterface {
         }
     }
 
-    fn setup_ice_candidate_handler(&self) {
+    fn setup_ice_candidate_handler(&mut self) {
+        let properties = self.get_properties();
+        let name = properties.name.as_ref().unwrap_or(&"".to_string()).clone();
         if let Some(peer_connection) = &self.peer_connection {
             let candidates = self.ice_candidates.clone();
-
             peer_connection.on_ice_candidate(Box::new(
-                |candidate: Option<RTCIceCandidate>| {
+                move |candidate: Option<RTCIceCandidate>| {
                     if let Some(candidate) = candidate {
-                        let candidate_init = RTCIceCandidateInit {
-                            candidate: candidate.to_string(),
-                            ..Default::default()
-                        };
-                        info!("New ICE candidate: {:?}", candidate);
-                        let mut candidatexs = candidates.lock().unwrap();
-                        candidatexs.push(candidate.clone());
+                        let candidate_init = candidate.to_json().unwrap();
+                        info!(
+                            "{}: New ICE candidate: {:?}",
+                            name, candidate.port
+                        );
+                        let mut candidates = candidates.lock().unwrap();
+                        candidates.push_back(candidate_init);
                     }
                     Box::pin(async {})
                 },
