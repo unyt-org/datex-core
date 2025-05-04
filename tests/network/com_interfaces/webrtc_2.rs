@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::webrtc::webrtc_new_client_interface::WebRTCNewClientInterface,
-    socket_provider::MultipleSocketProvider,
+    socket_provider::{MultipleSocketProvider, SingleSocketProvider},
 };
 use log::info;
 use ntest_timeout::timeout;
@@ -48,10 +48,16 @@ pub async fn test_send_receive() {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
-    let socket_a = interface_a.get_socket_uuid_at(0).unwrap();
+    let socket_a = interface_a.get_socket_uuid().unwrap();
     assert!(
         interface_a.send_block(b"Hello from A", socket_a).await,
         "Failed to send message from A"
+    );
+
+    let socket_b = interface_b.get_socket_uuid().unwrap();
+    assert!(
+        interface_b.send_block(b"Hello from B", socket_b).await,
+        "Failed to send message from B"
     );
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 }

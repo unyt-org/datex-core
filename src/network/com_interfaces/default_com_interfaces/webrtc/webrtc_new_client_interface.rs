@@ -18,8 +18,8 @@ use webrtc::{
         media_engine::MediaEngine, APIBuilder,
     },
     data_channel::{
-        data_channel_init::RTCDataChannelInit,
-        data_channel_message::DataChannelMessage, RTCDataChannel,
+        self, data_channel_init::RTCDataChannelInit,
+        data_channel_message::DataChannelMessage, OnOpenHdlrFn, RTCDataChannel,
     },
     ice_transport::{
         ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
@@ -28,6 +28,7 @@ use webrtc::{
     },
     interceptor::registry::Registry,
     mdns::message::name,
+    mux::endpoint,
     peer_connection::{
         configuration::RTCConfiguration,
         peer_connection_state::RTCPeerConnectionState,
@@ -44,6 +45,7 @@ use crate::{
         com_interface::ComInterfaceState,
         com_interface_properties::InterfaceDirection,
         com_interface_socket::ComInterfaceSocket,
+        socket_provider::SingleSocketProvider,
     },
 };
 use crate::{
@@ -71,7 +73,7 @@ pub struct WebRTCNewClientInterface {
     has_media_support: bool,
     rtc_configuration: RTCConfiguration,
 }
-impl MultipleSocketProvider for WebRTCNewClientInterface {
+impl SingleSocketProvider for WebRTCNewClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets()
     }
@@ -88,7 +90,9 @@ impl WebRTCNewClientInterface {
             ice_candidates: Arc::new(Mutex::new(VecDeque::new())),
             data_channel: Arc::new(Mutex::new(None)),
             has_media_support: false,
-            rtc_configuration: RTCConfiguration::default(),
+            rtc_configuration: RTCConfiguration {
+                ..Default::default()
+            },
         };
         let mut properties = interface.init_properties();
         properties.name = Some(endpoint.to_string());
@@ -141,28 +145,49 @@ impl WebRTCNewClientInterface {
 
         let data_channel_store = self.data_channel.clone();
 
-        peer_connection.on_data_channel(Box::new(move |dc| {
-            let data_channel = dc.clone();
-            let name = data_channel.label();
+        // If the peer sends a data channel, we need to handle it.
+        let sockets = self.get_sockets();
+        peer_connection.on_data_channel(Box::new(move |data_channel| {
+            let data_channel = data_channel.clone();
+            let sockets = sockets.clone();
             {
+                // Only one channel can be handled by the interface.
                 let mut lock = data_channel_store.lock().unwrap();
+                if lock.is_some() {
+                    return Box::pin(async {});
+                }
                 *lock = Some(data_channel.clone());
             }
-            data_channel.clone().on_message(Box::new(move |msg| {
-                let data = msg.data;
-                debug!("Received message: {:?}", data);
-                let data_channel = data_channel.clone();
-                Box::pin(async move {
-                    data_channel.send(&Bytes::from("pong")).await.unwrap();
-                })
-            }));
+            Self::handle_receive(data_channel, sockets);
             Box::pin(async {})
         }));
         Ok(())
     }
 
+    fn handle_receive(
+        data_channel: Arc<RTCDataChannel>,
+        sockets: Arc<Mutex<ComInterfaceSockets>>,
+    ) {
+        data_channel.clone().on_message(Box::new(move |msg| {
+            let data = msg.data.to_vec();
+            let data_channel = data_channel.clone();
+            {
+                let sockets = sockets.lock().unwrap();
+                let socket = sockets.sockets.values().next().unwrap();
+                let socket = socket.lock().unwrap();
+                let mut receive_queue = socket.receive_queue.lock().unwrap();
+                debug!("Received message: {:?}", data);
+                receive_queue.extend(data);
+            }
+            Box::pin(async move {
+                // data_channel.send(&Bytes::from("pong")).await.unwrap();
+            })
+        }));
+    }
+
     /// Creates an offer for the WebRTC connection.
-    /// This function sets up a single data channel
+    /// This function sets up a single data channel that is either reliable or unreliable.
+    /// The `use_reliable_connection` parameter determines whether the data channel is reliable.
     pub async fn create_offer(
         &mut self,
         use_reliable_connection: bool,
@@ -173,30 +198,6 @@ impl WebRTCNewClientInterface {
         };
         let offer = self.create_session_description(channel_config).await;
         Self::serialize(&offer).unwrap()
-    }
-
-    async fn create_session_description(
-        &mut self,
-        channel_config: RTCDataChannelInit,
-    ) -> RTCSessionDescription {
-        if let Some(peer_connection) = &self.peer_connection {
-            let data_channel = peer_connection
-                .create_data_channel("datex", Some(channel_config))
-                .await
-                .unwrap();
-            self.data_channel = Arc::new(Mutex::new(Some(data_channel)));
-            let offer = peer_connection.create_offer(None).await.unwrap();
-            let mut gather_complete =
-                peer_connection.gathering_complete_promise().await;
-            peer_connection
-                .set_local_description(offer.clone())
-                .await
-                .unwrap();
-            let _ = gather_complete.recv().await;
-            peer_connection.local_description().await.unwrap()
-        } else {
-            panic!("Peer connection not initialized");
-        }
     }
 
     pub async fn set_remote_description(
@@ -247,10 +248,8 @@ impl WebRTCNewClientInterface {
         let candidate = Self::deserialize::<RTCIceCandidateInit>(&candidate)
             .map_err(|_| WebRTCError::InvalidCandidate)?;
         if let Some(peer_connection) = &self.peer_connection {
-            if self
-                .get_socket_uuid_for_endpoint(self.remote_endpoint.clone())
-                .is_some()
-            {
+            // self.remote_endpoint.clone()
+            if self.get_socket().is_some() {
                 return Ok(());
             }
 
@@ -269,6 +268,47 @@ impl WebRTCNewClientInterface {
             )
             .unwrap();
             Ok(())
+        } else {
+            panic!("Peer connection not initialized");
+        }
+    }
+
+    async fn create_session_description(
+        &mut self,
+        channel_config: RTCDataChannelInit,
+    ) -> RTCSessionDescription {
+        if let Some(peer_connection) = &self.peer_connection {
+            let data_channel = peer_connection
+                .create_data_channel("datex", Some(channel_config))
+                .await
+                .unwrap();
+            let sockets = self.get_sockets();
+            self.data_channel = Arc::new(Mutex::new(Some(data_channel)));
+
+            let data_channel = self.data_channel.clone();
+            let callback: OnOpenHdlrFn = Box::new(move || {
+                let lock = data_channel.clone();
+                let data_channel = lock.lock().unwrap();
+                let data_channel = data_channel.clone().unwrap();
+                Self::handle_receive(data_channel.clone(), sockets.clone());
+                Box::pin(async {})
+            });
+
+            let data_channel = self.data_channel.clone();
+            let data_channel = data_channel.lock().unwrap();
+            let data_channel = data_channel.clone().unwrap();
+            data_channel.on_open(callback);
+            drop(data_channel);
+
+            let offer = peer_connection.create_offer(None).await.unwrap();
+            let mut gather_complete =
+                peer_connection.gathering_complete_promise().await;
+            peer_connection
+                .set_local_description(offer.clone())
+                .await
+                .unwrap();
+            let _ = gather_complete.recv().await;
+            peer_connection.local_description().await.unwrap()
         } else {
             panic!("Peer connection not initialized");
         }
