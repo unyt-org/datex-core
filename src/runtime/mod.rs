@@ -66,12 +66,11 @@ impl Runtime {
     ///  - ComHub
     pub async fn start(&self) {
         info!("starting runtime...");
-        let com_hub = self.com_hub.clone();
-        com_hub
+        self.com_hub
             .init()
             .await
             .expect("Failed to initialize ComHub");
-        ComHub::start_update_loop(com_hub.clone());
+        ComHub::start_update_loop(self.com_hub.clone());
     }
 }
 
