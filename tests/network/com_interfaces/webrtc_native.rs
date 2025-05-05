@@ -1,7 +1,7 @@
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::webrtc::{
-        webrtc_common::WebRTCNewClientInterfaceTrait,
+        webrtc_common::WebRTCInterfaceTrait,
         webrtc_native_interface::WebRTCNativeInterface,
     },
     socket_provider::SingleSocketProvider,

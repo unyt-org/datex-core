@@ -13,7 +13,7 @@ pub struct RTCIceServer {
 }
 
 #[async_trait(?Send)]
-pub trait WebRTCNewClientInterfaceTrait {
+pub trait WebRTCInterfaceTrait {
     fn new(endpoint: impl Into<Endpoint>) -> Self;
     fn set_ice_servers(self, ice_servers: Vec<RTCIceServer>) -> Self;
     fn new_with_media_support(endpoint: impl Into<Endpoint>) -> Self;
@@ -48,6 +48,7 @@ pub fn deserialize<T: DeserializeOwned>(
 
 #[derive(Debug, Display, Error)]
 pub enum WebRTCError {
+    Unsupported,
     InvalidURL,
     ConnectionError,
     SendError,

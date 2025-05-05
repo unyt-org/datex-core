@@ -202,7 +202,7 @@ impl WebRTCNativeInterface {
 }
 
 #[async_trait(?Send)]
-impl WebRTCNewClientInterfaceTrait for WebRTCNativeInterface {
+impl WebRTCInterfaceTrait for WebRTCNativeInterface {
     fn new(endpoint: impl Into<Endpoint>) -> WebRTCNativeInterface {
         let endpoint: Endpoint = endpoint.into();
         let mut interface = WebRTCNativeInterface {
