@@ -1,9 +1,11 @@
-
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
-    default_com_interfaces::webrtc::webrtc_new_client_interface::WebRTCNewClientInterface,
+    default_com_interfaces::webrtc::webrtc_new_client_interface::{
+        WebRTCNewClientInterface, WebRTCNewClientInterfaceTrait,
+    },
     socket_provider::SingleSocketProvider,
 };
+use ntest_timeout::timeout;
 
 use crate::{
     context::init_global_context,
@@ -11,7 +13,7 @@ use crate::{
 };
 
 #[tokio::test]
-// #[timeout(2000)]
+#[timeout(5000)]
 pub async fn test_send_receive() {
     init_global_context();
     let mut interface_a =
