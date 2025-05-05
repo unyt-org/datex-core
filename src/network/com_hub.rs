@@ -10,7 +10,6 @@ use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]

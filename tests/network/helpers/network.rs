@@ -92,7 +92,7 @@ impl Network {
 
     fn init_mockup_endpoint(
         connection: &mut InterfaceConnection,
-        mut mockup_interface_channels: &mut MockupInterfaceChannels
+        mockup_interface_channels: &mut MockupInterfaceChannels
     ) {
         // get setup data as MockupInterfaceSetupData
         if let Some(setup_data) = &mut connection.setup_data {
