@@ -17,13 +17,13 @@ pub trait WebRTCInterfaceTrait {
     fn new(endpoint: impl Into<Endpoint>) -> Self;
     fn set_ice_servers(self, ice_servers: Vec<RTCIceServer>) -> Self;
     fn new_with_media_support(endpoint: impl Into<Endpoint>) -> Self;
-    async fn create_offer(&mut self, use_reliable_connection: bool) -> Vec<u8>;
+    async fn create_offer(&self, use_reliable_connection: bool) -> Vec<u8>;
     async fn set_remote_description(
         &self,
         description: Vec<u8>,
     ) -> Result<(), WebRTCError>;
     async fn add_ice_candidate(
-        &mut self,
+        &self,
         candidate: Vec<u8>,
     ) -> Result<(), WebRTCError>;
     async fn create_answer(&self) -> Vec<u8>;

@@ -160,7 +160,7 @@ impl WebRTCNativeInterface {
     }
 
     async fn create_session_description(
-        &mut self,
+        &self,
         channel_config: RTCDataChannelInit,
     ) -> RTCSessionDescription {
         if let Some(peer_connection) = &self.peer_connection {
@@ -169,7 +169,10 @@ impl WebRTCNativeInterface {
                 .await
                 .unwrap();
             let sockets = self.get_sockets();
-            self.data_channel = Arc::new(Mutex::new(Some(data_channel)));
+            self.data_channel
+                .lock()
+                .unwrap()
+                .replace(data_channel.clone());
 
             let data_channel = self.data_channel.clone();
             let callback: OnOpenHdlrFn = Box::new(move || {
@@ -248,7 +251,7 @@ impl WebRTCInterfaceTrait for WebRTCNativeInterface {
     /// Creates an offer for the WebRTC connection.
     /// This function sets up a single data channel that is either reliable or unreliable.
     /// The `use_reliable_connection` parameter determines whether the data channel is reliable.
-    async fn create_offer(&mut self, use_reliable_connection: bool) -> Vec<u8> {
+    async fn create_offer(&self, use_reliable_connection: bool) -> Vec<u8> {
         let channel_config = RTCDataChannelInit {
             ordered: Some(use_reliable_connection),
             ..Default::default()
@@ -299,7 +302,7 @@ impl WebRTCInterfaceTrait for WebRTCNativeInterface {
     }
 
     async fn add_ice_candidate(
-        &mut self,
+        &self,
         candidate: Vec<u8>,
     ) -> Result<(), WebRTCError> {
         let candidate = deserialize::<RTCIceCandidateInit>(&candidate)
