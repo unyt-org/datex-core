@@ -34,7 +34,7 @@ use url::Url;
 
 use super::webrtc_common::WebRTCError;
 
-pub struct WebRTCClientInterface {
+pub struct MatchboxClientInterface {
     pub address: Url,
     websocket: Option<Arc<Mutex<WebRtcSocket>>>,
     pub peer_socket_map: Arc<Mutex<HashMap<PeerId, ComInterfaceSocketUUID>>>,
@@ -42,26 +42,26 @@ pub struct WebRTCClientInterface {
     info: ComInterfaceInfo,
     use_reliable_connection: bool,
 }
-impl MultipleSocketProvider for WebRTCClientInterface {
+impl MultipleSocketProvider for MatchboxClientInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets()
     }
 }
 #[com_interface]
-impl WebRTCClientInterface {
+impl MatchboxClientInterface {
     const RECONNECT_ATTEMPTS: u16 = 3;
     const CHANNEL_ID: usize = 0;
     pub fn new_reliable(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
-    ) -> Result<WebRTCClientInterface, WebRTCError> {
+    ) -> Result<MatchboxClientInterface, WebRTCError> {
         Self::new(address, ice_server_config, true)
     }
 
     pub fn new_unreliable(
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
-    ) -> Result<WebRTCClientInterface, WebRTCError> {
+    ) -> Result<MatchboxClientInterface, WebRTCError> {
         Self::new(address, ice_server_config, false)
     }
 
@@ -69,10 +69,10 @@ impl WebRTCClientInterface {
         address: &str,
         ice_server_config: Option<RtcIceServerConfig>,
         use_reliable_connection: bool,
-    ) -> Result<WebRTCClientInterface, WebRTCError> {
+    ) -> Result<MatchboxClientInterface, WebRTCError> {
         let address =
             Url::parse(address).map_err(|_| WebRTCError::InvalidURL)?;
-        let interface = WebRTCClientInterface {
+        let interface = MatchboxClientInterface {
             address,
             websocket: None,
             peer_socket_map: Arc::new(Mutex::new(HashMap::new())),
@@ -215,7 +215,7 @@ impl WebRTCClientInterface {
     }
 }
 
-impl ComInterface for WebRTCClientInterface {
+impl ComInterface for MatchboxClientInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

@@ -1,7 +1,8 @@
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
-    default_com_interfaces::webrtc::webrtc_new_client_interface::{
-        WebRTCNewClientInterface, WebRTCNewClientInterfaceTrait,
+    default_com_interfaces::webrtc::{
+        webrtc_common::WebRTCNewClientInterfaceTrait,
+        webrtc_native_interface::WebRTCNativeInterface,
     },
     socket_provider::SingleSocketProvider,
 };
@@ -16,12 +17,10 @@ use crate::{
 #[timeout(5000)]
 pub async fn test_send_receive() {
     init_global_context();
-    let mut interface_a =
-        WebRTCNewClientInterface::new(TEST_ENDPOINT_B.clone());
+    let mut interface_a = WebRTCNativeInterface::new(TEST_ENDPOINT_B.clone());
     interface_a.open().await.unwrap();
 
-    let mut interface_b =
-        WebRTCNewClientInterface::new(TEST_ENDPOINT_A.clone());
+    let mut interface_b = WebRTCNativeInterface::new(TEST_ENDPOINT_A.clone());
     interface_b.open().await.unwrap();
 
     let offer = interface_a.create_offer(true).await;

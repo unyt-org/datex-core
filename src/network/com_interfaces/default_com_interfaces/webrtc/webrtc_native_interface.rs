@@ -10,7 +10,6 @@ use axum::async_trait;
 use bytes::Bytes;
 use datex_macros::{com_interface, create_opener};
 use log::debug;
-use serde::{de::DeserializeOwned, Serialize};
 use webrtc::{
     api::{
         interceptor_registry::register_default_interceptors,
@@ -19,10 +18,7 @@ use webrtc::{
     data_channel::{
         data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
     },
-    ice_transport::{
-        ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
-        ice_server::RTCIceServer,
-    },
+    ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
     interceptor::registry::Registry,
     peer_connection::{
         configuration::RTCConfiguration,
@@ -52,9 +48,9 @@ use crate::{
     set_opener,
 };
 
-use super::webrtc_common::WebRTCError;
+use super::webrtc_common::*;
 
-pub struct WebRTCNewClientInterface {
+pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     peer_connection: Option<Arc<RTCPeerConnection>>,
     pub remote_endpoint: Endpoint,
@@ -63,42 +59,14 @@ pub struct WebRTCNewClientInterface {
     has_media_support: bool,
     rtc_configuration: RTCConfiguration,
 }
-impl SingleSocketProvider for WebRTCNewClientInterface {
+impl SingleSocketProvider for WebRTCNativeInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets()
     }
 }
 
-#[async_trait]
-pub trait WebRTCNewClientInterfaceTrait {
-    fn new(endpoint: impl Into<Endpoint>) -> Self;
-    fn set_ice_servers(self, ice_servers: Vec<RTCIceServer>) -> Self;
-    fn new_with_media_support(endpoint: impl Into<Endpoint>) -> Self;
-    async fn create_offer(&mut self, use_reliable_connection: bool) -> Vec<u8>;
-    async fn set_remote_description(
-        &self,
-        description: Vec<u8>,
-    ) -> Result<(), WebRTCError>;
-    async fn add_ice_candidate(
-        &mut self,
-        candidate: Vec<u8>,
-    ) -> Result<(), WebRTCError>;
-    async fn create_answer(&self) -> Vec<u8>;
-}
-
-fn serialize<T: Serialize>(value: &T) -> Result<Vec<u8>, serde_json::Error> {
-    serde_json::to_string(value).map(|s| s.into_bytes())
-}
-
-fn deserialize<T: DeserializeOwned>(
-    value: &[u8],
-) -> Result<T, serde_json::Error> {
-    let string = std::str::from_utf8(value).unwrap();
-    serde_json::from_str(string)
-}
-
 #[com_interface]
-impl WebRTCNewClientInterface {
+impl WebRTCNativeInterface {
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
         let api = APIBuilder::new();
@@ -233,11 +201,11 @@ impl WebRTCNewClientInterface {
     }
 }
 
-#[async_trait]
-impl WebRTCNewClientInterfaceTrait for WebRTCNewClientInterface {
-    fn new(endpoint: impl Into<Endpoint>) -> WebRTCNewClientInterface {
+#[async_trait(?Send)]
+impl WebRTCNewClientInterfaceTrait for WebRTCNativeInterface {
+    fn new(endpoint: impl Into<Endpoint>) -> WebRTCNativeInterface {
         let endpoint: Endpoint = endpoint.into();
-        let mut interface = WebRTCNewClientInterface {
+        let mut interface = WebRTCNativeInterface {
             info: ComInterfaceInfo::new(),
             peer_connection: None,
             remote_endpoint: endpoint.clone(),
@@ -254,17 +222,39 @@ impl WebRTCNewClientInterfaceTrait for WebRTCNewClientInterface {
         interface
     }
 
+    fn new_with_media_support(
+        endpoint: impl Into<Endpoint>,
+    ) -> WebRTCNativeInterface {
+        let mut interface = WebRTCNativeInterface::new(endpoint.into());
+        interface.has_media_support = true;
+        interface
+    }
+
+    fn set_ice_servers(
+        mut self,
+        ice_servers: Vec<RTCIceServer>,
+    ) -> WebRTCNativeInterface {
+        self.rtc_configuration.ice_servers = ice_servers
+            .iter()
+            .map(|server| webrtc::ice_transport::ice_server::RTCIceServer {
+                urls: server.urls.clone(),
+                username: server.username.clone(),
+                credential: server.credential.clone(),
+            })
+            .collect();
+        self
+    }
+
     /// Creates an offer for the WebRTC connection.
     /// This function sets up a single data channel that is either reliable or unreliable.
     /// The `use_reliable_connection` parameter determines whether the data channel is reliable.
     async fn create_offer(&mut self, use_reliable_connection: bool) -> Vec<u8> {
-        // let channel_config = RTCDataChannelInit {
-        //     ordered: Some(use_reliable_connection),
-        //     ..Default::default()
-        // };
-        // let offer = self.create_session_description(channel_config).await;
-        // serialize(&offer).unwrap()
-        todo!()
+        let channel_config = RTCDataChannelInit {
+            ordered: Some(use_reliable_connection),
+            ..Default::default()
+        };
+        let offer = self.create_session_description(channel_config).await;
+        serialize(&offer).unwrap().clone()
     }
 
     async fn create_answer(&self) -> Vec<u8> {
@@ -339,25 +329,9 @@ impl WebRTCNewClientInterfaceTrait for WebRTCNewClientInterface {
             panic!("Peer connection not initialized");
         }
     }
-
-    fn set_ice_servers(
-        mut self,
-        ice_servers: Vec<RTCIceServer>,
-    ) -> WebRTCNewClientInterface {
-        self.rtc_configuration.ice_servers = ice_servers;
-        self
-    }
-
-    fn new_with_media_support(
-        endpoint: impl Into<Endpoint>,
-    ) -> WebRTCNewClientInterface {
-        let mut interface = WebRTCNewClientInterface::new(endpoint.into());
-        interface.has_media_support = true;
-        interface
-    }
 }
 
-impl ComInterface for WebRTCNewClientInterface {
+impl ComInterface for WebRTCNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

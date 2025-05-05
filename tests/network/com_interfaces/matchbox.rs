@@ -4,7 +4,7 @@ use crate::context::init_global_context;
 use crate::network::helpers::webrtc_signaling_server::start_server;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
-    default_com_interfaces::webrtc::webrtc_client_interface::WebRTCClientInterface,
+    default_com_interfaces::webrtc::matchbox_client_interface::MatchboxClientInterface,
     socket_provider::MultipleSocketProvider,
 };
 
@@ -12,7 +12,7 @@ use datex_core::network::com_interfaces::{
 pub async fn test_construct() {
     init_global_context();
     let mut client =
-        WebRTCClientInterface::new_reliable("ws://interface.invalid", None)
+        MatchboxClientInterface::new_reliable("ws://interface.invalid", None)
             .unwrap();
     let result = client.open().await;
     assert!(result.is_err(), "Connection should fail");
@@ -27,7 +27,7 @@ pub async fn test_send_receive() {
     init_global_context();
     start_server(&url);
 
-    let mut client_a = WebRTCClientInterface::new_reliable(
+    let mut client_a = MatchboxClientInterface::new_reliable(
         &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
@@ -37,7 +37,7 @@ pub async fn test_send_receive() {
         panic!("Failed to create WebRTCClientInterface: {:?}", e);
     });
 
-    let mut client_b = WebRTCClientInterface::new_reliable(
+    let mut client_b = MatchboxClientInterface::new_reliable(
         &format!("ws://127.0.0.1:{PORT}"),
         None,
     )
