@@ -2,7 +2,6 @@ use std::{
     collections::VecDeque,
     future::Future,
     pin::Pin,
-    str::FromStr,
     sync::{Arc, Mutex},
     time::Duration,
 };

@@ -159,7 +159,7 @@ async fn get_test_network_random() -> Network {
     let mut open_channels = Vec::<String>::new();
 
     for i in 0..endpoint_number {
-        let endpoint = Endpoint::from_str(&format!("test-{}", i)).unwrap();
+        let endpoint = Endpoint::from_str(&format!("test-{i}")).unwrap();
 
         let channel_count = rand::random::<u8>() % 5 + 1;
         let mut node = Node::new(endpoint.clone());
