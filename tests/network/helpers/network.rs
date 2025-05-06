@@ -10,8 +10,6 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{fs, vec};
-use webrtc::mux::endpoint;
-use webrtc::util::vnet::net::Net;
 
 use super::mockup_interface::MockupInterface;
 
@@ -124,7 +122,7 @@ impl Network {
                     // alphabetically to a and b -> a and b and b and a also a and b
                     if edge.edge_type == "mockup" {
                         let mut channel =
-                            vec![edge.source.clone(), edge.target.clone()];
+                            [edge.source.clone(), edge.target.clone()];
                         channel.sort();
                         node = node.with_connection(InterfaceConnection::new(
                             &edge.edge_type,

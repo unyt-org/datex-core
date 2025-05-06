@@ -9,7 +9,6 @@ use crate::network::helpers::network::{InterfaceConnection, Network, Node};
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
-use datex_core::runtime::global_context::set_global_context;
 use log::info;
 use ntest_timeout::timeout;
 use std::str::FromStr;
