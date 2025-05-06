@@ -9,6 +9,7 @@ use crate::network::helpers::network::{InterfaceConnection, Network, Node};
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use datex_core::runtime::global_context::set_global_context;
 use log::info;
 use ntest_timeout::timeout;
 use std::str::FromStr;
@@ -570,6 +571,40 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
                 (TEST_ENDPOINT_B.clone(), "mockup"),
                 (TEST_ENDPOINT_B.clone(), "mockup"),
                 (TEST_ENDPOINT_C.clone(), "mockup"),
+            ]));
+        })
+        .await;
+}
+
+#[tokio::test]
+#[timeout(2000)]
+async fn simple_network() {
+    init_global_context();
+    let local = task::LocalSet::new();
+    local
+        .run_until(async {
+            init_global_context();
+
+            let mut network = Network::load(
+                "../../test/network-builder/networks/simple.json",
+            );
+            network.start().await;
+
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            let network_trace = network
+                .get_runtime("@4726")
+                .com_hub
+                .record_trace("@s5zw")
+                .await;
+            assert!(network_trace.is_some());
+            info!("Network trace:\n{}", network_trace.as_ref().unwrap());
+            assert!(network_trace.unwrap().matches_hops(&[
+                ("@4726".into(), "mockup"),
+                ("@yhr9".into(), "mockup"),
+                ("@yhr9".into(), "mockup"),
+                ("@s5zw".into(), "mockup"),
+                ("@s5zw".into(), "mockup"),
+                ("@s5zw".into(), "mockup"),
             ]));
         })
         .await;

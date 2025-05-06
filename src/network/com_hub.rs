@@ -961,11 +961,11 @@ impl ComHub {
             for (socket_uuid, _) in sockets.iter() {
                 let socket = self.get_socket_by_uuid(socket_uuid);
                 info!(
-                    "{}: Find best for {}: {} ({}); excluded:{}",
+                    "{}: Find best for {}: {} ({:?}); excluded:{}",
                     self.endpoint,
                     endpoint,
                     socket_uuid,
-                    socket.lock().unwrap().direct_endpoint.as_ref().unwrap(),
+                    socket.lock().unwrap().direct_endpoint,
                     exclude_sockets.contains(socket_uuid)
                 );
                 if !exclude_sockets.contains(socket_uuid) {

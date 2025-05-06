@@ -1,17 +1,17 @@
-use std::fmt::Display;
-use std::time::Duration;
 use crate::datex_values::Endpoint;
 use crate::global::dxb_block::{DXBBlock, OutgoingScopeId, ResponseBlocks};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
 use crate::network::com_hub::ComHub;
+use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
+use std::fmt::Display;
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -24,7 +24,7 @@ pub struct NetworkTraceHopSocket {
 impl NetworkTraceHopSocket {
     pub fn new(
         com_interface_properties: &InterfaceProperties,
-        socket_uuid: ComInterfaceSocketUUID
+        socket_uuid: ComInterfaceSocketUUID,
     ) -> Self {
         NetworkTraceHopSocket {
             interface_type: com_interface_properties.interface_type.clone(),
@@ -62,10 +62,7 @@ pub struct NetworkTraceResult {
 impl NetworkTraceResult {
     /// Checks if the hops in the network trace result match the given hops.
     /// A hop consists of an endpoint and an interface type.
-    pub fn matches_hops(
-        &self,
-        hops: &[(Endpoint, &str)],
-    ) -> bool {
+    pub fn matches_hops(&self, hops: &[(Endpoint, &str)]) -> bool {
         if self.hops.len() != hops.len() {
             return false;
         }
@@ -85,7 +82,10 @@ impl NetworkTraceResult {
 
 impl Display for NetworkTraceResult {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "─────────────────────────────────────────────────────────")?;
+        writeln!(
+            f,
+            "─────────────────────────────────────────────────────────"
+        )?;
         writeln!(f, "Network trace ({} ──▶ {})", self.sender, self.receiver)?;
         writeln!(f, "  Round trip time: {:?}", self.round_trip_time)?;
         writeln!(f, "  Outbound path:")?;
@@ -99,8 +99,9 @@ impl Display for NetworkTraceResult {
                 break;
             }
             // invalid hops (1 not outgoing or 2 not incoming)
-            if hops[0].direction != NetworkTraceHopDirection::Outgoing ||
-                hops[1].direction != NetworkTraceHopDirection::Incoming {
+            if hops[0].direction != NetworkTraceHopDirection::Outgoing
+                || hops[1].direction != NetworkTraceHopDirection::Incoming
+            {
                 writeln!(f, "  Invalid hops")?;
                 break;
             }
@@ -115,13 +116,23 @@ impl Display for NetworkTraceResult {
             };
 
             write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
-            writeln!(f, "{} ({}) ──▶ {} ({})  | distance from {}: {}",
-                     hop_1.endpoint,
-                     hop_1.socket.interface_name.clone().unwrap_or(hop_1.socket.interface_type.clone()),
-                     hop_2.endpoint,
-                     hop_2.socket.interface_name.clone().unwrap_or(hop_2.socket.interface_type.clone()),
-                     self.sender,
-                     distance_from_sender
+            writeln!(
+                f,
+                "{} ({}) ──▶ {} ({})  | distance from {}: {}",
+                hop_1.endpoint,
+                hop_1
+                    .socket
+                    .interface_name
+                    .clone()
+                    .unwrap_or(hop_1.socket.interface_type.clone()),
+                hop_2.endpoint,
+                hop_2
+                    .socket
+                    .interface_name
+                    .clone()
+                    .unwrap_or(hop_2.socket.interface_type.clone()),
+                self.sender,
+                distance_from_sender
             )?;
 
             // increment hop number
@@ -134,7 +145,10 @@ impl Display for NetworkTraceResult {
                 hop = 1;
             }
         }
-        writeln!(f, "─────────────────────────────────────────────────────────")?;
+        writeln!(
+            f,
+            "─────────────────────────────────────────────────────────"
+        )?;
         Ok(())
     }
 }
@@ -173,7 +187,7 @@ impl ComHub {
                         sender: self.endpoint.clone(),
                         receiver: endpoint.clone(),
                         hops,
-                        round_trip_time
+                        round_trip_time,
                     })
                 }
                 _ => {
@@ -181,8 +195,7 @@ impl ComHub {
                     None
                 }
             }
-        }
-        else {
+        } else {
             error!("Failed to receive trace back block");
             None
         }
@@ -196,7 +209,6 @@ impl ComHub {
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
     ) -> Option<()> {
-
         let sender = block.routing_header.sender.clone();
         info!("Received trace block from {sender}");
 
@@ -208,8 +220,11 @@ impl ComHub {
             endpoint: self.endpoint.clone(),
             distance: block.routing_header.distance,
             socket: NetworkTraceHopSocket::new(
-                self.get_com_interface_from_socket_uuid(&original_socket).borrow_mut().get_properties(),
-                original_socket.clone()),
+                self.get_com_interface_from_socket_uuid(&original_socket)
+                    .borrow_mut()
+                    .get_properties(),
+                original_socket.clone(),
+            ),
             direction: NetworkTraceHopDirection::Incoming,
         });
 
@@ -243,8 +258,11 @@ impl ComHub {
                 endpoint: self.endpoint.clone(),
                 distance,
                 socket: NetworkTraceHopSocket::new(
-                    self.get_com_interface_from_socket_uuid(&original_socket).borrow_mut().get_properties(),
-                    original_socket.clone()),
+                    self.get_com_interface_from_socket_uuid(&original_socket)
+                        .borrow_mut()
+                        .get_properties(),
+                    original_socket.clone(),
+                ),
                 direction: NetworkTraceHopDirection::Incoming,
             },
         );
@@ -272,8 +290,11 @@ impl ComHub {
                 endpoint: self.endpoint.clone(),
                 distance,
                 socket: NetworkTraceHopSocket::new(
-                    self.get_com_interface_from_socket_uuid(&original_socket).borrow_mut().get_properties(),
-                    original_socket.clone()),
+                    self.get_com_interface_from_socket_uuid(&original_socket)
+                        .borrow_mut()
+                        .get_properties(),
+                    original_socket.clone(),
+                ),
                 direction: NetworkTraceHopDirection::Incoming,
             },
         );
@@ -331,7 +352,8 @@ impl ComHub {
         hop: NetworkTraceHop,
     ) {
         // get hops from block
-        let mut hops = self.get_trace_data_from_block(block).unwrap_or_default();
+        let mut hops =
+            self.get_trace_data_from_block(block).unwrap_or_default();
         // add hop to hops
         hops.push(hop);
         // set hops to block

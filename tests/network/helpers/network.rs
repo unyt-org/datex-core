@@ -1,10 +1,19 @@
-use std::any::Any;
-use std::collections::HashMap;
-use std::sync::mpsc;
+use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
+use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::runtime::Runtime;
-use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
+use serde::Deserialize;
+use std::any::Any;
+use std::collections::HashMap;
+use std::path::Path;
+use std::str::FromStr;
+use std::sync::mpsc;
+use std::{fs, vec};
+use webrtc::mux::endpoint;
+use webrtc::util::vnet::net::Net;
+
+use super::mockup_interface::MockupInterface;
 
 pub struct InterfaceConnection {
     interface_type: String,
@@ -14,7 +23,11 @@ pub struct InterfaceConnection {
 }
 
 impl InterfaceConnection {
-    pub fn new<T: Any>(interface_type: &str, priority: InterfacePriority, setup_data: T) -> Self {
+    pub fn new<T: Any>(
+        interface_type: &str,
+        priority: InterfacePriority,
+        setup_data: T,
+    ) -> Self {
         InterfaceConnection {
             interface_type: interface_type.to_string(),
             priority,
@@ -55,10 +68,8 @@ pub struct MockupInterfaceChannelEndpoint {
     receiver: mpsc::Receiver<Vec<u8>>,
 }
 
-type MockupInterfaceChannels = HashMap<
-    String,
-    Option<MockupInterfaceChannelEndpoint>
->;
+type MockupInterfaceChannels =
+    HashMap<String, Option<MockupInterfaceChannelEndpoint>>;
 
 pub struct Network {
     pub is_initialized: bool,
@@ -66,7 +77,69 @@ pub struct Network {
     com_interface_factories: HashMap<String, ComInterfaceFactoryFn>,
 }
 
+#[derive(Debug, Deserialize)]
+struct NetworkNode {
+    pub id: String,
+    pub label: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Edge {
+    pub id: String,
+    pub source: String,
+    pub target: String,
+    #[serde(rename = "type")]
+    pub edge_type: String,
+    pub priority: u8,
+}
+
+#[derive(Debug, Deserialize)]
+struct NetworkData {
+    pub nodes: Vec<NetworkNode>,
+    pub edges: Vec<Edge>,
+}
+
 impl Network {
+    pub fn load<P: AsRef<Path>>(path: P) -> Self {
+        let file_content =
+            fs::read_to_string(path).expect("Failed to read the file");
+        let network_data: NetworkData = serde_json::from_str(&file_content)
+            .expect("Failed to deserialize the JSON");
+
+        let mut nodes = Vec::new();
+        for network_node in network_data.nodes.iter() {
+            let endpoint =
+                Endpoint::from_str(&network_node.label.clone()).unwrap();
+            let mut node = Node::new(endpoint);
+            for edge in network_data.edges.iter() {
+                if edge.source == network_node.id {
+                    let prio = {
+                        if edge.priority == 0 {
+                            InterfacePriority::default()
+                        } else {
+                            InterfacePriority::Priority(edge.priority.into())
+                        }
+                    };
+                    // channel is edge.target and edge.source sorted
+                    // alphabetically to a and b -> a and b and b and a also a and b
+                    if edge.edge_type == "mockup" {
+                        let mut channel =
+                            vec![edge.source.clone(), edge.target.clone()];
+                        channel.sort();
+                        node = node.with_connection(InterfaceConnection::new(
+                            &edge.edge_type,
+                            prio,
+                            MockupInterfaceSetupData::new(&channel.join("_")),
+                        ));
+                    }
+                }
+            }
+            nodes.push(node);
+        }
+        let mut network = Network::create(nodes);
+        network.register_interface("mockup", MockupInterface::factory);
+        network
+    }
 
     pub fn create(mut endpoints: Vec<Node>) -> Self {
         let mut mockup_interface_channels = HashMap::new();
@@ -77,7 +150,7 @@ impl Network {
                 if connection.interface_type == "mockup" {
                     Network::init_mockup_endpoint(
                         connection,
-                        &mut mockup_interface_channels
+                        &mut mockup_interface_channels,
                     );
                 }
             }
@@ -92,7 +165,7 @@ impl Network {
 
     fn init_mockup_endpoint(
         connection: &mut InterfaceConnection,
-        mockup_interface_channels: &mut MockupInterfaceChannels
+        mockup_interface_channels: &mut MockupInterfaceChannels,
     ) {
         // get setup data as MockupInterfaceSetupData
         if let Some(setup_data) = &mut connection.setup_data {
@@ -101,14 +174,17 @@ impl Network {
                 .expect("MockupInterfaceSetupData is required for interface of type mockup");
             let channel = Network::get_mockup_interface_channel(
                 mockup_interface_channels,
-                setup_data.name.clone()
+                setup_data.name.clone(),
             );
             setup_data.receiver = Some(channel.receiver);
             setup_data.sender = Some(channel.sender);
         }
     }
 
-    fn get_mockup_interface_channel(mockup_interface_channels: &mut MockupInterfaceChannels, name: String) -> MockupInterfaceChannelEndpoint {
+    fn get_mockup_interface_channel(
+        mockup_interface_channels: &mut MockupInterfaceChannels,
+        name: String,
+    ) -> MockupInterfaceChannelEndpoint {
         if !mockup_interface_channels.contains_key(&name) {
             let (sender_a, receiver_a) = mpsc::channel::<Vec<u8>>();
             let (sender_b, receiver_b) = mpsc::channel::<Vec<u8>>();
@@ -117,28 +193,30 @@ impl Network {
                 name,
                 Some(MockupInterfaceChannelEndpoint {
                     sender: sender_b,
-                    receiver: receiver_a
-                })
+                    receiver: receiver_a,
+                }),
             );
 
             MockupInterfaceChannelEndpoint {
                 sender: sender_a,
-                receiver: receiver_b
+                receiver: receiver_b,
             }
-        }
-
-        else if let Some(channel) = mockup_interface_channels.get_mut(&name).unwrap().take() {
+        } else if let Some(channel) =
+            mockup_interface_channels.get_mut(&name).unwrap().take()
+        {
             channel
-        }
-
-        else {
+        } else {
             panic!("Channel {name} is already used");
         }
-
     }
 
-    pub fn register_interface(&mut self, interface_type: &str, factory: ComInterfaceFactoryFn) {
-        self.com_interface_factories.insert(interface_type.to_string(), factory);
+    pub fn register_interface(
+        &mut self,
+        interface_type: &str,
+        factory: ComInterfaceFactoryFn,
+    ) {
+        self.com_interface_factories
+            .insert(interface_type.to_string(), factory);
     }
 
     pub async fn start(&mut self) {
@@ -152,17 +230,25 @@ impl Network {
             let runtime = Runtime::new(endpoint.endpoint.clone());
 
             // register factories
-            for (interface_type, factory) in self.com_interface_factories.iter() {
-                runtime.com_hub.register_interface_factory(interface_type.clone(), *factory)
+            for (interface_type, factory) in self.com_interface_factories.iter()
+            {
+                runtime.com_hub.register_interface_factory(
+                    interface_type.clone(),
+                    *factory,
+                )
             }
 
             // add com interfaces
             for connection in endpoint.connections.iter_mut() {
-                runtime.com_hub.create_interface(
-                    &connection.interface_type,
-                    connection.setup_data.take().unwrap(),
-                    connection.priority
-                ).await.expect("failed to create interface");
+                runtime
+                    .com_hub
+                    .create_interface(
+                        &connection.interface_type,
+                        connection.setup_data.take().unwrap(),
+                        connection.priority,
+                    )
+                    .await
+                    .expect("failed to create interface");
             }
             runtime.start().await;
             endpoint.runtime = Some(runtime);
@@ -178,5 +264,4 @@ impl Network {
         }
         panic!("Endpoint {endpoint} not found in network");
     }
-
 }
