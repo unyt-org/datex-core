@@ -23,6 +23,7 @@ use datex_core::{
     set_sync_opener,
 };
 use datex_macros::{com_interface, create_opener};
+use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -31,6 +32,7 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
+use webrtc::media::audio::buffer::info;
 use webrtc::mux::endpoint;
 use webrtc::sdp::direction;
 
@@ -65,9 +67,10 @@ impl MockupInterface {
     }
 
     pub fn init_socket(&mut self) -> Arc<Mutex<ComInterfaceSocket>> {
+        let direction = self.get_properties().direction.clone();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
             self.get_uuid().clone(),
-            InterfaceDirection::InOut,
+            direction,
             1,
         )));
         self.add_socket(socket.clone());
@@ -138,11 +141,13 @@ impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
         let direction = setup_data.direction.clone();
         let endpoint = setup_data.endpoint.clone();
         let mut interface = MockupInterface::new(setup_data);
-        interface.init_socket();
-        interface.start_update_loop();
+
         let mut props = interface.init_properties();
         props.direction = direction;
+        info!("props: {:?}", props.direction);
+        info!("endpoint: {:?}", endpoint);
         interface.info.interface_properties = Some(props);
+        interface.init_socket();
         if let Some(endpoint) = endpoint {
             interface
                 .register_socket_endpoint(
@@ -152,6 +157,7 @@ impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
                 )
                 .unwrap();
         }
+        interface.start_update_loop();
         log::info!("started update loop");
         Ok(interface)
     }

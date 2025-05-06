@@ -159,6 +159,7 @@ impl ComHub {
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
         let endpoint = endpoint.into();
+        self.print_metadata();
 
         let trace_block = {
             let scope_id = self.block_handler.get_new_scope_id();

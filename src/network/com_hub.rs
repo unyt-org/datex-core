@@ -113,7 +113,7 @@ impl Default for ComHub {
     }
 }
 
-#[derive(Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum InterfacePriority {
     /// The interface will not be used for fallback routing if no other interface is available
     /// This is useful for interfaces which cannot communicate with the outside world or are not
@@ -679,17 +679,32 @@ impl ComHub {
             panic!("Socket {} already exists in ComHub", socket_ref.uuid);
         }
 
+        // info!(
+        //     "Adding socket {} to ComHub with priority {:?}",
+        //     socket_ref.uuid, priority
+        // );
+
+        if !socket_ref.can_send() && priority != InterfacePriority::None {
+            panic!(
+                "Socket {} cannot be used for fallback routing",
+                socket_ref.uuid
+            );
+        }
+
         self.sockets
             .borrow_mut()
             .insert(socket_ref.uuid.clone(), (socket.clone(), HashSet::new()));
 
-        match priority {
-            InterfacePriority::None => {
-                // do nothing
-            }
-            InterfacePriority::Priority(priority) => {
-                // add socket to fallback sockets list
-                self.add_fallback_socket(&socket_uuid, priority);
+        // add outgoing socket to fallback sockets list if they have a priority flag
+        if socket_ref.can_send() {
+            match priority {
+                InterfacePriority::None => {
+                    // do nothing
+                }
+                InterfacePriority::Priority(priority) => {
+                    // add socket to fallback sockets list
+                    self.add_fallback_socket(&socket_uuid, priority);
+                }
             }
         }
 
@@ -711,6 +726,7 @@ impl ComHub {
         self.send_block_addressed(block, &socket_uuid, &[Endpoint::ANY]);
     }
 
+    /// Only for outgoing sockets
     fn add_fallback_socket(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -872,9 +888,15 @@ impl ComHub {
                         // if a non-outgoing socket is found, all following sockets
                         // will also be non-outgoing
                         if !socket.can_send() {
-                            break;
+                            info!(
+                                "Socket {} is not outgoing for endpoint {}. Skipping...",
+                                socket.uuid,
+                                endpoint
+                            );
+                            return;
                         }
                     }
+
                     debug!(
                         "Found matching socket {socket_uuid} for endpoint {endpoint}"
                     );

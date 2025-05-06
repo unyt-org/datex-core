@@ -1,4 +1,5 @@
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
+use core::panic;
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
@@ -92,7 +93,7 @@ struct Edge {
     pub target: String,
     #[serde(rename = "type")]
     pub edge_type: String,
-    pub priority: u8,
+    pub priority: Option<u16>,
     pub endpoint: Option<String>,
 }
 
@@ -110,49 +111,76 @@ impl Network {
             .expect("Failed to deserialize the JSON");
 
         let mut nodes = Vec::new();
+        let channel_names = network_data
+            .edges
+            .iter()
+            .map(|edge| {
+                let mut channel = [
+                    edge.edge_type.clone(),
+                    edge.source.clone(),
+                    edge.target.clone(),
+                ];
+                channel.sort();
+                channel.join("_")
+            })
+            .collect::<Vec<_>>();
+
         for network_node in network_data.nodes.iter() {
             let endpoint =
                 Endpoint::from_str(&network_node.label.clone()).unwrap();
             let mut node = Node::new(endpoint);
-            let channel_names = network_data
-                .edges
-                .iter()
-                .map(|edge| {
-                    let mut channel = [
-                        edge.edge_type.clone(),
-                        edge.source.clone(),
-                        edge.target.clone(),
-                    ];
-                    channel.sort();
-                    channel.join("_")
-                })
-                .collect::<Vec<_>>();
 
             for edge in network_data.edges.iter() {
-                if edge.source == network_node.id {
+                let mut channel = [
+                    edge.edge_type.clone(),
+                    edge.source.clone(),
+                    edge.target.clone(),
+                ];
+                channel.sort();
+                let channel = channel.join("_");
+                let is_bidirectional = channel_names
+                    .iter()
+                    .filter(|&item| item == &channel)
+                    .count()
+                    == 2;
+                let is_outgoing = edge.source == network_node.id;
+
+                if is_outgoing
+                    || (edge.target == network_node.id && !is_bidirectional)
+                {
+                    info!(
+                        "{} is_outgoing: {}, is_bidirectional: {}",
+                        network_node.id, is_outgoing, is_bidirectional
+                    );
+
                     let prio = {
-                        if edge.priority == 0 {
-                            InterfacePriority::default()
+                        if let Some(priority) = edge.priority {
+                            InterfacePriority::Priority(priority)
                         } else {
-                            InterfacePriority::Priority(edge.priority.into())
+                            InterfacePriority::default()
                         }
                     };
                     if edge.edge_type == "mockup" {
-                        let mut channel = [
-                            edge.edge_type.clone(),
-                            edge.source.clone(),
-                            edge.target.clone(),
-                        ];
-                        channel.sort();
-                        let channel = channel.join("_");
-                        let is_bidirectional =
-                            channel_names.iter().any(|c| c == &channel);
+                        let interface_direction = if is_bidirectional {
+                            InterfaceDirection::InOut
+                        } else {
+                            if is_outgoing {
+                                InterfaceDirection::Out
+                            } else {
+                                InterfaceDirection::In
+                            }
+                        };
+                        info!(
+                            "Channel: {:?}, Direction: {:?}",
+                            channel, interface_direction
+                        );
 
                         let other_endpoint = edge
                             .endpoint
                             .as_deref()
                             .map(Endpoint::from_str)
                             .map(|e| e.unwrap());
+
                         if let Some(endpoint) = other_endpoint {
                             node = node.with_connection(InterfaceConnection::new(
                                 &edge.edge_type,
@@ -160,7 +188,7 @@ impl Network {
                                 MockupInterfaceSetupData::new_with_endpoint_and_direction(
                                     &channel,
                                     endpoint,
-                                    InterfaceDirection::InOut,
+                                    interface_direction,
                                 ),
                             ));
                         } else {
@@ -169,8 +197,8 @@ impl Network {
                                 &edge.edge_type,
                                 prio,
                                 MockupInterfaceSetupData::new_with_direction(
-                                    &channel.join("_"),
-                                    InterfaceDirection::InOut,
+                                    &channel,
+                                    interface_direction,
                                 ),
                             ));
                         }
@@ -228,8 +256,19 @@ impl Network {
             );
             info!("setup_data: {:?}", setup_data.endpoint);
             info!("For Channel: {:?}", setup_data.name);
-            setup_data.receiver = Some(channel.receiver);
-            setup_data.sender = Some(channel.sender);
+
+            match setup_data.direction {
+                InterfaceDirection::In => {
+                    setup_data.receiver = Some(channel.receiver);
+                }
+                InterfaceDirection::Out => {
+                    setup_data.sender = Some(channel.sender);
+                }
+                InterfaceDirection::InOut => {
+                    setup_data.receiver = Some(channel.receiver);
+                    setup_data.sender = Some(channel.sender);
+                }
+            }
         }
     }
 
