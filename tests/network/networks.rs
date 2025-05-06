@@ -11,7 +11,6 @@ use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use log::info;
 use ntest_timeout::timeout;
-use std::error;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::task;
@@ -611,7 +610,7 @@ async fn simple_network() {
             })
             .await
             .map(|e| {
-                log::error!("Error: {:?}", e);
+                log::error!("Error: {e:?}");
             })
             .unwrap();
         })

@@ -13,8 +13,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
-use std::{fs, vec};
-use webrtc::media::audio::buffer::info;
+use std::fs;
 
 use super::mockup_interface::MockupInterface;
 
@@ -163,16 +162,13 @@ impl Network {
                     if edge.edge_type == "mockup" {
                         let interface_direction = if is_bidirectional {
                             InterfaceDirection::InOut
+                        } else if is_outgoing {
+                            InterfaceDirection::Out
                         } else {
-                            if is_outgoing {
-                                InterfaceDirection::Out
-                            } else {
-                                InterfaceDirection::In
-                            }
+                            InterfaceDirection::In
                         };
                         info!(
-                            "Channel: {:?}, Direction: {:?}",
-                            channel, interface_direction
+                            "Channel: {channel:?}, Direction: {interface_direction:?}"
                         );
 
                         let other_endpoint = edge

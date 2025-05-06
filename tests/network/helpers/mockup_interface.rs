@@ -32,9 +32,6 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
-use webrtc::media::audio::buffer::info;
-use webrtc::mux::endpoint;
-use webrtc::sdp::direction;
 
 #[derive(Default)]
 pub struct MockupInterface {
@@ -145,7 +142,7 @@ impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
         let mut props = interface.init_properties();
         props.direction = direction;
         info!("props: {:?}", props.direction);
-        info!("endpoint: {:?}", endpoint);
+        info!("endpoint: {endpoint:?}");
         interface.info.interface_properties = Some(props);
         interface.init_socket();
         if let Some(endpoint) = endpoint {
