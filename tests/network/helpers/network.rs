@@ -2,7 +2,10 @@ use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::Runtime;
+use itertools::Itertools;
+use log::info;
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
@@ -10,6 +13,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{fs, vec};
+use webrtc::media::audio::buffer::info;
 
 use super::mockup_interface::MockupInterface;
 
@@ -89,6 +93,7 @@ struct Edge {
     #[serde(rename = "type")]
     pub edge_type: String,
     pub priority: u8,
+    pub endpoint: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -109,6 +114,20 @@ impl Network {
             let endpoint =
                 Endpoint::from_str(&network_node.label.clone()).unwrap();
             let mut node = Node::new(endpoint);
+            let channel_names = network_data
+                .edges
+                .iter()
+                .map(|edge| {
+                    let mut channel = [
+                        edge.edge_type.clone(),
+                        edge.source.clone(),
+                        edge.target.clone(),
+                    ];
+                    channel.sort();
+                    channel.join("_")
+                })
+                .collect::<Vec<_>>();
+
             for edge in network_data.edges.iter() {
                 if edge.source == network_node.id {
                     let prio = {
@@ -118,17 +137,43 @@ impl Network {
                             InterfacePriority::Priority(edge.priority.into())
                         }
                     };
-                    // channel is edge.target and edge.source sorted
-                    // alphabetically to a and b -> a and b and b and a also a and b
                     if edge.edge_type == "mockup" {
-                        let mut channel =
-                            [edge.source.clone(), edge.target.clone()];
+                        let mut channel = [
+                            edge.edge_type.clone(),
+                            edge.source.clone(),
+                            edge.target.clone(),
+                        ];
                         channel.sort();
-                        node = node.with_connection(InterfaceConnection::new(
-                            &edge.edge_type,
-                            prio,
-                            MockupInterfaceSetupData::new(&channel.join("_")),
-                        ));
+                        let channel = channel.join("_");
+                        let is_bidirectional =
+                            channel_names.iter().any(|c| c == &channel);
+
+                        let other_endpoint = edge
+                            .endpoint
+                            .as_deref()
+                            .map(Endpoint::from_str)
+                            .map(|e| e.unwrap());
+                        if let Some(endpoint) = other_endpoint {
+                            node = node.with_connection(InterfaceConnection::new(
+                                &edge.edge_type,
+                                prio,
+                                MockupInterfaceSetupData::new_with_endpoint_and_direction(
+                                    &channel,
+                                    endpoint,
+                                    InterfaceDirection::InOut,
+                                ),
+                            ));
+                        } else {
+                            node = node
+                                .with_connection(InterfaceConnection::new(
+                                &edge.edge_type,
+                                prio,
+                                MockupInterfaceSetupData::new_with_direction(
+                                    &channel.join("_"),
+                                    InterfaceDirection::InOut,
+                                ),
+                            ));
+                        }
                     }
                 }
             }
@@ -153,6 +198,13 @@ impl Network {
                 }
             }
         }
+        info!(
+            "Mockup channels: {:?}",
+            mockup_interface_channels
+                .values()
+                .map(|c| c.is_some())
+                .collect::<Vec<_>>()
+        );
 
         Network {
             is_initialized: false,
@@ -174,6 +226,8 @@ impl Network {
                 mockup_interface_channels,
                 setup_data.name.clone(),
             );
+            info!("setup_data: {:?}", setup_data.endpoint);
+            info!("For Channel: {:?}", setup_data.name);
             setup_data.receiver = Some(channel.receiver);
             setup_data.sender = Some(channel.sender);
         }

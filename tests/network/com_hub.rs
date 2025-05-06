@@ -17,8 +17,17 @@ use std::sync::mpsc;
 use tokio::task;
 // FIXME no-std
 use crate::context::init_global_context;
-use crate::network::helpers::mock_setup::{add_socket, get_all_received_single_blocks_from_com_hub, get_last_received_single_block_from_com_hub, get_mock_setup, get_mock_setup_and_socket, get_mock_setup_and_socket_for_priority, get_mock_setup_with_endpoint, register_socket_endpoint, send_block_with_body, send_empty_block, ORIGIN, TEST_ENDPOINT_A, TEST_ENDPOINT_B};
-use crate::network::helpers::mockup_interface::{MockupInterface, MockupInterfaceSetupData};
+use crate::network::helpers::mock_setup::{
+    add_socket, get_all_received_single_blocks_from_com_hub,
+    get_last_received_single_block_from_com_hub, get_mock_setup,
+    get_mock_setup_and_socket, get_mock_setup_and_socket_for_priority,
+    get_mock_setup_with_endpoint, register_socket_endpoint,
+    send_block_with_body, send_empty_block, ORIGIN, TEST_ENDPOINT_A,
+    TEST_ENDPOINT_B,
+};
+use crate::network::helpers::mockup_interface::{
+    MockupInterface, MockupInterfaceSetupData,
+};
 use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
 };
@@ -35,7 +44,10 @@ pub async fn test_add_and_remove() {
             Rc::new(RefCell::new(MockupInterface::default()));
         let uuid = mockup_interface.borrow().get_uuid().clone();
         com_hub
-            .open_and_add_interface(mockup_interface.clone(), InterfacePriority::default())
+            .open_and_add_interface(
+                mockup_interface.clone(),
+                InterfacePriority::default(),
+            )
             .await
             .unwrap_or_else(|e| {
                 panic!("Error adding interface: {e:?}");
@@ -56,24 +68,36 @@ pub async fn test_multiple_add() {
     let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
 
     com_hub_mut
-        .open_and_add_interface(mockup_interface1.clone(), InterfacePriority::default())
+        .open_and_add_interface(
+            mockup_interface1.clone(),
+            InterfacePriority::default(),
+        )
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
     com_hub_mut
-        .open_and_add_interface(mockup_interface2.clone(), InterfacePriority::default())
+        .open_and_add_interface(
+            mockup_interface2.clone(),
+            InterfacePriority::default(),
+        )
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
 
     assert!(com_hub_mut
-        .open_and_add_interface(mockup_interface1.clone(), InterfacePriority::default())
+        .open_and_add_interface(
+            mockup_interface1.clone(),
+            InterfacePriority::default()
+        )
         .await
         .is_err());
     assert!(com_hub_mut
-        .open_and_add_interface(mockup_interface2.clone(), InterfacePriority::default())
+        .open_and_add_interface(
+            mockup_interface2.clone(),
+            InterfacePriority::default()
+        )
         .await
         .is_err());
 }
@@ -107,7 +131,8 @@ pub async fn test_send_invalid_recipient() {
     // init mock setup
     init_global_context();
     // init without fallback interfaces
-    let (com_hub, com_interface, _) = get_mock_setup_and_socket_for_priority(InterfacePriority::None).await;
+    let (com_hub, com_interface, _) =
+        get_mock_setup_and_socket_for_priority(InterfacePriority::None).await;
 
     send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
@@ -198,7 +223,9 @@ pub async fn send_blocks_to_multiple_endpoints() {
 #[tokio::test]
 pub async fn default_interface_create_socket_first() {
     init_global_context();
-    let (com_hub, com_interface, _) = get_mock_setup_and_socket_for_priority(InterfacePriority::default()).await;
+    let (com_hub, com_interface, _) =
+        get_mock_setup_and_socket_for_priority(InterfacePriority::default())
+            .await;
 
     let _ = send_empty_block(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
@@ -210,8 +237,12 @@ pub async fn default_interface_create_socket_first() {
 #[tokio::test]
 pub async fn default_interface_set_default_interface_first() {
     init_global_context();
-    let (com_hub, com_interface) = get_mock_setup_with_endpoint(ORIGIN.clone(), InterfacePriority::default()).await;
-    
+    let (com_hub, com_interface) = get_mock_setup_with_endpoint(
+        ORIGIN.clone(),
+        InterfacePriority::default(),
+    )
+    .await;
+
     let socket = add_socket(com_interface.clone());
     register_socket_endpoint(
         com_interface.clone(),
@@ -372,8 +403,7 @@ pub async fn test_receive_multiple() {
 pub async fn test_add_and_remove_interface_and_sockets() {
     init_global_context();
 
-    let (com_hub, com_interface, socket) =
-        get_mock_setup_and_socket().await;
+    let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
 
     assert_eq!(com_hub.interfaces.borrow().len(), 1);
     assert_eq!(com_hub.sockets.borrow().len(), 1);
@@ -453,28 +483,38 @@ pub async fn test_basic_routing() {
 #[tokio::test]
 pub async fn register_factory() {
     let local = task::LocalSet::new();
-    local.run_until(async {
-        init_global_context();
-        let mut com_hub = ComHub::default();
-        MockupInterface::register_on_com_hub(&mut com_hub);
+    local
+        .run_until(async {
+            init_global_context();
+            let mut com_hub = ComHub::default();
+            MockupInterface::register_on_com_hub(&mut com_hub);
 
-        assert_eq!(com_hub.interface_factories.borrow().len(), 1);
-        assert!(com_hub.interface_factories.borrow().get("mockup").is_some());
+            assert_eq!(com_hub.interface_factories.borrow().len(), 1);
+            assert!(com_hub
+                .interface_factories
+                .borrow()
+                .get("mockup")
+                .is_some());
 
-        // create a new mockup interface from the com_hub
-        let mockup_interface = com_hub
-            .create_interface("mockup", Box::new(MockupInterfaceSetupData::new("mockup")), InterfacePriority::default())
-            .await
-            .unwrap();
+            // create a new mockup interface from the com_hub
+            let mockup_interface = com_hub
+                .create_interface(
+                    "mockup",
+                    Box::new(MockupInterfaceSetupData::new("mockup")),
+                    InterfacePriority::default(),
+                )
+                .await
+                .unwrap();
 
-        assert_eq!(
-            mockup_interface
-                .borrow_mut()
-                .get_properties()
-                .interface_type,
-            "mockup"
-        );
-    }).await;
+            assert_eq!(
+                mockup_interface
+                    .borrow_mut()
+                    .get_properties()
+                    .interface_type,
+                "mockup"
+            );
+        })
+        .await;
 }
 
 #[tokio::test]
@@ -492,7 +532,9 @@ pub async fn test_reconnect() {
         });
     base_interface.open().unwrap();
     let base_interface = Rc::new(RefCell::new(base_interface));
-    com_hub.add_interface(base_interface.clone(), InterfacePriority::default()).unwrap();
+    com_hub
+        .add_interface(base_interface.clone(), InterfacePriority::default())
+        .unwrap();
 
     // check that the interface is connected
     assert_eq!(

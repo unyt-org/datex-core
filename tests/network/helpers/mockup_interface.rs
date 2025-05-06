@@ -1,14 +1,11 @@
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::{mpsc, Arc, Mutex},
-};
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::time::Duration;
+use core::panic;
+use datex_core::datex_values::Endpoint;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };
+use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
+use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
+use datex_core::task::spawn_local;
 use datex_core::{
     delegate_com_interface_info,
     global::{
@@ -25,12 +22,17 @@ use datex_core::{
     },
     set_sync_opener,
 };
-use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::task::spawn_local;
 use datex_macros::{com_interface, create_opener};
-
-
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::Duration;
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{mpsc, Arc, Mutex},
+};
+use webrtc::mux::endpoint;
+use webrtc::sdp::direction;
 
 #[derive(Default)]
 pub struct MockupInterface {
@@ -42,12 +44,13 @@ pub struct MockupInterface {
 }
 
 impl MockupInterface {
-    pub fn new(
-        setup_data: MockupInterfaceSetupData,
-    ) -> Self {
+    pub fn new(setup_data: MockupInterfaceSetupData) -> Self {
         let mut mockup_interface = MockupInterface::default();
-        mockup_interface.info.interface_properties = Some(MockupInterface::get_default_properties());
-        if let Some(interface_properties) = &mut mockup_interface.info.interface_properties {
+        mockup_interface.info.interface_properties =
+            Some(MockupInterface::get_default_properties());
+        if let Some(interface_properties) =
+            &mut mockup_interface.info.interface_properties
+        {
             interface_properties.name = Some(setup_data.name.clone());
         }
 
@@ -82,25 +85,73 @@ pub struct MockupInterfaceSetupData {
     pub sender: Option<mpsc::Sender<Vec<u8>>>,
     pub receiver: Option<mpsc::Receiver<Vec<u8>>>,
     pub name: String,
+    pub endpoint: Option<Endpoint>,
+    pub direction: InterfaceDirection,
 }
 
 impl MockupInterfaceSetupData {
-    pub fn new(
+    pub fn new(name: &str) -> MockupInterfaceSetupData {
+        MockupInterfaceSetupData {
+            name: name.to_string(),
+            receiver: None,
+            sender: None,
+            endpoint: None,
+            direction: InterfaceDirection::InOut,
+        }
+    }
+    pub fn new_with_direction(
         name: &str,
+        direction: InterfaceDirection,
     ) -> MockupInterfaceSetupData {
         MockupInterfaceSetupData {
             name: name.to_string(),
             receiver: None,
             sender: None,
+            endpoint: None,
+            direction,
         }
+    }
+    pub fn new_with_endpoint(name: &str, endpoint: Endpoint) -> Self {
+        MockupInterfaceSetupData {
+            name: name.to_string(),
+            receiver: None,
+            sender: None,
+            endpoint: Some(endpoint),
+            direction: InterfaceDirection::InOut,
+        }
+    }
+    pub fn new_with_endpoint_and_direction(
+        name: &str,
+        endpoint: Endpoint,
+        direction: InterfaceDirection,
+    ) -> Self {
+        let mut setup_data = Self::new_with_endpoint(name, endpoint);
+        setup_data.direction = direction;
+        setup_data
     }
 }
 
 impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
-    fn create(setup_data: MockupInterfaceSetupData) -> Result<MockupInterface, ComInterfaceError> {
+    fn create(
+        setup_data: MockupInterfaceSetupData,
+    ) -> Result<MockupInterface, ComInterfaceError> {
+        let direction = setup_data.direction.clone();
+        let endpoint = setup_data.endpoint.clone();
         let mut interface = MockupInterface::new(setup_data);
         interface.init_socket();
         interface.start_update_loop();
+        let mut props = interface.init_properties();
+        props.direction = direction;
+        interface.info.interface_properties = Some(props);
+        if let Some(endpoint) = endpoint {
+            interface
+                .register_socket_endpoint(
+                    interface.get_socket_uuid().clone().unwrap(),
+                    endpoint,
+                    1,
+                )
+                .unwrap();
+        }
         log::info!("started update loop");
         Ok(interface)
     }
@@ -181,10 +232,7 @@ impl MockupInterface {
         let sockets = self.info.com_interface_sockets();
         spawn_local(async move {
             loop {
-                MockupInterface::_update(
-                    receiver.clone(),
-                    sockets.clone(),
-                );
+                MockupInterface::_update(receiver.clone(), sockets.clone());
                 #[cfg(feature = "tokio_runtime")]
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
@@ -212,6 +260,7 @@ impl ComInterface for MockupInterface {
         }
         if let Some(sender) = &self.sender {
             if sender.send(block.to_vec()).is_err() {
+                panic!("Failed to send block sender droppedß");
                 return Pin::from(Box::new(async move { false }));
             }
         }

@@ -508,16 +508,18 @@ pub trait ComInterface: Any {
                                 // socket will return a boolean indicating of a block could be sent
                                 let has_been_send = shared_self
                                     .borrow_mut()
-                                    .send_block(
-                                        &block,
-                                        uuid,
-                                    )
+                                    .send_block(&block, uuid)
                                     .await;
 
                                 // If the block could not be sent, push it back to the send queue to be sent later
                                 if !has_been_send {
+                                    panic!("Failed to send block");
                                     debug!("Failed to send block");
-                                    socket_ref.lock().unwrap().send_queue.push_back(block);
+                                    socket_ref
+                                        .lock()
+                                        .unwrap()
+                                        .send_queue
+                                        .push_back(block);
                                 }
                             })
                         })
