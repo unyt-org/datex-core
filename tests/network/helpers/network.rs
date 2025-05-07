@@ -6,15 +6,13 @@ use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::Runtime;
-use futures::channel;
-use log::{info, warn};
+use log::info;
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::fs;
 use std::path::Path;
-use std::process::exit;
 use std::str::FromStr;
 use std::sync::mpsc;
 
@@ -91,12 +89,12 @@ impl Display for Route {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, (endpoint, channel)) in self.hops.iter().enumerate() {
             // Write the endpoint
-            write!(f, "{}", endpoint)?;
+            write!(f, "{endpoint}")?;
 
             // If not the last, write the arrow + optional channel
             if i + 1 < self.hops.len() {
                 if let Some(chan) = channel {
-                    write!(f, " -({})-> ", chan)?;
+                    write!(f, " -({chan})-> ")?;
                 } else {
                     write!(f, " --> ")?;
                 }

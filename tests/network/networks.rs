@@ -16,7 +16,6 @@ use ntest_timeout::timeout;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::task;
-use webrtc::media::audio::buffer::info;
 
 #[tokio::test]
 #[timeout(100)]
