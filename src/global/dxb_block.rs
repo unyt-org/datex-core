@@ -9,6 +9,7 @@ use crate::datex_values::Endpoint;
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use binrw::{BinRead, BinWrite};
+use log::error;
 use strum::Display;
 use thiserror::Error;
 
@@ -179,7 +180,10 @@ impl DXBBlock {
             return Err(HeaderParsingError::InsufficientLength);
         }
         let routing_header = RoutingHeader::read(&mut Cursor::new(dxb))
-            .map_err(|_| HeaderParsingError::InvalidBlock)?;
+            .map_err(|e| {
+                error!("Failed to read routing header: {e:?}");
+                return HeaderParsingError::InvalidBlock;
+            })?;
         if routing_header.block_size_u16.is_some() {
             Ok(routing_header.block_size_u16.unwrap() as u32)
         } else {
