@@ -5,7 +5,7 @@ use datex_core::network::com_interfaces::com_interface::{
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::task::spawn_local;
+use datex_core::task::{spawn_local, spawn_with_panic_notify};
 use datex_core::{
     delegate_com_interface_info,
     global::{
@@ -233,7 +233,7 @@ impl MockupInterface {
     pub fn start_update_loop(&mut self) {
         let receiver = self.receiver.clone();
         let sockets = self.info.com_interface_sockets();
-        spawn_local(async move {
+        spawn_with_panic_notify(async move {
             loop {
                 MockupInterface::_update(receiver.clone(), sockets.clone());
                 #[cfg(feature = "tokio_runtime")]

@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
 use crate::stdlib::pin::Pin;
 
 use super::crypto::{CryptoError, CryptoTrait};
@@ -7,6 +9,23 @@ use rsa::{
     RsaPrivateKey, RsaPublicKey,
 };
 use uuid::Uuid;
+use crate::runtime::global_context::get_global_context;
+
+static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
+
+fn init_counter() -> &'static AtomicU64 {
+    UUID_COUNTER.get_or_init(|| AtomicU64::new(1))
+}
+fn generate_pseudo_uuid() -> String {
+    let counter = init_counter();
+    let count = counter.fetch_add(1, Ordering::Relaxed);
+
+    // Encode counter into last segment, keeping UUID-like structure
+    format!(
+        "00000000-0000-0000-0000-{:012x}",
+        count
+    )
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
@@ -67,7 +86,20 @@ impl CryptoTrait for CryptoNative {
     }
 
     fn create_uuid(&self) -> String {
-        Uuid::new_v4().to_string()
+        // use pseudo-random UUID for testing
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "debug")] {
+                if get_global_context().debug_flags.enable_deterministic_behavior {
+                    generate_pseudo_uuid()
+                }
+                else {
+                    Uuid::new_v4().to_string()
+                }
+            }
+            else {
+                Uuid::new_v4().to_string()
+            }
+        }
     }
 
     fn random_bytes(&self, length: usize) -> Vec<u8> {

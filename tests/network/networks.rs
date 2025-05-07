@@ -1,3 +1,4 @@
+use std::future::Future;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST_ENDPOINT_C, TEST_ENDPOINT_D,
@@ -15,7 +16,12 @@ use log::info;
 use ntest_timeout::timeout;
 use std::str::FromStr;
 use std::time::Duration;
+use cfg_if::cfg_if;
 use tokio::task;
+use tokio::task::{LocalSet};
+use datex_core::run_async;
+use datex_core::runtime::global_context::get_global_context;
+use datex_core::task::spawn_with_panic_notify;
 
 #[tokio::test]
 #[timeout(100)]
@@ -577,67 +583,93 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
         .await;
 }
 
+/*
+#[tokio::test(flavor = "current_thread")]
+async fn test_spawn_local_panic_detection() {
+
+    init_global_context();
+    info!("> Starting test_spawn_local_panic_detection");
+
+    init_panic_notify();
+
+    LocalSet::new()
+        .run_until(async move {
+            spawn_with_panic_notify(async move {
+
+                (async {
+                    info!("> Starting inner task");
+                }).await;
+                                    /*panic!("panic");
+                // Spawn inner tasks without awaiting them
+                spawn_with_panic_notify(
+                    async {
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        panic!("task 1 panicked!");
+                    }
+                );
+
+                spawn_with_panic_notify(
+                    async {
+                        // Does not panic
+                        tokio::time::sleep(Duration::from_secs(234)).await;
+                    }
+                );
+
+                spawn_with_panic_notify(
+                    async {
+                        // Also doesn't panic
+                    }
+                );*/
+
+                panic!("ende");
+            });
+
+            unwind_local_spawn_panics().await;
+        })
+        .await;
+}*/
+
 #[tokio::test]
 #[timeout(3000)]
 async fn simple_network() {
     init_global_context();
-    // TDB this must be the test setup for propagating errors / panics
-    task::LocalSet::new()
-        .run_until(async {
-            task::spawn_local(async move {
-                init_global_context();
-                let mut network = Network::load(
-                    "../../test/network-builder/networks/simple.json",
-                );
-                network.start().await;
-                tokio::time::sleep(Duration::from_millis(800)).await;
-                Route::from("@4726", "@s5zw")
-                    .to_via("@yhr9", "mockup")
-                    .to("@s5zw")
-                    .to("@4726")
-                    .expect(&network)
-                    .await
-            })
+    run_async! {
+        let mut network = Network::load(
+            "../../test/network-builder/networks/simple.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(800)).await;
+        Route::from("@4726", "@s5zw")
+            .to_via("@yhr9", "mockup")
+            .to("@s5zw")
+            .to("@4726")
+            .expect(&network)
             .await
-            .map_err(|e| {
-                panic!("{}", e.to_string());
-            })
-            .unwrap()
-        })
-        .await;
+    };
 }
 
 #[tokio::test]
 #[timeout(7000)]
 async fn complex_network() {
     init_global_context();
+
     // TDB this must be the test setup for propagating errors / panics
-    task::LocalSet::new()
-        .run_until(async {
-            task::spawn_local(async move {
-                init_global_context();
-                let mut network = Network::load(
-                    "../../test/network-builder/networks/complex.json",
-                );
-                network.start().await;
-                tokio::time::sleep(Duration::from_millis(1800)).await;
-                Route::from("@bk2y", "@n7oe")
-                    .to("@em68")
-                    .to("@msun")
-                    .to("@fyig")
-                    .to("@n7oe")
-                    .to("@fyig")
-                    .to("@msun")
-                    .to("@ajil")
-                    .to("@bk2y")
-                    .expect(&network)
-                    .await
-            })
+    run_async! {
+        let mut network = Network::load(
+            "../../test/network-builder/networks/complex.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1800)).await;
+        Route::from("@bk2y", "@n7oe")
+            .to("@em68")
+            .to("@msun")
+            .to("@fyig")
+            .to("@n7oe")
+            .to("@fyig")
+            .to("@msun")
+            .to("@ajil")
+            .to("@bk2y")
+            .expect(&network)
             .await
-            .map_err(|e| {
-                panic!("{}", e.to_string());
-            })
-            .unwrap()
-        })
-        .await;
+    }
 }

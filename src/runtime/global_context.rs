@@ -5,12 +5,14 @@ use std::sync::{Arc, Mutex}; // FIXME no-std
 #[derive(Clone, Debug)]
 pub struct DebugFlags {
     pub allow_unsigned_blocks: bool,
+    pub enable_deterministic_behavior: bool,
 }
 #[cfg(feature = "debug")]
 impl Default for DebugFlags {
     fn default() -> Self {
         DebugFlags {
             allow_unsigned_blocks: true,
+            enable_deterministic_behavior: true
         }
     }
 }
