@@ -686,7 +686,7 @@ impl ComHub {
 
         if !socket_ref.can_send() && priority != InterfacePriority::None {
             panic!(
-                "Socket {} cannot be used for fallback routing",
+                "Socket {} cannot be used for fallback routing, since it has no send capability",
                 socket_ref.uuid
             );
         }

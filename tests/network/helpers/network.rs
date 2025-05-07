@@ -5,15 +5,14 @@ use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::Runtime;
-use itertools::Itertools;
 use log::info;
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
-use std::fs;
 
 use super::mockup_interface::MockupInterface;
 
@@ -92,7 +91,7 @@ struct Edge {
     pub target: String,
     #[serde(rename = "type")]
     pub edge_type: String,
-    pub priority: Option<u16>,
+    pub priority: i16,
     pub endpoint: Option<String>,
 }
 
@@ -152,21 +151,25 @@ impl Network {
                         network_node.id, is_outgoing, is_bidirectional
                     );
 
+                    let interface_direction = if is_bidirectional {
+                        InterfaceDirection::InOut
+                    } else if is_outgoing {
+                        InterfaceDirection::Out
+                    } else {
+                        InterfaceDirection::In
+                    };
+
                     let prio = {
-                        if let Some(priority) = edge.priority {
-                            InterfacePriority::Priority(priority)
+                        if edge.priority >= 0
+                            && interface_direction != InterfaceDirection::In
+                        {
+                            InterfacePriority::Priority(edge.priority as u16)
                         } else {
-                            InterfacePriority::default()
+                            InterfacePriority::None
                         }
                     };
+
                     if edge.edge_type == "mockup" {
-                        let interface_direction = if is_bidirectional {
-                            InterfaceDirection::InOut
-                        } else if is_outgoing {
-                            InterfaceDirection::Out
-                        } else {
-                            InterfaceDirection::In
-                        };
                         info!(
                             "Channel: {channel:?}, Direction: {interface_direction:?}"
                         );
