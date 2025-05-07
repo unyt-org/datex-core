@@ -582,10 +582,63 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
 #[timeout(3000)]
 async fn simple_network() {
     init_global_context();
-    Route::from("@4726", "@s5zw")
-        .to_via("@yhr9", "mockup")
-        .to("@s5zw")
-        .to("@4726")
-        .expect("../../test/network-builder/networks/simple.json".to_string())
-        .await
+    // TDB this must be the test setup for propagating errors / panics
+    task::LocalSet::new()
+        .run_until(async {
+            task::spawn_local(async move {
+                init_global_context();
+                let mut network = Network::load(
+                    "../../test/network-builder/networks/simple.json",
+                );
+                network.start().await;
+                tokio::time::sleep(Duration::from_millis(800)).await;
+                Route::from("@4726", "@s5zw")
+                    .to_via("@yhr9", "mockup")
+                    .to("@s5zw")
+                    .to("@4726")
+                    .expect(&network)
+                    .await
+            })
+            .await
+            .map_err(|e| {
+                panic!("{}", e.to_string());
+            })
+            .unwrap()
+        })
+        .await;
+}
+
+#[tokio::test]
+#[timeout(7000)]
+async fn complex_network() {
+    init_global_context();
+    // TDB this must be the test setup for propagating errors / panics
+    task::LocalSet::new()
+        .run_until(async {
+            task::spawn_local(async move {
+                init_global_context();
+                let mut network = Network::load(
+                    "../../test/network-builder/networks/complex.json",
+                );
+                network.start().await;
+                tokio::time::sleep(Duration::from_millis(1800)).await;
+                Route::from("@bk2y", "@n7oe")
+                    .to("@em68")
+                    .to("@msun")
+                    .to("@fyig")
+                    .to("@n7oe")
+                    .to("@fyig")
+                    .to("@msun")
+                    .to("@ajil")
+                    .to("@bk2y")
+                    .expect(&network)
+                    .await
+            })
+            .await
+            .map_err(|e| {
+                panic!("{}", e.to_string());
+            })
+            .unwrap()
+        })
+        .await;
 }

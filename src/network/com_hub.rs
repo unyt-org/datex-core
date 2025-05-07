@@ -665,7 +665,6 @@ impl ComHub {
                 direction,
             },
         ));
-        info!("endpoint_sockets: {endpoint_sockets:?}");
     }
 
     fn add_socket(
@@ -983,11 +982,17 @@ impl ComHub {
             for (socket_uuid, _) in sockets.iter() {
                 let socket = self.get_socket_by_uuid(socket_uuid);
                 info!(
-                    "{}: Find best for {}: {} ({:?}); excluded:{}",
+                    "{}: Find best for {}: {} ({}); excluded:{}",
                     self.endpoint,
                     endpoint,
                     socket_uuid,
-                    socket.lock().unwrap().direct_endpoint,
+                    socket
+                        .lock()
+                        .unwrap()
+                        .direct_endpoint
+                        .clone()
+                        .map(|e| e.to_string())
+                        .unwrap_or("None".to_string()),
                     exclude_sockets.contains(socket_uuid)
                 );
                 if !exclude_sockets.contains(socket_uuid) {

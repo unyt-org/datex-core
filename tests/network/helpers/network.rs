@@ -17,8 +17,6 @@ use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
 use std::sync::mpsc;
-use std::time::Duration;
-use tokio::task;
 
 use super::mockup_interface::MockupInterface;
 
@@ -119,76 +117,57 @@ impl Route {
         }
     }
 
-    pub async fn expect(&self, network: String) -> () {
-        let route = self.clone();
-        task::LocalSet::new()
-            .run_until(async {
-                task::spawn_local(async move {
-                    init_global_context();
-                    let mut network = Network::load(network.clone());
-                    network.start().await;
-                    let start = route.hops[0].0.clone();
-                    let end = route.hops.last().unwrap().0.clone();
-                    if start != end {
-                        panic!(
-                            "Route start {} does not match receiver {}",
-                            start, end
-                        );
-                    }
-                    let network_trace = network
-                        .get_runtime(start)
-                        .com_hub
-                        .record_trace(route.receiver.clone())
-                        .await
-                        .expect("Failed to record trace");
-
-                    let mut index = 0;
-                    for (original, expected) in network_trace
-                        .hops
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, h)| {
-                            if i % 2 == 1 || i == 0 {
-                                Some(h)
-                            } else {
-                                None
-                            }
-                        })
-                        .zip(route.hops.iter())
-                    {
-                        if original.endpoint != expected.0 {
-                            panic!(
-                                "Expected hop #{} to be {} but was {}",
-                                index, expected.0, original.endpoint
-                            );
-                        }
-                        if let Some(channel) = &expected.1 {
-                            if original.socket.interface_name
-                                != Some(channel.clone())
-                            {
-                                panic!(
-                                    "Expected hop #{} to be {} but was {}",
-                                    index,
-                                    channel,
-                                    original
-                                        .socket
-                                        .interface_name
-                                        .clone()
-                                        .unwrap_or("None".to_string())
-                                );
-                            }
-                        }
-                        index += 1;
-                    }
-                    tokio::time::sleep(Duration::from_millis(800)).await;
-                })
-                .await
-                .map_err(|e| {
-                    log::error!("Error: {e:?}");
-                })
-                .unwrap()
-            })
+    pub async fn expect(&self, network: &Network) {
+        let start = self.hops[0].0.clone();
+        let end = self.hops.last().unwrap().0.clone();
+        if start != end {
+            panic!("Route start {} does not match receiver {}", start, end);
+        }
+        let network_trace = network
+            .get_runtime(start)
+            .com_hub
+            .record_trace(self.receiver.clone())
             .await
+            .expect("Failed to record trace");
+
+        let mut index = 0;
+        for (original, expected) in network_trace
+            .hops
+            .iter()
+            .enumerate()
+            .filter_map(
+                |(i, h)| {
+                    if i % 2 == 1 || i == 0 {
+                        Some(h)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .zip(self.hops.iter())
+        {
+            if original.endpoint != expected.0 {
+                panic!(
+                    "Expected hop #{} to be {} but was {}",
+                    index, expected.0, original.endpoint
+                );
+            }
+            if let Some(channel) = &expected.1 {
+                if original.socket.interface_name != Some(channel.clone()) {
+                    panic!(
+                        "Expected hop #{} to be {} but was {}",
+                        index,
+                        channel,
+                        original
+                            .socket
+                            .interface_name
+                            .clone()
+                            .unwrap_or("None".to_string())
+                    );
+                }
+            }
+            index += 1;
+        }
     }
 
     pub fn to(mut self, target: impl Into<Endpoint>) -> Self {
