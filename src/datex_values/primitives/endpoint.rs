@@ -69,7 +69,10 @@ impl Default for Endpoint {
 
 impl From<&str> for Endpoint {
     fn from(name: &str) -> Self {
-        Endpoint::from_string(name).expect("Invalid endpoint")
+        if let Ok(endpoint) = Endpoint::from_string(name) {
+            return endpoint;
+        }
+        panic!("Failed to parse endpoint from string: {name}");
     }
 }
 

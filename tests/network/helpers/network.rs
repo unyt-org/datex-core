@@ -1,3 +1,4 @@
+use crate::context::init_global_context;
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
 use datex_core::datex_values::Endpoint;
@@ -5,14 +6,19 @@ use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::Runtime;
-use log::info;
+use futures::channel;
+use log::{info, warn};
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use std::fs;
 use std::path::Path;
+use std::process::exit;
 use std::str::FromStr;
 use std::sync::mpsc;
+use std::time::Duration;
+use tokio::task;
 
 use super::mockup_interface::MockupInterface;
 
@@ -76,6 +82,175 @@ pub struct Network {
     pub is_initialized: bool,
     pub endpoints: Vec<Node>,
     com_interface_factories: HashMap<String, ComInterfaceFactoryFn>,
+}
+#[derive(Clone)]
+pub struct Route {
+    pub receiver: Endpoint,
+    pub hops: Vec<(Endpoint, Option<String>)>,
+}
+
+impl Display for Route {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, (endpoint, channel)) in self.hops.iter().enumerate() {
+            // Write the endpoint
+            write!(f, "{}", endpoint)?;
+
+            // If not the last, write the arrow + optional channel
+            if i + 1 < self.hops.len() {
+                if let Some(chan) = channel {
+                    write!(f, " -({})-> ", chan)?;
+                } else {
+                    write!(f, " --> ")?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Route {
+    pub fn from(
+        source: impl Into<Endpoint>,
+        receiver: impl Into<Endpoint>,
+    ) -> Self {
+        Route {
+            receiver: receiver.into(),
+            hops: vec![(source.into(), None)],
+        }
+    }
+
+    pub async fn expect(&self, network: String) -> () {
+        let route = self.clone();
+        task::LocalSet::new()
+            .run_until(async {
+                task::spawn_local(async move {
+                    init_global_context();
+                    let mut network = Network::load(network.clone());
+                    network.start().await;
+                    let start = route.hops[0].0.clone();
+                    let end = route.hops.last().unwrap().0.clone();
+                    if start != end {
+                        panic!(
+                            "Route start {} does not match receiver {}",
+                            start, end
+                        );
+                    }
+                    let network_trace = network
+                        .get_runtime(start)
+                        .com_hub
+                        .record_trace(route.receiver.clone())
+                        .await
+                        .expect("Failed to record trace");
+
+                    let mut index = 0;
+                    for (original, expected) in network_trace
+                        .hops
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, h)| {
+                            if i % 2 == 1 || i == 0 {
+                                Some(h)
+                            } else {
+                                None
+                            }
+                        })
+                        .zip(route.hops.iter())
+                    {
+                        if original.endpoint != expected.0 {
+                            panic!(
+                                "Expected hop #{} to be {} but was {}",
+                                index, expected.0, original.endpoint
+                            );
+                        }
+                        if let Some(channel) = &expected.1 {
+                            if original.socket.interface_name
+                                != Some(channel.clone())
+                            {
+                                panic!(
+                                    "Expected hop #{} to be {} but was {}",
+                                    index,
+                                    channel,
+                                    original
+                                        .socket
+                                        .interface_name
+                                        .clone()
+                                        .unwrap_or("None".to_string())
+                                );
+                            }
+                        }
+                        index += 1;
+                    }
+                    tokio::time::sleep(Duration::from_millis(800)).await;
+                })
+                .await
+                .map_err(|e| {
+                    log::error!("Error: {e:?}");
+                })
+                .unwrap()
+            })
+            .await
+    }
+
+    pub fn to(mut self, target: impl Into<Endpoint>) -> Self {
+        self.hops.push((target.into(), None));
+        self
+    }
+
+    pub fn to_via(
+        mut self,
+        target: impl Into<Endpoint>,
+        channel: &str,
+    ) -> Self {
+        let len = self.hops.len();
+        if len > 0 {
+            self.hops[len - 1].1 = Some(channel.to_string());
+        }
+        self.hops.push((target.into(), None));
+        self
+    }
+
+    pub fn back(mut self) -> Self {
+        if self.hops.len() >= 2 {
+            let len = self.hops.len();
+            let to = self.hops[len - 2].0.clone();
+            let channel = self.hops[len - 2].1.clone();
+            self.hops[len - 1].1 = Some(channel.clone().unwrap_or_default());
+            self.hops.push((to, None));
+        }
+        self
+    }
+    pub fn back_via(mut self, channel: &str) -> Self {
+        if self.hops.len() >= 2 {
+            let len = self.hops.len();
+            let to = self.hops[len - 2].0.clone();
+            self.hops[len - 1].1 = Some(channel.to_string());
+            self.hops.push((to, None));
+        }
+        self
+    }
+
+    /// Converts the Route into a sequence of (from, channel, to) triples
+    pub fn to_segments(&self) -> Vec<(Endpoint, String, Endpoint)> {
+        let mut segments = Vec::new();
+        for w in self.hops.windows(2) {
+            if let [(from, Some(chan)), (to, _)] = &w {
+                segments.push((from.clone(), chan.clone(), to.clone()));
+            }
+        }
+        segments
+    }
+}
+
+#[test]
+fn test() {
+    init_global_context();
+    // let route = Route::from("@aaa")
+    //     .to_via("@bbb", "mockup")
+    //     .to("@ccc")
+    //     .back_via("mockup")
+    //     .to("@ddd");
+    // info!("Route: {}", route);
+    // let segments = route.to_segments();
 }
 
 #[derive(Debug, Deserialize)]
