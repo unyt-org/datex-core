@@ -652,7 +652,7 @@ async fn complex_network() {
             "../../test/network-builder/networks/complex.json",
         );
         network.start().await;
-        tokio::time::sleep(Duration::from_millis(1800)).await;
+        tokio::time::sleep(Duration::from_millis(3000)).await;
         Route::from("@bk2y", "@n7oe")
             .to("@em68")
             .to("@msun")

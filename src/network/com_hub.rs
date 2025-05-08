@@ -4,10 +4,10 @@ use crate::global::protocol_structures::routing_header::{
 };
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::spawn_with_panic_notify;
+use crate::task::{sleep, spawn_with_panic_notify};
 use futures_util::future::join_all;
-#[cfg(target_arch = "wasm32")]
-use gloo_timers::future::sleep as platform_sleep;
+
+use futures::FutureExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
@@ -342,6 +342,11 @@ impl ComHub {
             );
         }
 
+        if is_new_block == false {
+            // block already in history, ignore
+            warn!("Block already in history. Ignoring...");
+        }
+
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
             let is_for_own = receivers.endpoints.iter().any(|e| {
                 e == &self.endpoint
@@ -641,6 +646,31 @@ impl ComHub {
         self.sort_sockets(&endpoint);
 
         Ok(())
+    }
+
+    pub async fn wait_for_update_async(&self) {
+        loop {
+            let mut is_done = true;
+            for interface in self.interfaces.borrow().values() {
+                let interface = interface.0.clone();
+                let interface = interface.borrow_mut();
+                let outgoing_blocks_count =
+                    interface.get_info().outgoing_blocks_count.get();
+                if outgoing_blocks_count > 0 {
+                    is_done = false;
+                    break;
+                }
+            }
+            if is_done {
+                break;
+            }
+            sleep(Duration::from_millis(10)).await;
+        }
+    }
+
+    pub async fn update_async(&self) {
+        self.update().await;
+        self.wait_for_update_async().await;
     }
 
     fn add_endpoint_socket(
@@ -1075,17 +1105,15 @@ impl ComHub {
         spawn_with_panic_notify(async move {
             loop {
                 self_rc.update().await;
-                #[cfg(feature = "tokio_runtime")]
-                tokio::time::sleep(Duration::from_millis(1)).await;
-                #[cfg(target_arch = "wasm32")]
-                platform_sleep(Duration::from_millis(1)).await;
+                sleep(Duration::from_millis(1)).await;
             }
         });
     }
 
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    pub async fn update(&self) {
+    /// FIXME make sync
+    async fn update(&self) {
         // update all interfaces
         self.update_interfaces().await;
 

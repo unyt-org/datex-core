@@ -59,6 +59,30 @@ pub struct NetworkTraceResult {
     pub round_trip_time: Duration,
 }
 
+impl Default for NetworkTraceResult {
+    fn default() -> Self {
+        NetworkTraceResult {
+            sender: Endpoint::default(),
+            receiver: Endpoint::ANY,
+            hops: vec![],
+            round_trip_time: Duration::ZERO,
+        }
+    }
+}
+impl NetworkTraceResult {
+    fn from_hops(hops: Vec<NetworkTraceHop>) -> Self {
+        let sender = hops
+            .first()
+            .map(|hop| hop.endpoint.clone())
+            .unwrap_or_default();
+        NetworkTraceResult {
+            sender,
+            hops,
+            ..Default::default()
+        }
+    }
+}
+
 impl NetworkTraceResult {
     /// Checks if the hops in the network trace result match the given hops.
     /// A hop consists of an endpoint and an interface type.
@@ -282,6 +306,9 @@ impl ComHub {
         let mut block = block.clone();
         let sender = block.routing_header.sender.clone();
         info!("Redirecting trace block from {sender}");
+
+        let hops = self.get_trace_data_from_block(&block).unwrap_or_default();
+        info!("{}", NetworkTraceResult::from_hops(hops));
 
         // add incoming socket hop
         let distance = block.routing_header.distance;

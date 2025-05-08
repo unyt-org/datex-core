@@ -23,7 +23,7 @@ use datex_core::{
     set_sync_opener,
 };
 use datex_macros::{com_interface, create_opener};
-use log::info;
+use log::{debug, info};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -263,7 +263,6 @@ impl ComInterface for MockupInterface {
         }
         if let Some(sender) = &self.sender {
             if sender.send(block.to_vec()).is_err() {
-                panic!("Failed to send block sender droppedß");
                 return Pin::from(Box::new(async move { false }));
             }
         }

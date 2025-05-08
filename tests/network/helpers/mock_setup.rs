@@ -168,7 +168,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     }
 
     if !enable_update_loop {
-        com_hub.update().await;
+        com_hub.update_async().await;
     } else {
         tokio::task::yield_now().await;
     }
@@ -188,11 +188,11 @@ pub async fn send_block_with_body(
         com_hub.send_own_block(block.clone());
         block
     };
-    com_hub.update().await;
+    com_hub.update_async().await;
     block
 }
 
-pub async fn send_empty_block(
+pub async fn send_empty_block_and_update(
     to: &[Endpoint],
     com_hub: &Rc<ComHub>,
 ) -> DXBBlock {
@@ -202,7 +202,7 @@ pub async fn send_empty_block(
     {
         com_hub.send_own_block(block.clone());
     }
-    com_hub.update().await;
+    com_hub.update_async().await;
     block
 }
 

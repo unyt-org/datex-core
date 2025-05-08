@@ -2,14 +2,18 @@ use cfg_if::cfg_if;
 use futures::channel::mpsc;
 use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::{error, info};
+use std::cell::RefCell;
 use std::future::Future;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-lazy_static::lazy_static! {
-    static ref LOCAL_PANIC_CHANNEL: Mutex<Option<(
-        Arc<Mutex<mpsc::UnboundedSender<Signal>>>,
-        Option<mpsc::UnboundedReceiver<Signal>>,
-    )>> = Mutex::new(None);
+thread_local! {
+    static LOCAL_PANIC_CHANNEL: Rc<RefCell<
+        Option<(
+            Option<RefCell<mpsc::UnboundedSender<Signal>>>,
+            Option<mpsc::UnboundedReceiver<Signal>>
+        )>
+    >> = Rc::new(RefCell::new(None));
 }
 
 enum Signal {
@@ -35,28 +39,49 @@ macro_rules! run_async {
 
 pub fn init_panic_notify() {
     let (tx, rx) = mpsc::unbounded::<Signal>();
-    let mut local_panic_channel = LOCAL_PANIC_CHANNEL.lock().unwrap();
-
-    *local_panic_channel = Some((Arc::new(Mutex::new(tx)), Some(rx)));
+    LOCAL_PANIC_CHANNEL
+        .try_with(|channel| {
+            let mut channel = channel.borrow_mut();
+            if channel.is_none() {
+                *channel = Some((Some(RefCell::new(tx)), Some(rx)));
+            } else {
+                panic!("Panic channel already initialized");
+            }
+        })
+        .expect("Failed to initialize panic channel");
 }
 
 pub async fn close_panic_notify() {
-    let mut local_panic_channel = LOCAL_PANIC_CHANNEL.lock().unwrap();
-    if let Some((tx, _)) = &mut *local_panic_channel {
-        let mut tx = tx.lock().unwrap();
-        tx.send(Signal::Exit).await.unwrap();
-    }
+    LOCAL_PANIC_CHANNEL
+        .with(|channel| {
+            let channel = channel.clone();
+            let mut channel = channel.borrow_mut();
+            if let Some((tx, _)) = &mut *channel {
+                tx.take()
+            } else {
+                panic!("Panic channel not initialized");
+            }
+        })
+        .expect("Failed to access panic channel")
+        .clone()
+        .borrow_mut()
+        .send(Signal::Exit)
+        .await
+        .expect("Failed to send exit signal");
 }
 
 pub async fn unwind_local_spawn_panics() {
-    let mut rx = {
-        let mut local_panic_channel = LOCAL_PANIC_CHANNEL.lock().unwrap();
-        if let Some((_, ref mut rx)) = &mut *local_panic_channel {
-            rx.take().unwrap()
-        } else {
-            panic!("Panic channel not initialized");
-        }
-    };
+    let mut rx = LOCAL_PANIC_CHANNEL
+        .with(|channel| {
+            let channel = channel.clone();
+            let mut channel = channel.borrow_mut();
+            if let Some((_, rx)) = &mut *channel {
+                rx.take()
+            } else {
+                panic!("Panic channel not initialized");
+            }
+        })
+        .expect("Failed to access panic channel");
     info!("Waiting for local spawn panics...");
     if let Some(panic_msg) = rx.next().await {
         match panic_msg {
@@ -69,13 +94,22 @@ pub async fn unwind_local_spawn_panics() {
         }
     }
 }
-fn get_tx() -> Arc<Mutex<mpsc::UnboundedSender<Signal>>> {
-    let local_panic_channel = LOCAL_PANIC_CHANNEL.lock().unwrap();
-    if let Some((tx, _)) = &*local_panic_channel {
-        tx.clone()
-    } else {
-        panic!("Panic channel not initialized");
-    }
+async fn send_panic(panic: String) {
+    LOCAL_PANIC_CHANNEL
+        .try_with(|channel| {
+            let channel = channel.clone();
+            let channel = channel.borrow_mut();
+            if let Some((tx, _)) = &*channel {
+                tx.clone().expect("Panic channel not initialized")
+            } else {
+                panic!("Panic channel not initialized");
+            }
+        })
+        .expect("Failed to access panic channel")
+        .borrow_mut()
+        .send(Signal::Panic(panic))
+        .await
+        .expect("Failed to send panic");
 }
 
 pub fn spawn_with_panic_notify<F>(fut: F)
@@ -92,16 +126,12 @@ where
             } else {
                 "Unknown panic type".to_string()
             };
-            let tx = get_tx();
-            let tx = tx.lock();
-            tx.unwrap().send(Signal::Panic(panic_msg)).await.unwrap();
-            error!("exited");
+            send_panic(panic_msg).await;
         }
     });
 }
 cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
-
         pub fn spawn_local<F>(fut: F)
         where
             F: std::future::Future<Output = ()> + 'static,
@@ -121,8 +151,15 @@ cfg_if! {
         {
             tokio::task::spawn_blocking(f)
         }
+        pub async fn sleep(dur: std::time::Duration) {
+            tokio::time::sleep(dur).await;
+        }
 
     } else if #[cfg(feature = "wasm_runtime")] {
+        pub async fn sleep(dur: std::time::Duration) {
+            gloo_timers::future::sleep(dur).await;
+        }
+
         pub fn spawn_local<F>(fut: F)
         where
             F: std::future::Future<Output = ()> + 'static,

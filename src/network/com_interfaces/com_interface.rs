@@ -4,6 +4,7 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
+use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use crate::{
     network::com_hub::ComHub, runtime::global_context::get_global_context,
@@ -16,10 +17,10 @@ use crate::{
     },
     task::spawn_with_panic_notify,
 };
-use crate::utils::uuid::UUID;
 use log::{debug, error, warn};
 use std::{
     any::Any,
+    cell::Cell,
     collections::{HashMap, VecDeque},
     pin::Pin,
 };
@@ -126,6 +127,7 @@ impl ComInterfaceSockets {
 
 #[derive(Debug)]
 pub struct ComInterfaceInfo {
+    pub outgoing_blocks_count: Cell<u32>,
     uuid: ComInterfaceUUID,
     pub state: Arc<Mutex<ComInterfaceState>>,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
@@ -141,6 +143,7 @@ impl Default for ComInterfaceInfo {
 impl ComInterfaceInfo {
     pub fn new_with_state(state: ComInterfaceState) -> Self {
         Self {
+            outgoing_blocks_count: Cell::new(0),
             uuid: ComInterfaceUUID(UUID::new()),
             state: Arc::new(Mutex::new(state)),
             interface_properties: None,
@@ -151,6 +154,7 @@ impl ComInterfaceInfo {
     }
     pub fn new() -> Self {
         Self {
+            outgoing_blocks_count: Cell::new(0),
             uuid: ComInterfaceUUID(UUID::new()),
             state: Arc::new(Mutex::new(ComInterfaceState::NotConnected)),
             interface_properties: None,
@@ -355,9 +359,19 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
             let interface = interface.clone();
             let socket_ref = socket_ref.clone();
             let uuid = socket_ref.lock().unwrap().uuid.clone();
+            interface
+                .borrow()
+                .get_info()
+                .outgoing_blocks_count
+                .update(|x| x + 1);
             spawn_with_panic_notify(async move {
                 let has_been_send =
                     interface.borrow_mut().send_block(&block, uuid).await;
+                interface
+                    .borrow()
+                    .get_info()
+                    .outgoing_blocks_count
+                    .update(|x| x - 1);
                 if !has_been_send {
                     debug!("Failed to send block");
                     socket_ref.lock().unwrap().send_queue.push_back(block);

@@ -46,19 +46,14 @@ impl BlockCollector {
     }
 
     fn receive_slice(&mut self, slice: &[u8]) {
-        info!("Received slice of size {:?}", slice.len());
-
         // Add the received data to the current block.
         self.current_block.extend_from_slice(slice);
 
         while !self.current_block.is_empty() {
-            info!("length_result A {:?}", self.current_block.len());
-
             // Extract the block length from the header if it is not already known.
             if self.current_block_specified_length.is_none() {
                 let length_result =
                     DXBBlock::extract_dxb_block_length(&self.current_block);
-                info!("length_result B {length_result:?}");
 
                 match length_result {
                     Ok(length) => {
