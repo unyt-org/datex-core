@@ -1415,7 +1415,7 @@ impl ComHub {
     /// Send all queued blocks from all interfaces.
     fn flush_outgoing_blocks(&self) {
         let interfaces = self.interfaces.borrow();
-        for (interface, _) in interfaces.values().into_iter() {
+        for (interface, _) in interfaces.values() {
             com_interface::flush_outgoing_blocks(interface.clone());
         }
     }
