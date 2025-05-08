@@ -1,4 +1,3 @@
-use std::future::Future;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST_ENDPOINT_C, TEST_ENDPOINT_D,
@@ -9,19 +8,20 @@ use crate::network::helpers::mockup_interface::{
 use crate::network::helpers::network::{
     InterfaceConnection, Network, Node, Route,
 };
+use cfg_if::cfg_if;
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
-use log::info;
-use ntest_timeout::timeout;
-use std::str::FromStr;
-use std::time::Duration;
-use cfg_if::cfg_if;
-use tokio::task;
-use tokio::task::{LocalSet};
 use datex_core::run_async;
 use datex_core::runtime::global_context::get_global_context;
 use datex_core::task::spawn_with_panic_notify;
+use log::info;
+use ntest_timeout::timeout;
+use std::future::Future;
+use std::str::FromStr;
+use std::time::Duration;
+use tokio::task;
+use tokio::task::LocalSet;
 
 #[tokio::test]
 #[timeout(100)]
@@ -652,8 +652,6 @@ async fn simple_network() {
 #[timeout(7000)]
 async fn complex_network() {
     init_global_context();
-
-    // TDB this must be the test setup for propagating errors / panics
     run_async! {
         let mut network = Network::load(
             "../../test/network-builder/networks/complex.json",
