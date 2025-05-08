@@ -53,6 +53,7 @@ pub enum WebRTCError {
     ConnectionError,
     SendError,
     ReceiveError,
+    MissingRemoteDescription,
 
     InvalidCandidate,
     InvalidSdp,
