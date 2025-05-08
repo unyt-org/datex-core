@@ -82,7 +82,7 @@ pub fn spawn_with_panic_notify<F>(fut: F)
 where
     F: Future<Output = ()> + 'static,
 {
-    spawn_local(async move {
+    spawn_local(async {
         let result = std::panic::AssertUnwindSafe(fut).catch_unwind().await;
         if let Err(err) = result {
             let panic_msg = if let Some(s) = err.downcast_ref::<&str>() {
@@ -96,7 +96,7 @@ where
             let tx = tx.lock();
             tx.unwrap().send(Signal::Panic(panic_msg)).await.unwrap();
             error!("exited");
-        } 
+        }
     });
 }
 cfg_if! {

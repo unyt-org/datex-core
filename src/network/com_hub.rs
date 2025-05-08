@@ -6,6 +6,8 @@ use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::spawn_with_panic_notify;
 use futures_util::future::join_all;
+#[cfg(target_arch = "wasm32")]
+use gloo_timers::future::sleep as platform_sleep;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
@@ -18,7 +20,7 @@ use tokio::task::yield_now;
 // FIXME no-std
 
 use super::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceState,
+    self, ComInterfaceError, ComInterfaceState
 };
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
@@ -1075,6 +1077,8 @@ impl ComHub {
                 self_rc.update().await;
                 #[cfg(feature = "tokio_runtime")]
                 tokio::time::sleep(Duration::from_millis(1)).await;
+                #[cfg(target_arch = "wasm32")]
+                platform_sleep(Duration::from_millis(1)).await;
             }
         });
     }
@@ -1082,25 +1086,20 @@ impl ComHub {
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     pub async fn update(&self) {
-        // 1. self_rc.lock
-        {
-            //debug!("running ComHub update loop...");
+        // update all interfaces
+        self.update_interfaces().await;
 
-            // update all interfaces
-            self.update_interfaces().await;
+        // update own socket lists for routing
+        self.update_sockets();
 
-            // update own socket lists for routing
-            self.update_sockets();
+        // update sockets block collectors
+        self.collect_incoming_data();
 
-            // update sockets block collectors
-            self.collect_incoming_data();
-
-            // receive blocks from all sockets
-            self.receive_incoming_blocks();
-        }
+        // receive blocks from all sockets
+        self.receive_incoming_blocks();
 
         // send all queued blocks from all interfaces
-        self.flush_outgoing_blocks().await;
+        self.flush_outgoing_blocks();
     }
 
     /// Prepare a block for sending out by updating the creation timestamp,
@@ -1414,20 +1413,10 @@ impl ComHub {
     }
 
     /// Send all queued blocks from all interfaces.
-    async fn flush_outgoing_blocks(&self) {
-        // TODO: more efficient way than cloning into vec? self_rc lock must not exist after this
-        let interfaces = self
-            .interfaces
-            .borrow()
-            .values()
-            .map(|(interface, _)| interface.clone())
-            .collect::<Vec<_>>();
-        join_all(interfaces.iter().map(|interface| {
-            Box::pin(async move {
-                let mut interface = interface.borrow_mut();
-                interface.flush_outgoing_blocks().await
-            })
-        }))
-        .await;
+    fn flush_outgoing_blocks(&self) {
+        let interfaces = self.interfaces.borrow();
+        for (interface, _) in interfaces.values().into_iter() {
+            com_interface::flush_outgoing_blocks(interface.clone());
+        }
     }
 }

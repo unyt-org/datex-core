@@ -4,18 +4,22 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::stdlib::{
-    cell::RefCell,
-    hash::{Hash, Hasher},
-    rc::Rc,
-};
-use crate::utils::uuid::UUID;
 use crate::{datex_values::Endpoint, stdlib::fmt::Display};
 use crate::{
     network::com_hub::ComHub, runtime::global_context::get_global_context,
 };
+use crate::{
+    stdlib::{
+        cell::RefCell,
+        hash::{Hash, Hasher},
+        rc::Rc,
+    },
+    task::spawn_with_panic_notify,
+};
+use crate::{task::spawn_local, utils::uuid::UUID};
 use futures_util::future::join_all;
 use log::{debug, error, warn};
+use rsa::rand_core::block;
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
@@ -338,12 +342,41 @@ where
     fn get_default_properties() -> InterfaceProperties;
 }
 
+pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
+    fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
+        let mut socket_mut = socket_ref.lock().unwrap();
+        let blocks: Vec<Vec<u8>> =
+            socket_mut.send_queue.drain(..).collect::<Vec<_>>();
+        blocks
+    }
+    let sockets = interface.borrow().get_sockets();
+    for socket_ref in sockets.lock().unwrap().sockets.values() {
+        let blocks = get_blocks(socket_ref);
+        let interface = interface.clone();
+        for block in blocks {
+            let interface = interface.clone();
+            let socket_ref = socket_ref.clone();
+            let uuid = socket_ref.lock().unwrap().uuid.clone();
+            spawn_with_panic_notify(async move {
+                let has_been_send =
+                    interface.borrow_mut().send_block(&block, uuid).await;
+                if !has_been_send {
+                    debug!("Failed to send block");
+                    socket_ref.lock().unwrap().send_queue.push_back(block);
+                    panic!("Failed to send block");
+                }
+            });
+        }
+    }
+}
+
 pub trait ComInterface: Any {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
@@ -469,65 +502,6 @@ pub trait ComInterface: Any {
     fn get_channel_factor(&self) -> u32 {
         let properties = self.init_properties();
         properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
-    }
-
-    fn flush_outgoing_blocks<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
-        fn get_blocks(
-            socket_ref: &Arc<Mutex<ComInterfaceSocket>>,
-        ) -> Vec<Vec<u8>> {
-            let mut socket_mut = socket_ref.lock().unwrap();
-            let blocks: Vec<Vec<u8>> =
-                socket_mut.send_queue.drain(..).collect::<Vec<_>>();
-            blocks
-        }
-
-        Box::pin(async move {
-            let sockets = self.get_sockets();
-            let shared_self = &Rc::new(RefCell::new(self));
-            join_all(
-                // Iterate over all sockets
-                sockets
-                    .lock()
-                    .unwrap()
-                    .sockets
-                    .values()
-                    .map(|socket_ref| {
-                        // Get all blocks of the socket
-                        let blocks = get_blocks(socket_ref);
-
-                        // Iterate over all blocks for a socket
-                        blocks.into_iter().map(|block| {
-                            // Send the block
-                            let socket_ref = socket_ref.clone();
-                            Box::pin(async move {
-                                let uuid =
-                                    socket_ref.lock().unwrap().uuid.clone();
-
-                                // socket will return a boolean indicating of a block could be sent
-                                let has_been_send = shared_self
-                                    .borrow_mut()
-                                    .send_block(&block, uuid)
-                                    .await;
-
-                                // If the block could not be sent, push it back to the send queue to be sent later
-                                if !has_been_send {
-                                    panic!("Failed to send block");
-                                    debug!("Failed to send block");
-                                    socket_ref
-                                        .lock()
-                                        .unwrap()
-                                        .send_queue
-                                        .push_back(block);
-                                }
-                            })
-                        })
-                    })
-                    .flatten(),
-            )
-            .await;
-        })
     }
 
     fn create_socket(
