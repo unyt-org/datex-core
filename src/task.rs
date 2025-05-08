@@ -1,10 +1,9 @@
-use std::future::Future;
 use cfg_if::cfg_if;
-use futures_util::{FutureExt, SinkExt, StreamExt};
-use std::sync::{Arc, Mutex};
 use futures::channel::mpsc;
+use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::{error, info};
-
+use std::future::Future;
+use std::sync::{Arc, Mutex};
 
 lazy_static::lazy_static! {
     static ref LOCAL_PANIC_CHANNEL: Mutex<Option<(
@@ -38,12 +37,7 @@ pub fn init_panic_notify() {
     let (tx, rx) = mpsc::unbounded::<Signal>();
     let mut local_panic_channel = LOCAL_PANIC_CHANNEL.lock().unwrap();
 
-    *local_panic_channel = Some(
-        (
-            Arc::new(Mutex::new(tx)),
-            Some(rx),
-        )
-    );
+    *local_panic_channel = Some((Arc::new(Mutex::new(tx)), Some(rx)));
 }
 
 pub async fn close_panic_notify() {
@@ -58,9 +52,8 @@ pub async fn unwind_local_spawn_panics() {
     let mut rx = {
         let mut local_panic_channel = LOCAL_PANIC_CHANNEL.lock().unwrap();
         if let Some((_, ref mut rx)) = &mut *local_panic_channel {
-          rx.take().unwrap()
-        }
-        else {
+            rx.take().unwrap()
+        } else {
             panic!("Panic channel not initialized");
         }
     };
@@ -85,6 +78,28 @@ fn get_tx() -> Arc<Mutex<mpsc::UnboundedSender<Signal>>> {
     }
 }
 
+pub fn spawn_with_panic_notify<F>(fut: F)
+where
+    F: Future<Output = ()> + 'static,
+{
+    spawn_local(async move {
+        let result = std::panic::AssertUnwindSafe(fut).catch_unwind().await;
+        if let Err(err) = result {
+            let panic_msg = if let Some(s) = err.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = err.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "Unknown panic type".to_string()
+            };
+            let tx = get_tx();
+            let tx = tx.lock();
+            tx.unwrap().send(Signal::Panic(panic_msg)).await.unwrap();
+            error!("exited");
+        } else {
+        }
+    });
+}
 cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
 
@@ -106,32 +121,6 @@ cfg_if! {
             R: Send + 'static,
         {
             tokio::task::spawn_blocking(f)
-        }
-
-
-        pub fn spawn_with_panic_notify<F>(fut: F)
-        where
-            F: Future<Output = ()> + 'static,
-        {
-            tokio::task::spawn_local(async move {
-                let result = std::panic::AssertUnwindSafe(fut).catch_unwind().await;
-                if let Err(err) = result {
-                    let panic_msg = if let Some(s) = err.downcast_ref::<&str>() {
-                        s.to_string()
-                    } else if let Some(s) = err.downcast_ref::<String>() {
-                        s.clone()
-                    } else {
-                        "Unknown panic type".to_string()
-                    };
-                    let tx = get_tx();
-                    let tx = tx.lock();
-                    tx.unwrap().send(Signal::Panic(panic_msg)).await.unwrap();
-                    error!("exited");
-                }
-                else {
-
-            }
-            });
         }
 
     } else if #[cfg(feature = "wasm_runtime")] {
