@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::error;
 
 use crate::stdlib::{collections::VecDeque, sync::Arc};
 use std::sync::Mutex; // FIXME no-std

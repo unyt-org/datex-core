@@ -1,4 +1,3 @@
-use core::panic;
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
@@ -23,7 +22,7 @@ use datex_core::{
     set_sync_opener,
 };
 use datex_macros::{com_interface, create_opener};
-use log::{debug, info};
+use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;

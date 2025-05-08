@@ -44,7 +44,7 @@ impl GlobalContext {
 }
 
 thread_local! {
-    pub static GLOBAL_CONTEXT: RefCell<Option<GlobalContext>> = RefCell::new(None);
+    pub static GLOBAL_CONTEXT: RefCell<Option<GlobalContext>> = const { RefCell::new(None) };
 }
 pub fn set_global_context(c: GlobalContext) {
     GLOBAL_CONTEXT.replace(Some(c.clone()));

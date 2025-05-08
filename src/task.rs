@@ -1,11 +1,10 @@
 use cfg_if::cfg_if;
 use futures::channel::mpsc;
 use futures_util::{FutureExt, SinkExt, StreamExt};
-use log::{error, info};
+use log::info;
 use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
 thread_local! {
     static LOCAL_PANIC_CHANNEL: Rc<RefCell<

@@ -342,7 +342,7 @@ impl ComHub {
             );
         }
 
-        if is_new_block == false {
+        if !is_new_block {
             // block already in history, ignore
             warn!("Block already in history. Ignoring...");
         }
