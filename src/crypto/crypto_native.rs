@@ -22,8 +22,7 @@ fn generate_pseudo_uuid() -> String {
 
     // Encode counter into last segment, keeping UUID-like structure
     format!(
-        "00000000-0000-0000-0000-{:012x}",
-        count
+        "00000000-0000-0000-0000-{count:012x}"
     )
 }
 

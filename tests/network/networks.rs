@@ -8,20 +8,15 @@ use crate::network::helpers::mockup_interface::{
 use crate::network::helpers::network::{
     InterfaceConnection, Network, Node, Route,
 };
-use cfg_if::cfg_if;
 use datex_core::datex_values::Endpoint;
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::run_async;
-use datex_core::runtime::global_context::get_global_context;
-use datex_core::task::spawn_with_panic_notify;
 use log::info;
 use ntest_timeout::timeout;
-use std::future::Future;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::task;
-use tokio::task::LocalSet;
 
 #[tokio::test]
 #[timeout(100)]

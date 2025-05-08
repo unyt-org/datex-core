@@ -4,7 +4,7 @@ use crate::global::protocol_structures::routing_header::{
 };
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{spawn_local, spawn_with_panic_notify};
+use crate::task::spawn_with_panic_notify;
 use futures_util::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -13,7 +13,6 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use cfg_if::cfg_if;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -796,7 +795,7 @@ impl ComHub {
                     || {
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "debug")] {
-                                return if get_global_context().debug_flags.enable_deterministic_behavior {
+                                if get_global_context().debug_flags.enable_deterministic_behavior {
                                     Ordering::Equal
                                 }
                                 else {

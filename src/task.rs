@@ -64,7 +64,7 @@ pub async fn unwind_local_spawn_panics() {
                 info!("Exiting local spawn panics");
             }
             Signal::Panic(panic_msg) => {
-                panic!("Panic in local spawn: {}", panic_msg);
+                panic!("Panic in local spawn: {panic_msg}");
             }
         }
     }
@@ -96,8 +96,7 @@ where
             let tx = tx.lock();
             tx.unwrap().send(Signal::Panic(panic_msg)).await.unwrap();
             error!("exited");
-        } else {
-        }
+        } 
     });
 }
 cfg_if! {

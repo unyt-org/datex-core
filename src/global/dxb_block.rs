@@ -182,7 +182,7 @@ impl DXBBlock {
         let routing_header = RoutingHeader::read(&mut Cursor::new(dxb))
             .map_err(|e| {
                 error!("Failed to read routing header: {e:?}");
-                return HeaderParsingError::InvalidBlock;
+                HeaderParsingError::InvalidBlock
             })?;
         if routing_header.block_size_u16.is_some() {
             Ok(routing_header.block_size_u16.unwrap() as u32)
