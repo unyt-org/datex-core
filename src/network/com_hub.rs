@@ -170,7 +170,7 @@ impl ComHub {
         .await
     }
 
-    /// Register a new interface factory for a specific interface implementation.
+    /// Registers a new interface factory for a specific interface implementation.
     /// This allows the ComHub to create new instances of the interface on demand.
     pub fn register_interface_factory(
         &self,
@@ -182,7 +182,7 @@ impl ComHub {
             .insert(interface_type, factory);
     }
 
-    /// Create a new interface instance using the registered factory
+    /// Creates a new interface instance using the registered factory
     /// for the specified interface type if it exists.
     /// The interface is opened and added to the ComHub.
     pub async fn create_interface(
@@ -417,7 +417,7 @@ impl ComHub {
         }
     }
 
-    /// returns a list of all receivers from a given ReceiverEndpoints
+    /// Returns a list of all receivers from a given ReceiverEndpoints
     /// excluding the local endpoint
     fn get_remote_receivers(
         &self,
@@ -471,7 +471,7 @@ impl ComHub {
         }
     }
 
-    /// Prepare a block and relay it to the given receivers.
+    /// Prepares a block and relays it to the given receivers.
     /// The routing distance is incremented by 1.
     pub(crate) fn redirect_block(
         &self,
@@ -648,6 +648,10 @@ impl ComHub {
         Ok(())
     }
 
+
+    /// Waits for all background tasks scheduled by the update() function to finish
+    /// This includes block flushes from `flush_outgoing_blocks()`
+    /// and interface (re)-connections from `update_interfaces()`
     pub async fn wait_for_update_async(&self) {
         loop {
             let mut is_done = true;
@@ -656,7 +660,13 @@ impl ComHub {
                 let interface = interface.borrow_mut();
                 let outgoing_blocks_count =
                     interface.get_info().outgoing_blocks_count.get();
+                // blocks are still sent out on this interface
                 if outgoing_blocks_count > 0 {
+                    is_done = false;
+                    break;
+                }
+                // interface is still in connection task
+                if interface.get_state() == ComInterfaceState::Connecting {
                     is_done = false;
                     break;
                 }
@@ -668,11 +678,17 @@ impl ComHub {
         }
     }
 
+    /// Updates all sockets and interfaces,
+    /// collecting incoming data and sending out queued blocks.
+    /// In contrast to the update() function, this function is asynchronous
+    /// and will wait for all background tasks scheduled by the update() function to finish
     pub async fn update_async(&self) {
-        self.update().await;
+        self.update();
         self.wait_for_update_async().await;
     }
 
+    /// Adds a socket to the socket list for a specific endpoint,
+    /// attaching metadata as DynamicEndpointProperties
     fn add_endpoint_socket(
         &self,
         endpoint: &Endpoint,
@@ -700,6 +716,10 @@ impl ComHub {
         ));
     }
 
+    /// Adds a socket to the socket list.
+    /// If the priority is not set to `InterfacePriority::None`, the socket
+    /// is also registered as a fallback socket for outgoing connections with the
+    /// specified priority.
     fn add_socket(
         &self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
@@ -758,7 +778,9 @@ impl ComHub {
         self.send_block_addressed(block, &socket_uuid, &[Endpoint::ANY]);
     }
 
-    /// Only for outgoing sockets
+    /// Registers a socket as a fallback socket for outgoing connections
+    /// that can be used if no known route exists for an endpoint
+    /// Note: only sockets that support sending data should be used as fallback sockets
     fn add_fallback_socket(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -771,6 +793,7 @@ impl ComHub {
         fallback_sockets.sort_by(|(_, a), (_, b)| b.cmp(a));
     }
 
+    /// Removes a socket from the socket list
     fn delete_socket(&self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets
             .borrow_mut()
@@ -790,6 +813,7 @@ impl ComHub {
             .retain(|(uuid, _)| uuid != socket_uuid);
     }
 
+    /// Adds an endpoint to the endpoint list of a specific socket
     fn add_socket_endpoint(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -808,11 +832,14 @@ impl ComHub {
             .insert(endpoint.clone());
     }
 
-    /// Sort the sockets for an endpoint:
+    /// Sorts the sockets for an endpoint:
     /// - socket with send capability first
     /// - then direct sockets
     /// - then sort by channel channel_factor (latency, bandwidth)
     /// - then sort by socket connect_timestamp
+    /// When the global debug flag `enable_deterministic_behavior` is set,
+    /// Sockets are not sorted by their connect_timestamp to make sure that the order of
+    /// received blocks has no effect on the routing priorities
     fn sort_sockets(&self, endpoint: &Endpoint) {
         let mut endpoint_sockets = self.endpoint_sockets.borrow_mut();
         let sockets = endpoint_sockets.get_mut(endpoint).unwrap();
@@ -844,6 +871,9 @@ impl ComHub {
         });
     }
 
+    /// Returns the socket for a given UUID
+    /// The socket must be registered in the ComHub,
+    /// otherwise a panic will be triggered
     pub(crate) fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -857,6 +887,9 @@ impl ComHub {
             })
     }
 
+    /// Returns the com interface for a given UUID
+    /// The interface must be registered in the ComHub,
+    /// otherwise a panic will be triggered
     pub(crate) fn get_com_interface_by_uuid(
         &self,
         interface_uuid: &ComInterfaceUUID,
@@ -871,6 +904,9 @@ impl ComHub {
             .clone()
     }
 
+    /// Returns the com interface for a given socket UUID
+    /// The interface and socket must be registered in the ComHub,
+    /// otherwise a panic will be triggered
     pub(crate) fn get_com_interface_from_socket_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -880,17 +916,9 @@ impl ComHub {
         self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
 
-    fn get_socket_interface_properties(
-        interfaces: &HashMap<ComInterfaceUUID, Rc<RefCell<dyn ComInterface>>>,
-        interface_uuid: &ComInterfaceUUID,
-    ) -> InterfaceProperties {
-        interfaces
-            .get(interface_uuid)
-            .unwrap()
-            .borrow()
-            .init_properties()
-    }
-
+    /// Returns an iterator over all sockets for a given endpoint
+    /// The sockets are yielded in the order of their priority, starting with the
+    /// highest priority socket (the best socket for sending data to the endpoint)
     fn iterate_endpoint_sockets<'a>(
         &'a self,
         endpoint: &'a Endpoint,
@@ -972,7 +1000,6 @@ impl ComHub {
                 if let Some(socket) =
                     self.iterate_endpoint_sockets(endpoint, options).next()
                 {
-                    // TODO
                     return Some(socket);
                 }
                 None
@@ -1053,7 +1080,7 @@ impl ComHub {
         }
     }
 
-    /// returns all receivers to which the block has to be sent, grouped by the
+    /// Returns all receivers to which the block has to be sent, grouped by the
     /// outbound socket uuids
     fn get_outbound_receiver_groups(
         &self,
@@ -1104,7 +1131,7 @@ impl ComHub {
     pub fn start_update_loop(self_rc: Rc<Self>) {
         spawn_with_panic_notify(async move {
             loop {
-                self_rc.update().await;
+                self_rc.update();
                 sleep(Duration::from_millis(1)).await;
             }
         });
@@ -1112,10 +1139,11 @@ impl ComHub {
 
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    /// FIXME make sync
-    async fn update(&self) {
+    /// Updates are scheduled in local tasks and are not immediately visible.
+    /// To wait for the block update to finish, use `wait_for_update_async()`.
+    fn update(&self) {
         // update all interfaces
-        self.update_interfaces().await;
+        self.update_interfaces();
 
         // update own socket lists for routing
         self.update_sockets();
@@ -1181,6 +1209,7 @@ impl ComHub {
     /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
     /// The original_socket parameter is used to prevent sending the block back to the sender.
     /// When this method is called, the block is queued in the send queue.
+    /// Returns an Err with a list of unreachable endpoints if the block could not be sent to all endpoints.
     pub fn send_block(
         &self,
         block: DXBBlock,
@@ -1285,9 +1314,7 @@ impl ComHub {
 
     /// Update all interfaces to handle reconnections if the interface can be reconnected
     /// or remove the interface if it cannot be reconnected.
-    async fn update_interfaces(&self) {
-        let mut local_set = Vec::new();
-
+    fn update_interfaces(&self) {
         let mut to_remove = Vec::new();
         for (interface, _) in self.interfaces.borrow().values() {
             let uuid = interface.borrow().get_uuid().clone();
@@ -1306,65 +1333,69 @@ impl ComHub {
                 // reconnection enabled, check if the interface should be reconnected
                 let interface_rc = interface.clone();
                 let mut interface = interface.borrow_mut();
-                let config = interface.get_properties_mut();
 
-                let reconnect_now = match &config.reconnection_config {
-                    ReconnectionConfig::InstantReconnect => true,
-                    ReconnectionConfig::ReconnectWithTimeout { timeout } => {
-                        ReconnectionConfig::check_reconnect_timeout(
-                            config.close_timestamp,
-                            timeout,
-                        )
-                    }
-                    ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
-                        timeout,
-                        attempts,
-                    } => {
-                        let max_attempts = attempts;
+                let already_connecting = interface.get_state() == ComInterfaceState::Connecting;
 
-                        // check if the attempts are not exceeded
-                        let attempts = config.reconnect_attempts.unwrap_or(0);
-                        let attempts = attempts + 1;
-                        if attempts > *max_attempts {
-                            to_remove.push(uuid.clone());
-                            return;
+                if !already_connecting {
+                    let config = interface.get_properties_mut();
+
+                    let reconnect_now = match &config.reconnection_config {
+                        ReconnectionConfig::InstantReconnect => true,
+                        ReconnectionConfig::ReconnectWithTimeout { timeout } => {
+                            ReconnectionConfig::check_reconnect_timeout(
+                                config.close_timestamp,
+                                timeout,
+                            )
                         }
-
-                        config.reconnect_attempts = Some(attempts);
-
-                        ReconnectionConfig::check_reconnect_timeout(
-                            config.close_timestamp,
+                        ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
                             timeout,
-                        )
-                    }
-                    ReconnectionConfig::NoReconnect => false,
-                };
-                drop(interface);
-                if reconnect_now {
-                    debug!("Reconnecting interface {uuid}");
-                    local_set.push(Box::pin(async move {
-                        let interface = interface_rc.clone();
-                        let mut interface = interface.borrow_mut();
+                            attempts,
+                        } => {
+                            let max_attempts = attempts;
+
+                            // check if the attempts are not exceeded
+                            let attempts = config.reconnect_attempts.unwrap_or(0);
+                            let attempts = attempts + 1;
+                            if attempts > *max_attempts {
+                                to_remove.push(uuid.clone());
+                                return;
+                            }
+
+                            config.reconnect_attempts = Some(attempts);
+
+                            ReconnectionConfig::check_reconnect_timeout(
+                                config.close_timestamp,
+                                timeout,
+                            )
+                        }
+                        ReconnectionConfig::NoReconnect => false,
+                    };
+                    if reconnect_now {
+                        debug!("Reconnecting interface {uuid}");
                         interface.set_state(ComInterfaceState::Connecting);
+                        spawn_with_panic_notify(async move {
+                            let interface = interface_rc.clone();
+                            let mut interface = interface.borrow_mut();
 
-                        let config = interface.get_properties_mut();
-                        config.close_timestamp = None;
+                            let config = interface.get_properties_mut();
+                            config.close_timestamp = None;
 
-                        let current_attempts =
-                            config.reconnect_attempts.unwrap_or(0);
-                        config.reconnect_attempts = Some(current_attempts + 1);
+                            let current_attempts =
+                                config.reconnect_attempts.unwrap_or(0);
+                            config.reconnect_attempts = Some(current_attempts + 1);
 
-                        let res = interface.handle_open().await;
-                        if res {
-                            interface.set_state(ComInterfaceState::Connected);
-                            // config.reconnect_attempts = None;
-                        } else {
-                            interface
-                                .set_state(ComInterfaceState::NotConnected);
-                        }
-                    }));
-                } else {
-                    debug!("Not reconnecting interface {uuid}");
+                            let res = interface.handle_open().await;
+                            if res {
+                                interface.set_state(ComInterfaceState::Connected);
+                                // config.reconnect_attempts = None;
+                            } else {
+                                interface
+                                    .set_state(ComInterfaceState::NotConnected);
+                            }
+                        });
+                    } else {
+                        debug!("Not reconnecting interface {uuid}");
+                    }
                 }
             }
         }
@@ -1372,7 +1403,6 @@ impl ComHub {
         for uuid in to_remove {
             self.cleanup_interface(uuid);
         }
-        join_all(local_set).await;
     }
 
     /// Update all known sockets for all interfaces to update routing
