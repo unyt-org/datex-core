@@ -169,63 +169,26 @@ impl BlockHandler {
         // try to call the observer for the incoming response block
         for section in new_sections {
             let section_index = section.get_section_index();
-        }
 
-        /*let remove_observer = match self.scope_observers.borrow_mut().get_mut(&(scope_id, section_index)) {
-            Some((ref mut observer, ref mut block_queue)) => {
-
+            let remove_observer = if let Some(observer) = self.scope_observers.borrow_mut().get_mut(&(endpoint_scope_id.clone(), section_index)) {
+                let (ref mut observer, ref mut block_queue) = observer;
+                // call the observer with the new section
+                observer(section);
+                // remove observer
+                true
             }
-            None => {
+            else {
                 // no observer for this scope id + block index
                 log::warn!("No observer for incoming response block (sid={scope_id}, block={section_index}), dropping block");
                 false
-            }
-        };
+            };
 
-        // observer has consumed all blocks, remove it
-        if remove_observer {
-            self.scope_observers.borrow_mut().remove(&(scope_id, section_index));
+            if remove_observer {
+                self.scope_observers.borrow_mut().remove(&(endpoint_scope_id.clone(), section_index));
+            }
         }
-        // is end of block and no previous block queue -> is single block
-        let is_single_block = is_end_of_block && block_queue.is_none();
-        match is_single_block {
-            // single block
-            true => {
-                observer(
-                    IncomingSection::SingleBlock(block)
-                );
-            }
-            // block stream
-            false => {
-                // push block to existing block queue for observer
-                if let Some(block_queue) = block_queue {
-                    block_queue.borrow_mut().push_back(block);
-                }
-                else {
-                    // start of new block stream, create and send to observer
-                    let mut blocks = VecDeque::new();
-                    blocks.push_back(block);
-                    let blocks = Rc::new(RefCell::new(blocks));
-
-                    observer(
-                        IncomingSection::BlockStream(blocks.clone())
-                    );
-                }
-            }
-        };
-
-        // cleanup observer if is_end_of_block
-        if is_end_of_block {
-            // remove observer
-            log::info!("Removing observer for incoming response block (sid={scope_id}, block={block_index})");
-            true
-        }
-        else {
-            false
-        }*/
     }
 
-    /// TODO: rename, use as generic block sorting
     /// Takes a new incoming block and returns a vector of all new available incoming sections
     /// for the block's scope
     fn extract_complete_sections_with_new_incoming_block(
