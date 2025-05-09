@@ -66,7 +66,8 @@ pub type OutgoingBlockIndex = u16;
 pub type OutgoingBlockIncrement = u16;
 
 #[derive(Debug, Clone)]
-pub enum ResponseBlocks {
+pub enum IncomingBlocks {
+    /// a single block
     SingleBlock(DXBBlock),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set

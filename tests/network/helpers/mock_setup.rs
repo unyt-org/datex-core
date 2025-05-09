@@ -1,5 +1,5 @@
 use datex_core::datex_values::Endpoint;
-use datex_core::global::dxb_block::{DXBBlock, ResponseBlocks};
+use datex_core::global::dxb_block::{DXBBlock, IncomingBlocks};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
@@ -216,7 +216,7 @@ pub fn get_last_received_single_block_from_com_hub(
     let blocks = scopes[0].blocks.values().next().unwrap();
 
     match blocks {
-        ResponseBlocks::SingleBlock(block) => block.clone(),
+        IncomingBlocks::SingleBlock(block) => block.clone(),
         _ => {
             panic!("Expected single block, but got block stream");
         }
@@ -234,7 +234,7 @@ pub fn get_all_received_single_blocks_from_com_hub(
         let blocks_in_scope = scope.blocks.values().collect::<Vec<_>>();
         for block in blocks_in_scope {
             match block {
-                ResponseBlocks::SingleBlock(block) => {
+                IncomingBlocks::SingleBlock(block) => {
                     blocks.push(block.clone());
                 }
                 _ => {

@@ -26,7 +26,7 @@ use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
 use crate::datex_values::{Endpoint, EndpointInstance};
-use crate::global::dxb_block::{DXBBlock, ResponseBlocks};
+use crate::global::dxb_block::{DXBBlock, IncomingBlocks};
 use crate::network::block_handler::{BlockHandler};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
@@ -1125,7 +1125,7 @@ impl ComHub {
         }
     }
 
-    /// Run the update loop for the ComHub.
+    /// Runs the update loop for the ComHub.
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
     pub fn start_update_loop(self_rc: Rc<Self>) {
@@ -1158,7 +1158,7 @@ impl ComHub {
         self.flush_outgoing_blocks();
     }
 
-    /// Prepare a block for sending out by updating the creation timestamp,
+    /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
     fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
         // TODO signature & encryption
@@ -1181,11 +1181,11 @@ impl ComHub {
         self.send_block(block, None);
     }
 
-    /// Send a block and wait for a response block.
+    /// Sends a block and wait for a response block.
     pub async fn send_own_block_await_response(
         &self,
         block: DXBBlock,
-    ) -> Result<ResponseBlocks, ComHubError> {
+    ) -> Result<IncomingBlocks, ComHubError> {
         let scope_id = block.block_header.scope_id;
         let block_index = block.block_header.block_index;
         {
@@ -1204,7 +1204,7 @@ impl ComHub {
         res
     }
 
-    /// Send a block to all endpoints specified in the block header.
+    /// Sends a block to all endpoints specified in the block header.
     /// The routing algorithm decides which sockets are used to send the block, based on the endpoint.
     /// A block can be sent to multiple endpoints at the same time over a socket or to multiple sockets for each endpoint.
     /// The original_socket parameter is used to prevent sending the block back to the sender.
@@ -1246,7 +1246,7 @@ impl ComHub {
         Ok(())
     }
 
-    /// Send a block via a socket to a list of endpoints.
+    /// Sends a block via a socket to a list of endpoints.
     /// Before the block is sent, it is modified to include the list of endpoints as receivers.
     fn send_block_addressed(
         &self,
@@ -1312,7 +1312,7 @@ impl ComHub {
         }
     }
 
-    /// Update all interfaces to handle reconnections if the interface can be reconnected
+    /// Updates all interfaces to handle reconnections if the interface can be reconnected
     /// or remove the interface if it cannot be reconnected.
     fn update_interfaces(&self) {
         let mut to_remove = Vec::new();
@@ -1405,7 +1405,7 @@ impl ComHub {
         }
     }
 
-    /// Update all known sockets for all interfaces to update routing
+    /// Updates all known sockets for all interfaces to update routing
     /// information, remove deleted sockets and add new sockets and endpoint relations
     fn update_sockets(&self) {
         let mut new_sockets = Vec::new();
@@ -1441,7 +1441,7 @@ impl ComHub {
         }
     }
 
-    /// Collect incoming data slices from all sockets. The sockets will call their
+    /// Collects incoming data slices from all sockets. The sockets will call their
     /// BlockCollector to collect the data into blocks.
     fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
@@ -1451,7 +1451,7 @@ impl ComHub {
         }
     }
 
-    /// Collect all blocks from the receive queues of all sockets and process them
+    /// Collects all blocks from the receive queues of all sockets and process them
     /// in the receive_block method.
     fn receive_incoming_blocks(&self) {
         let mut blocks = vec![];
@@ -1470,7 +1470,7 @@ impl ComHub {
         }
     }
 
-    /// Send all queued blocks from all interfaces.
+    /// Sends all queued blocks from all interfaces.
     fn flush_outgoing_blocks(&self) {
         let interfaces = self.interfaces.borrow();
         for (interface, _) in interfaces.values() {
