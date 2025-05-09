@@ -43,7 +43,7 @@ pub struct BlockHandler {
     pub request_scopes: RefCell<HashMap<IncomingEndpointScopeId, ScopeContext>>,
 
     /// a map of observers for incoming response blocks (by scope_id + block_index)
-    /// contains a observer callback and an optional queue of blocks if the response block is a multi-block stream
+    /// contains an observer callback and an optional queue of blocks if the response block is a multi-block stream
     pub scope_observers: RefCell<HashMap<(IncomingScopeId, IncomingBlockIndex), (ScopeObserver, Option<Rc<RefCell<VecDeque<DXBBlock>>>>)>>,
 
     /// history of all incoming blocks
@@ -147,7 +147,7 @@ impl BlockHandler {
             );
         }
     }
-    
+
     /// Handles incoming response blocks by calling the observer if an observer is registered
     /// Returns true when the observer has consumed all blocks and should be removed
     fn handle_incoming_response_block(
@@ -197,7 +197,7 @@ impl BlockHandler {
             false
         }
     }
-    
+
     fn handle_incoming_request_block(
         &self,
         block: DXBBlock,

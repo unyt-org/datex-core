@@ -20,12 +20,31 @@ enum Signal {
     Exit,
 }
 
+/// Creates an async execution context in which `spawn_local` or `spawn_with_panic_notify` can be used.
+/// When a panic occurs in a background task spawned with `spawn_with_panic_notify`, the panic will
+/// be propagated to the main task and the execution will be stopped.
+///
+/// Example usage:
+/// ```rust
+/// use datex_core::run_async;
+/// use datex_core::task::spawn_with_panic_notify;
+///
+/// async fn example() {
+///     run_async! {
+///         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+///         spawn_with_panic_notify(async {
+///             // Simulate a panic
+///             panic!("This is a test panic");
+///        });
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! run_async {
     ($($body:tt)*) => {{
         datex_core::task::init_panic_notify();
 
-        task::LocalSet::new()
+        tokio::task::LocalSet::new()
             .run_until(async move {
                 datex_core::task::spawn_with_panic_notify(async move {
                     (async move { $($body)* }).await;
@@ -33,6 +52,26 @@ macro_rules! run_async {
                 });
                 datex_core::task::unwind_local_spawn_panics().await;
             }).await;
+    }}
+}
+
+/// Spawns a thread that runs an async block using the Tokio runtime.
+/// The behavior is similar to `run_async! {}`, with the only difference being that
+/// it runs in a separate thread.
+#[macro_export]
+macro_rules! run_async_thread {
+    ($($body:tt)*) => {{
+        thread::spawn(move || {
+            // tokio runtime setup
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+
+            // Run an async block using the runtime
+            runtime.block_on(async {
+                run_async! {
+                    $($body)*
+                }
+            });
+        })
     }}
 }
 
@@ -84,9 +123,7 @@ pub async fn unwind_local_spawn_panics() {
     info!("Waiting for local spawn panics...");
     if let Some(panic_msg) = rx.next().await {
         match panic_msg {
-            Signal::Exit => {
-                info!("Exiting local spawn panics");
-            }
+            Signal::Exit => {}
             Signal::Panic(panic_msg) => {
                 panic!("Panic in local spawn: {panic_msg}");
             }

@@ -578,52 +578,6 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
         .await;
 }
 
-/*
-#[tokio::test(flavor = "current_thread")]
-async fn test_spawn_local_panic_detection() {
-
-    init_global_context();
-    info!("> Starting test_spawn_local_panic_detection");
-
-    init_panic_notify();
-
-    LocalSet::new()
-        .run_until(async move {
-            spawn_with_panic_notify(async move {
-
-                (async {
-                    info!("> Starting inner task");
-                }).await;
-                                    /*panic!("panic");
-                // Spawn inner tasks without awaiting them
-                spawn_with_panic_notify(
-                    async {
-                        tokio::time::sleep(Duration::from_secs(2)).await;
-                        panic!("task 1 panicked!");
-                    }
-                );
-
-                spawn_with_panic_notify(
-                    async {
-                        // Does not panic
-                        tokio::time::sleep(Duration::from_secs(234)).await;
-                    }
-                );
-
-                spawn_with_panic_notify(
-                    async {
-                        // Also doesn't panic
-                    }
-                );*/
-
-                panic!("ende");
-            });
-
-            unwind_local_spawn_panics().await;
-        })
-        .await;
-}*/
-
 #[tokio::test]
 #[timeout(3000)]
 async fn simple_network() {
