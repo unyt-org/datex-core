@@ -1,7 +1,7 @@
-use std::cell::RefCell;
 use axum::extract::Request;
 use axum::routing::post;
 use bytes::Bytes;
+use std::cell::RefCell;
 
 use crate::task::spawn;
 use axum::response::Response;
@@ -103,7 +103,8 @@ async fn client_to_server_handler(
 pub struct HTTPServerNativeInterface {
     pub address: Url,
     info: ComInterfaceInfo,
-    socket_channel_mapping: Rc<RefCell<HashMap<String, ComInterfaceSocketUUID>>>,
+    socket_channel_mapping:
+        Rc<RefCell<HashMap<String, ComInterfaceSocketUUID>>>,
     channels: Arc<
         RwLock<
             HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>,

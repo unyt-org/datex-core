@@ -1,5 +1,5 @@
 use crate::datex_values::Endpoint;
-use crate::global::dxb_block::{DXBBlock, OutgoingScopeId, IncomingSection};
+use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingScopeId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };

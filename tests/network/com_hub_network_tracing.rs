@@ -4,16 +4,16 @@ use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_B,
 };
 use datex_core::network::com_hub::InterfacePriority;
+use datex_core::{run_async, run_async_thread};
 use ntest_timeout::timeout;
 use std::sync::mpsc;
 use std::thread;
 use tokio::task;
-use datex_core::{run_async, run_async_thread};
 
 #[tokio::test]
 #[timeout(1000)]
 async fn create_network_trace() {
-     run_async! {
+    run_async! {
         init_global_context();
 
         let (sender_a, receiver_a) = mpsc::channel::<Vec<u8>>();
@@ -127,7 +127,7 @@ async fn create_network_trace_separate_threads() {
                 true,
             )
             .await;
-        
+
         // sleep 2s to ensure that the other thread has finished
         tokio::time::sleep(tokio::time::Duration::from_millis(200))
             .await;

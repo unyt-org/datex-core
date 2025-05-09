@@ -1,15 +1,15 @@
+use crate::stdlib::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
-use crate::stdlib::pin::Pin;
 
 use super::crypto::{CryptoError, CryptoTrait};
+use crate::runtime::global_context::get_global_context;
 use rand::{rngs::OsRng, Rng};
 use rsa::{
     pkcs8::{EncodePrivateKey, EncodePublicKey},
     RsaPrivateKey, RsaPublicKey,
 };
 use uuid::Uuid;
-use crate::runtime::global_context::get_global_context;
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -21,9 +21,7 @@ fn generate_pseudo_uuid() -> String {
     let count = counter.fetch_add(1, Ordering::Relaxed);
 
     // Encode counter into last segment, keeping UUID-like structure
-    format!(
-        "00000000-0000-0000-0000-{count:012x}"
-    )
+    format!("00000000-0000-0000-0000-{count:012x}")
 }
 
 #[derive(Debug, Clone, PartialEq)]

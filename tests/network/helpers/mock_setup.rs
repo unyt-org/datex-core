@@ -31,8 +31,11 @@ lazy_static::lazy_static! {
 }
 
 pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
-    get_mock_setup_with_endpoint(TEST_ENDPOINT_ORIGIN.clone(), InterfacePriority::default())
-        .await
+    get_mock_setup_with_endpoint(
+        TEST_ENDPOINT_ORIGIN.clone(),
+        InterfacePriority::default(),
+    )
+    .await
 }
 
 pub async fn get_mock_setup_with_endpoint(
@@ -209,7 +212,8 @@ pub async fn send_empty_block_and_update(
 pub fn get_last_received_single_block_from_com_hub(
     com_hub: &ComHub,
 ) -> DXBBlock {
-    let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut();
+    let mut sections =
+        com_hub.block_handler.incoming_sections_queue.borrow_mut();
     let sections = sections.drain(..).collect::<Vec<_>>();
 
     assert_eq!(sections.len(), 1);
@@ -224,9 +228,10 @@ pub fn get_last_received_single_block_from_com_hub(
 pub fn get_all_received_single_blocks_from_com_hub(
     com_hub: &ComHub,
 ) -> Vec<DXBBlock> {
-    let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut();
+    let mut sections =
+        com_hub.block_handler.incoming_sections_queue.borrow_mut();
     let sections = sections.drain(..).collect::<Vec<_>>();
-    
+
     let mut blocks = vec![];
 
     for section in sections {

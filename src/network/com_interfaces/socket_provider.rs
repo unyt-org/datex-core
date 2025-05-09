@@ -87,8 +87,7 @@ pub trait SingleSocketProvider {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
 
     fn get_socket(&self) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
-        self
-            .provide_sockets()
+        self.provide_sockets()
             .lock()
             .unwrap()
             .sockets

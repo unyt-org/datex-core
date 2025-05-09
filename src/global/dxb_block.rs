@@ -77,12 +77,15 @@ pub enum IncomingSection {
 impl IncomingSection {
     pub fn get_section_index(&self) -> IncomingSectionIndex {
         match self {
-            IncomingSection::SingleBlock(block) => block.block_header.section_index,
-            IncomingSection::BlockStream((_, section_index)) => section_index.clone()
+            IncomingSection::SingleBlock(block) => {
+                block.block_header.section_index
+            }
+            IncomingSection::BlockStream((_, section_index)) => {
+                section_index.clone()
+            }
         }
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IncomingEndpointScopeId {
@@ -97,7 +100,6 @@ pub struct BlockId {
     pub current_section_index: IncomingSectionIndex,
     pub current_block_number: IncomingBlockNumber,
 }
-
 
 impl DXBBlock {
     pub fn new(
@@ -281,7 +283,7 @@ impl DXBBlock {
             scope_id: self.block_header.scope_id,
         }
     }
-    
+
     pub fn get_block_id(&self) -> BlockId {
         BlockId {
             endpoint_scope_id: self.get_endpoint_scope_id(),

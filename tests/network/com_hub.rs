@@ -24,8 +24,8 @@ use crate::network::helpers::mock_setup::{
     get_last_received_single_block_from_com_hub, get_mock_setup,
     get_mock_setup_and_socket, get_mock_setup_and_socket_for_priority,
     get_mock_setup_with_endpoint, register_socket_endpoint,
-    send_block_with_body, send_empty_block_and_update, TEST_ENDPOINT_ORIGIN, TEST_ENDPOINT_A,
-    TEST_ENDPOINT_B,
+    send_block_with_body, send_empty_block_and_update, TEST_ENDPOINT_A,
+    TEST_ENDPOINT_B, TEST_ENDPOINT_ORIGIN,
 };
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,

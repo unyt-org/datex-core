@@ -1,13 +1,19 @@
+use crate::context::init_global_context;
+use crate::network::helpers::mock_setup::{
+    get_mock_setup_and_socket, TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN,
+};
+use datex_core::global::dxb_block::{
+    DXBBlock, IncomingEndpointScopeId, IncomingSection,
+};
+use datex_core::global::protocol_structures::block_header::{
+    BlockHeader, FlagsAndTimestamp,
+};
+use datex_core::global::protocol_structures::routing_header::RoutingHeader;
+use datex_core::run_async;
+use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
-use log::info;
-use datex_core::global::dxb_block::{DXBBlock, IncomingEndpointScopeId, IncomingSection};
-use datex_core::global::protocol_structures::block_header::{BlockHeader, FlagsAndTimestamp};
-use datex_core::global::protocol_structures::routing_header::RoutingHeader;
-use datex_core::run_async;
-use crate::context::init_global_context;
-use crate::network::helpers::mock_setup::{get_mock_setup_and_socket, TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN};
 
 #[tokio::test]
 async fn receive_single_block() {

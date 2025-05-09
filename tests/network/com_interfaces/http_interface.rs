@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use datex_core::{
     datex_values::Endpoint,
     network::com_interfaces::{
@@ -7,6 +6,7 @@ use datex_core::{
         socket_provider::MultipleSocketProvider,
     },
 };
+use std::str::FromStr;
 
 use crate::context::init_global_context;
 

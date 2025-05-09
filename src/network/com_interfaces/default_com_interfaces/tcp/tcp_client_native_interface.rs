@@ -111,9 +111,9 @@ impl ComInterface for TCPClientNativeInterface {
             error!("Client is not connected");
             return Box::pin(async { false });
         }
-        Box::pin(async move {
-            tx.unwrap().borrow_mut().write(block).await.is_ok()
-        })
+        Box::pin(
+            async move { tx.unwrap().borrow_mut().write(block).await.is_ok() },
+        )
     }
     fn init_properties(&self) -> InterfaceProperties {
         Self::get_default_properties()

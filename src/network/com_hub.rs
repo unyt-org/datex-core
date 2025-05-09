@@ -648,7 +648,6 @@ impl ComHub {
         Ok(())
     }
 
-
     /// Waits for all background tasks scheduled by the update() function to finish
     /// This includes block flushes from `flush_outgoing_blocks()`
     /// and interface (re)-connections from `update_interfaces()`
@@ -1334,7 +1333,8 @@ impl ComHub {
                 let interface_rc = interface.clone();
                 let mut interface = interface.borrow_mut();
 
-                let already_connecting = interface.get_state() == ComInterfaceState::Connecting;
+                let already_connecting =
+                    interface.get_state() == ComInterfaceState::Connecting;
 
                 if !already_connecting {
                     let config = interface.get_properties_mut();
@@ -1382,11 +1382,13 @@ impl ComHub {
 
                             let current_attempts =
                                 config.reconnect_attempts.unwrap_or(0);
-                            config.reconnect_attempts = Some(current_attempts + 1);
+                            config.reconnect_attempts =
+                                Some(current_attempts + 1);
 
                             let res = interface.handle_open().await;
                             if res {
-                                interface.set_state(ComInterfaceState::Connected);
+                                interface
+                                    .set_state(ComInterfaceState::Connected);
                                 // config.reconnect_attempts = None;
                             } else {
                                 interface
