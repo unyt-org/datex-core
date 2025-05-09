@@ -24,7 +24,7 @@ use crate::network::helpers::mock_setup::{
     get_last_received_single_block_from_com_hub, get_mock_setup,
     get_mock_setup_and_socket, get_mock_setup_and_socket_for_priority,
     get_mock_setup_with_endpoint, register_socket_endpoint,
-    send_block_with_body, send_empty_block_and_update, ORIGIN, TEST_ENDPOINT_A,
+    send_block_with_body, send_empty_block_and_update, TEST_ENDPOINT_ORIGIN, TEST_ENDPOINT_A,
     TEST_ENDPOINT_B,
 };
 use crate::network::helpers::mockup_interface::{
@@ -253,7 +253,7 @@ pub async fn default_interface_set_default_interface_first() {
     run_async!({
         init_global_context();
         let (com_hub, com_interface) = get_mock_setup_with_endpoint(
-            ORIGIN.clone(),
+            TEST_ENDPOINT_ORIGIN.clone(),
             InterfacePriority::default(),
         )
         .await;
@@ -330,7 +330,7 @@ pub async fn test_receive() {
             },
             ..DXBBlock::default()
         };
-        block.set_receivers(&[ORIGIN.clone()]);
+        block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
         block.recalculate_struct();
 
         let block_bytes = block.to_bytes().unwrap();
@@ -361,7 +361,7 @@ pub async fn test_receive_multiple() {
                     ..Default::default()
                 },
                 block_header: BlockHeader {
-                    block_index: 0,
+                    section_index: 0,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -371,7 +371,7 @@ pub async fn test_receive_multiple() {
                     ..Default::default()
                 },
                 block_header: BlockHeader {
-                    block_index: 1,
+                    section_index: 1,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -381,7 +381,7 @@ pub async fn test_receive_multiple() {
                     ..Default::default()
                 },
                 block_header: BlockHeader {
-                    block_index: 2,
+                    section_index: 2,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -390,7 +390,7 @@ pub async fn test_receive_multiple() {
 
         for block in &mut blocks {
             // set receiver to ORIGIN
-            block.set_receivers(&[ORIGIN.clone()]);
+            block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
         }
 
         let block_bytes: Vec<Vec<u8>> = blocks
@@ -507,39 +507,36 @@ pub async fn test_basic_routing() {
 
 #[tokio::test]
 pub async fn register_factory() {
-    let local = task::LocalSet::new();
-    local
-        .run_until(async {
-            init_global_context();
-            let mut com_hub = ComHub::default();
-            MockupInterface::register_on_com_hub(&mut com_hub);
+    run_async! {
+        init_global_context();
+        let mut com_hub = ComHub::default();
+        MockupInterface::register_on_com_hub(&mut com_hub);
 
-            assert_eq!(com_hub.interface_factories.borrow().len(), 1);
-            assert!(com_hub
-                .interface_factories
-                .borrow()
-                .get("mockup")
-                .is_some());
+        assert_eq!(com_hub.interface_factories.borrow().len(), 1);
+        assert!(com_hub
+            .interface_factories
+            .borrow()
+            .get("mockup")
+            .is_some());
 
-            // create a new mockup interface from the com_hub
-            let mockup_interface = com_hub
-                .create_interface(
-                    "mockup",
-                    Box::new(MockupInterfaceSetupData::new("mockup")),
-                    InterfacePriority::default(),
-                )
-                .await
-                .unwrap();
+        // create a new mockup interface from the com_hub
+        let mockup_interface = com_hub
+            .create_interface(
+                "mockup",
+                Box::new(MockupInterfaceSetupData::new("mockup")),
+                InterfacePriority::default(),
+            )
+            .await
+            .unwrap();
 
-            assert_eq!(
-                mockup_interface
-                    .borrow_mut()
-                    .get_properties()
-                    .interface_type,
-                "mockup"
-            );
-        })
-        .await;
+        assert_eq!(
+            mockup_interface
+                .borrow_mut()
+                .get_properties()
+                .interface_type,
+            "mockup"
+        );
+    }
 }
 
 #[tokio::test]

@@ -1,5 +1,5 @@
 use crate::datex_values::Endpoint;
-use crate::global::dxb_block::{DXBBlock, OutgoingScopeId, IncomingBlocks};
+use crate::global::dxb_block::{DXBBlock, OutgoingScopeId, IncomingSection};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
@@ -206,7 +206,7 @@ impl ComHub {
         assert!(response.is_ok());
         if let Ok(response) = response {
             match response {
-                IncomingBlocks::SingleBlock(block) => {
+                IncomingSection::SingleBlock(block) => {
                     let hops = self.get_trace_data_from_block(&block)?;
                     Some(NetworkTraceResult {
                         sender: self.endpoint.clone(),

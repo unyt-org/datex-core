@@ -56,7 +56,7 @@ impl BlockType {
 pub struct FlagsAndTimestamp {
     pub block_type: BlockType,
     pub allow_execution: bool,
-    pub is_end_of_block: bool,
+    pub is_end_of_section: bool,
     pub is_end_of_scope: bool,
     pub has_lifetime: bool,
     pub has_represented_by: bool,
@@ -106,11 +106,19 @@ impl Default for FlagsAndTimestamp {
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct BlockHeader {
-    // id, relevant for Request->Response
+    /// A unique id that defines the scope in which this block lives
+    /// A scope has a persistent state that can e.g. contain DATEX variables
     pub scope_id: u32,
-    pub block_index: u16,
-    // block increment for sub-blocks
-    pub block_increment: u16,
+    /// A section is a collection of multiple sequential blocks inside the same scope
+    /// (each with an incrementing block number)
+    /// When a new section starts, the block number is not reset but continues to increment
+    pub section_index: u16,
+    /// A unique number that identifies a block inside a block scope
+    /// The scope_id combined with the block_number define a unique block from a specific endpoint
+    /// the block id (endpoint, scope_id, block_number) defines a globally unique block
+    /// Note: blocks ids are not completely unique, when the block_number or section_index overflows,
+    /// it starts from 0 again, leading to duplicate block ids after a while
+    pub block_number: u16,
 
     pub flags_and_timestamp: FlagsAndTimestamp,
 

@@ -26,7 +26,7 @@ use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
 use crate::datex_values::{Endpoint, EndpointInstance};
-use crate::global::dxb_block::{DXBBlock, IncomingBlocks};
+use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
@@ -1185,9 +1185,9 @@ impl ComHub {
     pub async fn send_own_block_await_response(
         &self,
         block: DXBBlock,
-    ) -> Result<IncomingBlocks, ComHubError> {
+    ) -> Result<IncomingSection, ComHubError> {
         let scope_id = block.block_header.scope_id;
-        let block_index = block.block_header.block_index;
+        let block_index = block.block_header.section_index;
         {
             self.send_own_block(block);
         }

@@ -1,5 +1,5 @@
 use datex_core::datex_values::Endpoint;
-use datex_core::global::dxb_block::{DXBBlock, IncomingBlocks};
+use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
@@ -14,7 +14,7 @@ use super::mockup_interface::MockupInterface;
 lazy_static::lazy_static! {
     pub static ref ANY : Endpoint = Endpoint::ANY.clone();
 
-    pub static ref ORIGIN : Endpoint = Endpoint::from_str("@origin").unwrap();
+    pub static ref TEST_ENDPOINT_ORIGIN : Endpoint = Endpoint::from_str("@origin").unwrap();
     pub static ref TEST_ENDPOINT_A: Endpoint = Endpoint::from_str("@test-a").unwrap();
     pub static ref TEST_ENDPOINT_B: Endpoint = Endpoint::from_str("@test-b").unwrap();
     pub static ref TEST_ENDPOINT_C: Endpoint = Endpoint::from_str("@test-c").unwrap();
@@ -31,7 +31,7 @@ lazy_static::lazy_static! {
 }
 
 pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
-    get_mock_setup_with_endpoint(ORIGIN.clone(), InterfacePriority::default())
+    get_mock_setup_with_endpoint(TEST_ENDPOINT_ORIGIN.clone(), InterfacePriority::default())
         .await
 }
 
@@ -82,7 +82,7 @@ pub async fn get_mock_setup_and_socket() -> (
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
     get_mock_setup_and_socket_for_endpoint(
-        ORIGIN.clone(),
+        TEST_ENDPOINT_ORIGIN.clone(),
         Some(TEST_ENDPOINT_A.clone()),
         None,
         None,
@@ -99,7 +99,7 @@ pub async fn get_mock_setup_and_socket_for_priority(
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
     get_mock_setup_and_socket_for_endpoint(
-        ORIGIN.clone(),
+        TEST_ENDPOINT_ORIGIN.clone(),
         Some(TEST_ENDPOINT_A.clone()),
         None,
         None,
@@ -209,14 +209,14 @@ pub async fn send_empty_block_and_update(
 pub fn get_last_received_single_block_from_com_hub(
     com_hub: &ComHub,
 ) -> DXBBlock {
-    let scopes = com_hub.block_handler.request_scopes.borrow();
+    let scopes = com_hub.block_handler.block_cache.borrow();
     let scopes = scopes.values().collect::<Vec<_>>();
 
     assert_eq!(scopes.len(), 1);
-    let blocks = scopes[0].blocks.values().next().unwrap();
+    let blocks = scopes[0].block_queues.values().next().unwrap();
 
     match blocks {
-        IncomingBlocks::SingleBlock(block) => block.clone(),
+        IncomingSection::SingleBlock(block) => block.clone(),
         _ => {
             panic!("Expected single block, but got block stream");
         }
@@ -225,16 +225,16 @@ pub fn get_last_received_single_block_from_com_hub(
 pub fn get_all_received_single_blocks_from_com_hub(
     com_hub: &ComHub,
 ) -> Vec<DXBBlock> {
-    let scopes = com_hub.block_handler.request_scopes.borrow();
+    let scopes = com_hub.block_handler.block_cache.borrow();
     let scopes = scopes.values().collect::<Vec<_>>();
 
     let mut blocks = vec![];
 
     for scope in scopes {
-        let blocks_in_scope = scope.blocks.values().collect::<Vec<_>>();
+        let blocks_in_scope = scope.block_queues.values().collect::<Vec<_>>();
         for block in blocks_in_scope {
             match block {
-                IncomingBlocks::SingleBlock(block) => {
+                IncomingSection::SingleBlock(block) => {
                     blocks.push(block.clone());
                 }
                 _ => {
