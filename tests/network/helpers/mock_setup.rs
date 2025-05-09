@@ -209,13 +209,12 @@ pub async fn send_empty_block_and_update(
 pub fn get_last_received_single_block_from_com_hub(
     com_hub: &ComHub,
 ) -> DXBBlock {
-    let scopes = com_hub.block_handler.block_cache.borrow();
-    let scopes = scopes.values().collect::<Vec<_>>();
+    let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut();
+    let sections = sections.drain(..).collect::<Vec<_>>();
 
-    assert_eq!(scopes.len(), 1);
-    let blocks = scopes[0].block_queues.values().next().unwrap();
+    assert_eq!(sections.len(), 1);
 
-    match blocks {
+    match &sections[0].1 {
         IncomingSection::SingleBlock(block) => block.clone(),
         _ => {
             panic!("Expected single block, but got block stream");
@@ -225,21 +224,18 @@ pub fn get_last_received_single_block_from_com_hub(
 pub fn get_all_received_single_blocks_from_com_hub(
     com_hub: &ComHub,
 ) -> Vec<DXBBlock> {
-    let scopes = com_hub.block_handler.block_cache.borrow();
-    let scopes = scopes.values().collect::<Vec<_>>();
-
+    let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut();
+    let sections = sections.drain(..).collect::<Vec<_>>();
+    
     let mut blocks = vec![];
 
-    for scope in scopes {
-        let blocks_in_scope = scope.block_queues.values().collect::<Vec<_>>();
-        for block in blocks_in_scope {
-            match block {
-                IncomingSection::SingleBlock(block) => {
-                    blocks.push(block.clone());
-                }
-                _ => {
-                    panic!("Expected single block, but got block stream");
-                }
+    for (_, section) in sections {
+        match section {
+            IncomingSection::SingleBlock(block) => {
+                blocks.push(block.clone());
+            }
+            _ => {
+                panic!("Expected single block, but got block stream");
             }
         }
     }

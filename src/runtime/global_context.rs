@@ -57,7 +57,3 @@ pub fn get_global_context() -> GlobalContext {
         ),
     }
 }
-
-pub fn get_global_time() -> Box<&dyn TimeTrait> {
-    Box::new(&get_global_context().time.lock().unwrap())
-}

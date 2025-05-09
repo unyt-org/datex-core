@@ -91,7 +91,7 @@ impl Default for FlagsAndTimestamp {
         FlagsAndTimestamp::new()
             .with_block_type(BlockType::Request)
             .with_allow_execution(false)
-            .with_is_end_of_block(true)
+            .with_is_end_of_section(true)
             .with_is_end_of_scope(true)
             .with_has_lifetime(false)
             .with_has_represented_by(false)

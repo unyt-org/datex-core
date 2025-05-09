@@ -25,7 +25,7 @@ async fn send_single_block() {
             block_header: BlockHeader {
                 scope_id,
                 flags_and_timestamp: FlagsAndTimestamp::new()
-                    .with_is_end_of_block(true),
+                    .with_is_end_of_section(true),
                 ..BlockHeader::default()
             },
             routing_header: RoutingHeader {
@@ -53,24 +53,24 @@ async fn send_single_block() {
 
         // block scope id must be in request_queue
         assert_eq!(
-            com_hub.block_handler.request_queue.borrow().iter().next().unwrap(),
-            &block_endpoint_scope_id
+            com_hub.block_handler.incoming_sections_queue.borrow().iter().next().unwrap().0,
+            block_endpoint_scope_id
         );
         
         // block must be in request_scopes
-        let scopes = com_hub.block_handler.block_cache.borrow();
+        /*let scopes = com_hub.block_handler.block_cache.borrow();
         assert_eq!(
             scopes.len(),
             1,
-        );
+        );*/
         
-        let scope_blocks = &scopes.get(&block_endpoint_scope_id).unwrap().block_queues;
+      /*  let scope_blocks = &scopes.get(&block_endpoint_scope_id).unwrap().block_queues;
         
         assert_eq!(
             scope_blocks.len(),
             1,
         );
         
-        scope_blocks
+        scope_blocks*/
     }
 }
