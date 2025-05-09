@@ -52,7 +52,7 @@ pub struct BlockHandler {
 
     /// a queue of incoming request scopes
     /// the scopes can be retrieved from the request_scopes map
-    pub incoming_sections_queue: RefCell<VecDeque<(IncomingEndpointScopeId, IncomingSection)>>,
+    pub incoming_sections_queue: RefCell<VecDeque<IncomingSection>>,
 
     /// a map of observers for incoming response blocks (by scope_id + block_index)
     /// contains an observer callback and an optional queue of blocks if the response block is a multi-block stream
@@ -139,17 +139,13 @@ impl BlockHandler {
         &self,
         block: DXBBlock,
     ) {
-        let endpoint_scope_id = IncomingEndpointScopeId {
-            sender: block.routing_header.sender.clone(),
-            scope_id: block.block_header.scope_id,
-        };
         let new_sections = self.extract_complete_sections_with_new_incoming_block(
             block
         );
         // put into request queue
         let mut request_queue = self.incoming_sections_queue.borrow_mut();
         for section in new_sections {
-            request_queue.push_back((endpoint_scope_id.clone(), section));
+            request_queue.push_back(section);
         }
     }
 
@@ -174,7 +170,7 @@ impl BlockHandler {
             let remove_observer = if let Some(observer) = self.section_observers.borrow_mut().get_mut(&(scope_id, section_index)) {
                 // call the observer with the new section
                 observer(section);
-                // remove observer
+                // remove observer (TODO: only remove when not expecting multiple responses from multiple endpoints)
                 true
             }
             else {
@@ -198,6 +194,7 @@ impl BlockHandler {
         let section_index = block.block_header.section_index;
         let block_number = block.block_header.block_number;
         let is_end_of_section = block.block_header.flags_and_timestamp.is_end_of_section();
+        let is_end_of_scope = block.block_header.flags_and_timestamp.is_end_of_scope();
         let endpoint_scope_id = IncomingEndpointScopeId {
             sender: block.routing_header.sender.clone(),
             scope_id: block.block_header.scope_id,
@@ -207,23 +204,26 @@ impl BlockHandler {
         let has_scope_context = self.block_cache.borrow().contains_key(&endpoint_scope_id);
 
         // Case 1: shortcut if no scope context exists and the block is a single block
-        if !has_scope_context && is_end_of_section {
+        if !has_scope_context && block_number == 0 && (is_end_of_section || is_end_of_scope) {
             return vec![IncomingSection::SingleBlock(block)];
         }
 
         // make sure a scope context exists from here on
         let mut request_scopes = self.block_cache.borrow_mut();
         let mut scope_context = request_scopes.entry(endpoint_scope_id.clone()).or_insert_with(ScopeContext::new);
-        
+
+        // TODO: what happens if the endpoint has not received all blocks starting with block_number 0?
+        // we should still potentially process those blocks
+
         // Case 2: if the block is the next expected block in the current section, put it into the
         // section block queue and try to drain blocks from the cache
-        if section_index == scope_context.next_section_index && block_number == scope_context.next_block_number {
+        if block_number == scope_context.next_block_number {
 
             // list of IncomingSections that is returned at the end
             let mut new_blocks = vec![];
 
             // initial values for loop variables from input block
-            let mut is_end_of_scope = block.block_header.flags_and_timestamp.is_end_of_scope();
+            let mut is_end_of_scope = is_end_of_scope;
             let mut is_end_of_section = is_end_of_section;
             let mut next_block = block;
 
