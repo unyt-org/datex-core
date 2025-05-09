@@ -113,47 +113,17 @@ impl BlockHandler {
         info!("Received block (sid={scope_id}, block={block_index}, inc={block_increment})");
 
         // handle observers if response block
-        // TODO: if expecting multiple responses, handle them, otherwise the observer can directly be removed
         if is_response {
             let remove_observer = match self.scope_observers.borrow_mut().get_mut(&(scope_id, block_index)) {
                 Some((ref mut observer, ref mut block_queue)) => {
-                    // is end of block and no previous block queue -> is single block
-                    let is_single_block = is_end_of_block && block_queue.is_none();
-                    match is_single_block {
-                        // single block
-                        true => {
-                            observer(
-                                IncomingBlocks::SingleBlock(block)
-                            );
-                        }
-                        // block stream
-                        false => {
-                            // push block to existing block queue for observer
-                            if let Some(block_queue) = block_queue {
-                                block_queue.borrow_mut().push_back(block);
-                            }
-                            else {
-                                // start of new block stream, create and send to observer
-                                let mut blocks = VecDeque::new();
-                                blocks.push_back(block);
-                                let blocks = Rc::new(RefCell::new(blocks));
-
-                                observer(
-                                    IncomingBlocks::BlockStream(blocks.clone())
-                                );
-                            }
-                        }
-                    };
-
-                    // cleanup observer if is_end_of_block
-                    if is_end_of_block {
-                        // remove observer
-                        log::info!("Removing observer for incoming response block (sid={scope_id}, block={block_index})");
-                        true
-                    }
-                    else {
-                        false
-                    }
+                    self.handle_incoming_response_block(
+                        block,
+                        is_end_of_block,
+                        scope_id,
+                        block_index,
+                        observer,
+                        block_queue
+                    )
                 }
                 None => {
                     // no observer for this scope id + block index
@@ -161,45 +131,109 @@ impl BlockHandler {
                     false
                 }
             };
-            
+
+            // observer has consumed all blocks, remove it
             if remove_observer {
-                // remove observer
                 self.scope_observers.borrow_mut().remove(&(scope_id, block_index));
             }
         }
 
         else {
-            // either store block in request or response scopes
-            let mut request_scopes = self.request_scopes.borrow_mut();
-
-            // create scope context if it doesn't exist
-            request_scopes.entry(endpoint_scope_id.clone()).or_insert_with(|| ScopeContext::new(endpoint_scope_id.clone()));
-
-            let scope_context = request_scopes.get_mut(&endpoint_scope_id).unwrap();
-
-            // create a new block entry if it doesn't exist
-            if let std::collections::btree_map::Entry::Vacant(e) = scope_context.blocks.entry(block_index) {
-                // single block
-                if is_end_of_block {
-                    e.insert(IncomingBlocks::SingleBlock(block));
-                } else {
-                    // block stream
+            self.handle_incoming_request_block(
+                block,
+                endpoint_scope_id,
+                block_index,
+                is_end_of_block,
+            );
+        }
+    }
+    
+    /// Handles incoming response blocks by calling the observer if an observer is registered
+    /// Returns true when the observer has consumed all blocks and should be removed
+    fn handle_incoming_response_block(
+        &self,
+        block: DXBBlock,
+        is_end_of_block: bool,
+        scope_id: IncomingScopeId,
+        block_index: IncomingBlockIndex,
+        observer: &mut ScopeObserver,
+        mut block_queue: &Option<Rc<RefCell<VecDeque<DXBBlock>>>>,
+    ) -> bool {
+        // is end of block and no previous block queue -> is single block
+        let is_single_block = is_end_of_block && block_queue.is_none();
+        match is_single_block {
+            // single block
+            true => {
+                observer(
+                    IncomingBlocks::SingleBlock(block)
+                );
+            }
+            // block stream
+            false => {
+                // push block to existing block queue for observer
+                if let Some(block_queue) = block_queue {
+                    block_queue.borrow_mut().push_back(block);
+                }
+                else {
+                    // start of new block stream, create and send to observer
                     let mut blocks = VecDeque::new();
                     blocks.push_back(block);
-                    e.insert(IncomingBlocks::BlockStream(Rc::new(RefCell::new(blocks))));
-                }
-            } else {
-                let blocks = scope_context.blocks.get_mut(&block_index).unwrap();
-                // must be a block stream
-                if let IncomingBlocks::BlockStream(block_stream) = blocks {
-                    block_stream.borrow_mut().push_back(block);
-                } else {
-                    log::error!("Block index {block_index} only has a single block, but received a block stream");
-                    // TODO:
+                    let blocks = Rc::new(RefCell::new(blocks));
+
+                    observer(
+                        IncomingBlocks::BlockStream(blocks.clone())
+                    );
                 }
             }
-        }
+        };
 
+        // cleanup observer if is_end_of_block
+        if is_end_of_block {
+            // remove observer
+            log::info!("Removing observer for incoming response block (sid={scope_id}, block={block_index})");
+            true
+        }
+        else {
+            false
+        }
+    }
+    
+    fn handle_incoming_request_block(
+        &self,
+        block: DXBBlock,
+        endpoint_scope_id: IncomingEndpointScopeId,
+        block_index: IncomingBlockIndex,
+        is_end_of_block: bool,
+    ) {
+        // either store block in request or response scopes
+        let mut request_scopes = self.request_scopes.borrow_mut();
+
+        // create scope context if it doesn't exist
+        request_scopes.entry(endpoint_scope_id.clone()).or_insert_with(|| ScopeContext::new(endpoint_scope_id.clone()));
+
+        let scope_context = request_scopes.get_mut(&endpoint_scope_id).unwrap();
+
+        // create a new block entry if it doesn't exist
+        if let std::collections::btree_map::Entry::Vacant(e) = scope_context.blocks.entry(block_index) {
+            // single block
+            if is_end_of_block {
+                e.insert(IncomingBlocks::SingleBlock(block));
+            } else {
+                // block stream
+                let mut blocks = VecDeque::new();
+                blocks.push_back(block);
+                e.insert(IncomingBlocks::BlockStream(Rc::new(RefCell::new(blocks))));
+            }
+        } else {
+            let blocks = scope_context.blocks.get_mut(&block_index).unwrap();
+            // must be a block stream
+            if let IncomingBlocks::BlockStream(block_stream) = blocks {
+                block_stream.borrow_mut().push_back(block);
+            } else {
+                log::error!("Block index {block_index} only has a single block, but received a block stream");
+                // TODO:
+            }
+        }
     }
 
     pub fn get_new_scope_id(&self) -> OutgoingScopeId {
