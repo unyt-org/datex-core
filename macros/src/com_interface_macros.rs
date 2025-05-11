@@ -47,7 +47,6 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
     {
         panic!("The function is public. Remove the public modifier",);
     }
-    
 
     {
         if original_open.sig.asyncness.is_some() {
