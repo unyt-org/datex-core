@@ -80,7 +80,8 @@ pub struct ComHub {
 
     /// fallback sockets that are used if no direct endpoint reachable socket is available
     /// sorted by priority
-    pub fallback_sockets: RefCell<Vec<(ComInterfaceSocketUUID, u16, InterfaceDirection)>>,
+    pub fallback_sockets:
+        RefCell<Vec<(ComInterfaceSocketUUID, u16, InterfaceDirection)>>,
 
     /// a list of all available sockets for each endpoint, with additional
     /// DynamicEndpointProperties metadata
@@ -275,7 +276,7 @@ impl ComHub {
                         ComInterfaceError::InvalidInterfaceDirectionForFallbackInterface,
                     ));
                 }
-                _ => { }
+                _ => {}
             }
         }
 

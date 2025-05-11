@@ -7,12 +7,12 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::runtime::global_context::get_global_context;
 use crate::utils::time::TimeTrait;
 use futures::channel::oneshot;
+use futures::channel::oneshot::Receiver;
 use log::info;
 use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
-use futures::channel::oneshot::Receiver;
 
 // TODO: store scope memory
 pub struct ScopeContext {

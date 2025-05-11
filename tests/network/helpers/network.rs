@@ -127,10 +127,10 @@ impl Route {
             .record_trace(self.receiver.clone())
             .await
             .expect("Failed to record trace");
-        
+
         // print network trace
         info!("Network trace:\n{}", network_trace);
-        
+
         let mut index = 0;
         for (original, expected) in network_trace
             .hops

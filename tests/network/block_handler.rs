@@ -5,7 +5,9 @@ use crate::network::helpers::mock_setup::{
 use datex_core::global::dxb_block::{
     DXBBlock, IncomingEndpointScopeId, IncomingSection,
 };
-use datex_core::global::protocol_structures::block_header::{BlockHeader, BlockType, FlagsAndTimestamp};
+use datex_core::global::protocol_structures::block_header::{
+    BlockHeader, BlockType, FlagsAndTimestamp,
+};
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::run_async;
 use log::info;
