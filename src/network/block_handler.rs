@@ -12,6 +12,7 @@ use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
+use futures::channel::oneshot::Receiver;
 
 // TODO: store scope memory
 pub struct ScopeContext {
@@ -333,12 +334,13 @@ impl BlockHandler {
         *self.current_scope_id.borrow()
     }
 
-    /// Waits for incoming response block with a specific scope id and block index
-    pub async fn wait_for_incoming_response_block(
+    /// Adds a new observer for incoming blocks with a specific scope id and block index
+    /// Returns a receiver that can be awaited to get the incoming sections
+    pub fn register_incoming_block_observer(
         &self,
         scope_id: OutgoingScopeId,
-        block_index: OutgoingSectionIndex,
-    ) -> Option<IncomingSection> {
+        section_index: OutgoingSectionIndex,
+    ) -> Receiver<IncomingSection> {
         let (tx, rx) = oneshot::channel();
         let mut tx = Some(tx);
 
@@ -353,11 +355,20 @@ impl BlockHandler {
         // add new scope observer
         self.section_observers
             .borrow_mut()
-            .insert((scope_id, block_index), Box::new(observer));
+            .insert((scope_id, section_index), Box::new(observer));
 
+        rx
+    }
+
+    /// Waits for incoming response block with a specific scope id and block index
+    pub async fn wait_for_incoming_response_block(
+        &self,
+        scope_id: OutgoingScopeId,
+        section_index: OutgoingSectionIndex,
+    ) -> Option<IncomingSection> {
+        let rx = self.register_incoming_block_observer(scope_id, section_index);
         // Await the result from the callback
         let res = rx.await.ok();
-
         res
     }
 }
