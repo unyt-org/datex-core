@@ -81,7 +81,7 @@ impl IncomingSection {
                 block.block_header.section_index
             }
             IncomingSection::BlockStream((_, section_index)) => {
-                section_index.clone()
+                *section_index
             }
         }
     }

@@ -5,7 +5,6 @@ use crate::global::dxb_block::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::global_context::get_global_context;
-use crate::utils::time::TimeTrait;
 use futures::channel::oneshot;
 use futures::channel::oneshot::Receiver;
 use log::info;
@@ -29,8 +28,8 @@ pub struct ScopeContext {
 }
 
 /// A scope context storing scopes of incoming DXB blocks
-impl ScopeContext {
-    pub fn new() -> ScopeContext {
+impl Default for ScopeContext {
+    fn default() -> Self {
         ScopeContext {
             next_section_index: 0,
             next_block_number: 0,
@@ -183,7 +182,7 @@ impl BlockHandler {
                 true
             } else {
                 // no observer for this scope id + block index
-                log::warn!("No observer for incoming response block (scope={:?}, block={section_index}), dropping block", endpoint_scope_id);
+                log::warn!("No observer for incoming response block (scope={endpoint_scope_id:?}, block={section_index}), dropping block");
                 false
             };
 
@@ -226,9 +225,9 @@ impl BlockHandler {
 
         // make sure a scope context exists from here on
         let mut request_scopes = self.block_cache.borrow_mut();
-        let mut scope_context = request_scopes
+        let scope_context = request_scopes
             .entry(endpoint_scope_id.clone())
-            .or_insert_with(ScopeContext::new);
+            .or_default();
 
         // TODO: what happens if the endpoint has not received all blocks starting with block_number 0?
         // we should still potentially process those blocks

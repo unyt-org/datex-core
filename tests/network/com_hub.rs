@@ -16,7 +16,6 @@ use core::panic;
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::mpsc;
-use tokio::task;
 // FIXME no-std
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{

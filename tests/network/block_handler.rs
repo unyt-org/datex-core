@@ -3,7 +3,7 @@ use crate::network::helpers::mock_setup::{
     get_mock_setup_and_socket, TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN,
 };
 use datex_core::global::dxb_block::{
-    DXBBlock, IncomingEndpointScopeId, IncomingSection,
+    DXBBlock, IncomingSection,
 };
 use datex_core::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -66,7 +66,7 @@ async fn receive_single_block() {
         // block must be a single block
         match section {
             IncomingSection::SingleBlock(block) => {
-                info!("section: {:?}", section);
+                info!("section: {section:?}");
                 assert_eq!(block.get_endpoint_scope_id(), block_endpoint_scope_id);
             }
             _ => panic!("Expected a SingleBlock section"),
@@ -139,11 +139,11 @@ async fn receive_multiple_blocks() {
         // block must be in incoming_sections_queue
         let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
-        let section = sections.iter().next().unwrap();
+        let section = sections.first().unwrap();
         // block must be a block stream
         match section {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", section);
+                info!("section: {section:?}");
                 // section must match
                 assert_eq!(incoming_section_index, &section_index);
                 // blocks queue length must be 1
@@ -167,7 +167,7 @@ async fn receive_multiple_blocks() {
         // block must be a block stream
         match section {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", section);
+                info!("section: {section:?}");
                 // section must match
                 assert_eq!(incoming_section_index, &section_index);
                 // blocks queue length must be 2 (was not yet drained)
@@ -257,9 +257,9 @@ async fn receive_multiple_blocks_wrong_order() {
         assert_eq!(sections.len(), 1);
 
         // block must be a block stream
-        match sections.iter().next().unwrap() {
+        match sections.first().unwrap() {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", sections);
+                info!("section: {sections:?}");
 
                 let blocks = blocks.borrow();
                 // section must match
@@ -269,7 +269,7 @@ async fn receive_multiple_blocks_wrong_order() {
 
                 // check order:
                 // first block must have block number 0
-                let block = blocks.get(0).unwrap();
+                let block = blocks.front().unwrap();
                 assert_eq!(block.block_header.block_number, 0);
                 // second block must have block number 1
                 let block = blocks.get(1).unwrap();
@@ -379,9 +379,9 @@ async fn receive_multiple_sections() {
         let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
         // block must be a block stream
-        match sections.iter().next().unwrap() {
+        match sections.first().unwrap() {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", sections);
+                info!("section: {sections:?}");
                 // section must match
                 assert_eq!(incoming_section_index, &section_index_1);
                 // blocks queue length must be 1
@@ -402,9 +402,9 @@ async fn receive_multiple_sections() {
         let new_sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(new_sections.len(), 0);
         // block must be a block stream
-        match sections.iter().next().unwrap() {
+        match sections.first().unwrap() {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", sections);
+                info!("section: {sections:?}");
                 // section must match
                 assert_eq!(incoming_section_index, &section_index_1);
                 // blocks queue length must be 2
@@ -424,9 +424,9 @@ async fn receive_multiple_sections() {
         let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
         // block must be a block stream
-        match sections.iter().next().unwrap() {
+        match sections.first().unwrap() {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", sections);
+                info!("section: {sections:?}");
                 // section must match
                 assert_eq!(incoming_section_index, &section_index_2);
                 // blocks queue length must be 1
@@ -446,9 +446,9 @@ async fn receive_multiple_sections() {
         let new_sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(new_sections.len(), 0);
         // block must be a block stream
-        match sections.iter().next().unwrap() {
+        match sections.first().unwrap() {
             IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {:?}", sections);
+                info!("section: {sections:?}");
                 // section must match
                 assert_eq!(incoming_section_index, &section_index_2);
                 // blocks queue length must be 2
@@ -516,7 +516,7 @@ async fn await_response_block() {
         // IncomingSection must be a SingleBlock
         match response {
             IncomingSection::SingleBlock(block) => {
-                info!("section: {:?}", block);
+                info!("section: {block:?}");
                 assert_eq!(block.block_header.scope_id, scope_id);
                 assert_eq!(block.block_header.section_index, section_index);
             }

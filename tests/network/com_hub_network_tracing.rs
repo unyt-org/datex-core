@@ -8,7 +8,6 @@ use datex_core::{run_async, run_async_thread};
 use ntest_timeout::timeout;
 use std::sync::mpsc;
 use std::thread;
-use tokio::task;
 
 #[tokio::test]
 #[timeout(1000)]

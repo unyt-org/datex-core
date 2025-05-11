@@ -5,7 +5,6 @@ use crate::global::protocol_structures::routing_header::{
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{sleep, spawn_with_panic_notify};
-use futures_util::future::join_all;
 
 use futures::FutureExt;
 use itertools::Itertools;
@@ -31,7 +30,7 @@ use crate::network::block_handler::{BlockHandler};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties, ReconnectionConfig,
+    InterfaceDirection, ReconnectionConfig,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
@@ -269,16 +268,12 @@ impl ComHub {
         }
 
         // make sure the interface can send if a priority is set
-        if priority != InterfacePriority::None {
-            match interface.borrow_mut().get_properties().direction {
-                InterfaceDirection::In => {
-                    return Err(ComHubError::InterfaceError(
-                        ComInterfaceError::InvalidInterfaceDirectionForFallbackInterface,
-                    ));
-                }
-                _ => {}
+        if priority != InterfacePriority::None
+            && interface.borrow_mut().get_properties().direction == InterfaceDirection::In {
+                return Err(ComHubError::InterfaceError(
+                    ComInterfaceError::InvalidInterfaceDirectionForFallbackInterface,
+                ));
             }
-        }
 
         interfaces.insert(uuid, (interface, priority));
         Ok(())
@@ -810,7 +805,7 @@ impl ComHub {
                 InterfaceDirection::InOut => 0,
                 InterfaceDirection::Out => 1,
                 InterfaceDirection::In => {
-                    panic!("Socket {} is not allowed to be used as fallback socket", socket_uuid)
+                    panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
                 }
             };
             (dir_rank, std::cmp::Reverse(*priority))
