@@ -584,7 +584,7 @@ async fn simple_network() {
     init_global_context();
     run_async! {
         let mut network = Network::load(
-            "../../test/network-builder/networks/simple.json",
+            "simple.json",
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -603,7 +603,7 @@ async fn complex_network_1() {
     init_global_context();
     run_async! {
         let mut network = Network::load(
-            "../../test/network-builder/networks/complex.json",
+            "complex.json",
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -627,7 +627,7 @@ async fn complex_network_2() {
     init_global_context();
     run_async! {
         let mut network = Network::load(
-            "../../test/network-builder/networks/complex.json",
+            "complex.json",
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
@@ -651,7 +651,7 @@ async fn complex_network_3() {
     init_global_context();
     run_async! {
         let mut network = Network::load(
-            "../../test/network-builder/networks/complex.json",
+            "complex.json",
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
