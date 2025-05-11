@@ -147,6 +147,7 @@ wasm_webrtc = ["matchbox_socket"] # use webrtc
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
 esp_logger = ["esp-idf-svc"]
+env_logger = []
 
 # runtime
 tokio_runtime = ["dep:tokio"]
