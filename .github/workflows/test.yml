@@ -8,6 +8,11 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
+            - name: Install libudev-dev and pkg-config
+              run: |
+                sudo apt update
+                sudo apt install -y libudev-dev pkg-config
+
             - uses: actions-rs/toolchain@v1
               with:
                 toolchain: nightly
