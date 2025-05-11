@@ -802,18 +802,17 @@ impl ComHub {
         // add to vec
         let mut fallback_sockets = self.fallback_sockets.borrow_mut();
         fallback_sockets.push((socket_uuid.clone(), priority, direction));
-        /*// sort_by priority
-        fallback_sockets.sort_by(|(_, a), (_, b)| b.cmp(a));*/
         // first sort by direction (InOut before Out - only In is not allowed)
         // second sort by priority
-        fallback_sockets.sort_by(|(_, priority_a, direction_a), (_, priority_b, direction_b)| {
-            if direction_a == &InterfaceDirection::InOut {
-                return Ordering::Less;
-            }
-            if direction_b == &InterfaceDirection::InOut {
-                return Ordering::Greater;
-            }
-            priority_b.cmp(priority_a)
+        fallback_sockets.sort_by_key(|(_, priority, direction)| {
+            let dir_rank = match direction {
+                InterfaceDirection::InOut => 0,
+                InterfaceDirection::Out => 1,
+                InterfaceDirection::In => {
+                    panic!("Socket {} is not allowed to be used as fallback socket", socket_uuid)
+                }
+            };
+            (dir_rank, std::cmp::Reverse(*priority))
         });
     }
 
