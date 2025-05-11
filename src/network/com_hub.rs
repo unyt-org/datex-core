@@ -80,7 +80,7 @@ pub struct ComHub {
 
     /// fallback sockets that are used if no direct endpoint reachable socket is available
     /// sorted by priority
-    pub fallback_sockets: RefCell<Vec<(ComInterfaceSocketUUID, u16)>>,
+    pub fallback_sockets: RefCell<Vec<(ComInterfaceSocketUUID, u16, InterfaceDirection)>>,
 
     /// a list of all available sockets for each endpoint, with additional
     /// DynamicEndpointProperties metadata
@@ -197,7 +197,6 @@ impl ComHub {
         {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
-            let uuid = interface.borrow().get_uuid().clone();
             let res = self
                 .open_and_add_interface(interface.clone(), priority)
                 .await
@@ -267,6 +266,19 @@ impl ComHub {
         if interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
         }
+
+        // make sure the interface can send if a priority is set
+        if priority != InterfacePriority::None {
+            match interface.borrow_mut().get_properties().direction {
+                InterfaceDirection::In => {
+                    return Err(ComHubError::InterfaceError(
+                        ComInterfaceError::InvalidInterfaceDirectionForFallbackInterface,
+                    ));
+                }
+                _ => { }
+            }
+        }
+
         interfaces.insert(uuid, (interface, priority));
         Ok(())
     }
@@ -741,6 +753,7 @@ impl ComHub {
                 socket_ref.uuid
             );
         }
+        let direction = socket_ref.direction.clone();
 
         self.sockets
             .borrow_mut()
@@ -754,7 +767,7 @@ impl ComHub {
                 }
                 InterfacePriority::Priority(priority) => {
                     // add socket to fallback sockets list
-                    self.add_fallback_socket(&socket_uuid, priority);
+                    self.add_fallback_socket(&socket_uuid, priority, direction);
                 }
             }
         }
@@ -784,12 +797,24 @@ impl ComHub {
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
         priority: u16,
+        direction: InterfaceDirection,
     ) {
         // add to vec
         let mut fallback_sockets = self.fallback_sockets.borrow_mut();
-        fallback_sockets.push((socket_uuid.clone(), priority));
-        // sort_by priority
-        fallback_sockets.sort_by(|(_, a), (_, b)| b.cmp(a));
+        fallback_sockets.push((socket_uuid.clone(), priority, direction));
+        /*// sort_by priority
+        fallback_sockets.sort_by(|(_, a), (_, b)| b.cmp(a));*/
+        // first sort by direction (InOut before Out - only In is not allowed)
+        // second sort by priority
+        fallback_sockets.sort_by(|(_, priority_a, direction_a), (_, priority_b, direction_b)| {
+            if direction_a == &InterfaceDirection::InOut {
+                return Ordering::Less;
+            }
+            if direction_b == &InterfaceDirection::InOut {
+                return Ordering::Greater;
+            }
+            priority_b.cmp(priority_a)
+        });
     }
 
     /// Removes a socket from the socket list
@@ -809,7 +834,7 @@ impl ComHub {
         // remove socket if it is the default socket
         self.fallback_sockets
             .borrow_mut()
-            .retain(|(uuid, _)| uuid != socket_uuid);
+            .retain(|(uuid, _, _)| uuid != socket_uuid);
     }
 
     /// Adds an endpoint to the endpoint list of a specific socket
@@ -1055,7 +1080,7 @@ impl ComHub {
         // otherwise, return the highest priority socket that is not excluded
         else {
             let sockets = self.fallback_sockets.borrow();
-            for (socket_uuid, _) in sockets.iter() {
+            for (socket_uuid, _, _) in sockets.iter() {
                 let socket = self.get_socket_by_uuid(socket_uuid);
                 info!(
                     "{}: Find best for {}: {} ({}); excluded:{}",

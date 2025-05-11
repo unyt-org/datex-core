@@ -587,36 +587,78 @@ async fn simple_network() {
             "../../test/network-builder/networks/simple.json",
         );
         network.start().await;
-        tokio::time::sleep(Duration::from_millis(800)).await;
-        Route::from("@4726", "@s5zw")
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::from_to("@4726", "@s5zw")
             .to_via("@yhr9", "mockup")
-            .to("@s5zw")
-            .to("@4726")
-            .expect(&network)
+            .hop("@s5zw")
+            .hop("@4726")
+            .test(&network)
             .await
     };
 }
 
 #[tokio::test]
 #[timeout(7000)]
-async fn complex_network() {
+async fn complex_network_1() {
     init_global_context();
     run_async! {
         let mut network = Network::load(
             "../../test/network-builder/networks/complex.json",
         );
         network.start().await;
-        tokio::time::sleep(Duration::from_millis(3000)).await;
-        Route::from("@bk2y", "@n7oe")
-            .to("@em68")
-            .to("@msun")
-            .to("@fyig")
-            .to("@n7oe")
-            .to("@fyig")
-            .to("@msun")
-            .to("@ajil")
-            .to("@bk2y")
-            .expect(&network)
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::from_to("@bk2y", "@n7oe")
+            .hop("@em68")
+            .hop("@msun")
+            .hop("@fyig")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .hop("@msun")
+            .hop("@ajil")
+            .hop("@bk2y")
+            .test(&network)
+            .await
+    }
+}
+
+#[tokio::test]
+#[timeout(7000)]
+async fn complex_network_2() {
+    init_global_context();
+    run_async! {
+        let mut network = Network::load(
+            "../../test/network-builder/networks/complex.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::from_to("@msun", "@bk2y")
+            .hop("@fyig")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .hop("@msun")
+            .hop("@ajil")
+            .hop("@bk2y")
+            .hop("@em68")
+            .hop("@msun")
+            .test(&network)
+            .await
+    }
+}
+
+#[tokio::test]
+#[timeout(7000)]
+async fn complex_network_3() {
+    init_global_context();
+    run_async! {
+        let mut network = Network::load(
+            "../../test/network-builder/networks/complex.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::from_to("@fyig", "@n7oe")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .test(&network)
             .await
     }
 }

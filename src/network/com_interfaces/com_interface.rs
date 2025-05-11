@@ -44,6 +44,7 @@ pub enum ComInterfaceError {
     SendError,
     ReceiveError,
     InvalidSetupData,
+    InvalidInterfaceDirectionForFallbackInterface
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIs)]
