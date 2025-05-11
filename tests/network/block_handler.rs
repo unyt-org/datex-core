@@ -2,9 +2,7 @@ use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     get_mock_setup_and_socket, TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN,
 };
-use datex_core::global::dxb_block::{
-    DXBBlock, IncomingSection,
-};
+use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };

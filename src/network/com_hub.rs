@@ -269,11 +269,13 @@ impl ComHub {
 
         // make sure the interface can send if a priority is set
         if priority != InterfacePriority::None
-            && interface.borrow_mut().get_properties().direction == InterfaceDirection::In {
-                return Err(ComHubError::InterfaceError(
+            && interface.borrow_mut().get_properties().direction
+                == InterfaceDirection::In
+        {
+            return Err(ComHubError::InterfaceError(
                     ComInterfaceError::InvalidInterfaceDirectionForFallbackInterface,
                 ));
-            }
+        }
 
         interfaces.insert(uuid, (interface, priority));
         Ok(())

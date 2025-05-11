@@ -11,10 +11,10 @@ use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{self, Display};
-use std::{env, fs};
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
+use std::{env, fs};
 
 use super::mockup_interface::MockupInterface;
 
@@ -258,10 +258,13 @@ struct NetworkData {
 
 impl Network {
     pub fn load<P: AsRef<Path>>(path: P) -> Self {
-        let current_dir = env::current_dir().expect("Failed to get current directory");
-        let path = current_dir.join("tests/network/network-builder/networks/").join(path);
+        let current_dir =
+            env::current_dir().expect("Failed to get current directory");
+        let path = current_dir
+            .join("tests/network/network-builder/networks/")
+            .join(path);
         info!("Loading network from {}", path.display());
-        
+
         let file_content =
             fs::read_to_string(path).expect("Failed to read the file");
         let network_data: NetworkData = serde_json::from_str(&file_content)

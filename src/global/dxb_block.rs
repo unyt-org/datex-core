@@ -80,9 +80,7 @@ impl IncomingSection {
             IncomingSection::SingleBlock(block) => {
                 block.block_header.section_index
             }
-            IncomingSection::BlockStream((_, section_index)) => {
-                *section_index
-            }
+            IncomingSection::BlockStream((_, section_index)) => *section_index,
         }
     }
 }

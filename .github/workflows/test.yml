@@ -21,6 +21,9 @@ jobs:
             - name: Run tests
               run: |
                 cargo test  -- -Z unstable-options --format json --report-time | tee results.json
+
+            - name: Check formatting
+              run: cargo fmt --all -- --check
             
             - name: Prepare junit report
               id: cargo_reporter 

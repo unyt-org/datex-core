@@ -225,9 +225,8 @@ impl BlockHandler {
 
         // make sure a scope context exists from here on
         let mut request_scopes = self.block_cache.borrow_mut();
-        let scope_context = request_scopes
-            .entry(endpoint_scope_id.clone())
-            .or_default();
+        let scope_context =
+            request_scopes.entry(endpoint_scope_id.clone()).or_default();
 
         // TODO: what happens if the endpoint has not received all blocks starting with block_number 0?
         // we should still potentially process those blocks
