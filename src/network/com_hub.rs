@@ -90,7 +90,7 @@ pub struct ComHub {
             Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
         >,
     >,
-    
+
     /// set to true if the update loop should be running
     /// when set to false, the update loop will stop
     update_loop_running: RefCell<bool>,
@@ -1168,7 +1168,7 @@ impl ComHub {
             }
         });
     }
-    
+
     /// Stops the update loop for the ComHub, if it is running.
     pub fn stop_update_loop(&self) {
         info!("Stopping ComHub update loop for {}", self.endpoint);
