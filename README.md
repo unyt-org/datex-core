@@ -17,6 +17,13 @@ The [DATEX CLI](https://github.com/unyt-org/datex-cli) is also built on top of t
 Tests must be run with the `debug` feature enabled. You can either run the tests with
 `cargo test --features debug` or use the alias `cargo test-debug`.
 
+### Clippy
+To apply clippy fixes, run the following command:
+
+```bash
+cargo clippy --fix --features debug
+```
+
 ## Contributing
 
 We welcome every contribution!<br>
