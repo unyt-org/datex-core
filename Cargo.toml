@@ -93,11 +93,6 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
-[profile.dev]
-opt-level = 3
-features = ["debug", "tokio-rt"]
-
-
 # Development dependencies
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 matchbox_signaling = { version = "0.11.0" }
@@ -127,7 +122,6 @@ default = [
     "native_webrtc",
     "wasm_webrtc",
     "flexi_logger",
-    "debug",
     "tokio_runtime",
 ] # default to nostd
 

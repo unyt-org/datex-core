@@ -26,7 +26,7 @@ jobs:
 
             - name: Run tests
               run: |
-                cargo test  -- -Z unstable-options --format json --report-time | tee results.json
+                cargo test-debug  -- -Z unstable-options --format json --report-time | tee results.json
             
             - name: Prepare junit report
               id: cargo_reporter 

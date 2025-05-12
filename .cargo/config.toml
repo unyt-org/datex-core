@@ -1,0 +1,2 @@
+[alias]
+test-debug = "test --features debug"
