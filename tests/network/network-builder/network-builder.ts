@@ -18,9 +18,14 @@ type NetworkDefinition = {
     }>;
 };
 
+type DirEntry  = {
+    name: string;
+    children?: DirEntry[];
+} | string;
+
 class NetworkManager {
     public static async getAllNetworks() {
-        const storedNetworks = await (await fetch("/rs-lib/datex-core/tests/network/network-builder/")).json();
+        const storedNetworks = await (await fetch("/rs-lib/datex-core/tests/network/network-builder/")).json() as DirEntry[];
         return NetworkManager.resolveChildren(
             storedNetworks,
             "networks",
@@ -41,17 +46,17 @@ class NetworkManager {
                 return { nodes, edges };
             });
     }
-    private static resolveChildren(structure: any, path: string) {
+    private static resolveChildren(structure: DirEntry[], path: string) {
         const parts = path.split("/");
         let current = structure;
         for (const part of parts) {
-            const next = current.find((item: any) =>
+            const next = current.find((item) =>
                 typeof item === "object" && item.name === part
             );
-            if (!next || !Array.isArray(next.children)) {
+            if (!next || !Array.isArray((next as {children: DirEntry[]}).children)) {
                 return null;
             }
-            current = next.children;
+            current = (next as {children: DirEntry[]}).children;
         }
         return current as string[];
     }
@@ -63,10 +68,10 @@ const loadNetwork = async (name: string) => {
         globalThis.location.hash = name;
         cy.elements().remove();
         network.nodes.forEach((node) => {
-            cy.add(node as any);
+            cy.add(node as unknown as cytoscape.ElementDefinition);
         });
         network.edges.forEach((edge) => {
-            cy.add(edge as any);
+            cy.add(edge as unknown as cytoscape.ElementDefinition);
         });
         layout(true);
     } catch (error) {
@@ -176,7 +181,7 @@ function layout(fit = false) {
         idealEdgeLength: 80,
         tilingPaddingVertical: 100,
         tilingPaddingHorizontal: 100,
-    } as any).run();
+    } as unknown as cytoscape.LayoutOptions).run();
 }
 
 const getRandomName = (len = 4) => {
@@ -430,6 +435,7 @@ document.querySelectorAll("[data-action]").forEach((el) => {
                         return data;
                     });
                     const networkData = { nodes: nodes, edges: edges };
+                    // deno-lint-ignore no-explicit-any
                     const handle = await (globalThis as any).showSaveFilePicker(
                         {
                             suggestedName: `${networkName}.json`,
