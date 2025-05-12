@@ -1,0 +1,82 @@
+{
+	"nodes": [
+		{
+			"id": "n7oe",
+			"label": "@n7oe"
+		},
+		{
+			"id": "msun",
+			"label": "@msun"
+		},
+		{
+			"id": "em68",
+			"label": "@em68"
+		},
+		{
+			"id": "fyig",
+			"label": "@fyig"
+		},
+		{
+			"id": "ajil",
+			"label": "@ajil"
+		}
+	],
+	"edges": [
+		{
+			"id": "mockup-fyig-msun",
+			"source": "fyig",
+			"target": "msun",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-n7oe-fyig",
+			"source": "n7oe",
+			"target": "fyig",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-fyig-n7oe",
+			"source": "fyig",
+			"target": "n7oe",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-em68-msun",
+			"source": "em68",
+			"target": "msun",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-msun-ajil",
+			"source": "msun",
+			"target": "ajil",
+			"type": "mockup",
+			"priority": 1
+		},
+		{
+			"id": "mockup-msun-fyig",
+			"source": "msun",
+			"target": "fyig",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-ajil-msun",
+			"source": "ajil",
+			"target": "msun",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-msun-em68",
+			"source": "msun",
+			"target": "em68",
+			"type": "mockup",
+			"priority": 2
+		}
+	]
+}
