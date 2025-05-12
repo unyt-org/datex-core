@@ -588,7 +588,7 @@ async fn simple_network() {
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        Route::from_to("@4726", "@s5zw")
+        Route::between("@4726", "@s5zw")
             .to_via("@yhr9", "mockup")
             .hop("@s5zw")
             .hop("@4726")
@@ -607,7 +607,7 @@ async fn complex_network_1() {
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        Route::from_to("@bk2y", "@n7oe")
+        Route::between("@bk2y", "@n7oe")
             .hop("@em68")
             .hop("@msun")
             .hop("@fyig")
@@ -631,7 +631,7 @@ async fn complex_network_2() {
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        Route::from_to("@msun", "@bk2y")
+        Route::between("@msun", "@bk2y")
             .hop("@fyig")
             .hop("@n7oe")
             .hop("@fyig")
@@ -655,9 +655,33 @@ async fn complex_network_3() {
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        Route::from_to("@fyig", "@n7oe")
+        Route::between("@fyig", "@n7oe")
             .hop("@n7oe")
             .hop("@fyig")
+            .test(&network)
+            .await
+    }
+}
+
+#[tokio::test]
+#[timeout(7000)]
+async fn threesome_1() {
+    init_global_context();
+    run_async! {
+        let mut network = Network::load(
+            "threesome.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::between("@msun", "@n7oe")
+            .hop("@em68")
+            .hop("@msun")
+            .hop("@ajil")
+            .hop("@msun")
+            .hop("@fyig")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .hop("@msun")
             .test(&network)
             .await
     }

@@ -357,11 +357,6 @@ impl ComHub {
             );
         }
 
-        if !is_new_block {
-            // block already in history, ignore
-            warn!("Block already in history. Ignoring...");
-        }
-
         if let Some(receivers) = &block.routing_header.receivers.endpoints {
             let is_for_own = receivers.endpoints.iter().any(|e| {
                 e == &self.endpoint
@@ -428,7 +423,7 @@ impl ComHub {
 
         // add to block history
         if is_new_block {
-            self.block_handler.add_block_to_history(block, socket_uuid);
+            self.block_handler.add_block_to_history(block, Some(socket_uuid));
         }
     }
 
@@ -529,10 +524,10 @@ impl ComHub {
                 if let Some(history_block_data) = history_block_data {
                     history_block_data.original_socket_uuid
                 } else {
-                    incoming_socket
+                    Some(incoming_socket)
                 };
 
-            let socket_endpoint = self
+            /*let socket_endpoint = self
                 .get_socket_by_uuid(&original_socket)
                 .lock()
                 .unwrap()
@@ -550,7 +545,7 @@ impl ComHub {
                     .as_ref()
                     .map(|e| e.to_string())
                     .unwrap_or("Unknown".to_string())
-            );
+            );*/
             // decrement distance because we are going back
             if block.routing_header.distance <= 1 {
                 block.routing_header.distance -= 1;
@@ -558,11 +553,30 @@ impl ComHub {
             } else {
                 block.routing_header.distance -= 2;
             }
-            self.send_block_addressed(
-                block,
-                &original_socket,
-                &unreachable_endpoints,
-            )
+
+            // If an original socket is set, the original block is not from this endpoint,
+            // so we can send it back to the original socket
+            if let Some(original_socket) = original_socket {
+                self.send_block_addressed(
+                    block,
+                    &original_socket,
+                    &unreachable_endpoints,
+                )
+            }
+            // Otherwise, the block originated from this endpoint, we can just call send again
+            // and try to send it via other remaining sockets that are not on the blacklist for the
+            // block receiver
+            else {
+                self.send_block(block, None).unwrap_or_else(|_| {
+                    error!(
+                        "Failed to send out block to {}",
+                        unreachable_endpoints
+                            .iter()
+                            .map(|e| e.to_string())
+                            .join(",")
+                    );
+                });
+            }
         }
     }
 
@@ -1216,6 +1230,8 @@ impl ComHub {
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
     pub fn send_own_block(&self, mut block: DXBBlock) {
         block = self.prepare_own_block(block);
+        // add own outgoing block to history
+        self.block_handler.add_block_to_history(&block, None);
         self.send_block(block, None);
     }
 

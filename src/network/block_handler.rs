@@ -49,7 +49,9 @@ type SectionObserver = Box<dyn FnMut(IncomingSection)>;
 
 #[derive(Clone, Debug)]
 pub struct BlockHistoryData {
-    pub original_socket_uuid: ComInterfaceSocketUUID,
+    /// if block originated from local endpoint, the socket uuid is None,
+    /// otherwise it is the uuid of the incoming socket
+    pub original_socket_uuid: Option<ComInterfaceSocketUUID>,
 }
 
 pub struct BlockHandler {
@@ -95,14 +97,14 @@ impl BlockHandler {
     pub fn add_block_to_history(
         &self,
         block: &DXBBlock,
-        socket_uuid: ComInterfaceSocketUUID,
+        original_socket_uuid: Option<ComInterfaceSocketUUID>,
     ) {
         let mut history = self.incoming_blocks_history.borrow_mut();
         let block_id = block.get_block_id();
         // only add if original block
         if !history.contains_key(&block_id) {
             let block_data = BlockHistoryData {
-                original_socket_uuid: socket_uuid,
+                original_socket_uuid,
             };
             history.insert(block_id, block_data);
         }

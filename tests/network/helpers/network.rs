@@ -105,7 +105,7 @@ impl Display for Route {
 }
 
 impl Route {
-    pub fn from_to(
+    pub fn between(
         source: impl Into<Endpoint>,
         receiver: impl Into<Endpoint>,
     ) -> Self {
