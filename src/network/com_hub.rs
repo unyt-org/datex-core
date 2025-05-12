@@ -90,6 +90,10 @@ pub struct ComHub {
             Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
         >,
     >,
+    
+    /// set to true if the update loop should be running
+    /// when set to false, the update loop will stop
+    update_loop_running: RefCell<bool>,
 
     pub block_handler: BlockHandler,
 }
@@ -112,6 +116,7 @@ impl Default for ComHub {
             sockets: RefCell::new(HashMap::new()),
             fallback_sockets: RefCell::new(Vec::new()),
             endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
+            update_loop_running: RefCell::new(false),
         }
     }
 }
@@ -1150,12 +1155,24 @@ impl ComHub {
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
     pub fn start_update_loop(self_rc: Rc<Self>) {
+        // if already running, do nothing
+        if *self_rc.update_loop_running.borrow() {
+            return;
+        }
+        // set update loop running flag
+        *self_rc.update_loop_running.borrow_mut() = true;
         spawn_with_panic_notify(async move {
-            loop {
+            while *self_rc.update_loop_running.borrow() {
                 self_rc.update();
                 sleep(Duration::from_millis(1)).await;
             }
         });
+    }
+    
+    /// Stops the update loop for the ComHub, if it is running.
+    pub fn stop_update_loop(&self) {
+        info!("Stopping ComHub update loop for {}", self.endpoint);
+        *self.update_loop_running.borrow_mut() = false;
     }
 
     /// Update all sockets and interfaces,
