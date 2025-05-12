@@ -423,7 +423,8 @@ impl ComHub {
 
         // add to block history
         if is_new_block {
-            self.block_handler.add_block_to_history(block, Some(socket_uuid));
+            self.block_handler
+                .add_block_to_history(block, Some(socket_uuid));
         }
     }
 

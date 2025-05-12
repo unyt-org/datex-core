@@ -130,7 +130,6 @@ impl BlockHandler {
         info!("Handling incoming block...");
         let scope_id = block.block_header.scope_id;
         let section_index = block.block_header.section_index;
-        // TODO: correct sorting of incoming blocks
         let block_number = block.block_header.block_number;
         let is_response = block
             .block_header
