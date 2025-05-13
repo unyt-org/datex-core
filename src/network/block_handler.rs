@@ -367,8 +367,7 @@ impl BlockHandler {
     ) -> Option<IncomingSection> {
         let rx = self.register_incoming_block_observer(scope_id, section_index);
         // Await the result from the callback
-        let res = rx.await.ok();
-        res
+        rx.await.ok()
     }
 }
 
