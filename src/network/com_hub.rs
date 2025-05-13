@@ -197,11 +197,13 @@ impl ComHub {
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");
+        let interface_factories = self.interface_factories.borrow();
         if let Some(factory) =
-            self.interface_factories.borrow().get(interface_type)
+            interface_factories.get(interface_type)
         {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
+            drop(interface_factories);
             let res = self
                 .open_and_add_interface(interface.clone(), priority)
                 .await
