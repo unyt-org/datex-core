@@ -62,13 +62,12 @@ pub async fn test_add_and_remove() {
 pub async fn test_multiple_add() {
     init_global_context();
 
-    let com_hub = Rc::new(RefCell::new(ComHub::default()));
-    let com_hub_mut = com_hub.borrow_mut();
+    let com_hub = ComHub::default();
 
     let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
     let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
 
-    com_hub_mut
+    com_hub
         .open_and_add_interface(
             mockup_interface1.clone(),
             InterfacePriority::default(),
@@ -77,7 +76,7 @@ pub async fn test_multiple_add() {
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
-    com_hub_mut
+    com_hub
         .open_and_add_interface(
             mockup_interface2.clone(),
             InterfacePriority::default(),
@@ -87,14 +86,14 @@ pub async fn test_multiple_add() {
             panic!("Error adding interface: {e:?}");
         });
 
-    assert!(com_hub_mut
+    assert!(com_hub
         .open_and_add_interface(
             mockup_interface1.clone(),
             InterfacePriority::default()
         )
         .await
         .is_err());
-    assert!(com_hub_mut
+    assert!(com_hub
         .open_and_add_interface(
             mockup_interface2.clone(),
             InterfacePriority::default()
@@ -567,9 +566,7 @@ pub async fn test_reconnect() {
         // check that the interface is in the com_hub
         assert_eq!(com_hub.interfaces.borrow().len(), 1);
         assert!(com_hub.has_interface(base_interface.borrow().get_uuid()));
-
-        let com_hub = Rc::new(RefCell::new(com_hub));
-
+        
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself
         // but we do it manually here to test the reconnection
@@ -589,7 +586,7 @@ pub async fn test_reconnect() {
             .is_some());
 
         // the interface should not be reconnected yet
-        com_hub.borrow().update_async().await;
+        com_hub.update_async().await;
         assert_eq!(
             base_interface.borrow().get_state(),
             ComInterfaceState::NotConnected
@@ -600,7 +597,7 @@ pub async fn test_reconnect() {
 
         // check that the interface is connected again
         // and that the close_timestamp is reset
-        com_hub.borrow().update_async().await;
+        com_hub.update_async().await;
 
         assert_eq!(
             base_interface.borrow().get_state(),
