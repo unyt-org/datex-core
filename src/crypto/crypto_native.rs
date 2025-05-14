@@ -1,6 +1,6 @@
-use crate::stdlib::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use crate::stdlib::{future::Future, pin::Pin, usize};
 
 use super::crypto::{CryptoError, CryptoTrait};
 use rand::{rngs::OsRng, Rng};
@@ -33,7 +33,7 @@ impl CryptoTrait for CryptoNative {
         public_key: Vec<u8>,
     ) -> Pin<
         Box<
-            (dyn std::future::Future<Output = Result<Vec<u8>, CryptoError>>
+            (dyn Future<Output = Result<Vec<u8>, CryptoError>>
                  + 'static),
         >,
     > {
@@ -46,7 +46,7 @@ impl CryptoTrait for CryptoNative {
         private_key: Vec<u8>,
     ) -> Pin<
         Box<
-            (dyn std::future::Future<Output = Result<Vec<u8>, CryptoError>>
+            (dyn Future<Output = Result<Vec<u8>, CryptoError>>
                  + 'static),
         >,
     > {
@@ -59,7 +59,7 @@ impl CryptoTrait for CryptoNative {
         private_key: Vec<u8>,
     ) -> Pin<
         Box<
-            dyn std::prelude::rust_2024::Future<
+            dyn Future<
                 Output = Result<Vec<u8>, CryptoError>,
             >,
         >,
@@ -74,7 +74,7 @@ impl CryptoTrait for CryptoNative {
         public_key: Vec<u8>,
     ) -> Pin<
         Box<
-            dyn std::prelude::rust_2024::Future<
+            dyn Future<
                 Output = Result<bool, CryptoError>,
             >,
         >,
@@ -108,26 +108,26 @@ impl CryptoTrait for CryptoNative {
         &self,
     ) -> Pin<
         Box<
-            dyn std::prelude::rust_2024::Future<
-                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
+            dyn Future<
+                Output = Result<(Vec<u8>, Vec<u8>), CryptoError>,
             >,
         >,
     > {
         Box::pin(async {
             let mut rng = OsRng;
             let private_key = RsaPrivateKey::new(&mut rng, 4096)
-                .map_err(|_| super::crypto::CryptoError::KeyGeneratorFailed)?;
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
 
             let private_key_der = private_key
                 .to_pkcs8_der()
-                .map_err(|_| super::crypto::CryptoError::KeyExportFailed)?
+                .map_err(|_| CryptoError::KeyExportFailed)?
                 .as_bytes()
                 .to_vec();
             let public_key = RsaPublicKey::from(&private_key);
 
             let public_key_der = public_key
                 .to_public_key_der()
-                .map_err(|_| super::crypto::CryptoError::KeyExportFailed)?
+                .map_err(|_| CryptoError::KeyExportFailed)?
                 .as_bytes()
                 .to_vec();
 
@@ -139,8 +139,8 @@ impl CryptoTrait for CryptoNative {
         &self,
     ) -> Pin<
         Box<
-            dyn std::prelude::rust_2024::Future<
-                Output = Result<(Vec<u8>, Vec<u8>), super::crypto::CryptoError>,
+            dyn Future<
+                Output = Result<(Vec<u8>, Vec<u8>), CryptoError>,
             >,
         >,
     > {
