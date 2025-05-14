@@ -10,7 +10,6 @@ use futures::FutureExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -911,7 +910,7 @@ impl ComHub {
                                 }
                             }
                             else {
-                                return b.known_since.cmp(&a.known_since)
+                                b.known_since.cmp(&a.known_since)
                             }
                         }
                     }

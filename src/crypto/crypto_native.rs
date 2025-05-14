@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
 use super::crypto::{CryptoError, CryptoTrait};
-use crate::runtime::global_context::get_global_context;
 use rand::{rngs::OsRng, Rng};
 use rsa::{
     pkcs8::{EncodePrivateKey, EncodePublicKey},

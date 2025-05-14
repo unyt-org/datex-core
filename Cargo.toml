@@ -123,6 +123,7 @@ default = [
     "wasm_webrtc",
     "flexi_logger",
     "tokio_runtime",
+    # "debug",            # temporary to fix linting and allow tests to run
 ] # default to nostd
 
 # com interfaces
