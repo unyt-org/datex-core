@@ -199,9 +199,7 @@ impl ComHub {
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");
         let interface_factories = self.interface_factories.borrow();
-        if let Some(factory) =
-            interface_factories.get(interface_type)
-        {
+        if let Some(factory) = interface_factories.get(interface_type) {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
             drop(interface_factories);
@@ -280,7 +278,9 @@ impl ComHub {
             && interface.borrow_mut().get_properties().direction
                 == InterfaceDirection::In
         {
-            return Err(ComHubError::InvalidInterfaceDirectionForFallbackInterface);
+            return Err(
+                ComHubError::InvalidInterfaceDirectionForFallbackInterface,
+            );
         }
 
         interfaces.insert(uuid, (interface, priority));
@@ -535,8 +535,7 @@ impl ComHub {
                 if block.routing_header.distance == 0 {
                     // This case should never happen because the distance is incremented before
                     unreachable!("Distance for redirect block is <= 1. Cannot decrement.");
-                }
-                else {
+                } else {
                     block.routing_header.distance -= 1;
                 }
             } else {

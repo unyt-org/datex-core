@@ -566,7 +566,7 @@ pub async fn test_reconnect() {
         // check that the interface is in the com_hub
         assert_eq!(com_hub.interfaces.borrow().len(), 1);
         assert!(com_hub.has_interface(base_interface.borrow().get_uuid()));
-        
+
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself
         // but we do it manually here to test the reconnection

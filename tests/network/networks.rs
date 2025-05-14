@@ -5,14 +5,16 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
-use crate::network::helpers::network::{InterfaceConnection, Network, Node, Route};
+use crate::network::helpers::network::{
+    InterfaceConnection, Network, Node, Route,
+};
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use datex_core::run_async;
 use log::info;
 use ntest_timeout::timeout;
 use std::time::Duration;
 use tokio::task;
-use datex_core::run_async;
 
 #[tokio::test]
 #[timeout(100)]

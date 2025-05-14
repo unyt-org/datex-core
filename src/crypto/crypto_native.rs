@@ -1,15 +1,15 @@
+use crate::stdlib::{future::Future, pin::Pin, usize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
-use crate::stdlib::{future::Future, pin::Pin, usize};
 
 use super::crypto::{CryptoError, CryptoTrait};
+use crate::runtime::global_context::get_global_context;
 use rand::{rngs::OsRng, Rng};
 use rsa::{
     pkcs8::{EncodePrivateKey, EncodePublicKey},
     RsaPrivateKey, RsaPublicKey,
 };
 use uuid::Uuid;
-use crate::runtime::global_context::get_global_context;
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -31,12 +31,8 @@ impl CryptoTrait for CryptoNative {
         &self,
         data: Vec<u8>,
         public_key: Vec<u8>,
-    ) -> Pin<
-        Box<
-            (dyn Future<Output = Result<Vec<u8>, CryptoError>>
-                 + 'static),
-        >,
-    > {
+    ) -> Pin<Box<(dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'static)>>
+    {
         todo!()
     }
 
@@ -44,12 +40,8 @@ impl CryptoTrait for CryptoNative {
         &self,
         data: Vec<u8>,
         private_key: Vec<u8>,
-    ) -> Pin<
-        Box<
-            (dyn Future<Output = Result<Vec<u8>, CryptoError>>
-                 + 'static),
-        >,
-    > {
+    ) -> Pin<Box<(dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'static)>>
+    {
         todo!()
     }
 
@@ -57,13 +49,7 @@ impl CryptoTrait for CryptoNative {
         &self,
         data: Vec<u8>,
         private_key: Vec<u8>,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                Output = Result<Vec<u8>, CryptoError>,
-            >,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>> {
         todo!()
     }
 
@@ -72,13 +58,7 @@ impl CryptoTrait for CryptoNative {
         data: Vec<u8>,
         signature: Vec<u8>,
         public_key: Vec<u8>,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                Output = Result<bool, CryptoError>,
-            >,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>>>> {
         todo!()
     }
 
@@ -106,13 +86,8 @@ impl CryptoTrait for CryptoNative {
 
     fn new_encryption_key_pair(
         &self,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                Output = Result<(Vec<u8>, Vec<u8>), CryptoError>,
-            >,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
+    {
         Box::pin(async {
             let mut rng = OsRng;
             let private_key = RsaPrivateKey::new(&mut rng, 4096)
@@ -137,13 +112,8 @@ impl CryptoTrait for CryptoNative {
 
     fn new_sign_key_pair(
         &self,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                Output = Result<(Vec<u8>, Vec<u8>), CryptoError>,
-            >,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
+    {
         todo!()
     }
 }
