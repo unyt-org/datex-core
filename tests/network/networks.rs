@@ -53,12 +53,6 @@ async fn create_network_with_two_nodes() {
 
             info!("Network started");
 
-            for endpoint in network.endpoints.iter() {
-                if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
-                }
-            }
-
             let runtime_a = network.get_runtime(TEST_ENDPOINT_A.clone());
             let runtime_b = network.get_runtime(TEST_ENDPOINT_B.clone());
 
@@ -156,57 +150,6 @@ async fn get_test_network_1() -> Network {
     network
 }
 
-async fn get_test_network_random() -> Network {
-    let endpoint_number = 4;
-    let mut nodes: Vec<Node> = Vec::new();
-    let mut open_channels = Vec::<String>::new();
-
-    for i in 0..endpoint_number {
-        let endpoint = Endpoint::from_str(&format!("test-{i}")).unwrap();
-
-        let channel_count = rand::random::<u8>() % 5 + 1;
-        let mut node = Node::new(endpoint.clone());
-
-        for _ in 0..channel_count {
-            let channel_index = rand::random::<usize>() % open_channels.len();
-            let channel_name = open_channels.remove(channel_index);
-            node = node.with_connection(InterfaceConnection::new(
-                "mockup",
-                InterfacePriority::default(),
-                MockupInterfaceSetupData::new(&channel_name),
-            ));
-        }
-        let channel_count = rand::random::<u8>() % 5 + 1;
-        for _ in 0..channel_count {
-            let channel_name = format!("{}-{}", i, rand::random::<u8>());
-            open_channels.push(channel_name.clone());
-
-            node = node.with_connection(InterfaceConnection::new(
-                "mockup",
-                InterfacePriority::default(),
-                MockupInterfaceSetupData::new(&channel_name),
-            ));
-        }
-        nodes.push(node);
-    }
-
-    // connect leftover channels to random nodes
-    for channel_name in open_channels {
-        let node_index = rand::random::<usize>() % endpoint_number;
-        let node = &mut nodes[node_index];
-        // node.with_connection(InterfaceConnection::new(
-        //     "mockup",
-        //     InterfacePriority::default(),
-        //     MockupInterfaceSetupData::new(&channel_name),
-        // ));
-    }
-
-    let mut network = Network::create(nodes);
-    network.register_interface("mockup", MockupInterface::factory);
-    network.start().await;
-    network
-}
-
 async fn get_test_network_1_with_deterministic_priorities() -> Network {
     let mut network = Network::create(vec![
         // @test-a
@@ -256,6 +199,7 @@ async fn get_test_network_1_with_deterministic_priorities() -> Network {
     network
 }
 
+#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_1() {
@@ -302,6 +246,7 @@ async fn network_routing_with_four_nodes_1() {
         .await;
 }
 
+#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_2() {
@@ -366,6 +311,7 @@ async fn network_routing_with_four_nodes_2() {
         .await;
 }
 
+#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_3() {
@@ -416,6 +362,7 @@ async fn network_routing_with_four_nodes_3() {
         .await;
 }
 
+#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_4() {
@@ -480,6 +427,7 @@ async fn network_routing_with_four_nodes_4() {
         .await;
 }
 
+#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_5_deterministic_priorities() {
@@ -528,6 +476,7 @@ async fn network_routing_with_four_nodes_5_deterministic_priorities() {
         .await;
 }
 
+#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_6_deterministic_priorities() {
