@@ -15,7 +15,6 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
-use webrtc::media::audio::buffer::info;
 
 use super::mockup_interface::MockupInterface;
 
