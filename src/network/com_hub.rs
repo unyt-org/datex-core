@@ -147,6 +147,7 @@ pub enum ComHubError {
     InterfaceDoesNotExist,
     InterfaceAlreadyExists,
     InterfaceTypeDoesNotExist,
+    InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
 }
 
@@ -240,7 +241,7 @@ impl ComHub {
         self.interfaces.borrow().contains_key(interface_uuid)
     }
 
-    pub fn get_interface_ref_by_uuid(
+    pub fn get_dyn_interface_by_uuid(
         &self,
         uuid: &ComInterfaceUUID,
     ) -> Option<Rc<RefCell<dyn ComInterface>>> {
@@ -279,9 +280,7 @@ impl ComHub {
             && interface.borrow_mut().get_properties().direction
                 == InterfaceDirection::In
         {
-            return Err(ComHubError::InterfaceError(
-                    ComInterfaceError::InvalidInterfaceDirectionForFallbackInterface,
-                ));
+            return Err(ComHubError::InvalidInterfaceDirectionForFallbackInterface);
         }
 
         interfaces.insert(uuid, (interface, priority));
@@ -531,25 +530,6 @@ impl ComHub {
                     Some(incoming_socket)
                 };
 
-            /*let socket_endpoint = self
-                .get_socket_by_uuid(&original_socket)
-                .lock()
-                .unwrap()
-                .direct_endpoint
-                .clone();
-
-            info!(
-                "Sending block for {} back to original socket: {} ({})",
-                unreachable_endpoints
-                    .iter()
-                    .map(|e| e.to_string())
-                    .join(","),
-                original_socket,
-                socket_endpoint
-                    .as_ref()
-                    .map(|e| e.to_string())
-                    .unwrap_or("Unknown".to_string())
-            );*/
             // decrement distance because we are going back
             if block.routing_header.distance <= 1 {
                 if block.routing_header.distance == 0 {
