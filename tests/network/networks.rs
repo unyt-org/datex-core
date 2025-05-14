@@ -638,3 +638,40 @@ async fn threesome_1() {
             .await
     }
 }
+
+/*#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
+#[tokio::test]
+#[timeout(7000)]
+async fn multi_tracing_1() {
+    init_global_context();
+    run_async! {
+        let mut network = Network::load(
+            "threesome.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        MultiRoute::multiple_from("@msun", [
+            Route::to("@n7oe")
+                .hop("@em68")
+                .hop("@msun")
+                .hop("@ajil")
+                .hop("@msun")
+                .hop("@fyig")
+                .hop("@n7oe")
+                .hop("@fyig")
+                .hop("@msun"),
+            Route::to("@n7oe")
+                .hop("@em68")
+                .hop("@msun")
+                .hop("@ajil")
+                .hop("@msun")
+                .hop("@fyig")
+                .hop("@n7oe")
+                .hop("@fyig")
+                .hop("@msun")
+        ])
+            .test(&network)
+            .await
+    }
+}
+*/

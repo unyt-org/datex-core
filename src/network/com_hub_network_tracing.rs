@@ -3,7 +3,7 @@ use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingScopeId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
-use crate::network::com_hub::ComHub;
+use crate::network::com_hub::{ComHub, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use log::{error, info};
@@ -12,6 +12,7 @@ use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
 use std::time::Duration;
+use itertools::Itertools;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -182,25 +183,35 @@ impl ComHub {
         &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
-        let endpoint = endpoint.into();
+        self.record_trace_multiple(vec![endpoint]).await?
+            .pop()
+    }
+    
+    pub async fn record_trace_multiple(
+        &self,
+        endpoints: Vec<impl Into<Endpoint>>,
+    ) -> Option<Vec<NetworkTraceResult>> {
+        let endpoints = endpoints
+            .into_iter()
+            .map(|endpoint| endpoint.into())
+            .collect::<Vec<Endpoint>>();
         // self.print_metadata();
 
         let trace_block = {
             let scope_id = self.block_handler.get_new_scope_id();
-            let mut trace_block = self.create_trace_block(
+            let trace_block = self.create_trace_block(
                 vec![],
-                endpoint.clone(),
+                &endpoints,
                 BlockType::Trace,
                 scope_id,
             );
-            trace_block.set_receivers(&[endpoint.clone()]);
             trace_block
         };
 
         // measure round trip time
         let start_time = std::time::Instant::now();
 
-        let response = self.send_own_block_await_response(trace_block).await;
+        let response = self.send_own_block_await_response(trace_block, ResponseOptions::default()).await;
         let round_trip_time = start_time.elapsed();
 
         assert!(response.is_ok());
@@ -208,12 +219,12 @@ impl ComHub {
             match response {
                 IncomingSection::SingleBlock(block) => {
                     let hops = self.get_trace_data_from_block(&block)?;
-                    Some(NetworkTraceResult {
+                    Some(vec![NetworkTraceResult {
                         sender: self.endpoint.clone(),
-                        receiver: endpoint.clone(),
+                        receiver: endpoints[0].clone(),
                         hops,
                         round_trip_time,
-                    })
+                    }])
                 }
                 _ => {
                     error!("Expected single block, but got block stream");
@@ -256,7 +267,7 @@ impl ComHub {
         // create trace back block
         let trace_back_block = self.create_trace_block(
             hops,
-            sender.clone(),
+            &[sender.clone()],
             BlockType::TraceBack,
             block.block_header.scope_id,
         );
@@ -336,7 +347,7 @@ impl ComHub {
     fn create_trace_block(
         &self,
         hops: Vec<NetworkTraceHop>,
-        receiver_endpoint: Endpoint,
+        receiver_endpoint: &[Endpoint],
         block_type: BlockType,
         scope_id: OutgoingScopeId,
     ) -> DXBBlock {
@@ -350,7 +361,7 @@ impl ComHub {
             ..DXBBlock::default()
         };
         self.set_trace_data_of_block(&mut trace_block, hops);
-        trace_block.set_receivers(&[receiver_endpoint.clone()]);
+        trace_block.set_receivers(receiver_endpoint);
 
         trace_block
     }

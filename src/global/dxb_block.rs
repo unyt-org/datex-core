@@ -266,6 +266,20 @@ impl DXBBlock {
             .flags
             .set_has_endpoints(!receivers.is_empty());
     }
+    
+    pub fn get_receivers(&self) -> Vec<Endpoint> {
+        if let Some(ref endpoints) = self.routing_header.receivers.endpoints {
+            endpoints.endpoints.clone()
+        } else if let Some(ref endpoints) = self.routing_header.receivers.endpoints_with_keys {
+            endpoints
+                .endpoints_with_keys
+                .iter()
+                .map(|(e, _)| e.clone())
+                .collect()
+        } else {
+            unreachable!("No receivers set in the routing header")
+        }
+    }
 
     pub fn get_endpoint_scope_id(&self) -> IncomingEndpointScopeId {
         IncomingEndpointScopeId {
@@ -280,6 +294,14 @@ impl DXBBlock {
             current_section_index: self.block_header.section_index,
             current_block_number: self.block_header.block_number,
         }
+    }
+    
+    /// Returns true if the block has a fixed number of receivers
+    /// without wildcard instances, and no @@any receiver.
+    pub fn has_exact_receiver_count(&self) -> bool {
+        !self.get_receivers().iter().any(|e| {
+            e.is_broadcast() || e.is_any()
+        })
     }
 }
 

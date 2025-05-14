@@ -1225,26 +1225,45 @@ impl ComHub {
     }
 
     /// Sends a block and wait for a response block.
+    /// Fix number of exact endpoints -> Expected responses are known at send time.
+    /// TODO: make sure that mutating blocks are always send to specific endpoint instances (@jonas/0001), not generic endpoints like @jonas.
+    /// @jonas -> response comes from a specific instance of @jonas/0001
     pub async fn send_own_block_await_response(
         &self,
         block: DXBBlock,
-    ) -> Result<IncomingSection, ComHubError> {
+        options: ResponseOptions
+    ) -> Vec<Result<Response, ()>> {
         let scope_id = block.block_header.scope_id;
-        let block_index = block.block_header.section_index;
+        let section_index = block.block_header.section_index;
+
+        let has_exact_receiver_count = block.has_exact_receiver_count();
+        let receivers = block.get_receivers();
+        
         {
             self.send_own_block(block);
         }
         // yield
         #[cfg(feature = "tokio_runtime")]
         yield_now().await;
+        
+        if has_exact_receiver_count {
+            // store received responses in map for all receivers
+            let mut responses = HashMap::new();
+            for receiver in receivers {
+                responses.insert(
+                    receiver.clone(),
+                    None
+                );
+            }
 
-        let res = self
-            .block_handler
-            .wait_for_incoming_response_block(scope_id, block_index)
-            .await
-            .ok_or(ComHubError::NoResponse);
+            let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+            
+        }
+        
+        else {
+            // ...
+        }
 
-        res
     }
 
     /// Sends a block to all endpoints specified in the block header.
@@ -1524,3 +1543,53 @@ impl ComHub {
         }
     }
 }
+
+
+#[derive(Default)]
+pub enum ResponseResolutionStrategy {
+    /// Promise.allSettled
+    /// - For know fixed receivers:
+    ///   return after all known sends are finished (either success or error
+    ///   if block could not be sent / timed out)
+    /// - For unknown receiver count:
+    ///   return after timeout
+    #[default]
+    ReturnAfterAllSettled,
+
+    /// Promise.all
+    /// - For know fixed receivers:
+    ///  return after all known sends are finished successfully
+    ///  return immediately if one send fails early (e.g. endpoint not reachable)
+    /// - For unknown receiver count:
+    ///   return after timeout
+    ///
+    ReturnOnAnyError,
+
+    /// Promise.any
+    /// Return after first successful response received
+    ReturnOnFirstResponse,
+
+    /// Promise.race
+    /// Return after first response received (success or error)
+    ReturnOnFirstResult
+}
+
+#[derive(Default)]
+pub enum ResponseTimeout {
+    #[default]
+    Default,
+    Custom(Duration),
+}
+
+
+#[derive(Default)]
+pub struct ResponseOptions {
+    resolution_strategy: ResponseResolutionStrategy,
+    timeout: ResponseTimeout,
+}
+
+pub enum Response {
+    ExactResponse(Endpoint, IncomingSection),
+    ResolvedResponse(Endpoint, IncomingSection),
+    UnspecifiedResponse(IncomingSection),
+ }

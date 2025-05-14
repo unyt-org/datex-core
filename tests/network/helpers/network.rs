@@ -115,61 +115,6 @@ impl Route {
         }
     }
 
-    pub async fn test(&self, network: &Network) {
-        let start = self.hops[0].0.clone();
-        let end = self.hops.last().unwrap().0.clone();
-        if start != end {
-            panic!("Route start {} does not match receiver {}", start, end);
-        }
-        let network_trace = network
-            .get_runtime(start)
-            .com_hub
-            .record_trace(self.receiver.clone())
-            .await
-            .expect("Failed to record trace");
-
-        // print network trace
-        info!("Network trace:\n{network_trace}");
-
-        let mut index = 0;
-        for (original, expected) in network_trace
-            .hops
-            .iter()
-            .enumerate()
-            .filter_map(
-                |(i, h)| {
-                    if i % 2 == 1 || i == 0 {
-                        Some(h)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .zip(self.hops.iter())
-        {
-            if original.endpoint != expected.0 {
-                panic!(
-                    "Expected hop #{} to be {} but was {}",
-                    index, expected.0, original.endpoint
-                );
-            }
-            if let Some(channel) = &expected.1 {
-                if original.socket.interface_name != Some(channel.clone()) {
-                    panic!(
-                        "Expected hop #{} to be {} but was {}",
-                        index,
-                        channel,
-                        original
-                            .socket
-                            .interface_name
-                            .clone()
-                            .unwrap_or("None".to_string())
-                    );
-                }
-            }
-            index += 1;
-        }
-    }
 
     pub fn hop(mut self, target: impl Into<Endpoint>) -> Self {
         self.hops.push((target.into(), None));
@@ -219,18 +164,92 @@ impl Route {
         }
         segments
     }
+    
+    pub async fn test(&self, network: &Network) {
+        test(&[self], network).await;
+    }
 }
 
-#[test]
-fn test() {
-    init_global_context();
-    // let route = Route::from("@aaa")
-    //     .to_via("@bbb", "mockup")
-    //     .to("@ccc")
-    //     .back_via("mockup")
-    //     .to("@ddd");
-    // info!("Route: {}", route);
-    // let segments = route.to_segments();
+
+pub async fn test(routes: &[&Route], network: &Network) {
+    let start = routes[0].hops[0].0.clone();
+    let ends = routes
+        .iter()
+        .map(|r| r.hops.last().unwrap().0.clone())
+        .collect::<Vec<_>>();
+
+    for end in ends {
+        if start != end {
+            panic!("Route start {} does not match receiver {}", start, end);
+        }
+    }
+
+    let network_traces = network
+        .get_runtime(start)
+        .com_hub
+        .record_trace_multiple(routes.iter().map(|r| r.receiver.clone()).collect())
+        .await
+        .expect("Failed to record trace");
+    
+    // combine received traces with original routes
+    let route_pairs = routes
+        .iter()
+        .map(|route| {
+          // find matching route with the same receiver in network_traces
+            let trace = network_traces
+                .iter()
+                .find(|t| t.receiver == route.receiver)
+                .expect(&format!("No matching trace found for receiver {}", route.receiver));
+            (trace, route)
+        })
+        .collect::<Vec<_>>();
+
+    for (trace, route) in route_pairs {
+        // print network trace
+        info!("Network trace:\n{trace}");
+
+        let mut index = 0;
+        
+        // combine original and expected hops
+        let hop_pairs = trace
+            .hops
+            .iter()
+            .enumerate()
+            .filter_map(
+                |(i, h)| {
+                    if i % 2 == 1 || i == 0 {
+                        Some(h)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .zip(route.hops.iter());
+        
+        for (original, expected) in hop_pairs {
+            if original.endpoint != expected.0 {
+                panic!(
+                    "Expected hop #{} to be {} but was {}",
+                    index, expected.0, original.endpoint
+                );
+            }
+            if let Some(channel) = &expected.1 {
+                if original.socket.interface_name != Some(channel.clone()) {
+                    panic!(
+                        "Expected hop #{} to be {} but was {}",
+                        index,
+                        channel,
+                        original
+                            .socket
+                            .interface_name
+                            .clone()
+                            .unwrap_or("None".to_string())
+                    );
+                }
+            }
+            index += 1;
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

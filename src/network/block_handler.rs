@@ -5,13 +5,16 @@ use crate::global::dxb_block::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::global_context::get_global_context;
-use futures::channel::oneshot;
+use futures::channel::{mpsc, oneshot};
 use futures::channel::oneshot::Receiver;
 use log::info;
 use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
+use futures::channel::mpsc::UnboundedReceiver;
+use futures_util::SinkExt;
+use tokio_stream::StreamExt;
 
 // TODO: store scope memory
 pub struct ScopeContext {
@@ -172,26 +175,17 @@ impl BlockHandler {
         for section in new_sections {
             let section_index = section.get_section_index();
 
-            let remove_observer = if let Some(observer) = self
+            if let Some(observer) = self
                 .section_observers
                 .borrow_mut()
                 .get_mut(&(scope_id, section_index))
             {
                 // call the observer with the new section
                 observer(section);
-                // remove observer (TODO: only remove when not expecting multiple responses from multiple endpoints)
-                true
             } else {
                 // no observer for this scope id + block index
                 log::warn!("No observer for incoming response block (scope={endpoint_scope_id:?}, block={section_index}), dropping block");
-                false
             };
-
-            if remove_observer {
-                self.section_observers
-                    .borrow_mut()
-                    .remove(&(scope_id, section_index));
-            }
         }
     }
 
@@ -339,16 +333,13 @@ impl BlockHandler {
         &self,
         scope_id: OutgoingScopeId,
         section_index: OutgoingSectionIndex,
-    ) -> Receiver<IncomingSection> {
-        let (tx, rx) = oneshot::channel();
-        let mut tx = Some(tx);
+    ) -> UnboundedReceiver<IncomingSection> {
+        let (tx, rx) = mpsc::unbounded();
+        let tx = Rc::new(RefCell::new(tx));
 
         // create observer callback for scope id + block index
         let observer = move |blocks: IncomingSection| {
-            if let Some(tx) = tx.take() {
-                tx.send(blocks)
-                    .expect("Failed to send block queue from observer");
-            }
+            tx.clone().borrow_mut().start_send(blocks).unwrap();
         };
 
         // add new scope observer
@@ -365,8 +356,8 @@ impl BlockHandler {
         scope_id: OutgoingScopeId,
         section_index: OutgoingSectionIndex,
     ) -> Option<IncomingSection> {
-        let rx = self.register_incoming_block_observer(scope_id, section_index);
+        let mut rx = self.register_incoming_block_observer(scope_id, section_index);
         // Await the result from the callback
-        rx.await.ok()
+        rx.next().await
     }
 }
