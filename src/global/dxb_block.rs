@@ -25,16 +25,8 @@ pub enum HeaderParsingError {
     InsufficientLength,
 }
 
-// TODO: should we do something like this?
-/*pub enum DXBBlock {
-    /// A DXB block that has been received from the network.
-    Received(DXBBlockData, Vec<u8>),
-    /// A DXB block that has been created and is ready to be sent.
-    Created(DXBBlockData),
-    Addressed(DXBBlockData),
-}*/
+// TODO: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
 
-// TODO fix partial eq
 #[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
