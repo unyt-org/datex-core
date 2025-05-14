@@ -304,7 +304,7 @@ impl ComHub {
             .clone();
         {
             // Async close the interface (stop tasks, server, cleanup internal data)
-            let interface = interface.clone();
+            // FIXME: borrow_mut should not be used here
             let mut interface = interface.borrow_mut();
             interface.handle_destroy().await;
         }
@@ -386,6 +386,7 @@ impl ComHub {
                 };
             }
 
+            // TODO: handle this via TTL, not explicitly for Hello blocks
             let should_relay =
                 // don't relay "Hello" blocks sent to own endpoint
                 !(
@@ -551,8 +552,13 @@ impl ComHub {
             );*/
             // decrement distance because we are going back
             if block.routing_header.distance <= 1 {
-                block.routing_header.distance -= 1;
-                //panic!("Distance for redirect block is <= 1. Cannot decrement.");
+                if block.routing_header.distance == 0 {
+                    // This case should never happen because the distance is incremented before
+                    unreachable!("Distance for redirect block is <= 1. Cannot decrement.");
+                }
+                else {
+                    block.routing_header.distance -= 1;
+                }
             } else {
                 block.routing_header.distance -= 2;
             }
@@ -1004,6 +1010,7 @@ impl ComHub {
                             continue;
                         }
 
+                        // TODO optimize and separate outgoing/non-outgoing sockets for endpoint
                         // only yield outgoing sockets
                         // if a non-outgoing socket is found, all following sockets
                         // will also be non-outgoing
