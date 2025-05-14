@@ -13,7 +13,6 @@ license-file = "LICENSE"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-# proc-macro = true
 
 [dependencies]
 # core dependencies

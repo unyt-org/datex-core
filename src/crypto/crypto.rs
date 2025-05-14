@@ -38,16 +38,6 @@ pub trait CryptoTrait: Send + Sync {
 }
 
 pub struct Crypto;
-impl Crypto {
-    // TODO add other method if needed here as wrapper
-
-    // pub fn create_uuid(&self) -> String {
-    //     let crypto: std::sync::Arc<std::sync::Mutex<dyn CryptoTrait>> =
-    //         get_global_context().crypto;
-    //     let crypto = crypto.lock().unwrap();
-    //     crypto.create_uuid()
-    // }
-}
 
 #[derive(Debug, Clone)]
 pub enum CryptoError {
