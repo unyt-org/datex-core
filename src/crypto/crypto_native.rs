@@ -9,6 +9,7 @@ use rsa::{
     RsaPrivateKey, RsaPublicKey,
 };
 use uuid::Uuid;
+use crate::runtime::global_context::get_global_context;
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
