@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use axum::async_trait;
+use async_trait::async_trait;
 use log::{error, info};
 
 use crate::{
