@@ -6,13 +6,13 @@ use crate::global::protocol_structures::block_header::{
 use crate::network::com_hub::{ComHub, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use itertools::Itertools;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
 use std::time::Duration;
-use itertools::Itertools;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -183,10 +183,9 @@ impl ComHub {
         &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
-        self.record_trace_multiple(vec![endpoint]).await?
-            .pop()
+        self.record_trace_multiple(vec![endpoint]).await?.pop()
     }
-    
+
     pub async fn record_trace_multiple(
         &self,
         endpoints: Vec<impl Into<Endpoint>>,
@@ -211,30 +210,37 @@ impl ComHub {
         // measure round trip time
         let start_time = std::time::Instant::now();
 
-        let response = self.send_own_block_await_response(trace_block, ResponseOptions::default()).await;
+        let response = self
+            .send_own_block_await_response(
+                trace_block,
+                ResponseOptions::default(),
+            )
+            .await;
         let round_trip_time = start_time.elapsed();
 
-        assert!(response.is_ok());
-        if let Ok(response) = response {
-            match response {
-                IncomingSection::SingleBlock(block) => {
-                    let hops = self.get_trace_data_from_block(&block)?;
-                    Some(vec![NetworkTraceResult {
-                        sender: self.endpoint.clone(),
-                        receiver: endpoints[0].clone(),
-                        hops,
-                        round_trip_time,
-                    }])
-                }
-                _ => {
-                    error!("Expected single block, but got block stream");
-                    None
-                }
-            }
-        } else {
-            error!("Failed to receive trace back block");
-            None
-        }
+        // FIXME
+        None
+        // assert!(response.is_ok());
+        // if let Ok(response) = response {
+        //     match response {
+        //         IncomingSection::SingleBlock(block) => {
+        //             let hops = self.get_trace_data_from_block(&block)?;
+        //             Some(vec![NetworkTraceResult {
+        //                 sender: self.endpoint.clone(),
+        //                 receiver: endpoints[0].clone(),
+        //                 hops,
+        //                 round_trip_time,
+        //             }])
+        //         }
+        //         _ => {
+        //             error!("Expected single block, but got block stream");
+        //             None
+        //         }
+        //     }
+        // } else {
+        //     error!("Failed to receive trace back block");
+        //     None
+        // }
     }
 
     /// Handles a trace block received from another endpoint that

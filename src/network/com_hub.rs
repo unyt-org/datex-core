@@ -1231,39 +1231,40 @@ impl ComHub {
     pub async fn send_own_block_await_response(
         &self,
         block: DXBBlock,
-        options: ResponseOptions
+        options: ResponseOptions,
     ) -> Vec<Result<Response, ()>> {
         let scope_id = block.block_header.scope_id;
         let section_index = block.block_header.section_index;
 
         let has_exact_receiver_count = block.has_exact_receiver_count();
         let receivers = block.get_receivers();
-        
+
         {
             self.send_own_block(block);
         }
         // yield
         #[cfg(feature = "tokio_runtime")]
         yield_now().await;
-        
-        if has_exact_receiver_count {
-            // store received responses in map for all receivers
-            let mut responses = HashMap::new();
-            for receiver in receivers {
-                responses.insert(
-                    receiver.clone(),
-                    None
-                );
-            }
 
-            let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
-            
-        }
-        
-        else {
-            // ...
-        }
+        vec![]
+        // FIXME
+        // if has_exact_receiver_count {
+        //     // store received responses in map for all receivers
+        //     let mut responses = HashMap::new();
+        //     for receiver in receivers {
+        //         responses.insert(
+        //             receiver.clone(),
+        //             None
+        //         );
+        //     }
 
+        //     let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+
+        // }
+
+        // else {
+        //     // ...
+        // }
     }
 
     /// Sends a block to all endpoints specified in the block header.
@@ -1544,7 +1545,6 @@ impl ComHub {
     }
 }
 
-
 #[derive(Default)]
 pub enum ResponseResolutionStrategy {
     /// Promise.allSettled
@@ -1571,7 +1571,7 @@ pub enum ResponseResolutionStrategy {
 
     /// Promise.race
     /// Return after first response received (success or error)
-    ReturnOnFirstResult
+    ReturnOnFirstResult,
 }
 
 #[derive(Default)]
@@ -1580,7 +1580,6 @@ pub enum ResponseTimeout {
     Default,
     Custom(Duration),
 }
-
 
 #[derive(Default)]
 pub struct ResponseOptions {
@@ -1592,4 +1591,4 @@ pub enum Response {
     ExactResponse(Endpoint, IncomingSection),
     ResolvedResponse(Endpoint, IncomingSection),
     UnspecifiedResponse(IncomingSection),
- }
+}
