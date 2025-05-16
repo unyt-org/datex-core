@@ -1,4 +1,3 @@
-use crate::context::init_global_context;
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
 use datex_core::datex_values::Endpoint;
@@ -199,7 +198,7 @@ pub async fn test(routes: &[&Route], network: &Network) {
             let trace = network_traces
                 .iter()
                 .find(|t| t.receiver == route.receiver)
-                .expect(&format!("No matching trace found for receiver {}", route.receiver));
+                .unwrap_or_else(|| panic!("No matching trace found for receiver {}", route.receiver));
             (trace, route)
         })
         .collect::<Vec<_>>();

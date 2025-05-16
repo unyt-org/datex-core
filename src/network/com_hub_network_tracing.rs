@@ -1,5 +1,5 @@
 use crate::datex_values::Endpoint;
-use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingScopeId};
+use crate::global::dxb_block::{DXBBlock, OutgoingScopeId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
@@ -7,7 +7,7 @@ use crate::network::com_hub::{ComHub, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use itertools::Itertools;
-use log::{error, info};
+use log::info;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
@@ -198,13 +198,13 @@ impl ComHub {
 
         let trace_block = {
             let scope_id = self.block_handler.get_new_scope_id();
-            let trace_block = self.create_trace_block(
+            
+            self.create_trace_block(
                 vec![],
                 &endpoints,
                 BlockType::Trace,
                 scope_id,
-            );
-            trace_block
+            )
         };
 
         // measure round trip time
