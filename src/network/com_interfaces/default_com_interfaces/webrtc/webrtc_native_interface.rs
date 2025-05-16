@@ -33,29 +33,41 @@ use super::webrtc_common_new::{
     webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
 };
 use datex_macros::{com_interface, create_opener};
-use log::error;
+use log::{error, info};
 use webrtc::{
+    api::{
+        interceptor_registry::register_default_interceptors,
+        media_engine::MediaEngine, APIBuilder,
+    },
     data_channel::RTCDataChannel,
-    peer_connection::RTCPeerConnection,
+    interceptor::registry::Registry,
+    media::audio::buffer::info,
+    peer_connection::{configuration::RTCConfiguration, RTCPeerConnection},
 };
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     commons: Rc<RefCell<WebRTCCommon>>,
-    peer_connection: Rc<Option<RTCPeerConnection>>,
-    data_channels: Rc<RefCell<DataChannels<RTCDataChannel>>>,
+    peer_connection: Option<Arc<RTCPeerConnection>>,
+    data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
+    rtc_configuration: RTCConfiguration,
 }
 impl SingleSocketProvider for WebRTCNativeInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets()
     }
 }
-impl WebRTCTrait<RTCDataChannel> for WebRTCNativeInterface {
+impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self {
         WebRTCNativeInterface {
             info: ComInterfaceInfo::default(),
             commons: Rc::new(RefCell::new(WebRTCCommon::new(peer_endpoint))),
-            peer_connection: Rc::new(None),
+            peer_connection: None,
+            // TODO FIXME Make Rc<RefCell<DataChannels>> to Arc<Mutex<DataChannels>>
             data_channels: Rc::new(RefCell::new(DataChannels::new())),
+            rtc_configuration: RTCConfiguration {
+                ice_servers: vec![],
+                ..Default::default()
+            },
         }
     }
     fn new_with_ice_servers(
@@ -69,10 +81,10 @@ impl WebRTCTrait<RTCDataChannel> for WebRTCNativeInterface {
 }
 
 #[async_trait(?Send)]
-impl WebRTCTraitInternal<RTCDataChannel> for WebRTCNativeInterface {
+impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn provide_data_channels(
         &self,
-    ) -> Rc<RefCell<DataChannels<RTCDataChannel>>> {
+    ) -> Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> {
         self.data_channels.clone()
     }
     fn provide_info(&self) -> &ComInterfaceInfo {
@@ -81,7 +93,7 @@ impl WebRTCTraitInternal<RTCDataChannel> for WebRTCNativeInterface {
 
     async fn handle_create_data_channel(
         &self,
-    ) -> Result<DataChannel<RTCDataChannel>, WebRTCError> {
+    ) -> Result<DataChannel<Arc<RTCDataChannel>>, WebRTCError> {
         todo!()
         // if let Some(peer_connection) = self.peer_connection.as_ref() {
         //     let data_channel = peer_connection.create_data_channel("DATEX");
@@ -93,7 +105,7 @@ impl WebRTCTraitInternal<RTCDataChannel> for WebRTCNativeInterface {
     }
 
     async fn handle_setup_data_channel(
-        channel: Rc<RefCell<DataChannel<RTCDataChannel>>>,
+        channel: Rc<RefCell<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
         todo!()
         // let channel_clone = channel.clone();
@@ -282,6 +294,38 @@ impl WebRTCTraitInternal<RTCDataChannel> for WebRTCNativeInterface {
 impl WebRTCNativeInterface {
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
+        let has_media_support = true; // TODO
+        let api = APIBuilder::new();
+        let api = if has_media_support {
+            let mut media_engine = MediaEngine::default();
+            media_engine
+                .register_default_codecs()
+                .map_err(|_| WebRTCError::MediaEngineError)?;
+            let mut registry = Registry::new();
+            registry =
+                register_default_interceptors(registry, &mut media_engine)
+                    .map_err(|_| WebRTCError::MediaEngineError)?;
+            api.with_media_engine(media_engine)
+                .with_interceptor_registry(registry)
+        } else {
+            api
+        }
+        .build();
+
+        let peer_connection = Arc::new(
+            api.new_peer_connection(self.rtc_configuration.clone())
+                .await
+                .unwrap(),
+        );
+        self.peer_connection = Some(peer_connection.clone());
+        let data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> =
+            self.data_channels.clone();
+        // peer_connection.on_data_channel(Box::new(move |data_channel| {
+        //     // let data_channels = data_channels.clone();
+        //     data_channels.borrow_mut();
+        //     info!("Data channel created");
+        //     Box::pin(async {})
+        // }));
         self.setup_listeners();
         Ok(())
     }
