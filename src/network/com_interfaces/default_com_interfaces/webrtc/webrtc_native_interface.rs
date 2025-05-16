@@ -241,8 +241,8 @@ impl WebRTCInterfaceTrait for WebRTCNativeInterface {
             .iter()
             .map(|server| webrtc::ice_transport::ice_server::RTCIceServer {
                 urls: server.urls.clone(),
-                username: server.username.clone(),
-                credential: server.credential.clone(),
+                username: server.username.clone().unwrap_or("".to_string()),
+                credential: server.credential.clone().unwrap_or("".to_string()),
             })
             .collect();
         self

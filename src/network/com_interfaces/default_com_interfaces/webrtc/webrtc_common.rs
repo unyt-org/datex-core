@@ -8,8 +8,8 @@ use crate::datex_values::Endpoint;
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Hash)]
 pub struct RTCIceServer {
     pub urls: Vec<String>,
-    pub username: String,
-    pub credential: String,
+    pub username: Option<String>,
+    pub credential: Option<String>,
 }
 
 #[async_trait(?Send)]
