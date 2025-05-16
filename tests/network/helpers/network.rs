@@ -187,8 +187,7 @@ pub async fn test(routes: &[&Route], network: &Network) {
         .get_runtime(start)
         .com_hub
         .record_trace_multiple(routes.iter().map(|r| r.receiver.clone()).collect())
-        .await
-        .expect("Failed to record trace");
+        .await;
     
     // combine received traces with original routes
     let route_pairs = routes

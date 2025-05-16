@@ -1734,6 +1734,7 @@ pub enum Response {
     UnspecifiedResponse(IncomingSection),
 }
 
+#[derive(Debug)]
 pub enum ResponseError {
     NoResponseAfterTimeout,
     NotReachable,
