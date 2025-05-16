@@ -30,7 +30,7 @@ use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
+    ComInterfaceInfo, ComInterfaceSockets,
 };
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,

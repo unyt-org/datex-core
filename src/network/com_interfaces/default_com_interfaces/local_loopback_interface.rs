@@ -1,7 +1,5 @@
 use crate::datex_values::Endpoint;
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
-};
+use crate::network::com_interfaces::com_interface::ComInterfaceInfo;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };

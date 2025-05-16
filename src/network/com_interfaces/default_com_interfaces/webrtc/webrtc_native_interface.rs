@@ -32,23 +32,11 @@ use super::webrtc_common_new::{
     webrtc_commons::WebRTCCommon,
     webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
 };
-use bytes::Bytes;
 use datex_macros::{com_interface, create_opener};
-use log::{debug, error};
+use log::error;
 use webrtc::{
-    api::{
-        interceptor_registry::register_default_interceptors,
-        media_engine::MediaEngine, APIBuilder,
-    },
-    data_channel::{
-        data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
-    },
-    ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
-    interceptor::registry::Registry,
-    peer_connection::{
-        configuration::RTCConfiguration,
-        sdp::session_description::RTCSessionDescription, RTCPeerConnection,
-    },
+    data_channel::RTCDataChannel,
+    peer_connection::RTCPeerConnection,
 };
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,

@@ -13,7 +13,7 @@ use datex_core::{
     network::com_interfaces::{
         com_interface::{
             ComInterface, ComInterfaceInfo, ComInterfaceSockets,
-            ComInterfaceState, ComInterfaceUUID,
+            ComInterfaceState,
         },
         com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocketUUID,
