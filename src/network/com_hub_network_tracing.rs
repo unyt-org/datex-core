@@ -223,13 +223,14 @@ impl ComHub {
         // FIXME
         for response in responses {
             match response {
-                Ok(Response::ExactResponse(_, IncomingSection::SingleBlock(block))) | 
-                Ok(Response::ResolvedResponse(_, IncomingSection::SingleBlock(block))) => {
+                Ok(Response::ExactResponse(sender, IncomingSection::SingleBlock(block))) |
+                Ok(Response::ResolvedResponse(sender, IncomingSection::SingleBlock(block))) => {
+                    info!("Received trace block response from {}", sender.clone());
                     let hops = self.get_trace_data_from_block(&block);
                     if let Some(hops) = hops {
                         let result = NetworkTraceResult {
                             sender: self.endpoint.clone(),
-                            receiver: endpoints[0].clone(),
+                            receiver: sender.clone(),
                             hops,
                             round_trip_time,
                         };

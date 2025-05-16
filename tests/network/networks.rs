@@ -5,9 +5,7 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
-use crate::network::helpers::network::{
-    InterfaceConnection, Network, Node, Route,
-};
+use crate::network::helpers::network::{test_routes, InterfaceConnection, Network, Node, Route};
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::run_async;
@@ -639,7 +637,7 @@ async fn threesome_1() {
     }
 }
 
-/*#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
+#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(7000)]
 async fn multi_tracing_1() {
@@ -650,28 +648,29 @@ async fn multi_tracing_1() {
         );
         network.start().await;
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        MultiRoute::multiple_from("@msun", [
-            Route::to("@n7oe")
+
+        test_routes(&[
+            &Route::between("@msun", "@n7oe")
                 .hop("@em68")
                 .hop("@msun")
+                .hop("@ajil")
+                .hop("@arh0")
                 .hop("@ajil")
                 .hop("@msun")
                 .hop("@fyig")
                 .hop("@n7oe")
                 .hop("@fyig")
                 .hop("@msun"),
-            Route::to("@n7oe")
+            &Route::between("@msun", "@arh0")
                 .hop("@em68")
                 .hop("@msun")
                 .hop("@ajil")
+                .hop("@arh0")
+                .hop("@ajil")
+                .hop("@msun"),
+            &Route::between("@msun", "@ajil")
+                .hop("@ajil")
                 .hop("@msun")
-                .hop("@fyig")
-                .hop("@n7oe")
-                .hop("@fyig")
-                .hop("@msun")
-        ])
-            .test(&network)
-            .await
+        ], &network).await;
     }
 }
-*/

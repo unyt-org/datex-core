@@ -165,12 +165,12 @@ impl Route {
     }
     
     pub async fn test(&self, network: &Network) {
-        test(&[self], network).await;
+        test_routes(&[self], network).await;
     }
 }
 
 
-pub async fn test(routes: &[&Route], network: &Network) {
+pub async fn test_routes(routes: &[&Route], network: &Network) {
     let start = routes[0].hops[0].0.clone();
     let ends = routes
         .iter()

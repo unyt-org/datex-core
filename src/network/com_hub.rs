@@ -1289,7 +1289,7 @@ impl ComHub {
             // store received responses in map for all receivers
             let mut responses = HashMap::new();
             let mut missing_response_count = receivers.len();
-            for receiver in receivers {
+            for receiver in &receivers {
                 responses.insert(
                     receiver.clone(),
                     Err(ResponseError::NoResponseAfterTimeout)
@@ -1297,6 +1297,14 @@ impl ComHub {
             }
             // directly subtract number of already failed endpoints from missing responses
             missing_response_count -= failed_endpoints.len();
+
+            info!("Waiting for responses from receivers {}",
+                receivers
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
 
             let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
 
@@ -1309,10 +1317,11 @@ impl ComHub {
                         .expect("No sender found for incoming section - this should never happen");
                     // add to response for exactly matching endpoint instance
                     if let Some(response) = responses.get_mut(&sender) {
-                        // check if the receiver is already set
+                        // check if the receiver is already set (= current set response is Err)
                         if response.is_err() {
                             *response = Ok(Response::ExactResponse(sender.clone(), section));
                             missing_response_count -= 1;
+                            info!("Received expected response from {sender}");
                         }
                         // already received a response from this exact sender - this should not happen
                         else {
@@ -1321,8 +1330,9 @@ impl ComHub {
                     }
                     // add to response for matching endpoint
                     else if let Some(response) = responses.get_mut(&sender.any_instance_endpoint()) {
+                        info!("Received resolved response from {} -> {}", &sender, &sender.any_instance_endpoint());
                         sender = sender.any_instance_endpoint();
-                        // check if the receiver is already set
+                        // check if the receiver is already set (= current set response is Err)
                         if response.is_err() {
                             *response = Ok(Response::ResolvedResponse(sender.clone(), section));
                             missing_response_count -= 1;
@@ -1370,6 +1380,12 @@ impl ComHub {
             let res = tokio::time::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
                 let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
                 while let Some(section) = rx.next().await {
+                    // get sender
+                    let mut sender = section
+                        .try_get_sender()
+                        // this is a new section containing at least one block, which has not been drained yet
+                        .expect("No sender found for incoming section - this should never happen");
+                    info!("Received response from {sender}");
                     // add to response for exactly matching endpoint instance
                     responses.push(Ok(Response::UnspecifiedResponse(section)));
 
@@ -1728,6 +1744,7 @@ impl ResponseOptions {
     }
 }
 
+#[derive(Debug)]
 pub enum Response {
     ExactResponse(Endpoint, IncomingSection),
     ResolvedResponse(Endpoint, IncomingSection),

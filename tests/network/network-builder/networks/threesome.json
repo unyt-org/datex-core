@@ -19,6 +19,10 @@
 		{
 			"id": "ajil",
 			"label": "@ajil"
+		},
+		{
+			"id": "arh0",
+			"label": "@arh0"
 		}
 	],
 	"edges": [
@@ -77,6 +81,20 @@
 			"target": "em68",
 			"type": "mockup",
 			"priority": 2
+		},
+		{
+			"id": "mockup-ajil-arh0",
+			"source": "ajil",
+			"target": "arh0",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-arh0-ajil",
+			"source": "arh0",
+			"target": "ajil",
+			"type": "mockup",
+			"priority": 0
 		}
 	]
 }
