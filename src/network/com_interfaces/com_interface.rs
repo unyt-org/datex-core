@@ -187,13 +187,13 @@ macro_rules! set_opener {
         fn handle_open<'a>(
             &'a mut self,
         ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-            self.set_state(ComInterfaceState::Connecting);
+            self.set_state($crate::network::com_interfaces::com_interface::ComInterfaceState::Connecting);
             Box::pin(async move {
                 let res = self.$opener().await.is_ok();
                 if res {
-                    self.set_state(ComInterfaceState::Connected);
+                    self.set_state($crate::network::com_interfaces::com_interface::ComInterfaceState::Connected);
                 } else {
-                    self.set_state(ComInterfaceState::NotConnected);
+                    self.set_state($crate::network::com_interfaces::com_interface::ComInterfaceState::NotConnected);
                 }
                 res
             })
@@ -225,13 +225,13 @@ macro_rules! set_sync_opener {
 #[macro_export]
 macro_rules! delegate_com_interface_info {
     () => {
-        fn get_uuid(&self) -> &ComInterfaceUUID {
+        fn get_uuid(&self) -> &$crate::network::com_interfaces::com_interface::ComInterfaceUUID {
             &self.info.get_uuid()
         }
-        fn get_state(&self) -> ComInterfaceState {
+        fn get_state(&self) -> $crate::network::com_interfaces::com_interface::ComInterfaceState {
             self.info.get_state()
         }
-        fn set_state(&mut self, new_state: ComInterfaceState) {
+        fn set_state(&mut self, new_state: $crate::network::com_interfaces::com_interface::ComInterfaceState) {
             self.info.set_state(new_state);
         }
         fn get_info(&self) -> &ComInterfaceInfo {
@@ -240,7 +240,7 @@ macro_rules! delegate_com_interface_info {
         fn get_info_mut(&mut self) -> &mut ComInterfaceInfo {
             &mut self.info
         }
-        fn get_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
+        fn get_sockets(&self) -> Arc<Mutex<$crate::network::com_interfaces::com_interface::ComInterfaceSockets>> {
             self.info.com_interface_sockets().clone()
         }
 
