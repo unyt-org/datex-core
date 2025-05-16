@@ -10,10 +10,11 @@ use futures::FutureExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
-use std::cmp::Ordering;
+use std::cmp::{Ordering, PartialEq};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use futures_util::StreamExt;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -49,9 +50,25 @@ pub type ComInterfaceFactoryFn =
         setup_data: Box<dyn Any>,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
+
+pub struct ComHubOptions {
+    default_receive_timeout: Duration
+}
+
+impl Default for ComHubOptions {
+    fn default() -> Self {
+        ComHubOptions {
+            default_receive_timeout: Duration::from_secs(5),
+        }
+    }
+}
+
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
+
+    /// ComHub configuration options
+    pub options: ComHubOptions,
 
     /// a list of all available interface factories, keyed by their interface type
     pub interface_factories: RefCell<HashMap<String, ComInterfaceFactoryFn>>,
@@ -109,6 +126,7 @@ impl Default for ComHub {
     fn default() -> Self {
         ComHub {
             endpoint: Endpoint::default(),
+            options: ComHubOptions::default(),
             interface_factories: RefCell::new(HashMap::new()),
             interfaces: RefCell::new(HashMap::new()),
             endpoint_sockets: RefCell::new(HashMap::new()),
@@ -157,6 +175,7 @@ pub enum SocketEndpointRegistrationError {
     SocketUninitialized,
     SocketEndpointAlreadyRegistered,
 }
+
 
 impl ComHub {
     pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
@@ -1217,11 +1236,11 @@ impl ComHub {
     }
 
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
-    pub fn send_own_block(&self, mut block: DXBBlock) {
+    pub fn send_own_block(&self, mut block: DXBBlock) -> Result<(), Vec<Endpoint>>{
         block = self.prepare_own_block(block);
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
-        self.send_block(block, None);
+        self.send_block(block, None)
     }
 
     /// Sends a block and wait for a response block.
@@ -1232,39 +1251,141 @@ impl ComHub {
         &self,
         block: DXBBlock,
         options: ResponseOptions,
-    ) -> Vec<Result<Response, ()>> {
+    ) -> Vec<Result<Response, ResponseError>> {
         let scope_id = block.block_header.scope_id;
         let section_index = block.block_header.section_index;
 
         let has_exact_receiver_count = block.has_exact_receiver_count();
         let receivers = block.get_receivers();
 
-        {
-            self.send_own_block(block);
-        }
+        let res = self.send_own_block(block);
+        let failed_endpoints = res.err().unwrap_or_else(Vec::new);
+
         // yield
         #[cfg(feature = "tokio_runtime")]
         yield_now().await;
 
-        vec![]
-        // FIXME
-        // if has_exact_receiver_count {
-        //     // store received responses in map for all receivers
-        //     let mut responses = HashMap::new();
-        //     for receiver in receivers {
-        //         responses.insert(
-        //             receiver.clone(),
-        //             None
-        //         );
-        //     }
+        // return fixed number of responses
+        if has_exact_receiver_count {
+            // if resolution strategy is ReturnOnAnyError or ReturnOnFirstResult, directly return if any endpoint failed
+            if (
+                options.resolution_strategy == ResponseResolutionStrategy::ReturnOnAnyError ||
+                options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult
+            ) && !failed_endpoints.is_empty()
+            {
+                // for each failed endpoint, set NotReachable error, for all others EarlyAbort
+                return receivers
+                    .iter()
+                    .map(|receiver| {
+                        if failed_endpoints.contains(receiver) {
+                            Err(ResponseError::NotReachable)
+                        } else {
+                            Err(ResponseError::EarlyAbort)
+                        }
+                    })
+                    .collect::<Vec<_>>();
+            }
 
-        //     let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+            // store received responses in map for all receivers
+            let mut responses = HashMap::new();
+            let mut missing_response_count = receivers.len();
+            for receiver in receivers {
+                responses.insert(
+                    receiver.clone(),
+                    Err(ResponseError::NoResponseAfterTimeout)
+                );
+            }
+            // directly subtract number of already failed endpoints from missing responses
+            missing_response_count -= failed_endpoints.len();
 
-        // }
+            let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
 
-        // else {
-        //     // ...
-        // }
+            let res = tokio::time::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
+                while let Some(section) = rx.next().await {
+                    // get sender
+                    let mut sender = section
+                        .try_get_sender()
+                        // this is a new section containing at least one block, which has not been drained yet
+                        .expect("No sender found for incoming section - this should never happen");
+                    // add to response for exactly matching endpoint instance
+                    if let Some(response) = responses.get_mut(&sender) {
+                        // check if the receiver is already set
+                        if response.is_err() {
+                            *response = Ok(Response::ExactResponse(sender.clone(), section));
+                            missing_response_count -= 1;
+                        }
+                        // already received a response from this exact sender - this should not happen
+                        else {
+                            error!("Received multiple responses from the same sender: {sender}");
+                        }
+                    }
+                    // add to response for matching endpoint
+                    else if let Some(response) = responses.get_mut(&sender.any_instance_endpoint()) {
+                        sender = sender.any_instance_endpoint();
+                        // check if the receiver is already set
+                        if response.is_err() {
+                            *response = Ok(Response::ResolvedResponse(sender.clone(), section));
+                            missing_response_count -= 1;
+                        }
+                        // already received a response from a matching endpoint - ignore
+                        else {
+                            info!("Received multiple resolved responses from the {}", &sender);
+                        }
+                    }
+                    // response from unexpected sender
+                    else {
+                        error!("Received response from unexpected sender: {}", &sender);
+                    }
+
+                    // if resolution strategy is ReturnOnFirstResult, break if any response is received
+                    if options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult {
+                        // set all other responses to EarlyAbort
+                        for (receiver, response) in responses.iter_mut() {
+                            if receiver != &sender {
+                                *response = Err(ResponseError::EarlyAbort);
+                            }
+                        }
+                        break;
+                    }
+
+                    // if all responses are received, break
+                    if missing_response_count == 0 {
+                        break;
+                    }
+                }
+            }).await;
+
+            if res.is_err() {
+                error!("Timeout waiting for responses");
+            }
+
+            // return responses as vector
+            responses.into_values().collect::<Vec<_>>()
+        }
+
+        // return all received responses
+        else {
+            let mut responses = vec![];
+
+            let res = tokio::time::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
+                let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+                while let Some(section) = rx.next().await {
+                    // add to response for exactly matching endpoint instance
+                    responses.push(Ok(Response::UnspecifiedResponse(section)));
+
+                    // if resolution strategy is ReturnOnFirstResult, break if any response is received
+                    if options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult {
+                        break;
+                    }
+                }
+            }).await;
+
+            if res.is_err() {
+                info!("Timeout waiting for responses");
+            }
+
+            responses
+        }
     }
 
     /// Sends a block to all endpoints specified in the block header.
@@ -1545,7 +1666,7 @@ impl ComHub {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub enum ResponseResolutionStrategy {
     /// Promise.allSettled
     /// - For know fixed receivers:
@@ -1581,14 +1702,40 @@ pub enum ResponseTimeout {
     Custom(Duration),
 }
 
+impl ResponseTimeout {
+    pub fn unwrap_or_default(self, default: Duration) -> Duration {
+        match self {
+            ResponseTimeout::Default => default,
+            ResponseTimeout::Custom(timeout) => timeout,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct ResponseOptions {
-    resolution_strategy: ResponseResolutionStrategy,
-    timeout: ResponseTimeout,
+    pub resolution_strategy: ResponseResolutionStrategy,
+    pub timeout: ResponseTimeout,
+}
+
+impl ResponseOptions {
+    pub fn with_resolution_strategy(
+        resolution_strategy: ResponseResolutionStrategy,
+    ) -> Self {
+        Self {
+            resolution_strategy,
+            ..ResponseOptions::default()
+        }
+    }
 }
 
 pub enum Response {
     ExactResponse(Endpoint, IncomingSection),
     ResolvedResponse(Endpoint, IncomingSection),
     UnspecifiedResponse(IncomingSection),
+}
+
+pub enum ResponseError {
+    NoResponseAfterTimeout,
+    NotReachable,
+    EarlyAbort
 }

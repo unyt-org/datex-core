@@ -75,6 +75,19 @@ impl IncomingSection {
             IncomingSection::BlockStream((_, section_index)) => *section_index,
         }
     }
+    
+    pub fn try_get_sender(&self) -> Option<Endpoint> {
+        match self {
+            IncomingSection::SingleBlock(block) => Some(block.routing_header.sender.clone()),
+            IncomingSection::BlockStream((blocks, _)) => {
+                if let Some(block) = blocks.borrow().front() {
+                    Some(block.routing_header.sender.clone())
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

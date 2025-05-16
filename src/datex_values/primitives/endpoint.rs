@@ -424,13 +424,13 @@ impl Endpoint {
         self == &Endpoint::ANY
     }
 
-    // check if endpoint is main (@person) without instance
-    pub fn is_main(&self) -> bool {
+    // check if endpoint is an endpoint without a specific instance
+    pub fn is_any_instance(&self) -> bool {
         self.instance == EndpointInstance::Any
     }
 
-    // get the main endpoint (@person) of the endpoint without instance
-    pub fn main(&self) -> Endpoint {
+    // get the main endpoint (@person) of the endpoint without a specific instance
+    pub fn any_instance_endpoint(&self) -> Endpoint {
         Endpoint {
             type_: self.type_,
             identifier: self.identifier,
@@ -523,11 +523,11 @@ mod test {
     #[test]
     fn utilities() {
         let endpoint: Endpoint = Endpoint::from_string("@ben/42").unwrap();
-        assert!(!endpoint.is_main());
+        assert!(!endpoint.is_any_instance());
         assert!(!endpoint.is_broadcast());
 
-        let main_endpoint = endpoint.main();
-        assert!(main_endpoint.is_main());
+        let main_endpoint = endpoint.any_instance_endpoint();
+        assert!(main_endpoint.is_any_instance());
         assert_eq!(main_endpoint.to_string(), "@ben");
         assert_eq!(main_endpoint.instance, EndpointInstance::Any);
 

@@ -183,13 +183,13 @@ impl ComHub {
         &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
-        self.record_trace_multiple(vec![endpoint]).await?.pop()
+        self.record_trace_multiple(vec![endpoint]).await.pop()
     }
 
     pub async fn record_trace_multiple(
         &self,
         endpoints: Vec<impl Into<Endpoint>>,
-    ) -> Option<Vec<NetworkTraceResult>> {
+    ) -> Vec<Option<NetworkTraceResult>> {
         let endpoints = endpoints
             .into_iter()
             .map(|endpoint| endpoint.into())
@@ -210,7 +210,7 @@ impl ComHub {
         // measure round trip time
         let start_time = std::time::Instant::now();
 
-        let response = self
+        let responses = self
             .send_own_block_await_response(
                 trace_block,
                 ResponseOptions::default(),
@@ -218,8 +218,12 @@ impl ComHub {
             .await;
         let round_trip_time = start_time.elapsed();
 
+        let results = vec![];
+
         // FIXME
-        None
+        for (let response of responses) {
+
+        }
         // assert!(response.is_ok());
         // if let Ok(response) = response {
         //     match response {
