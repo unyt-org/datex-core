@@ -425,7 +425,12 @@ impl ComHub {
         }
         else {
             // return current fork number
-            current_fork_nr
+            if current_fork_nr == "" {
+                "0".to_string()
+            }
+            else {
+                current_fork_nr
+            }
         }
     }
 

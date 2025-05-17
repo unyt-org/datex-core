@@ -81,12 +81,14 @@ pub struct Network {
 #[derive(Clone)]
 pub struct Route {
     pub receiver: Endpoint,
-    pub hops: Vec<(Endpoint, Option<String>)>,
+    pub hops: Vec<(Endpoint, Option<String>, Option<String>)>,
+    // temp remember last fork
+    pub next_fork: Option<String>,
 }
 
 impl Display for Route {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, (endpoint, channel)) in self.hops.iter().enumerate() {
+        for (i, (endpoint, channel, _fork)) in self.hops.iter().enumerate() {
             // Write the endpoint
             write!(f, "{endpoint}")?;
 
@@ -110,13 +112,22 @@ impl Route {
     ) -> Self {
         Route {
             receiver: receiver.into(),
-            hops: vec![(source.into(), None)],
+            hops: vec![(source.into(), None, None)],
+            next_fork: None,
         }
     }
 
 
     pub fn hop(mut self, target: impl Into<Endpoint>) -> Self {
-        self.hops.push((target.into(), None));
+        self.add_hop(target);
+        self
+    }
+
+    pub fn fork(
+        mut self,
+        fork_nr: &str
+    ) -> Self {
+        self.next_fork = Some(fork_nr.to_string());
         self
     }
 
@@ -129,7 +140,7 @@ impl Route {
         if len > 0 {
             self.hops[len - 1].1 = Some(channel.to_string());
         }
-        self.hops.push((target.into(), None));
+        self.add_hop(target);
         self
     }
 
@@ -139,7 +150,7 @@ impl Route {
             let to = self.hops[len - 2].0.clone();
             let channel = self.hops[len - 2].1.clone();
             self.hops[len - 1].1 = Some(channel.clone().unwrap_or_default());
-            self.hops.push((to, None));
+            self.add_hop(to);
         }
         self
     }
@@ -148,16 +159,24 @@ impl Route {
             let len = self.hops.len();
             let to = self.hops[len - 2].0.clone();
             self.hops[len - 1].1 = Some(channel.to_string());
-            self.hops.push((to, None));
+            self.add_hop(to);
         }
         self
+    }
+
+    fn add_hop(
+        &mut self,
+        to: impl Into<Endpoint>,
+    ) {
+        let fork = self.next_fork.take();
+        self.hops.push((to.into(), None, fork));
     }
 
     /// Converts the Route into a sequence of (from, channel, to) triples
     pub fn to_segments(&self) -> Vec<(Endpoint, String, Endpoint)> {
         let mut segments = Vec::new();
         for w in self.hops.windows(2) {
-            if let [(from, Some(chan)), (to, _)] = &w {
+            if let [(from, Some(chan), _), (to, _, _)] = &w {
                 segments.push((from.clone(), chan.clone(), to.clone()));
             }
         }
@@ -165,12 +184,12 @@ impl Route {
     }
     
     pub async fn test(&self, network: &Network) {
-        test_routes(&[self], network).await;
+        test_routes(&[self.clone()], network).await;
     }
 }
 
 
-pub async fn test_routes(routes: &[&Route], network: &Network) {
+pub async fn test_routes(routes: &[Route], network: &Network) {
     let start = routes[0].hops[0].0.clone();
     let ends = routes
         .iter()
@@ -188,7 +207,7 @@ pub async fn test_routes(routes: &[&Route], network: &Network) {
         .com_hub
         .record_trace_multiple(routes.iter().map(|r| r.receiver.clone()).collect())
         .await;
-    
+
     // combine received traces with original routes
     let route_pairs = routes
         .iter()
@@ -224,17 +243,19 @@ pub async fn test_routes(routes: &[&Route], network: &Network) {
             )
             .zip(route.hops.iter());
         
-        for (original, expected) in hop_pairs {
-            if original.endpoint != expected.0 {
+        for (original, (expected_endpoint, expected_channel, expected_fork)) in hop_pairs {
+            // check endpoint
+            if original.endpoint != expected_endpoint.clone() {
                 panic!(
                     "Expected hop #{} to be {} but was {}",
-                    index, expected.0, original.endpoint
+                    index, expected_endpoint, original.endpoint
                 );
             }
-            if let Some(channel) = &expected.1 {
+            // check channel
+            if let Some(channel) = &expected_channel {
                 if original.socket.interface_name != Some(channel.clone()) {
                     panic!(
-                        "Expected hop #{} to be {} but was {}",
+                        "Expected hop #{} to be channel {} but was {}",
                         index,
                         channel,
                         original
@@ -242,6 +263,15 @@ pub async fn test_routes(routes: &[&Route], network: &Network) {
                             .interface_name
                             .clone()
                             .unwrap_or("None".to_string())
+                    );
+                }
+            }
+            // check fork
+            if let Some(fork) = expected_fork {
+                if &original.fork_nr != fork {
+                    panic!(
+                        "Expected hop #{} to be fork {} but was {}",
+                        index, fork, original.fork_nr
                     );
                 }
             }

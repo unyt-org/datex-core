@@ -627,6 +627,8 @@ async fn threesome_1() {
             .hop("@em68")
             .hop("@msun")
             .hop("@ajil")
+            .hop("@arh0")
+            .hop("@ajil")
             .hop("@msun")
             .hop("@fyig")
             .hop("@n7oe")
@@ -650,25 +652,29 @@ async fn multi_tracing_1() {
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
         test_routes(&[
-            &Route::between("@msun", "@n7oe")
+            Route::between("@msun", "@n7oe")
+                .fork("0")
                 .hop("@em68")
                 .hop("@msun")
                 .hop("@ajil")
                 .hop("@arh0")
+                .fork("00")
                 .hop("@ajil")
                 .hop("@msun")
                 .hop("@fyig")
                 .hop("@n7oe")
                 .hop("@fyig")
                 .hop("@msun"),
-            &Route::between("@msun", "@arh0")
+            Route::between("@msun", "@arh0")
+                .fork("0")
                 .hop("@em68")
                 .hop("@msun")
                 .hop("@ajil")
                 .hop("@arh0")
                 .hop("@ajil")
                 .hop("@msun"),
-            &Route::between("@msun", "@ajil")
+            Route::between("@msun", "@ajil")
+                .fork("1")
                 .hop("@ajil")
                 .hop("@msun")
         ], &network).await;
