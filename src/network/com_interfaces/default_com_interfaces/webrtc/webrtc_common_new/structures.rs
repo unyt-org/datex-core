@@ -36,7 +36,7 @@ pub struct RTCIceCandidateInitDX {
     pub username_fragment: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, PartialEq, Deserialize)]
 pub enum RTCSdpTypeDX {
     #[default]
     Unspecified,

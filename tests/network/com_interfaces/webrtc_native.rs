@@ -1,10 +1,25 @@
-use datex_core::network::com_interfaces::{
-    com_interface::ComInterface,
-    default_com_interfaces::webrtc::{
-        webrtc_common::WebRTCInterfaceTrait,
-        webrtc_native_interface_old::WebRTCNativeInterface,
+use std::{
+    cell::{Ref, RefCell},
+    rc::Rc,
+    sync::Arc,
+    time::Duration,
+};
+
+use datex_core::{
+    network::com_interfaces::{
+        com_interface::ComInterface,
+        default_com_interfaces::webrtc::{
+            webrtc_common::WebRTCInterfaceTrait,
+            webrtc_common_new::webrtc_trait::{
+                WebRTCTrait, WebRTCTraitInternal,
+            },
+            webrtc_native_interface,
+            webrtc_native_interface_old::WebRTCNativeInterface,
+        },
+        socket_provider::SingleSocketProvider,
     },
-    socket_provider::SingleSocketProvider,
+    run_async,
+    task::{sleep, spawn_local},
 };
 use ntest_timeout::timeout;
 
@@ -12,6 +27,55 @@ use crate::{
     context::init_global_context,
     network::helpers::mock_setup::{TEST_ENDPOINT_A, TEST_ENDPOINT_B},
 };
+
+#[tokio::test]
+#[timeout(8000)]
+pub async fn test_new() {
+    run_async! {
+        init_global_context();
+        let mut interface_a = webrtc_native_interface::WebRTCNativeInterface::new(
+            TEST_ENDPOINT_A.clone(),
+        );
+        interface_a.open().await.unwrap();
+
+
+        let mut interface_b = webrtc_native_interface::WebRTCNativeInterface::new(
+            TEST_ENDPOINT_B.clone(),
+        );
+        interface_b.open().await.unwrap();
+
+        let interface_b = Rc::new(interface_b);
+        let interface_a = Rc::new(interface_a);
+
+        let interface_a_clone = interface_a.clone();
+        let inteface_b_clone = interface_b.clone();
+
+        interface_a.set_on_ice_candidate(Box::new(move |candidate| {
+            let interface_b = inteface_b_clone.clone();
+            println!("Candidate A: {:?}", candidate);
+            spawn_local(async move {
+                interface_b.clone().add_ice_candidate(candidate).await.unwrap();
+            });
+        }));
+
+        interface_b.set_on_ice_candidate(Box::new(move |candidate| {
+            let interface_a = interface_a_clone.clone();
+            println!("Candidate B: {:?}", candidate);
+            spawn_local(async move {
+                interface_a.clone().add_ice_candidate(candidate).await.unwrap();
+            });
+        }));
+
+
+        let offer = interface_a.create_offer().await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        let answer = interface_b.create_answer(offer).await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        interface_a.set_answer(answer).await.unwrap();
+
+        sleep(Duration::from_secs(3)).await;
+    }
+}
 
 #[tokio::test]
 #[timeout(5000)]

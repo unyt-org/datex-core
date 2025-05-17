@@ -4,6 +4,7 @@ use std::{
     pin::Pin,
     rc::Rc,
     sync::{Arc, Mutex},
+    thread::spawn,
     time::Duration,
 };
 
@@ -17,11 +18,15 @@ use crate::{
         },
         com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocketUUID,
+        default_com_interfaces::webrtc::webrtc_common_new::structures::RTCSdpTypeDX,
         socket_provider::SingleSocketProvider,
     },
     set_opener,
+    task::spawn_local,
 };
 use async_trait::async_trait;
+use bytes::Bytes;
+use futures::{channel::mpsc, SinkExt, StreamExt, TryFutureExt};
 
 use super::webrtc_common_new::{
     data_channels::{DataChannel, DataChannels},
@@ -39,9 +44,19 @@ use webrtc::{
         interceptor_registry::register_default_interceptors,
         media_engine::MediaEngine, APIBuilder,
     },
-    data_channel::RTCDataChannel,
+    data_channel::{
+        data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
+    },
+    ice::candidate,
+    ice_transport::ice_candidate::{
+        self, RTCIceCandidate, RTCIceCandidateInit,
+    },
     interceptor::registry::Registry,
-    peer_connection::{configuration::RTCConfiguration, RTCPeerConnection},
+    peer_connection::{
+        configuration::RTCConfiguration,
+        sdp::session_description::RTCSessionDescription, RTCPeerConnection,
+    },
+    sdp::description::common,
 };
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
@@ -57,14 +72,13 @@ impl SingleSocketProvider for WebRTCNativeInterface {
 }
 impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self {
+        let commons = WebRTCCommon::new(peer_endpoint);
         WebRTCNativeInterface {
             info: ComInterfaceInfo::default(),
-            commons: Arc::new(Mutex::new(WebRTCCommon::new(peer_endpoint))),
+            commons: Arc::new(Mutex::new(commons)),
             peer_connection: None,
-            // TODO FIXME Make Rc<RefCell<DataChannels>> to Arc<Mutex<DataChannels>>
             data_channels: Arc::new(Mutex::new(DataChannels::new())),
             rtc_configuration: RTCConfiguration {
-                ice_servers: vec![],
                 ..Default::default()
             },
         }
@@ -93,195 +107,154 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     async fn handle_create_data_channel(
         &self,
     ) -> Result<DataChannel<Arc<RTCDataChannel>>, WebRTCError> {
-        todo!()
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     let data_channel = peer_connection.create_data_channel("DATEX");
-        //     Ok(DataChannel::new(data_channel.label(), data_channel))
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     Err(WebRTCError::ConnectionError)
-        // }
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            let channel_config = RTCDataChannelInit::default();
+            let data_channel = peer_connection
+                .create_data_channel("datex", Some(channel_config))
+                .await
+                .unwrap();
+            Ok(DataChannel::new(
+                data_channel.label().to_string(),
+                data_channel,
+            ))
+        } else {
+            error!("Peer connection is not initialized");
+            return Err(WebRTCError::ConnectionError);
+        }
     }
 
     async fn handle_setup_data_channel(
         channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
-        todo!()
-        // let channel_clone = channel.clone();
-        // {
-        //     let onopen_callback = Closure::<dyn FnMut()>::new(move || {
-        //         if let Some(ref open_channel) =
-        //             channel_clone.borrow().open_channel
-        //         {
-        //             info!("Data channel opened to");
-        //             open_channel(channel_clone.clone());
-        //         }
-        //     });
-        //     channel
-        //         .clone()
-        //         .borrow()
-        //         .data_channel
-        //         .set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
-        //     onopen_callback.forget();
-        // }
-        // let channel_clone = channel.clone();
-        // {
-        //     let onmessage_callback = Closure::<dyn FnMut(MessageEvent)>::new(
-        //         move |message_event: MessageEvent| {
-        //             let data_channel = channel_clone.borrow();
-        //             if let Some(ref on_message) = data_channel.on_message {
-        //                 let data = message_event.data().try_as_u8_slice();
-        //                 if let Ok(data) = data {
-        //                     on_message(data);
-        //                 }
-        //             }
-        //         },
-        //     );
-        //     channel.clone().borrow().data_channel.set_onmessage(Some(
-        //         onmessage_callback.as_ref().unchecked_ref(),
-        //     ));
-        //     onmessage_callback.forget();
-        // }
-        // Ok(())
+        let on_open: OnOpenHdlrFn = Box::new(move || {
+            info!("Data channel opened");
+            Box::pin(async {})
+        });
+
+        let data_channel = channel.clone();
+        let data_channel = data_channel.lock().unwrap();
+        data_channel.data_channel.on_open(on_open);
+        data_channel.data_channel.on_message(Box::new(move |msg| {
+            let data = msg.data.to_vec();
+            info!("Received data on data channel: {data:?}");
+            Box::pin(async {})
+        }));
+        Ok(())
     }
 
     async fn handle_create_offer(
         &self,
     ) -> Result<RTCSessionDescriptionDX, WebRTCError> {
-        todo!()
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     let offer = JsFuture::from(peer_connection.create_offer())
-        //         .await
-        //         .unwrap();
-        //     let sdp: String = Reflect::get(&offer, &JsValue::from_str("sdp"))
-        //         .unwrap()
-        //         .as_string()
-        //         .unwrap();
-        //     info!("Offer created {sdp}");
-        //     Ok(RTCSessionDescriptionDX {
-        //         sdp_type: RTCSdpTypeDX::Offer,
-        //         sdp,
-        //     })
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     Err(WebRTCError::ConnectionError)
-        // }
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            let offer = peer_connection.create_offer(None).await.unwrap();
+            // let mut gather_complete =
+            //     peer_connection.gathering_complete_promise().await;
+            // let _ = gather_complete.recv().await;
+            Ok(RTCSessionDescriptionDX {
+                sdp_type: RTCSdpTypeDX::Offer,
+                sdp: offer.sdp,
+            })
+        } else {
+            error!("Peer connection is not initialized");
+            return Err(WebRTCError::ConnectionError);
+        }
     }
 
     async fn handle_add_ice_candidate(
         &self,
         candidate_init: RTCIceCandidateInitDX,
     ) -> Result<(), WebRTCError> {
-        todo!()
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     let signaling_state = peer_connection.signaling_state();
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            let ice_candidate = RTCIceCandidateInit {
+                candidate: candidate_init.candidate,
+                sdp_mid: candidate_init.sdp_mid,
+                sdp_mline_index: candidate_init.sdp_mline_index,
+                username_fragment: candidate_init.username_fragment,
+            };
 
-        //     // Ensure remote description is set
-        //     if signaling_state != RtcSignalingState::Stable
-        //         && signaling_state != RtcSignalingState::HaveLocalOffer
-        //         && signaling_state != RtcSignalingState::HaveRemoteOffer
-        //     {
-        //         return Err(WebRTCError::MissingRemoteDescription);
-        //     }
-        //     let js_candidate_init =
-        //         RtcIceCandidateInit::new(&candidate_init.candidate);
-        //     js_candidate_init.set_sdp_mid(candidate_init.sdp_mid.as_deref());
-        //     js_candidate_init
-        //         .set_sdp_m_line_index(candidate_init.sdp_mline_index);
-        //     info!(
-        //         "Adding ICE candidate for {}: {:?}",
-        //         self.remote_endpoint(),
-        //         js_candidate_init
-        //     );
-        //     JsFuture::from(
-        //         peer_connection
-        //             .add_ice_candidate_with_opt_rtc_ice_candidate_init(Some(
-        //                 &js_candidate_init,
-        //             )),
-        //     )
-        //     .await
-        //     .map_err(|e| {
-        //         error!("Failed to add ICE candidate {e:?}");
-        //         WebRTCError::InvalidCandidate
-        //     })?;
-        //     info!("ICE candidate added {}", self.remote_endpoint());
-        //     Ok(())
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     Err(WebRTCError::ConnectionError)
-        // }
+            peer_connection
+                .add_ice_candidate(ice_candidate)
+                .await
+                .map_err(|e| {
+                    error!("Failed to add ICE candidate {e:?}");
+                    WebRTCError::InvalidCandidate
+                })?;
+            Ok(())
+        } else {
+            error!("Peer connection is not initialized");
+            Err(WebRTCError::ConnectionError)
+        }
     }
 
     async fn handle_set_local_description(
         &self,
         description: RTCSessionDescriptionDX,
     ) -> Result<(), WebRTCError> {
-        todo!()
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     let description_init =
-        //         RtcSessionDescriptionInit::new(match description.sdp_type {
-        //             RTCSdpTypeDX::Offer => RtcSdpType::Offer,
-        //             RTCSdpTypeDX::Answer => RtcSdpType::Answer,
-        //             _ => Err(WebRTCError::InvalidSdp)?,
-        //         });
-        //     description_init.set_sdp(&description.sdp);
-        //     JsFuture::from(
-        //         peer_connection.set_local_description(&description_init),
-        //     )
-        //     .await
-        //     .unwrap();
-        //     Ok(())
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     return Err(WebRTCError::ConnectionError);
-        // }
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            let rtc_session_description = {
+                if description.sdp_type == RTCSdpTypeDX::Offer {
+                    RTCSessionDescription::offer(description.sdp)
+                } else if description.sdp_type == RTCSdpTypeDX::Answer {
+                    RTCSessionDescription::answer(description.sdp)
+                } else {
+                    return Err(WebRTCError::InvalidSdp);
+                }
+            }
+            .map_err(|_| WebRTCError::InvalidSdp)?;
+
+            peer_connection
+                .set_local_description(rtc_session_description)
+                .await
+                .map_err(|_| WebRTCError::InvalidSdp)?;
+            Ok(())
+        } else {
+            error!("Peer connection is not initialized");
+            return Err(WebRTCError::ConnectionError);
+        }
     }
 
     async fn handle_set_remote_description(
         &self,
         description: RTCSessionDescriptionDX,
     ) -> Result<(), WebRTCError> {
-        todo!()
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     let description_init =
-        //         RtcSessionDescriptionInit::new(match description.sdp_type {
-        //             RTCSdpTypeDX::Offer => RtcSdpType::Offer,
-        //             RTCSdpTypeDX::Answer => RtcSdpType::Answer,
-        //             _ => Err(WebRTCError::InvalidSdp)?,
-        //         });
-        //     description_init.set_sdp(&description.sdp);
-        //     JsFuture::from(
-        //         peer_connection.set_remote_description(&description_init),
-        //     )
-        //     .await
-        //     .unwrap();
-        //     Ok(())
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     return Err(WebRTCError::ConnectionError);
-        // }
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            let rtc_session_description = match description.sdp_type {
+                RTCSdpTypeDX::Offer => {
+                    RTCSessionDescription::offer(description.sdp)
+                }
+                RTCSdpTypeDX::Answer => {
+                    RTCSessionDescription::answer(description.sdp)
+                }
+                RTCSdpTypeDX::Unspecified => {
+                    return Err(WebRTCError::InvalidSdp);
+                }
+            }
+            .map_err(|_| WebRTCError::InvalidSdp)?;
+
+            peer_connection
+                .set_remote_description(rtc_session_description)
+                .await
+                .map_err(|_| WebRTCError::InvalidSdp)?;
+            Ok(())
+        } else {
+            error!("Peer connection is not initialized");
+            return Err(WebRTCError::ConnectionError);
+        }
     }
 
     async fn handle_create_answer(
         &self,
     ) -> Result<RTCSessionDescriptionDX, WebRTCError> {
-        todo!()
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     let answer = JsFuture::from(peer_connection.create_answer())
-        //         .await
-        //         .unwrap();
-        //     let sdp = Reflect::get(&answer, &JsValue::from_str("sdp"))
-        //         .unwrap()
-        //         .as_string()
-        //         .unwrap();
-        //     Ok(RTCSessionDescriptionDX {
-        //         sdp_type: RTCSdpTypeDX::Answer,
-        //         sdp,
-        //     })
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     Err(WebRTCError::ConnectionError)
-        // }
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            let offer = peer_connection.create_answer(None).await.unwrap();
+            Ok(RTCSessionDescriptionDX {
+                sdp_type: RTCSdpTypeDX::Answer,
+                sdp: offer.sdp,
+            })
+        } else {
+            error!("Peer connection is not initialized");
+            return Err(WebRTCError::ConnectionError);
+        }
     }
 
     fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>> {
@@ -311,19 +284,90 @@ impl WebRTCNativeInterface {
         }
         .build();
 
+        {
+            // ICE servers
+            self.rtc_configuration.ice_servers = self
+                .commons
+                .lock()
+                .unwrap()
+                .ice_servers
+                .clone()
+                .iter()
+                .map(|server| webrtc::ice_transport::ice_server::RTCIceServer {
+                    urls: server.urls.clone(),
+                    username: server.username.clone().unwrap_or("".to_string()),
+                    credential: server
+                        .credential
+                        .clone()
+                        .unwrap_or("".to_string()),
+                    ..Default::default()
+                })
+                .collect()
+        }
+        info!("ICE servers: {:?}", self.rtc_configuration.ice_servers);
         let peer_connection = Arc::new(
             api.new_peer_connection(self.rtc_configuration.clone())
                 .await
                 .unwrap(),
         );
         self.peer_connection = Some(peer_connection.clone());
-        let data_channels = self.data_channels.clone();
-        // peer_connection.on_data_channel(Box::new(move |data_channel| {
-        //     // let data_channels = data_channels.clone();
-        //     data_channels.borrow_mut();
-        //     info!("Data channel created");
-        //     Box::pin(async {})
-        // }));
+        {
+            // Data channels
+            let data_channels = self.data_channels.clone();
+            let (tx_data_channel, mut rx_data_channel) =
+                mpsc::unbounded::<Arc<RTCDataChannel>>();
+            let tx_clone = tx_data_channel.clone();
+
+            peer_connection.on_data_channel(Box::new(move |data_channel| {
+                info!("Data channel got");
+                let _ = tx_clone.clone().send(data_channel);
+                Box::pin(async {})
+            }));
+            spawn_local(async move {
+                while let Some(channel) = rx_data_channel.next().await {
+                    data_channels
+                        .clone()
+                        .lock()
+                        .unwrap()
+                        .create_data_channel(
+                            channel.label().to_string(),
+                            channel.clone(),
+                        )
+                        .await;
+                }
+            });
+        }
+        {
+            let commons = self.commons.clone();
+            let (tx_ice_candidate, mut rx_ice_candidate) =
+                mpsc::unbounded::<RTCIceCandidateInit>();
+            let tx_clone = tx_ice_candidate.clone();
+
+            peer_connection.on_ice_candidate(Box::new(
+                move |candidate: Option<RTCIceCandidate>| {
+                    info!("Ice candidate got");
+                    if let Some(candidate) = candidate {
+                        let candidate_init = candidate.to_json();
+                        if let Ok(candidate) = &candidate_init {
+                            let _ = tx_clone.clone().send(candidate.clone());
+                        }
+                    }
+                    Box::pin(async {})
+                },
+            ));
+            spawn_local(async move {
+                while let Some(candidate) = rx_ice_candidate.next().await {
+                    commons.clone().lock().unwrap().on_ice_candidate(
+                        RTCIceCandidateInitDX {
+                            candidate: candidate.candidate,
+                            sdp_mid: candidate.sdp_mid,
+                            sdp_mline_index: candidate.sdp_mline_index,
+                            username_fragment: None,
+                        },
+                    );
+                }
+            });
+        }
         self.setup_listeners();
         Ok(())
     }
@@ -334,17 +378,23 @@ impl ComInterface for WebRTCNativeInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let success = {
-            if let Some(channel) =
-                self.data_channels.lock().unwrap().get_data_channel("DATEX")
-            {
-                true
-            } else {
-                error!("Failed to send message, data channel not found");
-                false
-            }
-        };
-        Box::pin(async move { success })
+        if let Some(channel) =
+            self.data_channels.lock().unwrap().get_data_channel("DATEX")
+        {
+            Box::pin(async move {
+                let bytes = Bytes::from(block.to_vec());
+                channel
+                    .lock()
+                    .unwrap()
+                    .data_channel
+                    .send(&bytes)
+                    .await
+                    .is_ok()
+            })
+        } else {
+            error!("Failed to send message, data channel not found");
+            Box::pin(async move { false })
+        }
     }
 
     fn init_properties(&self) -> InterfaceProperties {
