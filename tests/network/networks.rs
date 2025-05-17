@@ -737,9 +737,41 @@ async fn multi_tracing_2() {
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
         test_routes(&[
-            Route::between("@4pk8", "@iq1a")
+            Route::between("@4pk8", "@xxif")
+                .fork("0")
                 .hop("@46l6")
+                .hop("@xxif")
+                .hop("@46l6")
+                .hop("@4pk8"),
+            Route::between("@4pk8", "@kz0l")
+                .fork("0")
+                .hop("@46l6")
+                .hop("@xxif")
+                .fork("00")
+                .hop("@owyg")
                 .hop("@4pk8")
+                .hop("@owyg")
+                .hop("@82nq")
+                .hop("@7iyl")
+                .hop("@kz0l")
+                .hop("@7iyl")
+                .hop("@4pk8"),
+            Route::between("@4pk8", "@iq1a")
+                .fork("0")
+                .hop("@46l6")
+                .hop("@xxif")
+                .fork("00")
+                .hop("@owyg")
+                .hop("@4pk8")
+                .hop("@owyg")
+                .hop("@82nq")
+                .hop("@7iyl")
+                .hop("@kz0l")
+                .fork("000")
+                .hop("@iq1a")
+                .hop("@kz0l")
+                .hop("@7iyl")
+                .hop("@4pk8"),
         ], &network, TraceOptions::default())
         .await
         .unwrap();

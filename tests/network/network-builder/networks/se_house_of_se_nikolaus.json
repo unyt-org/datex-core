@@ -166,6 +166,13 @@
 			"target": "kz0l",
 			"type": "mockup",
 			"priority": 0
+		},
+		{
+			"id": "mockup-xxif-owyg",
+			"source": "xxif",
+			"target": "owyg",
+			"type": "mockup",
+			"priority": 0
 		}
 	]
 }

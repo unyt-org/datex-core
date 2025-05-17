@@ -28,7 +28,7 @@ use super::com_interfaces::{
 };
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
-use crate::network::block_handler::{BlockHandler};
+use crate::network::block_handler::{BlockHandler, BlockHistoryData};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket, NetworkTraceResult};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
@@ -512,7 +512,7 @@ impl ComHub {
         forked: bool,
     ) {
         let receivers = block.get_receivers();
-        
+
         // check if block has already passed this endpoint (-> bounced back block)
         // and add to blacklist for all receiver endpoints
         let history_block_data =
@@ -555,15 +555,14 @@ impl ComHub {
                 Err(receivers.to_vec())
             }
             else {
+                let mut excluded_sockets = vec![incoming_socket.clone()];
+                if let Some(BlockHistoryData {original_socket_uuid: Some(original_socket_uuid)}) = &history_block_data {
+                    excluded_sockets.push(original_socket_uuid.clone())
+                }
                 self.send_block(
                     block.clone(),
-                    Some(incoming_socket.clone()),
-                    // make sure bounceback flag is set when sending to original socket
-                    if block.is_bounce_back() {
-                        history_block_data.clone().map(|data| data.original_socket_uuid).flatten()
-                    } else {
-                        None
-                    }
+                    excluded_sockets,
+                    forked
                 )
             }
         };
@@ -611,7 +610,7 @@ impl ComHub {
             // and try to send it via other remaining sockets that are not on the blacklist for the
             // block receiver
             else {
-                self.send_block(block, None, None).unwrap_or_else(|_| {
+                self.send_block(block, vec![], forked).unwrap_or_else(|_| {
                     error!(
                         "Failed to send out block to {}",
                         unreachable_endpoints
@@ -1170,17 +1169,13 @@ impl ComHub {
     fn get_outbound_receiver_groups(
         &self,
         block: &DXBBlock,
-        incoming_socket: Option<ComInterfaceSocketUUID>,
+        mut exclude_sockets: Vec<ComInterfaceSocketUUID>,
     ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
         if let Some(receivers) = block.receivers() {
             if !receivers.is_empty() {
                 let endpoint_sockets = receivers
                     .iter()
                     .map(|e| {
-                        let mut exclude_sockets = vec![];
-                        if let Some(original_socket) = &incoming_socket {
-                            exclude_sockets.push(original_socket.clone());
-                        }
                         // add sockets from endpoint blacklist
                         if let Some(blacklist) =
                             self.endpoint_sockets_blacklist.borrow().get(e)
@@ -1279,7 +1274,7 @@ impl ComHub {
         block = self.prepare_own_block(block);
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
-        self.send_block(block, None, None)
+        self.send_block(block, vec![], false)
     }
 
     /// Sends a block and wait for a response block.
@@ -1464,11 +1459,11 @@ impl ComHub {
     pub fn send_block(
         &self,
         block: DXBBlock,
-        incoming_socket: Option<ComInterfaceSocketUUID>,
-        set_bounce_back_if_socket: Option<ComInterfaceSocketUUID>,
+        exclude_sockets: Vec<ComInterfaceSocketUUID>,
+        forked: bool,
     ) -> Result<(), Vec<Endpoint>> {
         let outbound_receiver_groups =
-            self.get_outbound_receiver_groups(&block, incoming_socket);
+            self.get_outbound_receiver_groups(&block, exclude_sockets);
 
         if outbound_receiver_groups.is_none() {
             error!("No outbound receiver groups found for block");
@@ -1483,7 +1478,7 @@ impl ComHub {
         // if more than one addressed block is sent, the block is forked, thus the fork count is set to 0
         // for each forked block, the fork count is incremented
         // if only one block is sent, the block is just moved and not forked
-        let mut fork_count = if outbound_receiver_groups.len() > 1 {
+        let mut fork_count = if forked || outbound_receiver_groups.len() > 1 {
             Some(0)
         } else {
             None
@@ -1492,11 +1487,7 @@ impl ComHub {
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket_uuid) = receiver_socket {
                 let mut block = block.clone();
-                if let Some(bounce_back_socket) = &set_bounce_back_if_socket && &socket_uuid == bounce_back_socket {
-                    block.set_bounce_back(true);
-                } else {
-                    block.set_bounce_back(false);
-                };
+                block.set_bounce_back(false);
 
                 self.send_block_to_endpoints_via_socket(
                     block,
