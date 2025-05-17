@@ -223,14 +223,8 @@ impl ComHub {
 
         for response in responses {
             match response {
-                Ok(Response::ExactResponse(
-                    sender,
-                    IncomingSection::SingleBlock(block),
-                ))
-                | Ok(Response::ResolvedResponse(
-                    sender,
-                    IncomingSection::SingleBlock(block),
-                )) => {
+                Ok(Response::ExactResponse(sender, IncomingSection::SingleBlock(block))) | 
+                Ok(Response::ResolvedResponse(sender, IncomingSection::SingleBlock(block))) => {
                     info!(
                         "Received trace block response from {}",
                         sender.clone()
@@ -249,22 +243,12 @@ impl ComHub {
                         continue;
                     }
                 }
-                Ok(Response::UnspecifiedResponse(
-                    IncomingSection::SingleBlock(_),
-                )) => {
+                Ok(Response::UnspecifiedResponse(IncomingSection::SingleBlock(_))) => {
                     error!("Failed to get trace data from block");
                 }
-                Ok(Response::ExactResponse(
-                    _,
-                    IncomingSection::BlockStream(_),
-                ))
-                | Ok(Response::ResolvedResponse(
-                    _,
-                    IncomingSection::BlockStream(_),
-                ))
-                | Ok(Response::UnspecifiedResponse(
-                    IncomingSection::BlockStream(_),
-                )) => {
+                Ok(Response::ExactResponse(_, IncomingSection::BlockStream(_))) | 
+                Ok(Response::ResolvedResponse( _, IncomingSection::BlockStream(_))) | 
+                Ok(Response::UnspecifiedResponse(IncomingSection::BlockStream(_))) => {
                     error!("Expected single block, but got block stream");
                     continue;
                 }
