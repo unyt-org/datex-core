@@ -278,6 +278,14 @@ impl DXBBlock {
             .flags
             .set_has_endpoints(!receivers.is_empty());
     }
+    
+    pub fn set_bounce_back(&mut self, bounce_back: bool) {
+        self.routing_header.flags.set_is_bounce_back(bounce_back);
+    }
+    
+    pub fn is_bounce_back(&self) -> bool {
+        self.routing_header.flags.is_bounce_back()
+    }
 
     pub fn get_receivers(&self) -> Vec<Endpoint> {
         if let Some(ref endpoints) = self.routing_header.receivers.endpoints {

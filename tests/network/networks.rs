@@ -197,7 +197,6 @@ async fn get_test_network_1_with_deterministic_priorities() -> Network {
     network
 }
 
-#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_1() {
@@ -244,7 +243,6 @@ async fn network_routing_with_four_nodes_1() {
         .await;
 }
 
-#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_2() {
@@ -309,7 +307,6 @@ async fn network_routing_with_four_nodes_2() {
         .await;
 }
 
-#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_3() {
@@ -360,7 +357,6 @@ async fn network_routing_with_four_nodes_3() {
         .await;
 }
 
-#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_4() {
@@ -425,7 +421,6 @@ async fn network_routing_with_four_nodes_4() {
         .await;
 }
 
-#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_5_deterministic_priorities() {
@@ -474,7 +469,6 @@ async fn network_routing_with_four_nodes_5_deterministic_priorities() {
         .await;
 }
 
-#[cfg(feature = "debug")]
 #[tokio::test]
 #[timeout(1000)]
 async fn network_routing_with_four_nodes_6_deterministic_priorities() {
@@ -525,7 +519,6 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
         .await;
 }
 
-#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(3000)]
 async fn simple_network() {
@@ -545,7 +538,6 @@ async fn simple_network() {
     };
 }
 
-#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(7000)]
 async fn complex_network_1() {
@@ -570,7 +562,6 @@ async fn complex_network_1() {
     }
 }
 
-#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(7000)]
 async fn complex_network_2() {
@@ -595,7 +586,6 @@ async fn complex_network_2() {
     }
 }
 
-#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(7000)]
 async fn complex_network_3() {
@@ -614,7 +604,6 @@ async fn complex_network_3() {
     }
 }
 
-#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(7000)]
 async fn threesome_1() {
@@ -641,7 +630,6 @@ async fn threesome_1() {
     }
 }
 
-#[cfg(feature = "debug")] // FIXME why is this not running without debug flag?
 #[tokio::test]
 #[timeout(7000)]
 async fn multi_tracing_1() {
@@ -679,6 +667,47 @@ async fn multi_tracing_1() {
                 .fork("1")
                 .hop("@ajil")
                 .hop("@msun")
-        ], &network).await;
+        ], &network, None).await;
+    }
+}
+
+
+#[tokio::test]
+#[timeout(7000)]
+async fn multi_tracing_2() {
+    init_global_context();
+    run_async! {
+        let mut network = Network::load(
+            "se_house_of_se_nikolaus.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+
+        test_routes(&[
+            Route::between("@4pk8", "@iq1a")
+                .hop("@46l6")
+                .hop("@4pk8")
+        ], &network, None).await;
+    }
+}
+
+#[tokio::test]
+#[timeout(7000)]
+async fn ttl_reached() {
+    init_global_context();
+    run_async! {
+        let mut network = Network::load(
+            "complex.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::between("@msun", "@n7oe")
+            .hop("@fyig")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .hop("@msun")
+        .test(&network)
+        //    .test_with_max_hops(&network, 1)
+            .await
     }
 }

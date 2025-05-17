@@ -38,6 +38,7 @@ pub struct Flags {
     pub signature_type: SignatureType,
     pub encryption_type: EncryptionType,
     pub block_size: BlockSize,
+    pub is_bounce_back: bool,
 
     #[allow(unused)]
     unused_0: bool,
@@ -45,8 +46,6 @@ pub struct Flags {
     unused_1: bool,
     #[allow(unused)]
     unused_2: bool,
-    #[allow(unused)]
-    unused_3: bool,
 }
 
 // 1 byte
@@ -125,7 +124,7 @@ pub struct Receivers {
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
     pub version: u8,
-    pub distance: u8,
+    pub distance: i8,
     pub ttl: u8,
     pub flags: Flags,
 

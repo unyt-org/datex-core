@@ -28,6 +28,7 @@ use std::{
     future::Future,
     sync::{Arc, Mutex},
 };
+use num_traits::ToPrimitive;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -70,7 +71,7 @@ impl ComInterfaceState {
 pub struct ComInterfaceSockets {
     pub sockets:
         HashMap<ComInterfaceSocketUUID, Arc<Mutex<ComInterfaceSocket>>>,
-    pub socket_registrations: VecDeque<(ComInterfaceSocketUUID, u8, Endpoint)>,
+    pub socket_registrations: VecDeque<(ComInterfaceSocketUUID, i8, Endpoint)>,
     pub new_sockets: VecDeque<Arc<Mutex<ComInterfaceSocket>>>,
     pub deleted_sockets: VecDeque<ComInterfaceSocketUUID>,
 }
@@ -118,7 +119,7 @@ impl ComInterfaceSockets {
 
         self.socket_registrations.push_back((
             socket_uuid,
-            distance,
+            distance as i8,
             endpoint.clone(),
         ));
         Ok(())

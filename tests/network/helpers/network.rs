@@ -177,16 +177,30 @@ impl Route {
     }
 
     pub async fn test(&self, network: &Network) {
-        test_routes(&[self.clone()], network).await;
+        test_routes(&[self.clone()], network, None).await;
+    }
+
+    pub async fn test_with_max_hops(&self, network: &Network, max_hops: usize) {
+        test_routes(&[self.clone()], network, Some(max_hops)).await;
     }
 }
 
-pub async fn test_routes(routes: &[Route], network: &Network) {
+pub async fn test_routes(routes: &[Route], network: &Network, max_hops: Option<usize>) {
     let start = routes[0].hops[0].0.clone();
     let ends = routes
         .iter()
         .map(|r| r.hops.last().unwrap().0.clone())
         .collect::<Vec<_>>();
+
+    // make sure the start endpoint for all routes is the same
+    for route in routes {
+        if route.hops[0].0 != start {
+            panic!(
+                "Route start endpoints must all be the same. Found {} instead of {}",
+                route.hops[0].0, start
+            );
+        }
+    }
 
     for end in ends {
         if start != end {
@@ -199,6 +213,7 @@ pub async fn test_routes(routes: &[Route], network: &Network) {
         .com_hub
         .record_trace_multiple(
             routes.iter().map(|r| r.receiver.clone()).collect(),
+            max_hops,
         )
         .await;
 

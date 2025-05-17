@@ -13,6 +13,7 @@ use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
 use std::time::Duration;
+use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -47,10 +48,11 @@ pub enum NetworkTraceHopDirection {
 pub struct NetworkTraceHop {
     #[serde_as(as = "DisplayFromStr")]
     pub endpoint: Endpoint,
-    pub distance: u8,
+    pub distance: i8,
     pub socket: NetworkTraceHopSocket,
     pub direction: NetworkTraceHopDirection,
     pub fork_nr: String,
+    pub bounce_back: bool
 }
 
 #[derive(Debug, Clone)]
@@ -72,7 +74,7 @@ impl Default for NetworkTraceResult {
     }
 }
 impl NetworkTraceResult {
-    fn from_hops(hops: Vec<NetworkTraceHop>) -> Self {
+    pub(crate) fn from_hops(hops: Vec<NetworkTraceHop>) -> Self {
         let sender = hops
             .first()
             .map(|hop| hop.endpoint.clone())
@@ -144,13 +146,14 @@ impl Display for NetworkTraceResult {
             write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
             writeln!(
                 f,
-                "{} ({}) ──▶ {} ({}) | distance from {}: {} | fork #{}",
+                "{} ({}) ─{}▶ {} ({}) | distance from {}: {} | fork #{}",
                 hop_1.endpoint,
                 hop_1
                     .socket
                     .interface_name
                     .clone()
                     .unwrap_or(hop_1.socket.interface_type.clone()),
+                if hop_1.bounce_back { "/" } else { "─" },
                 hop_2.endpoint,
                 hop_2
                     .socket
@@ -185,12 +188,21 @@ impl ComHub {
         &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
-        self.record_trace_multiple(vec![endpoint]).await.pop()
+        self.record_trace_multiple(vec![endpoint], None).await.pop()
+    }
+
+    pub async fn record_trace_with_max_hops(
+        &self,
+        endpoint: impl Into<Endpoint>,
+        max_hops: usize,
+    ) -> Option<NetworkTraceResult> {
+        self.record_trace_multiple(vec![endpoint], Some(max_hops)).await.pop()
     }
 
     pub async fn record_trace_multiple(
         &self,
         endpoints: Vec<impl Into<Endpoint>>,
+        max_hops: Option<usize>,
     ) -> Vec<NetworkTraceResult> {
         let endpoints = endpoints
             .into_iter()
@@ -205,6 +217,7 @@ impl ComHub {
                 &endpoints,
                 BlockType::Trace,
                 scope_id,
+                max_hops
             )
         };
 
@@ -223,7 +236,7 @@ impl ComHub {
 
         for response in responses {
             match response {
-                Ok(Response::ExactResponse(sender, IncomingSection::SingleBlock(block))) | 
+                Ok(Response::ExactResponse(sender, IncomingSection::SingleBlock(block))) |
                 Ok(Response::ResolvedResponse(sender, IncomingSection::SingleBlock(block))) => {
                     info!(
                         "Received trace block response from {}",
@@ -246,14 +259,14 @@ impl ComHub {
                 Ok(Response::UnspecifiedResponse(IncomingSection::SingleBlock(_))) => {
                     error!("Failed to get trace data from block");
                 }
-                Ok(Response::ExactResponse(_, IncomingSection::BlockStream(_))) | 
-                Ok(Response::ResolvedResponse( _, IncomingSection::BlockStream(_))) | 
+                Ok(Response::ExactResponse(_, IncomingSection::BlockStream(_))) |
+                Ok(Response::ResolvedResponse( _, IncomingSection::BlockStream(_))) |
                 Ok(Response::UnspecifiedResponse(IncomingSection::BlockStream(_))) => {
                     error!("Expected single block, but got block stream");
                     continue;
                 }
                 Err(e) => {
-                    error!("Failed to receive trace block: {e:?}");
+                    error!("Failed to receive trace block: {e}");
                 }
             }
         }
@@ -277,6 +290,7 @@ impl ComHub {
 
         // fork_nr stays the same
         let fork_nr = self.get_current_fork_from_trace_block(block);
+        let bounce_back = block.is_bounce_back();
 
         // add incoming socket hop
         hops.push(NetworkTraceHop {
@@ -290,6 +304,7 @@ impl ComHub {
             ),
             direction: NetworkTraceHopDirection::Incoming,
             fork_nr,
+            bounce_back,
         });
 
         // create trace back block
@@ -298,6 +313,7 @@ impl ComHub {
             &[sender.clone()],
             BlockType::TraceBack,
             block.block_header.scope_id,
+            None
         );
 
         // send trace back block
@@ -319,6 +335,7 @@ impl ComHub {
 
         // fork_nr stays the same
         let fork_nr = self.get_current_fork_from_trace_block(&block);
+        let bounce_back = block.is_bounce_back();
 
         self.add_hop_to_block_trace_data(
             &mut block,
@@ -333,6 +350,7 @@ impl ComHub {
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
                 fork_nr,
+                bounce_back,
             },
         );
 
@@ -359,6 +377,7 @@ impl ComHub {
         let distance = block.routing_header.distance;
         // fork_nr stays the same
         let fork_nr = self.get_current_fork_from_trace_block(&block);
+        let bounce_back = block.is_bounce_back();
 
         self.add_hop_to_block_trace_data(
             &mut block,
@@ -373,6 +392,7 @@ impl ComHub {
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
                 fork_nr,
+                bounce_back,
             },
         );
 
@@ -388,8 +408,13 @@ impl ComHub {
         receiver_endpoint: &[Endpoint],
         block_type: BlockType,
         scope_id: OutgoingScopeId,
+        max_hops: Option<usize>,
     ) -> DXBBlock {
         let mut trace_block = DXBBlock {
+            routing_header: RoutingHeader {
+                ttl: max_hops.unwrap_or(42) as u8,
+              ..RoutingHeader::default()
+            },
             block_header: BlockHeader {
                 flags_and_timestamp: FlagsAndTimestamp::default()
                     .with_block_type(block_type),

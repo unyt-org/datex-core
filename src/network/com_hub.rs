@@ -13,6 +13,7 @@ use log::{debug, error, info, warn};
 use std::any::Any;
 use std::cmp::{Ordering, PartialEq};
 use std::collections::{HashMap, HashSet};
+use std::fmt::{Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
@@ -28,7 +29,7 @@ use super::com_interfaces::{
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler};
-use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
+use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket, NetworkTraceResult};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, ReconnectionConfig,
@@ -39,7 +40,7 @@ use crate::network::com_interfaces::default_com_interfaces::local_loopback_inter
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
     pub known_since: u64,
-    pub distance: u8,
+    pub distance: i8,
     pub is_direct: bool,
     pub channel_factor: u32,
     pub direction: InterfaceDirection,
@@ -537,47 +538,83 @@ impl ComHub {
         block.set_receivers(receivers);
         // increment distance for next hop
         block.routing_header.distance += 1;
-        let res = self.send_block(block.clone(), Some(incoming_socket.clone()));
+
+        // TODO: ensure ttl is >= 1
+        // decrease TTL by 1
+        block.routing_header.ttl -= 1;
+        // if ttl is 0, drop the block
+        if block.routing_header.ttl == 0 {
+            warn!("Block TTL expired. Dropping block...");
+            return;
+        }
+
+        let mut prefer_incoming_socket_for_bounce_back = false;
+        // if we are the original sender of the block, don't send again (prevent loop) and send
+        // bounce back block with all receivers
+        let res = {
+            if block.routing_header.sender == self.endpoint {
+                // if not bounce back block, directly send back to incoming socket (prevent loop)
+                prefer_incoming_socket_for_bounce_back = !block.is_bounce_back();
+                Err(receivers.to_vec())
+            }
+            else {
+                self.send_block(
+                    block.clone(),
+                    Some(incoming_socket.clone()),
+                    // make sure bounceback flag is set when sending to original socket
+                    if block.is_bounce_back() {
+                        history_block_data.clone().map(|data| data.original_socket_uuid).flatten()
+                    } else {
+                        None
+                    }
+                )
+            }
+        };
 
         // send block for unreachable endpoints back to the sender
         if let Err(unreachable_endpoints) = res {
             // try to send back to original socket
             // if already in history, get original socket from history
             // otherwise, directly send back to the incoming socket
-            let original_socket =
-                if let Some(history_block_data) = history_block_data {
+            let send_back_socket =
+                if !prefer_incoming_socket_for_bounce_back && let Some(history_block_data) = history_block_data {
                     history_block_data.original_socket_uuid
                 } else {
-                    Some(incoming_socket)
+                    Some(incoming_socket.clone())
                 };
 
-            // decrement distance because we are going back
-            if block.routing_header.distance <= 1 {
-                if block.routing_header.distance == 0 {
-                    // This case should never happen because the distance is incremented before
-                    unreachable!("Distance for redirect block is <= 1. Cannot decrement.");
-                } else {
-                    block.routing_header.distance -= 1;
-                }
-            } else {
-                block.routing_header.distance -= 2;
-            }
+            info!("orig socket: {:?}", send_back_socket);
 
-            // If an original socket is set, the original block is not from this endpoint,
+            // If a send_back_socket is set, the original block is not from this endpoint,
             // so we can send it back to the original socket
-            if let Some(original_socket) = original_socket {
-                self.send_block_addressed(
-                    block,
-                    &original_socket,
-                    &unreachable_endpoints,
-                    if forked { Some(0) } else { None },
-                )
+            if let Some(send_back_socket) = send_back_socket
+            {
+                // never send a bounce back block back again to the incoming socket
+                if block.is_bounce_back() && send_back_socket == incoming_socket {
+                    info!("{}: Tried to send bounce back block back to incoming socket, but this is not allowed", self.endpoint);
+                    let hops = self.get_trace_data_from_block(&block).unwrap_or_default();
+                    info!("{}", NetworkTraceResult::from_hops(hops));
+                }
+                else {
+                    if self.get_socket_by_uuid(&send_back_socket).lock().unwrap().can_send() {
+                        block.set_bounce_back(true);
+                        self.send_block_to_endpoints_via_socket(
+                            block,
+                            &send_back_socket,
+                            &unreachable_endpoints,
+                            if forked { Some(0) } else { None }
+                        )
+                    }
+                    else {
+                        error!("Tried to send bounce back block, but cannot send back to incoming socket")
+                    }
+                }
             }
             // Otherwise, the block originated from this endpoint, we can just call send again
             // and try to send it via other remaining sockets that are not on the blacklist for the
             // block receiver
             else {
-                self.send_block(block, None).unwrap_or_else(|_| {
+                self.send_block(block, None, None).unwrap_or_else(|_| {
                     error!(
                         "Failed to send out block to {}",
                         unreachable_endpoints
@@ -635,7 +672,7 @@ impl ComHub {
         &self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
         endpoint: Endpoint,
-        distance: u8,
+        distance: i8,
     ) -> Result<(), SocketEndpointRegistrationError> {
         log::info!(
             "{} registering endpoint {} for socket {}",
@@ -731,7 +768,7 @@ impl ComHub {
         &self,
         endpoint: &Endpoint,
         socket_uuid: ComInterfaceSocketUUID,
-        distance: u8,
+        distance: i8,
         is_direct: bool,
         channel_factor: u32,
         direction: InterfaceDirection,
@@ -797,24 +834,24 @@ impl ComHub {
                     self.add_fallback_socket(&socket_uuid, priority, direction);
                 }
             }
+
+            // send empty block to socket to say hello
+            let mut block: DXBBlock = DXBBlock::default();
+            block
+                .block_header
+                .flags_and_timestamp
+                .set_block_type(BlockType::Hello);
+            block
+                .routing_header
+                .flags
+                .set_signature_type(SignatureType::Unencrypted);
+            // TODO include fingerprint of the own public key into body
+
+            let block = self.prepare_own_block(block);
+
+            drop(socket_ref);
+            self.send_block_to_endpoints_via_socket(block, &socket_uuid, &[Endpoint::ANY], None);
         }
-
-        // send empty block to socket to say hello
-        let mut block: DXBBlock = DXBBlock::default();
-        block
-            .block_header
-            .flags_and_timestamp
-            .set_block_type(BlockType::Hello);
-        block
-            .routing_header
-            .flags
-            .set_signature_type(SignatureType::Unencrypted);
-        // TODO include fingerprint of the own public key into body
-
-        let block = self.prepare_own_block(block);
-
-        drop(socket_ref);
-        self.send_block_addressed(block, &socket_uuid, &[Endpoint::ANY], None);
     }
 
     /// Registers a socket as a fallback socket for outgoing connections
@@ -1234,7 +1271,6 @@ impl ComHub {
 
         // set distance to 1
         block.routing_header.distance = 1;
-
         block
     }
 
@@ -1246,7 +1282,7 @@ impl ComHub {
         block = self.prepare_own_block(block);
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
-        self.send_block(block, None)
+        self.send_block(block, None, None)
     }
 
     /// Sends a block and wait for a response block.
@@ -1285,9 +1321,9 @@ impl ComHub {
                     .iter()
                     .map(|receiver| {
                         if failed_endpoints.contains(receiver) {
-                            Err(ResponseError::NotReachable)
+                            Err(ResponseError::NotReachable(receiver.clone()))
                         } else {
-                            Err(ResponseError::EarlyAbort)
+                            Err(ResponseError::EarlyAbort(receiver.clone()))
                         }
                     })
                     .collect::<Vec<_>>();
@@ -1300,9 +1336,9 @@ impl ComHub {
                 responses.insert(
                     receiver.clone(),
                     if failed_endpoints.contains(receiver) {
-                        Err(ResponseError::NotReachable)
+                        Err(ResponseError::NotReachable(receiver.clone()))
                     } else {
-                        Err(ResponseError::NoResponseAfterTimeout)
+                        Err(ResponseError::NoResponseAfterTimeout(receiver.clone()))
                     },
                 );
             }
@@ -1369,7 +1405,7 @@ impl ComHub {
                         // set all other responses to EarlyAbort
                         for (receiver, response) in responses.iter_mut() {
                             if receiver != &sender {
-                                *response = Err(ResponseError::EarlyAbort);
+                                *response = Err(ResponseError::EarlyAbort(receiver.clone()));
                             }
                         }
                         break;
@@ -1430,6 +1466,7 @@ impl ComHub {
         &self,
         block: DXBBlock,
         incoming_socket: Option<ComInterfaceSocketUUID>,
+        set_bounce_back_if_socket: Option<ComInterfaceSocketUUID>,
     ) -> Result<(), Vec<Endpoint>> {
         let outbound_receiver_groups =
             self.get_outbound_receiver_groups(&block, incoming_socket);
@@ -1455,11 +1492,19 @@ impl ComHub {
 
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket_uuid) = receiver_socket {
-                self.send_block_addressed(
-                    block.clone(),
+                let mut block = block.clone();
+                if let Some(bounce_back_socket) = &set_bounce_back_if_socket && &socket_uuid == bounce_back_socket {
+                    block.set_bounce_back(true);
+                } else {
+                    block.set_bounce_back(false);
+                };
+
+                self.send_block_to_endpoints_via_socket(
+                    block,
                     &socket_uuid,
                     &endpoints,
                     fork_count,
+
                 );
             } else {
                 error!("{}: cannot send block, no receiver sockets found for endpoints {:?}", self.endpoint, endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
@@ -1479,21 +1524,28 @@ impl ComHub {
 
     /// Sends a block via a socket to a list of endpoints.
     /// Before the block is sent, it is modified to include the list of endpoints as receivers.
-    fn send_block_addressed(
+    fn send_block_to_endpoints_via_socket(
         &self,
         mut block: DXBBlock,
         socket_uuid: &ComInterfaceSocketUUID,
         endpoints: &[Endpoint],
         // currently only used for trace debugging (TODO: put behind debug flag)
-        fork_count: Option<usize>,
+        fork_count: Option<usize>
     ) {
         block.set_receivers(endpoints);
+
+        // assuming the distance was already increment during redirect, we
+        // effectively decrement the block distance by 1 if it is a bounce back
+        if block.is_bounce_back() {
+            block.routing_header.distance -= 2;
+        }
 
         // if type is Trace or TraceBack, add the outgoing socket to the hops
         match block.block_header.flags_and_timestamp.block_type() {
             BlockType::Trace | BlockType::TraceBack => {
                 let distance = block.routing_header.distance;
                 let new_fork_nr = self.calculate_fork_nr(&block, fork_count);
+                let bounce_back = block.is_bounce_back();
 
                 self.add_hop_to_block_trace_data(
                     &mut block,
@@ -1510,6 +1562,7 @@ impl ComHub {
                         ),
                         direction: NetworkTraceHopDirection::Outgoing,
                         fork_nr: new_fork_nr,
+                        bounce_back
                     },
                 );
             }
@@ -1789,7 +1842,23 @@ pub enum Response {
 
 #[derive(Debug)]
 pub enum ResponseError {
-    NoResponseAfterTimeout,
-    NotReachable,
-    EarlyAbort,
+    NoResponseAfterTimeout(Endpoint),
+    NotReachable(Endpoint),
+    EarlyAbort(Endpoint),
+}
+
+impl Display for ResponseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResponseError::NoResponseAfterTimeout(endpoint) => {
+                write!(f, "No response after timeout for endpoint {}", endpoint)
+            }
+            ResponseError::NotReachable(endpoint) => {
+                write!(f, "Endpoint {} is not reachable", endpoint)
+            }
+            ResponseError::EarlyAbort(endpoint) => {
+                write!(f, "Early abort for endpoint {}", endpoint)
+            }
+        }
+    }
 }
