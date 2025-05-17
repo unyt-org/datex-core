@@ -21,7 +21,7 @@ Tests must be run with the `debug` feature enabled. You can either run the tests
 To apply clippy fixes, run the following command:
 
 ```bash
-cargo clippy --fix --features debug
+cargo clippy-debug
 ```
 
 ## Contributing
