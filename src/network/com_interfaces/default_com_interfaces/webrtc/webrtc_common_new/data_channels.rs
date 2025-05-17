@@ -8,22 +8,22 @@ use std::{
 };
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-pub type OpenChannelCallback<T> = Arc<
-    dyn Fn(
-            Arc<Mutex<DataChannel<T>>>,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send>>
-        + Send
-        + Sync,
->;
-pub struct DataChannel<T> {
+
+pub struct DataChannel<T>
+where
+    T: Send + Sync + 'static,
+{
     pub label: String,
     pub data_channel: T,
     pub on_message: Option<Box<dyn Fn(Vec<u8>)>>,
-    pub open_channel: Option<OpenChannelCallback<T>>,
+    pub open_channel: Option<Arc<dyn Fn() + Send + Sync>>,
     pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
 }
-impl<T> DataChannel<T> {
+impl<T> DataChannel<T>
+where
+    T: Send + Sync + 'static,
+{
     pub fn new(label: String, data_channel: T) -> Self {
         DataChannel {
             label,
@@ -45,7 +45,10 @@ impl<T> DataChannel<T> {
     }
 }
 
-pub struct DataChannels<T> {
+pub struct DataChannels<T>
+where
+    T: Send + Sync + 'static,
+{
     pub data_channels: HashMap<String, Arc<Mutex<DataChannel<T>>>>,
     pub on_add: Option<
         Box<
@@ -55,13 +58,19 @@ pub struct DataChannels<T> {
         >,
     >,
 }
-impl<T> Default for DataChannels<T> {
+impl<T> Default for DataChannels<T>
+where
+    T: Send + Sync + 'static,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> DataChannels<T> {
+impl<T> DataChannels<T>
+where
+    T: Send + Sync + 'static,
+{
     pub fn new() -> Self {
         DataChannels {
             data_channels: HashMap::new(),
