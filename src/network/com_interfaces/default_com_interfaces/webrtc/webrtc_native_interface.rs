@@ -128,6 +128,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     ) -> Result<(), WebRTCError> {
         let on_open: OnOpenHdlrFn = Box::new(move || {
             info!("Data channel opened");
+            // FIXME TODO handle open
             Box::pin(async {})
         });
 
@@ -319,8 +320,8 @@ impl WebRTCNativeInterface {
             let tx_clone = tx_data_channel.clone();
 
             peer_connection.on_data_channel(Box::new(move |data_channel| {
-                info!("Data channel got");
-                let _ = tx_clone.clone().send(data_channel);
+                let mut res = tx_clone.clone();
+                let _ = res.start_send(data_channel);
                 Box::pin(async {})
             }));
             spawn_local(async move {
@@ -345,11 +346,12 @@ impl WebRTCNativeInterface {
 
             peer_connection.on_ice_candidate(Box::new(
                 move |candidate: Option<RTCIceCandidate>| {
-                    info!("Ice candidate got");
                     if let Some(candidate) = candidate {
                         let candidate_init = candidate.to_json();
+
                         if let Ok(candidate) = &candidate_init {
-                            let _ = tx_clone.clone().send(candidate.clone());
+                            let mut res = tx_clone.clone();
+                            let _ = res.start_send(candidate.clone());
                         }
                     }
                     Box::pin(async {})
