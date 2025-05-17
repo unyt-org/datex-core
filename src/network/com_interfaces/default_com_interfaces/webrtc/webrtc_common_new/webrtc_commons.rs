@@ -18,6 +18,11 @@ pub struct WebRTCCommon {
 }
 
 impl WebRTCCommon {
+    pub fn reset(&mut self) {
+        self.is_remote_description_set = false;
+        self.candidates.clear();
+        self.on_ice_candidate = None;
+    }
     pub fn new(endpoint: impl Into<Endpoint>) -> Self {
         WebRTCCommon {
             endpoint: endpoint.into(),

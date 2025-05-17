@@ -57,6 +57,10 @@ impl<T> DataChannels<T> {
             on_add: None,
         }
     }
+    pub fn reset(&mut self) {
+        self.data_channels.clear();
+        self.on_add = None;
+    }
     pub fn get_data_channel(
         &self,
         label: &str,
