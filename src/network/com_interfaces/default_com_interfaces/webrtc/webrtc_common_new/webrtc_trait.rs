@@ -31,7 +31,7 @@ use super::{
 pub trait WebRTCTraitInternal<T: 'static> {
     // These method must be implemented in the interface
     fn provide_data_channels(&self) -> Rc<RefCell<DataChannels<T>>>;
-    fn get_commons(&self) -> Rc<RefCell<WebRTCCommon>>;
+    fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>>;
     fn provide_info(&self) -> &ComInterfaceInfo;
 
     async fn handle_create_data_channel(
@@ -60,24 +60,29 @@ pub trait WebRTCTraitInternal<T: 'static> {
     ) -> Result<RTCSessionDescriptionDX, WebRTCError>;
 
     fn set_on_ice_candidate(&self, on_ice_candidate: Box<dyn Fn(Vec<u8>)>) {
-        self.get_commons().borrow_mut().on_ice_candidate =
+        self.get_commons().lock().unwrap().on_ice_candidate =
             Some(on_ice_candidate);
     }
     fn on_ice_candidate(&self, candidate: RTCIceCandidateInitDX) {
         let commons = self.get_commons();
-        commons.borrow().on_ice_candidate(candidate);
+        commons.lock().unwrap().on_ice_candidate(candidate);
     }
     async fn add_ice_candidate(
         &self,
         candidate: Vec<u8>,
     ) -> Result<(), WebRTCError> {
-        if self.get_commons().borrow().is_remote_description_set {
+        let is_remote_description_set = {
+            let commons = self.get_commons();
+            let commons = commons.lock().unwrap();
+            commons.is_remote_description_set.clone()
+        };
+        if is_remote_description_set {
             let candidate = deserialize::<RTCIceCandidateInitDX>(&candidate)
                 .map_err(|_| WebRTCError::InvalidCandidate)?;
             self.handle_add_ice_candidate(candidate).await?;
         } else {
             let info = self.get_commons();
-            info.borrow_mut().candidates.push_back(candidate);
+            info.lock().unwrap().candidates.push_back(candidate);
         }
         Ok(())
     }
@@ -102,7 +107,7 @@ pub trait WebRTCTraitInternal<T: 'static> {
         socket_uuid
     }
     fn _remote_endpoint(&self) -> Endpoint {
-        self.get_commons().borrow().endpoint.clone()
+        self.get_commons().lock().unwrap().endpoint.clone()
     }
     async fn set_remote_description(
         &self,
@@ -111,10 +116,10 @@ pub trait WebRTCTraitInternal<T: 'static> {
         let description = deserialize::<RTCSessionDescriptionDX>(&description)
             .map_err(|_| WebRTCError::InvalidSdp)?;
         self.handle_set_remote_description(description).await?;
-        self.get_commons().borrow_mut().is_remote_description_set = true;
+        self.get_commons().lock().unwrap().is_remote_description_set = true;
         let candidates = {
             let commons = self.get_commons();
-            let mut commons = commons.borrow_mut();
+            let mut commons = commons.lock().unwrap();
             let candidates = commons.candidates.drain(..).collect::<Vec<_>>();
             candidates
         };
@@ -250,7 +255,7 @@ pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
     }
     fn set_ice_servers(&self, ice_servers: Vec<RTCIceServer>) {
         let commons = self.get_commons();
-        let mut commons = commons.borrow_mut();
+        let mut commons = commons.lock().unwrap();
         commons.ice_servers = ice_servers;
     }
     fn remote_endpoint(&self) -> Endpoint {

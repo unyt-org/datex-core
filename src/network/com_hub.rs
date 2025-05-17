@@ -4,7 +4,7 @@ use crate::global::protocol_structures::routing_header::{
 };
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{sleep, spawn_with_panic_notify};
+use crate::task::{self, sleep, spawn_with_panic_notify};
 
 use futures::FutureExt;
 use futures_util::StreamExt;
@@ -1318,7 +1318,7 @@ impl ComHub {
                 .block_handler
                 .register_incoming_block_observer(scope_id, section_index);
 
-            let res = tokio::time::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
+            let res = task::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
                 while let Some(section) = rx.next().await {
                     // get sender
                     let mut sender = section
@@ -1386,7 +1386,7 @@ impl ComHub {
         else {
             let mut responses = vec![];
 
-            let res = tokio::time::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
+            let res = task::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
                 let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender

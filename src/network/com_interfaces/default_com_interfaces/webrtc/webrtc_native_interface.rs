@@ -45,7 +45,7 @@ use webrtc::{
 };
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
-    commons: Rc<RefCell<WebRTCCommon>>,
+    commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
     data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
     rtc_configuration: RTCConfiguration,
@@ -59,7 +59,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self {
         WebRTCNativeInterface {
             info: ComInterfaceInfo::default(),
-            commons: Rc::new(RefCell::new(WebRTCCommon::new(peer_endpoint))),
+            commons: Arc::new(Mutex::new(WebRTCCommon::new(peer_endpoint))),
             peer_connection: None,
             // TODO FIXME Make Rc<RefCell<DataChannels>> to Arc<Mutex<DataChannels>>
             data_channels: Rc::new(RefCell::new(DataChannels::new())),
@@ -284,7 +284,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         // }
     }
 
-    fn get_commons(&self) -> Rc<RefCell<WebRTCCommon>> {
+    fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>> {
         self.commons.clone()
     }
 }

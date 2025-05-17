@@ -1,10 +1,12 @@
 use cfg_if::cfg_if;
 use futures::channel::mpsc;
+use futures::future;
 use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::info;
 use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
+use std::time::Duration;
 
 thread_local! {
     static LOCAL_PANIC_CHANNEL: Rc<RefCell<
@@ -164,8 +166,16 @@ where
         }
     });
 }
+
 cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
+        pub fn timeout<F>(duration: std::time::Duration, fut: F) -> tokio::time::Timeout<F::IntoFuture>
+        where
+            F: std::future::IntoFuture,
+        {
+            tokio::time::timeout(duration, fut)
+        }
+
         pub fn spawn_local<F>(fut: F)
         where
             F: std::future::Future<Output = ()> + 'static,
@@ -190,6 +200,22 @@ cfg_if! {
         }
 
     } else if #[cfg(feature = "wasm_runtime")] {
+        pub async fn timeout<F, T>(
+            duration: std::time::Duration,
+            fut: F,
+        ) -> Result<T, &'static str>
+        where
+            F: std::future::Future<Output = T>,
+        {
+            let timeout_fut = sleep(duration);
+            futures::pin_mut!(fut);
+            futures::pin_mut!(timeout_fut);
+
+            match future::select(fut, timeout_fut).await {
+                future::Either::Left((res, _)) => Ok(res),
+                future::Either::Right(_) => Err("timed out"),
+            }
+        }
         pub async fn sleep(dur: std::time::Duration) {
             gloo_timers::future::sleep(dur).await;
         }
