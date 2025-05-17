@@ -16,6 +16,8 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use futures::channel::oneshot;
+use futures::channel::oneshot::Sender;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -111,6 +113,7 @@ pub struct ComHub {
     /// set to true if the update loop should be running
     /// when set to false, the update loop will stop
     update_loop_running: RefCell<bool>,
+    update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     pub block_handler: BlockHandler,
 }
@@ -135,6 +138,7 @@ impl Default for ComHub {
             fallback_sockets: RefCell::new(Vec::new()),
             endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
             update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
         }
     }
 }
@@ -1211,20 +1215,33 @@ impl ComHub {
         if *self_rc.update_loop_running.borrow() {
             return;
         }
+        
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
+        
         spawn_with_panic_notify(async move {
             while *self_rc.update_loop_running.borrow() {
                 self_rc.update();
                 sleep(Duration::from_millis(1)).await;
             }
+            if let Some(sender) = self_rc.update_loop_stop_sender.borrow_mut().take() {
+                sender.send(()).expect("Failed to send stop signal");
+            }
         });
     }
 
     /// Stops the update loop for the ComHub, if it is running.
-    pub fn stop_update_loop(&self) {
+    pub async fn stop_update_loop(&self) {
         info!("Stopping ComHub update loop for {}", self.endpoint);
         *self.update_loop_running.borrow_mut() = false;
+
+        let (sender, receiver) = oneshot::channel::<()>();
+        
+        self.update_loop_stop_sender
+            .borrow_mut()
+            .replace(sender);
+        
+        receiver.await.unwrap();
     }
 
     /// Update all sockets and interfaces,
