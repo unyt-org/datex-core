@@ -1,10 +1,7 @@
 use std::{
-    cell::RefCell,
     future::Future,
     pin::Pin,
-    rc::Rc,
     sync::{Arc, Mutex},
-    thread::spawn,
     time::Duration,
 };
 
@@ -47,16 +44,14 @@ use webrtc::{
     data_channel::{
         data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
     },
-    ice::candidate,
     ice_transport::ice_candidate::{
-        self, RTCIceCandidate, RTCIceCandidateInit,
+        RTCIceCandidate, RTCIceCandidateInit,
     },
     interceptor::registry::Registry,
     peer_connection::{
         configuration::RTCConfiguration,
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
-    sdp::description::common,
 };
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,

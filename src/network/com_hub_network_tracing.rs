@@ -294,7 +294,7 @@ impl ComHub {
         let mut hops = self.get_trace_data_from_block(block)?;
 
         // fork_nr stays the same
-        let fork_nr = self.get_current_fork_from_trace_block(&block);
+        let fork_nr = self.get_current_fork_from_trace_block(block);
 
         // add incoming socket hop
         hops.push(NetworkTraceHop {
@@ -442,17 +442,17 @@ impl ComHub {
         fork_count: Option<usize>,
     ) -> String {
         let current_fork_nr = self
-            .get_trace_data_from_block(&block)
+            .get_trace_data_from_block(block)
             .unwrap_or_default()
             .last()
             .map(|hop| hop.fork_nr.clone())
             .unwrap_or_default();
         if let Some(fork_count) = fork_count {
             // append new fork number to the end of the string
-            format!("{}{:X}", current_fork_nr, fork_count)
+            format!("{current_fork_nr}{fork_count:X}")
         } else {
             // return current fork number
-            if current_fork_nr == "" {
+            if current_fork_nr.is_empty() {
                 "0".to_string()
             } else {
                 current_fork_nr
@@ -464,7 +464,7 @@ impl ComHub {
         &self,
         block: &DXBBlock,
     ) -> String {
-        self.get_trace_data_from_block(&block)
+        self.get_trace_data_from_block(block)
             .unwrap_or_default()
             .last()
             .map(|hop| hop.fork_nr.clone())

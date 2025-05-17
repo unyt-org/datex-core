@@ -1,10 +1,4 @@
-use std::{
-    cell::RefCell,
-    future::Future,
-    pin::Pin,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use log::{error, info};
@@ -76,7 +70,7 @@ pub trait WebRTCTraitInternal<T: 'static> {
         let is_remote_description_set = {
             let commons = self.get_commons();
             let commons = commons.lock().unwrap();
-            commons.is_remote_description_set.clone()
+            commons.is_remote_description_set
         };
         if is_remote_description_set {
             let candidate = deserialize::<RTCIceCandidateInitDX>(&candidate)

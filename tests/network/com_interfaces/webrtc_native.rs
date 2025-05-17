@@ -1,7 +1,6 @@
 use std::{
-    cell::{Ref, RefCell},
+    cell::RefCell,
     rc::Rc,
-    sync::Arc,
     time::Duration,
 };
 
@@ -23,7 +22,6 @@ use datex_core::{
     task::{sleep, spawn_local},
     utils::uuid::UUID,
 };
-use log::info;
 use ntest_timeout::timeout;
 
 use crate::{
@@ -78,7 +76,7 @@ pub async fn test_new() {
         sleep(Duration::from_secs(2)).await;
 
         // let uuid = interface_b.clone().borrow().get_socket_uuid().clone().unwrap();
-        interface_a.clone().borrow_mut().send_block(b"test", ComInterfaceSocketUUID {0: UUID::from_string("uuid".to_string())}).await;
+        interface_a.clone().borrow_mut().send_block(b"test", ComInterfaceSocketUUID(UUID::from_string("uuid".to_string()))).await;
     }
 }
 

@@ -1,12 +1,10 @@
 use cfg_if::cfg_if;
 use futures::channel::mpsc;
-use futures::future;
 use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::info;
 use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
-use std::time::Duration;
 
 thread_local! {
     static LOCAL_PANIC_CHANNEL: Rc<RefCell<

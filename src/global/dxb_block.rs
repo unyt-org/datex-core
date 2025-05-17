@@ -82,11 +82,7 @@ impl IncomingSection {
                 Some(block.routing_header.sender.clone())
             }
             IncomingSection::BlockStream((blocks, _)) => {
-                if let Some(block) = blocks.borrow().front() {
-                    Some(block.routing_header.sender.clone())
-                } else {
-                    None
-                }
+                blocks.borrow().front().map(|block| block.routing_header.sender.clone())
             }
         }
     }

@@ -1265,7 +1265,7 @@ impl ComHub {
         let receivers = block.get_receivers();
 
         let res = self.send_own_block(block);
-        let failed_endpoints = res.err().unwrap_or_else(Vec::new);
+        let failed_endpoints = res.err().unwrap_or_default();
 
         // yield
         #[cfg(feature = "tokio_runtime")]
@@ -1390,7 +1390,7 @@ impl ComHub {
                 let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
-                    let mut sender = section
+                    let sender = section
                         .try_get_sender()
                         // this is a new section containing at least one block, which has not been drained yet
                         .expect("No sender found for incoming section - this should never happen");
