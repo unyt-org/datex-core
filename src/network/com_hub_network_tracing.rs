@@ -50,6 +50,7 @@ pub struct NetworkTraceHop {
     pub distance: u8,
     pub socket: NetworkTraceHopSocket,
     pub direction: NetworkTraceHopDirection,
+    pub fork_nr: String
 }
 
 #[derive(Debug, Clone)]
@@ -143,7 +144,7 @@ impl Display for NetworkTraceResult {
             write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
             writeln!(
                 f,
-                "{} ({}) ──▶ {} ({})  | distance from {}: {}",
+                "{} ({}) ──▶ {} ({}) | distance from {}: {} | fork #{}",
                 hop_1.endpoint,
                 hop_1
                     .socket
@@ -157,7 +158,8 @@ impl Display for NetworkTraceResult {
                     .clone()
                     .unwrap_or(hop_2.socket.interface_type.clone()),
                 self.sender,
-                distance_from_sender
+                distance_from_sender,
+                hop_1.fork_nr,
             )?;
 
             // increment hop number
@@ -272,6 +274,9 @@ impl ComHub {
         // get hops vector
         let mut hops = self.get_trace_data_from_block(block)?;
 
+        // fork_nr stays the same
+        let fork_nr = self.get_current_fork_from_trace_block(&block);
+
         // add incoming socket hop
         hops.push(NetworkTraceHop {
             endpoint: self.endpoint.clone(),
@@ -283,6 +288,7 @@ impl ComHub {
                 original_socket.clone(),
             ),
             direction: NetworkTraceHopDirection::Incoming,
+            fork_nr
         });
 
         // create trace back block
@@ -309,6 +315,10 @@ impl ComHub {
         info!("Received trace back block from {sender}");
 
         let distance = block.routing_header.distance;
+
+        // fork_nr stays the same
+        let fork_nr = self.get_current_fork_from_trace_block(&block);
+
         self.add_hop_to_block_trace_data(
             &mut block,
             NetworkTraceHop {
@@ -321,6 +331,7 @@ impl ComHub {
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
+                fork_nr
             },
         );
 
@@ -334,6 +345,7 @@ impl ComHub {
         block: &DXBBlock,
         receivers: &[Endpoint],
         original_socket: ComInterfaceSocketUUID,
+        forked: bool
     ) -> Option<()> {
         let mut block = block.clone();
         let sender = block.routing_header.sender.clone();
@@ -344,6 +356,9 @@ impl ComHub {
 
         // add incoming socket hop
         let distance = block.routing_header.distance;
+        // fork_nr stays the same
+        let fork_nr = self.get_current_fork_from_trace_block(&block);
+
         self.add_hop_to_block_trace_data(
             &mut block,
             NetworkTraceHop {
@@ -356,11 +371,12 @@ impl ComHub {
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
+                fork_nr
             },
         );
 
         // resend trace block
-        self.redirect_block(block.clone(), receivers, original_socket);
+        self.redirect_block(block.clone(), receivers, original_socket, forked);
 
         Some(())
     }
@@ -387,13 +403,34 @@ impl ComHub {
         trace_block
     }
 
-    fn get_trace_data_from_block(
+    pub(crate) fn get_trace_data_from_block(
         &self,
         block: &DXBBlock,
     ) -> Option<Vec<NetworkTraceHop>> {
         // convert json to hops
         let hops_json = String::from_utf8(block.body.clone()).ok()?;
         serde_json::from_str(&hops_json).ok()?
+    }
+
+    /// get a new fork number if fork_count is greater than 0, e.g.
+    /// current fork_nr = '0', fork_count = 1 -> '01'
+    /// current fork_nr = '0', fork_count = 2 -> '02'
+    /// current fork_nr = '1', fork_count = 0 -> '1'
+    /// current fork_nr = '1', fork_count = 1 -> '11'
+    pub(crate) fn calculate_fork_nr(&self, block: &DXBBlock, fork_count: Option<usize>) -> String {
+        let current_fork_nr = self.get_trace_data_from_block(&block).unwrap_or_default().last().map(|hop| hop.fork_nr.clone()).unwrap_or_default();
+        if let Some(fork_count) = fork_count {
+            // append new fork number to the end of the string
+            format!("{}{:X}", current_fork_nr, fork_count)
+        }
+        else {
+            // return current fork number
+            current_fork_nr
+        }
+    }
+
+    pub(crate) fn get_current_fork_from_trace_block(&self, block: &DXBBlock) -> String {
+        self.get_trace_data_from_block(&block).unwrap_or_default().last().map(|hop| hop.fork_nr.clone()).unwrap_or_else(|| "0".to_string())
     }
 
     pub(crate) fn set_trace_data_of_block(

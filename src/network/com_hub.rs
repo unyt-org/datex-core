@@ -428,6 +428,7 @@ impl ComHub {
                                 block,
                                 remaining_receivers,
                                 socket_uuid.clone(),
+                                is_for_own
                             );
                         }
                         _ => {
@@ -435,6 +436,7 @@ impl ComHub {
                                 block.clone(),
                                 remaining_receivers,
                                 socket_uuid.clone(),
+                                is_for_own
                             );
                         }
                     }
@@ -510,6 +512,8 @@ impl ComHub {
         block: DXBBlock,
         receivers: &[Endpoint],
         incoming_socket: ComInterfaceSocketUUID,
+        // only for debugging traces
+        forked: bool
     ) {
         // check if block has already passed this endpoint (-> bounced back block)
         // and add to blacklist for all receiver endpoints
@@ -568,6 +572,7 @@ impl ComHub {
                     block,
                     &original_socket,
                     &unreachable_endpoints,
+                    if forked { Some(0) } else { None },
                 )
             }
             // Otherwise, the block originated from this endpoint, we can just call send again
@@ -811,7 +816,7 @@ impl ComHub {
         let block = self.prepare_own_block(block);
 
         drop(socket_ref);
-        self.send_block_addressed(block, &socket_uuid, &[Endpoint::ANY]);
+        self.send_block_addressed(block, &socket_uuid, &[Endpoint::ANY], None);
     }
 
     /// Registers a socket as a fallback socket for outgoing connections
@@ -1427,16 +1432,31 @@ impl ComHub {
 
         let mut unreachable_endpoints = vec![];
 
+        // currently only used for trace debugging (TODO: put behind debug flag)
+        // if more than one addressed block is sent, the block is forked, thus the fork count is set to 0
+        // for each forked block, the fork count is incremented
+        // if only one block is sent, the block is just moved and not forked
+        let mut fork_count = if outbound_receiver_groups.len() > 1 {
+            Some(0)
+        } else {
+            None
+        };
+
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket_uuid) = receiver_socket {
                 self.send_block_addressed(
                     block.clone(),
                     &socket_uuid,
                     &endpoints,
+                    fork_count
                 );
             } else {
                 error!("{}: cannot send block, no receiver sockets found for endpoints {:?}", self.endpoint, endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
                 unreachable_endpoints.extend(endpoints);
+            }
+            // increment fork_count if Some
+            if let Some(count) = fork_count {
+                fork_count = Some(count + 1);
             }
         }
 
@@ -1453,6 +1473,8 @@ impl ComHub {
         mut block: DXBBlock,
         socket_uuid: &ComInterfaceSocketUUID,
         endpoints: &[Endpoint],
+        // currently only used for trace debugging (TODO: put behind debug flag)
+        fork_count: Option<usize>,
     ) {
         block.set_receivers(endpoints);
 
@@ -1460,6 +1482,8 @@ impl ComHub {
         match block.block_header.flags_and_timestamp.block_type() {
             BlockType::Trace | BlockType::TraceBack => {
                 let distance = block.routing_header.distance;
+                let new_fork_nr = self.calculate_fork_nr(&block, fork_count);
+
                 self.add_hop_to_block_trace_data(
                     &mut block,
                     NetworkTraceHop {
@@ -1474,6 +1498,7 @@ impl ComHub {
                             socket_uuid.clone(),
                         ),
                         direction: NetworkTraceHopDirection::Outgoing,
+                        fork_nr: new_fork_nr
                     },
                 );
             }
