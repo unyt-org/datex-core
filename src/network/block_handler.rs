@@ -5,8 +5,8 @@ use crate::global::dxb_block::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::global_context::get_global_context;
-use futures::channel::mpsc::UnboundedReceiver;
 use futures::channel::mpsc;
+use futures::channel::mpsc::UnboundedReceiver;
 use log::info;
 use ringmap::RingMap;
 use std::cell::RefCell;
@@ -354,8 +354,7 @@ impl BlockHandler {
         scope_id: OutgoingScopeId,
         section_index: OutgoingSectionIndex,
     ) -> Option<IncomingSection> {
-        let rx =
-            self.register_incoming_block_observer(scope_id, section_index);
+        let rx = self.register_incoming_block_observer(scope_id, section_index);
         // Await the result from the callback
         // FIXME
         None

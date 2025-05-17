@@ -50,7 +50,7 @@ pub struct NetworkTraceHop {
     pub distance: u8,
     pub socket: NetworkTraceHopSocket,
     pub direction: NetworkTraceHopDirection,
-    pub fork_nr: String
+    pub fork_nr: String,
 }
 
 #[derive(Debug, Clone)]
@@ -200,7 +200,7 @@ impl ComHub {
 
         let trace_block = {
             let scope_id = self.block_handler.get_new_scope_id();
-            
+
             self.create_trace_block(
                 vec![],
                 &endpoints,
@@ -225,9 +225,18 @@ impl ComHub {
         // FIXME
         for response in responses {
             match response {
-                Ok(Response::ExactResponse(sender, IncomingSection::SingleBlock(block))) |
-                Ok(Response::ResolvedResponse(sender, IncomingSection::SingleBlock(block))) => {
-                    info!("Received trace block response from {}", sender.clone());
+                Ok(Response::ExactResponse(
+                    sender,
+                    IncomingSection::SingleBlock(block),
+                ))
+                | Ok(Response::ResolvedResponse(
+                    sender,
+                    IncomingSection::SingleBlock(block),
+                )) => {
+                    info!(
+                        "Received trace block response from {}",
+                        sender.clone()
+                    );
                     let hops = self.get_trace_data_from_block(&block);
                     if let Some(hops) = hops {
                         let result = NetworkTraceResult {
@@ -242,12 +251,22 @@ impl ComHub {
                         continue;
                     }
                 }
-                Ok(Response::UnspecifiedResponse(IncomingSection::SingleBlock(_))) => {
+                Ok(Response::UnspecifiedResponse(
+                    IncomingSection::SingleBlock(_),
+                )) => {
                     error!("Failed to get trace data from block");
                 }
-                Ok(Response::ExactResponse(_, IncomingSection::BlockStream(_))) |
-                Ok(Response::ResolvedResponse(_, IncomingSection::BlockStream(_))) |
-                Ok(Response::UnspecifiedResponse(IncomingSection::BlockStream(_))) => {
+                Ok(Response::ExactResponse(
+                    _,
+                    IncomingSection::BlockStream(_),
+                ))
+                | Ok(Response::ResolvedResponse(
+                    _,
+                    IncomingSection::BlockStream(_),
+                ))
+                | Ok(Response::UnspecifiedResponse(
+                    IncomingSection::BlockStream(_),
+                )) => {
                     error!("Expected single block, but got block stream");
                     continue;
                 }
@@ -288,7 +307,7 @@ impl ComHub {
                 original_socket.clone(),
             ),
             direction: NetworkTraceHopDirection::Incoming,
-            fork_nr
+            fork_nr,
         });
 
         // create trace back block
@@ -331,7 +350,7 @@ impl ComHub {
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
-                fork_nr
+                fork_nr,
             },
         );
 
@@ -345,7 +364,7 @@ impl ComHub {
         block: &DXBBlock,
         receivers: &[Endpoint],
         original_socket: ComInterfaceSocketUUID,
-        forked: bool
+        forked: bool,
     ) -> Option<()> {
         let mut block = block.clone();
         let sender = block.routing_header.sender.clone();
@@ -371,7 +390,7 @@ impl ComHub {
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
-                fork_nr
+                fork_nr,
             },
         );
 
@@ -417,25 +436,39 @@ impl ComHub {
     /// current fork_nr = '0', fork_count = 2 -> '02'
     /// current fork_nr = '1', fork_count = 0 -> '1'
     /// current fork_nr = '1', fork_count = 1 -> '11'
-    pub(crate) fn calculate_fork_nr(&self, block: &DXBBlock, fork_count: Option<usize>) -> String {
-        let current_fork_nr = self.get_trace_data_from_block(&block).unwrap_or_default().last().map(|hop| hop.fork_nr.clone()).unwrap_or_default();
+    pub(crate) fn calculate_fork_nr(
+        &self,
+        block: &DXBBlock,
+        fork_count: Option<usize>,
+    ) -> String {
+        let current_fork_nr = self
+            .get_trace_data_from_block(&block)
+            .unwrap_or_default()
+            .last()
+            .map(|hop| hop.fork_nr.clone())
+            .unwrap_or_default();
         if let Some(fork_count) = fork_count {
             // append new fork number to the end of the string
             format!("{}{:X}", current_fork_nr, fork_count)
-        }
-        else {
+        } else {
             // return current fork number
             if current_fork_nr == "" {
                 "0".to_string()
-            }
-            else {
+            } else {
                 current_fork_nr
             }
         }
     }
 
-    pub(crate) fn get_current_fork_from_trace_block(&self, block: &DXBBlock) -> String {
-        self.get_trace_data_from_block(&block).unwrap_or_default().last().map(|hop| hop.fork_nr.clone()).unwrap_or_else(|| "0".to_string())
+    pub(crate) fn get_current_fork_from_trace_block(
+        &self,
+        block: &DXBBlock,
+    ) -> String {
+        self.get_trace_data_from_block(&block)
+            .unwrap_or_default()
+            .last()
+            .map(|hop| hop.fork_nr.clone())
+            .unwrap_or_else(|| "0".to_string())
     }
 
     pub(crate) fn set_trace_data_of_block(

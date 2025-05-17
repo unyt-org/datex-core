@@ -117,16 +117,12 @@ impl Route {
         }
     }
 
-
     pub fn hop(mut self, target: impl Into<Endpoint>) -> Self {
         self.add_hop(target);
         self
     }
 
-    pub fn fork(
-        mut self,
-        fork_nr: &str
-    ) -> Self {
+    pub fn fork(mut self, fork_nr: &str) -> Self {
         self.next_fork = Some(fork_nr.to_string());
         self
     }
@@ -164,10 +160,7 @@ impl Route {
         self
     }
 
-    fn add_hop(
-        &mut self,
-        to: impl Into<Endpoint>,
-    ) {
+    fn add_hop(&mut self, to: impl Into<Endpoint>) {
         let fork = self.next_fork.take();
         self.hops.push((to.into(), None, fork));
     }
@@ -182,12 +175,11 @@ impl Route {
         }
         segments
     }
-    
+
     pub async fn test(&self, network: &Network) {
         test_routes(&[self.clone()], network).await;
     }
 }
-
 
 pub async fn test_routes(routes: &[Route], network: &Network) {
     let start = routes[0].hops[0].0.clone();
@@ -205,18 +197,25 @@ pub async fn test_routes(routes: &[Route], network: &Network) {
     let network_traces = network
         .get_runtime(start)
         .com_hub
-        .record_trace_multiple(routes.iter().map(|r| r.receiver.clone()).collect())
+        .record_trace_multiple(
+            routes.iter().map(|r| r.receiver.clone()).collect(),
+        )
         .await;
 
     // combine received traces with original routes
     let route_pairs = routes
         .iter()
         .map(|route| {
-          // find matching route with the same receiver in network_traces
+            // find matching route with the same receiver in network_traces
             let trace = network_traces
                 .iter()
                 .find(|t| t.receiver == route.receiver)
-                .unwrap_or_else(|| panic!("No matching trace found for receiver {}", route.receiver));
+                .unwrap_or_else(|| {
+                    panic!(
+                        "No matching trace found for receiver {}",
+                        route.receiver
+                    )
+                });
             (trace, route)
         })
         .collect::<Vec<_>>();
@@ -226,7 +225,7 @@ pub async fn test_routes(routes: &[Route], network: &Network) {
         info!("Network trace:\n{trace}");
 
         let mut index = 0;
-        
+
         // combine original and expected hops
         let hop_pairs = trace
             .hops
@@ -242,8 +241,10 @@ pub async fn test_routes(routes: &[Route], network: &Network) {
                 },
             )
             .zip(route.hops.iter());
-        
-        for (original, (expected_endpoint, expected_channel, expected_fork)) in hop_pairs {
+
+        for (original, (expected_endpoint, expected_channel, expected_fork)) in
+            hop_pairs
+        {
             // check endpoint
             if original.endpoint != expected_endpoint.clone() {
                 panic!(

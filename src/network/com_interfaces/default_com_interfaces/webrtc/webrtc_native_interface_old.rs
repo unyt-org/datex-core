@@ -38,9 +38,7 @@ use crate::{
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
-        },
+        com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceSockets},
         com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocketUUID,
     },

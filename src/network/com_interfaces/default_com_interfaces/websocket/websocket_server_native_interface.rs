@@ -9,9 +9,7 @@ use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
-        },
+        com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceSockets},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },

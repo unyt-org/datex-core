@@ -7,6 +7,7 @@ use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{sleep, spawn_with_panic_notify};
 
 use futures::FutureExt;
+use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use std::any::Any;
@@ -14,7 +15,6 @@ use std::cmp::{Ordering, PartialEq};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use futures_util::StreamExt;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -50,9 +50,8 @@ pub type ComInterfaceFactoryFn =
         setup_data: Box<dyn Any>,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
-
 pub struct ComHubOptions {
-    default_receive_timeout: Duration
+    default_receive_timeout: Duration,
 }
 
 impl Default for ComHubOptions {
@@ -175,7 +174,6 @@ pub enum SocketEndpointRegistrationError {
     SocketUninitialized,
     SocketEndpointAlreadyRegistered,
 }
-
 
 impl ComHub {
     pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
@@ -428,7 +426,7 @@ impl ComHub {
                                 block,
                                 remaining_receivers,
                                 socket_uuid.clone(),
-                                is_for_own
+                                is_for_own,
                             );
                         }
                         _ => {
@@ -436,7 +434,7 @@ impl ComHub {
                                 block.clone(),
                                 remaining_receivers,
                                 socket_uuid.clone(),
-                                is_for_own
+                                is_for_own,
                             );
                         }
                     }
@@ -513,7 +511,7 @@ impl ComHub {
         receivers: &[Endpoint],
         incoming_socket: ComInterfaceSocketUUID,
         // only for debugging traces
-        forked: bool
+        forked: bool,
     ) {
         // check if block has already passed this endpoint (-> bounced back block)
         // and add to blacklist for all receiver endpoints
@@ -1241,7 +1239,10 @@ impl ComHub {
     }
 
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
-    pub fn send_own_block(&self, mut block: DXBBlock) -> Result<(), Vec<Endpoint>>{
+    pub fn send_own_block(
+        &self,
+        mut block: DXBBlock,
+    ) -> Result<(), Vec<Endpoint>> {
         block = self.prepare_own_block(block);
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
@@ -1273,10 +1274,11 @@ impl ComHub {
         // return fixed number of responses
         if has_exact_receiver_count {
             // if resolution strategy is ReturnOnAnyError or ReturnOnFirstResult, directly return if any endpoint failed
-            if (
-                options.resolution_strategy == ResponseResolutionStrategy::ReturnOnAnyError ||
-                options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult
-            ) && !failed_endpoints.is_empty()
+            if (options.resolution_strategy
+                == ResponseResolutionStrategy::ReturnOnAnyError
+                || options.resolution_strategy
+                    == ResponseResolutionStrategy::ReturnOnFirstResult)
+                && !failed_endpoints.is_empty()
             {
                 // for each failed endpoint, set NotReachable error, for all others EarlyAbort
                 return receivers
@@ -1297,13 +1299,14 @@ impl ComHub {
             for receiver in &receivers {
                 responses.insert(
                     receiver.clone(),
-                    Err(ResponseError::NoResponseAfterTimeout)
+                    Err(ResponseError::NoResponseAfterTimeout),
                 );
             }
             // directly subtract number of already failed endpoints from missing responses
             missing_response_count -= failed_endpoints.len();
 
-            info!("Waiting for responses from receivers {}",
+            info!(
+                "Waiting for responses from receivers {}",
                 receivers
                     .iter()
                     .map(|e| e.to_string())
@@ -1311,7 +1314,9 @@ impl ComHub {
                     .join(",")
             );
 
-            let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+            let mut rx = self
+                .block_handler
+                .register_incoming_block_observer(scope_id, section_index);
 
             let res = tokio::time::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
                 while let Some(section) = rx.next().await {
@@ -1377,7 +1382,6 @@ impl ComHub {
             // return responses as vector
             responses.into_values().collect::<Vec<_>>()
         }
-
         // return all received responses
         else {
             let mut responses = vec![];
@@ -1448,7 +1452,7 @@ impl ComHub {
                     block.clone(),
                     &socket_uuid,
                     &endpoints,
-                    fork_count
+                    fork_count,
                 );
             } else {
                 error!("{}: cannot send block, no receiver sockets found for endpoints {:?}", self.endpoint, endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
@@ -1498,7 +1502,7 @@ impl ComHub {
                             socket_uuid.clone(),
                         ),
                         direction: NetworkTraceHopDirection::Outgoing,
-                        fork_nr: new_fork_nr
+                        fork_nr: new_fork_nr,
                     },
                 );
             }
@@ -1780,5 +1784,5 @@ pub enum Response {
 pub enum ResponseError {
     NoResponseAfterTimeout,
     NotReachable,
-    EarlyAbort
+    EarlyAbort,
 }
