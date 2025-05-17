@@ -33,7 +33,7 @@ use super::webrtc_common_new::{
     webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
 };
 use datex_macros::{com_interface, create_opener};
-use log::error;
+use log::{error, info};
 use webrtc::{
     api::{
         interceptor_registry::register_default_interceptors,
@@ -47,7 +47,7 @@ pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
-    data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
+    data_channels: Arc<Mutex<DataChannels<Arc<RTCDataChannel>>>>,
     rtc_configuration: RTCConfiguration,
 }
 impl SingleSocketProvider for WebRTCNativeInterface {
@@ -62,7 +62,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
             commons: Arc::new(Mutex::new(WebRTCCommon::new(peer_endpoint))),
             peer_connection: None,
             // TODO FIXME Make Rc<RefCell<DataChannels>> to Arc<Mutex<DataChannels>>
-            data_channels: Rc::new(RefCell::new(DataChannels::new())),
+            data_channels: Arc::new(Mutex::new(DataChannels::new())),
             rtc_configuration: RTCConfiguration {
                 ice_servers: vec![],
                 ..Default::default()
@@ -83,7 +83,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn provide_data_channels(
         &self,
-    ) -> Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> {
+    ) -> Arc<Mutex<DataChannels<Arc<RTCDataChannel>>>> {
         self.data_channels.clone()
     }
     fn provide_info(&self) -> &ComInterfaceInfo {
@@ -104,7 +104,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     }
 
     async fn handle_setup_data_channel(
-        channel: Rc<RefCell<DataChannel<Arc<RTCDataChannel>>>>,
+        channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
         todo!()
         // let channel_clone = channel.clone();
@@ -317,8 +317,7 @@ impl WebRTCNativeInterface {
                 .unwrap(),
         );
         self.peer_connection = Some(peer_connection.clone());
-        let data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> =
-            self.data_channels.clone();
+        let data_channels = self.data_channels.clone();
         // peer_connection.on_data_channel(Box::new(move |data_channel| {
         //     // let data_channels = data_channels.clone();
         //     data_channels.borrow_mut();
@@ -337,7 +336,7 @@ impl ComInterface for WebRTCNativeInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let success = {
             if let Some(channel) =
-                self.data_channels.borrow().get_data_channel("DATEX")
+                self.data_channels.lock().unwrap().get_data_channel("DATEX")
             {
                 true
             } else {
