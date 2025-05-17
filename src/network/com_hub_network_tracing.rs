@@ -245,7 +245,6 @@ impl ComHub {
     ) -> Vec<NetworkTraceResult> {
         let endpoints = options.endpoints
             .into_iter()
-            .map(|endpoint| endpoint.into())
             .collect::<Vec<Endpoint>>();
 
         let trace_block = {

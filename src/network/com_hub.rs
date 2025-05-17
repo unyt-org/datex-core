@@ -579,7 +579,7 @@ impl ComHub {
                     Some(incoming_socket.clone())
                 };
 
-            info!("orig socket: {:?}", send_back_socket);
+            info!("orig socket: {send_back_socket:?}");
 
             // If a send_back_socket is set, the original block is not from this endpoint,
             // so we can send it back to the original socket
@@ -591,19 +591,17 @@ impl ComHub {
                     let hops = self.get_trace_data_from_block(&block).unwrap_or_default();
                     info!("{}", NetworkTraceResult::from_hops(hops));
                 }
+                else if self.get_socket_by_uuid(&send_back_socket).lock().unwrap().can_send() {
+                    block.set_bounce_back(true);
+                    self.send_block_to_endpoints_via_socket(
+                        block,
+                        &send_back_socket,
+                        &unreachable_endpoints,
+                        if forked { Some(0) } else { None }
+                    )
+                }
                 else {
-                    if self.get_socket_by_uuid(&send_back_socket).lock().unwrap().can_send() {
-                        block.set_bounce_back(true);
-                        self.send_block_to_endpoints_via_socket(
-                            block,
-                            &send_back_socket,
-                            &unreachable_endpoints,
-                            if forked { Some(0) } else { None }
-                        )
-                    }
-                    else {
-                        error!("Tried to send bounce back block, but cannot send back to incoming socket")
-                    }
+                    error!("Tried to send bounce back block, but cannot send back to incoming socket")
                 }
             }
             // Otherwise, the block originated from this endpoint, we can just call send again
@@ -1853,10 +1851,10 @@ impl Display for ResponseError {
                 write!(f, "No response after timeout ({}s) for endpoint {}", duration.as_secs(), endpoint)
             }
             ResponseError::NotReachable(endpoint) => {
-                write!(f, "Endpoint {} is not reachable", endpoint)
+                write!(f, "Endpoint {endpoint} is not reachable")
             }
             ResponseError::EarlyAbort(endpoint) => {
-                write!(f, "Early abort for endpoint {}", endpoint)
+                write!(f, "Early abort for endpoint {endpoint}")
             }
         }
     }

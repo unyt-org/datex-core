@@ -28,7 +28,6 @@ use std::{
     future::Future,
     sync::{Arc, Mutex},
 };
-use num_traits::ToPrimitive;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);

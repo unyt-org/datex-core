@@ -313,26 +313,23 @@ impl Display for RouteAssertionError {
             RouteAssertionError::InvalidEndpointOnHop(index, expected, actual) => {
                 write!(
                     f,
-                    "Expected hop #{} to be {} but was {}",
-                    index, expected, actual
+                    "Expected hop #{index} to be {expected} but was {actual}"
                 )
             }
             RouteAssertionError::InvalidChannelOnHop(index, expected, actual) => {
                 write!(
                     f,
-                    "Expected hop #{} to be channel {} but was {}",
-                    index, expected, actual
+                    "Expected hop #{index} to be channel {expected} but was {actual}"
                 )
             }
             RouteAssertionError::InvalidForkOnHop(index, expected, actual) => {
                 write!(
                     f,
-                    "Expected hop #{} to be fork {} but was {}",
-                    index, expected, actual
+                    "Expected hop #{index} to be fork {expected} but was {actual}"
                 )
             }
             RouteAssertionError::MissingResponse(endpoint) => {
-                write!(f, "No response received for endpoint {}", endpoint)
+                write!(f, "No response received for endpoint {endpoint}")
             }
         }
     }
