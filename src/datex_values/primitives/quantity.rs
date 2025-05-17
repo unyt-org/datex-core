@@ -263,7 +263,7 @@ impl Quantity {
 
     fn equals(&self, other: &Quantity) -> bool {
         self.has_same_dimension(other)
-            && self.denominator == self.denominator
+            && self.denominator == other.denominator
             && self.numerator == other.numerator
             && self.sign == other.sign
     }

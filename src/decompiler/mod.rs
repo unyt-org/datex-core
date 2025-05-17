@@ -146,7 +146,7 @@ impl DecompilerGlobalState<'_> {
     fn get_variable_name(&mut self, slot: &SlotIdentifier) -> (String, String) {
         // return slot name
         if slot.is_reserved() || slot.is_object_slot() || !self.resolve_slots {
-            return (slot.to_string(), "".to_string());
+            return (slot.as_string(), "".to_string());
         }
         // existing variable
         if self.variables.contains_key(&slot.index) {

@@ -1202,7 +1202,7 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    pub fn to_string(&self) -> String {
+    pub fn as_string(&self) -> String {
         if self.primitive_value.is_some() && self.value.is_some() {
             format!(
                 "{} [{:X}] {} {}",
@@ -1233,6 +1233,6 @@ impl Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", Instruction::to_string(self))
+        write!(f, "{}", Instruction::as_string(self))
     }
 }

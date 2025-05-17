@@ -53,7 +53,7 @@ impl SlotIdentifier {
         SlotIdentifier { index }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn as_string(&self) -> String {
         match *self {
             internal_slot::THIS => "#this".to_string(),
             internal_slot::IT => "#it".to_string(),
@@ -93,6 +93,6 @@ impl SlotIdentifier {
 
 impl fmt::Display for SlotIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", self.as_string())
     }
 }
