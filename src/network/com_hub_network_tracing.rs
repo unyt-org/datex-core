@@ -183,28 +183,67 @@ impl Display for NetworkTraceResult {
     }
 }
 
+#[derive(Default, Debug)]
+pub struct TraceOptions {
+    pub max_hops: Option<usize>,
+    pub endpoints: Vec<Endpoint>,
+    pub response_options: ResponseOptions,
+}
+
+impl TraceOptions {
+    fn new_with_endpoints(
+        endpoints: Vec<Endpoint>,
+    ) -> Self {
+        TraceOptions {
+            endpoints,
+            ..Default::default()
+        }
+    }
+
+    pub fn new(
+        max_hops: Option<usize>,
+        response_options: ResponseOptions,
+    ) -> Self {
+        TraceOptions {
+            max_hops,
+            endpoints: vec![],
+            response_options,
+        }
+    }
+}
+
 impl ComHub {
     pub async fn record_trace(
         &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
-        self.record_trace_multiple(vec![endpoint], None).await.pop()
+        self.record_trace_multiple(vec![endpoint.into()]).await.pop()
     }
 
-    pub async fn record_trace_with_max_hops(
+    pub async fn record_trace_with_options(
         &self,
-        endpoint: impl Into<Endpoint>,
-        max_hops: usize,
+        options: TraceOptions,
     ) -> Option<NetworkTraceResult> {
-        self.record_trace_multiple(vec![endpoint], Some(max_hops)).await.pop()
+        self.record_trace_multiple_with_options(options).await.pop()
     }
 
     pub async fn record_trace_multiple(
         &self,
         endpoints: Vec<impl Into<Endpoint>>,
-        max_hops: Option<usize>,
     ) -> Vec<NetworkTraceResult> {
-        let endpoints = endpoints
+        self.record_trace_multiple_with_options(TraceOptions::new_with_endpoints(
+            endpoints
+                .into_iter()
+                .map(|endpoint| endpoint.into())
+                .collect::<Vec<Endpoint>>(),
+        )).await
+    }
+
+    pub async fn record_trace_multiple_with_options(
+        &self,
+        options: TraceOptions,
+    ) -> Vec<NetworkTraceResult> {
+        let endpoints = options.endpoints
             .into_iter()
             .map(|endpoint| endpoint.into())
             .collect::<Vec<Endpoint>>();
@@ -217,7 +256,7 @@ impl ComHub {
                 &endpoints,
                 BlockType::Trace,
                 scope_id,
-                max_hops
+                options.max_hops
             )
         };
 
@@ -227,7 +266,7 @@ impl ComHub {
         let responses = self
             .send_own_block_await_response(
                 trace_block,
-                ResponseOptions::default(),
+                options.response_options
             )
             .await;
         let round_trip_time = start_time.elapsed();
@@ -361,8 +400,7 @@ impl ComHub {
 
     pub(crate) fn redirect_trace_block(
         &self,
-        block: &DXBBlock,
-        receivers: &[Endpoint],
+        block: DXBBlock,
         original_socket: ComInterfaceSocketUUID,
         forked: bool,
     ) -> Option<()> {
@@ -397,7 +435,7 @@ impl ComHub {
         );
 
         // resend trace block
-        self.redirect_block(block.clone(), receivers, original_socket, forked);
+        self.redirect_block(block, original_socket, forked);
 
         Some(())
     }

@@ -424,16 +424,14 @@ impl ComHub {
                     match block_type {
                         BlockType::Trace | BlockType::TraceBack => {
                             self.redirect_trace_block(
-                                block,
-                                remaining_receivers,
+                                block.clone_with_new_receivers(remaining_receivers),
                                 socket_uuid.clone(),
                                 is_for_own,
                             );
                         }
                         _ => {
                             self.redirect_block(
-                                block.clone(),
-                                remaining_receivers,
+                                block.clone_with_new_receivers(remaining_receivers),
                                 socket_uuid.clone(),
                                 is_for_own,
                             );
@@ -508,18 +506,19 @@ impl ComHub {
     /// The routing distance is incremented by 1.
     pub(crate) fn redirect_block(
         &self,
-        block: DXBBlock,
-        receivers: &[Endpoint],
+        mut block: DXBBlock,
         incoming_socket: ComInterfaceSocketUUID,
         // only for debugging traces
         forked: bool,
     ) {
+        let receivers = block.get_receivers();
+        
         // check if block has already passed this endpoint (-> bounced back block)
         // and add to blacklist for all receiver endpoints
         let history_block_data =
             self.block_handler.get_block_data_from_history(&block);
         if history_block_data.is_some() {
-            for receiver in receivers {
+            for receiver in &receivers {
                 if receiver != &self.endpoint {
                     info!(
                         "{}: Adding socket {} to blacklist for receiver {}",
@@ -534,8 +533,6 @@ impl ComHub {
             }
         }
 
-        let mut block = block.clone();
-        block.set_receivers(receivers);
         // increment distance for next hop
         block.routing_header.distance += 1;
 
@@ -1307,6 +1304,8 @@ impl ComHub {
         #[cfg(feature = "tokio_runtime")]
         yield_now().await;
 
+        let timeout = options.timeout.unwrap_or_default(self.options.default_receive_timeout);
+
         // return fixed number of responses
         if has_exact_receiver_count {
             // if resolution strategy is ReturnOnAnyError or ReturnOnFirstResult, directly return if any endpoint failed
@@ -1338,7 +1337,7 @@ impl ComHub {
                     if failed_endpoints.contains(receiver) {
                         Err(ResponseError::NotReachable(receiver.clone()))
                     } else {
-                        Err(ResponseError::NoResponseAfterTimeout(receiver.clone()))
+                        Err(ResponseError::NoResponseAfterTimeout(receiver.clone(), timeout))
                     },
                 );
             }
@@ -1358,7 +1357,7 @@ impl ComHub {
                 .block_handler
                 .register_incoming_block_observer(scope_id, section_index);
 
-            let res = task::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
+            let res = task::timeout(timeout, async {
                 while let Some(section) = rx.next().await {
                     let mut received_response = false;
                     // get sender
@@ -1429,7 +1428,7 @@ impl ComHub {
         else {
             let mut responses = vec![];
 
-            let res = task::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
+            let res = task::timeout(timeout, async {
                 let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
@@ -1771,7 +1770,7 @@ impl ComHub {
     }
 }
 
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Debug)]
 pub enum ResponseResolutionStrategy {
     /// Promise.allSettled
     /// - For know fixed receivers:
@@ -1800,7 +1799,7 @@ pub enum ResponseResolutionStrategy {
     ReturnOnFirstResult,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub enum ResponseTimeout {
     #[default]
     Default,
@@ -1816,18 +1815,27 @@ impl ResponseTimeout {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ResponseOptions {
     pub resolution_strategy: ResponseResolutionStrategy,
     pub timeout: ResponseTimeout,
 }
 
 impl ResponseOptions {
-    pub fn with_resolution_strategy(
+    pub fn new_with_resolution_strategy(
         resolution_strategy: ResponseResolutionStrategy,
     ) -> Self {
         Self {
             resolution_strategy,
+            ..ResponseOptions::default()
+        }
+    }
+
+    pub fn new_with_timeout(
+        timeout: Duration,
+    ) -> Self {
+        Self {
+            timeout: ResponseTimeout::Custom(timeout),
             ..ResponseOptions::default()
         }
     }
@@ -1842,7 +1850,7 @@ pub enum Response {
 
 #[derive(Debug)]
 pub enum ResponseError {
-    NoResponseAfterTimeout(Endpoint),
+    NoResponseAfterTimeout(Endpoint, Duration),
     NotReachable(Endpoint),
     EarlyAbort(Endpoint),
 }
@@ -1850,8 +1858,8 @@ pub enum ResponseError {
 impl Display for ResponseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResponseError::NoResponseAfterTimeout(endpoint) => {
-                write!(f, "No response after timeout for endpoint {}", endpoint)
+            ResponseError::NoResponseAfterTimeout(endpoint, duration) => {
+                write!(f, "No response after timeout ({}s) for endpoint {}", duration.as_secs(), endpoint)
             }
             ResponseError::NotReachable(endpoint) => {
                 write!(f, "Endpoint {} is not reachable", endpoint)

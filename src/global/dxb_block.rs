@@ -326,6 +326,15 @@ impl DXBBlock {
             .iter()
             .any(|e| e.is_broadcast() || e.is_any())
     }
+    
+    pub fn clone_with_new_receivers(
+        &self,
+        new_receivers: &[Endpoint],
+    ) -> DXBBlock {
+        let mut new_block = self.clone();
+        new_block.set_receivers(new_receivers);
+        new_block
+    }
 }
 
 impl Display for DXBBlock {

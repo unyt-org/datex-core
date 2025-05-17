@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST_ENDPOINT_C, TEST_ENDPOINT_D,
@@ -5,16 +6,16 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
-use crate::network::helpers::network::{
-    test_routes, InterfaceConnection, Network, Node, Route,
-};
-use datex_core::network::com_hub::InterfacePriority;
+use crate::network::helpers::network::{test_routes, InterfaceConnection, Network, Node, Route, RouteAssertionError};
+use datex_core::network::com_hub::{InterfacePriority, ResponseOptions, ResponseTimeout};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::run_async;
 use log::info;
 use ntest_timeout::timeout;
 use std::time::Duration;
 use tokio::task;
+use datex_core::datex_values::Endpoint;
+use datex_core::network::com_hub_network_tracing::TraceOptions;
 
 #[tokio::test]
 #[timeout(100)]
@@ -535,7 +536,8 @@ async fn simple_network() {
             .hop("@4726")
             .test(&network)
             .await
-    };
+            .unwrap();
+    }
 }
 
 #[tokio::test]
@@ -559,6 +561,7 @@ async fn complex_network_1() {
             .hop("@bk2y")
             .test(&network)
             .await
+            .unwrap();
     }
 }
 
@@ -583,6 +586,7 @@ async fn complex_network_2() {
             .hop("@msun")
             .test(&network)
             .await
+            .unwrap();
     }
 }
 
@@ -601,6 +605,7 @@ async fn complex_network_3() {
             .hop("@fyig")
             .test(&network)
             .await
+            .unwrap();
     }
 }
 
@@ -627,6 +632,7 @@ async fn threesome_1() {
             .hop("@msun")
             .test(&network)
             .await
+            .unwrap();
     }
 }
 
@@ -667,7 +673,54 @@ async fn multi_tracing_1() {
                 .fork("1")
                 .hop("@ajil")
                 .hop("@msun")
-        ], &network, None).await;
+        ], &network, TraceOptions::default())
+        .await
+        .unwrap();
+    }
+}
+
+#[tokio::test]
+#[timeout(7000)]
+async fn ttl_reached() {
+    init_global_context();
+    run_async! {
+        // working network
+        let mut network = Network::load(
+            "complex.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        Route::between("@msun", "@n7oe")
+            .hop("@fyig")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .hop("@msun")
+            .test(&network)
+            .await
+            .unwrap();
+
+        // network with only 1 hop, fails
+        let mut network = Network::load(
+            "complex.json",
+        );
+        network.start().await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        let res = Route::between("@msun", "@n7oe")
+            .hop("@fyig")
+            .hop("@n7oe")
+            .hop("@fyig")
+            .hop("@msun")
+            .test_with_options(
+                &network,
+                TraceOptions::new(
+                    Some(1),
+                    ResponseOptions::new_with_timeout(Duration::from_secs(3))
+                ))
+            .await;
+        assert_eq!(
+            res,
+            Err(RouteAssertionError::MissingResponse(Endpoint::from_str("@n7oe").unwrap()))
+        )
     }
 }
 
@@ -687,27 +740,8 @@ async fn multi_tracing_2() {
             Route::between("@4pk8", "@iq1a")
                 .hop("@46l6")
                 .hop("@4pk8")
-        ], &network, None).await;
-    }
-}
-
-#[tokio::test]
-#[timeout(7000)]
-async fn ttl_reached() {
-    init_global_context();
-    run_async! {
-        let mut network = Network::load(
-            "complex.json",
-        );
-        network.start().await;
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-        Route::between("@msun", "@n7oe")
-            .hop("@fyig")
-            .hop("@n7oe")
-            .hop("@fyig")
-            .hop("@msun")
-        .test(&network)
-        //    .test_with_max_hops(&network, 1)
-            .await
+        ], &network, TraceOptions::default())
+        .await
+        .unwrap();
     }
 }

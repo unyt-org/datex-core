@@ -14,7 +14,8 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
-
+use itertools::Itertools;
+use datex_core::network::com_hub_network_tracing::TraceOptions;
 use super::mockup_interface::MockupInterface;
 
 pub struct InterfaceConnection {
@@ -176,16 +177,16 @@ impl Route {
         segments
     }
 
-    pub async fn test(&self, network: &Network) {
-        test_routes(&[self.clone()], network, None).await;
+    pub async fn test(&self, network: &Network) -> Result<(), RouteAssertionError> {
+        self.test_with_options(network, TraceOptions::default()).await
     }
 
-    pub async fn test_with_max_hops(&self, network: &Network, max_hops: usize) {
-        test_routes(&[self.clone()], network, Some(max_hops)).await;
+    pub async fn test_with_options(&self, network: &Network, options: TraceOptions) -> Result<(), RouteAssertionError> {
+        test_routes(&[self.clone()], network, options).await
     }
 }
 
-pub async fn test_routes(routes: &[Route], network: &Network, max_hops: Option<usize>) {
+pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOptions) -> Result<(), RouteAssertionError> {
     let start = routes[0].hops[0].0.clone();
     let ends = routes
         .iter()
@@ -207,13 +208,15 @@ pub async fn test_routes(routes: &[Route], network: &Network, max_hops: Option<u
             panic!("Route start {} does not match receiver {}", start, end);
         }
     }
-
+    
     let network_traces = network
         .get_runtime(start)
         .com_hub
-        .record_trace_multiple(
-            routes.iter().map(|r| r.receiver.clone()).collect(),
-            max_hops,
+        .record_trace_multiple_with_options(
+            TraceOptions {
+                endpoints: routes.iter().map(|r| r.receiver.clone()).collect(),
+                ..options
+            }
         )
         .await;
 
@@ -222,18 +225,15 @@ pub async fn test_routes(routes: &[Route], network: &Network, max_hops: Option<u
         .iter()
         .map(|route| {
             // find matching route with the same receiver in network_traces
-            let trace = network_traces
+            network_traces
                 .iter()
                 .find(|t| t.receiver == route.receiver)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "No matching trace found for receiver {}",
-                        route.receiver
-                    )
-                });
-            (trace, route)
+                .ok_or_else(|| {
+                    RouteAssertionError::MissingResponse(route.receiver.clone())
+                })
+                .map(|trace| (trace, route))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
 
     for (trace, route) in route_pairs {
         // print network trace
@@ -262,39 +262,82 @@ pub async fn test_routes(routes: &[Route], network: &Network, max_hops: Option<u
         {
             // check endpoint
             if original.endpoint != expected_endpoint.clone() {
-                panic!(
-                    "Expected hop #{} to be {} but was {}",
-                    index, expected_endpoint, original.endpoint
-                );
+                return Err(RouteAssertionError::InvalidEndpointOnHop(
+                    index,
+                    expected_endpoint.clone(),
+                    original.endpoint.clone(),
+                ));
             }
             // check channel
             if let Some(channel) = &expected_channel {
                 if original.socket.interface_name != Some(channel.clone()) {
-                    panic!(
-                        "Expected hop #{} to be channel {} but was {}",
+                    return Err(RouteAssertionError::InvalidChannelOnHop(
                         index,
-                        channel,
+                        channel.clone(),
                         original
                             .socket
                             .interface_name
                             .clone()
-                            .unwrap_or("None".to_string())
-                    );
+                            .unwrap_or("None".to_string()),
+                    ));
                 }
             }
             // check fork
             if let Some(fork) = expected_fork {
                 if &original.fork_nr != fork {
-                    panic!(
-                        "Expected hop #{} to be fork {} but was {}",
-                        index, fork, original.fork_nr
-                    );
+                    return Err(RouteAssertionError::InvalidForkOnHop(
+                        index,
+                        fork.clone(),
+                        original.fork_nr.clone(),
+                    ));
                 }
             }
             index += 1;
         }
     }
+
+    Ok(())
 }
+
+#[derive(Debug, PartialEq)]
+pub enum RouteAssertionError {
+    InvalidEndpointOnHop(i32, Endpoint, Endpoint),
+    InvalidChannelOnHop(i32, String, String),
+    InvalidForkOnHop(i32, String, String),
+    MissingResponse(Endpoint)
+}
+
+impl Display for RouteAssertionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteAssertionError::InvalidEndpointOnHop(index, expected, actual) => {
+                write!(
+                    f,
+                    "Expected hop #{} to be {} but was {}",
+                    index, expected, actual
+                )
+            }
+            RouteAssertionError::InvalidChannelOnHop(index, expected, actual) => {
+                write!(
+                    f,
+                    "Expected hop #{} to be channel {} but was {}",
+                    index, expected, actual
+                )
+            }
+            RouteAssertionError::InvalidForkOnHop(index, expected, actual) => {
+                write!(
+                    f,
+                    "Expected hop #{} to be fork {} but was {}",
+                    index, expected, actual
+                )
+            }
+            RouteAssertionError::MissingResponse(endpoint) => {
+                write!(f, "No response received for endpoint {}", endpoint)
+            }
+        }
+    }
+}
+
 
 #[derive(Debug, Deserialize)]
 struct NetworkNode {
