@@ -182,7 +182,7 @@ cfg_if! {
         }
         pub fn spawn<F>(fut: F) -> tokio::task::JoinHandle<F::Output>
         where
-            F: std::future::Future<Output = ()> + Send + 'static,
+            F: Future<Output = ()> + Send + 'static,
         {
             tokio::spawn(fut)
         }
@@ -198,6 +198,8 @@ cfg_if! {
         }
 
     } else if #[cfg(feature = "wasm_runtime")] {
+        use futures::future;
+
         pub async fn timeout<F, T>(
             duration: std::time::Duration,
             fut: F,
