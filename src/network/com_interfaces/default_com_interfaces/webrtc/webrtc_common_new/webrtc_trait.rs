@@ -30,10 +30,7 @@ use super::{
 };
 
 #[async_trait(?Send)]
-pub trait WebRTCTraitInternal<T: 'static>
-where
-    T: Send + Sync + 'static,
-{
+pub trait WebRTCTraitInternal<T: 'static> {
     // These method must be implemented in the interface
     fn provide_data_channels(&self) -> Arc<Mutex<DataChannels<T>>>;
     fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>>;
@@ -156,23 +153,22 @@ where
                 interface_uuid.clone(),
                 sockets.clone(),
             );
-            // channel_clone2;
             // FIXME
-            return;
+            let data_channels = data_channels.clone();
+            let channel_clone2 = channel_clone2.clone();
+            channel_clone2
+                .clone()
+                .try_lock()
+                .expect("Failed to lock channel")
+                .set_socket_uuid(socket_uuid.clone());
 
-            // channel_clone2
-            //     .clone()
-            //     .lock()
-            //     .unwrap()
-            //     .set_socket_uuid(socket_uuid.clone());
-
-            // data_channels
-            //     .lock()
-            //     .unwrap()
-            //     .add_data_channel(channel_clone2.clone());
+            data_channels
+                .try_lock()
+                .expect("Failed to lock channels")
+                .add_data_channel(channel_clone2.clone());
         }));
 
-        channel.lock().unwrap().on_message = Some(Box::new(move |data| {
+        channel.lock().unwrap().on_message = Some(Arc::new(move |data| {
             let data = data.to_vec();
             if let Some(socket_uuid) =
                 channel_clone.lock().unwrap().get_socket_uuid()
@@ -196,10 +192,7 @@ where
 }
 
 #[async_trait(?Send)]
-pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T>
-where
-    T: Send + Sync + 'static,
-{
+pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self;
     fn new_with_ice_servers(
         peer_endpoint: impl Into<Endpoint>,

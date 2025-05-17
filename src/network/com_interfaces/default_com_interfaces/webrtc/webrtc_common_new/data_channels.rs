@@ -9,21 +9,15 @@ use std::{
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
-pub struct DataChannel<T>
-where
-    T: Send + Sync + 'static,
-{
+pub struct DataChannel<T> {
     pub label: String,
     pub data_channel: T,
-    pub on_message: Option<Box<dyn Fn(Vec<u8>)>>,
-    pub open_channel: Option<Arc<dyn Fn() + Send + Sync>>,
+    pub on_message: Option<Arc<dyn Fn(Vec<u8>)>>,
+    pub open_channel: Option<Arc<dyn Fn()>>,
     pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
 }
-impl<T> DataChannel<T>
-where
-    T: Send + Sync + 'static,
-{
+impl<T> DataChannel<T> {
     pub fn new(label: String, data_channel: T) -> Self {
         DataChannel {
             label,
@@ -45,10 +39,7 @@ where
     }
 }
 
-pub struct DataChannels<T>
-where
-    T: Send + Sync + 'static,
-{
+pub struct DataChannels<T> {
     pub data_channels: HashMap<String, Arc<Mutex<DataChannel<T>>>>,
     pub on_add: Option<
         Box<
@@ -58,19 +49,13 @@ where
         >,
     >,
 }
-impl<T> Default for DataChannels<T>
-where
-    T: Send + Sync + 'static,
-{
+impl<T> Default for DataChannels<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> DataChannels<T>
-where
-    T: Send + Sync + 'static,
-{
+impl<T> DataChannels<T> {
     pub fn new() -> Self {
         DataChannels {
             data_channels: HashMap::new(),
