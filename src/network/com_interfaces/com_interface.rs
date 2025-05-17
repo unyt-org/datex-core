@@ -77,11 +77,14 @@ pub struct ComInterfaceSockets {
 
 impl ComInterfaceSockets {
     pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        let uuid = socket.lock().unwrap().uuid.clone();
-        socket.lock().unwrap().state = SocketState::Open;
-        self.sockets.insert(uuid.clone(), socket.clone());
+        {
+            let mut socket_mut = socket.lock().unwrap();
+            let uuid = socket_mut.uuid.clone();
+            socket_mut.state = SocketState::Open;
+            self.sockets.insert(uuid.clone(), socket.clone());
+            debug!("Socket added: {uuid}");
+        }
         self.new_sockets.push_back(socket);
-        debug!("Socket added: {uuid}");
     }
     pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets.remove(socket_uuid);

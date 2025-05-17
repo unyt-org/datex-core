@@ -583,7 +583,6 @@ impl ComHub {
                     Some(incoming_socket.clone())
                 };
 
-            info!("orig socket: {send_back_socket:?}");
 
             // If a send_back_socket is set, the original block is not from this endpoint,
             // so we can send it back to the original socket
@@ -591,9 +590,7 @@ impl ComHub {
             {
                 // never send a bounce back block back again to the incoming socket
                 if block.is_bounce_back() && send_back_socket == incoming_socket {
-                    info!("{}: Tried to send bounce back block back to incoming socket, but this is not allowed", self.endpoint);
-                    let hops = self.get_trace_data_from_block(&block).unwrap_or_default();
-                    info!("{}", NetworkTraceResult::from_hops(hops));
+                    warn!("{}: Tried to send bounce back block back to incoming socket, but this is not allowed", self.endpoint);
                 }
                 else if self.get_socket_by_uuid(&send_back_socket).lock().unwrap().can_send() {
                     block.set_bounce_back(true);
@@ -1170,6 +1167,8 @@ impl ComHub {
     /// outbound socket uuids
     fn get_outbound_receiver_groups(
         &self,
+        // TODO: do we need the block here for additional information (match conditions),
+        // otherwise receivers are enough
         block: &DXBBlock,
         mut exclude_sockets: Vec<ComInterfaceSocketUUID>,
     ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
@@ -1473,7 +1472,7 @@ impl ComHub {
     /// Returns an Err with a list of unreachable endpoints if the block could not be sent to all endpoints.
     pub fn send_block(
         &self,
-        block: DXBBlock,
+        mut block: DXBBlock,
         exclude_sockets: Vec<ComInterfaceSocketUUID>,
         forked: bool,
     ) -> Result<(), Vec<Endpoint>> {
@@ -1499,13 +1498,12 @@ impl ComHub {
             None
         };
 
+        block.set_bounce_back(false);
+
         for (receiver_socket, endpoints) in outbound_receiver_groups {
             if let Some(socket_uuid) = receiver_socket {
-                let mut block = block.clone();
-                block.set_bounce_back(false);
-
                 self.send_block_to_endpoints_via_socket(
-                    block,
+                    block.clone(),
                     &socket_uuid,
                     &endpoints,
                     fork_count,
