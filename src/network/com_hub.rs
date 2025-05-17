@@ -1299,7 +1299,11 @@ impl ComHub {
             for receiver in &receivers {
                 responses.insert(
                     receiver.clone(),
-                    Err(ResponseError::NoResponseAfterTimeout),
+                    if failed_endpoints.contains(receiver) {
+                        Err(ResponseError::NotReachable)
+                    } else {
+                        Err(ResponseError::NoResponseAfterTimeout)
+                    },
                 );
             }
             // directly subtract number of already failed endpoints from missing responses
@@ -1320,6 +1324,7 @@ impl ComHub {
 
             let res = task::timeout(options.timeout.unwrap_or_default(self.options.default_receive_timeout), async {
                 while let Some(section) = rx.next().await {
+                    let mut received_response = false;
                     // get sender
                     let mut sender = section
                         .try_get_sender()
@@ -1332,6 +1337,7 @@ impl ComHub {
                             *response = Ok(Response::ExactResponse(sender.clone(), section));
                             missing_response_count -= 1;
                             info!("Received expected response from {sender}");
+                            received_response = true;
                         }
                         // already received a response from this exact sender - this should not happen
                         else {
@@ -1346,6 +1352,7 @@ impl ComHub {
                         if response.is_err() {
                             *response = Ok(Response::ResolvedResponse(sender.clone(), section));
                             missing_response_count -= 1;
+                            received_response = true;
                         }
                         // already received a response from a matching endpoint - ignore
                         else {
@@ -1358,7 +1365,7 @@ impl ComHub {
                     }
 
                     // if resolution strategy is ReturnOnFirstResult, break if any response is received
-                    if options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult {
+                    if received_response && options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult {
                         // set all other responses to EarlyAbort
                         for (receiver, response) in responses.iter_mut() {
                             if receiver != &sender {

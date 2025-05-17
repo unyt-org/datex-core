@@ -81,9 +81,10 @@ impl IncomingSection {
             IncomingSection::SingleBlock(block) => {
                 Some(block.routing_header.sender.clone())
             }
-            IncomingSection::BlockStream((blocks, _)) => {
-                blocks.borrow().front().map(|block| block.routing_header.sender.clone())
-            }
+            IncomingSection::BlockStream((blocks, _)) => blocks
+                .borrow()
+                .front()
+                .map(|block| block.routing_header.sender.clone()),
         }
     }
 }

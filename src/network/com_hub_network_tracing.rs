@@ -196,7 +196,6 @@ impl ComHub {
             .into_iter()
             .map(|endpoint| endpoint.into())
             .collect::<Vec<Endpoint>>();
-        // self.print_metadata();
 
         let trace_block = {
             let scope_id = self.block_handler.get_new_scope_id();
@@ -222,7 +221,6 @@ impl ComHub {
 
         let mut results = vec![];
 
-        // FIXME
         for response in responses {
             match response {
                 Ok(Response::ExactResponse(

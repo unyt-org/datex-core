@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    time::Duration,
-};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use datex_core::{
     network::com_interfaces::{

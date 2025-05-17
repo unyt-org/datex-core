@@ -44,9 +44,7 @@ use webrtc::{
     data_channel::{
         data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
     },
-    ice_transport::ice_candidate::{
-        RTCIceCandidate, RTCIceCandidateInit,
-    },
+    ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
     interceptor::registry::Registry,
     peer_connection::{
         configuration::RTCConfiguration,
