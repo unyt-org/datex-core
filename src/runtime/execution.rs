@@ -1,9 +1,6 @@
 use log::{debug, error, info};
 
-use crate::stdlib::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use crate::stdlib::cell::Cell;
 
 use crate::{
     datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
@@ -11,14 +8,13 @@ use crate::{
     parser::body,
 };
 
-use super::{stack::Stack, Context};
+use super::stack::Stack;
 
-fn execute_body(ctx: Rc<RefCell<Context>>, dxb_body: &[u8]) -> ValueResult {
-    execute_loop(ctx, dxb_body, &Cell::from(0), &Cell::from(false))
+fn execute_body(dxb_body: &[u8]) -> ValueResult {
+    execute_loop(dxb_body, &Cell::from(0), &Cell::from(false))
 }
 
 fn execute_loop(
-    ctx: Rc<RefCell<Context>>,
     dxb_body: &[u8],
     index: &Cell<usize>,
     is_end_instruction: &Cell<bool>,
@@ -74,8 +70,7 @@ fn execute_loop(
 
         // enter new subscope - continue at index?
         if instruction.subscope_continue {
-            let sub_result =
-                execute_loop(ctx.clone(), dxb_body, index, is_end_instruction);
+            let sub_result = execute_loop(dxb_body, index, is_end_instruction);
 
             // propagate error from subscope
             if sub_result.is_err() {
@@ -84,7 +79,7 @@ fn execute_loop(
             // push subscope result to stack
             else {
                 let res = sub_result.ok().unwrap();
-                info!("sub result: {}", res);
+                info!("sub result: {res}");
                 stack.push(res);
             }
         }
@@ -156,7 +151,7 @@ fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
     // binary operation
     match s2.binary_operation(code, s1) {
         Ok(result) => {
-            info!("binary op result: {}", result);
+            info!("binary op result: {result}");
             stack.push(result);
             None
         }

@@ -1,8 +1,8 @@
 use binrw::{BinRead, BinWrite};
+use datex_core::datex_values::{Endpoint, EndpointInstance, EndpointType};
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{
-        addressing::{Endpoint, EndpointType},
         block_header::BlockHeader,
         encrypted_header::{self, EncryptedHeader},
         routing_header::{Flags, ReceiverFlags, Receivers, RoutingHeader},
@@ -17,7 +17,7 @@ pub fn parse_encrypted_header() {
     let endpoint = Endpoint {
         type_: EndpointType::Person,
         identifier: [1; 18],
-        instance: 0,
+        instance: EndpointInstance::Any,
     };
     let encrypted_header = EncryptedHeader {
         on_behalf_of: Some(endpoint.clone()),
@@ -58,17 +58,13 @@ pub fn parse_block_header() {
 pub fn parse_routing_header() {
     let routing_header = RoutingHeader {
         version: 2,
-        ttl: 0,
         flags: Flags::new(),
         block_size_u16: Some(0),
         block_size_u32: None,
-        scope_id: 0,
-        block_index: 0,
-        block_increment: 0,
         sender: Endpoint {
             type_: EndpointType::Person,
             identifier: [0; 18],
-            instance: 0,
+            instance: EndpointInstance::Any,
         },
         receivers: Receivers {
             flags: ReceiverFlags::new()
@@ -79,6 +75,7 @@ pub fn parse_routing_header() {
             endpoints: None,
             endpoints_with_keys: None,
         },
+        ..Default::default()
     };
     let mut writer = Cursor::new(Vec::new());
     routing_header.write(&mut writer).unwrap();

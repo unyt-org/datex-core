@@ -2,15 +2,12 @@ mod constants;
 
 use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::Cell;
-use crate::stdlib::cell::RefCell;
-use crate::stdlib::rc::Rc;
 use crate::stdlib::vec;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet; // FIXME no-std
 
 use crate::datex_values::SlotIdentifier;
 use crate::datex_values::Value;
-use crate::runtime::Context;
 use crate::utils::color::AnsiCodes;
 use crate::utils::color::Color;
 use constants::tokens::get_code_token;
@@ -32,7 +29,6 @@ lazy_static! {
  * Converts DXB (with or without header) to DATEX Script
  */
 pub fn decompile(
-    ctx: Rc<RefCell<Context>>,
     dxb: &[u8],
     formatted: bool,
     colorized: bool,
@@ -61,14 +57,12 @@ pub fn decompile(
 }
 
 pub fn decompile_body(
-    ctx: Rc<RefCell<Context>>,
     dxb_body: &[u8],
     formatted: bool,
     colorized: bool,
     resolve_slots: bool,
 ) -> String {
     let mut initial_state = DecompilerGlobalState {
-        ctx: ctx.clone(),
         dxb_body,
         index: &Cell::from(0),
         is_end_instruction: &Cell::from(false),
@@ -112,7 +106,6 @@ fn int_to_label(n: i32) -> String {
 
 struct DecompilerGlobalState<'a> {
     // ctx
-    ctx: Rc<RefCell<Context>>,
 
     // dxb
     dxb_body: &'a [u8],
@@ -135,8 +128,7 @@ impl DecompilerGlobalState<'_> {
     fn get_insert_label(&mut self, index: usize) -> String {
         // existing
         if self.labels.contains_key(&index) {
-            self
-                .labels
+            self.labels
                 .get(&index)
                 .unwrap_or(&"?invalid?".to_string())
                 .to_string()
@@ -154,7 +146,7 @@ impl DecompilerGlobalState<'_> {
     fn get_variable_name(&mut self, slot: &SlotIdentifier) -> (String, String) {
         // return slot name
         if slot.is_reserved() || slot.is_object_slot() || !self.resolve_slots {
-            return (slot.to_string(), "".to_string());
+            return (slot.as_string(), "".to_string());
         }
         // existing variable
         if self.variables.contains_key(&slot.index) {
@@ -427,7 +419,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                 let label = state.get_insert_label(
                     primitive_value.get_as_unsigned_integer(),
                 );
-                out += &format!("jmp {}", label);
+                out += &format!("jmp {label}");
                 if state.colorized {
                     out += &Color::DEFAULT.as_ansi_rgb();
                 }
@@ -437,19 +429,18 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
                 let label = state.get_insert_label(
                     primitive_value.get_as_unsigned_integer(),
                 );
-                out += &format!("jtr {}", label)
+                out += &format!("jtr {label}")
             }
             BinaryCode::JFA => {
                 let label = state.get_insert_label(
                     primitive_value.get_as_unsigned_integer(),
                 );
-                out += &format!("jfa {}", label)
+                out += &format!("jfa {label}")
             }
 
             // scope
             BinaryCode::SCOPE_BLOCK_START => {
                 let scope = &mut decompile_body(
-                    state.ctx.clone(),
                     &primitive_value.get_as_buffer(),
                     state.formatted,
                     state.colorized,

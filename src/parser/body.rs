@@ -198,11 +198,8 @@ pub fn iterate_instructions<'a>(
                 // buffer
                 else if token == BinaryCode::BUFFER as u8 {
                     let size = buffers::read_u32(dxb_body, index);
-                    let value = buffers::read_vec_slice(
-                        dxb_body,
-                        index,
-                        size as usize,
-                    );
+                    let value =
+                        buffers::read_vec_slice(dxb_body, index, size as usize);
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::BUFFER,
@@ -252,11 +249,8 @@ pub fn iterate_instructions<'a>(
                     };
 
                     let size = buffers::read_u32(dxb_body, index);
-                    let buffer = buffers::read_vec_slice(
-                        dxb_body,
-                        index,
-                        size as usize,
-                    );
+                    let buffer =
+                        buffers::read_vec_slice(dxb_body, index, size as usize);
                     let bigint = BigInt::from_bytes_be(sign, &buffer);
 
                     _index.set(*index);
@@ -1127,7 +1121,7 @@ pub fn iterate_instructions<'a>(
                         buffers::read_slice::<21>(dxb_body, index);
                     // TODO: handle invalid endpoint bytes
                     let endpoint =
-                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                        Endpoint::from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::PERSON_ALIAS,
@@ -1143,7 +1137,7 @@ pub fn iterate_instructions<'a>(
                         buffers::read_slice::<21>(dxb_body, index);
                     // TODO: handle invalid endpoint bytes
                     let endpoint =
-                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                        Endpoint::from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::INSTITUTION_ALIAS,
@@ -1159,7 +1153,7 @@ pub fn iterate_instructions<'a>(
                         buffers::read_slice::<21>(dxb_body, index);
                     // TODO: handle invalid endpoint bytes
                     let endpoint =
-                        Endpoint::new_from_binary(*endpoint_bytes).unwrap();
+                        Endpoint::from_binary(*endpoint_bytes).unwrap();
                     _index.set(*index);
                     yield Instruction {
                         code: BinaryCode::ENDPOINT,
@@ -1208,7 +1202,7 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    pub fn to_string(&self) -> String {
+    pub fn as_string(&self) -> String {
         if self.primitive_value.is_some() && self.value.is_some() {
             format!(
                 "{} [{:X}] {} {}",
@@ -1239,6 +1233,6 @@ impl Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", Instruction::to_string(self))
+        write!(f, "{}", Instruction::as_string(self))
     }
 }

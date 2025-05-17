@@ -2,7 +2,6 @@ use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
 use crate::global::dxb_block::DXBBlock;
-use crate::global::protocol_structures::addressing;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -17,11 +16,13 @@ use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 
 pub mod parser;
+use crate::datex_values::Endpoint;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
+
 pub enum CompilationError {
     InvalidRule(String),
     SerializationError(binrw::Error),
@@ -32,18 +33,10 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
 
     let routing_header = RoutingHeader {
         version: 2,
-        ttl: 0,
         flags: routing_header::Flags::new(),
         block_size_u16: Some(0),
         block_size_u32: None,
-        scope_id: 0,
-        block_index: 0,
-        block_increment: 0,
-        sender: addressing::Endpoint {
-            type_: addressing::EndpointType::Person,
-            identifier: [0; 18],
-            instance: 0,
-        },
+        sender: Endpoint::LOCAL,
         receivers: routing_header::Receivers {
             flags: routing_header::ReceiverFlags::new()
                 .with_has_endpoints(false)
@@ -53,6 +46,7 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
             endpoints: None,
             endpoints_with_keys: None,
         },
+        ..RoutingHeader::default()
     };
 
     let block_header = BlockHeader::default();
@@ -143,13 +137,16 @@ impl<'a> CompilationScope<'a> {
     }
 
     fn insert_int(&mut self, int: i64) {
-        if (CompilationScope::MIN_INT_8..=CompilationScope::MAX_INT_8).contains(&int)
+        if (CompilationScope::MIN_INT_8..=CompilationScope::MAX_INT_8)
+            .contains(&int)
         {
             self.insert_int8(int as i8)
-        } else if (CompilationScope::MIN_INT_16..=CompilationScope::MAX_INT_16).contains(&int)
+        } else if (CompilationScope::MIN_INT_16..=CompilationScope::MAX_INT_16)
+            .contains(&int)
         {
             self.insert_int16(int as i16)
-        } else if (CompilationScope::MIN_INT_32..=CompilationScope::MAX_INT_32).contains(&int)
+        } else if (CompilationScope::MIN_INT_32..=CompilationScope::MAX_INT_32)
+            .contains(&int)
         {
             self.insert_int32(int as i32)
         } else {

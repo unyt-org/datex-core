@@ -1,14 +1,14 @@
+use super::serializable::Serializable;
+use crate::datex_values::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
-use super::{addressing::Endpoint, serializable::Serializable};
-
 // 2 bit
 #[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
+#[bits = 2]
 pub enum SignatureType {
     #[default]
     None = 0b00,
-    Invalid = 0b01,
     Unencrypted = 0b10,
     Encrypted = 0b11,
 }
@@ -38,6 +38,7 @@ pub struct Flags {
     pub signature_type: SignatureType,
     pub encryption_type: EncryptionType,
     pub block_size: BlockSize,
+    pub is_bounce_back: bool,
 
     #[allow(unused)]
     unused_0: bool,
@@ -45,8 +46,6 @@ pub struct Flags {
     unused_1: bool,
     #[allow(unused)]
     unused_2: bool,
-    #[allow(unused)]
-    unused_3: bool,
 }
 
 // 1 byte
@@ -90,6 +89,13 @@ pub struct ReceiverEndpoints {
     pub endpoints: Vec<Endpoint>,
 }
 
+impl ReceiverEndpoints {
+    pub fn new(endpoints: Vec<Endpoint>) -> Self {
+        let count = endpoints.len() as u16;
+        ReceiverEndpoints { count, endpoints }
+    }
+}
+
 // <count>: 2 byte + (21 byte * count) + (512 byte * count)
 // min: 2 bytes
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
@@ -118,12 +124,9 @@ pub struct Receivers {
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
     pub version: u8,
+    pub distance: i8,
     pub ttl: u8,
     pub flags: Flags,
-
-    pub scope_id: u32,
-    pub block_index: u16,
-    pub block_increment: u16,
 
     #[brw(
         if(flags.block_size() == BlockSize::Default)
@@ -143,6 +146,7 @@ pub struct RoutingHeader {
     pub block_size_u32: Option<u32>,
 
     pub sender: Endpoint,
+    // TODO: add custom match receiver queries
     pub receivers: Receivers,
 }
 
@@ -152,11 +156,9 @@ impl Default for RoutingHeader {
     fn default() -> Self {
         RoutingHeader {
             version: 1,
-            ttl: 0,
+            distance: 0,
+            ttl: 42,
             flags: Flags::new(),
-            scope_id: 0,
-            block_index: 0,
-            block_increment: 0,
             block_size_u16: Some(26),
             block_size_u32: None,
             sender: Endpoint::default(),

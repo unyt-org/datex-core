@@ -227,7 +227,7 @@ pub fn buffer_to_hex(buffer: Vec<u8>) -> String {
 
     let mut s = String::with_capacity(2 * n);
     for byte in buffer {
-        write!(s, "{:02X}", byte).expect("could not parse buffer")
+        write!(s, "{byte:02X}").expect("could not parse buffer")
     }
     s
 }
@@ -272,16 +272,15 @@ pub fn buffer_to_hex_advanced(
             // 0 count, max 15
             if zero_count <= 0xf {
                 i += 1;
-                write!(s, "x{:01X}", zero_count)
-                    .expect("could not parse buffer");
+                write!(s, "x{zero_count:01X}").expect("could not parse buffer");
             } else {
                 i = initial_i;
-                write!(s, "{:02X}", byte).expect("could not parse buffer");
+                write!(s, "{byte:02X}").expect("could not parse buffer");
             }
         }
         // normal
         else {
-            write!(s, "{:02X}", byte).expect("could not parse buffer");
+            write!(s, "{byte:02X}").expect("could not parse buffer");
         }
 
         // seperator?

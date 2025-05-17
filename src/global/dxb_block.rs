@@ -1,10 +1,17 @@
-use std::io::{Cursor, Read}; // FIXME no-std
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::fmt::Display;
+use std::io::{Cursor, Read};
+use std::rc::Rc;
+// FIXME no-std
 
+use crate::datex_values::Endpoint;
+use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
+use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use binrw::{BinRead, BinWrite};
+use log::error;
 use strum::Display;
 use thiserror::Error;
-
-use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 
 use super::protocol_structures::{
     block_header::BlockHeader,
@@ -18,9 +25,9 @@ pub enum HeaderParsingError {
     InsufficientLength,
 }
 
-// TODO fix partial eq
-#[derive(Debug, Clone)]
-#[derive(Default)]
+// TODO: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
+
+#[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
     pub block_header: BlockHeader,
@@ -38,6 +45,63 @@ impl PartialEq for DXBBlock {
     }
 }
 
+const ROUTING_HEADER_FLAGS_POSITION: usize = 5;
+const SIZE_BYTE_POSITION: usize = ROUTING_HEADER_FLAGS_POSITION + 1;
+const MAX_SIZE_BYTE_LENGTH: usize = 4;
+const ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION: u8 = 3;
+
+pub type IncomingScopeId = u32;
+pub type IncomingSectionIndex = u16;
+pub type IncomingBlockNumber = u16;
+pub type OutgoingScopeId = u32;
+pub type OutgoingSectionIndex = u16;
+pub type OutgoingBlockNumber = u16;
+
+#[derive(Debug, Clone)]
+pub enum IncomingSection {
+    /// a single block
+    SingleBlock(DXBBlock),
+    /// a stream of blocks
+    /// the stream is finished when a block has the end_of_block flag set
+    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
+}
+
+impl IncomingSection {
+    pub fn get_section_index(&self) -> IncomingSectionIndex {
+        match self {
+            IncomingSection::SingleBlock(block) => {
+                block.block_header.section_index
+            }
+            IncomingSection::BlockStream((_, section_index)) => *section_index,
+        }
+    }
+
+    pub fn try_get_sender(&self) -> Option<Endpoint> {
+        match self {
+            IncomingSection::SingleBlock(block) => {
+                Some(block.routing_header.sender.clone())
+            }
+            IncomingSection::BlockStream((blocks, _)) => blocks
+                .borrow()
+                .front()
+                .map(|block| block.routing_header.sender.clone()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IncomingEndpointScopeId {
+    pub sender: Endpoint,
+    pub scope_id: IncomingScopeId,
+}
+
+/// An identifier that defines a globally unique block
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BlockId {
+    pub endpoint_scope_id: IncomingEndpointScopeId,
+    pub current_section_index: IncomingSectionIndex,
+    pub current_block_number: IncomingBlockNumber,
+}
 
 impl DXBBlock {
     pub fn new(
@@ -91,20 +155,32 @@ impl DXBBlock {
         let is_small_size = size <= u16::MAX as u32;
 
         if is_small_size {
+            // replace u32 size with u16 size
             if routing_header.flags.block_size() == BlockSize::Large {
-                bytes.remove(13);
+                bytes.remove(SIZE_BYTE_POSITION);
             }
-            write_u16(&mut bytes, &mut 13, size as u16);
+            write_u16(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size as u16);
         } else {
+            // replace u16 size with u32 size
             if routing_header.flags.block_size() == BlockSize::Default {
-                bytes.insert(13, 0);
+                bytes.insert(SIZE_BYTE_POSITION, 0);
             }
-            write_u32(&mut bytes, &mut 13, size);
+            write_u32(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size);
         }
+
+        // update small size flag
         if is_small_size {
-            clear_bit(&mut bytes, 5, 3);
+            clear_bit(
+                &mut bytes,
+                ROUTING_HEADER_FLAGS_POSITION,
+                ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION,
+            );
         } else {
-            set_bit(&mut bytes, 5, 3);
+            set_bit(
+                &mut bytes,
+                ROUTING_HEADER_FLAGS_POSITION,
+                ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION,
+            );
         }
         bytes
     }
@@ -116,11 +192,14 @@ impl DXBBlock {
     pub fn extract_dxb_block_length(
         dxb: &[u8],
     ) -> Result<u32, HeaderParsingError> {
-        if dxb.len() < 6 {
+        if dxb.len() < SIZE_BYTE_POSITION + MAX_SIZE_BYTE_LENGTH {
             return Err(HeaderParsingError::InsufficientLength);
         }
         let routing_header = RoutingHeader::read(&mut Cursor::new(dxb))
-            .map_err(|_| HeaderParsingError::InvalidBlock)?;
+            .map_err(|e| {
+                error!("Failed to read routing header: {e:?}");
+                HeaderParsingError::InvalidBlock
+            })?;
         if routing_header.block_size_u16.is_some() {
             Ok(routing_header.block_size_u16.unwrap() as u32)
         } else {
@@ -148,7 +227,6 @@ impl DXBBlock {
                 Some(signature)
             }
             SignatureType::None => None,
-            SignatureType::Invalid => todo!(),
         };
 
         // TODO: validate the signature
@@ -180,5 +258,102 @@ impl DXBBlock {
             body,
             raw_bytes: Some(bytes.to_vec()),
         })
+    }
+
+    /// Get a list of all receiver endpoints from the routing header.
+    pub fn receivers(&self) -> Option<&Vec<Endpoint>> {
+        if let Some(endpoints) = &self.routing_header.receivers.endpoints {
+            Some(&endpoints.endpoints)
+        } else {
+            None
+        }
+    }
+
+    /// Update the receivers list in the routing header.
+    pub fn set_receivers(&mut self, receivers: &[Endpoint]) {
+        self.routing_header.receivers.endpoints =
+            Some(ReceiverEndpoints::new(receivers.to_vec()));
+        self.routing_header
+            .receivers
+            .flags
+            .set_has_endpoints(!receivers.is_empty());
+    }
+    
+    pub fn set_bounce_back(&mut self, bounce_back: bool) {
+        self.routing_header.flags.set_is_bounce_back(bounce_back);
+    }
+    
+    pub fn is_bounce_back(&self) -> bool {
+        self.routing_header.flags.is_bounce_back()
+    }
+
+    pub fn get_receivers(&self) -> Vec<Endpoint> {
+        if let Some(ref endpoints) = self.routing_header.receivers.endpoints {
+            endpoints.endpoints.clone()
+        } else if let Some(ref endpoints) =
+            self.routing_header.receivers.endpoints_with_keys
+        {
+            endpoints
+                .endpoints_with_keys
+                .iter()
+                .map(|(e, _)| e.clone())
+                .collect()
+        } else {
+            unreachable!("No receivers set in the routing header")
+        }
+    }
+
+    pub fn get_endpoint_scope_id(&self) -> IncomingEndpointScopeId {
+        IncomingEndpointScopeId {
+            sender: self.routing_header.sender.clone(),
+            scope_id: self.block_header.scope_id,
+        }
+    }
+
+    pub fn get_block_id(&self) -> BlockId {
+        BlockId {
+            endpoint_scope_id: self.get_endpoint_scope_id(),
+            current_section_index: self.block_header.section_index,
+            current_block_number: self.block_header.block_number,
+        }
+    }
+
+    /// Returns true if the block has a fixed number of receivers
+    /// without wildcard instances, and no @@any receiver.
+    pub fn has_exact_receiver_count(&self) -> bool {
+        !self
+            .get_receivers()
+            .iter()
+            .any(|e| e.is_broadcast() || e.is_any())
+    }
+    
+    pub fn clone_with_new_receivers(
+        &self,
+        new_receivers: &[Endpoint],
+    ) -> DXBBlock {
+        let mut new_block = self.clone();
+        new_block.set_receivers(new_receivers);
+        new_block
+    }
+}
+
+impl Display for DXBBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let block_type = self.block_header.flags_and_timestamp.block_type();
+        let sender = &self.routing_header.sender;
+        let receivers = self
+            .receivers()
+            .map(|endpoints| {
+                endpoints
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .unwrap_or("none".to_string());
+
+        write!(f, "[{block_type}] {sender} -> {receivers}")?;
+
+        Ok(())
     }
 }

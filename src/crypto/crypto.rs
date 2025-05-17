@@ -1,6 +1,6 @@
 use crate::stdlib::{future::Future, pin::Pin, usize};
 
-pub trait Crypto: Send + Sync {
+pub trait CryptoTrait: Send + Sync {
     fn encrypt_rsa(
         &self,
         data: Vec<u8>,
@@ -37,6 +37,8 @@ pub trait Crypto: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>;
 }
 
+pub struct Crypto;
+
 #[derive(Debug, Clone)]
 pub enum CryptoError {
     Other(String),
@@ -48,5 +50,3 @@ pub enum CryptoError {
     SigningError,
     VerificationError,
 }
-
-pub struct CryptoDefault;

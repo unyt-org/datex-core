@@ -1,3 +1,5 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "datex-core"
 version = "0.0.4"
@@ -18,6 +20,7 @@ regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"
 lazy_static = "1.4.0"
+strum_macros = { version = "0.27.1" }
 strum = { version = "0.24", features = ["derive"] }
 mopa = "0.2.2"
 num-bigint = "0.4"
@@ -33,19 +36,54 @@ thiserror = "2.0.11"
 url = "2.5.4"
 num-traits = "0.2.19"
 async-trait = "0.1.87"
-tokio = { version = "1.43.0", features = ["sync", "rt", "macros"] }
 hex = "0.4.3"
 log = { version = "0.4", features = ["std", "serde"] }
 cfg-if = "0.1"
+ansi_term = "0.12.1"
+bytes = { version = "1" }
+futures-util = { version = "0.3" }
+tokio = { version = "1.43.0", optional = true, features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+], default-features = false }
+
+datex_macros = { path = "./macros" }
 
 # optional dependencies
+futures = { version = "0.3" }
 nostd = { version = "0.1.4", optional = true }
-websocket = { version = "0.24.0", optional = true }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
 rsa = { version = "0.9.8", optional = true }
 flexi_logger = { version = "0.29.8", optional = true }
 console_log = { version = "1.0.0", optional = true }
+matchbox_socket = { default-features = false, git = "https://github.com/unyt-org/matchbox", optional = true } #{ version = "0.11.0", optional = true }
+esp-idf-svc = { version = "0.51.0", optional = true }
+futures-timer = { version = "3" }
+console_error_panic_hook = { version = "0.1.7", optional = true }
+serde = "1.0.219"
+serde_with = "3.12.0"
+serde_json = "1.0.140"
+ntest_timeout = "0.9.3"
+ringmap = "0.1.3"
+webrtc = { version = "0.12.0", optional = true }
+
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+axum = { version = "0.7", optional = true }
+tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
+hyper = { version = "1", optional = true }
+futures-timer = { version = "3", features = ["wasm-bindgen"] }
+serialport = { version = "4.7.1", optional = true }
+tokio-tungstenite = { version = "0.21", optional = true }
+tungstenite = { version = "0.21", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = { optional = true, version = "0.4.29" }
+gloo-timers = { version = "0.2", features = ["futures"] }
 
 [profile.release]
 opt-level = "z"
@@ -54,8 +92,16 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
-[profile.dev]
-opt-level = 3
+# Development dependencies
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+matchbox_signaling = { version = "0.11.0" }
+tokio = { version = "1.43.0", features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+], default-features = false }
 
 # see https://docs.rs/rsa/latest/rsa/
 [profile.dev.package.num-bigint-dig]
@@ -69,12 +115,38 @@ default = [
     "native_rand",
     "native_uuid",
     "native_crypto",
+    "native_time",
+    "native_http",
+    "native_serial",
+    "native_webrtc",
+    "wasm_webrtc",
     "flexi_logger",
+    "tokio_runtime",
+    # "debug",            # temporary to fix linting and allow tests to run
 ] # default to nostd
-native_websocket = ["websocket"] # use native websocket
-native_tcp = [] # use native tcp
-native_rand = ["rand"] # use native websocket
-native_uuid = ["uuid"] # use native websocket
-native_crypto = ["rsa"] # use native crypto
-wasm_logger = ["console_log"]
-std = [] # use std
+
+# com interfaces
+native_http = ["axum", "hyper", "tokio-stream"]
+native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket
+native_tcp = []                                         # use native tcp
+native_time = []                                        # use native time
+native_rand = ["rand"]                                  # use native websocket
+native_uuid = ["uuid"]                                  # use native uuid
+native_crypto = ["rsa"]                                 # use native crypto
+native_serial = ["serialport"]                          # use native serial
+native_webrtc = ["webrtc"]                              # use webrtc
+
+wasm_webrtc = ["matchbox_socket"] # use webrtc
+
+# logger
+wasm_logger = ["console_log", "console_error_panic_hook"]
+esp_logger = ["esp-idf-svc"]
+env_logger = []
+
+# runtime
+tokio_runtime = ["dep:tokio"]
+wasm_runtime = ["dep:wasm-bindgen-futures"]
+
+# utils
+std = []   # use std
+debug = []

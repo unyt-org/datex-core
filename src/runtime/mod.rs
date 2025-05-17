@@ -1,9 +1,12 @@
-use std::sync::Once;
+use std::sync::{Arc, Mutex};
 
-use log::info;
-
+#[cfg(feature = "native_crypto")]
+use crate::crypto::crypto_native::CryptoNative;
+use crate::datex_values::Endpoint;
 use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use global_context::{get_global_context, set_global_context, GlobalContext};
+use log::info;
 
 use crate::network::com_hub::ComHub;
 
@@ -16,32 +19,68 @@ use self::memory::Memory;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Default)]
-pub struct Context {}
-static INIT: Once = Once::new();
-
 pub struct Runtime {
     pub version: String,
-    pub context: Rc<RefCell<Context>>,
     pub memory: Rc<RefCell<Memory>>,
-    pub com_hub: Rc<RefCell<ComHub>>,
+    pub com_hub: Rc<ComHub>,
+    pub endpoint: Endpoint,
 }
 
 impl Runtime {
-    pub fn new(context: Rc<RefCell<Context>>) -> Runtime {
-        INIT.call_once(|| {
-            init_logger();
-        });
-        info!("Runtime initialized!");
+    pub fn new(endpoint: impl Into<Endpoint>) -> Runtime {
+        let endpoint = endpoint.into();
+        let com_hub = ComHub::new(endpoint.clone());
         Runtime {
-            version: VERSION.to_string(),
-            context: context.clone(),
-            memory: Rc::new(RefCell::new(Memory::new())),
-            com_hub: ComHub::new(context.clone()),
+            endpoint,
+            com_hub: Rc::new(com_hub),
+            ..Runtime::default()
         }
     }
+    pub fn init(
+        endpoint: impl Into<Endpoint>,
+        global_context: GlobalContext,
+    ) -> Runtime {
+        set_global_context(global_context);
+        init_logger();
+        info!(
+            "Runtime initialized - Version {VERSION} Time: {}",
+            get_global_context().time.lock().unwrap().now()
+        );
+        Self::new(endpoint)
+    }
 
-    pub fn default() -> Runtime {
-        Runtime::new(Rc::new(RefCell::new(Context {})))
+    #[cfg(feature = "native_crypto")]
+    pub fn init_native(endpoint: impl Into<Endpoint>) -> Runtime {
+        use crate::utils::time_native::TimeNative;
+
+        Self::init(
+            endpoint,
+            GlobalContext::new(
+                Arc::new(Mutex::new(CryptoNative)),
+                Arc::new(Mutex::new(TimeNative)),
+            ),
+        )
+    }
+
+    /// Starts the common update loop:
+    ///  - ComHub
+    pub async fn start(&self) {
+        info!("starting runtime...");
+        self.com_hub
+            .init()
+            .await
+            .expect("Failed to initialize ComHub");
+        ComHub::start_update_loop(self.com_hub.clone());
+    }
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        Runtime {
+            endpoint: Endpoint::default(),
+            version: VERSION.to_string(),
+            memory: Rc::new(RefCell::new(Memory::new())),
+            com_hub: Rc::new(ComHub::default()),
+        }
     }
 }

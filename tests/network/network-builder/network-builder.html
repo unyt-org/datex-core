@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Network Builder</title>
+        <link rel="icon" href="./assets/datex-logo-light.png" />
+        <style>
+            h1, h2, h3, h4, h5, h6 {
+                margin: 0;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                padding: 0; 
+                overflow: hidden; 
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+            }
+            #cy { 
+                width: 100vw; 
+                height: 100vh; 
+                display: block;
+                position: fixed;
+                z-index: 0;
+            }
+            button {
+                border: 1px solid rgba(0, 0, 0, 0.278);
+                padding: 10px 15px;
+                border-radius: 5px;
+                background-color: transparent;
+                cursor: pointer;
+                font-size: 14px;
+                margin: 5px;
+                max-width: 100px;
+                width: 100%;
+                &:hover {
+                    background-color: rgba(0, 0, 0, 0.1);
+                }
+                &:active {
+                    background-color: rgba(0, 0, 0, 0.2);
+                }
+            }
+            .control-panel {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: rgba(255, 255, 255, 0.8);
+                padding: 10px;
+                position: absolute;
+                margin: auto;
+                left: 0;
+                flex-wrap: wrap;
+                right: 0;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+                z-index: 1;
+                gap: 6px;
+            }
+            #top-controls {
+                width: calc(100% - 20px);
+                max-width: 800px;
+                top: 10px;
+            }
+            #edge-controls {
+                right: 0;
+                width: 200px;
+                top: 100px;
+                left: unset;
+                display: none;
+                flex-direction: column;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="cy"></div>
+        <dialog id="network-dialog">
+            <form method="dialog">
+              <label for="network-select">Choose a network:</label>
+              <select id="network-select" name="network">
+              </select>
+              <div style="margin-top: 10px;">
+                <button value="cancel">Cancel</button>
+                <button data-action="load-network" value="ok">OK</button>
+              </div>
+            </form>
+        </dialog>
+        
+        <div id="top-controls" class="control-panel">
+            <button data-action="add-node">Add Node</button>
+            <button data-action="add-edge">Add Edge</button>
+            <button data-action="remove">Remove</button>
+            <button data-action="save">Save</button>
+            <button data-action="load">Load</button>
+            <button data-action="clear">Clear</button>
+        </div>
+        <div id="edge-controls" class="control-panel">
+            <h3>Link Controls</h3>
+            <div>Name: <span id="edge-id"></span></div>
+            <label>Priority:
+                <select id="edge-priority-select" data-action="edge-priority-select">
+                    <option selected value="-1">none</option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                </select>
+            </label>
+            <label>Type:
+                <select id="edge-type-select" data-action="edge-type-select">
+                    <option value="mockup">mockup</option>
+                    <option value="websocket">websocket</option>
+                    <option value="webrtc">webrtc</option>
+                </select>
+            </label>
+            <button data-action="edge-flip">Flip</button>
+            <button data-action="remove">Remove</button>
+            <label>
+                Bidirectional:
+                <input type="checkbox" id="edge-bidirectional" data-action="edge-bidirectional" />
+            </label>
+            <label>
+                With known endpoint:
+                <input type="checkbox" id="with-known-endpoint" data-action="with-known-endpoint" />
+            </label>
+        </div>
+        <script type="module" src="network-builder.ts"></script>
+    </body>
+</html>

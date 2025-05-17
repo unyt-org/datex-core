@@ -36,7 +36,6 @@ pub enum PrimitiveValue {
     Void,
 }
 
-
 impl fmt::Display for PrimitiveValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", Value::to_string(self))
@@ -99,7 +98,7 @@ impl Value for PrimitiveValue {
 
                 let mut s = String::with_capacity(2 * n);
                 for byte in value {
-                    write!(s, "{:02X}", byte).expect("could not parse buffer")
+                    write!(s, "{byte:02X}").expect("could not parse buffer")
                 }
                 format!("`{s}`")
             }
@@ -421,7 +420,7 @@ impl PrimitiveValue {
             PrimitiveValue::Int32(value) => *value as f64,
             PrimitiveValue::UInt32(value) => *value as f64,
             PrimitiveValue::Int64(value) => *value as f64,
-            PrimitiveValue::Float64(value) => { *value },
+            PrimitiveValue::Float64(value) => *value,
             _ => 0.0,
         }
     }

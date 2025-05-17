@@ -1,4 +1,14 @@
+use strum::Display;
+use thiserror::Error;
 use url::Url;
+
+pub struct WebSocketClientInterfaceSetupData {
+    pub address: String,
+}
+
+pub struct WebSocketServerInterfaceSetupData {
+    pub port: u16,
+}
 
 #[derive(Debug)]
 pub enum URLError {
@@ -6,7 +16,7 @@ pub enum URLError {
     InvalidScheme,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display, Error, Clone, PartialEq)]
 pub enum WebSocketError {
     Other(String),
     InvalidURL,
@@ -15,11 +25,17 @@ pub enum WebSocketError {
     ReceiveError,
 }
 
+#[derive(Debug, Display, Error, Clone, PartialEq)]
+pub enum WebSocketServerError {
+    WebSocketError(WebSocketError),
+    InvalidPort,
+}
+
 pub fn parse_url(address: &str) -> Result<Url, URLError> {
     let address = if address.contains("://") {
         address.to_string()
     } else {
-        format!("wss://{}", address)
+        format!("wss://{address}")
     };
 
     let mut url = Url::parse(&address).map_err(|_| URLError::InvalidURL)?;

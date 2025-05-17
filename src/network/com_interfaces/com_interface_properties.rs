@@ -1,70 +1,158 @@
+use crate::runtime::global_context::get_global_context;
 use crate::stdlib::time::Duration;
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use serde_with::{DurationMilliSeconds, DurationSeconds};
+use strum::EnumString;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
+
 pub enum InterfaceDirection {
-    IN,
-    OUT,
-    IN_OUT,
+    In,
+    Out,
+    InOut,
 }
 
-#[derive(Debug)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InterfaceProperties {
+    /// the type of the interface, by which it is identified
+    /// e.g. "tcp-client", "websocket-server",
+    /// multiple interfaces implementations (e.g. for native and web)
+    /// can have the same interface type if they are compatible and
+    /// have an identical initialization function
+    pub interface_type: String,
+
+    /// the channel that the interface is using,
+    /// e.g. "tcp", "websocket"
     pub channel: String,
+
+    /// a unique name that further identifies an interface instance
+    /// e.g. "wss://example.com:443"
     pub name: Option<String>,
-    /**
-     * Supported communication directions
-     */
+
+    /// The support message direction of the interface
     pub direction: InterfaceDirection,
 
-    /*
-     * Time in milliseconds to wait before reconnecting after a connection error
-     */
-    pub reconnect_interval: Option<Duration>,
-
-    /**
-     * Estimated mean latency for this interface type in milliseconds (round trip time).
-     * Lower latency interfaces are preferred over higher latency channels
-     */
+    /// Estimated mean latency for this interface type in milliseconds (round trip time).
+    /// Lower latency interfaces are preferred over higher latency channels
+    #[serde_as(as = "DurationMilliSeconds<f64>")]
     pub round_trip_time: Duration,
 
-    /**
-     * Bandwidth in bytes per second
-     */
+    /// Bandwidth in bytes per second
     pub max_bandwidth: u32,
 
-    /**
-     * If true, the interface does support continuous connections.
-     */
+    /// If true, the interface does support continuous connections
     pub continuous_connection: bool,
-    /**
-     * If true, the interface can be used to redirect DATEX messages to other endpoints
-     * which are not directly connected to the interface (default: true)
-     * Currently only enforced for broadcast messages
-     */
+
+    /// If true, the interface can be used to redirect DATEX messages to other endpoints
+    /// which are not directly connected to the interface (default: true)
+    /// Currently only enforced for broadcast messages
     pub allow_redirects: bool,
 
-    /**
-     * If true, the interface is a secure channel (can not be eavesdropped).
-     * This might be an already encrypted channel such as WebRTC or a channel
-     * that is end-to-end and not interceptable by third parties
-     */
+    /// If true, the interface is a secure channel (can not be eavesdropped).
+    /// This might be an already encrypted channel such as WebRTC or a channel
+    /// that is end-to-end and not interceptable by third parties
     pub is_secure_channel: bool,
+
+    // Defines the reconnection strategy for the interface
+    // If the interface is not able to reconnect, it will be destroyed
+    pub reconnection_config: ReconnectionConfig,
+
+    /* private field */
+    /// Timestamp of the interface close event
+    /// This is used to determine if the interface shall be reopened
+    pub close_timestamp: Option<u64>, /*(crate) FIXME */
+
+    /* private field */
+    /// Number of reconnection attempts already made
+    /// This is used to determine if the interface shall be reopened
+    /// and if the interface shall be destroyed
+    pub reconnect_attempts: Option<u8>,
+}
+
+#[serde_as]
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+pub enum ReconnectionConfig {
+    #[default]
+    NoReconnect,
+    InstantReconnect,
+    ReconnectWithTimeout {
+        #[serde_as(as = "DurationSeconds<f64>")]
+        timeout: Duration,
+    },
+    ReconnectWithTimeoutAndAttempts {
+        #[serde_as(as = "DurationSeconds<f64>")]
+        timeout: Duration,
+        attempts: u8,
+    },
+}
+
+impl ReconnectionConfig {
+    pub fn check_reconnect_timeout(
+        close_timestamp: Option<u64>,
+        timeout: &Duration,
+    ) -> bool {
+        let close_timestamp = match close_timestamp {
+            Some(ts) => ts,
+            None => return false,
+        };
+        let now = get_global_context().time.lock().unwrap().now();
+        let elapsed = Duration::from_millis(now - close_timestamp);
+        if elapsed < *timeout {
+            return false;
+        }
+        true
+    }
+
+    pub fn get_timeout(&self) -> Option<Duration> {
+        match self {
+            ReconnectionConfig::NoReconnect => None,
+            ReconnectionConfig::InstantReconnect => None,
+            ReconnectionConfig::ReconnectWithTimeout { timeout } => {
+                Some(*timeout)
+            }
+            ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
+                timeout,
+                ..
+            } => Some(*timeout),
+        }
+    }
+
+    pub fn get_attempts(&self) -> Option<u8> {
+        match self {
+            ReconnectionConfig::NoReconnect => None,
+            ReconnectionConfig::InstantReconnect => None,
+            ReconnectionConfig::ReconnectWithTimeout { .. } => None,
+            ReconnectionConfig::ReconnectWithTimeoutAndAttempts {
+                attempts,
+                ..
+            } => Some(*attempts),
+        }
+    }
 }
 
 impl InterfaceProperties {
     pub fn can_send(&self) -> bool {
         match self.direction {
-            InterfaceDirection::IN => false,
-            InterfaceDirection::OUT => true,
-            InterfaceDirection::IN_OUT => true,
+            InterfaceDirection::In => false,
+            InterfaceDirection::Out => true,
+            InterfaceDirection::InOut => true,
+        }
+    }
+
+    pub fn shall_reconnect(&self) -> bool {
+        match self.reconnection_config {
+            ReconnectionConfig::NoReconnect => false,
+            _ => true,
         }
     }
 
     pub fn can_receive(&self) -> bool {
         match self.direction {
-            InterfaceDirection::IN => true,
-            InterfaceDirection::OUT => false,
-            InterfaceDirection::IN_OUT => true,
+            InterfaceDirection::In => true,
+            InterfaceDirection::Out => false,
+            InterfaceDirection::InOut => true,
         }
     }
 }
@@ -72,15 +160,18 @@ impl InterfaceProperties {
 impl Default for InterfaceProperties {
     fn default() -> Self {
         InterfaceProperties {
-            channel: "".to_string(),
+            interface_type: "unknown".to_string(),
+            channel: "unknown".to_string(),
             name: None,
-            direction: InterfaceDirection::IN_OUT,
-            reconnect_interval: None,
+            direction: InterfaceDirection::InOut,
             round_trip_time: Duration::from_millis(0),
             max_bandwidth: u32::MAX,
             continuous_connection: false,
             allow_redirects: true,
             is_secure_channel: false,
+            reconnection_config: ReconnectionConfig::default(),
+            close_timestamp: None,
+            reconnect_attempts: None,
         }
     }
 }

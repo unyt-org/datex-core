@@ -9,6 +9,21 @@ The DATEX Core crate is used in [DATEX Core JS](https://github.com/unyt-org/date
 which provides a JavaScript interface to the DATEX Runtime.
 The [DATEX CLI](https://github.com/unyt-org/datex-cli) is also built on top of this crate and provides a command line interface for the DATEX Runtime.
 
+
+## Development
+
+### Running Tests
+
+Tests must be run with the `debug` feature enabled. You can either run the tests with
+`cargo test --features debug` or use the alias `cargo test-debug`.
+
+### Clippy
+To apply clippy fixes, run the following command:
+
+```bash
+cargo clippy-debug
+```
+
 ## Contributing
 
 We welcome every contribution!<br>

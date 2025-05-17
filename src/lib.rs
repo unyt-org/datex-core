@@ -1,6 +1,6 @@
 #![feature(coroutines)]
 #![feature(iter_from_coroutine)]
-
+#![feature(let_chains)]
 #[macro_use]
 extern crate mopa;
 
@@ -16,6 +16,7 @@ pub mod logger;
 pub mod network;
 pub mod parser;
 pub mod runtime;
+pub mod task;
 pub mod utils;
 
 #[cfg(feature = "std")]
