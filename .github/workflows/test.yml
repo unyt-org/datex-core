@@ -13,10 +13,9 @@ jobs:
                 sudo apt update
                 sudo apt install -y libudev-dev pkg-config
 
-            - uses: actions-rs/toolchain@v1
+            - uses: dtolnay/rust-toolchain@stable
               with:
                 toolchain: nightly
-                override: true
                 components: clippy
 
             - name: Check formatting
