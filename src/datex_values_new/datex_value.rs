@@ -2,6 +2,8 @@ use std::any::Any;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Not};
 
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
 use super::bool::Bool;
 use super::datex_type::DatexType;
 use super::int::I8;
@@ -82,6 +84,54 @@ impl DatexValue {
         ))))
     }
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde()]
+pub struct SerializableDatexValue {
+    #[serde(rename = "type")]
+    _type: DatexType,
+    value: Vec<u8>,
+}
+impl From<&DatexValue> for SerializableDatexValue {
+    fn from(value: &DatexValue) -> Self {
+        SerializableDatexValue {
+            _type: value.get_type(),
+            value: value.0.to_bytes(),
+        }
+    }
+}
+impl Serialize for DatexValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let repr: SerializableDatexValue = self.into();
+        repr.serialize(serializer)
+    }
+}
+impl TryFrom<SerializableDatexValue> for DatexValue {
+    type Error = String;
+
+    fn try_from(dxvalue: SerializableDatexValue) -> Result<Self, Self::Error> {
+        match dxvalue._type {
+            DatexType::Text => {
+                let text = Text::from_bytes(&dxvalue.value);
+                Ok(DatexValue::boxed(text))
+            }
+            DatexType::I8 => {
+                let i8 = I8::from_bytes(&dxvalue.value);
+                Ok(DatexValue::boxed(i8))
+            }
+            DatexType::Bool => {
+                let bool = Bool::from_bytes(&dxvalue.value);
+                Ok(DatexValue::boxed(bool))
+            }
+            DatexType::Null => Ok(DatexValue::null()),
+            _ => Err(format!("Unsupported type: {:?}", dxvalue.value)),
+        }
+    }
+}
+
 impl DatexValue {
     pub fn null() -> Self {
         DatexValue::boxed(Null)
@@ -107,7 +157,12 @@ impl PartialEq for DatexValue {
                     let b = other.0.as_any().downcast_ref::<Bool>();
                     a == b
                 }
-                _ => false,
+                DatexType::Null => {
+                    let a = self.0.as_any().downcast_ref::<Null>();
+                    let b = other.0.as_any().downcast_ref::<Null>();
+                    a == b
+                }
+                _ => todo!("Implement equality for other types"),
             }
     }
 }
@@ -177,11 +232,49 @@ where
     }
 }
 
+impl<'de> Deserialize<'de> for DatexValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let intermediate = SerializableDatexValue::deserialize(deserializer)?;
+        DatexValue::try_from(intermediate).map_err(de::Error::custom)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::logger::init_logger;
     use log::info;
+
+    fn serialize_datex_value(value: &DatexValue) -> String {
+        let res = serde_json::to_string(value).unwrap();
+        info!("Serialized DatexValue: {}", res);
+        res
+    }
+    fn deserialize_datex_value(json: &str) -> DatexValue {
+        let res = serde_json::from_str(json).unwrap();
+        info!("Deserialized DatexValue: {}", res);
+        res
+    }
+    fn test_serialize_and_deserialize(value: DatexValue) {
+        let json = serialize_datex_value(&value);
+        let deserialized = deserialize_datex_value(&json);
+        assert_eq!(value, deserialized);
+    }
+
+    #[test]
+    fn serialize() {
+        init_logger();
+        test_serialize_and_deserialize(DatexValue::from(42));
+        test_serialize_and_deserialize(DatexValue::from("Hello World!"));
+        test_serialize_and_deserialize(DatexValue::from(true));
+        test_serialize_and_deserialize(DatexValue::from(false));
+        test_serialize_and_deserialize(DatexValue::null());
+        test_serialize_and_deserialize(DatexValue::from(0));
+        test_serialize_and_deserialize(DatexValue::from(1));
+    }
 
     #[test]
     fn typed_boolean() {

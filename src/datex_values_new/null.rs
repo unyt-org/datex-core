@@ -1,9 +1,11 @@
 use core::fmt;
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 use super::{datex_type::DatexType, datex_value::DatexValue, value::Value};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Null;
 
 impl Value for Null {
@@ -36,10 +38,21 @@ impl Value for Null {
     fn add(&self, _: &dyn Value) -> Option<DatexValue> {
         None
     }
+    fn to_bytes(&self) -> Vec<u8> {
+        vec![]
+    }
+    fn from_bytes(_: &[u8]) -> Self {
+        Null
+    }
 }
 
 impl Display for Null {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "null")
+    }
+}
+impl PartialEq for Null {
+    fn eq(&self, _other: &Self) -> bool {
+        true
     }
 }

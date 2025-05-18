@@ -1,5 +1,7 @@
 use std::{any::Any, fmt::Display, ops::AddAssign};
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     datex_type::DatexType,
     datex_value::DatexValue,
@@ -8,7 +10,7 @@ use super::{
     value::{AddAssignable, Value},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Text(pub String);
 
 impl Display for Text {
@@ -81,6 +83,16 @@ impl Value for Text {
             "{}{}",
             self.0, other_text.0
         ))))
+    }
+    fn to_bytes(&self) -> Vec<u8> {
+        self.0.as_bytes().to_vec()
+    }
+    fn from_bytes(bytes: &[u8]) -> Self
+    where
+        Self: Sized,
+    {
+        let s = String::from_utf8_lossy(bytes).to_string();
+        Text(s)
     }
 }
 

@@ -19,6 +19,11 @@ pub trait Value: Display + Send + Sync {
     where
         Self: Sized;
 
+    fn to_bytes(&self) -> Vec<u8>;
+    fn from_bytes(bytes: &[u8]) -> Self
+    where
+        Self: Sized;
+
     fn as_add_assignable_mut(&mut self) -> Result<&mut dyn AddAssignable, ()> {
         Err(())
     }

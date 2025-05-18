@@ -1,14 +1,13 @@
-use std::{
-    fmt::Display,
-    ops::Not,
-};
+use std::{fmt::Display, ops::Not};
+
+use serde::{Deserialize, Serialize};
 
 use super::{
     datex_type::DatexType, datex_value::DatexValue, text::Text,
     typed_datex_value::TypedDatexValue, value::Value,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bool(pub bool);
 
 impl Bool {
@@ -60,6 +59,14 @@ impl Value for Bool {
 
     fn get_type(&self) -> DatexType {
         Self::static_type()
+    }
+    fn to_bytes(&self) -> Vec<u8> {
+        vec![if self.0 { 1 } else { 0 }]
+    }
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let mut arr = [0; 1];
+        arr.copy_from_slice(&bytes[0..1]);
+        Bool(arr[0] != 0)
     }
 }
 

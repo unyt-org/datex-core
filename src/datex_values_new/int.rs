@@ -1,11 +1,13 @@
 use std::{fmt::Display, ops::Add};
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     datex_type::DatexType, datex_value::DatexValue, text::Text,
     typed_datex_value::TypedDatexValue, value::Value,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct I8(pub i8);
 
 impl Display for I8 {
@@ -55,6 +57,14 @@ impl Value for I8 {
 
     fn get_type(&self) -> DatexType {
         Self::static_type()
+    }
+    fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_le_bytes().to_vec()
+    }
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let mut arr = [0; 1];
+        arr.copy_from_slice(&bytes[0..1]);
+        I8(i8::from_le_bytes(arr))
     }
 }
 
