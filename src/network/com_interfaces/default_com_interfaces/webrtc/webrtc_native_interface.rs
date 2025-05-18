@@ -53,19 +53,19 @@ use webrtc::{
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
 };
-pub struct WebRTCNativeInterface {
+pub struct WebRTCNativeInterface<'a> {
     info: ComInterfaceInfo,
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
-    data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
+    data_channels: Rc<RefCell<DataChannels<'a, Arc<RTCDataChannel>>>>,
     rtc_configuration: RTCConfiguration,
 }
-impl SingleSocketProvider for WebRTCNativeInterface {
+impl<'a> SingleSocketProvider for WebRTCNativeInterface<'a> {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets()
     }
 }
-impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
+impl<'a> WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface<'a> {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self {
         let commons = WebRTCCommon::new(peer_endpoint);
         WebRTCNativeInterface {
@@ -89,7 +89,9 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 }
 
 #[async_trait(?Send)]
-impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
+impl<'a> WebRTCTraitInternal<Arc<RTCDataChannel>>
+    for WebRTCNativeInterface<'a>
+{
     fn provide_data_channels(
         &self,
     ) -> Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> {
@@ -110,7 +112,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
                 .unwrap();
             Ok(DataChannel::new(
                 data_channel.label().to_string(),
-                data_channel,
+                &data_channel,
             ))
         } else {
             error!("Peer connection is not initialized");
@@ -129,9 +131,12 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         //     channel_clone.lock().unwrap();
         //     Box::pin(async {})
         // });
+        let meth = &channel_clone.borrow().open_channel;
+        let meth = meth.borrow_mut().take();
         let on_open: OnOpenHdlrFn = Box::new(move || {
             // Self::test(channel_clone);
             info!("Data channel opened");
+            meth;
             Box::pin(async {})
         });
 
