@@ -1,6 +1,8 @@
 use std::{
+    cell::RefCell,
     future::Future,
     pin::Pin,
+    rc::Rc,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -55,7 +57,7 @@ pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
-    data_channels: Arc<Mutex<DataChannels<Arc<RTCDataChannel>>>>,
+    data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
     rtc_configuration: RTCConfiguration,
 }
 impl SingleSocketProvider for WebRTCNativeInterface {
@@ -70,7 +72,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
             info: ComInterfaceInfo::default(),
             commons: Arc::new(Mutex::new(commons)),
             peer_connection: None,
-            data_channels: Arc::new(Mutex::new(DataChannels::new())),
+            data_channels: Rc::new(RefCell::new(DataChannels::default())),
             rtc_configuration: RTCConfiguration {
                 ..Default::default()
             },
@@ -90,7 +92,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn provide_data_channels(
         &self,
-    ) -> Arc<Mutex<DataChannels<Arc<RTCDataChannel>>>> {
+    ) -> Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> {
         self.data_channels.clone()
     }
     fn provide_info(&self) -> &ComInterfaceInfo {
@@ -117,10 +119,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     }
 
     async fn handle_setup_data_channel(
-        channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>,
+        channel: Rc<RefCell<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
-        let channel_clone: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>> =
-            channel.clone();
+        let channel_clone = channel.clone();
 
         // let on_open: OnOpenHdlrFn = Box::new(move || {
         //     info!("Data channel opened");
@@ -129,22 +130,19 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         //     Box::pin(async {})
         // });
         let on_open: OnOpenHdlrFn = Box::new(move || {
-            Self::test(channel_clone);
+            // Self::test(channel_clone);
             Box::pin(async {})
         });
 
         let data_channel = channel.clone();
-        let data_channel = data_channel.lock().unwrap();
-        data_channel.data_channel.lock().unwrap().on_open(on_open);
-        data_channel
-            .data_channel
-            .lock()
-            .unwrap()
-            .on_message(Box::new(move |msg| {
+        data_channel.borrow_mut().data_channel.on_open(on_open);
+        data_channel.borrow_mut().data_channel.on_message(Box::new(
+            move |msg| {
                 let data = msg.data.to_vec();
                 info!("Received data on data channel: {data:?}");
                 Box::pin(async {})
-            }));
+            },
+        ));
         Ok(())
     }
 
@@ -335,8 +333,7 @@ impl WebRTCNativeInterface {
                 while let Some(channel) = rx_data_channel.next().await {
                     data_channels
                         .clone()
-                        .lock()
-                        .unwrap()
+                        .borrow_mut()
                         .create_data_channel(
                             channel.label().to_string(),
                             channel.clone(),
@@ -388,19 +385,11 @@ impl ComInterface for WebRTCNativeInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         if let Some(channel) =
-            self.data_channels.lock().unwrap().get_data_channel("DATEX")
+            self.data_channels.borrow().get_data_channel("DATEX")
         {
             Box::pin(async move {
                 let bytes = Bytes::from(block.to_vec());
-                channel
-                    .lock()
-                    .unwrap()
-                    .data_channel
-                    .lock()
-                    .unwrap()
-                    .send(&bytes)
-                    .await
-                    .is_ok()
+                channel.borrow().data_channel.send(&bytes).await.is_ok()
             })
         } else {
             error!("Failed to send message, data channel not found");

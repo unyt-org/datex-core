@@ -3,40 +3,27 @@ use std::{
     collections::HashMap,
     future::Future,
     pin::Pin,
+    rc::Rc,
     sync::{Arc, Mutex},
 };
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
-pub struct DataChannel<T: Send + Sync + 'static> {
+pub struct DataChannel<T> {
     pub label: String,
-    pub data_channel: Arc<Mutex<T>>,
-    pub on_message: Option<Arc<dyn Fn(Vec<u8>) + Send + Sync>>,
-    pub open_channel: Arc<
-        Mutex<
-            Option<
-                Arc<
-                    dyn Fn(
-                            Arc<Mutex<DataChannel<T>>>,
-                        ) -> Pin<
-                            Box<dyn Future<Output = Result<(), ()>> + Send>,
-                        > + Send
-                        + Sync
-                        + 'static,
-                >,
-            >,
-        >,
-    >,
-    pub on_close: Option<Arc<dyn Fn() + Send + Sync>>,
+    pub data_channel: T,
+    pub on_message: Option<Box<dyn Fn(Vec<u8>)>>,
+    pub open_channel: RefCell<Option<Box<dyn Fn()>>>,
+    pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
 }
-impl<T: Send + Sync + 'static> DataChannel<T> {
+impl<T> DataChannel<T> {
     pub fn new(label: String, data_channel: T) -> Self {
         DataChannel {
             label,
-            data_channel: Arc::new(Mutex::new(data_channel)),
+            data_channel,
             on_message: None,
-            open_channel: Arc::new(Mutex::new(None)),
+            open_channel: RefCell::new(None),
             on_close: None,
             socket_uuid: RefCell::new(None),
         }
@@ -52,23 +39,23 @@ impl<T: Send + Sync + 'static> DataChannel<T> {
     }
 }
 
-pub struct DataChannels<T: Send + Sync + 'static> {
-    pub data_channels: HashMap<String, Arc<Mutex<DataChannel<T>>>>,
+pub struct DataChannels<T> {
+    pub data_channels: HashMap<String, Rc<RefCell<DataChannel<T>>>>,
     pub on_add: Option<
         Box<
             dyn Fn(
-                Arc<Mutex<DataChannel<T>>>,
+                Rc<RefCell<DataChannel<T>>>,
             ) -> Pin<Box<dyn Future<Output = ()> + 'static>>,
         >,
     >,
 }
-impl<T: Send + Sync + 'static> Default for DataChannels<T> {
+impl<T> Default for DataChannels<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Send + Sync + 'static> DataChannels<T> {
+impl<T> DataChannels<T> {
     pub fn new() -> Self {
         DataChannels {
             data_channels: HashMap::new(),
@@ -82,19 +69,19 @@ impl<T: Send + Sync + 'static> DataChannels<T> {
     pub fn get_data_channel(
         &self,
         label: &str,
-    ) -> Option<Arc<Mutex<DataChannel<T>>>> {
+    ) -> Option<Rc<RefCell<DataChannel<T>>>> {
         self.data_channels.get(label).cloned()
     }
     pub fn add_data_channel(
         &mut self,
-        data_channel: Arc<Mutex<DataChannel<T>>>,
+        data_channel: Rc<RefCell<DataChannel<T>>>,
     ) {
-        let label = data_channel.lock().unwrap().label.clone();
+        let label = data_channel.borrow().label.clone();
         self.data_channels.insert(label, data_channel);
     }
     pub async fn create_data_channel(&mut self, label: String, channel: T) {
         let data_channel =
-            Arc::new(Mutex::new(DataChannel::new(label.clone(), channel)));
+            Rc::new(RefCell::new(DataChannel::new(label.clone(), channel)));
         self.data_channels
             .insert(label.clone(), data_channel.clone());
         if let Some(fut) = self.on_add.take() {
