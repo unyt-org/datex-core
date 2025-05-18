@@ -7,4 +7,5 @@ pub enum DatexType {
     Text,
     I8,
     Bool,
+    Array,
 }

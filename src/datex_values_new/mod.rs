@@ -1,3 +1,4 @@
+pub mod array;
 pub mod bool;
 pub mod datex_type;
 pub mod datex_value;

@@ -4,6 +4,7 @@ use std::ops::{Add, AddAssign, Not};
 
 use serde::{de, Deserialize, Deserializer, Serialize};
 
+use super::array::DatexArray;
 use super::bool::Bool;
 use super::datex_type::DatexType;
 use super::int::I8;
@@ -98,6 +99,20 @@ impl From<&DatexValue> for SerializableDatexValue {
             _type: value.get_type(),
             value: value.0.to_bytes(),
         }
+    }
+}
+impl<T> From<Vec<T>> for DatexValue
+where
+    T: Into<DatexValue>,
+{
+    fn from(vec: Vec<T>) -> Self {
+        let items = vec.into_iter().map(Into::into).collect();
+        DatexValue::from(DatexArray(items))
+    }
+}
+impl From<DatexArray> for DatexValue {
+    fn from(arr: DatexArray) -> Self {
+        DatexValue::boxed(arr)
     }
 }
 impl Serialize for DatexValue {
@@ -245,8 +260,10 @@ impl<'de> Deserialize<'de> for DatexValue {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::logger::init_logger;
-    use log::info;
+    use crate::{
+        datex_array, datex_values_new::array::DatexArray, logger::init_logger,
+    };
+    use log::{debug, info};
 
     fn serialize_datex_value(value: &DatexValue) -> String {
         let res = serde_json::to_string(value).unwrap();
@@ -262,6 +279,31 @@ mod test {
         let json = serialize_datex_value(&value);
         let deserialized = deserialize_datex_value(&json);
         assert_eq!(value, deserialized);
+    }
+
+    #[test]
+    fn array() {
+        init_logger();
+        let a = DatexValue::from(vec![
+            DatexValue::from("42"),
+            DatexValue::from(42),
+            DatexValue::from(true),
+        ]);
+        let mut a = a.cast_to_typed::<DatexArray>();
+        a.push(DatexValue::from(42));
+        a.push(4);
+        a += 42;
+        a += DatexArray::from(vec!["inner", "array"]);
+
+        assert_eq!(a.length(), 7);
+        debug!("Array {}", a);
+
+        let b = DatexArray::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert_eq!(b.length(), 11);
+        assert_eq!(b.get_type(), DatexType::Array);
+
+        let c = datex_array![1, "test", 3, true, false];
+        assert_eq!(c.length(), 5);
     }
 
     #[test]
