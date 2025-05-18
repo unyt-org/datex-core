@@ -2,7 +2,7 @@ use std::any::Any;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Not};
 
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 use super::bool::Bool;
 use super::datex_type::DatexType;
