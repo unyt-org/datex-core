@@ -12,7 +12,7 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 pub struct DataChannel<T> {
     pub label: String,
     pub data_channel: T,
-    pub on_message: Option<Box<dyn Fn(Vec<u8>)>>,
+    pub on_message: RefCell<Option<Box<dyn Fn(Vec<u8>)>>>,
     pub open_channel: RefCell<Option<Box<dyn Fn()>>>,
     pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
@@ -22,7 +22,7 @@ impl<T> DataChannel<T> {
         DataChannel {
             label,
             data_channel,
-            on_message: None,
+            on_message: RefCell::new(None),
             open_channel: RefCell::new(None),
             on_close: None,
             socket_uuid: RefCell::new(None),

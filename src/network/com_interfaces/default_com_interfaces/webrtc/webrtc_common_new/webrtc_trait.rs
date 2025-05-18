@@ -146,11 +146,55 @@ pub trait WebRTCTraitInternal<T: 'static> {
         let channel_clone = channel.clone();
         let channel_clone2 = channel.clone();
         let sockets_clone = sockets.clone();
+
         channel
             .borrow_mut()
             .open_channel
             .borrow_mut()
-            .replace(Box::new(move || {}));
+            .replace(Box::new(move || {
+                info!("Data channel opened and added to data channels");
+
+                let socket_uuid = Self::add_socket(
+                    endpoint.clone(),
+                    interface_uuid.clone(),
+                    sockets.clone(),
+                );
+                // FIXME
+                let data_channels = data_channels.clone();
+                let channel_clone2 = channel_clone2.clone();
+                channel_clone2
+                    .clone()
+                    .borrow()
+                    .set_socket_uuid(socket_uuid.clone());
+
+                data_channels
+                    .borrow_mut()
+                    .add_data_channel(channel_clone2.clone());
+            }));
+        channel
+            .borrow_mut()
+            .on_message
+            .borrow_mut()
+            .replace(Box::new(move |data| {
+                let data = data.to_vec();
+                if let Some(socket_uuid) =
+                    channel_clone.borrow().get_socket_uuid()
+                {
+                    let sockets = sockets_clone.lock().unwrap();
+                    if let Some(socket) = sockets.sockets.get(&socket_uuid) {
+                        info!(
+                            "Received data on socket: {data:?} {socket_uuid}"
+                        );
+                        socket
+                            .lock()
+                            .unwrap()
+                            .receive_queue
+                            .lock()
+                            .unwrap()
+                            .extend(data);
+                    }
+                }
+            }));
         // Some(Arc::new(
         //     move |x: Arc<Mutex<DataChannel<T>>>| -> Pin<
         //         Box<dyn Future<Output = Result<(), ()>> + Send>,

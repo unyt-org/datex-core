@@ -131,6 +131,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         // });
         let on_open: OnOpenHdlrFn = Box::new(move || {
             // Self::test(channel_clone);
+            info!("Data channel opened");
             Box::pin(async {})
         });
 
