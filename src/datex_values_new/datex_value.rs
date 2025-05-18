@@ -307,8 +307,10 @@ mod test {
         init_logger();
         let mut a: TypedDatexValue<Text> = TypedDatexValue::from("Hello");
         a += " World"; // see (#2)
-        a += TypedDatexValue::from("42"); // Is typesafe
+        a += TypedDatexValue::from("4"); // Is typesafe
+        a += 2;
         a += TypedDatexValue::from(42); // Is typesafe see (#1)
+                                        // We won't allow this: `a += TypedDatexValue::from(true);`
         a += DatexValue::from("!"); // Might throw if the assignment would be incompatible.
         assert_eq!(a.length(), 16);
         assert_eq!(a.as_str(), "Hello World4242!");
