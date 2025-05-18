@@ -1,117 +1,128 @@
+use std::any::Any;
 use std::fmt::{self, Display};
 use std::ops::Add;
 
+use super::datex_type::DatexType;
 use super::null::Null;
-use super::primitive::Primitive;
-#[derive(Debug, Clone, PartialEq)]
-pub enum DatexValue {
-    Null,
-    Text(String),
-    Primitive(Primitive),
-    Composite(Vec<DatexValue>),
-}
-impl From<&str> for DatexValue {
-    fn from(s: &str) -> Self {
-        DatexValue::Text(s.to_string())
-    }
+use super::primitive::PrimitiveI8;
+use super::text::Text;
+use super::typed_datex_value::TypedDatexValue;
+
+pub trait Value: Display + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    fn cast_to(&self, target: DatexType) -> Option<DatexValue>;
+    fn as_datex_value(&self) -> DatexValue;
+    fn get_type(&self) -> DatexType;
+    fn add(&self, other: &dyn Value) -> Option<DatexValue>;
 }
 
-impl From<String> for DatexValue {
-    fn from(s: String) -> Self {
-        DatexValue::Text(s)
-    }
-}
+use std::sync::Arc;
 
-impl From<i8> for DatexValue {
-    fn from(v: i8) -> Self {
-        DatexValue::Primitive(Primitive::I8(v))
-    }
-}
+#[derive(Clone)]
+pub struct DatexValue(pub Arc<dyn Value>);
 
-impl From<u8> for DatexValue {
-    fn from(v: u8) -> Self {
-        DatexValue::Primitive(Primitive::U8(v))
-    }
-}
-impl From<Null> for DatexValue {
-    fn from(_: Null) -> Self {
-        DatexValue::Null
-    }
-}
-
-impl Display for DatexValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DatexValue::Null => write!(f, "null"),
-            DatexValue::Text(s) => write!(f, "\"{}\"", s),
-            DatexValue::Primitive(p) => write!(f, "{}", p),
-            DatexValue::Composite(values) => {
-                for val in values {
-                    write!(f, "{}", val)?;
-                }
-                Ok(())
-            }
-        }
+impl<T: Value + 'static> From<TypedDatexValue<T>> for DatexValue {
+    fn from(typed: TypedDatexValue<T>) -> Self {
+        DatexValue(Arc::new(typed.0))
     }
 }
 
 impl DatexValue {
-    pub fn coerce_to_string(&self) -> Option<String> {
-        match self {
-            DatexValue::Null => Some("null".to_string()),
-            DatexValue::Text(s) => Some(s.clone()),
-            DatexValue::Primitive(p) => Some(format!("{}", p)),
-            DatexValue::Composite(values) => {
-                let mut result = String::new();
-                for v in values {
-                    result.push_str(&v.coerce_to_string()?);
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        self.0.as_any().downcast_ref::<T>()
+    }
+    pub fn boxed<V: Value + 'static>(v: V) -> Self {
+        DatexValue(Arc::new(v))
+    }
+
+    pub fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
+        self.0.cast_to(target)
+    }
+
+    pub fn get_type(&self) -> DatexType {
+        self.0.get_type()
+    }
+    pub fn concatenate(&self, other: &dyn Value) -> Option<DatexValue> {
+        let other_casted = other.cast_to(DatexType::Text)?;
+        let other_value = other_casted.0.as_any().downcast_ref::<Text>()?;
+        Some(DatexValue::boxed(Text(format!(
+            "{}{}",
+            self.0, other_value.0
+        ))))
+    }
+}
+impl DatexValue {
+    pub fn null() -> Self {
+        DatexValue::boxed(Null)
+    }
+}
+impl PartialEq for DatexValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.get_type() == other.0.get_type()
+            && self.0.as_any().type_id() == other.0.as_any().type_id()
+            && match self.0.get_type() {
+                DatexType::Text => {
+                    let a = self.0.as_any().downcast_ref::<Text>();
+                    let b = other.0.as_any().downcast_ref::<Text>();
+                    a == b
                 }
-                Some(result)
+                DatexType::PrimitiveI8 => {
+                    let a = self.0.as_any().downcast_ref::<PrimitiveI8>();
+                    let b = other.0.as_any().downcast_ref::<PrimitiveI8>();
+                    a == b
+                }
+                _ => false,
             }
-        }
-    }
-
-    pub fn concat<I: IntoIterator<Item = DatexValue>>(values: I) -> Self {
-        DatexValue::Composite(values.into_iter().collect())
-    }
-    pub fn cast_to_string(&self) -> Option<DatexValue> {
-        self.coerce_to_string().map(DatexValue::Text)
-    }
-
-    pub fn cast_to_primitive_i8(&self) -> Option<DatexValue> {
-        match self {
-            DatexValue::Primitive(Primitive::I8(v)) => {
-                Some(DatexValue::Primitive(Primitive::I8(*v)))
-            }
-            DatexValue::Text(s) => s
-                .parse::<i8>()
-                .ok()
-                .map(|v| DatexValue::Primitive(Primitive::I8(v))),
-            _ => None,
-        }
     }
 }
 
 impl Add for DatexValue {
     type Output = DatexValue;
 
-    fn add(self, rhs: DatexValue) -> Self::Output {
-        match (self, rhs) {
-            (DatexValue::Text(a), b) => {
-                if let Some(b_str) = b.coerce_to_string() {
-                    DatexValue::Text(a + &b_str)
-                } else {
-                    DatexValue::Null
-                }
-            }
-            (a, DatexValue::Text(b)) => {
-                if let Some(a_str) = a.coerce_to_string() {
-                    DatexValue::Text(a_str + &b)
-                } else {
-                    DatexValue::Null
-                }
-            }
-            (a, b) => DatexValue::concat(vec![a, b]),
+    fn add(self, rhs: DatexValue) -> DatexValue {
+        self.0.add(rhs.0.as_ref()).unwrap_or_else(|| {
+            panic!("Unsupported addition: {} + {}", self, rhs)
+        })
+    }
+}
+
+impl std::fmt::Debug for DatexValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for DatexValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<&str> for DatexValue {
+    fn from(s: &str) -> Self {
+        DatexValue::boxed(Text(s.to_string()))
+    }
+}
+
+impl From<String> for DatexValue {
+    fn from(s: String) -> Self {
+        DatexValue::boxed(Text(s))
+    }
+}
+impl From<i8> for DatexValue {
+    fn from(v: i8) -> Self {
+        DatexValue::boxed(PrimitiveI8(v))
+    }
+}
+
+impl<T> From<Option<T>> for DatexValue
+where
+    T: Into<DatexValue>,
+{
+    fn from(opt: Option<T>) -> Self {
+        match opt {
+            Some(v) => v.into(),
+            None => DatexValue::null(),
         }
     }
 }
@@ -123,34 +134,73 @@ mod test {
     use log::info;
 
     #[test]
-    fn test2() {
+    fn test_type() {
         init_logger();
-        let a = DatexValue::from("Hello ");
-        let b = DatexValue::from(42i8);
-        let c = DatexValue::from(10u8);
-        let d = DatexValue::from(Null);
+        let a = TypedDatexValue::from(42);
+        let b = TypedDatexValue::from(11);
+        let c = TypedDatexValue::from("11");
 
-        let result1 = a.clone() + b.clone();
-        let result2 = b.clone() + c;
-        let result3 = result1.clone() + d;
-        let result4 = b.clone().cast_to_string();
+        assert_eq!(c.inner().length(), 2);
 
-        info!("result1: {}", result1);
-        info!("result2: {}", result2);
-        info!("result3: {}", result3);
-        info!("result4: {:?}", result4);
+        // c.length()
+
+        assert_eq!(a.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+
+        // let a_plus_b = a.clone() + b.clone();
+
+        let erased: DatexValue = a.into();
     }
 
     #[test]
-    fn test_datex_value() {
-        let value1 = DatexValue::Text("Hello".to_string());
-        let value2 = DatexValue::Text("World".to_string());
-        let value3 = value1.clone() + value2.clone();
-        assert_eq!(value3.coerce_to_string(), Some("HelloWorld".to_string()));
+    fn test_null() {
+        init_logger();
 
-        let value4 = DatexValue::Primitive(Primitive::I8(42));
-        let value5 = DatexValue::Primitive(Primitive::U8(100));
-        let value6 = value4.clone() + value5.clone();
-        assert_eq!(value6.coerce_to_string(), Some("42100".to_string()));
+        let null_value = DatexValue::null();
+        assert_eq!(null_value.get_type(), DatexType::Null);
+        assert_eq!(null_value.to_string(), "null");
+
+        let maybe_value: Option<i8> = None;
+        let null_value = DatexValue::from(maybe_value);
+        assert_eq!(null_value.get_type(), DatexType::Null);
+        assert_eq!(null_value.to_string(), "null");
+    }
+
+    #[test]
+    fn test_addition() {
+        init_logger();
+        let a = DatexValue::from(42);
+        let b = DatexValue::from(27);
+
+        assert_eq!(a.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+
+        let a_plus_b = a.clone() + b.clone();
+        assert_eq!(a_plus_b.get_type(), DatexType::PrimitiveI8);
+
+        assert_eq!(a_plus_b, DatexValue::from(69));
+        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        init_logger();
+        let a = DatexValue::from("Hello ");
+        let b = DatexValue::from(42i8);
+
+        assert_eq!(a.get_type(), DatexType::Text);
+        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+
+        let a_plus_b = a.clone() + b.clone();
+        let b_plus_a = b.clone() + a.clone();
+
+        assert_eq!(a_plus_b.get_type(), DatexType::Text);
+        assert_eq!(b_plus_a.get_type(), DatexType::Text);
+
+        assert_eq!(a_plus_b, DatexValue::from("Hello 42"));
+        assert_eq!(b_plus_a, DatexValue::from("42Hello "));
+
+        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
+        info!("{} + {} = {}", b.clone(), a.clone(), b_plus_a);
     }
 }
