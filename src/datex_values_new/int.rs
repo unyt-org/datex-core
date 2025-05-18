@@ -3,8 +3,11 @@ use std::{fmt::Display, ops::Add};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    datex_type::DatexType, datex_value::DatexValue, text::Text,
-    typed_datex_value::TypedDatexValue, value::Value,
+    datex_type::DatexType,
+    datex_value::{DatexAdd, DatexAddAssign, DatexValue},
+    text::Text,
+    typed_datex_value::TypedDatexValue,
+    value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,23 +38,6 @@ impl Value for I8 {
 
     fn as_datex_value(&self) -> DatexValue {
         DatexValue::boxed(self.clone())
-    }
-
-    fn add(&self, other: &dyn Value) -> Option<DatexValue> {
-        match other.cast_to(DatexType::I8) {
-            Some(x) => {
-                let other_i8 = x
-                    .to_dyn()
-                    .as_any()
-                    .downcast_ref::<I8>()
-                    .expect("Failed to downcast");
-                Some(DatexValue::boxed(I8(self.0 + other_i8.0)))
-            }
-            _ => {
-                let self_str = self.cast_to(DatexType::Text)?;
-                self_str.to_dyn().add(other)
-            }
-        }
     }
 
     fn static_type() -> DatexType {
@@ -105,5 +91,17 @@ impl PartialEq<i8> for TypedDatexValue<I8> {
 impl PartialEq<TypedDatexValue<I8>> for i8 {
     fn eq(&self, other: &TypedDatexValue<I8>) -> bool {
         *self == other.inner().0
+    }
+}
+
+impl DatexAdd for I8 {
+    fn add(&self, other: I8) -> Option<impl Value> {
+        Some(I8(self.0 + other.0))
+    }
+}
+
+impl DatexAddAssign for I8 {
+    fn add_assign(&mut self, other: I8) {
+        self.0 += other.0;
     }
 }

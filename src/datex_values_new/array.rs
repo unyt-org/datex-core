@@ -3,7 +3,6 @@ use std::{
     ops::{AddAssign, Index},
 };
 
-
 use super::{
     datex_type::DatexType,
     datex_value::{DatexValue, SerializableDatexValue},
@@ -41,10 +40,6 @@ impl Value for DatexArray {
 
     fn as_datex_value(&self) -> DatexValue {
         DatexValue::boxed(self.clone())
-    }
-
-    fn add(&self, other: &dyn Value) -> Option<DatexValue> {
-        None
     }
 
     fn static_type() -> DatexType {

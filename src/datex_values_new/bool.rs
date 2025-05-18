@@ -49,10 +49,6 @@ impl Value for Bool {
         DatexValue::boxed(self.clone())
     }
 
-    fn add(&self, other: &dyn Value) -> Option<DatexValue> {
-        None
-    }
-
     fn static_type() -> DatexType {
         DatexType::Bool
     }

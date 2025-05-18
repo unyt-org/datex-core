@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     datex_type::DatexType,
-    datex_value::DatexValue,
+    datex_value::{DatexAdd, DatexAddAssign, DatexValue},
     int::I8,
     typed_datex_value::TypedDatexValue,
-    value::{AddAssignable, Value},
+    value::{try_cast_to_value, Value},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,22 +68,11 @@ impl Value for Text {
     fn static_type() -> DatexType {
         DatexType::Text
     }
-    fn as_add_assignable_mut(&mut self) -> Result<&mut dyn AddAssignable, ()> {
-        Ok(self)
-    }
 
     fn get_type(&self) -> DatexType {
         Self::static_type()
     }
-    fn add(&self, other: &dyn Value) -> Option<DatexValue> {
-        let other_casted = other.cast_to(DatexType::Text)?;
-        let other_text =
-            other_casted.to_dyn().as_any().downcast_ref::<Text>()?;
-        Some(DatexValue::boxed(Text(format!(
-            "{}{}",
-            self.0, other_text.0
-        ))))
-    }
+
     fn to_bytes(&self) -> Vec<u8> {
         self.0.as_bytes().to_vec()
     }
@@ -116,15 +105,6 @@ impl From<i8> for Text {
     }
 }
 
-impl AddAssignable for Text {
-    fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()> {
-        let rhs_text = other.cast_to(DatexType::Text)?;
-        let rhs_text = rhs_text.to_dyn().as_any().downcast_ref::<Text>()?;
-        self.0 += &rhs_text.0;
-        Some(())
-    }
-}
-
 impl From<String> for TypedDatexValue<Text> {
     fn from(v: String) -> Self {
         TypedDatexValue(Text(v))
@@ -139,16 +119,16 @@ impl From<&str> for TypedDatexValue<Text> {
 /// Might panic when the DatexValue in the assignment can not be cast to Text
 impl AddAssign<DatexValue> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: DatexValue) {
-        self.add_assign_boxed(rhs.to_dyn()).or_else(|| {
-            panic!("Cannot add DatexValue to Text");
-        });
+        // self.add_assign_boxed(rhs.to_dyn()).or_else(|| {
+        //     panic!("Cannot add DatexValue to Text");
+        // });
     }
 }
 
 /// Will never panic, since both TypedDatexValue and Text
 impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: TypedDatexValue<Text>) {
-        self.add_assign_boxed(rhs.into_erased().to_dyn());
+        self.0 += rhs.0;
     }
 }
 
@@ -157,7 +137,7 @@ impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
 /// (#1)
 impl AddAssign<TypedDatexValue<I8>> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: TypedDatexValue<I8>) {
-        self.add_assign_boxed(rhs.into_erased().to_dyn());
+        self.0 += rhs.cast_to_value()
     }
 }
 
@@ -176,7 +156,13 @@ where
     Text: AddAssign<Text> + From<T>,
 {
     fn add_assign(&mut self, rhs: T) {
-        self.add_assign_boxed(&Text::from(rhs));
+        self.0 += rhs.into();
+    }
+}
+
+impl From<I8> for DatexValue {
+    fn from(n: I8) -> Self {
+        DatexValue::boxed(Text(n.0.to_string()))
     }
 }
 

@@ -3,7 +3,11 @@ use std::{
     ops::{Add, DerefMut},
 };
 
-use super::{datex_type::DatexType, datex_value::DatexValue, value::Value};
+use super::{
+    datex_type::DatexType,
+    datex_value::DatexValue,
+    value::{try_cast_to_value, Value},
+};
 use std::ops::Deref;
 
 #[derive(Debug, Clone)]
@@ -20,6 +24,14 @@ impl<T: Value + 'static> TypedDatexValue<T> {
 
     pub fn get_type(&self) -> DatexType {
         self.0.get_type()
+    }
+    pub fn try_cast_to_value<X: Value + Clone + 'static>(
+        &self,
+    ) -> Result<X, ()> {
+        try_cast_to_value(self.inner())
+    }
+    pub fn cast_to_value<X: Value + Clone + 'static>(&self) -> X {
+        self.try_cast_to_value().expect("Cast failed")
     }
 }
 

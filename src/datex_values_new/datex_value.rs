@@ -11,7 +11,7 @@ use super::int::I8;
 use super::null::Null;
 use super::text::Text;
 use super::typed_datex_value::TypedDatexValue;
-use super::value::Value;
+use super::value::{try_cast_to_value, try_cast_to_value_dyn, Value};
 
 use std::sync::Arc;
 
@@ -92,6 +92,23 @@ impl DatexValue {
 }
 
 impl DatexValue {
+    pub fn get_casted_inners<'a>(
+        lhs: &'a DatexValue,
+        rhs: &DatexValue,
+    ) -> Option<(&'a DatexValueInner, DatexValueInner)> {
+        let rhs = rhs.to_dyn();
+        let rhs = rhs.cast_to(lhs.actual_type.clone())?;
+        Some((&lhs.inner, rhs.inner))
+    }
+    pub fn get_casted_inners_mut<'a>(
+        lhs: &'a mut DatexValue,
+        rhs: &DatexValue,
+    ) -> Option<(&'a mut DatexValueInner, DatexValueInner)> {
+        let rhs = rhs.to_dyn();
+        let rhs = rhs.cast_to(lhs.actual_type.clone())?;
+        Some((&mut lhs.inner, rhs.inner))
+    }
+
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
         self.to_dyn().as_any().downcast_ref::<T>()
     }
@@ -136,6 +153,12 @@ impl DatexValue {
         casted.ok_or(())
     }
 
+    pub fn try_cast_to_value<T: Value + Clone + 'static>(
+        &self,
+    ) -> Result<T, ()> {
+        try_cast_to_value_dyn(self.to_dyn())
+    }
+
     pub fn cast_to_typed<T: Value + Clone + 'static>(
         &self,
     ) -> TypedDatexValue<T> {
@@ -147,14 +170,6 @@ impl DatexValue {
     pub fn get_type(&self) -> DatexType {
         self.actual_type.clone()
     }
-    // pub fn concatenate(&self, other: &dyn Value) -> Option<DatexValue> {
-    //     let other_casted = other.cast_to(DatexType::Text)?;
-    //     let other_value = other_casted.0.as_any().downcast_ref::<Text>()?;
-    //     Some(DatexValue::boxed(Text(format!(
-    //         "{}{}",
-    //         self.0, other_value.0
-    //     ))))
-    // }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -250,10 +265,23 @@ impl PartialEq for DatexValue {
 
 impl Add for DatexValue {
     type Output = Option<DatexValue>;
-
     fn add(self, rhs: DatexValue) -> Self::Output {
-        self.to_dyn().add(rhs.to_dyn())
+        let (lhs, rhs) = DatexValue::get_casted_inners(&self, &rhs)?;
+        match (lhs, rhs) {
+            (DatexValueInner::I8(a), DatexValueInner::I8(b)) => {
+                a.add(b).map(|v| v.as_datex_value())
+            }
+            // TODO implement other adds
+            (_, _) => None,
+        }
     }
+}
+
+pub trait DatexAdd: Value {
+    fn add(&self, other: Self) -> Option<impl Value>;
+}
+pub trait DatexAddAssign: Value {
+    fn add_assign(&mut self, other: Self);
 }
 
 impl Not for DatexValue {
@@ -273,16 +301,18 @@ where
     DatexValue: From<T>,
 {
     fn add_assign(&mut self, rhs: T) {
-        let rhs_val = DatexValue::from(rhs);
-        let rhs_ref = rhs_val.to_dyn();
-
-        let inner_mut = self.to_dyn_mut();
-        if let Ok(addable) = inner_mut.as_add_assignable_mut()
-            && addable.add_assign_boxed(rhs_ref).is_some()
-        {
-            return;
+        let (lhs, rhs) = DatexValue::get_casted_inners_mut(self, &rhs.into())
+            .expect("Failed to cast");
+        match (lhs, rhs) {
+            (DatexValueInner::I8(a), DatexValueInner::I8(b)) => {
+                a.add_assign(b);
+            }
+            (DatexValueInner::Text(a), DatexValueInner::Text(b)) => {
+                a.add_assign(b);
+            }
+            // TODO implement other adds
+            (_, _) => panic!("Unsupported addition"),
         }
-        panic!("Cannot mutate shared DatexValue");
     }
 }
 
@@ -329,6 +359,26 @@ mod test {
         datex_array, datex_values_new::array::DatexArray, logger::init_logger,
     };
     use log::{debug, info};
+
+    #[test]
+    fn new_addition_assignments() {
+        let mut x = DatexValue::from(42);
+        let y = DatexValue::from(27);
+
+        x += y.clone();
+        assert_eq!(x.get_type(), DatexType::I8);
+        assert_eq!(x, DatexValue::from(69));
+    }
+
+    #[test]
+    fn new_additions() {
+        let x = DatexValue::from(42);
+        let y = DatexValue::from(27);
+
+        let z = (x.clone() + y.clone()).unwrap();
+        assert_eq!(z.get_type(), DatexType::I8);
+        assert_eq!(z, DatexValue::from(69));
+    }
 
     #[test]
     fn array() {

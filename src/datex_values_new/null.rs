@@ -35,9 +35,6 @@ impl Value for Null {
         DatexValue::boxed(Null)
     }
 
-    fn add(&self, _: &dyn Value) -> Option<DatexValue> {
-        None
-    }
     fn to_bytes(&self) -> Vec<u8> {
         vec![]
     }
