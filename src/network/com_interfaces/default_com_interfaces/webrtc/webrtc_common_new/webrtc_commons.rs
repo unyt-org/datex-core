@@ -15,6 +15,7 @@ pub struct WebRTCCommon {
     pub candidates: VecDeque<Vec<u8>>,
     pub is_remote_description_set: bool,
     pub on_ice_candidate: Option<Box<dyn Fn(Vec<u8>)>>,
+    pub on_connect: Option<Box<dyn Fn()>>,
 }
 
 impl WebRTCCommon {
@@ -29,6 +30,7 @@ impl WebRTCCommon {
             candidates: VecDeque::new(),
             is_remote_description_set: false,
             on_ice_candidate: None,
+            on_connect: None,
             ice_servers: vec![RTCIceServer {
                 urls: vec!["stun:stun.l.google.com:19302".to_string()],
                 username: None,

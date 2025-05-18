@@ -26,7 +26,7 @@ use crate::{
 };
 
 #[tokio::test]
-#[timeout(8000)]
+#[timeout(10000)]
 pub async fn test_new() {
     run_async! {
         init_global_context();
@@ -65,14 +65,21 @@ pub async fn test_new() {
 
 
         let offer = interface_a.clone().borrow().create_offer().await.unwrap();
-        sleep(Duration::from_secs(1)).await;
         let answer = interface_b.clone().borrow().create_answer(offer).await.unwrap();
-        sleep(Duration::from_secs(1)).await;
         interface_a.clone().borrow().set_answer(answer).await.unwrap();
-        sleep(Duration::from_secs(2)).await;
 
-        // let uuid = interface_b.clone().borrow().get_socket_uuid().clone().unwrap();
-        interface_a.clone().borrow_mut().send_block(b"test", ComInterfaceSocketUUID(UUID::from_string("uuid".to_string()))).await;
+        interface_a.borrow().wait_for_connection().await.unwrap();
+        interface_b.borrow().wait_for_connection().await.unwrap();
+
+        let socket_stub = ComInterfaceSocketUUID(UUID::from_string("uuid".to_string()));
+        assert!(
+            interface_a.clone().borrow_mut().send_block(b"long message", socket_stub.clone()).await
+        );
+        assert!(
+            interface_b.clone().borrow_mut().send_block(b"test", socket_stub.clone()).await
+        );
+        sleep(Duration::from_secs(1)).await;
+
     }
 }
 

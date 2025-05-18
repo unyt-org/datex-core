@@ -9,16 +9,16 @@ use std::{
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
-pub struct DataChannel<'a, T> {
+pub struct DataChannel<T> {
     pub label: String,
-    pub data_channel: &'a T,
+    pub data_channel: T,
     pub on_message: RefCell<Option<Box<dyn Fn(Vec<u8>)>>>,
-    pub open_channel: RefCell<Option<Box<dyn Fn() + Send + Sync>>>,
+    pub open_channel: RefCell<Option<Box<dyn Fn()>>>,
     pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
 }
-impl<'a, T> DataChannel<'a, T> {
-    pub fn new(label: String, data_channel: &'a T) -> Self {
+impl<T> DataChannel<T> {
+    pub fn new(label: String, data_channel: T) -> Self {
         DataChannel {
             label,
             data_channel,
@@ -39,8 +39,8 @@ impl<'a, T> DataChannel<'a, T> {
     }
 }
 
-pub struct DataChannels<'a, T> {
-    pub data_channels: HashMap<String, Rc<RefCell<DataChannel<'a, T>>>>,
+pub struct DataChannels<T> {
+    pub data_channels: HashMap<String, Rc<RefCell<DataChannel<T>>>>,
     pub on_add: Option<
         Box<
             dyn Fn(
@@ -49,13 +49,13 @@ pub struct DataChannels<'a, T> {
         >,
     >,
 }
-impl<'a, T> Default for DataChannels<'a, T> {
+impl<T> Default for DataChannels<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a, T> DataChannels<'a, T> {
+impl<T> DataChannels<T> {
     pub fn new() -> Self {
         DataChannels {
             data_channels: HashMap::new(),
@@ -67,19 +67,19 @@ impl<'a, T> DataChannels<'a, T> {
         self.on_add = None;
     }
     pub fn get_data_channel(
-        &'a self,
+        &self,
         label: &str,
-    ) -> Option<Rc<RefCell<DataChannel<'a, T>>>> {
+    ) -> Option<Rc<RefCell<DataChannel<T>>>> {
         self.data_channels.get(label).cloned()
     }
     pub fn add_data_channel(
-        &'a mut self,
-        data_channel: Rc<RefCell<DataChannel<'a, T>>>,
+        &mut self,
+        data_channel: Rc<RefCell<DataChannel<T>>>,
     ) {
         let label = data_channel.borrow().label.clone();
         self.data_channels.insert(label, data_channel);
     }
-    pub async fn create_data_channel(&mut self, label: String, channel: &'a T) {
+    pub async fn create_data_channel(&mut self, label: String, channel: T) {
         let data_channel =
             Rc::new(RefCell::new(DataChannel::new(label.clone(), channel)));
         self.data_channels

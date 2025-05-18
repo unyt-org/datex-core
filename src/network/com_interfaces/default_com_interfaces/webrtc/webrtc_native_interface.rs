@@ -26,6 +26,7 @@ use crate::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::{channel::mpsc, SinkExt, StreamExt, TryFutureExt};
+use rsa::rand_core::le;
 
 use super::webrtc_common_new::{
     data_channels::{DataChannel, DataChannels},
@@ -53,19 +54,19 @@ use webrtc::{
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
 };
-pub struct WebRTCNativeInterface<'a> {
+pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
-    data_channels: Rc<RefCell<DataChannels<'a, Arc<RTCDataChannel>>>>,
+    data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
     rtc_configuration: RTCConfiguration,
 }
-impl<'a> SingleSocketProvider for WebRTCNativeInterface<'a> {
+impl SingleSocketProvider for WebRTCNativeInterface {
     fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.get_sockets()
     }
 }
-impl<'a> WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface<'a> {
+impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self {
         let commons = WebRTCCommon::new(peer_endpoint);
         WebRTCNativeInterface {
@@ -89,9 +90,7 @@ impl<'a> WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface<'a> {
 }
 
 #[async_trait(?Send)]
-impl<'a> WebRTCTraitInternal<Arc<RTCDataChannel>>
-    for WebRTCNativeInterface<'a>
-{
+impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn provide_data_channels(
         &self,
     ) -> Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> {
@@ -107,12 +106,12 @@ impl<'a> WebRTCTraitInternal<Arc<RTCDataChannel>>
         if let Some(peer_connection) = self.peer_connection.as_ref() {
             let channel_config = RTCDataChannelInit::default();
             let data_channel = peer_connection
-                .create_data_channel("datex", Some(channel_config))
+                .create_data_channel("DATEX", Some(channel_config))
                 .await
                 .unwrap();
             Ok(DataChannel::new(
                 data_channel.label().to_string(),
-                &data_channel,
+                data_channel,
             ))
         } else {
             error!("Peer connection is not initialized");
@@ -124,20 +123,24 @@ impl<'a> WebRTCTraitInternal<Arc<RTCDataChannel>>
         channel: Rc<RefCell<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
         let channel_clone = channel.clone();
-
-        // let on_open: OnOpenHdlrFn = Box::new(move || {
-        //     info!("Data channel opened");
-        //     // FIXME TODO handle open
-        //     channel_clone.lock().unwrap();
-        //     Box::pin(async {})
-        // });
-        let meth = &channel_clone.borrow().open_channel;
-        let meth = meth.borrow_mut().take();
+        let (tx, mut rx) = mpsc::unbounded::<()>();
+        let mut tx_clone = tx.clone();
         let on_open: OnOpenHdlrFn = Box::new(move || {
-            // Self::test(channel_clone);
-            info!("Data channel opened");
-            meth;
+            let _ = tx_clone.start_send(());
             Box::pin(async {})
+        });
+        spawn_local(async move {
+            let channel_clone = channel_clone.clone();
+            while let Some(_) = rx.next().await {
+                info!("Data channel opened!!");
+                if let Some(open_channel) =
+                    channel_clone.borrow().open_channel.borrow().as_ref()
+                {
+                    open_channel();
+                } else {
+                    error!("Failed to open data channel");
+                }
+            }
         });
 
         let data_channel = channel.clone();
