@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Add};
 
 use super::{
     datex_type::DatexType,
@@ -17,6 +17,9 @@ impl Display for PrimitiveI8 {
 
 impl Value for PrimitiveI8 {
     fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
     fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
@@ -51,7 +54,19 @@ impl Value for PrimitiveI8 {
         }
     }
 
-    fn get_type(&self) -> DatexType {
+    fn static_type() -> DatexType {
         DatexType::PrimitiveI8
+    }
+
+    fn get_type(&self) -> DatexType {
+        Self::static_type()
+    }
+}
+
+impl Add for PrimitiveI8 {
+    type Output = PrimitiveI8;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        PrimitiveI8(self.0 + rhs.0)
     }
 }

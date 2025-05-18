@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::fmt::{self, Display};
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use super::datex_type::DatexType;
 use super::null::Null;
@@ -8,12 +8,24 @@ use super::primitive::PrimitiveI8;
 use super::text::Text;
 use super::typed_datex_value::TypedDatexValue;
 
+pub trait AddAssignable: Any + Send + Sync {
+    fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()>;
+}
+
 pub trait Value: Display + Send + Sync {
     fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     fn cast_to(&self, target: DatexType) -> Option<DatexValue>;
     fn as_datex_value(&self) -> DatexValue;
     fn get_type(&self) -> DatexType;
     fn add(&self, other: &dyn Value) -> Option<DatexValue>;
+    fn static_type() -> DatexType
+    where
+        Self: Sized;
+
+    fn as_add_assignable_mut(&mut self) -> Result<&mut dyn AddAssignable, ()> {
+        Err(())
+    }
 }
 
 use std::sync::Arc;
@@ -37,6 +49,16 @@ impl DatexValue {
 
     pub fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
         self.0.cast_to(target)
+    }
+    pub fn cast_to_typed<T: Value + Clone + 'static>(
+        &self,
+    ) -> Option<TypedDatexValue<T>> {
+        let casted = self.cast_to(T::static_type())?;
+        casted
+            .0
+            .as_any()
+            .downcast_ref::<T>()
+            .map(|v| TypedDatexValue(v.clone()))
     }
 
     pub fn get_type(&self) -> DatexType {
@@ -83,6 +105,26 @@ impl Add for DatexValue {
         self.0.add(rhs.0.as_ref()).unwrap_or_else(|| {
             panic!("Unsupported addition: {} + {}", self, rhs)
         })
+    }
+}
+
+impl<T> AddAssign<T> for DatexValue
+where
+    DatexValue: From<T>,
+{
+    fn add_assign(&mut self, rhs: T) {
+        let rhs_val = DatexValue::from(rhs);
+        let rhs_ref = rhs_val.0.as_ref();
+
+        let inner_mut =
+            Arc::get_mut(&mut self.0).expect("Cannot mutate shared DatexValue");
+        if let Ok(addable) = inner_mut.as_add_assignable_mut() {
+            if addable.add_assign_boxed(rhs_ref).is_some() {
+                return;
+            }
+        } else {
+            panic!("Cannot mutate shared DatexValue");
+        }
     }
 }
 
@@ -134,22 +176,35 @@ mod test {
     use log::info;
 
     #[test]
-    fn test_type() {
+    fn test_cast_type() {
+        init_logger();
+        let a = DatexValue::from(42);
+        let b = a.cast_to(DatexType::Text).unwrap();
+        assert_eq!(b.get_type(), DatexType::Text);
+
+        let c = a.cast_to_typed::<PrimitiveI8>().unwrap();
+        assert_eq!(c.into_erased(), DatexValue::from(42));
+
+        let d = a.cast_to_typed::<Text>().unwrap();
+        assert_eq!(d.get_type(), DatexType::Text);
+        assert_eq!(d.inner().0, "42");
+    }
+
+    #[test]
+    fn test_infer_type() {
         init_logger();
         let a = TypedDatexValue::from(42);
         let b = TypedDatexValue::from(11);
         let c = TypedDatexValue::from("11");
-
-        assert_eq!(c.inner().length(), 2);
-
-        // c.length()
+        assert_eq!(c.length(), 2);
 
         assert_eq!(a.get_type(), DatexType::PrimitiveI8);
         assert_eq!(b.get_type(), DatexType::PrimitiveI8);
 
-        // let a_plus_b = a.clone() + b.clone();
-
-        let erased: DatexValue = a.into();
+        let a_plus_b = a.clone() + b.clone();
+        assert_eq!(a_plus_b.clone().get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a_plus_b.clone().into_erased(), DatexValue::from(53));
+        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
 
     #[test]
@@ -164,6 +219,39 @@ mod test {
         let null_value = DatexValue::from(maybe_value);
         assert_eq!(null_value.get_type(), DatexType::Null);
         assert_eq!(null_value.to_string(), "null");
+    }
+
+    #[test]
+    fn test_text() {
+        init_logger();
+        let a = TypedDatexValue::from("Hello");
+        assert_eq!(a.get_type(), DatexType::Text);
+        assert_eq!(a.length(), 5);
+        assert_eq!(a.clone().to_string(), "\"Hello\"");
+        assert_eq!(a.clone().as_str(), "Hello");
+        assert_eq!(a.clone().to_uppercase(), "HELLO".into());
+        assert_eq!(a.clone().to_lowercase(), "hello".into());
+    }
+
+    #[test]
+    fn test_test_assign() {
+        init_logger();
+        let mut a = TypedDatexValue::from("Hello");
+        a += " World";
+        a += DatexValue::from("!");
+
+        assert_eq!(a.length(), 12);
+        assert_eq!(a.clone().as_str(), "Hello World!");
+
+        a += 42;
+
+        assert_eq!(a.length(), 14);
+        assert_eq!(a.clone().as_str(), "Hello World!42");
+
+        let mut b = DatexValue::from("Hello");
+        b += " World";
+        info!("{}", b.clone());
+        // assert_eq!(b.length(), 12);
     }
 
     #[test]

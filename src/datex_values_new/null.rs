@@ -13,9 +13,16 @@ impl Value for Null {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn static_type() -> DatexType {
+        DatexType::Null
+    }
 
     fn get_type(&self) -> DatexType {
-        DatexType::Null
+        Self::static_type()
     }
 
     fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
