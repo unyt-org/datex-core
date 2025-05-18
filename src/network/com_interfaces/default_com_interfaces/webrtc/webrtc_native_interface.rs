@@ -119,20 +119,32 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     async fn handle_setup_data_channel(
         channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
+        let channel_clone: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>> =
+            channel.clone();
+
+        // let on_open: OnOpenHdlrFn = Box::new(move || {
+        //     info!("Data channel opened");
+        //     // FIXME TODO handle open
+        //     channel_clone.lock().unwrap();
+        //     Box::pin(async {})
+        // });
         let on_open: OnOpenHdlrFn = Box::new(move || {
-            info!("Data channel opened");
-            // FIXME TODO handle open
+            Self::test(channel_clone);
             Box::pin(async {})
         });
 
         let data_channel = channel.clone();
         let data_channel = data_channel.lock().unwrap();
-        data_channel.data_channel.on_open(on_open);
-        data_channel.data_channel.on_message(Box::new(move |msg| {
-            let data = msg.data.to_vec();
-            info!("Received data on data channel: {data:?}");
-            Box::pin(async {})
-        }));
+        data_channel.data_channel.lock().unwrap().on_open(on_open);
+        data_channel
+            .data_channel
+            .lock()
+            .unwrap()
+            .on_message(Box::new(move |msg| {
+                let data = msg.data.to_vec();
+                info!("Received data on data channel: {data:?}");
+                Box::pin(async {})
+            }));
         Ok(())
     }
 
@@ -258,6 +270,8 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 
 #[com_interface]
 impl WebRTCNativeInterface {
+    async fn test(channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>) {}
+
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
         let has_media_support = true; // TODO
@@ -382,6 +396,8 @@ impl ComInterface for WebRTCNativeInterface {
                     .lock()
                     .unwrap()
                     .data_channel
+                    .lock()
+                    .unwrap()
                     .send(&bytes)
                     .await
                     .is_ok()

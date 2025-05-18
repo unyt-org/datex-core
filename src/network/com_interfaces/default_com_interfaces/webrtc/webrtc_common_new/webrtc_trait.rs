@@ -1,4 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
 use log::{error, info};
@@ -24,7 +28,7 @@ use super::{
 };
 
 #[async_trait(?Send)]
-pub trait WebRTCTraitInternal<T: 'static> {
+pub trait WebRTCTraitInternal<T: Send + Sync + 'static> {
     // These method must be implemented in the interface
     fn provide_data_channels(&self) -> Arc<Mutex<DataChannels<T>>>;
     fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>>;
@@ -140,27 +144,45 @@ pub trait WebRTCTraitInternal<T: 'static> {
         let channel_clone = channel.clone();
         let channel_clone2 = channel.clone();
         let sockets_clone = sockets.clone();
-        channel.lock().unwrap().open_channel = Some(Arc::new(move || {
-            info!("Data channel opened and added to data channels");
-            let socket_uuid = Self::add_socket(
-                endpoint.clone(),
-                interface_uuid.clone(),
-                sockets.clone(),
-            );
-            // FIXME
-            let data_channels = data_channels.clone();
-            let channel_clone2 = channel_clone2.clone();
-            channel_clone2
-                .clone()
-                .try_lock()
-                .expect("Failed to lock channel")
-                .set_socket_uuid(socket_uuid.clone());
+        channel
+            .lock()
+            .unwrap()
+            .open_channel
+            .clone()
+            .lock()
+            .unwrap()
+            .replace(Arc::new(move |e| {
+                // xx
+                channel_clone2.lock();
+                Box::pin(async move { Ok(()) })
+            }));
+        // Some(Arc::new(
+        //     move |x: Arc<Mutex<DataChannel<T>>>| -> Pin<
+        //         Box<dyn Future<Output = Result<(), ()>> + Send>,
+        //     > {
+        //         info!("Data channel opened and added to data channels");
+        //         let socket_uuid = Self::add_socket(
+        //             endpoint.clone(),
+        //             interface_uuid.clone(),
+        //             sockets.clone(),
+        //         );
+        //         // FIXME
+        //         let data_channels = data_channels.clone();
+        //         let channel_clone2 = channel_clone2.clone();
+        //         channel_clone2
+        //             .clone()
+        //             .try_lock()
+        //             .expect("Failed to lock channel")
+        //             .set_socket_uuid(socket_uuid.clone());
 
-            data_channels
-                .try_lock()
-                .expect("Failed to lock channels")
-                .add_data_channel(channel_clone2.clone());
-        }));
+        //         data_channels
+        //             .try_lock()
+        //             .expect("Failed to lock channels")
+        //             .add_data_channel(channel_clone2.clone());
+
+        //         Box::pin(async move { Ok(()) })
+        //     },
+        // ));
 
         channel.lock().unwrap().on_message = Some(Arc::new(move |data| {
             let data = data.to_vec();
@@ -181,12 +203,15 @@ pub trait WebRTCTraitInternal<T: 'static> {
             }
         }));
         Self::handle_setup_data_channel(channel).await?;
+
         Ok(())
     }
 }
 
 #[async_trait(?Send)]
-pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
+pub trait WebRTCTrait<T: Send + Sync + 'static>:
+    WebRTCTraitInternal<T>
+{
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self;
     fn new_with_ice_servers(
         peer_endpoint: impl Into<Endpoint>,

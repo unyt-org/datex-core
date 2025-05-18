@@ -8,21 +8,35 @@ use std::{
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
-pub struct DataChannel<T> {
+pub struct DataChannel<T: Send + Sync + 'static> {
     pub label: String,
-    pub data_channel: T,
-    pub on_message: Option<Arc<dyn Fn(Vec<u8>)>>,
-    pub open_channel: Option<Arc<dyn Fn()>>,
-    pub on_close: Option<Box<dyn Fn()>>,
+    pub data_channel: Arc<Mutex<T>>,
+    pub on_message: Option<Arc<dyn Fn(Vec<u8>) + Send + Sync>>,
+    pub open_channel: Arc<
+        Mutex<
+            Option<
+                Arc<
+                    dyn Fn(
+                            Arc<Mutex<DataChannel<T>>>,
+                        ) -> Pin<
+                            Box<dyn Future<Output = Result<(), ()>> + Send>,
+                        > + Send
+                        + Sync
+                        + 'static,
+                >,
+            >,
+        >,
+    >,
+    pub on_close: Option<Arc<dyn Fn() + Send + Sync>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
 }
-impl<T> DataChannel<T> {
+impl<T: Send + Sync + 'static> DataChannel<T> {
     pub fn new(label: String, data_channel: T) -> Self {
         DataChannel {
             label,
-            data_channel,
+            data_channel: Arc::new(Mutex::new(data_channel)),
             on_message: None,
-            open_channel: None,
+            open_channel: Arc::new(Mutex::new(None)),
             on_close: None,
             socket_uuid: RefCell::new(None),
         }
@@ -38,7 +52,7 @@ impl<T> DataChannel<T> {
     }
 }
 
-pub struct DataChannels<T> {
+pub struct DataChannels<T: Send + Sync + 'static> {
     pub data_channels: HashMap<String, Arc<Mutex<DataChannel<T>>>>,
     pub on_add: Option<
         Box<
@@ -48,13 +62,13 @@ pub struct DataChannels<T> {
         >,
     >,
 }
-impl<T> Default for DataChannels<T> {
+impl<T: Send + Sync + 'static> Default for DataChannels<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> DataChannels<T> {
+impl<T: Send + Sync + 'static> DataChannels<T> {
     pub fn new() -> Self {
         DataChannels {
             data_channels: HashMap::new(),
