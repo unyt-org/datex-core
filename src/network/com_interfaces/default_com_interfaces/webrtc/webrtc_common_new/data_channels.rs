@@ -4,7 +4,6 @@ use std::{
     future::Future,
     pin::Pin,
     rc::Rc,
-    sync::{Arc, Mutex},
 };
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;

@@ -31,7 +31,7 @@ use super::com_interfaces::{
 use crate::datex_values::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData};
-use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket, NetworkTraceResult};
+use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, ReconnectionConfig,

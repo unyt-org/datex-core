@@ -26,7 +26,6 @@ use crate::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::{channel::mpsc, SinkExt, StreamExt, TryFutureExt};
-use rsa::rand_core::le;
 
 use super::webrtc_common_new::{
     data_channels::{DataChannel, DataChannels},
@@ -131,7 +130,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         });
         spawn_local(async move {
             let channel_clone = channel_clone.clone();
-            while let Some(_) = rx.next().await {
+            while (rx.next().await).is_some() {
                 info!("Data channel opened!!");
                 if let Some(open_channel) =
                     channel_clone.borrow().open_channel.borrow().as_ref()

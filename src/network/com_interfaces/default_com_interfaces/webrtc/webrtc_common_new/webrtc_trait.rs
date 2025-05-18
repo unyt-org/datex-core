@@ -1,7 +1,5 @@
 use std::{
     cell::RefCell,
-    future::Future,
-    pin::Pin,
     rc::Rc,
     sync::{Arc, Mutex},
 };
@@ -173,11 +171,7 @@ pub trait WebRTCTraitInternal<T: 'static> {
                     .borrow_mut()
                     .add_data_channel(channel_clone2.clone());
 
-                commons.lock().unwrap().on_connect.as_ref().take().map(
-                    |on_connect| {
-                        on_connect();
-                    },
-                );
+                if let Some(on_connect) = commons.lock().unwrap().on_connect.as_ref() { on_connect(); }
             }));
         channel
             .borrow_mut()
