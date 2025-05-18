@@ -3,50 +3,50 @@ use std::{
     ops::{AddAssign, Index},
 };
 
-use super::{
-    datex_type::DatexType,
-    datex_value::{DatexValue, SerializableDatexValue},
-    typed_datex_value::TypedDatexValue,
-    value::Value,
+use super::super::{
+    core_value::CoreValue,
+    datex_type::Type,
+    typed_value::TypedValue,
+    value::{SerializableDatexValue, Value},
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct DatexArray(pub Vec<DatexValue>);
+pub struct DatexArray(pub Vec<Value>);
 impl DatexArray {
     pub fn length(&self) -> usize {
         self.0.len()
     }
-    pub fn get(&self, index: usize) -> Option<&DatexValue> {
+    pub fn get(&self, index: usize) -> Option<&Value> {
         self.0.get(index)
     }
 
-    pub fn push<T: Into<DatexValue>>(&mut self, value: T) {
+    pub fn push<T: Into<Value>>(&mut self, value: T) {
         self.0.push(value.into());
     }
 }
-impl Value for DatexArray {
+impl CoreValue for DatexArray {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
+    fn cast_to(&self, target: Type) -> Option<Value> {
         match target {
-            DatexType::Array => Some(self.as_datex_value()),
+            Type::Array => Some(self.as_datex_value()),
             _ => None,
         }
     }
 
-    fn as_datex_value(&self) -> DatexValue {
-        DatexValue::boxed(self.clone())
+    fn as_datex_value(&self) -> Value {
+        Value::boxed(self.clone())
     }
 
-    fn static_type() -> DatexType {
-        DatexType::Array
+    fn static_type() -> Type {
+        Type::Array
     }
 
-    fn get_type(&self) -> DatexType {
+    fn get_type(&self) -> Type {
         Self::static_type()
     }
     fn to_bytes(&self) -> Vec<u8> {
@@ -86,7 +86,7 @@ impl fmt::Display for DatexArray {
 
 impl<T> From<Vec<T>> for DatexArray
 where
-    T: Into<DatexValue>,
+    T: Into<Value>,
 {
     fn from(vec: Vec<T>) -> Self {
         DatexArray(vec.into_iter().map(Into::into).collect())
@@ -97,31 +97,31 @@ where
 macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
-            let arr = vec![$( DatexValue::from($x) ),*];
+            let arr = vec![$( $crate::datex_values_new::value::Value::from($x) ),*];
             DatexArray(arr)
         }
     };
 }
 
-impl<T> AddAssign<T> for TypedDatexValue<DatexArray>
+impl<T> AddAssign<T> for TypedValue<DatexArray>
 where
-    DatexValue: From<T>,
+    Value: From<T>,
 {
     fn add_assign(&mut self, rhs: T) {
-        self.0.push(DatexValue::from(rhs));
+        self.0.push(Value::from(rhs));
     }
 }
 
 impl Index<usize> for DatexArray {
-    type Output = DatexValue;
+    type Output = Value;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl Index<usize> for TypedDatexValue<DatexArray> {
-    type Output = DatexValue;
+impl Index<usize> for TypedValue<DatexArray> {
+    type Output = Value;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]

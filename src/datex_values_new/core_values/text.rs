@@ -7,11 +7,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    datex_type::DatexType,
-    datex_value::DatexValue,
-    int::I8,
-    typed_datex_value::TypedDatexValue,
-    value::Value,
+    super::core_value::CoreValue, super::datex_type::Type,
+    super::typed_value::TypedValue, super::value::Value, int::I8,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,11 +24,11 @@ impl Text {
     pub fn length(&self) -> usize {
         self.0.len()
     }
-    pub fn to_uppercase(&self) -> DatexValue {
-        DatexValue::boxed(Text(self.0.to_uppercase()))
+    pub fn to_uppercase(&self) -> Value {
+        Value::boxed(Text(self.0.to_uppercase()))
     }
-    pub fn to_lowercase(&self) -> DatexValue {
-        DatexValue::boxed(Text(self.0.to_lowercase()))
+    pub fn to_lowercase(&self) -> Value {
+        Value::boxed(Text(self.0.to_lowercase()))
     }
     pub fn as_str(&self) -> &str {
         &self.0
@@ -48,32 +45,30 @@ impl Text {
     }
 }
 
-impl Value for Text {
+impl CoreValue for Text {
     fn as_any(&self) -> &dyn Any {
         self
     }
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
+    fn cast_to(&self, target: Type) -> Option<Value> {
         match target {
-            DatexType::Text => Some(self.as_datex_value()),
-            DatexType::I8 => {
-                self.0.parse::<i8>().ok().map(|v| DatexValue::boxed(I8(v)))
-            }
+            Type::Text => Some(self.as_datex_value()),
+            Type::I8 => self.0.parse::<i8>().ok().map(|v| Value::boxed(I8(v))),
             _ => None,
         }
     }
 
-    fn as_datex_value(&self) -> DatexValue {
-        DatexValue::boxed(self.clone())
+    fn as_datex_value(&self) -> Value {
+        Value::boxed(self.clone())
     }
 
-    fn static_type() -> DatexType {
-        DatexType::Text
+    fn static_type() -> Type {
+        Type::Text
     }
 
-    fn get_type(&self) -> DatexType {
+    fn get_type(&self) -> Type {
         Self::static_type()
     }
 
@@ -109,20 +104,20 @@ impl From<i8> for Text {
     }
 }
 
-impl From<String> for TypedDatexValue<Text> {
+impl From<String> for TypedValue<Text> {
     fn from(v: String) -> Self {
-        TypedDatexValue(Text(v))
+        TypedValue(Text(v))
     }
 }
-impl From<&str> for TypedDatexValue<Text> {
+impl From<&str> for TypedValue<Text> {
     fn from(v: &str) -> Self {
-        TypedDatexValue(Text(v.to_string()))
+        TypedValue(Text(v.to_string()))
     }
 }
 
 /// Might panic when the DatexValue in the assignment can not be cast to Text
-impl AddAssign<DatexValue> for TypedDatexValue<Text> {
-    fn add_assign(&mut self, rhs: DatexValue) {
+impl AddAssign<Value> for TypedValue<Text> {
+    fn add_assign(&mut self, rhs: Value) {
         self.0 += rhs.try_cast_to_value().unwrap_or_else(|_| {
             panic!("Cannot add DatexValue to Text");
         });
@@ -130,8 +125,8 @@ impl AddAssign<DatexValue> for TypedDatexValue<Text> {
 }
 
 /// Will never panic, since both TypedDatexValue and Text
-impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
-    fn add_assign(&mut self, rhs: TypedDatexValue<Text>) {
+impl AddAssign<TypedValue<Text>> for TypedValue<Text> {
+    fn add_assign(&mut self, rhs: TypedValue<Text>) {
         self.0 += rhs.0;
     }
 }
@@ -139,8 +134,8 @@ impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
 /// Allow TypedDatexValue<Text> += TypedDatexValue<PrimitiveI8>
 /// This can never panic since the Text::from from i8 will always succeed
 /// (#1)
-impl AddAssign<TypedDatexValue<I8>> for TypedDatexValue<Text> {
-    fn add_assign(&mut self, rhs: TypedDatexValue<I8>) {
+impl AddAssign<TypedValue<I8>> for TypedValue<Text> {
+    fn add_assign(&mut self, rhs: TypedValue<I8>) {
         self.0 += rhs.cast_to_value()
     }
 }
@@ -155,7 +150,7 @@ impl AddAssign<Text> for Text {
 /// Allow TypedDatexValue<Text> += String and TypedDatexValue<Text> += &str
 /// This can never panic since the Text::from from string will always succeed
 /// (#2)
-impl<T> AddAssign<T> for TypedDatexValue<Text>
+impl<T> AddAssign<T> for TypedValue<Text>
 where
     Text: AddAssign<Text> + From<T>,
 {
@@ -164,32 +159,32 @@ where
     }
 }
 
-impl From<I8> for DatexValue {
+impl From<I8> for Value {
     fn from(n: I8) -> Self {
-        DatexValue::boxed(Text(n.0.to_string()))
+        Value::boxed(Text(n.0.to_string()))
     }
 }
 
-impl From<&str> for DatexValue {
+impl From<&str> for Value {
     fn from(s: &str) -> Self {
-        DatexValue::boxed(Text(s.to_string()))
+        Value::boxed(Text(s.to_string()))
     }
 }
 
-impl From<String> for DatexValue {
+impl From<String> for Value {
     fn from(s: String) -> Self {
-        DatexValue::boxed(Text(s))
+        Value::boxed(Text(s))
     }
 }
 
-impl PartialEq<&str> for TypedDatexValue<Text> {
+impl PartialEq<&str> for TypedValue<Text> {
     fn eq(&self, other: &&str) -> bool {
         self.inner().as_str() == *other
     }
 }
 
-impl PartialEq<TypedDatexValue<Text>> for &str {
-    fn eq(&self, other: &TypedDatexValue<Text>) -> bool {
+impl PartialEq<TypedValue<Text>> for &str {
+    fn eq(&self, other: &TypedValue<Text>) -> bool {
         *self == other.inner().as_str()
     }
 }

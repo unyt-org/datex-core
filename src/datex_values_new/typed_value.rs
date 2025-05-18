@@ -4,55 +4,55 @@ use std::{
 };
 
 use super::{
-    datex_type::DatexType,
-    datex_value::DatexValue,
-    value::{try_cast_to_value, Value},
+    core_value::{try_cast_to_value, CoreValue},
+    datex_type::Type,
+    value::Value,
 };
 use std::ops::Deref;
 
 #[derive(Debug, Clone)]
-pub struct TypedDatexValue<T: Value>(pub T);
+pub struct TypedValue<T: CoreValue>(pub T);
 
-impl<T: Value + 'static> TypedDatexValue<T> {
-    pub fn into_erased(self) -> DatexValue {
-        DatexValue::boxed(self.0)
+impl<T: CoreValue + 'static> TypedValue<T> {
+    pub fn into_erased(self) -> Value {
+        Value::boxed(self.0)
     }
 
     pub fn inner(&self) -> &T {
         &self.0
     }
 
-    pub fn get_type(&self) -> DatexType {
+    pub fn get_type(&self) -> Type {
         self.0.get_type()
     }
-    pub fn try_cast_to_value<X: Value + Clone + 'static>(
+    pub fn try_cast_to_value<X: CoreValue + Clone + 'static>(
         &self,
     ) -> Result<X, ()> {
         try_cast_to_value(self.inner())
     }
-    pub fn cast_to_value<X: Value + Clone + 'static>(&self) -> X {
+    pub fn cast_to_value<X: CoreValue + Clone + 'static>(&self) -> X {
         self.try_cast_to_value().expect("Cast failed")
     }
 }
 
-impl<T> Add for TypedDatexValue<T>
+impl<T> Add for TypedValue<T>
 where
-    T: Value + Add<Output = T> + Clone,
+    T: CoreValue + Add<Output = T> + Clone,
 {
-    type Output = TypedDatexValue<T>;
+    type Output = TypedValue<T>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        TypedDatexValue(self.0 + rhs.0)
+        TypedValue(self.0 + rhs.0)
     }
 }
 
-impl<T: Value + Display> Display for TypedDatexValue<T> {
+impl<T: CoreValue + Display> Display for TypedValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl<T: Value> Deref for TypedDatexValue<T> {
+impl<T: CoreValue> Deref for TypedValue<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -60,7 +60,7 @@ impl<T: Value> Deref for TypedDatexValue<T> {
     }
 }
 
-impl<T: Value> DerefMut for TypedDatexValue<T> {
+impl<T: CoreValue> DerefMut for TypedValue<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -68,14 +68,14 @@ impl<T: Value> DerefMut for TypedDatexValue<T> {
 
 #[derive(Debug)]
 pub struct TypeMismatchError {
-    pub expected: DatexType,
-    pub found: DatexType,
+    pub expected: Type,
+    pub found: Type,
 }
 
-impl<T: Value + Clone + 'static> TryFrom<DatexValue> for TypedDatexValue<T> {
+impl<T: CoreValue + Clone + 'static> TryFrom<Value> for TypedValue<T> {
     type Error = TypeMismatchError;
 
-    fn try_from(value: DatexValue) -> Result<Self, Self::Error> {
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
         value
             .try_cast_to_typed::<T>()
             .map_err(|_| TypeMismatchError {
@@ -84,10 +84,10 @@ impl<T: Value + Clone + 'static> TryFrom<DatexValue> for TypedDatexValue<T> {
             })
     }
 }
-impl<T: Value + PartialEq + Clone + 'static> PartialEq<DatexValue>
-    for TypedDatexValue<T>
+impl<T: CoreValue + PartialEq + Clone + 'static> PartialEq<Value>
+    for TypedValue<T>
 {
-    fn eq(&self, other: &DatexValue) -> bool {
+    fn eq(&self, other: &Value) -> bool {
         if let Ok(casted) = other.clone().try_cast_to_typed::<T>() {
             self.0 == casted.0
         } else {
@@ -96,16 +96,16 @@ impl<T: Value + PartialEq + Clone + 'static> PartialEq<DatexValue>
     }
 }
 
-impl<T> PartialEq for TypedDatexValue<T>
+impl<T> PartialEq for TypedValue<T>
 where
-    T: PartialEq + Value,
+    T: PartialEq + CoreValue,
 {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<T: Value> TypedDatexValue<T> {
+impl<T: CoreValue> TypedValue<T> {
     pub fn into_inner(self) -> T {
         self.0
     }

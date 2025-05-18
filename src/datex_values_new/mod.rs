@@ -1,9 +1,7 @@
-pub mod array;
-pub mod bool;
+pub mod core_value;
+pub mod core_values;
 pub mod datex_type;
-pub mod datex_value;
-pub mod int;
-pub mod null;
-pub mod text;
-pub mod typed_datex_value;
+pub mod pointer;
+pub mod typed_value;
 pub mod value;
+pub mod value_container;

@@ -6,8 +6,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    datex_type::DatexType, datex_value::DatexValue, text::Text,
-    typed_datex_value::TypedDatexValue, value::Value,
+    super::core_value::CoreValue, super::datex_type::Type,
+    super::typed_value::TypedValue, super::value::Value, text::Text,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,32 +19,30 @@ impl Display for I8 {
     }
 }
 
-impl Value for I8 {
+impl CoreValue for I8 {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
+    fn cast_to(&self, target: Type) -> Option<Value> {
         match target {
-            DatexType::I8 => Some(self.as_datex_value()),
-            DatexType::Text => {
-                Some(DatexValue::boxed(Text(self.0.to_string())))
-            }
+            Type::I8 => Some(self.as_datex_value()),
+            Type::Text => Some(Value::boxed(Text(self.0.to_string()))),
             _ => None,
         }
     }
 
-    fn as_datex_value(&self) -> DatexValue {
-        DatexValue::boxed(self.clone())
+    fn as_datex_value(&self) -> Value {
+        Value::boxed(self.clone())
     }
 
-    fn static_type() -> DatexType {
-        DatexType::I8
+    fn static_type() -> Type {
+        Type::I8
     }
 
-    fn get_type(&self) -> DatexType {
+    fn get_type(&self) -> Type {
         Self::static_type()
     }
     fn to_bytes(&self) -> Vec<u8> {
@@ -71,31 +69,31 @@ impl AddAssign for I8 {
     }
 }
 
-impl From<I8> for TypedDatexValue<I8> {
+impl From<I8> for TypedValue<I8> {
     fn from(p: I8) -> Self {
-        TypedDatexValue(p)
+        TypedValue(p)
     }
 }
 
-impl From<i8> for TypedDatexValue<I8> {
+impl From<i8> for TypedValue<I8> {
     fn from(v: i8) -> Self {
-        TypedDatexValue(I8(v))
+        TypedValue(I8(v))
     }
 }
 
-impl From<i8> for DatexValue {
+impl From<i8> for Value {
     fn from(v: i8) -> Self {
-        DatexValue::boxed(I8(v))
+        Value::boxed(I8(v))
     }
 }
-impl PartialEq<i8> for TypedDatexValue<I8> {
+impl PartialEq<i8> for TypedValue<I8> {
     fn eq(&self, other: &i8) -> bool {
         self.inner().0 == *other
     }
 }
 
-impl PartialEq<TypedDatexValue<I8>> for i8 {
-    fn eq(&self, other: &TypedDatexValue<I8>) -> bool {
+impl PartialEq<TypedValue<I8>> for i8 {
+    fn eq(&self, other: &TypedValue<I8>) -> bool {
         *self == other.inner().0
     }
 }
