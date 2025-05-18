@@ -3,10 +3,7 @@ use std::{
     ops::{Add, DerefMut},
 };
 
-use super::{
-    datex_type::DatexType,
-    datex_value::{DatexValue, Value},
-};
+use super::{datex_type::DatexType, datex_value::DatexValue, value::Value};
 use std::ops::Deref;
 
 #[derive(Debug, Clone)]

@@ -1,22 +1,20 @@
 use std::{fmt::Display, ops::Add};
 
 use super::{
-    datex_type::DatexType,
-    datex_value::{DatexValue, Value},
-    text::Text,
-    typed_datex_value::TypedDatexValue,
+    datex_type::DatexType, datex_value::DatexValue, text::Text,
+    typed_datex_value::TypedDatexValue, value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PrimitiveI8(pub i8);
+pub struct I8(pub i8);
 
-impl Display for PrimitiveI8 {
+impl Display for I8 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl Value for PrimitiveI8 {
+impl Value for I8 {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -25,7 +23,7 @@ impl Value for PrimitiveI8 {
     }
     fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
         match target {
-            DatexType::PrimitiveI8 => Some(self.as_datex_value()),
+            DatexType::I8 => Some(self.as_datex_value()),
             DatexType::Text => {
                 Some(DatexValue::boxed(Text(self.0.to_string())))
             }
@@ -38,14 +36,12 @@ impl Value for PrimitiveI8 {
     }
 
     fn add(&self, other: &dyn Value) -> Option<DatexValue> {
-        match other.cast_to(DatexType::PrimitiveI8) {
-            Some(DatexValue(val)) => {
-                val.as_ref().as_any().downcast_ref::<PrimitiveI8>().map(
-                    |other_i8| {
-                        DatexValue::boxed(PrimitiveI8(self.0 + other_i8.0))
-                    },
-                )
-            }
+        match other.cast_to(DatexType::I8) {
+            Some(DatexValue(val)) => val
+                .as_ref()
+                .as_any()
+                .downcast_ref::<I8>()
+                .map(|other_i8| DatexValue::boxed(I8(self.0 + other_i8.0))),
             _ => {
                 let self_str = self.cast_to(DatexType::Text)?;
                 self_str.0.add(other)
@@ -54,7 +50,7 @@ impl Value for PrimitiveI8 {
     }
 
     fn static_type() -> DatexType {
-        DatexType::PrimitiveI8
+        DatexType::I8
     }
 
     fn get_type(&self) -> DatexType {
@@ -62,28 +58,39 @@ impl Value for PrimitiveI8 {
     }
 }
 
-impl Add for PrimitiveI8 {
-    type Output = PrimitiveI8;
+impl Add for I8 {
+    type Output = I8;
 
     fn add(self, rhs: Self) -> Self::Output {
-        PrimitiveI8(self.0 + rhs.0)
+        I8(self.0 + rhs.0)
     }
 }
 
-impl From<PrimitiveI8> for TypedDatexValue<PrimitiveI8> {
-    fn from(p: PrimitiveI8) -> Self {
+impl From<I8> for TypedDatexValue<I8> {
+    fn from(p: I8) -> Self {
         TypedDatexValue(p)
     }
 }
 
-impl From<i8> for TypedDatexValue<PrimitiveI8> {
+impl From<i8> for TypedDatexValue<I8> {
     fn from(v: i8) -> Self {
-        TypedDatexValue(PrimitiveI8(v))
+        TypedDatexValue(I8(v))
     }
 }
 
 impl From<i8> for DatexValue {
     fn from(v: i8) -> Self {
-        DatexValue::boxed(PrimitiveI8(v))
+        DatexValue::boxed(I8(v))
+    }
+}
+impl PartialEq<i8> for TypedDatexValue<I8> {
+    fn eq(&self, other: &i8) -> bool {
+        self.inner().0 == *other
+    }
+}
+
+impl PartialEq<TypedDatexValue<I8>> for i8 {
+    fn eq(&self, other: &TypedDatexValue<I8>) -> bool {
+        *self == other.inner().0
     }
 }

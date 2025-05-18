@@ -1,10 +1,7 @@
 use core::fmt;
 use std::fmt::Display;
 
-use super::{
-    datex_type::DatexType,
-    datex_value::{DatexValue, Value},
-};
+use super::{datex_type::DatexType, datex_value::DatexValue, value::Value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Null;

@@ -2,6 +2,6 @@
 pub enum DatexType {
     Null,
     Text,
-    PrimitiveI8,
+    I8,
     Bool,
 }

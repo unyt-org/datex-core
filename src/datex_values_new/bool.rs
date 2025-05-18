@@ -4,10 +4,8 @@ use std::{
 };
 
 use super::{
-    datex_type::DatexType,
-    datex_value::{DatexValue, Value},
-    text::Text,
-    typed_datex_value::TypedDatexValue,
+    datex_type::DatexType, datex_value::DatexValue, text::Text,
+    typed_datex_value::TypedDatexValue, value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +41,7 @@ impl Value for Bool {
             DatexType::Text => {
                 Some(DatexValue::boxed(Text(self.0.to_string())))
             }
-            DatexType::PrimitiveI8 => Some(DatexValue::boxed(Bool(self.0))),
+            DatexType::I8 => Some(DatexValue::boxed(Bool(self.0))),
             _ => None,
         }
     }

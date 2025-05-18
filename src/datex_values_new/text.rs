@@ -2,9 +2,10 @@ use std::{any::Any, fmt::Display, ops::AddAssign};
 
 use super::{
     datex_type::DatexType,
-    datex_value::{AddAssignable, DatexValue, Value},
-    primitive::PrimitiveI8,
+    datex_value::DatexValue,
+    int::I8,
     typed_datex_value::TypedDatexValue,
+    value::{AddAssignable, Value},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,11 +52,9 @@ impl Value for Text {
     fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
         match target {
             DatexType::Text => Some(self.as_datex_value()),
-            DatexType::PrimitiveI8 => self
-                .0
-                .parse::<i8>()
-                .ok()
-                .map(|v| DatexValue::boxed(PrimitiveI8(v))),
+            DatexType::I8 => {
+                self.0.parse::<i8>().ok().map(|v| DatexValue::boxed(I8(v)))
+            }
             _ => None,
         }
     }
@@ -144,8 +143,8 @@ impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
 /// Allow TypedDatexValue<Text> += TypedDatexValue<PrimitiveI8>
 /// This can never panic since the Text::from from i8 will always succeed
 /// (#1)
-impl AddAssign<TypedDatexValue<PrimitiveI8>> for TypedDatexValue<Text> {
-    fn add_assign(&mut self, rhs: TypedDatexValue<PrimitiveI8>) {
+impl AddAssign<TypedDatexValue<I8>> for TypedDatexValue<Text> {
+    fn add_assign(&mut self, rhs: TypedDatexValue<I8>) {
         self.add_assign_boxed(rhs.into_erased().0.as_ref());
     }
 }
@@ -178,5 +177,17 @@ impl From<&str> for DatexValue {
 impl From<String> for DatexValue {
     fn from(s: String) -> Self {
         DatexValue::boxed(Text(s))
+    }
+}
+
+impl PartialEq<&str> for TypedDatexValue<Text> {
+    fn eq(&self, other: &&str) -> bool {
+        self.inner().as_str() == *other
+    }
+}
+
+impl PartialEq<TypedDatexValue<Text>> for &str {
+    fn eq(&self, other: &TypedDatexValue<Text>) -> bool {
+        *self == other.inner().as_str()
     }
 }

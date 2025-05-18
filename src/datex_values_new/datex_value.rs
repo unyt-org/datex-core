@@ -4,30 +4,11 @@ use std::ops::{Add, AddAssign, Not};
 
 use super::bool::Bool;
 use super::datex_type::DatexType;
+use super::int::I8;
 use super::null::Null;
-use super::primitive::PrimitiveI8;
 use super::text::Text;
 use super::typed_datex_value::TypedDatexValue;
-
-pub trait AddAssignable: Any + Send + Sync {
-    fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()>;
-}
-
-pub trait Value: Display + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn cast_to(&self, target: DatexType) -> Option<DatexValue>;
-    fn as_datex_value(&self) -> DatexValue;
-    fn get_type(&self) -> DatexType;
-    fn add(&self, other: &dyn Value) -> Option<DatexValue>;
-    fn static_type() -> DatexType
-    where
-        Self: Sized;
-
-    fn as_add_assignable_mut(&mut self) -> Result<&mut dyn AddAssignable, ()> {
-        Err(())
-    }
-}
+use super::value::Value;
 
 use std::sync::Arc;
 
@@ -41,17 +22,20 @@ impl<T: Value + 'static> From<TypedDatexValue<T>> for DatexValue {
 }
 
 impl DatexValue {
-    pub fn is_type(&self, target: DatexType) -> bool {
+    pub fn is_of_type(&self, target: DatexType) -> bool {
         self.get_type() == target
     }
     pub fn is_null(&self) -> bool {
-        self.get_type() == DatexType::Null
+        self.is_of_type(DatexType::Null)
     }
     pub fn is_text(&self) -> bool {
-        self.get_type() == DatexType::Text
+        self.is_of_type(DatexType::Text)
     }
     pub fn is_i8(&self) -> bool {
-        self.get_type() == DatexType::PrimitiveI8
+        self.is_of_type(DatexType::I8)
+    }
+    pub fn is_bool(&self) -> bool {
+        self.is_of_type(DatexType::Bool)
     }
 }
 
@@ -113,9 +97,9 @@ impl PartialEq for DatexValue {
                     let b = other.0.as_any().downcast_ref::<Text>();
                     a == b
                 }
-                DatexType::PrimitiveI8 => {
-                    let a = self.0.as_any().downcast_ref::<PrimitiveI8>();
-                    let b = other.0.as_any().downcast_ref::<PrimitiveI8>();
+                DatexType::I8 => {
+                    let a = self.0.as_any().downcast_ref::<I8>();
+                    let b = other.0.as_any().downcast_ref::<I8>();
                     a == b
                 }
                 DatexType::Bool => {
@@ -186,6 +170,8 @@ where
     fn from(opt: Option<T>) -> Self {
         match opt {
             Some(v) => v.into(),
+
+            // FIXME we should not use the type inference here
             None => DatexValue::null(),
         }
     }
@@ -205,8 +191,8 @@ mod test {
 
         assert_eq!(a.get_type(), DatexType::Bool);
         assert_eq!(b.get_type(), DatexType::Bool);
-        assert!(a != b);
-        assert!(b == false);
+        assert_ne!(a, b);
+        assert_eq!(b, false);
         assert_eq!(!a, b);
 
         let mut a = TypedDatexValue::from(true);
@@ -256,7 +242,7 @@ mod test {
         let b = a.cast_to(DatexType::Text).unwrap();
         assert_eq!(b.get_type(), DatexType::Text);
 
-        let c = a.cast_to_typed::<PrimitiveI8>();
+        let c = a.cast_to_typed::<I8>();
         assert_eq!(c.into_erased(), DatexValue::from(42));
 
         let d = a.cast_to_typed::<Text>();
@@ -272,11 +258,11 @@ mod test {
         let c = TypedDatexValue::from("11");
         assert_eq!(c.length(), 2);
 
-        assert_eq!(a.get_type(), DatexType::PrimitiveI8);
-        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a.get_type(), DatexType::I8);
+        assert_eq!(b.get_type(), DatexType::I8);
 
         let a_plus_b = a.clone() + b.clone();
-        assert_eq!(a_plus_b.clone().get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a_plus_b.clone().get_type(), DatexType::I8);
         assert_eq!(a_plus_b.clone().into_erased(), DatexValue::from(53));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
@@ -299,6 +285,7 @@ mod test {
     fn test_text() {
         init_logger();
         let a = TypedDatexValue::from("Hello");
+        assert_eq!(a, "Hello");
         assert_eq!(a.get_type(), DatexType::Text);
         assert_eq!(a.length(), 5);
         assert_eq!(a.to_string(), "\"Hello\"");
@@ -360,12 +347,15 @@ mod test {
         let a = TypedDatexValue::from(42);
         let b = TypedDatexValue::from(27);
 
-        assert_eq!(a.get_type(), DatexType::PrimitiveI8);
-        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a, 42);
+        assert_eq!(b, 27);
+
+        assert_eq!(a.get_type(), DatexType::I8);
+        assert_eq!(b.get_type(), DatexType::I8);
 
         let a_plus_b = a.clone() + b.clone();
 
-        assert_eq!(a_plus_b.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a_plus_b.get_type(), DatexType::I8);
 
         assert_eq!(a_plus_b, TypedDatexValue::from(69));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
@@ -377,12 +367,12 @@ mod test {
         let a = DatexValue::from(42);
         let b = DatexValue::from(27);
 
-        assert_eq!(a.get_type(), DatexType::PrimitiveI8);
-        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a.get_type(), DatexType::I8);
+        assert_eq!(b.get_type(), DatexType::I8);
 
         let a_plus_b = (a.clone() + b.clone()).unwrap();
 
-        assert_eq!(a_plus_b.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(a_plus_b.get_type(), DatexType::I8);
 
         assert_eq!(a_plus_b, DatexValue::from(69));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
@@ -395,7 +385,7 @@ mod test {
         let b = DatexValue::from(42i8);
 
         assert_eq!(a.get_type(), DatexType::Text);
-        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(b.get_type(), DatexType::I8);
 
         let a_plus_b = a.clone() + b.clone();
         let b_plus_a = b.clone() + a.clone();
