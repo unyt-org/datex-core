@@ -1,9 +1,10 @@
 use crate::stdlib::cell::Cell;
 use crate::stdlib::fmt;
 
-use crate::datex_values::{
-    internal_slot, BaseUnit, Endpoint, Pointer, PrimitiveValue, Quantity,
-    SlotIdentifier, Time, Type, Url, Value,
+use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::datex_values_old::{
+    internal_slot, BaseUnit, Pointer, PrimitiveValue, Quantity, SlotIdentifier,
+    Time, Type, Url, Value,
 };
 use crate::global::binary_codes::BinaryCode;
 use crate::utils::buffers;

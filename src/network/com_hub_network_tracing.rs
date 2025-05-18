@@ -1,4 +1,4 @@
-use crate::datex_values::Endpoint;
+use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingScopeId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,

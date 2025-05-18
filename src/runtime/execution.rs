@@ -3,7 +3,7 @@ use log::{debug, error, info};
 use crate::stdlib::cell::Cell;
 
 use crate::{
-    datex_values::{Error, PrimitiveValue, Type, Value, ValueResult},
+    datex_values_old::{Error, PrimitiveValue, Type, Value, ValueResult},
     global::binary_codes::BinaryCode,
     parser::body,
 };

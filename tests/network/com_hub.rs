@@ -1,4 +1,4 @@
-use datex_core::datex_values::Endpoint;
+use datex_core::datex_values::core_values::endpoint::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::block_header::BlockHeader;
 use datex_core::global::protocol_structures::encrypted_header::{

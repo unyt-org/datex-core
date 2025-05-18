@@ -5,7 +5,7 @@ use std::io::{Cursor, Read};
 use std::rc::Rc;
 // FIXME no-std
 
-use crate::datex_values::Endpoint;
+use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use binrw::{BinRead, BinWrite};
@@ -278,11 +278,11 @@ impl DXBBlock {
             .flags
             .set_has_endpoints(!receivers.is_empty());
     }
-    
+
     pub fn set_bounce_back(&mut self, bounce_back: bool) {
         self.routing_header.flags.set_is_bounce_back(bounce_back);
     }
-    
+
     pub fn is_bounce_back(&self) -> bool {
         self.routing_header.flags.is_bounce_back()
     }
@@ -326,7 +326,7 @@ impl DXBBlock {
             .iter()
             .any(|e| e.is_broadcast() || e.is_any())
     }
-    
+
     pub fn clone_with_new_receivers(
         &self,
         new_receivers: &[Endpoint],

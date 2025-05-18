@@ -97,7 +97,7 @@ where
 macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
-            let arr = vec![$( $crate::datex_values_new::value::Value::from($x) ),*];
+            let arr = vec![$( $crate::datex_values::value::Value::from($x) ),*];
             DatexArray(arr)
         }
     };

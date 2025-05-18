@@ -1,5 +1,5 @@
 use binrw::{BinRead, BinWrite};
-use datex_core::datex_values::{Endpoint, EndpointInstance, EndpointType};
+use datex_core::datex_values_old::{Endpoint, EndpointInstance, EndpointType};
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{

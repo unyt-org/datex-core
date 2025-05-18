@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use log::error;
 
-use crate::datex_values::Endpoint;
+use crate::datex_values::core_values::endpoint::Endpoint;
 
 use super::{
     structures::{RTCIceCandidateInitDX, RTCIceServer},

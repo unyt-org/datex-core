@@ -9,7 +9,7 @@ use futures::channel::oneshot;
 use log::{error, info};
 
 use crate::{
-    datex_values::Endpoint,
+    datex_values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::{
             ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -171,7 +171,11 @@ pub trait WebRTCTraitInternal<T: 'static> {
                     .borrow_mut()
                     .add_data_channel(channel_clone2.clone());
 
-                if let Some(on_connect) = commons.lock().unwrap().on_connect.as_ref() { on_connect(); }
+                if let Some(on_connect) =
+                    commons.lock().unwrap().on_connect.as_ref()
+                {
+                    on_connect();
+                }
             }));
         channel
             .borrow_mut()

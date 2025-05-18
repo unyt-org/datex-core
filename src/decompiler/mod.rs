@@ -6,8 +6,8 @@ use crate::stdlib::vec;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet; // FIXME no-std
 
-use crate::datex_values::SlotIdentifier;
-use crate::datex_values::Value;
+use crate::datex_values_old::SlotIdentifier;
+use crate::datex_values_old::Value;
 use crate::utils::color::AnsiCodes;
 use crate::utils::color::Color;
 use constants::tokens::get_code_token;

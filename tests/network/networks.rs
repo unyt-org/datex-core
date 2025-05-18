@@ -14,7 +14,7 @@ use log::info;
 use ntest_timeout::timeout;
 use std::time::Duration;
 use tokio::task;
-use datex_core::datex_values::Endpoint;
+use datex_core::datex_values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 
 #[tokio::test]

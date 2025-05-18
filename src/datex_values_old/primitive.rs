@@ -1,4 +1,4 @@
-use crate::stdlib::fmt;
+use crate::{datex_values::core_values::endpoint::Endpoint, stdlib::fmt};
 use core::fmt::Write;
 
 use lazy_static::lazy_static;
@@ -7,9 +7,7 @@ use regex::Regex;
 
 use crate::global::binary_codes::BinaryCode;
 
-use super::{
-    primitives::time::Time, Endpoint, Error, Quantity, Url, Value, ValueResult,
-};
+use super::{primitives::time::Time, Error, Quantity, Url, Value, ValueResult};
 
 #[derive(Clone)]
 // Native values (array, object)
