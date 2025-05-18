@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::fmt::Display;
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Not};
 
+use super::bool::Bool;
 use super::datex_type::DatexType;
 use super::null::Null;
 use super::primitive::PrimitiveI8;
@@ -117,18 +118,33 @@ impl PartialEq for DatexValue {
                     let b = other.0.as_any().downcast_ref::<PrimitiveI8>();
                     a == b
                 }
+                DatexType::Bool => {
+                    let a = self.0.as_any().downcast_ref::<Bool>();
+                    let b = other.0.as_any().downcast_ref::<Bool>();
+                    a == b
+                }
                 _ => false,
             }
     }
 }
 
 impl Add for DatexValue {
-    type Output = DatexValue;
+    type Output = Option<DatexValue>;
 
-    fn add(self, rhs: DatexValue) -> DatexValue {
-        self.0
-            .add(rhs.0.as_ref())
-            .unwrap_or_else(|| panic!("Unsupported addition: {self} + {rhs}"))
+    fn add(self, rhs: DatexValue) -> Self::Output {
+        self.0.add(rhs.0.as_ref())
+    }
+}
+
+impl Not for DatexValue {
+    type Output = Option<DatexValue>;
+
+    fn not(self) -> Self::Output {
+        if let Some(typed) = self.try_cast_to_typed::<Bool>().ok() {
+            Some(DatexValue::from(!typed.inner().0))
+        } else {
+            None
+        }
     }
 }
 
@@ -163,23 +179,6 @@ impl std::fmt::Display for DatexValue {
     }
 }
 
-impl From<&str> for DatexValue {
-    fn from(s: &str) -> Self {
-        DatexValue::boxed(Text(s.to_string()))
-    }
-}
-
-impl From<String> for DatexValue {
-    fn from(s: String) -> Self {
-        DatexValue::boxed(Text(s))
-    }
-}
-impl From<i8> for DatexValue {
-    fn from(v: i8) -> Self {
-        DatexValue::boxed(PrimitiveI8(v))
-    }
-}
-
 impl<T> From<Option<T>> for DatexValue
 where
     T: Into<DatexValue>,
@@ -197,6 +196,58 @@ mod test {
     use super::*;
     use crate::logger::init_logger;
     use log::info;
+
+    #[test]
+    fn typed_boolean() {
+        init_logger();
+        let a = TypedDatexValue::from(true);
+        let b = TypedDatexValue::from(false);
+
+        assert_eq!(a.get_type(), DatexType::Bool);
+        assert_eq!(b.get_type(), DatexType::Bool);
+        assert!(a != b);
+        assert!(b == false);
+        assert_eq!(!a, b);
+
+        let mut a = TypedDatexValue::from(true);
+        let b = TypedDatexValue::from(false);
+        a.toggle();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn boolean() {
+        init_logger();
+        let a = DatexValue::from(true);
+        let b = DatexValue::from(false);
+        let c = DatexValue::from(false);
+        assert_eq!(a.get_type(), DatexType::Bool);
+        assert_eq!(b.get_type(), DatexType::Bool);
+        assert!(a != b);
+        assert!(b == c);
+
+        let d = (!b.clone()).unwrap();
+        assert_eq!(a, d);
+
+        // We can't add two booleans together, so this should return None
+        let a_plus_b = a.clone() + b.clone();
+        assert!(a_plus_b.is_none());
+    }
+
+    #[test]
+    fn type_casting_into() {
+        init_logger();
+        let a: TypedDatexValue<Text> =
+            DatexValue::from("42").try_into().unwrap();
+        assert_eq!(a.get_type(), DatexType::Text);
+
+        let a: TypedDatexValue<Text> = DatexValue::from(42).try_into().unwrap();
+        assert_eq!(a.get_type(), DatexType::Text);
+
+        // This should fail because we are trying to cast a null value into a TypedDatexValue<Text>
+        let a: Result<TypedDatexValue<Text>, _> = DatexValue::null().try_into();
+        assert!(a.is_err());
+    }
 
     #[test]
     fn test_cast_type() {
@@ -304,6 +355,23 @@ mod test {
     }
 
     #[test]
+    fn test_typed_addition() {
+        init_logger();
+        let a = TypedDatexValue::from(42);
+        let b = TypedDatexValue::from(27);
+
+        assert_eq!(a.get_type(), DatexType::PrimitiveI8);
+        assert_eq!(b.get_type(), DatexType::PrimitiveI8);
+
+        let a_plus_b = a.clone() + b.clone();
+
+        assert_eq!(a_plus_b.get_type(), DatexType::PrimitiveI8);
+
+        assert_eq!(a_plus_b, TypedDatexValue::from(69));
+        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
+    }
+
+    #[test]
     fn test_addition() {
         init_logger();
         let a = DatexValue::from(42);
@@ -312,7 +380,8 @@ mod test {
         assert_eq!(a.get_type(), DatexType::PrimitiveI8);
         assert_eq!(b.get_type(), DatexType::PrimitiveI8);
 
-        let a_plus_b = a.clone() + b.clone();
+        let a_plus_b = (a.clone() + b.clone()).unwrap();
+
         assert_eq!(a_plus_b.get_type(), DatexType::PrimitiveI8);
 
         assert_eq!(a_plus_b, DatexValue::from(69));
@@ -330,6 +399,9 @@ mod test {
 
         let a_plus_b = a.clone() + b.clone();
         let b_plus_a = b.clone() + a.clone();
+
+        let a_plus_b = a_plus_b.unwrap();
+        let b_plus_a = b_plus_a.unwrap();
 
         assert_eq!(a_plus_b.get_type(), DatexType::Text);
         assert_eq!(b_plus_a.get_type(), DatexType::Text);

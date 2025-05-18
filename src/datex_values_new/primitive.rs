@@ -81,3 +81,9 @@ impl From<i8> for TypedDatexValue<PrimitiveI8> {
         TypedDatexValue(PrimitiveI8(v))
     }
 }
+
+impl From<i8> for DatexValue {
+    fn from(v: i8) -> Self {
+        DatexValue::boxed(PrimitiveI8(v))
+    }
+}

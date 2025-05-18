@@ -168,3 +168,15 @@ where
         self.add_assign_boxed(&Text::from(rhs));
     }
 }
+
+impl From<&str> for DatexValue {
+    fn from(s: &str) -> Self {
+        DatexValue::boxed(Text(s.to_string()))
+    }
+}
+
+impl From<String> for DatexValue {
+    fn from(s: String) -> Self {
+        DatexValue::boxed(Text(s))
+    }
+}

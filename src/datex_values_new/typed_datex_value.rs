@@ -56,3 +56,49 @@ impl<T: Value> DerefMut for TypedDatexValue<T> {
         &mut self.0
     }
 }
+
+#[derive(Debug)]
+pub struct TypeMismatchError {
+    pub expected: DatexType,
+    pub found: DatexType,
+}
+
+impl<T: Value + Clone + 'static> TryFrom<DatexValue> for TypedDatexValue<T> {
+    type Error = TypeMismatchError;
+
+    fn try_from(value: DatexValue) -> Result<Self, Self::Error> {
+        value
+            .try_cast_to_typed::<T>()
+            .map_err(|_| TypeMismatchError {
+                expected: T::static_type(),
+                found: value.get_type(),
+            })
+    }
+}
+impl<T: Value + PartialEq + Clone + 'static> PartialEq<DatexValue>
+    for TypedDatexValue<T>
+{
+    fn eq(&self, other: &DatexValue) -> bool {
+        if let Ok(casted) = other.clone().try_cast_to_typed::<T>() {
+            self.0 == casted.0
+        } else {
+            false
+        }
+    }
+}
+
+// impl<T: Value + PartialEq + Clone + 'static> PartialEq<TypedDatexValue<T>>
+//     for DatexValue
+// {
+//     fn eq(&self, other: &TypedDatexValue<T>) -> bool {
+//         other == self
+//     }
+// }
+impl<T> PartialEq for TypedDatexValue<T>
+where
+    T: PartialEq + Value,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
