@@ -8,4 +8,5 @@ pub enum Type {
     I8,
     Bool,
     Array,
+    Endpoint,
 }

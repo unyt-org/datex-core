@@ -10,11 +10,11 @@ pub trait CoreValue: Display + Send + Sync {
     fn cast_to(&self, target: Type) -> Option<Value>;
     fn as_datex_value(&self) -> Value;
     fn get_type(&self) -> Type;
-    // fn add(&self, other: &dyn Value) -> Option<DatexValue>;
     fn static_type() -> Type
     where
         Self: Sized;
 
+    // FIXME deprecate
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Self
     where

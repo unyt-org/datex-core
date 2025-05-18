@@ -1,4 +1,8 @@
 use crate::crypto::random;
+use crate::datex_values::core_value::CoreValue;
+use crate::datex_values::datex_type::Type;
+use crate::datex_values::typed_value::TypedValue;
+use crate::datex_values::value::Value;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
@@ -9,6 +13,8 @@ use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
 use strum::Display;
+
+use super::text::Text;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -59,6 +65,51 @@ pub struct Endpoint {
     pub type_: EndpointType,
     pub identifier: [u8; 18],
     pub instance: EndpointInstance,
+}
+
+impl CoreValue for Endpoint {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+    fn cast_to(&self, target: Type) -> Option<Value> {
+        match target {
+            Type::Text => Some(Value::boxed(Text(self.to_string()))),
+            _ => None,
+        }
+    }
+
+    fn as_datex_value(&self) -> Value {
+        Value::boxed(self.clone())
+    }
+
+    fn static_type() -> Type {
+        Type::Endpoint
+    }
+
+    fn get_type(&self) -> Type {
+        Self::static_type()
+    }
+    fn to_bytes(&self) -> Vec<u8> {
+        todo!()
+    }
+    fn from_bytes(bytes: &[u8]) -> Self {
+        todo!()
+    }
+}
+
+impl From<Endpoint> for TypedValue<Endpoint> {
+    fn from(p: Endpoint) -> Self {
+        TypedValue(p)
+    }
+}
+
+impl From<Endpoint> for Value {
+    fn from(v: Endpoint) -> Self {
+        Value::boxed(v)
+    }
 }
 
 impl Default for Endpoint {

@@ -15,6 +15,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use super::core_value::{try_cast_to_value_dyn, CoreValue};
 use super::core_values::array::DatexArray;
 use super::core_values::bool::Bool;
+use super::core_values::endpoint::Endpoint;
 use super::core_values::int::I8;
 use super::core_values::null::Null;
 use super::core_values::text::Text;
@@ -27,6 +28,7 @@ pub enum DatexValueInner {
     I8(I8),
     Text(Text),
     Null(Null),
+    Endpoint(Endpoint),
     Array(DatexArray),
 }
 
@@ -37,6 +39,7 @@ impl DatexValueInner {
             DatexValueInner::I8(v) => v,
             DatexValueInner::Text(v) => v,
             DatexValueInner::Null(v) => v,
+            DatexValueInner::Endpoint(v) => v,
             DatexValueInner::Array(v) => v,
         }
     }
@@ -46,6 +49,7 @@ impl DatexValueInner {
             DatexValueInner::I8(v) => v,
             DatexValueInner::Text(v) => v,
             DatexValueInner::Null(v) => v,
+            DatexValueInner::Endpoint(v) => v,
             DatexValueInner::Array(v) => v,
         }
     }
@@ -53,6 +57,7 @@ impl DatexValueInner {
 
 impl<V: CoreValue> From<&V> for DatexValueInner {
     fn from(value: &V) -> Self {
+        // FIMXE deprecate as_any
         match value.get_type() {
             Type::Bool => DatexValueInner::Bool(
                 value.as_any().downcast_ref::<Bool>().unwrap().clone(),
@@ -68,6 +73,9 @@ impl<V: CoreValue> From<&V> for DatexValueInner {
             ),
             Type::Array => DatexValueInner::Array(
                 value.as_any().downcast_ref::<DatexArray>().unwrap().clone(),
+            ),
+            Type::Endpoint => DatexValueInner::Endpoint(
+                value.as_any().downcast_ref::<Endpoint>().unwrap().clone(),
             ),
         }
     }
@@ -358,12 +366,28 @@ impl<'de> Deserialize<'de> for Value {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use super::*;
     use crate::{
-        datex_array, datex_values::core_values::array::DatexArray,
+        datex_array,
+        datex_values::core_values::{array::DatexArray, endpoint::Endpoint},
         logger::init_logger,
     };
     use log::{debug, info};
+
+    #[test]
+    fn test_endpoint() {
+        init_logger();
+        let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
+        debug!("Endpoint: {}", endpoint);
+        assert_eq!(endpoint.get_type(), Type::Endpoint);
+        assert_eq!(endpoint.to_string(), "@test");
+
+        let a = TypedValue::from(Endpoint::from_str("@test").unwrap());
+        assert_eq!(a.get_type(), Type::Endpoint);
+        assert_eq!(a.to_string(), "@test");
+    }
 
     #[test]
     fn new_addition_assignments() {
