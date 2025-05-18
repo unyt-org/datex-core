@@ -148,7 +148,6 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
             while let Some(event) = rx.next().await {
                 match event {
                     DataChannelEvent::Open => {
-                        info!("Data channel opened!!");
                         if let Some(open_channel) = channel_clone
                             .borrow()
                             .open_channel
@@ -159,7 +158,6 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
                         }
                     }
                     DataChannelEvent::Message(data) => {
-                        info!("Received data on data channel: {:?}", data);
                         if let Some(on_message) =
                             channel_clone.borrow().on_message.borrow().as_ref()
                         {
@@ -183,9 +181,6 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     ) -> Result<RTCSessionDescriptionDX, WebRTCError> {
         if let Some(peer_connection) = self.peer_connection.as_ref() {
             let offer = peer_connection.create_offer(None).await.unwrap();
-            // let mut gather_complete =
-            //     peer_connection.gathering_complete_promise().await;
-            // let _ = gather_complete.recv().await;
             Ok(RTCSessionDescriptionDX {
                 sdp_type: RTCSdpTypeDX::Offer,
                 sdp: offer.sdp,
@@ -300,8 +295,6 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 
 #[com_interface]
 impl WebRTCNativeInterface {
-    async fn test(channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>) {}
-
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
         let has_media_support = true; // TODO
@@ -342,7 +335,6 @@ impl WebRTCNativeInterface {
                 })
                 .collect()
         }
-        info!("ICE servers: {:?}", self.rtc_configuration.ice_servers);
         let peer_connection = Arc::new(
             api.new_peer_connection(self.rtc_configuration.clone())
                 .await
@@ -410,6 +402,7 @@ impl WebRTCNativeInterface {
         Ok(())
     }
 }
+
 impl ComInterface for WebRTCNativeInterface {
     fn send_block<'a>(
         &'a mut self,
