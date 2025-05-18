@@ -1,7 +1,9 @@
 use std::any::Any;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Not};
+use std::vec;
 
+use log::{debug, info};
 use serde::{de, Deserialize, Deserializer, Serialize};
 
 use super::array::DatexArray;
@@ -13,15 +15,34 @@ use super::text::Text;
 use super::typed_datex_value::TypedDatexValue;
 use super::value::{try_cast_to_value, try_cast_to_value_dyn, Value};
 
-use std::sync::Arc;
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DatexValueInner {
     Bool(Bool),
     I8(I8),
     Text(Text),
     Null(Null),
     Array(DatexArray),
+}
+
+impl DatexValueInner {
+    pub fn to_dyn(&self) -> &dyn Value {
+        match &self {
+            DatexValueInner::Bool(v) => v,
+            DatexValueInner::I8(v) => v,
+            DatexValueInner::Text(v) => v,
+            DatexValueInner::Null(v) => v,
+            DatexValueInner::Array(v) => v,
+        }
+    }
+    pub fn to_dyn_mut(&mut self) -> &mut dyn Value {
+        match self {
+            DatexValueInner::Bool(v) => v,
+            DatexValueInner::I8(v) => v,
+            DatexValueInner::Text(v) => v,
+            DatexValueInner::Null(v) => v,
+            DatexValueInner::Array(v) => v,
+        }
+    }
 }
 
 impl<V: Value> From<&V> for DatexValueInner {
@@ -92,13 +113,21 @@ impl DatexValue {
 }
 
 impl DatexValue {
+    pub fn to_dyn(&self) -> &dyn Value {
+        self.inner.to_dyn()
+    }
+
+    pub fn to_dyn_mut(&mut self) -> &mut dyn Value {
+        self.inner.to_dyn_mut()
+    }
+
     pub fn get_casted_inners<'a>(
-        lhs: &'a DatexValue,
+        lhs: DatexValue,
         rhs: &DatexValue,
-    ) -> Option<(&'a DatexValueInner, DatexValueInner)> {
+    ) -> Option<(DatexValueInner, DatexValueInner)> {
         let rhs = rhs.to_dyn();
         let rhs = rhs.cast_to(lhs.actual_type.clone())?;
-        Some((&lhs.inner, rhs.inner))
+        Some((lhs.inner, rhs.inner))
     }
     pub fn get_casted_inners_mut<'a>(
         lhs: &'a mut DatexValue,
@@ -116,25 +145,6 @@ impl DatexValue {
         DatexValue {
             inner: DatexValueInner::from(&v),
             actual_type: V::static_type(),
-        }
-    }
-
-    pub fn to_dyn(&self) -> &dyn Value {
-        match &self.inner {
-            DatexValueInner::Bool(v) => v,
-            DatexValueInner::I8(v) => v,
-            DatexValueInner::Text(v) => v,
-            DatexValueInner::Null(v) => v,
-            DatexValueInner::Array(v) => v,
-        }
-    }
-    pub fn to_dyn_mut(&mut self) -> &mut dyn Value {
-        match &mut self.inner {
-            DatexValueInner::Bool(v) => v,
-            DatexValueInner::I8(v) => v,
-            DatexValueInner::Text(v) => v,
-            DatexValueInner::Null(v) => v,
-            DatexValueInner::Array(v) => v,
         }
     }
 
@@ -266,22 +276,21 @@ impl PartialEq for DatexValue {
 impl Add for DatexValue {
     type Output = Option<DatexValue>;
     fn add(self, rhs: DatexValue) -> Self::Output {
-        let (lhs, rhs) = DatexValue::get_casted_inners(&self, &rhs)?;
-        match (lhs, rhs) {
-            (DatexValueInner::I8(a), DatexValueInner::I8(b)) => {
-                a.add(b).map(|v| v.as_datex_value())
+        // TODO sync with typed_datex_values
+        match (self.inner, rhs.inner) {
+            (DatexValueInner::Text(text), other)
+            | (other, DatexValueInner::Text(text)) => {
+                let other =
+                    try_cast_to_value_dyn::<Text>(other.to_dyn()).ok()?;
+                let text = text.add(other);
+                Some(text.as_datex_value())
             }
-            // TODO implement other adds
-            (_, _) => None,
+            (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
+                Some(lhs.add(rhs).as_datex_value())
+            }
+            _ => None,
         }
     }
-}
-
-pub trait DatexAdd: Value {
-    fn add(&self, other: Self) -> Option<impl Value>;
-}
-pub trait DatexAddAssign: Value {
-    fn add_assign(&mut self, other: Self);
 }
 
 impl Not for DatexValue {
@@ -301,17 +310,18 @@ where
     DatexValue: From<T>,
 {
     fn add_assign(&mut self, rhs: T) {
-        let (lhs, rhs) = DatexValue::get_casted_inners_mut(self, &rhs.into())
-            .expect("Failed to cast");
-        match (lhs, rhs) {
-            (DatexValueInner::I8(a), DatexValueInner::I8(b)) => {
-                a.add_assign(b);
+        let rhs: DatexValue = rhs.into();
+        // TODO sync with typed_datex_values
+        match (&mut self.inner, rhs.inner) {
+            (DatexValueInner::Text(text), other) => {
+                let other = try_cast_to_value_dyn::<Text>(other.to_dyn())
+                    .expect("Failed to cast");
+                text.add_assign(other);
             }
-            (DatexValueInner::Text(a), DatexValueInner::Text(b)) => {
-                a.add_assign(b);
+            (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
+                lhs.add_assign(rhs);
             }
-            // TODO implement other adds
-            (_, _) => panic!("Unsupported addition"),
+            _ => panic!("Unsupported addition"),
         }
     }
 }
@@ -633,6 +643,12 @@ mod test {
 
         let a_plus_b = a.clone() + b.clone();
         let b_plus_a = b.clone() + a.clone();
+
+        info!("a: {}", a);
+        info!("b: {}", b);
+        info!("a + b: {:?}", b_plus_a);
+
+        return;
 
         let a_plus_b = a_plus_b.unwrap();
         let b_plus_a = b_plus_a.unwrap();

@@ -1,10 +1,14 @@
-use std::{any::Any, fmt::Display, ops::AddAssign};
+use std::{
+    any::Any,
+    fmt::Display,
+    ops::{Add, AddAssign},
+};
 
 use serde::{Deserialize, Serialize};
 
 use super::{
     datex_type::DatexType,
-    datex_value::{DatexAdd, DatexAddAssign, DatexValue},
+    datex_value::DatexValue,
     int::I8,
     typed_datex_value::TypedDatexValue,
     value::{try_cast_to_value, Value},
@@ -119,9 +123,9 @@ impl From<&str> for TypedDatexValue<Text> {
 /// Might panic when the DatexValue in the assignment can not be cast to Text
 impl AddAssign<DatexValue> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: DatexValue) {
-        // self.add_assign_boxed(rhs.to_dyn()).or_else(|| {
-        //     panic!("Cannot add DatexValue to Text");
-        // });
+        self.0 += rhs.try_cast_to_value().unwrap_or_else(|_| {
+            panic!("Cannot add DatexValue to Text");
+        });
     }
 }
 
@@ -187,5 +191,13 @@ impl PartialEq<&str> for TypedDatexValue<Text> {
 impl PartialEq<TypedDatexValue<Text>> for &str {
     fn eq(&self, other: &TypedDatexValue<Text>) -> bool {
         *self == other.inner().as_str()
+    }
+}
+
+impl Add for Text {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Text(self.0 + &rhs.0)
     }
 }

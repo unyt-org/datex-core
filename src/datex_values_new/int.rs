@@ -1,13 +1,13 @@
-use std::{fmt::Display, ops::Add};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign},
+};
 
 use serde::{Deserialize, Serialize};
 
 use super::{
-    datex_type::DatexType,
-    datex_value::{DatexAdd, DatexAddAssign, DatexValue},
-    text::Text,
-    typed_datex_value::TypedDatexValue,
-    value::Value,
+    datex_type::DatexType, datex_value::DatexValue, text::Text,
+    typed_datex_value::TypedDatexValue, value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,6 +65,12 @@ impl Add for I8 {
     }
 }
 
+impl AddAssign for I8 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
 impl From<I8> for TypedDatexValue<I8> {
     fn from(p: I8) -> Self {
         TypedDatexValue(p)
@@ -91,17 +97,5 @@ impl PartialEq<i8> for TypedDatexValue<I8> {
 impl PartialEq<TypedDatexValue<I8>> for i8 {
     fn eq(&self, other: &TypedDatexValue<I8>) -> bool {
         *self == other.inner().0
-    }
-}
-
-impl DatexAdd for I8 {
-    fn add(&self, other: I8) -> Option<impl Value> {
-        Some(I8(self.0 + other.0))
-    }
-}
-
-impl DatexAddAssign for I8 {
-    fn add_assign(&mut self, other: I8) {
-        self.0 += other.0;
     }
 }
