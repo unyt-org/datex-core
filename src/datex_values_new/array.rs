@@ -1,9 +1,8 @@
 use std::{
     fmt,
-    ops::{AddAssign, Deref, DerefMut, Index},
+    ops::{AddAssign, Index},
 };
 
-use serde::Serialize;
 
 use super::{
     datex_type::DatexType,
@@ -84,7 +83,7 @@ impl fmt::Display for DatexArray {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}", value)?;
+            write!(f, "{value}")?;
         }
         write!(f, "]")
     }
