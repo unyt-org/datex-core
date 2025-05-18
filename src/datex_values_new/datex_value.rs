@@ -124,7 +124,7 @@ impl Not for DatexValue {
     type Output = Option<DatexValue>;
 
     fn not(self) -> Self::Output {
-        if let Some(typed) = self.try_cast_to_typed::<Bool>().ok() {
+        if let Ok(typed) = self.try_cast_to_typed::<Bool>() {
             Some(DatexValue::from(!typed.inner().0))
         } else {
             None

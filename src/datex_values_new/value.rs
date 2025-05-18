@@ -1,16 +1,9 @@
 use std::any::Any;
 use std::fmt::Display;
-use std::ops::{Add, AddAssign, Not};
 
-use super::bool::Bool;
 use super::datex_type::DatexType;
 use super::datex_value::DatexValue;
-use super::int::I8;
-use super::null::Null;
-use super::text::Text;
-use super::typed_datex_value::TypedDatexValue;
 
-use std::sync::Arc;
 pub trait AddAssignable: Any + Send + Sync {
     fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()>;
 }

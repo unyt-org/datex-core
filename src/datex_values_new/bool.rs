@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    ops::{Add, Not},
+    ops::Not,
 };
 
 use super::{
