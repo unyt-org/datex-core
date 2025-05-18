@@ -39,14 +39,17 @@ impl Value for I8 {
 
     fn add(&self, other: &dyn Value) -> Option<DatexValue> {
         match other.cast_to(DatexType::I8) {
-            Some(DatexValue(val)) => val
-                .as_ref()
-                .as_any()
-                .downcast_ref::<I8>()
-                .map(|other_i8| DatexValue::boxed(I8(self.0 + other_i8.0))),
+            Some(x) => {
+                let other_i8 = x
+                    .to_dyn()
+                    .as_any()
+                    .downcast_ref::<I8>()
+                    .expect("Failed to downcast");
+                Some(DatexValue::boxed(I8(self.0 + other_i8.0)))
+            }
             _ => {
                 let self_str = self.cast_to(DatexType::Text)?;
-                self_str.0.add(other)
+                self_str.to_dyn().add(other)
             }
         }
     }

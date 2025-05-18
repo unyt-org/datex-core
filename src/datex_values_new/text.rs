@@ -78,7 +78,7 @@ impl Value for Text {
     fn add(&self, other: &dyn Value) -> Option<DatexValue> {
         let other_casted = other.cast_to(DatexType::Text)?;
         let other_text =
-            other_casted.0.as_ref().as_any().downcast_ref::<Text>()?;
+            other_casted.to_dyn().as_any().downcast_ref::<Text>()?;
         Some(DatexValue::boxed(Text(format!(
             "{}{}",
             self.0, other_text.0
@@ -119,7 +119,7 @@ impl From<i8> for Text {
 impl AddAssignable for Text {
     fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()> {
         let rhs_text = other.cast_to(DatexType::Text)?;
-        let rhs_text = rhs_text.0.as_any().downcast_ref::<Text>()?;
+        let rhs_text = rhs_text.to_dyn().as_any().downcast_ref::<Text>()?;
         self.0 += &rhs_text.0;
         Some(())
     }
@@ -139,7 +139,7 @@ impl From<&str> for TypedDatexValue<Text> {
 /// Might panic when the DatexValue in the assignment can not be cast to Text
 impl AddAssign<DatexValue> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: DatexValue) {
-        self.add_assign_boxed(rhs.0.as_ref()).or_else(|| {
+        self.add_assign_boxed(rhs.to_dyn()).or_else(|| {
             panic!("Cannot add DatexValue to Text");
         });
     }
@@ -148,7 +148,7 @@ impl AddAssign<DatexValue> for TypedDatexValue<Text> {
 /// Will never panic, since both TypedDatexValue and Text
 impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: TypedDatexValue<Text>) {
-        self.add_assign_boxed(rhs.into_erased().0.as_ref());
+        self.add_assign_boxed(rhs.into_erased().to_dyn());
     }
 }
 
@@ -157,7 +157,7 @@ impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
 /// (#1)
 impl AddAssign<TypedDatexValue<I8>> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: TypedDatexValue<I8>) {
-        self.add_assign_boxed(rhs.into_erased().0.as_ref());
+        self.add_assign_boxed(rhs.into_erased().to_dyn());
     }
 }
 

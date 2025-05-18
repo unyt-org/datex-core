@@ -16,11 +16,60 @@ use super::value::Value;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct DatexValue(pub Arc<dyn Value>);
+pub enum DatexValueInner {
+    Bool(Bool),
+    I8(I8),
+    Text(Text),
+    Null(Null),
+    Array(DatexArray),
+}
+
+impl<V: Value> From<&V> for DatexValueInner {
+    fn from(value: &V) -> Self {
+        match value.get_type() {
+            DatexType::Bool => DatexValueInner::Bool(
+                value.as_any().downcast_ref::<Bool>().unwrap().clone(),
+            ),
+            DatexType::I8 => DatexValueInner::I8(
+                value.as_any().downcast_ref::<I8>().unwrap().clone(),
+            ),
+            DatexType::Text => DatexValueInner::Text(
+                value.as_any().downcast_ref::<Text>().unwrap().clone(),
+            ),
+            DatexType::Null => DatexValueInner::Null(
+                value.as_any().downcast_ref::<Null>().unwrap().clone(),
+            ),
+            DatexType::Array => DatexValueInner::Array(
+                value.as_any().downcast_ref::<DatexArray>().unwrap().clone(),
+            ),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct DatexValuePointer {
+    pub value: DatexValue,
+    pub allowed_type: DatexType, // custom type for the pointer that the Datex value can get
+}
+
+#[derive(Clone)]
+pub enum DatexValueContainer {
+    Value(DatexValue),
+    Pointer(DatexValuePointer),
+}
+
+#[derive(Clone)]
+pub struct DatexValue {
+    pub inner: DatexValueInner, //Arc<dyn Value>,
+    pub actual_type: DatexType, // custom type for the value that can not be changed
+}
 
 impl<T: Value + 'static> From<TypedDatexValue<T>> for DatexValue {
     fn from(typed: TypedDatexValue<T>) -> Self {
-        DatexValue(Arc::new(typed.0))
+        DatexValue {
+            inner: DatexValueInner::from(typed.inner().clone()).clone(),
+            actual_type: typed.get_type(),
+        }
     }
 }
 
@@ -44,21 +93,43 @@ impl DatexValue {
 
 impl DatexValue {
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
+        self.to_dyn().as_any().downcast_ref::<T>()
     }
     pub fn boxed<V: Value + 'static>(v: V) -> Self {
-        DatexValue(Arc::new(v))
+        DatexValue {
+            inner: DatexValueInner::from(&v),
+            actual_type: V::static_type(),
+        }
+    }
+
+    pub fn to_dyn(&self) -> &dyn Value {
+        match &self.inner {
+            DatexValueInner::Bool(v) => v,
+            DatexValueInner::I8(v) => v,
+            DatexValueInner::Text(v) => v,
+            DatexValueInner::Null(v) => v,
+            DatexValueInner::Array(v) => v,
+        }
+    }
+    pub fn to_dyn_mut(&mut self) -> &mut dyn Value {
+        match &mut self.inner {
+            DatexValueInner::Bool(v) => v,
+            DatexValueInner::I8(v) => v,
+            DatexValueInner::Text(v) => v,
+            DatexValueInner::Null(v) => v,
+            DatexValueInner::Array(v) => v,
+        }
     }
 
     pub fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
-        self.0.cast_to(target)
+        self.to_dyn().cast_to(target)
     }
     pub fn try_cast_to_typed<T: Value + Clone + 'static>(
         &self,
     ) -> Result<TypedDatexValue<T>, ()> {
         let casted = self.cast_to(T::static_type()).ok_or(())?;
         let casted = casted
-            .0
+            .to_dyn()
             .as_any()
             .downcast_ref::<T>()
             .map(|v| TypedDatexValue(v.clone()));
@@ -74,16 +145,16 @@ impl DatexValue {
     }
 
     pub fn get_type(&self) -> DatexType {
-        self.0.get_type()
+        self.actual_type.clone()
     }
-    pub fn concatenate(&self, other: &dyn Value) -> Option<DatexValue> {
-        let other_casted = other.cast_to(DatexType::Text)?;
-        let other_value = other_casted.0.as_any().downcast_ref::<Text>()?;
-        Some(DatexValue::boxed(Text(format!(
-            "{}{}",
-            self.0, other_value.0
-        ))))
-    }
+    // pub fn concatenate(&self, other: &dyn Value) -> Option<DatexValue> {
+    //     let other_casted = other.cast_to(DatexType::Text)?;
+    //     let other_value = other_casted.0.as_any().downcast_ref::<Text>()?;
+    //     Some(DatexValue::boxed(Text(format!(
+    //         "{}{}",
+    //         self.0, other_value.0
+    //     ))))
+    // }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -105,7 +176,7 @@ impl From<&DatexValue> for SerializableDatexValue {
     fn from(value: &DatexValue) -> Self {
         SerializableDatexValue {
             _type: value.get_type(),
-            value: value.0.to_bytes(),
+            value: value.to_dyn().to_bytes(),
         }
     }
 }
@@ -162,31 +233,18 @@ impl DatexValue {
 }
 impl PartialEq for DatexValue {
     fn eq(&self, other: &Self) -> bool {
-        self.0.get_type() == other.0.get_type()
-            && self.0.as_any().type_id() == other.0.as_any().type_id()
-            && match self.0.get_type() {
-                DatexType::Text => {
-                    let a = self.0.as_any().downcast_ref::<Text>();
-                    let b = other.0.as_any().downcast_ref::<Text>();
-                    a == b
-                }
-                DatexType::I8 => {
-                    let a = self.0.as_any().downcast_ref::<I8>();
-                    let b = other.0.as_any().downcast_ref::<I8>();
-                    a == b
-                }
-                DatexType::Bool => {
-                    let a = self.0.as_any().downcast_ref::<Bool>();
-                    let b = other.0.as_any().downcast_ref::<Bool>();
-                    a == b
-                }
-                DatexType::Null => {
-                    let a = self.0.as_any().downcast_ref::<Null>();
-                    let b = other.0.as_any().downcast_ref::<Null>();
-                    a == b
-                }
-                _ => todo!("Implement equality for other types"),
+        if self.actual_type == other.actual_type {
+            match (&self.inner, &other.inner) {
+                (DatexValueInner::Bool(a), DatexValueInner::Bool(b)) => a == b,
+                (DatexValueInner::I8(a), DatexValueInner::I8(b)) => a == b,
+                (DatexValueInner::Text(a), DatexValueInner::Text(b)) => a == b,
+                (DatexValueInner::Null(_), DatexValueInner::Null(_)) => true,
+                (DatexValueInner::Array(a), DatexValueInner::Array(b)) => false, // TODO
+                _ => false,
             }
+        } else {
+            false
+        }
     }
 }
 
@@ -194,7 +252,7 @@ impl Add for DatexValue {
     type Output = Option<DatexValue>;
 
     fn add(self, rhs: DatexValue) -> Self::Output {
-        self.0.add(rhs.0.as_ref())
+        self.to_dyn().add(rhs.to_dyn())
     }
 }
 
@@ -216,10 +274,9 @@ where
 {
     fn add_assign(&mut self, rhs: T) {
         let rhs_val = DatexValue::from(rhs);
-        let rhs_ref = rhs_val.0.as_ref();
+        let rhs_ref = rhs_val.to_dyn();
 
-        let inner_mut =
-            Arc::get_mut(&mut self.0).expect("Cannot mutate shared DatexValue");
+        let inner_mut = self.to_dyn_mut();
         if let Ok(addable) = inner_mut.as_add_assignable_mut()
             && addable.add_assign_boxed(rhs_ref).is_some()
         {
@@ -231,13 +288,13 @@ where
 
 impl std::fmt::Debug for DatexValue {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.to_dyn())
     }
 }
 
 impl std::fmt::Display for DatexValue {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
+        self.to_dyn().fmt(f)
     }
 }
 
