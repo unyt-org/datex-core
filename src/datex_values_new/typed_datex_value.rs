@@ -1,14 +1,13 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, DerefMut},
+    ops::{Add, DerefMut},
 };
 
 use super::{
     datex_type::DatexType,
     datex_value::{DatexValue, Value},
-    primitive::PrimitiveI8,
-    text::Text,
 };
+use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct TypedDatexValue<T: Value>(pub T);
@@ -24,29 +23,6 @@ impl<T: Value + 'static> TypedDatexValue<T> {
 
     pub fn get_type(&self) -> DatexType {
         self.0.get_type()
-    }
-}
-
-impl From<PrimitiveI8> for TypedDatexValue<PrimitiveI8> {
-    fn from(p: PrimitiveI8) -> Self {
-        TypedDatexValue(p)
-    }
-}
-
-impl From<i8> for TypedDatexValue<PrimitiveI8> {
-    fn from(v: i8) -> Self {
-        TypedDatexValue(PrimitiveI8(v))
-    }
-}
-
-impl From<String> for TypedDatexValue<Text> {
-    fn from(v: String) -> Self {
-        TypedDatexValue(Text(v))
-    }
-}
-impl From<&str> for TypedDatexValue<Text> {
-    fn from(v: &str) -> Self {
-        TypedDatexValue(Text(v.to_string()))
     }
 }
 
@@ -67,8 +43,6 @@ impl<T: Value + Display> Display for TypedDatexValue<T> {
     }
 }
 
-use std::ops::Deref;
-
 impl<T: Value> Deref for TypedDatexValue<T> {
     type Target = T;
 
@@ -80,24 +54,5 @@ impl<T: Value> Deref for TypedDatexValue<T> {
 impl<T: Value> DerefMut for TypedDatexValue<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-impl AddAssign<DatexValue> for TypedDatexValue<Text> {
-    fn add_assign(&mut self, rhs: DatexValue) {
-        if let Ok(casted) = rhs.try_cast_to_typed::<Text>() {
-            self.0 += casted.0;
-        } else {
-            panic!("Cannot cast DatexValue to Text");
-        }
-    }
-}
-
-impl<T> AddAssign<T> for TypedDatexValue<Text>
-where
-    Text: AddAssign<Text> + From<T>,
-{
-    fn add_assign(&mut self, rhs: T) {
-        self.0 += Text::from(rhs);
     }
 }

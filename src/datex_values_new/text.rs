@@ -1,10 +1,10 @@
 use std::{any::Any, fmt::Display, ops::AddAssign};
 
-
 use super::{
     datex_type::DatexType,
     datex_value::{AddAssignable, DatexValue, Value},
     primitive::PrimitiveI8,
+    typed_datex_value::TypedDatexValue,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +85,14 @@ impl Value for Text {
     }
 }
 
+/// The froms are used for this magic. This will automatically convert
+/// the Rust types to Text when using the += operator.
+/// ```
+/// # use datex_core::datex_values_new::typed_datex_value::TypedDatexValue;
+
+/// let mut a = TypedDatexValue::from("Hello");
+/// a += " World";
+/// ``
 impl From<&str> for Text {
     fn from(s: &str) -> Self {
         Text(s.to_string())
@@ -96,6 +104,7 @@ impl From<i8> for Text {
         Text(n.to_string())
     }
 }
+
 impl AddAssignable for Text {
     fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()> {
         let rhs_text = other.cast_to(DatexType::Text)?;
@@ -104,8 +113,58 @@ impl AddAssignable for Text {
         Some(())
     }
 }
+
+impl From<String> for TypedDatexValue<Text> {
+    fn from(v: String) -> Self {
+        TypedDatexValue(Text(v))
+    }
+}
+impl From<&str> for TypedDatexValue<Text> {
+    fn from(v: &str) -> Self {
+        TypedDatexValue(Text(v.to_string()))
+    }
+}
+
+/// Might panic when the DatexValue in the assignment can not be cast to Text
+impl AddAssign<DatexValue> for TypedDatexValue<Text> {
+    fn add_assign(&mut self, rhs: DatexValue) {
+        self.add_assign_boxed(rhs.0.as_ref()).or_else(|| {
+            panic!("Cannot add DatexValue to Text");
+        });
+    }
+}
+
+/// Will never panic, since both TypedDatexValue and Text
+impl AddAssign<TypedDatexValue<Text>> for TypedDatexValue<Text> {
+    fn add_assign(&mut self, rhs: TypedDatexValue<Text>) {
+        self.add_assign_boxed(rhs.into_erased().0.as_ref());
+    }
+}
+
+/// Allow TypedDatexValue<Text> += TypedDatexValue<PrimitiveI8>
+/// This can never panic since the Text::from from i8 will always succeed
+/// (#1)
+impl AddAssign<TypedDatexValue<PrimitiveI8>> for TypedDatexValue<Text> {
+    fn add_assign(&mut self, rhs: TypedDatexValue<PrimitiveI8>) {
+        self.add_assign_boxed(rhs.into_erased().0.as_ref());
+    }
+}
+
+/// Allow TypedDatexValue<Text> += String and TypedDatexValue<Text> += &str
+/// This can never panic since the Text::from from string will always succeed
 impl AddAssign<Text> for Text {
     fn add_assign(&mut self, rhs: Text) {
         self.0 += &rhs.0;
+    }
+}
+/// Allow TypedDatexValue<Text> += String and TypedDatexValue<Text> += &str
+/// This can never panic since the Text::from from string will always succeed
+/// (#2)
+impl<T> AddAssign<T> for TypedDatexValue<Text>
+where
+    Text: AddAssign<Text> + From<T>,
+{
+    fn add_assign(&mut self, rhs: T) {
+        self.add_assign_boxed(&Text::from(rhs));
     }
 }

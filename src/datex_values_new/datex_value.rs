@@ -40,6 +40,21 @@ impl<T: Value + 'static> From<TypedDatexValue<T>> for DatexValue {
 }
 
 impl DatexValue {
+    pub fn is_type(&self, target: DatexType) -> bool {
+        self.get_type() == target
+    }
+    pub fn is_null(&self) -> bool {
+        self.get_type() == DatexType::Null
+    }
+    pub fn is_text(&self) -> bool {
+        self.get_type() == DatexType::Text
+    }
+    pub fn is_i8(&self) -> bool {
+        self.get_type() == DatexType::PrimitiveI8
+    }
+}
+
+impl DatexValue {
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
         self.0.as_any().downcast_ref::<T>()
     }
@@ -111,9 +126,9 @@ impl Add for DatexValue {
     type Output = DatexValue;
 
     fn add(self, rhs: DatexValue) -> DatexValue {
-        self.0.add(rhs.0.as_ref()).unwrap_or_else(|| {
-            panic!("Unsupported addition: {self} + {rhs}")
-        })
+        self.0
+            .add(rhs.0.as_ref())
+            .unwrap_or_else(|| panic!("Unsupported addition: {self} + {rhs}"))
     }
 }
 
@@ -128,9 +143,10 @@ where
         let inner_mut =
             Arc::get_mut(&mut self.0).expect("Cannot mutate shared DatexValue");
         if let Ok(addable) = inner_mut.as_add_assignable_mut()
-            && addable.add_assign_boxed(rhs_ref).is_some() {
-                return;
-            }
+            && addable.add_assign_boxed(rhs_ref).is_some()
+        {
+            return;
+        }
         panic!("Cannot mutate shared DatexValue");
     }
 }
@@ -246,7 +262,22 @@ mod test {
     }
 
     #[test]
-    fn test_test_assign() {
+    /// A TypedDatexValue<T> should allow custom TypedDatexValue<X> to be added to it.
+    /// This won't change the type of the TypedDatexValue<T> but will allow the value to be modified.
+    /// A untyped DatexValue can be assigned to TypedDatexValue<T> but this might throw an error if the type is not compatible.
+    fn test_test_assign1() {
+        init_logger();
+        let mut a: TypedDatexValue<Text> = TypedDatexValue::from("Hello");
+        a += " World"; // see (#2)
+        a += TypedDatexValue::from("42"); // Is typesafe
+        a += TypedDatexValue::from(42); // Is typesafe see (#1)
+        a += DatexValue::from("!"); // Might throw if the assignment would be incompatible.
+        assert_eq!(a.length(), 16);
+        assert_eq!(a.as_str(), "Hello World4242!");
+    }
+
+    #[test]
+    fn test_test_assign2() {
         init_logger();
         let mut a = TypedDatexValue::from("Hello");
         a += " World";

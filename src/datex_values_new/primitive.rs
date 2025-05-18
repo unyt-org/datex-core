@@ -4,6 +4,7 @@ use super::{
     datex_type::DatexType,
     datex_value::{DatexValue, Value},
     text::Text,
+    typed_datex_value::TypedDatexValue,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +40,11 @@ impl Value for PrimitiveI8 {
     fn add(&self, other: &dyn Value) -> Option<DatexValue> {
         match other.cast_to(DatexType::PrimitiveI8) {
             Some(DatexValue(val)) => {
-                val.as_ref().as_any().downcast_ref::<PrimitiveI8>().map(|other_i8| DatexValue::boxed(PrimitiveI8(self.0 + other_i8.0)))
+                val.as_ref().as_any().downcast_ref::<PrimitiveI8>().map(
+                    |other_i8| {
+                        DatexValue::boxed(PrimitiveI8(self.0 + other_i8.0))
+                    },
+                )
             }
             _ => {
                 let self_str = self.cast_to(DatexType::Text)?;
@@ -62,5 +67,17 @@ impl Add for PrimitiveI8 {
 
     fn add(self, rhs: Self) -> Self::Output {
         PrimitiveI8(self.0 + rhs.0)
+    }
+}
+
+impl From<PrimitiveI8> for TypedDatexValue<PrimitiveI8> {
+    fn from(p: PrimitiveI8) -> Self {
+        TypedDatexValue(p)
+    }
+}
+
+impl From<i8> for TypedDatexValue<PrimitiveI8> {
+    fn from(v: i8) -> Self {
+        TypedDatexValue(PrimitiveI8(v))
     }
 }
