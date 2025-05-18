@@ -1,9 +1,7 @@
-use std::any::Any;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Not};
 use std::vec;
 
-use log::{debug, info};
 use serde::{de, Deserialize, Deserializer, Serialize};
 
 use super::array::DatexArray;
@@ -13,7 +11,7 @@ use super::int::I8;
 use super::null::Null;
 use super::text::Text;
 use super::typed_datex_value::TypedDatexValue;
-use super::value::{try_cast_to_value, try_cast_to_value_dyn, Value};
+use super::value::{try_cast_to_value_dyn, Value};
 
 #[derive(Clone, Debug)]
 pub enum DatexValueInner {
@@ -88,7 +86,7 @@ pub struct DatexValue {
 impl<T: Value + 'static> From<TypedDatexValue<T>> for DatexValue {
     fn from(typed: TypedDatexValue<T>) -> Self {
         DatexValue {
-            inner: DatexValueInner::from(typed.inner().clone()).clone(),
+            inner: DatexValueInner::from(typed.inner()).clone(),
             actual_type: typed.get_type(),
         }
     }

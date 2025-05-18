@@ -11,7 +11,7 @@ use super::{
     datex_value::DatexValue,
     int::I8,
     typed_datex_value::TypedDatexValue,
-    value::{try_cast_to_value, Value},
+    value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
