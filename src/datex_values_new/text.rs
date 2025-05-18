@@ -1,6 +1,5 @@
 use std::{any::Any, fmt::Display, ops::AddAssign};
 
-use log::info;
 
 use super::{
     datex_type::DatexType,

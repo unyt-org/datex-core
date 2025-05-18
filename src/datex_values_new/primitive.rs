@@ -39,13 +39,7 @@ impl Value for PrimitiveI8 {
     fn add(&self, other: &dyn Value) -> Option<DatexValue> {
         match other.cast_to(DatexType::PrimitiveI8) {
             Some(DatexValue(val)) => {
-                if let Some(other_i8) =
-                    val.as_ref().as_any().downcast_ref::<PrimitiveI8>()
-                {
-                    Some(DatexValue::boxed(PrimitiveI8(self.0 + other_i8.0)))
-                } else {
-                    None
-                }
+                val.as_ref().as_any().downcast_ref::<PrimitiveI8>().map(|other_i8| DatexValue::boxed(PrimitiveI8(self.0 + other_i8.0)))
             }
             _ => {
                 let self_str = self.cast_to(DatexType::Text)?;

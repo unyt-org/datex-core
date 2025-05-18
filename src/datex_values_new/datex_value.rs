@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::fmt::{self, Display};
+use std::fmt::Display;
 use std::ops::{Add, AddAssign};
 
 use super::datex_type::DatexType;
@@ -65,9 +65,9 @@ impl DatexValue {
     pub fn cast_to_typed<T: Value + Clone + 'static>(
         &self,
     ) -> TypedDatexValue<T> {
-        return self.try_cast_to_typed::<T>().unwrap_or_else(|_| {
+        self.try_cast_to_typed::<T>().unwrap_or_else(|_| {
             panic!("Failed to cast to type: {:?}", T::static_type())
-        });
+        })
     }
 
     pub fn get_type(&self) -> DatexType {
@@ -112,7 +112,7 @@ impl Add for DatexValue {
 
     fn add(self, rhs: DatexValue) -> DatexValue {
         self.0.add(rhs.0.as_ref()).unwrap_or_else(|| {
-            panic!("Unsupported addition: {} + {}", self, rhs)
+            panic!("Unsupported addition: {self} + {rhs}")
         })
     }
 }
@@ -127,11 +127,10 @@ where
 
         let inner_mut =
             Arc::get_mut(&mut self.0).expect("Cannot mutate shared DatexValue");
-        if let Ok(addable) = inner_mut.as_add_assignable_mut() {
-            if addable.add_assign_boxed(rhs_ref).is_some() {
+        if let Ok(addable) = inner_mut.as_add_assignable_mut()
+            && addable.add_assign_boxed(rhs_ref).is_some() {
                 return;
             }
-        }
         panic!("Cannot mutate shared DatexValue");
     }
 }
