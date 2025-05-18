@@ -93,6 +93,14 @@ pub struct SerializableDatexValue {
     _type: DatexType,
     value: Vec<u8>,
 }
+impl SerializableDatexValue {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.push(self._type.clone() as u8);
+        bytes.extend_from_slice(&self.value);
+        bytes
+    }
+}
 impl From<&DatexValue> for SerializableDatexValue {
     fn from(value: &DatexValue) -> Self {
         SerializableDatexValue {
@@ -265,22 +273,6 @@ mod test {
     };
     use log::{debug, info};
 
-    fn serialize_datex_value(value: &DatexValue) -> String {
-        let res = serde_json::to_string(value).unwrap();
-        info!("Serialized DatexValue: {}", res);
-        res
-    }
-    fn deserialize_datex_value(json: &str) -> DatexValue {
-        let res = serde_json::from_str(json).unwrap();
-        info!("Deserialized DatexValue: {}", res);
-        res
-    }
-    fn test_serialize_and_deserialize(value: DatexValue) {
-        let json = serialize_datex_value(&value);
-        let deserialized = deserialize_datex_value(&json);
-        assert_eq!(value, deserialized);
-    }
-
     #[test]
     fn array() {
         init_logger();
@@ -289,14 +281,16 @@ mod test {
             DatexValue::from(42),
             DatexValue::from(true),
         ]);
+
         let mut a = a.cast_to_typed::<DatexArray>();
         a.push(DatexValue::from(42));
         a.push(4);
         a += 42;
         a += DatexArray::from(vec!["inner", "array"]);
+        let a: DatexArray = a.into_inner();
 
         assert_eq!(a.length(), 7);
-        debug!("Array {}", a);
+        debug!("Array: {}", a);
 
         let b = DatexArray::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         assert_eq!(b.length(), 11);
@@ -304,6 +298,12 @@ mod test {
 
         let c = datex_array![1, "test", 3, true, false];
         assert_eq!(c.length(), 5);
+        assert_eq!(c[0], 1.into());
+        assert_eq!(c[1], "test".into());
+        assert_eq!(c[2], 3.into());
+
+        //c.insert(0, 1.into());
+        debug!("Array: {}", c);
     }
 
     #[test]
@@ -538,5 +538,21 @@ mod test {
 
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
         info!("{} + {} = {}", b.clone(), a.clone(), b_plus_a);
+    }
+
+    fn serialize_datex_value(value: &DatexValue) -> String {
+        let res = serde_json::to_string(value).unwrap();
+        info!("Serialized DatexValue: {}", res);
+        res
+    }
+    fn deserialize_datex_value(json: &str) -> DatexValue {
+        let res = serde_json::from_str(json).unwrap();
+        info!("Deserialized DatexValue: {}", res);
+        res
+    }
+    fn test_serialize_and_deserialize(value: DatexValue) {
+        let json = serialize_datex_value(&value);
+        let deserialized = deserialize_datex_value(&json);
+        assert_eq!(value, deserialized);
     }
 }

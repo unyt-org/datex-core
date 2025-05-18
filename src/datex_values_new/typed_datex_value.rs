@@ -84,18 +84,17 @@ impl<T: Value + PartialEq + Clone + 'static> PartialEq<DatexValue>
     }
 }
 
-// impl<T: Value + PartialEq + Clone + 'static> PartialEq<TypedDatexValue<T>>
-//     for DatexValue
-// {
-//     fn eq(&self, other: &TypedDatexValue<T>) -> bool {
-//         other == self
-//     }
-// }
 impl<T> PartialEq for TypedDatexValue<T>
 where
     T: PartialEq + Value,
 {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
+    }
+}
+
+impl<T: Value> TypedDatexValue<T> {
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }

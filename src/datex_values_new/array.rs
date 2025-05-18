@@ -1,8 +1,15 @@
-use std::{fmt, ops::AddAssign};
+use std::{
+    fmt,
+    ops::{AddAssign, Deref, DerefMut, Index},
+};
+
+use serde::Serialize;
 
 use super::{
-    datex_type::DatexType, datex_value::DatexValue,
-    typed_datex_value::TypedDatexValue, value::Value,
+    datex_type::DatexType,
+    datex_value::{DatexValue, SerializableDatexValue},
+    typed_datex_value::TypedDatexValue,
+    value::Value,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -49,9 +56,23 @@ impl Value for DatexArray {
         Self::static_type()
     }
     fn to_bytes(&self) -> Vec<u8> {
-        vec![]
+        let mut bytes = vec![];
+        for value in &self.0 {
+            let repr: SerializableDatexValue = value.into();
+            bytes.extend(repr.to_bytes());
+        }
+        bytes
     }
     fn from_bytes(bytes: &[u8]) -> Self {
+        // let mut values = vec![];
+        // let mut offset = 0;
+        // while offset < bytes.len() {
+        //     let (value, size) =
+        //         SerializableDatexValue::from_bytes(&bytes[offset..]);
+        //     values.push(value);
+        //     offset += size;
+        // }
+        // DatexArray(values)
         DatexArray(vec![])
     }
 }
@@ -96,3 +117,39 @@ where
         self.0.push(DatexValue::from(rhs));
     }
 }
+
+impl Index<usize> for DatexArray {
+    type Output = DatexValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl Index<usize> for TypedDatexValue<DatexArray> {
+    type Output = DatexValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+// FIXME: Deref and DerefMut are not implemented for DatexArray.
+// If we implement these two traits, we can use all the methods of Vec<DatexValue> directly on DatexArray.
+// This is not recommended most probably, but it is possible.
+// Since we want to listen for changes in the array, we should not implement these traits and the spec
+// shall also just mention the methods that are available on DatexArray, not all rust magic since not
+// all will be implemented by runtime nor on any other platform.
+// impl Deref for DatexArray {
+//     type Target = Vec<DatexValue>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
+
+// impl DerefMut for DatexArray {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.0
+//     }
+// }
