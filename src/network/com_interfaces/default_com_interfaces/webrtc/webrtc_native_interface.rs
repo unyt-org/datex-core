@@ -25,7 +25,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use futures::{channel::mpsc, SinkExt, StreamExt, TryFutureExt};
+use futures::{channel::mpsc, StreamExt};
 
 use super::webrtc_common_new::{
     data_channels::{DataChannel, DataChannels},
@@ -44,7 +44,8 @@ use webrtc::{
         media_engine::MediaEngine, APIBuilder,
     },
     data_channel::{
-        data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
+        data_channel_init::RTCDataChannelInit, OnMessageHdlrFn, OnOpenHdlrFn,
+        RTCDataChannel,
     },
     ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
     interceptor::registry::Registry,
@@ -53,6 +54,11 @@ use webrtc::{
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
 };
+
+enum DataChannelEvent {
+    Open,
+    Message(Vec<u8>),
+}
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     commons: Arc<Mutex<WebRTCCommon>>,
@@ -122,35 +128,53 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         channel: Rc<RefCell<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
         let channel_clone = channel.clone();
-        let (tx, mut rx) = mpsc::unbounded::<()>();
-        let mut tx_clone = tx.clone();
+
+        let (tx, mut rx) = mpsc::unbounded::<DataChannelEvent>();
+        let tx_open = tx.clone();
         let on_open: OnOpenHdlrFn = Box::new(move || {
-            let _ = tx_clone.start_send(());
+            let _ = tx_open.unbounded_send(DataChannelEvent::Open);
             Box::pin(async {})
         });
+
+        let tx_msg = tx.clone();
+        let on_message: OnMessageHdlrFn = Box::new(move |msg| {
+            let data = msg.data.to_vec();
+            let _ = tx_msg.unbounded_send(DataChannelEvent::Message(data));
+            Box::pin(async {})
+        });
+
         spawn_local(async move {
             let channel_clone = channel_clone.clone();
-            while (rx.next().await).is_some() {
-                info!("Data channel opened!!");
-                if let Some(open_channel) =
-                    channel_clone.borrow().open_channel.borrow().as_ref()
-                {
-                    open_channel();
-                } else {
-                    error!("Failed to open data channel");
+            while let Some(event) = rx.next().await {
+                match event {
+                    DataChannelEvent::Open => {
+                        info!("Data channel opened!!");
+                        if let Some(open_channel) = channel_clone
+                            .borrow()
+                            .open_channel
+                            .borrow()
+                            .as_ref()
+                        {
+                            open_channel();
+                        }
+                    }
+                    DataChannelEvent::Message(data) => {
+                        info!("Received data on data channel: {:?}", data);
+                        if let Some(on_message) =
+                            channel_clone.borrow().on_message.borrow().as_ref()
+                        {
+                            on_message(data);
+                        }
+                    }
                 }
             }
         });
-
         let data_channel = channel.clone();
         data_channel.borrow_mut().data_channel.on_open(on_open);
-        data_channel.borrow_mut().data_channel.on_message(Box::new(
-            move |msg| {
-                let data = msg.data.to_vec();
-                info!("Received data on data channel: {data:?}");
-                Box::pin(async {})
-            },
-        ));
+        data_channel
+            .borrow_mut()
+            .data_channel
+            .on_message(on_message);
         Ok(())
     }
 
