@@ -37,7 +37,7 @@ use super::webrtc_common_new::{
     webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
 };
 use datex_macros::{com_interface, create_opener};
-use log::{error, info};
+use log::error;
 use webrtc::{
     api::{
         interceptor_registry::register_default_interceptors,
