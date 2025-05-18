@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign},
+    ops::{Add, AddAssign, DerefMut},
 };
 
 use super::{
@@ -77,31 +77,15 @@ impl<T: Value> Deref for TypedDatexValue<T> {
     }
 }
 
-// impl AddAssign<&str> for TypedDatexValue<Text> {
-//     fn add_assign(&mut self, rhs: &str) {
-//         self.0 += rhs;
-//     }
-// }
-
-// impl AddAssign<Text> for TypedDatexValue<Text> {
-//     fn add_assign(&mut self, rhs: Text) {
-//         self.0 += rhs;
-//     }
-// }
-
-// impl AddAssign<DatexValue> for TypedDatexValue<Text> {
-//     fn add_assign(&mut self, rhs: DatexValue) {
-//         if let Some(casted) = rhs.cast_to_typed::<Text>() {
-//             self.0 += casted.0;
-//         } else {
-//             panic!("Cannot cast DatexValue to Text");
-//         }
-//     }
-// }
+impl<T: Value> DerefMut for TypedDatexValue<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl AddAssign<DatexValue> for TypedDatexValue<Text> {
     fn add_assign(&mut self, rhs: DatexValue) {
-        if let Some(casted) = rhs.cast_to_typed::<Text>() {
+        if let Ok(casted) = rhs.try_cast_to_typed::<Text>() {
             self.0 += casted.0;
         } else {
             panic!("Cannot cast DatexValue to Text");

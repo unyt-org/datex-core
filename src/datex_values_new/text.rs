@@ -35,6 +35,13 @@ impl Text {
     }
 }
 
+impl Text {
+    pub fn reverse(&mut self) {
+        let reversed = self.0.chars().rev().collect::<String>();
+        self.0 = reversed;
+    }
+}
+
 impl Value for Text {
     fn as_any(&self) -> &dyn Any {
         self
@@ -92,22 +99,12 @@ impl From<i8> for Text {
 }
 impl AddAssignable for Text {
     fn add_assign_boxed(&mut self, other: &dyn Value) -> Option<()> {
-        info!("Adding {} to {}", self, other);
-        // safe cast
-        None
+        let rhs_text = other.cast_to(DatexType::Text)?;
+        let rhs_text = rhs_text.0.as_any().downcast_ref::<Text>()?;
+        self.0 += &rhs_text.0;
+        Some(())
     }
 }
-// impl AddAssign<&str> for Text {
-//     fn add_assign(&mut self, rhs: &str) {
-//         self.0 += rhs;
-//     }
-// }
-
-// impl AddAssign<Text> for Text {
-//     fn add_assign(&mut self, rhs: Text) {
-//         self.0 += &rhs.0;
-//     }
-// }
 impl AddAssign<Text> for Text {
     fn add_assign(&mut self, rhs: Text) {
         self.0 += &rhs.0;

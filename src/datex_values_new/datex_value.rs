@@ -50,15 +50,24 @@ impl DatexValue {
     pub fn cast_to(&self, target: DatexType) -> Option<DatexValue> {
         self.0.cast_to(target)
     }
-    pub fn cast_to_typed<T: Value + Clone + 'static>(
+    pub fn try_cast_to_typed<T: Value + Clone + 'static>(
         &self,
-    ) -> Option<TypedDatexValue<T>> {
-        let casted = self.cast_to(T::static_type())?;
-        casted
+    ) -> Result<TypedDatexValue<T>, ()> {
+        let casted = self.cast_to(T::static_type()).ok_or(())?;
+        let casted = casted
             .0
             .as_any()
             .downcast_ref::<T>()
-            .map(|v| TypedDatexValue(v.clone()))
+            .map(|v| TypedDatexValue(v.clone()));
+        casted.ok_or(())
+    }
+
+    pub fn cast_to_typed<T: Value + Clone + 'static>(
+        &self,
+    ) -> TypedDatexValue<T> {
+        return self.try_cast_to_typed::<T>().unwrap_or_else(|_| {
+            panic!("Failed to cast to type: {:?}", T::static_type())
+        });
     }
 
     pub fn get_type(&self) -> DatexType {
@@ -122,9 +131,8 @@ where
             if addable.add_assign_boxed(rhs_ref).is_some() {
                 return;
             }
-        } else {
-            panic!("Cannot mutate shared DatexValue");
         }
+        panic!("Cannot mutate shared DatexValue");
     }
 }
 
@@ -182,12 +190,12 @@ mod test {
         let b = a.cast_to(DatexType::Text).unwrap();
         assert_eq!(b.get_type(), DatexType::Text);
 
-        let c = a.cast_to_typed::<PrimitiveI8>().unwrap();
+        let c = a.cast_to_typed::<PrimitiveI8>();
         assert_eq!(c.into_erased(), DatexValue::from(42));
 
-        let d = a.cast_to_typed::<Text>().unwrap();
+        let d = a.cast_to_typed::<Text>();
         assert_eq!(d.get_type(), DatexType::Text);
-        assert_eq!(d.inner().0, "42");
+        assert_eq!(d.as_str(), "42");
     }
 
     #[test]
@@ -227,10 +235,15 @@ mod test {
         let a = TypedDatexValue::from("Hello");
         assert_eq!(a.get_type(), DatexType::Text);
         assert_eq!(a.length(), 5);
-        assert_eq!(a.clone().to_string(), "\"Hello\"");
-        assert_eq!(a.clone().as_str(), "Hello");
-        assert_eq!(a.clone().to_uppercase(), "HELLO".into());
-        assert_eq!(a.clone().to_lowercase(), "hello".into());
+        assert_eq!(a.to_string(), "\"Hello\"");
+        assert_eq!(a.as_str(), "Hello");
+        assert_eq!(a.to_uppercase(), "HELLO".into());
+        assert_eq!(a.to_lowercase(), "hello".into());
+
+        let b = &mut TypedDatexValue::from("World");
+        b.reverse();
+        assert_eq!(b.length(), 5);
+        assert_eq!(b.as_str(), "dlroW");
     }
 
     #[test]
@@ -241,17 +254,23 @@ mod test {
         a += DatexValue::from("!");
 
         assert_eq!(a.length(), 12);
-        assert_eq!(a.clone().as_str(), "Hello World!");
+        assert_eq!(a.as_str(), "Hello World!");
 
         a += 42;
 
         assert_eq!(a.length(), 14);
-        assert_eq!(a.clone().as_str(), "Hello World!42");
+        assert_eq!(a.as_str(), "Hello World!42");
 
         let mut b = DatexValue::from("Hello");
-        b += " World";
-        info!("{}", b.clone());
-        // assert_eq!(b.length(), 12);
+        b += " World ";
+        b += TypedDatexValue::from(42);
+        b += DatexValue::from("!");
+
+        let b = b.cast_to_typed::<Text>();
+
+        info!("{}", b);
+        assert_eq!(b.length(), 15);
+        assert_eq!(b.as_str(), "Hello World 42!");
     }
 
     #[test]
