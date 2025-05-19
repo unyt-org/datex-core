@@ -87,9 +87,9 @@ impl CoreValue for Text {
 /// The froms are used for this magic. This will automatically convert
 /// the Rust types to Text when using the += operator.
 /// ```
-/// # use datex_core::datex_values_new::typed_datex_value::TypedDatexValue;
+/// # use datex_core::datex_values::typed_value::TypedValue;
 
-/// let mut a = TypedDatexValue::from("Hello");
+/// let mut a = TypedValue::from("Hello");
 /// a += " World";
 /// ``
 impl From<&str> for Text {
