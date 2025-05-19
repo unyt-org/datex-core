@@ -1,15 +1,41 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-value = _{ 
-	object | 
-	array | 
-	string | 
+// operations
+factor_operator = { "*" | "/" | "%" }
+sum_operator = { "+" | "-" | "." }
+
+factor_expression = { _atom ~ (factor_operator ~ _atom)+ }
+expression  = { (factor_expression | _atom) ~ (sum_operator ~ (factor_expression | _atom))+ | factor_expression | _atom }
+
+params = !{ "(" ~ statements ~ ")" }
+apply = ${atom_with_parens ~ (WHITESPACE+ ~ atom | WHITESPACE* ~ params)+}
+
+_atom = _{ apply | atom_with_parens }
+
+atom = !{
+	object |
+	array |
+	string |
 	decimal |
     integer |
-	boolean | 
-	null | 
-	void 
+	literals |
+    placeholders |
+    variable
 }
+
+atom_with_parens = _{
+    "(" ~ statements? ~ ")" |
+	atom
+}
+
+placeholders = _{ placeholder_with_index | placeholder }
+
+placeholder_with_index = { "?" ~ ASCII_DIGIT+ }
+placeholder = { "?" }
+
+_literals = _{ boolean | null | void }
+
+literals = _{ _literals ~ !ASCII_ALPHANUMERIC }
 
 boolean = { "true" | "false" }
 
@@ -20,11 +46,11 @@ object = {
     "{" ~ "}" |
     "{" ~ pair ~ ("," ~ pair)* ~ "}"
 }
-pair = { string ~ ":" ~ value }
+pair = { string ~ ":" ~ atom_with_parens }
 
 array = {
     "[" ~ "]" |
-    "[" ~ value ~ ("," ~ value)* ~ "]"
+    "[" ~ atom_with_parens ~ ("," ~ atom_with_parens)* ~ "]"
 }
 
 integer = @{
@@ -49,7 +75,9 @@ char = {
     | "\n"
 }
 
-statement = { value }
-statements = _{ statement ~ (";" ~ statement)* ~ (";")? }
+variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+
+statements = _{ expression ~ (";"+ ~ expression)* ~ (";")* }
 
 datex = _{ SOI ~ statements ~ EOI }

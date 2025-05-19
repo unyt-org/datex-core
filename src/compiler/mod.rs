@@ -1,3 +1,4 @@
+use log::info;
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
@@ -27,6 +28,7 @@ pub enum CompilationError {
     InvalidRule(String),
     SerializationError(binrw::Error),
 }
+
 pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
     let body = compile_body(datex_script)
         .map_err(|e| CompilationError::InvalidRule(e.to_string()))?;
@@ -233,11 +235,12 @@ fn parse_statements(
     mut compilation_scope: CompilationScope,
     pairs: Pairs<'_, Rule>,
 ) {
-    for pair in pairs {
-        match pair.as_rule() {
+    for statement in pairs {
+        match statement.as_rule() {
             Rule::statement => {
-                for inner in pair.into_inner() {
-                    parse(&mut compilation_scope, inner)
+                info!("statement: {:?}", statement.as_str());
+                for expression in statement.into_inner() {
+                    parse_expression(&mut compilation_scope, expression);
                 }
                 compilation_scope
                     .append_binary_code(BinaryCode::CLOSE_AND_STORE);
@@ -246,10 +249,20 @@ fn parse_statements(
             Rule::EOI => {
                 //
             }
-            _ => {
-                panic!("Invalid rule, expected statement")
-            }
+            _ => unreachable!()
         }
+    }
+}
+
+fn parse_expression(
+    compilation_scope: &mut CompilationScope,
+    expression: Pair<Rule>,
+) {
+    match expression.as_rule() {
+        Rule::expression => {
+            info!("expression: {:?}", expression.as_str());
+        },
+        _ => unreachable!(),
     }
 }
 
@@ -273,4 +286,18 @@ fn parse(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
             panic!("Rule not implemented")
         }
     }
+}
+
+
+#[cfg(test)]
+pub mod tests {
+    use crate::logger::init_logger;
+
+    #[test]
+    fn test_compile() {
+        init_logger();
+        let datex_script = r#"42"#;
+        let result = super::compile(datex_script);
+    }
+
 }
