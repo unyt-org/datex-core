@@ -2,7 +2,16 @@ use num_enum::TryFromPrimitive;
 use strum::Display;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Copy, Clone, Display)]
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    TryFromPrimitive,
+    Copy,
+    Clone,
+    Display,
+    num_enum::IntoPrimitive,
+)]
 #[repr(u8)]
 pub enum BinaryCode {
     // flow instructions 0x00 - 0x0f

@@ -306,20 +306,36 @@ pub mod tests {
     use crate::{global::binary_codes::BinaryCode, logger::init_logger};
     use log::*;
 
+    // Test for integer/u8
     #[test]
-    fn test_compile() {
+    fn test_integer_u8() {
         init_logger();
-        let integer_value: u8 = 42;
-        let datex_script = format!("{integer_value}"); // 42
+        let val: u8 = 42;
+        let datex_script = format!("{val}"); // 42
         let result = super::compile_body(&datex_script).unwrap();
         debug!("{:?}", result);
         assert_eq!(
             result,
             vec![
-                BinaryCode::INT_8 as u8,
-                integer_value,
-                BinaryCode::SUBSCOPE_END as u8
+                BinaryCode::INT_8.into(),
+                val,
+                BinaryCode::SUBSCOPE_END.into()
             ]
         );
+    }
+
+    /// Test for test that is less than 256 characters
+    #[test]
+    fn test_short_text() {
+        init_logger();
+        let val = "unyt";
+        let datex_script = format!("\"{val}\""); // "42"
+        let result = super::compile_body(&datex_script).unwrap();
+        debug!("{:?}", result);
+        let mut expected: Vec<u8> =
+            vec![BinaryCode::SHORT_TEXT.into(), val.len() as u8];
+        expected.extend(val.bytes());
+        expected.push(BinaryCode::SUBSCOPE_END.into());
+        assert_eq!(result, expected);
     }
 }
