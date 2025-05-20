@@ -1,4 +1,3 @@
-use log::info;
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
@@ -12,6 +11,8 @@ use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
 use crate::utils::buffers::append_i64;
 use crate::utils::buffers::append_i8;
+use log::info;
+use strum::Display;
 
 use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
@@ -24,6 +25,7 @@ use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
 
+#[derive(Debug, Display)]
 pub enum CompilationError {
     InvalidRule(String),
     SerializationError(binrw::Error),
@@ -237,19 +239,14 @@ fn parse_statements(
 ) {
     for statement in pairs {
         match statement.as_rule() {
-            Rule::statement => {
-                info!("statement: {:?}", statement.as_str());
-                for expression in statement.into_inner() {
-                    parse_expression(&mut compilation_scope, expression);
-                }
-                compilation_scope
-                    .append_binary_code(BinaryCode::CLOSE_AND_STORE);
-                // compilation_scope.buffer.push(BinaryCode::STD_TYPE_MAP as u8);
+            Rule::expression => {
+                parse_expression(&mut compilation_scope, statement);
+                compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_END);
             }
             Rule::EOI => {
                 //
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -258,46 +255,71 @@ fn parse_expression(
     compilation_scope: &mut CompilationScope,
     expression: Pair<Rule>,
 ) {
-    match expression.as_rule() {
-        Rule::expression => {
-            info!("expression: {:?}", expression.as_str());
-        },
-        _ => unreachable!(),
+    assert_eq!(
+        expression.as_rule(),
+        Rule::expression,
+        "Expected Rule::expression"
+    );
+
+    for inner_expression in expression.into_inner() {
+        match inner_expression.as_rule() {
+            Rule::ident => {
+                parse_ident(compilation_scope, inner_expression);
+            }
+            e => unreachable!("Expected Rule::ident, but found {:?}", e),
+        }
     }
 }
 
-fn parse(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
-    let rule = pair.as_rule();
-    match rule {
+/// An ident can only contain a single value
+fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
+    assert_eq!(pair.as_rule(), Rule::ident, "Expected Rule::ident");
+
+    let ident = pair.into_inner().next().unwrap();
+    match ident.as_rule() {
         Rule::integer => {
-            let int = pair.as_str().parse::<i64>().unwrap();
+            let int = ident.as_str().parse::<i64>().unwrap();
             compilation_scope.insert_int(int);
         }
         Rule::decimal => {
-            let decimal = pair.as_str().parse::<f64>().unwrap();
+            let decimal = ident.as_str().parse::<f64>().unwrap();
             compilation_scope.insert_float64(decimal);
         }
         Rule::string => {
-            let string = pair.as_str();
+            let string = ident.as_str();
             let inner_string = &string[1..string.len() - 1];
             compilation_scope.insert_string(inner_string);
         }
         _ => {
-            panic!("Rule not implemented")
+            unreachable!(
+                "Expected Rule::integer, Rule::decimal or Rule::string, but found {:?}",
+                ident.as_rule()
+            );
         }
     }
 }
 
-
 #[cfg(test)]
 pub mod tests {
-    use crate::logger::init_logger;
+    use std::vec;
+
+    use crate::{global::binary_codes::BinaryCode, logger::init_logger};
+    use log::*;
 
     #[test]
     fn test_compile() {
         init_logger();
-        let datex_script = r#"42"#;
-        let result = super::compile(datex_script);
+        let integer_value: u8 = 42;
+        let datex_script = format!("{integer_value}"); // 42
+        let result = super::compile_body(&datex_script).unwrap();
+        debug!("{:?}", result);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::INT_8 as u8,
+                integer_value,
+                BinaryCode::SUBSCOPE_END as u8
+            ]
+        );
     }
-
 }
