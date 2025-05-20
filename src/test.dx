@@ -1,0 +1,28 @@
+// object
+{'x':1 };
+
+// array
+[1,2,x];
+
+// tuple
+(1,2);
+
+// string
+"test";
+
+// decimal
+4.2;
+
+// integer
+42;
+
+// boolean
+true;
+false;
+
+// placeholder
+?;
+?10;
+
+// variable
+test;
