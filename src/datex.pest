@@ -10,7 +10,7 @@ ident = !{
 	object |
 	array |
     tuple |
-	string |
+	text |
 	decimal |
     integer |
 	literals |
@@ -86,7 +86,7 @@ object = {
 
 // pair
 // "test": 42
-pair = { string ~ ":" ~ term }
+pair = { text ~ ":" ~ term }
 
 // array
 // such as [1,2] or []
@@ -118,13 +118,13 @@ decimal = @{
 }
 
 
-// string
+// text
 // such as 'test' or "test" including proper escape literals
-string = { double_quoted_string | single_quoted_string }
-double_quoted_string = { "\"" ~ double_string_chunk* ~ "\"" }
-single_quoted_string = { "'" ~ single_string_chunk* ~ "'" }
-double_string_chunk = _{ escape_sequence | double_normal_chars }
-single_string_chunk = _{ escape_sequence | single_normal_chars }
+text = { double_quoted_text | single_quoted_text }
+double_quoted_text = { "\"" ~ double_text_chunk* ~ "\"" }
+single_quoted_text = { "'" ~ single_text_chunk* ~ "'" }
+double_text_chunk = _{ escape_sequence | double_normal_chars }
+single_text_chunk = _{ escape_sequence | single_normal_chars }
 escape_sequence = { "\\" ~ ( "\"" | "'" | "\\" | "n" | "t" | "r" ) }
 double_normal_chars = { (!( "\"" | "\\" ) ~ ANY)+ }
 single_normal_chars = { (!( "'" | "\\" ) ~ ANY)+ }

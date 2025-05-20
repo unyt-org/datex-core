@@ -285,14 +285,14 @@ fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
             let decimal = ident.as_str().parse::<f64>().unwrap();
             compilation_scope.insert_float64(decimal);
         }
-        Rule::string => {
+        Rule::text => {
             let string = ident.as_str();
             let inner_string = &string[1..string.len() - 1];
             compilation_scope.insert_string(inner_string);
         }
         _ => {
             unreachable!(
-                "Expected Rule::integer, Rule::decimal or Rule::string, but found {:?}",
+                "Expected Rule::integer, Rule::decimal or Rule::text, but found {:?}",
                 ident.as_rule()
             );
         }
