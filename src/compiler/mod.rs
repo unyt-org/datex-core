@@ -11,7 +11,6 @@ use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
 use crate::utils::buffers::append_i64;
 use crate::utils::buffers::append_i8;
-use log::info;
 use strum::Display;
 
 use crate::utils::buffers::append_u32;
