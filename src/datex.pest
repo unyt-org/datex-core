@@ -1,18 +1,8 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-// operations
-factor_operator = { "*" | "/" | "%" }
-sum_operator = { "+" | "-" | "." }
-
-factor_expression = { _atom ~ (factor_operator ~ _atom)+ }
-expression  = { (factor_expression | _atom) ~ (sum_operator ~ (factor_expression | _atom))+ | factor_expression | _atom }
-
-params = !{ "(" ~ statements ~ ")" }
-apply = ${atom_with_parens ~ (WHITESPACE+ ~ atom | WHITESPACE* ~ params)+}
-
-_atom = _{ apply | atom_with_parens }
-
-atom = !{
+// simple identifier such as primitive types or variables
+// such as 42 or []
+ident = !{
 	object |
 	array |
 	string |
@@ -23,41 +13,92 @@ atom = !{
     variable
 }
 
-atom_with_parens = _{
+// term is either a single identifier or a list of expressions
+// such as "test" or (a + b) or (a+b;)
+term = _{
     "(" ~ statements? ~ ")" |
-	atom
+	ident
 }
 
-placeholders = _{ placeholder_with_index | placeholder }
+// operators
+multiplicative_operator = { "*" | "/" | "%" }
+additive_operator = { "+" | "-" | accessor_operator }
+accessor_operator = { "." }
 
+// expression
+// can consist of two levels, either multiplicative (prio) or additive
+// 1 + 2
+// 1 * 2
+// 1 * x(1)
+multiplicative_expression = { atom ~ (multiplicative_operator ~ atom)+ }
+additive_expression = { (multiplicative_expression | atom) ~ (additive_operator ~ (multiplicative_expression | atom))+ }
+expression  = { additive_expression | multiplicative_expression | atom }
+
+params = !{ "(" ~ statements ~ ")" }
+
+// apply
+// can apply a ident to a term or multiple terms to a term
+// test 42
+// test (1)
+// test (1)(2+2)
+apply = ${term ~ (WHITESPACE+ ~ ident | WHITESPACE* ~ params)+}
+
+// atom
+// can be either:
+// - term term
+// - term(term)
+// - term
+atom = _{ apply | term }
+
+
+// literal primitive values
+// makes sure truefalse is threaded as variable and not as literal literal
+// - true
+// - false
+// - null
+boolean = { "true" | "false" }
+null = { "null" }
+void = { "void" }
+reserved_literals = _{ boolean | null | void }
+literals = _{ reserved_literals ~ !ASCII_ALPHANUMERIC }
+
+
+// placeholder
+// can be the following:
+// - ?
+// - ?42
+placeholders = _{ placeholder_with_index | placeholder }
 placeholder_with_index = { "?" ~ ASCII_DIGIT+ }
 placeholder = { "?" }
 
-_literals = _{ boolean | null | void }
-
-literals = _{ _literals ~ !ASCII_ALPHANUMERIC }
-
-boolean = { "true" | "false" }
-
-null = { "null" }
-void = { "void" }
-
+// object
+// - {}
+// - { "x": 1, "y": 4 }
 object = {
     "{" ~ "}" |
     "{" ~ pair ~ ("," ~ pair)* ~ "}"
 }
-pair = { string ~ ":" ~ atom_with_parens }
 
+// pair
+// "test": 42
+pair = { string ~ ":" ~ term }
+
+// array
+// such as [1,2] or []
 array = {
     "[" ~ "]" |
-    "[" ~ atom_with_parens ~ ("," ~ atom_with_parens)* ~ "]"
+    "[" ~ term ~ ("," ~ term)* ~ "]"
 }
 
+// integer
+// such as 42
 integer = @{
     "-"?
     ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
 }
 
+// decimal
+// such as 4.2 or 4.
 decimal = @{
     "-"?
     ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
@@ -66,18 +107,23 @@ decimal = @{
 }
 
 
-string = ${ "\"" ~ inner ~ "\"" }
-inner = @{ char* }
-char = {
-    !("\"" | "\\") ~ ANY
-    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
-    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
-    | "\n"
-}
+// string
+// such as 'test' or "test" including proper escape literals
+string = { double_quoted_string | single_quoted_string }
+double_quoted_string = { "\"" ~ double_string_chunk* ~ "\"" }
+single_quoted_string = { "'" ~ single_string_chunk* ~ "'" }
+double_string_chunk = _{ escape_sequence | double_normal_chars }
+single_string_chunk = _{ escape_sequence | single_normal_chars }
+escape_sequence = { "\\" ~ ( "\"" | "'" | "\\" | "n" | "t" | "r" ) }
+double_normal_chars = { (!( "\"" | "\\" ) ~ ANY)+ }
+single_normal_chars = { (!( "'" | "\\" ) ~ ANY)+ }
 
+// variable
+// such as myvar
 variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-
+// statements
+// a single expression or chained expressions separated with ;
 statements = _{ expression ~ (";"+ ~ expression)* ~ (";")* }
 
-datex = _{ SOI ~ statements ~ EOI }
+datex = _{ SOI ~ statements? ~ EOI }
