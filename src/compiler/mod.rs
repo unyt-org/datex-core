@@ -299,6 +299,17 @@ fn parse_expression(
 
                 assert!(inner.next().is_none(), "Expected no more elements");
             }
+            Rule::multiplicative_expression => {
+                let mut inner = inner_expression.into_inner();
+                // lhs
+                parse_atom(compilation_scope, inner.next().unwrap());
+                // operator
+                parse_operator(compilation_scope, inner.next().unwrap());
+                // rhs
+                parse_atom(compilation_scope, inner.next().unwrap());
+
+                assert!(inner.next().is_none(), "Expected no more elements");
+            }
             e => unreachable!("Expected Rule::ident, but found {:?}", e),
         }
     }
@@ -312,7 +323,20 @@ fn parse_operator(
     let operator = pair.as_str();
     match pair.as_rule() {
         Rule::additive_operator => {
-            compilation_scope.append_binary_code(BinaryCode::ADD);
+            let binary_code = match operator {
+                "+" => BinaryCode::ADD,
+                "-" => BinaryCode::SUBTRACT,
+                _ => unreachable!("Expected + or -, but found {}", operator),
+            };
+            compilation_scope.append_binary_code(binary_code);
+        }
+        Rule::multiplicative_operator => {
+            let binary_code = match operator {
+                "*" => BinaryCode::MULTIPLY,
+                "/" => BinaryCode::DIVIDE,
+                _ => unreachable!("Expected * or /, but found {}", operator),
+            };
+            compilation_scope.append_binary_code(binary_code);
         }
         _ => unreachable!("Expected +, -, *, /, but found {}", operator),
     }
@@ -368,6 +392,50 @@ pub mod tests {
     }
 
     #[test]
+    fn test_simple_multiplication() {
+        init_logger();
+
+        let lhs: u8 = 1;
+        let rhs: u8 = 2;
+        let datex_script = format!("{lhs} * {rhs}"); // 1 * 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::MULTIPLY.into(),
+                BinaryCode::INT_8.into(),
+                rhs,
+                BinaryCode::SUBSCOPE_END.into()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_simple_addition() {
+        init_logger();
+
+        let lhs: u8 = 1;
+        let rhs: u8 = 2;
+        let datex_script = format!("{lhs} + {rhs}"); // 1 + 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::ADD.into(),
+                BinaryCode::INT_8.into(),
+                rhs,
+                BinaryCode::SUBSCOPE_END.into()
+            ]
+        );
+    }
+
+    #[test]
     fn test_complex_addition() {
         init_logger();
 
@@ -401,28 +469,6 @@ pub mod tests {
                 BinaryCode::SUBSCOPE_END.into(),
                 // )
                 BinaryCode::SUBSCOPE_END.into(),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_simple_addition() {
-        init_logger();
-
-        let lhs: u8 = 1;
-        let rhs: u8 = 2;
-        let datex_script = format!("{lhs} + {rhs}"); // 1 + 2
-        let result = compile_and_log(&datex_script);
-        assert_eq!(
-            result,
-            vec![
-                BinaryCode::SUBSCOPE_START.into(),
-                BinaryCode::INT_8.into(),
-                lhs,
-                BinaryCode::ADD.into(),
-                BinaryCode::INT_8.into(),
-                rhs,
-                BinaryCode::SUBSCOPE_END.into()
             ]
         );
     }
