@@ -1,4 +1,8 @@
-WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+NEWLINE = _{ "\n" | "\r\n" | "\r" }
+WHITESPACE = _{ " " | NEWLINE | comment | multiline_comment }
+
+comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
+multiline_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 // simple identifier such as primitive types or variables
 // such as 42 or []
