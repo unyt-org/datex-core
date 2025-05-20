@@ -240,6 +240,8 @@ fn parse_statements(
     for statement in pairs {
         match statement.as_rule() {
             Rule::expression => {
+                compilation_scope
+                    .append_binary_code(BinaryCode::SUBSCOPE_START);
                 parse_expression(&mut compilation_scope, statement);
                 compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_END);
             }
@@ -247,6 +249,26 @@ fn parse_statements(
                 //
             }
             _ => unreachable!(),
+        }
+    }
+}
+
+// apply | term (statements or ident)
+fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
+    match term.as_rule() {
+        Rule::ident => {
+            parse_ident(compilation_scope, term);
+        }
+        Rule::expression => {
+            compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_START);
+            parse_expression(compilation_scope, term);
+            compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_END);
+        }
+        _ => {
+            unreachable!(
+                "Expected Rule::ident, but found {:?}",
+                term.as_rule()
+            );
         }
     }
 }
@@ -262,12 +284,38 @@ fn parse_expression(
     );
 
     for inner_expression in expression.into_inner() {
+        // additive_expression | multiplicative_expression | atom (apply | term)
         match inner_expression.as_rule() {
             Rule::ident => {
                 parse_ident(compilation_scope, inner_expression);
             }
+            Rule::additive_expression => {
+                let mut inner = inner_expression.into_inner();
+                // lhs
+                parse_atom(compilation_scope, inner.next().unwrap());
+                // operator
+                parse_operator(compilation_scope, inner.next().unwrap());
+                // rhs
+                parse_atom(compilation_scope, inner.next().unwrap());
+
+                assert!(inner.next().is_none(), "Expected no more elements");
+            }
             e => unreachable!("Expected Rule::ident, but found {:?}", e),
         }
+    }
+}
+
+fn parse_operator(
+    compilation_scope: &mut CompilationScope,
+    pair: Pair<'_, Rule>,
+) {
+    // assert_eq!(pair.as_rule(), Rule::operator, "Expected Rule::operator");
+    let operator = pair.as_str();
+    match pair.as_rule() {
+        Rule::additive_operator => {
+            compilation_scope.append_binary_code(BinaryCode::ADD);
+        }
+        _ => unreachable!("Expected +, -, *, /, but found {}", operator),
     }
 }
 
@@ -306,17 +354,91 @@ pub mod tests {
     use crate::{global::binary_codes::BinaryCode, logger::init_logger};
     use log::*;
 
+    fn compile_and_log(datex_script: &str) -> Vec<u8> {
+        init_logger();
+        let result = super::compile_body(datex_script).unwrap();
+        debug!(
+            "{:?}",
+            result
+                .iter()
+                .map(|x| BinaryCode::try_from(*x).map(|x| x.to_string()))
+                .map(|x| x.unwrap_or_else(|_| "Unknown".to_string()))
+                .collect::<Vec<_>>()
+        );
+        result
+    }
+
+    #[test]
+    fn test_complex_addition() {
+        init_logger();
+
+        let a: u8 = 1;
+        let b: u8 = 2;
+        let c: u8 = 3;
+        let datex_script = format!("{a} + ({b} + {c})"); // 1 + (2 + 3)
+        let result = compile_and_log(&datex_script);
+
+        assert_eq!(
+            result,
+            vec![
+                // (
+                BinaryCode::SUBSCOPE_START.into(),
+                // a
+                BinaryCode::INT_8.into(),
+                a,
+                // +
+                BinaryCode::ADD.into(),
+                // (
+                BinaryCode::SUBSCOPE_START.into(),
+                // b
+                BinaryCode::INT_8.into(),
+                b,
+                // +
+                BinaryCode::ADD.into(),
+                // c
+                BinaryCode::INT_8.into(),
+                c,
+                // )
+                BinaryCode::SUBSCOPE_END.into(),
+                // )
+                BinaryCode::SUBSCOPE_END.into(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_simple_addition() {
+        init_logger();
+
+        let lhs: u8 = 1;
+        let rhs: u8 = 2;
+        let datex_script = format!("{lhs} + {rhs}"); // 1 + 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::ADD.into(),
+                BinaryCode::INT_8.into(),
+                rhs,
+                BinaryCode::SUBSCOPE_END.into()
+            ]
+        );
+    }
+
     // Test for integer/u8
     #[test]
     fn test_integer_u8() {
         init_logger();
         let val: u8 = 42;
         let datex_script = format!("{val}"); // 42
-        let result = super::compile_body(&datex_script).unwrap();
-        debug!("{:?}", result);
+        let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
+                BinaryCode::SUBSCOPE_START.into(),
                 BinaryCode::INT_8.into(),
                 val,
                 BinaryCode::SUBSCOPE_END.into()
@@ -330,10 +452,12 @@ pub mod tests {
         init_logger();
         let val = "unyt";
         let datex_script = format!("\"{val}\""); // "42"
-        let result = super::compile_body(&datex_script).unwrap();
-        debug!("{:?}", result);
-        let mut expected: Vec<u8> =
-            vec![BinaryCode::SHORT_TEXT.into(), val.len() as u8];
+        let result = compile_and_log(&datex_script);
+        let mut expected: Vec<u8> = vec![
+            BinaryCode::SUBSCOPE_START.into(),
+            BinaryCode::SHORT_TEXT.into(),
+            val.len() as u8,
+        ];
         expected.extend(val.bytes());
         expected.push(BinaryCode::SUBSCOPE_END.into());
         assert_eq!(result, expected);
