@@ -446,6 +446,25 @@ pub mod tests {
         );
     }
 
+    // Test for decimal
+    #[test]
+    fn test_decimal() {
+        init_logger();
+        let val: f64 = 42.1;
+        let datex_script = format!("{val}"); // 42.1
+        let result = compile_and_log(&datex_script);
+        let bytes = val.to_le_bytes();
+
+        let mut expected: Vec<u8> = vec![
+            BinaryCode::SUBSCOPE_START.into(),
+            BinaryCode::FLOAT_64.into(),
+        ];
+        expected.extend(bytes);
+        expected.push(BinaryCode::SUBSCOPE_END.into());
+
+        assert_eq!(result, expected);
+    }
+
     /// Test for test that is less than 256 characters
     #[test]
     fn test_short_text() {
