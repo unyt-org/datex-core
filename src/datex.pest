@@ -5,6 +5,7 @@ WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 ident = !{
 	object |
 	array |
+    tuple |
 	string |
 	decimal |
     integer |
@@ -88,6 +89,12 @@ pair = { string ~ ":" ~ term }
 array = {
     "[" ~ "]" |
     "[" ~ term ~ ("," ~ term)* ~ "]"
+}
+
+// tuple
+// such as (1, x) or (42, 42)
+tuple = {
+    "(" ~ term ~ ("," ~ term)+ ~ ")"
 }
 
 // integer
