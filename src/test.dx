@@ -4,8 +4,14 @@
 // array
 [1,2,x];
 
+// nested array
+[1,2, [1,2,[3,4, (1,4)]]];
+
 // tuple
 (1,2);
+
+// standalone tuple
+1,2
 
 // string
 "test";
@@ -26,3 +32,45 @@ false;
 
 // variable
 test;
+
+// basic apply
+test(42);
+// single apply
+test 4;
+// multiple apply
+test(42)(1,2) 3 (x + 1);
+test(1,2,3,(4,5));
+
+// apply tuple
+print 1,2,3;
+
+// property access
+x.y;
+x.y.z;
+x.(1+2);
+x."123";
+
+
+// property access with apply
+x.y();
+x.y.z(1,2)(3);
+x.y 4;
+
+// math operations
+1 + x;
+2+(1+2);
+3*4+5;
+3*(4+5);
+x.y + 5 * a.b();
+
+
+
+
+// TODO: think about linting rules to avoid crazy syntax like this
+if (true == 12 || false) (
+    42
+) else ()(2)()
+
+
+
+// --- invalid syntax ---

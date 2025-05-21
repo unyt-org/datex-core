@@ -13,12 +13,34 @@ use strum::Display;
     num_enum::IntoPrimitive,
 )]
 #[repr(u8)]
+
+// x = a * 2;
+// b();
+
+// x;
+// y;
+
+// SETCURRENTVAR #x;
+
+// ADD;
+// VAR a
+// INT 2 -> active
+
+// CLOSE_AND_STORE
+// APPLY
+// VAR b
+// TUPLE <-- apply
+// SCOPE_START
+// asdfasdf
+// SCOPE_END <- <actu
+
+
 pub enum BinaryCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
     CLOSE_AND_STORE = 0x01, // ;
-    SUBSCOPE_START = 0x02,  // (
-    SUBSCOPE_END = 0x03,    // )
+    SCOPE_START = 0x02,  // (
+    SCOPE_END = 0x03,    // )
     CACHE_POINT = 0x04,     // cache dxb from this point on
     CACHE_RESET = 0x05,     // reset dxb scope cache
 

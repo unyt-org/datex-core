@@ -1,3 +1,4 @@
+use std::cmp::PartialEq;
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
@@ -17,12 +18,15 @@ use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 
 pub mod parser;
+mod operations;
+
 use crate::datex_values::core_values::endpoint::Endpoint;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
+use crate::compiler::operations::parse_operator;
 
 #[derive(Debug, Display)]
 pub enum CompilationError {
@@ -218,8 +222,8 @@ impl<'a> CompilationScope<'a> {
     }
 }
 
-pub fn compile_body(datex_script: &str) -> Result<Vec<u8>, Error<Rule>> {
-    let pairs = DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
+pub fn compile_body(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
+    let pairs = DatexParser::parse(Rule::datex, datex_script).map_err(Box::new)?; //.next().unwrap();
 
     let mut buffer = Vec::with_capacity(256);
     let compilation_scope = CompilationScope {
@@ -237,32 +241,62 @@ fn parse_statements(
     pairs: Pairs<'_, Rule>,
 ) {
     for statement in pairs {
-        match statement.as_rule() {
-            Rule::expression => {
-                compilation_scope
-                    .append_binary_code(BinaryCode::SUBSCOPE_START);
-                parse_expression(&mut compilation_scope, statement);
-                compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_END);
-            }
-            Rule::EOI => {
-                //
-            }
-            _ => unreachable!(),
-        }
+        parse_atom(&mut compilation_scope, statement);
+        // match statement.as_rule() {
+        //     Rule::expression => {
+        //         parse_expression(&mut compilation_scope, statement);
+        //     }
+        //     Rule::EOI => {
+        //         //
+        //     }
+        //     _ => unreachable!(),
+        // }
     }
 }
 
 // apply | term (statements or ident)
 fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
     match term.as_rule() {
+        Rule::term => {
+            for inner in term.into_inner() {
+                parse_atom(compilation_scope, inner);
+            }
+        },
+        
         Rule::ident => {
             parse_ident(compilation_scope, term);
+        },
+        
+        Rule::level_1_operation | Rule::level_2_operation => {
+            let mut inner = inner_expression.into_inner();
+
+            let mut prev_operand = inner.next().unwrap();
+            let mut current_operator = None;
+
+            loop {
+                // every loop iteration: operator, operand
+                let operator = inner.next();
+                if let Some(operator) = operator {
+                    let operation_mode = parse_operator(operator);
+                    if current_operator != Some(operation_mode.clone()) {
+                        current_operator = Some(operation_mode.clone());
+                        compilation_scope.append_binary_code(operation_mode.into());
+                    }
+                    parse_atom(compilation_scope, prev_operand);
+                    prev_operand = inner.next().unwrap();
+                }
+                // no more operator, add last remaining operand
+                else {
+                    parse_atom(compilation_scope, prev_operand);
+                    break;
+                }
+            }
         }
-        Rule::expression => {
-            compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_START);
-            parse_expression(compilation_scope, term);
-            compilation_scope.append_binary_code(BinaryCode::SUBSCOPE_END);
-        }
+        // Rule::expression => {
+        //     compilation_scope.append_binary_code(BinaryCode::SCOPE_START);
+        //     parse_expression(compilation_scope, term);
+        //     compilation_scope.append_binary_code(BinaryCode::SCOPE_END);
+        // }
         _ => {
             unreachable!(
                 "Expected Rule::ident, but found {:?}",
@@ -282,65 +316,43 @@ fn parse_expression(
         "Expected Rule::expression"
     );
 
-    for inner_expression in expression.into_inner() {
+    for atom in expression.into_inner() {
         // additive_expression | multiplicative_expression | atom (apply | term)
-        match inner_expression.as_rule() {
+        match atom.as_rule() {
             Rule::ident => {
-                parse_ident(compilation_scope, inner_expression);
+                parse_ident(compilation_scope, atom);
             }
-            Rule::additive_expression => {
-                let mut inner = inner_expression.into_inner();
-                // lhs
-                parse_atom(compilation_scope, inner.next().unwrap());
-                // operator
-                parse_operator(compilation_scope, inner.next().unwrap());
-                // rhs
-                parse_atom(compilation_scope, inner.next().unwrap());
+            Rule::multiplicative_expression | Rule::additive_expression => {
+                let mut inner = atom.into_inner();
 
-                assert!(inner.next().is_none(), "Expected no more elements");
-            }
-            Rule::multiplicative_expression => {
-                let mut inner = inner_expression.into_inner();
-                // lhs
-                parse_atom(compilation_scope, inner.next().unwrap());
-                // operator
-                parse_operator(compilation_scope, inner.next().unwrap());
-                // rhs
-                parse_atom(compilation_scope, inner.next().unwrap());
+                let mut prev_operand = inner.next().unwrap();
+                let mut current_operator = None;
 
-                assert!(inner.next().is_none(), "Expected no more elements");
+                loop {
+                    // every loop iteration: operator, operand
+                    let operator = inner.next();
+                    if let Some(operator) = operator {
+                        let operation_mode = parse_operator(operator);
+                        if current_operator != Some(operation_mode.clone()) {
+                            current_operator = Some(operation_mode.clone());
+                            compilation_scope.append_binary_code(operation_mode.into());
+                        }
+                        parse_atom(compilation_scope, prev_operand);
+                        prev_operand = inner.next().unwrap();
+                    }
+                    // no more operator, add last remaining operand
+                    else {
+                        parse_atom(compilation_scope, prev_operand);
+                        break;
+                    }
+                }
             }
             e => unreachable!("Expected Rule::ident, but found {:?}", e),
         }
     }
 }
 
-fn parse_operator(
-    compilation_scope: &mut CompilationScope,
-    pair: Pair<'_, Rule>,
-) {
-    // assert_eq!(pair.as_rule(), Rule::operator, "Expected Rule::operator");
-    let operator = pair.as_str();
-    match pair.as_rule() {
-        Rule::additive_operator => {
-            let binary_code = match operator {
-                "+" => BinaryCode::ADD,
-                "-" => BinaryCode::SUBTRACT,
-                _ => unreachable!("Expected + or -, but found {}", operator),
-            };
-            compilation_scope.append_binary_code(binary_code);
-        }
-        Rule::multiplicative_operator => {
-            let binary_code = match operator {
-                "*" => BinaryCode::MULTIPLY,
-                "/" => BinaryCode::DIVIDE,
-                _ => unreachable!("Expected * or /, but found {}", operator),
-            };
-            compilation_scope.append_binary_code(binary_code);
-        }
-        _ => unreachable!("Expected +, -, *, /, but found {}", operator),
-    }
-}
+
 
 /// An ident can only contain a single value
 fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
@@ -402,13 +414,32 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                BinaryCode::SUBSCOPE_START.into(),
-                BinaryCode::INT_8.into(),
-                lhs,
                 BinaryCode::MULTIPLY.into(),
                 BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::INT_8.into(),
                 rhs,
-                BinaryCode::SUBSCOPE_END.into()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_simple_multiplication_close() {
+        init_logger();
+
+        let lhs: u8 = 1;
+        let rhs: u8 = 2;
+        let datex_script = format!("{lhs} * {rhs};"); // 1 * 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::MULTIPLY.into(),
+                BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::INT_8.into(),
+                rhs,
+                BinaryCode::CLOSE_AND_STORE.into()
             ]
         );
     }
@@ -424,13 +455,13 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::SCOPE_START.into(),
                 BinaryCode::INT_8.into(),
                 lhs,
                 BinaryCode::ADD.into(),
                 BinaryCode::INT_8.into(),
                 rhs,
-                BinaryCode::SUBSCOPE_END.into()
+                BinaryCode::SCOPE_END.into()
             ]
         );
     }
@@ -449,14 +480,14 @@ pub mod tests {
             result,
             vec![
                 // (
-                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::SCOPE_START.into(),
                 // a
                 BinaryCode::INT_8.into(),
                 a,
                 // +
                 BinaryCode::ADD.into(),
                 // (
-                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::SCOPE_START.into(),
                 // b
                 BinaryCode::INT_8.into(),
                 b,
@@ -466,9 +497,9 @@ pub mod tests {
                 BinaryCode::INT_8.into(),
                 c,
                 // )
-                BinaryCode::SUBSCOPE_END.into(),
+                BinaryCode::SCOPE_END.into(),
                 // )
-                BinaryCode::SUBSCOPE_END.into(),
+                BinaryCode::SCOPE_END.into(),
             ]
         );
     }
@@ -483,10 +514,10 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                BinaryCode::SUBSCOPE_START.into(),
+                BinaryCode::SCOPE_START.into(),
                 BinaryCode::INT_8.into(),
                 val,
-                BinaryCode::SUBSCOPE_END.into()
+                BinaryCode::SCOPE_END.into()
             ]
         );
     }
@@ -501,11 +532,11 @@ pub mod tests {
         let bytes = val.to_le_bytes();
 
         let mut expected: Vec<u8> = vec![
-            BinaryCode::SUBSCOPE_START.into(),
+            BinaryCode::SCOPE_START.into(),
             BinaryCode::FLOAT_64.into(),
         ];
         expected.extend(bytes);
-        expected.push(BinaryCode::SUBSCOPE_END.into());
+        expected.push(BinaryCode::SCOPE_END.into());
 
         assert_eq!(result, expected);
     }
@@ -518,12 +549,12 @@ pub mod tests {
         let datex_script = format!("\"{val}\""); // "42"
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            BinaryCode::SUBSCOPE_START.into(),
+            BinaryCode::SCOPE_START.into(),
             BinaryCode::SHORT_TEXT.into(),
             val.len() as u8,
         ];
         expected.extend(val.bytes());
-        expected.push(BinaryCode::SUBSCOPE_END.into());
+        expected.push(BinaryCode::SCOPE_END.into());
         assert_eq!(result, expected);
     }
 }

@@ -28,7 +28,7 @@ async fn receive_single_block() {
         // Create a single DXB block
         let mut block = DXBBlock {
             block_header: BlockHeader {
-                scope_id,
+                context_id,
                 flags_and_timestamp: FlagsAndTimestamp::new()
                     .with_is_end_of_section(true)
                     .with_is_end_of_scope(true),
@@ -89,7 +89,7 @@ async fn receive_multiple_blocks() {
         let mut blocks = vec![
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -105,7 +105,7 @@ async fn receive_multiple_blocks() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -193,7 +193,7 @@ async fn receive_multiple_blocks_wrong_order() {
         let mut blocks = vec![
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -209,7 +209,7 @@ async fn receive_multiple_blocks_wrong_order() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -296,7 +296,7 @@ async fn receive_multiple_sections() {
         let mut blocks = vec![
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_1,
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -312,7 +312,7 @@ async fn receive_multiple_sections() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_1,
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -328,7 +328,7 @@ async fn receive_multiple_sections() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_2,
                     block_number: 2,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -344,7 +344,7 @@ async fn receive_multiple_sections() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_2,
                     block_number: 3,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -473,7 +473,7 @@ async fn await_response_block() {
         // Create a single DXB block
         let mut block = DXBBlock {
             block_header: BlockHeader {
-                scope_id,
+                context_id,
                 section_index,
                 flags_and_timestamp: FlagsAndTimestamp::new()
                     .with_block_type(BlockType::Response)

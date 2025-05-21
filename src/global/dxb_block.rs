@@ -306,7 +306,7 @@ impl DXBBlock {
     pub fn get_endpoint_scope_id(&self) -> IncomingEndpointScopeId {
         IncomingEndpointScopeId {
             sender: self.routing_header.sender.clone(),
-            scope_id: self.block_header.scope_id,
+            scope_id: self.block_header.context_id,
         }
     }
 

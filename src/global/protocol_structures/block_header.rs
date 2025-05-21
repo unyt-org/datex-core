@@ -106,9 +106,10 @@ impl Default for FlagsAndTimestamp {
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct BlockHeader {
-    /// A unique id that defines the scope in which this block lives
-    /// A scope has a persistent state that can e.g. contain DATEX variables
-    pub scope_id: u32,
+    /// A unique id that defines the context in which this block lives
+    /// A context has a persistent state that can e.g. contain DATEX variables
+    /// TODO: rename scope everywhere to context
+    pub context_id: u32,
     /// A section is a collection of multiple sequential blocks inside the same scope
     /// (each with an incrementing block number)
     /// When a new section starts, the block number is not reset but continues to increment

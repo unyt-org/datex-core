@@ -350,7 +350,7 @@ impl ComHub {
             hops,
             &[sender.clone()],
             BlockType::TraceBack,
-            block.block_header.scope_id,
+            block.block_header.context_id,
             None
         );
 
@@ -455,7 +455,7 @@ impl ComHub {
             block_header: BlockHeader {
                 flags_and_timestamp: FlagsAndTimestamp::default()
                     .with_block_type(block_type),
-                scope_id,
+                context_id: scope_id,
                 ..BlockHeader::default()
             },
             ..DXBBlock::default()

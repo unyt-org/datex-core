@@ -129,7 +129,7 @@ impl BlockHandler {
 
     pub fn handle_incoming_block(&self, block: DXBBlock) {
         info!("Handling incoming block...");
-        let scope_id = block.block_header.scope_id;
+        let scope_id = block.block_header.context_id;
         let section_index = block.block_header.section_index;
         let block_number = block.block_header.block_number;
         let is_response = block
@@ -162,7 +162,7 @@ impl BlockHandler {
     /// Handles incoming response blocks by calling the observer if an observer is registered
     /// Returns true when the observer has consumed all blocks and should be removed
     fn handle_incoming_response_block(&self, block: DXBBlock) {
-        let scope_id = block.block_header.scope_id;
+        let scope_id = block.block_header.context_id;
         let endpoint_scope_id = IncomingEndpointScopeId {
             sender: block.routing_header.sender.clone(),
             scope_id,
@@ -201,7 +201,7 @@ impl BlockHandler {
             block.block_header.flags_and_timestamp.is_end_of_scope();
         let endpoint_scope_id = IncomingEndpointScopeId {
             sender: block.routing_header.sender.clone(),
-            scope_id: block.block_header.scope_id,
+            scope_id: block.block_header.context_id,
         };
 
         // get scope context if it already exists

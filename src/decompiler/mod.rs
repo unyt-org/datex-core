@@ -205,7 +205,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> String {
         // closing array, object, ...
         let is_closing = match code {
             BinaryCode::CLOSE_AND_STORE => true,
-            BinaryCode::SUBSCOPE_END => true,
+            BinaryCode::SCOPE_END => true,
             BinaryCode::ARRAY_END => true,
             BinaryCode::OBJECT_END => true,
             BinaryCode::TUPLE_END => true,

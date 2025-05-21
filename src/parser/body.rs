@@ -1092,18 +1092,18 @@ pub fn iterate_instructions<'a>(
                         _index.set(*index - 1);
                         break;
                     }
-                } else if token == BinaryCode::SUBSCOPE_START as u8 {
+                } else if token == BinaryCode::SCOPE_START as u8 {
                     yield Instruction {
-                        code: BinaryCode::SUBSCOPE_START,
+                        code: BinaryCode::SCOPE_START,
                         slot: None,
                         primitive_value: None,
                         value: None,
                         subscope_continue: true,
                     }
-                } else if token == BinaryCode::SUBSCOPE_END as u8 {
+                } else if token == BinaryCode::SCOPE_END as u8 {
                     if is_end_instruction.get() {
                         yield Instruction {
-                            code: BinaryCode::SUBSCOPE_END,
+                            code: BinaryCode::SCOPE_END,
                             slot: None,
                             primitive_value: None,
                             value: None,

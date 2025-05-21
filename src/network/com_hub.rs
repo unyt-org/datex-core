@@ -1311,7 +1311,7 @@ impl ComHub {
         block: DXBBlock,
         options: ResponseOptions,
     ) -> Vec<Result<Response, ResponseError>> {
-        let scope_id = block.block_header.scope_id;
+        let scope_id = block.block_header.context_id;
         let section_index = block.block_header.section_index;
 
         let has_exact_receiver_count = block.has_exact_receiver_count();

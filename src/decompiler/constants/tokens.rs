@@ -11,8 +11,8 @@ pub fn get_code_token(code: &BinaryCode, _formatted: bool) -> String {
         BinaryCode::OBJECT_END => "}".to_string(),
         BinaryCode::TUPLE_START => "(".to_string(),
         BinaryCode::TUPLE_END => ")".to_string(),
-        BinaryCode::SUBSCOPE_START => "(".to_string(),
-        BinaryCode::SUBSCOPE_END => ")".to_string(),
+        BinaryCode::SCOPE_START => "(".to_string(),
+        BinaryCode::SCOPE_END => ")".to_string(),
 
         BinaryCode::ADD => "+".to_string(),
         BinaryCode::SUBTRACT => "-".to_string(),

@@ -1,4 +1,3 @@
-NEWLINE = _{ "\n" | "\r\n" | "\r" }
 WHITESPACE = _{ " " | NEWLINE | comment | multiline_comment }
 
 comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
@@ -9,7 +8,6 @@ multiline_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 ident = !{
 	object |
 	array |
-    tuple |
 	text |
 	decimal |
     integer |
@@ -20,6 +18,7 @@ ident = !{
 
 // term is either a single identifier or a list of expressions
 // such as "test" or (a + b) or (a+b;)
+
 term = _{
     "(" ~ statements? ~ ")" |
 	ident
@@ -27,7 +26,7 @@ term = _{
 
 // operators
 multiplicative_operator = { "*" | "/" | "%" }
-additive_operator = { "+" | "-" | accessor_operator }
+additive_operator = { "+" | "-" }
 accessor_operator = { "." }
 
 // expression
@@ -35,25 +34,35 @@ accessor_operator = { "." }
 // 1 + 2
 // 1 * 2
 // 1 * x(1)
-multiplicative_expression = { atom ~ (multiplicative_operator ~ atom)+ }
-additive_expression = { (multiplicative_expression | atom) ~ (additive_operator ~ (multiplicative_expression | atom))+ }
-expression  = { additive_expression | multiplicative_expression | atom }
+//multiplicative_expression = { atom ~ (multiplicative_operator ~ atom)+ }
+//additive_expression = { (multiplicative_expression | atom) ~ (additive_operator ~ (multiplicative_expression | atom))+ }
 
-params = !{ "(" ~ statements ~ ")" }
+params = !{ "(" ~ statements? ~ ")" }
 
 // apply
 // can apply a ident to a term or multiple terms to a term
 // test 42
 // test (1)
 // test (1)(2+2)
-apply = ${term ~ (WHITESPACE+ ~ ident | WHITESPACE* ~ params)+}
+
+apply = ${("(" ~ statements? ~ ")" | level_0_operation | ident) ~ ((WHITESPACE+ ~ (tuple|ident)) | (WHITESPACE* ~ params))+}
+
+
+level_2_operation = !{(level_0_operation | level_1_operation | apply | term) ~ (additive_operator ~ (level_0_operation | level_1_operation | apply | term))+}
+level_1_operation = !{(level_0_operation | apply | term) ~ (multiplicative_operator ~ (level_0_operation | apply | term))+}
+level_0_operation = !{(term) ~ (accessor_operator ~ (term))+}
+
+assignment = !{ variable ~ "=" ~ expression }
 
 // atom
 // can be either:
 // - term term
 // - term(term)
 // - term
-atom = _{ apply | term }
+
+tuple = !{ term ~ "," ~ (term ~ ","?)+ }
+
+expression = _{ apply | level_2_operation | level_1_operation | level_0_operation | assignment | tuple | term }
 
 
 // literal primitive values
@@ -91,15 +100,14 @@ pair = { text ~ ":" ~ term }
 // array
 // such as [1,2] or []
 array = {
-    "[" ~ "]" |
-    "[" ~ term ~ ("," ~ term)* ~ "]"
+    "[" ~ tuple? ~ "]"
 }
 
 // tuple
 // such as (1, x) or (42, 42)
-tuple = {
-    "(" ~ term ~ ("," ~ term)+ ~ ")"
-}
+//tuple = {
+//    "(" ~ term ~ ("," ~ term)+ ~ ")"
+//}
 
 // integer
 // such as 42
