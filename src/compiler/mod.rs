@@ -1,4 +1,3 @@
-use std::cmp::PartialEq;
 use log::info;
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
