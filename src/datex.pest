@@ -148,10 +148,10 @@ single_normal_chars = { (!( "'" | "\\" ) ~ ANY)+ }
 // such as myvar
 variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-end_of_scope = { ";" }
+end_of_statement = { ";" }
 
 // statements
 // a single expression or chained expressions separated with ;
-statements = _{ expression ~ (end_of_scope+ ~ expression)* ~ end_of_scope* }
+statements = _{ expression ~ (end_of_statement+ ~ expression)* ~ end_of_statement* }
 
 datex = _{ SOI ~ statements? ~ EOI }

@@ -53,19 +53,3 @@ pub fn parse_operator(
         _ => unreachable!("Expected +, -, *, /, but found {}", operator),
     }
 }
-
-pub fn insert_operator(
-    operator: OperationMode,
-    operators: &mut Vec<OperationMode>,
-) {
-    if operators.is_empty() {
-        operators.push(operator);
-    } else {
-        let last_operator = operators.last().unwrap();
-        if operator == *last_operator {
-            operators.pop();
-        } else {
-            operators.push(operator);
-        }
-    }
-}

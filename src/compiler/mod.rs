@@ -245,20 +245,35 @@ fn parse_statements(
         match statement.as_rule() {
             Rule::EOI => {}
             _ => {
-                parse_atom(&mut compilation_scope, statement);
+                parse_atom(&mut compilation_scope, statement, false);
             }
         }
     }
 }
 
+fn rule_must_be_scoped(rule: Rule) -> bool {
+    matches!(rule, Rule::level_1_operation | Rule::level_2_operation)
+}
+
 // apply | term (statements or ident)
-fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
+fn parse_atom(
+    compilation_scope: &mut CompilationScope,
+    term: Pair<Rule>,
+    scope_required_for_complex_expressions: bool
+) {
     let rule = term.as_rule();
     info!(">> RULE {:?}", rule);
-    match term.as_rule() {
+
+    let scoped = scope_required_for_complex_expressions && rule_must_be_scoped(rule);
+
+    if scoped {
+        compilation_scope.append_binary_code(BinaryCode::SCOPE_START);
+    }
+
+    match rule {
         Rule::term => {
             for inner in term.into_inner() {
-                parse_atom(compilation_scope, inner);
+                parse_atom(compilation_scope, inner, true);
             }
         }
         Rule::ident => {
@@ -281,12 +296,12 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
                         compilation_scope
                             .append_binary_code(operation_mode.into());
                     }
-                    parse_atom(compilation_scope, prev_operand);
+                    parse_atom(compilation_scope, prev_operand, true);
                     prev_operand = inner.next().unwrap();
                 }
                 // no more operator, add last remaining operand
                 else {
-                    parse_atom(compilation_scope, prev_operand);
+                    parse_atom(compilation_scope, prev_operand, true);
                     break;
                 }
             }
@@ -296,8 +311,7 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
         //     parse_expression(compilation_scope, term);
         //     compilation_scope.append_binary_code(BinaryCode::SCOPE_END);
         // }
-        Rule::end_of_scope => {
-            info!("End of input");
+        Rule::end_of_statement => {
             compilation_scope.append_binary_code(BinaryCode::CLOSE_AND_STORE);
         }
 
@@ -307,6 +321,10 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
                 term.as_rule()
             );
         }
+    }
+
+    if scoped {
+        compilation_scope.append_binary_code(BinaryCode::SCOPE_END);
     }
 }
 
@@ -348,7 +366,7 @@ pub mod tests {
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
         let result = super::compile_body(datex_script).unwrap();
-        debug!(
+        info!(
             "{:?}",
             result
                 .iter()
@@ -435,6 +453,66 @@ pub mod tests {
     }
 
     #[test]
+    fn test_multi_addition() {
+        init_logger();
+
+        let op1: u8 = 1;
+        let op2: u8 = 2;
+        let op3: u8 = 3;
+        let op4: u8 = 4;
+
+        let datex_script = format!("{op1} + {op2} + {op3} + {op4}"); // 1 + 2 + 3 + 4
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::ADD.into(),
+                BinaryCode::INT_8.into(),
+                op1,
+                BinaryCode::INT_8.into(),
+                op2,
+                BinaryCode::INT_8.into(),
+                op3,
+                BinaryCode::INT_8.into(),
+                op4,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_mixed_calculation() {
+        init_logger();
+
+        let op1: u8 = 1;
+        let op2: u8 = 2;
+        let op3: u8 = 3;
+        let op4: u8 = 4;
+
+        let datex_script = format!("{op1} * {op2} + {op3} * {op4}"); // 1 + 2 + 3 + 4
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::ADD.into(),
+                BinaryCode::SCOPE_START.into(),
+                BinaryCode::MULTIPLY.into(),
+                BinaryCode::INT_8.into(),
+                op1,
+                BinaryCode::INT_8.into(),
+                op2,
+                BinaryCode::SCOPE_END.into(),
+                BinaryCode::SCOPE_START.into(),
+                BinaryCode::MULTIPLY.into(),
+                BinaryCode::INT_8.into(),
+                op3,
+                BinaryCode::INT_8.into(),
+                op4,
+                BinaryCode::SCOPE_END.into(),
+            ]
+        );
+    }
+
+    #[test]
     fn test_complex_addition() {
         init_logger();
 
@@ -447,26 +525,15 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                // (
-                BinaryCode::SCOPE_START.into(),
-                // a
+                BinaryCode::ADD.into(),
                 BinaryCode::INT_8.into(),
                 a,
-                // +
-                BinaryCode::ADD.into(),
-                // (
                 BinaryCode::SCOPE_START.into(),
-                // b
+                BinaryCode::ADD.into(),
                 BinaryCode::INT_8.into(),
                 b,
-                // +
-                BinaryCode::ADD.into(),
-                // c
                 BinaryCode::INT_8.into(),
                 c,
-                // )
-                BinaryCode::SCOPE_END.into(),
-                // )
                 BinaryCode::SCOPE_END.into(),
             ]
         );
@@ -482,10 +549,8 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                BinaryCode::SCOPE_START.into(),
                 BinaryCode::INT_8.into(),
                 val,
-                BinaryCode::SCOPE_END.into()
             ]
         );
     }
@@ -500,9 +565,8 @@ pub mod tests {
         let bytes = val.to_le_bytes();
 
         let mut expected: Vec<u8> =
-            vec![BinaryCode::SCOPE_START.into(), BinaryCode::FLOAT_64.into()];
+            vec![BinaryCode::FLOAT_64.into()];
         expected.extend(bytes);
-        expected.push(BinaryCode::SCOPE_END.into());
 
         assert_eq!(result, expected);
     }
@@ -515,12 +579,10 @@ pub mod tests {
         let datex_script = format!("\"{val}\""); // "42"
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            BinaryCode::SCOPE_START.into(),
             BinaryCode::SHORT_TEXT.into(),
             val.len() as u8,
         ];
         expected.extend(val.bytes());
-        expected.push(BinaryCode::SCOPE_END.into());
         assert_eq!(result, expected);
     }
 }
