@@ -50,11 +50,13 @@ x.y.z;
 x.(1+2);
 x."123";
 
-
 // property access with apply
 x.y();
 x.y.z(1,2)(3);
 x.y 4;
+x.y(1,2);
+x.y.z(1,2).a;
+
 
 // math operations
 1 + x;
@@ -64,6 +66,15 @@ x.y 4;
 x.y + 5 * a.b();
 
 
+// assignments
+x = 42;
+x = 42 + 1;
+x = 42 + x();
+
+x = (
+ y + 1;
+ result()
+)
 
 
 // TODO: think about linting rules to avoid crazy syntax like this

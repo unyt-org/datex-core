@@ -27,7 +27,6 @@ term = _{
 // operators
 multiplicative_operator = { "*" | "/" | "%" }
 additive_operator = { "+" | "-" }
-accessor_operator = { "." }
 
 // expression
 // can consist of two levels, either multiplicative (prio) or additive
@@ -37,32 +36,45 @@ accessor_operator = { "." }
 //multiplicative_expression = { atom ~ (multiplicative_operator ~ atom)+ }
 //additive_expression = { (multiplicative_expression | atom) ~ (additive_operator ~ (multiplicative_expression | atom))+ }
 
-params = !{ "(" ~ statements? ~ ")" }
 
 // apply
-// can apply a ident to a term or multiple terms to a term
-// test 42
-// test (1)
-// test (1)(2+2)
+// can apply a ident to a term or multiple terms to a term, or function as a property access
+// when prefixed with a dot
+// apply:
+//  test 42
+//  test (1)
+//  test (1)(2+2)
+// property access:
+//  test.x
+//  text.x.(y)
+// combined
+//  test.x(1,2)(3).y
+apply = ${("(" ~ statements? ~ ")" | ident) ~ ((WHITESPACE+ ~ (tuple|ident)) | (WHITESPACE* ~ params) | prop)+}
 
-apply = ${("(" ~ statements? ~ ")" | level_0_operation | ident) ~ ((WHITESPACE+ ~ (tuple|ident)) | (WHITESPACE* ~ params))+}
+// any property access (such as .y or .(1+2))
+prop = { WHITESPACE* ~ "." ~ term }
+// params used when applying a scope to a function (e.g. test(x+y) or test(1))
+params = !{ "(" ~ statements? ~ ")" }
 
+// additive operation
+level_2_operation = !{(level_1_operation | apply | term) ~ (additive_operator ~ (level_1_operation | apply | term))+}
+// multiplicative operation
+level_1_operation = !{(apply | term) ~ (multiplicative_operator ~ (apply | term))+}
 
-level_2_operation = !{(level_0_operation | level_1_operation | apply | term) ~ (additive_operator ~ (level_0_operation | level_1_operation | apply | term))+}
-level_1_operation = !{(level_0_operation | apply | term) ~ (multiplicative_operator ~ (level_0_operation | apply | term))+}
-level_0_operation = !{(term) ~ (accessor_operator ~ (term))+}
-
+// assignment operation
 assignment = !{ variable ~ "=" ~ expression }
 
-// atom
-// can be either:
-// - term term
-// - term(term)
-// - term
+
 
 tuple = !{ term ~ "," ~ (term ~ ","?)+ }
 
-expression = _{ apply | level_2_operation | level_1_operation | level_0_operation | assignment | tuple | term }
+// expression
+// can be either:
+// - any operation (apply, level_1_operation, level_2_operation)
+// - assignment
+// - tuple
+// - term
+expression = _{ level_2_operation | level_1_operation | apply | assignment | tuple | term }
 
 
 // literal primitive values
@@ -103,11 +115,6 @@ array = {
     "[" ~ tuple? ~ "]"
 }
 
-// tuple
-// such as (1, x) or (42, 42)
-//tuple = {
-//    "(" ~ term ~ ("," ~ term)+ ~ ")"
-//}
 
 // integer
 // such as 42
@@ -141,8 +148,10 @@ single_normal_chars = { (!( "'" | "\\" ) ~ ANY)+ }
 // such as myvar
 variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
+end_of_scope = { ";" }
+
 // statements
 // a single expression or chained expressions separated with ;
-statements = _{ expression ~ (";"+ ~ expression)* ~ (";")* }
+statements = _{ expression ~ (end_of_scope+ ~ expression)* ~ end_of_scope* }
 
 datex = _{ SOI ~ statements? ~ EOI }
