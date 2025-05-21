@@ -27,6 +27,8 @@ use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
+use crate::datex_values::value::{DatexValueInner, Value};
+use crate::datex_values::value_container::ValueContainer;
 
 #[derive(Debug, Display)]
 pub enum CompilationError {
@@ -34,8 +36,8 @@ pub enum CompilationError {
     SerializationError(binrw::Error),
 }
 
-pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
-    let body = compile_body(datex_script)
+pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
+    let body = compile(datex_script)
         .map_err(|e| CompilationError::InvalidRule(e.to_string()))?;
 
     let routing_header = RoutingHeader {
@@ -70,7 +72,9 @@ pub fn compile(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
 
 struct CompilationScope<'a> {
     index: usize,
+    inserted_value_index: usize,
     buffer: &'a mut Vec<u8>,
+    inserted_values: Vec<ValueContainer>
 }
 
 impl<'a> CompilationScope<'a> {
@@ -222,7 +226,19 @@ impl<'a> CompilationScope<'a> {
     }
 }
 
-pub fn compile_body(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
+/// Compiles a DATEX script text into a DXB body
+pub fn compile(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
+    compile_template(
+        datex_script,
+        vec![]
+    )
+}
+
+/// Compiles a DATEX script template text with inserted values into a DXB body
+pub fn compile_template(
+    datex_script: &str,
+    inserted_values: Vec<ValueContainer>,
+) -> Result<Vec<u8>, Box<Error<Rule>>> {
     let pairs =
         DatexParser::parse(Rule::datex, datex_script).map_err(Box::new)?; //.next().unwrap();
 
@@ -230,12 +246,32 @@ pub fn compile_body(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
     let compilation_scope = CompilationScope {
         buffer: &mut buffer,
         index: 0,
+        inserted_value_index: 0,
+        inserted_values,
     };
-
     parse_statements(compilation_scope, pairs);
 
     Ok(buffer)
 }
+
+/// Macro for compiling a DATEX script template text with inserted values into a DXB body,
+/// behaves like the format! macro.
+/// Example:
+/// ```
+/// compile!("x + {}", 42);
+/// compile!("{x} + {y}");
+macro_rules! compile {
+    ($fmt:literal $(, $arg:expr )* $(,)?) => {
+        {
+            let script: String = $fmt.into();
+            let values: Vec<$crate::datex_values::value_container::ValueContainer> = vec![$($arg.into()),*];
+
+            compile_template(&script, values)
+        }
+    }
+}
+
+
 
 fn parse_statements(
     mut compilation_scope: CompilationScope,
@@ -347,6 +383,23 @@ fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
             let inner_string = &string[1..string.len() - 1];
             compilation_scope.insert_string(inner_string);
         }
+        Rule::placeholder => {
+            let value_container = compilation_scope.inserted_values
+                .get(compilation_scope.inserted_value_index)
+                .unwrap(); // TODO: bubble up error
+            compilation_scope.inserted_value_index += 1;
+            match value_container {
+                ValueContainer::Value(val) => {
+                    match &val.inner {
+                        DatexValueInner::I8(val) => {
+                            compilation_scope.insert_int8(val.0);
+                        }
+                        _ => todo!(),
+                    }
+                }
+                _ => todo!(),
+            }
+        }
         _ => {
             unreachable!(
                 "Expected Rule::integer, Rule::decimal or Rule::text, but found {:?}",
@@ -358,14 +411,17 @@ fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::compiler::{compile, compile_template};
     use std::vec;
 
     use crate::{global::binary_codes::BinaryCode, logger::init_logger};
     use log::*;
+    use crate::datex_values::core_value::CoreValue;
+    use crate::datex_values::value::Value;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
-        let result = super::compile_body(datex_script).unwrap();
+        let result = super::compile(datex_script).unwrap();
         info!(
             "{:?}",
             result
@@ -380,6 +436,10 @@ pub mod tests {
     #[test]
     fn test_simple_multiplication() {
         init_logger();
+
+        // compile("", vec![Datex]);
+        //
+        // compile!("[{23}]");
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
@@ -584,5 +644,38 @@ pub mod tests {
         ];
         expected.extend(val.bytes());
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_compile() {
+        init_logger();
+        let result = compile_template(
+            "? + ?", vec![1.into(), 2.into()]);
+        assert_eq!(
+            result.unwrap(),
+            vec![
+                BinaryCode::ADD.into(),
+                BinaryCode::INT_8.into(),
+                1,
+                BinaryCode::INT_8.into(),
+                2
+            ]
+        );
+    }
+
+    #[test]
+    fn test_compile_macro() {
+        init_logger();
+        let result = compile!("? + ?", 1, 2);
+        assert_eq!(
+            result.unwrap(),
+            vec![
+                BinaryCode::ADD.into(),
+                BinaryCode::INT_8.into(),
+                1,
+                BinaryCode::INT_8.into(),
+                2
+            ]
+        );
     }
 }

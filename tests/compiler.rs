@@ -1,6 +1,6 @@
 use datex_core::{
     compiler::{
-        compile_body,
+        compile_block,
         parser::{DatexParser, Rule},
     },
     decompiler::decompile_body,
@@ -29,7 +29,7 @@ c";"#,
 }
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
-    let dxb_body = compile_body(datex_script).unwrap();
+    let dxb_body = compile_block(datex_script).unwrap();
 
     let decompiled = decompile_body(&dxb_body, false, false, false);
     let decompiled_color = decompile_body(&dxb_body, true, true, true);
@@ -40,7 +40,7 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 }
 
 fn compare_compiled(datex_script: &str, expected: &str) {
-    let dxb_body = compile_body(datex_script).unwrap();
+    let dxb_body = compile_block(datex_script).unwrap();
 
     let decompiled_color = decompile_body(&dxb_body, true, true, true);
     let decompiled = decompile_body(&dxb_body, false, false, false);
