@@ -1,4 +1,5 @@
 use std::cmp::PartialEq;
+use log::info;
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
@@ -256,19 +257,20 @@ fn parse_statements(
 
 // apply | term (statements or ident)
 fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
+    let rule = term.as_rule();
+    info!(">> RULE {:?}", rule);
     match term.as_rule() {
         Rule::term => {
             for inner in term.into_inner() {
                 parse_atom(compilation_scope, inner);
             }
         },
-        
         Rule::ident => {
             parse_ident(compilation_scope, term);
         },
-        
+
         Rule::level_1_operation | Rule::level_2_operation => {
-            let mut inner = inner_expression.into_inner();
+            let mut inner = term.into_inner();
 
             let mut prev_operand = inner.next().unwrap();
             let mut current_operator = None;
@@ -297,6 +299,11 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
         //     parse_expression(compilation_scope, term);
         //     compilation_scope.append_binary_code(BinaryCode::SCOPE_END);
         // }
+
+        Rule::EOI => {
+            info!("End of input");
+        }
+
         _ => {
             unreachable!(
                 "Expected Rule::ident, but found {:?}",
@@ -305,54 +312,6 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
         }
     }
 }
-
-fn parse_expression(
-    compilation_scope: &mut CompilationScope,
-    expression: Pair<Rule>,
-) {
-    assert_eq!(
-        expression.as_rule(),
-        Rule::expression,
-        "Expected Rule::expression"
-    );
-
-    for atom in expression.into_inner() {
-        // additive_expression | multiplicative_expression | atom (apply | term)
-        match atom.as_rule() {
-            Rule::ident => {
-                parse_ident(compilation_scope, atom);
-            }
-            Rule::multiplicative_expression | Rule::additive_expression => {
-                let mut inner = atom.into_inner();
-
-                let mut prev_operand = inner.next().unwrap();
-                let mut current_operator = None;
-
-                loop {
-                    // every loop iteration: operator, operand
-                    let operator = inner.next();
-                    if let Some(operator) = operator {
-                        let operation_mode = parse_operator(operator);
-                        if current_operator != Some(operation_mode.clone()) {
-                            current_operator = Some(operation_mode.clone());
-                            compilation_scope.append_binary_code(operation_mode.into());
-                        }
-                        parse_atom(compilation_scope, prev_operand);
-                        prev_operand = inner.next().unwrap();
-                    }
-                    // no more operator, add last remaining operand
-                    else {
-                        parse_atom(compilation_scope, prev_operand);
-                        break;
-                    }
-                }
-            }
-            e => unreachable!("Expected Rule::ident, but found {:?}", e),
-        }
-    }
-}
-
-
 
 /// An ident can only contain a single value
 fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
