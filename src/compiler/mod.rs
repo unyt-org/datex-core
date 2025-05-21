@@ -1,4 +1,3 @@
-use log::info;
 use crate::compiler::parser::DatexParser;
 use crate::compiler::parser::Rule;
 use crate::global::binary_codes::BinaryCode;
@@ -12,21 +11,22 @@ use crate::utils::buffers::append_i16;
 use crate::utils::buffers::append_i32;
 use crate::utils::buffers::append_i64;
 use crate::utils::buffers::append_i8;
+use log::info;
 use strum::Display;
 
 use crate::utils::buffers::append_u32;
 use crate::utils::buffers::append_u8;
 
-pub mod parser;
 mod operations;
+pub mod parser;
 
+use crate::compiler::operations::parse_operator;
 use crate::datex_values::core_values::endpoint::Endpoint;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 use regex::Regex;
-use crate::compiler::operations::parse_operator;
 
 #[derive(Debug, Display)]
 pub enum CompilationError {
@@ -223,7 +223,8 @@ impl<'a> CompilationScope<'a> {
 }
 
 pub fn compile_body(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
-    let pairs = DatexParser::parse(Rule::datex, datex_script).map_err(Box::new)?; //.next().unwrap();
+    let pairs =
+        DatexParser::parse(Rule::datex, datex_script).map_err(Box::new)?; //.next().unwrap();
 
     let mut buffer = Vec::with_capacity(256);
     let compilation_scope = CompilationScope {
@@ -241,16 +242,12 @@ fn parse_statements(
     pairs: Pairs<'_, Rule>,
 ) {
     for statement in pairs {
-        parse_atom(&mut compilation_scope, statement);
-        // match statement.as_rule() {
-        //     Rule::expression => {
-        //         parse_expression(&mut compilation_scope, statement);
-        //     }
-        //     Rule::EOI => {
-        //         //
-        //     }
-        //     _ => unreachable!(),
-        // }
+        match statement.as_rule() {
+            Rule::EOI => {}
+            _ => {
+                parse_atom(&mut compilation_scope, statement);
+            }
+        }
     }
 }
 
@@ -263,10 +260,10 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
             for inner in term.into_inner() {
                 parse_atom(compilation_scope, inner);
             }
-        },
+        }
         Rule::ident => {
             parse_ident(compilation_scope, term);
-        },
+        }
 
         Rule::level_1_operation | Rule::level_2_operation => {
             let mut inner = term.into_inner();
@@ -281,7 +278,8 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
                     let operation_mode = parse_operator(operator);
                     if current_operator != Some(operation_mode.clone()) {
                         current_operator = Some(operation_mode.clone());
-                        compilation_scope.append_binary_code(operation_mode.into());
+                        compilation_scope
+                            .append_binary_code(operation_mode.into());
                     }
                     parse_atom(compilation_scope, prev_operand);
                     prev_operand = inner.next().unwrap();
@@ -298,9 +296,9 @@ fn parse_atom(compilation_scope: &mut CompilationScope, term: Pair<Rule>) {
         //     parse_expression(compilation_scope, term);
         //     compilation_scope.append_binary_code(BinaryCode::SCOPE_END);
         // }
-
-        Rule::EOI => {
+        Rule::end_of_scope => {
             info!("End of input");
+            compilation_scope.append_binary_code(BinaryCode::CLOSE_AND_STORE);
         }
 
         _ => {
@@ -413,13 +411,25 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                BinaryCode::SCOPE_START.into(),
-                BinaryCode::INT_8.into(),
-                lhs,
                 BinaryCode::ADD.into(),
                 BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::INT_8.into(),
+                rhs
+            ]
+        );
+
+        let datex_script = format!("{lhs} + {rhs};"); // 1 + 2;
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                BinaryCode::ADD.into(),
+                BinaryCode::INT_8.into(),
+                lhs,
+                BinaryCode::INT_8.into(),
                 rhs,
-                BinaryCode::SCOPE_END.into()
+                BinaryCode::CLOSE_AND_STORE.into()
             ]
         );
     }
@@ -489,10 +499,8 @@ pub mod tests {
         let result = compile_and_log(&datex_script);
         let bytes = val.to_le_bytes();
 
-        let mut expected: Vec<u8> = vec![
-            BinaryCode::SCOPE_START.into(),
-            BinaryCode::FLOAT_64.into(),
-        ];
+        let mut expected: Vec<u8> =
+            vec![BinaryCode::SCOPE_START.into(), BinaryCode::FLOAT_64.into()];
         expected.extend(bytes);
         expected.push(BinaryCode::SCOPE_END.into());
 
