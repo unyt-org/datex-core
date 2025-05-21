@@ -1,7 +1,7 @@
 use crate::global::dxb_block::{
-    BlockId, DXBBlock, IncomingBlockNumber, IncomingEndpointScopeId,
-    IncomingScopeId, IncomingSection, IncomingSectionIndex, OutgoingScopeId,
-    OutgoingSectionIndex,
+    BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
+    IncomingEndpointContextId, IncomingSection, IncomingSectionIndex,
+    OutgoingContextId, OutgoingSectionIndex,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::global_context::get_global_context;
@@ -56,19 +56,19 @@ pub struct BlockHistoryData {
 }
 
 pub struct BlockHandler {
-    pub current_scope_id: RefCell<OutgoingScopeId>,
+    pub current_context_id: RefCell<OutgoingContextId>,
 
     /// a map of active request scopes for incoming blocks
-    pub block_cache: RefCell<HashMap<IncomingEndpointScopeId, ScopeContext>>,
+    pub block_cache: RefCell<HashMap<IncomingEndpointContextId, ScopeContext>>,
 
     /// a queue of incoming request scopes
     /// the scopes can be retrieved from the request_scopes map
     pub incoming_sections_queue: RefCell<VecDeque<IncomingSection>>,
 
-    /// a map of observers for incoming response blocks (by scope_id + block_index)
+    /// a map of observers for incoming response blocks (by context_id + block_index)
     /// contains an observer callback and an optional queue of blocks if the response block is a multi-block stream
     pub section_observers: RefCell<
-        HashMap<(IncomingScopeId, IncomingSectionIndex), SectionObserver>,
+        HashMap<(IncomingContextId, IncomingSectionIndex), SectionObserver>,
     >,
 
     /// history of all incoming blocks
@@ -84,7 +84,7 @@ impl Default for BlockHandler {
 impl BlockHandler {
     pub fn new() -> BlockHandler {
         BlockHandler {
-            current_scope_id: RefCell::new(0),
+            current_context_id: RefCell::new(0),
             block_cache: RefCell::new(HashMap::new()),
             incoming_sections_queue: RefCell::new(VecDeque::new()),
             section_observers: RefCell::new(HashMap::new()),
@@ -129,7 +129,7 @@ impl BlockHandler {
 
     pub fn handle_incoming_block(&self, block: DXBBlock) {
         info!("Handling incoming block...");
-        let scope_id = block.block_header.context_id;
+        let context_id = block.block_header.context_id;
         let section_index = block.block_header.section_index;
         let block_number = block.block_header.block_number;
         let is_response = block
@@ -138,7 +138,7 @@ impl BlockHandler {
             .block_type()
             .is_response();
 
-        info!("Received block (scope={scope_id}, section={section_index}, block_nr={block_number})");
+        info!("Received block (context={context_id}, section={section_index}, block_nr={block_number})");
 
         // handle observers if response block
         if is_response {
@@ -162,10 +162,10 @@ impl BlockHandler {
     /// Handles incoming response blocks by calling the observer if an observer is registered
     /// Returns true when the observer has consumed all blocks and should be removed
     fn handle_incoming_response_block(&self, block: DXBBlock) {
-        let scope_id = block.block_header.context_id;
-        let endpoint_scope_id = IncomingEndpointScopeId {
+        let context_id = block.block_header.context_id;
+        let endpoint_context_id = IncomingEndpointContextId {
             sender: block.routing_header.sender.clone(),
-            scope_id,
+            context_id,
         };
         let new_sections =
             self.extract_complete_sections_with_new_incoming_block(block);
@@ -176,13 +176,13 @@ impl BlockHandler {
             if let Some(observer) = self
                 .section_observers
                 .borrow_mut()
-                .get_mut(&(scope_id, section_index))
+                .get_mut(&(context_id, section_index))
             {
                 // call the observer with the new section
                 observer(section);
             } else {
                 // no observer for this scope id + block index
-                log::warn!("No observer for incoming response block (scope={endpoint_scope_id:?}, block={section_index}), dropping block");
+                log::warn!("No observer for incoming response block (scope={endpoint_context_id:?}, block={section_index}), dropping block");
             };
         }
     }
@@ -199,14 +199,14 @@ impl BlockHandler {
             block.block_header.flags_and_timestamp.is_end_of_section();
         let is_end_of_scope =
             block.block_header.flags_and_timestamp.is_end_of_scope();
-        let endpoint_scope_id = IncomingEndpointScopeId {
+        let endpoint_context_id = IncomingEndpointContextId {
             sender: block.routing_header.sender.clone(),
-            scope_id: block.block_header.context_id,
+            context_id: block.block_header.context_id,
         };
 
         // get scope context if it already exists
         let has_scope_context =
-            self.block_cache.borrow().contains_key(&endpoint_scope_id);
+            self.block_cache.borrow().contains_key(&endpoint_context_id);
 
         // Case 1: shortcut if no scope context exists and the block is a single block
         if !has_scope_context
@@ -218,8 +218,9 @@ impl BlockHandler {
 
         // make sure a scope context exists from here on
         let mut request_scopes = self.block_cache.borrow_mut();
-        let scope_context =
-            request_scopes.entry(endpoint_scope_id.clone()).or_default();
+        let scope_context = request_scopes
+            .entry(endpoint_context_id.clone())
+            .or_default();
 
         // TODO: what happens if the endpoint has not received all blocks starting with block_number 0?
         // we should still potentially process those blocks
@@ -264,7 +265,7 @@ impl BlockHandler {
 
                 // if end of scope, remove the scope context
                 if is_end_of_scope {
-                    request_scopes.remove(&endpoint_scope_id);
+                    request_scopes.remove(&endpoint_context_id);
                     break;
                 }
                 // cleanup if section is finished
@@ -320,16 +321,16 @@ impl BlockHandler {
         }
     }
 
-    pub fn get_new_scope_id(&self) -> OutgoingScopeId {
-        *self.current_scope_id.borrow_mut() += 1;
-        *self.current_scope_id.borrow()
+    pub fn get_new_context_id(&self) -> OutgoingContextId {
+        *self.current_context_id.borrow_mut() += 1;
+        *self.current_context_id.borrow()
     }
 
     /// Adds a new observer for incoming blocks with a specific scope id and block index
     /// Returns a receiver that can be awaited to get the incoming sections
     pub fn register_incoming_block_observer(
         &self,
-        scope_id: OutgoingScopeId,
+        context_id: OutgoingContextId,
         section_index: OutgoingSectionIndex,
     ) -> UnboundedReceiver<IncomingSection> {
         let (tx, rx) = mpsc::unbounded();
@@ -343,7 +344,7 @@ impl BlockHandler {
         // add new scope observer
         self.section_observers
             .borrow_mut()
-            .insert((scope_id, section_index), Box::new(observer));
+            .insert((context_id, section_index), Box::new(observer));
 
         rx
     }
@@ -351,10 +352,11 @@ impl BlockHandler {
     /// Waits for incoming response block with a specific scope id and block index
     pub async fn wait_for_incoming_response_block(
         &self,
-        scope_id: OutgoingScopeId,
+        context_id: OutgoingContextId,
         section_index: OutgoingSectionIndex,
     ) -> Option<IncomingSection> {
-        let rx = self.register_incoming_block_observer(scope_id, section_index);
+        let rx =
+            self.register_incoming_block_observer(context_id, section_index);
         // Await the result from the callback
         // FIXME
         None

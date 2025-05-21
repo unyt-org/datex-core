@@ -1311,7 +1311,7 @@ impl ComHub {
         block: DXBBlock,
         options: ResponseOptions,
     ) -> Vec<Result<Response, ResponseError>> {
-        let scope_id = block.block_header.context_id;
+        let context_id = block.block_header.context_id;
         let section_index = block.block_header.section_index;
 
         let has_exact_receiver_count = block.has_exact_receiver_count();
@@ -1380,7 +1380,7 @@ impl ComHub {
 
             let mut rx = self
                 .block_handler
-                .register_incoming_block_observer(scope_id, section_index);
+                .register_incoming_block_observer(context_id, section_index);
 
             let res = task::timeout(timeout, async {
                 while let Some(section) = rx.next().await {
@@ -1454,7 +1454,7 @@ impl ComHub {
             let mut responses = vec![];
 
             let res = task::timeout(timeout, async {
-                let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+                let mut rx = self.block_handler.register_incoming_block_observer(context_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
                     let sender = section

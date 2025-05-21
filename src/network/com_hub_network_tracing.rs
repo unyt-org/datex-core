@@ -1,8 +1,9 @@
 use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingScopeId};
+use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
+use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::network::com_hub::{ComHub, Response, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
@@ -13,7 +14,6 @@ use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
 use std::time::Duration;
-use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -52,7 +52,7 @@ pub struct NetworkTraceHop {
     pub socket: NetworkTraceHopSocket,
     pub direction: NetworkTraceHopDirection,
     pub fork_nr: String,
-    pub bounce_back: bool
+    pub bounce_back: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -191,9 +191,7 @@ pub struct TraceOptions {
 }
 
 impl TraceOptions {
-    fn new_with_endpoints(
-        endpoints: Vec<Endpoint>,
-    ) -> Self {
+    fn new_with_endpoints(endpoints: Vec<Endpoint>) -> Self {
         TraceOptions {
             endpoints,
             ..Default::default()
@@ -217,7 +215,9 @@ impl ComHub {
         &self,
         endpoint: impl Into<Endpoint>,
     ) -> Option<NetworkTraceResult> {
-        self.record_trace_multiple(vec![endpoint.into()]).await.pop()
+        self.record_trace_multiple(vec![endpoint.into()])
+            .await
+            .pop()
     }
 
     pub async fn record_trace_with_options(
@@ -231,31 +231,33 @@ impl ComHub {
         &self,
         endpoints: Vec<impl Into<Endpoint>>,
     ) -> Vec<NetworkTraceResult> {
-        self.record_trace_multiple_with_options(TraceOptions::new_with_endpoints(
-            endpoints
-                .into_iter()
-                .map(|endpoint| endpoint.into())
-                .collect::<Vec<Endpoint>>(),
-        )).await
+        self.record_trace_multiple_with_options(
+            TraceOptions::new_with_endpoints(
+                endpoints
+                    .into_iter()
+                    .map(|endpoint| endpoint.into())
+                    .collect::<Vec<Endpoint>>(),
+            ),
+        )
+        .await
     }
 
     pub async fn record_trace_multiple_with_options(
         &self,
         options: TraceOptions,
     ) -> Vec<NetworkTraceResult> {
-        let endpoints = options.endpoints
-            .into_iter()
-            .collect::<Vec<Endpoint>>();
+        let endpoints =
+            options.endpoints.into_iter().collect::<Vec<Endpoint>>();
 
         let trace_block = {
-            let scope_id = self.block_handler.get_new_scope_id();
+            let context_id = self.block_handler.get_new_context_id();
 
             self.create_trace_block(
                 vec![],
                 &endpoints,
                 BlockType::Trace,
-                scope_id,
-                options.max_hops
+                context_id,
+                options.max_hops,
             )
         };
 
@@ -265,7 +267,7 @@ impl ComHub {
         let responses = self
             .send_own_block_await_response(
                 trace_block,
-                options.response_options
+                options.response_options,
             )
             .await;
         let round_trip_time = start_time.elapsed();
@@ -274,8 +276,14 @@ impl ComHub {
 
         for response in responses {
             match response {
-                Ok(Response::ExactResponse(sender, IncomingSection::SingleBlock(block))) |
-                Ok(Response::ResolvedResponse(sender, IncomingSection::SingleBlock(block))) => {
+                Ok(Response::ExactResponse(
+                    sender,
+                    IncomingSection::SingleBlock(block),
+                ))
+                | Ok(Response::ResolvedResponse(
+                    sender,
+                    IncomingSection::SingleBlock(block),
+                )) => {
                     info!(
                         "Received trace block response from {}",
                         sender.clone()
@@ -294,12 +302,22 @@ impl ComHub {
                         continue;
                     }
                 }
-                Ok(Response::UnspecifiedResponse(IncomingSection::SingleBlock(_))) => {
+                Ok(Response::UnspecifiedResponse(
+                    IncomingSection::SingleBlock(_),
+                )) => {
                     error!("Failed to get trace data from block");
                 }
-                Ok(Response::ExactResponse(_, IncomingSection::BlockStream(_))) |
-                Ok(Response::ResolvedResponse( _, IncomingSection::BlockStream(_))) |
-                Ok(Response::UnspecifiedResponse(IncomingSection::BlockStream(_))) => {
+                Ok(Response::ExactResponse(
+                    _,
+                    IncomingSection::BlockStream(_),
+                ))
+                | Ok(Response::ResolvedResponse(
+                    _,
+                    IncomingSection::BlockStream(_),
+                ))
+                | Ok(Response::UnspecifiedResponse(
+                    IncomingSection::BlockStream(_),
+                )) => {
                     error!("Expected single block, but got block stream");
                     continue;
                 }
@@ -351,7 +369,7 @@ impl ComHub {
             &[sender.clone()],
             BlockType::TraceBack,
             block.block_header.context_id,
-            None
+            None,
         );
 
         // send trace back block
@@ -444,18 +462,18 @@ impl ComHub {
         hops: Vec<NetworkTraceHop>,
         receiver_endpoint: &[Endpoint],
         block_type: BlockType,
-        scope_id: OutgoingScopeId,
+        context_id: OutgoingContextId,
         max_hops: Option<usize>,
     ) -> DXBBlock {
         let mut trace_block = DXBBlock {
             routing_header: RoutingHeader {
                 ttl: max_hops.unwrap_or(42) as u8,
-              ..RoutingHeader::default()
+                ..RoutingHeader::default()
             },
             block_header: BlockHeader {
                 flags_and_timestamp: FlagsAndTimestamp::default()
                     .with_block_type(block_type),
-                context_id: scope_id,
+                context_id,
                 ..BlockHeader::default()
             },
             ..DXBBlock::default()

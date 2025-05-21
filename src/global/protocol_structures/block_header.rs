@@ -108,15 +108,14 @@ impl Default for FlagsAndTimestamp {
 pub struct BlockHeader {
     /// A unique id that defines the context in which this block lives
     /// A context has a persistent state that can e.g. contain DATEX variables
-    /// TODO: rename scope everywhere to context
     pub context_id: u32,
-    /// A section is a collection of multiple sequential blocks inside the same scope
+    /// A section is a collection of multiple sequential blocks inside the same context
     /// (each with an incrementing block number)
     /// When a new section starts, the block number is not reset but continues to increment
     pub section_index: u16,
-    /// A unique number that identifies a block inside a block scope
-    /// The scope_id combined with the block_number define a unique block from a specific endpoint
-    /// the block id (endpoint, scope_id, block_number) defines a globally unique block
+    /// A unique number that identifies a block inside a block context
+    /// The context_id combined with the block_number define a unique block from a specific endpoint
+    /// the block id (endpoint, context_id, block_number) defines a globally unique block
     /// Note: blocks ids are not completely unique, when the block_number or section_index overflows,
     /// it starts from 0 again, leading to duplicate block ids after a while
     pub block_number: u16,

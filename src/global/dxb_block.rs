@@ -50,10 +50,10 @@ const SIZE_BYTE_POSITION: usize = ROUTING_HEADER_FLAGS_POSITION + 1;
 const MAX_SIZE_BYTE_LENGTH: usize = 4;
 const ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION: u8 = 3;
 
-pub type IncomingScopeId = u32;
+pub type IncomingContextId = u32;
 pub type IncomingSectionIndex = u16;
 pub type IncomingBlockNumber = u16;
-pub type OutgoingScopeId = u32;
+pub type OutgoingContextId = u32;
 pub type OutgoingSectionIndex = u16;
 pub type OutgoingBlockNumber = u16;
 
@@ -90,15 +90,15 @@ impl IncomingSection {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct IncomingEndpointScopeId {
+pub struct IncomingEndpointContextId {
     pub sender: Endpoint,
-    pub scope_id: IncomingScopeId,
+    pub context_id: IncomingContextId,
 }
 
 /// An identifier that defines a globally unique block
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockId {
-    pub endpoint_scope_id: IncomingEndpointScopeId,
+    pub endpoint_context_id: IncomingEndpointContextId,
     pub current_section_index: IncomingSectionIndex,
     pub current_block_number: IncomingBlockNumber,
 }
@@ -303,16 +303,16 @@ impl DXBBlock {
         }
     }
 
-    pub fn get_endpoint_scope_id(&self) -> IncomingEndpointScopeId {
-        IncomingEndpointScopeId {
+    pub fn get_endpoint_context_id(&self) -> IncomingEndpointContextId {
+        IncomingEndpointContextId {
             sender: self.routing_header.sender.clone(),
-            scope_id: self.block_header.context_id,
+            context_id: self.block_header.context_id,
         }
     }
 
     pub fn get_block_id(&self) -> BlockId {
         BlockId {
-            endpoint_scope_id: self.get_endpoint_scope_id(),
+            endpoint_context_id: self.get_endpoint_context_id(),
             current_section_index: self.block_header.section_index,
             current_block_number: self.block_header.block_number,
         }
