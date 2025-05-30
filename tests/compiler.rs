@@ -10,27 +10,6 @@ use pest::Parser;
 use datex_core::compiler::bytecode::compile_script;
 use datex_core::logger::init_logger;
 
-#[test]
-pub fn compile_literals() {
-    init_logger();
-    compare_compiled_with_decompiled("42;");
-    compare_compiled_with_decompiled("4200000000000;");
-    // compare_compiled_with_decompiled("1.23;");
-    // compare_compiled_with_decompiled(r#""Hello World";"#);
-    // compare_compiled_with_decompiled(r#""ölz1中文";"#);
-    // compare_compiled_with_decompiled(r#""\\";"#);
-    // compare_compiled_with_decompiled(r#""\\\"";"#);
-    // compare_compiled_with_decompiled(r#""\n";"#);
-    // compare_compiled_with_decompiled(r#""\r\n";"#);
-    // compare_compiled_with_decompiled(r#""\t";"#);
-//     compare_compiled(
-//         r#""a
-// b
-// c";"#,
-//         "\"a\\nb\\nc\";",
-//     );
-}
-
 fn compare_compiled_with_decompiled(datex_script: &str) {
     let dxb_body = compile_script(datex_script).unwrap();
 
@@ -59,7 +38,28 @@ fn compare_compiled(datex_script: &str, expected: &str) {
 }
 
 #[test]
-pub fn compile_raw_tokens() {
-    let dxb = DatexParser::parse(Rule::datex, "1;2");
-    info!("{dxb:#?}");
+pub fn compile_literals() {
+    init_logger();
+    compare_compiled_with_decompiled("42;");
+    compare_compiled_with_decompiled("4200000000000;");
+    // compare_compiled_with_decompiled("1.23;");
+    // compare_compiled_with_decompiled(r#""Hello World";"#);
+    // compare_compiled_with_decompiled(r#""ölz1中文";"#);
+    // compare_compiled_with_decompiled(r#""\\";"#);
+    // compare_compiled_with_decompiled(r#""\\\"";"#);
+    // compare_compiled_with_decompiled(r#""\n";"#);
+    // compare_compiled_with_decompiled(r#""\r\n";"#);
+    // compare_compiled_with_decompiled(r#""\t";"#);
+    //     compare_compiled(
+    //         r#""a
+    // b
+    // c";"#,
+    //         "\"a\\nb\\nc\";",
+    //     );
+}
+
+#[test]
+pub fn compile_expressions() {
+    init_logger();
+    compare_compiled_with_decompiled("1 + 2;");
 }

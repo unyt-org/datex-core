@@ -153,6 +153,11 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::CLOSE_AND_STORE => {
                         Ok(Instruction::CloseAndStore)
                     }
+                    
+                    // operations
+                    InstructionCode::ADD => {
+                        Ok(Instruction::Add)
+                    }
 
                     _ => {
                         Err(ParserError::InvalidBinaryCode(instruction_code as u8))

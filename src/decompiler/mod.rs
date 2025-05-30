@@ -64,6 +64,7 @@ pub fn decompile_body(
         dxb_body,
         index: &Cell::from(0),
         is_end_instruction: &Cell::from(false),
+        active_operator: None,
 
         formatted,
         colorized,
@@ -104,6 +105,7 @@ fn int_to_label(n: i32) -> String {
 
 struct DecompilerGlobalState<'a> {
     // ctx
+    active_operator: Option<(Instruction, bool)>,
 
     // dxb
     dxb_body: &'a [u8],
@@ -183,20 +185,30 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
         
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
+                handle_before_operand(state, &mut output)?;
                 write!(output, "{i8}")?;
             }
             Instruction::Int16(Int16Data(i16)) => {
+                handle_before_operand(state, &mut output)?;
                 write!(output, "{i16}")?;
             }
             Instruction::Int32(Int32Data(i32)) => {
+                handle_before_operand(state, &mut output)?;
                 write!(output, "{i32}")?;
             }
             Instruction::Int64(Int64Data(i64)) => {
+                handle_before_operand(state, &mut output)?;
                 write!(output, "{i64}")?;
             }
             Instruction::CloseAndStore => {
                 write!(output, ";")?;
             }
+            
+            // operations
+            Instruction::Add => {
+                state.active_operator = Some((Instruction::Add, true));
+            }
+            
             _ => {
                 write!(output, "{instruction:?}")?;
             }
@@ -205,6 +217,27 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 
     Ok(output)
 }
+
+
+fn handle_before_operand(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
+    if let Some(operator) = &state.active_operator {
+        // handle the operator before the operand
+        match operator {
+            (_, true) => {
+                // if first is true, set to false
+                state.active_operator = Some((operator.0.clone(), false));
+            }
+            (Instruction::Add, _) => {
+                write!(output, " + ")?;
+            }
+            _ => {
+                panic!("Invalid operator: {:?}", operator);
+            }
+        }
+    }
+    Ok(())
+}
+
 //
 // fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserError> {
 //     let mut out: String = "".to_string();
