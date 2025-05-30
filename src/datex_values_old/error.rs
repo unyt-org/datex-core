@@ -1,5 +1,5 @@
 use super::{Value, ValueResult};
-use crate::global::binary_codes::BinaryCode;
+use crate::global::binary_codes::InstructionCode;
 use crate::stdlib::fmt;
 
 pub struct Error {
@@ -13,7 +13,7 @@ impl Value for Error {
 
     fn binary_operation(
         &self,
-        _code: BinaryCode,
+        _code: InstructionCode,
         _other: Box<dyn Value>,
     ) -> ValueResult {
         todo!()

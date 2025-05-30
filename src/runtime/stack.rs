@@ -1,9 +1,9 @@
 use log::info;
-
-use crate::datex_values_old::{Error, PrimitiveValue, Value, ValueResult};
+use crate::datex_values::value_container::ValueContainer;
+use crate::runtime::execution::ExecutionError;
 
 pub struct Stack {
-    stack: Vec<Box<dyn Value>>,
+    stack: Vec<ValueContainer>,
 }
 
 impl Stack {
@@ -16,7 +16,7 @@ impl Stack {
     pub fn print(&mut self) {
         info!("[CURRENT STACK]");
         for item in &self.stack {
-            info!("{}", &item.to_string())
+            info!("{:?}", &item)
         }
     }
 
@@ -24,27 +24,26 @@ impl Stack {
         self.stack.len()
     }
 
-    pub fn push(&mut self, value: Box<dyn Value>) {
+    pub fn push(&mut self, value: ValueContainer) {
         self.stack.push(value)
     }
 
-    pub fn pop(&mut self) -> ValueResult {
+    pub fn pop(&mut self) -> Result<ValueContainer, ExecutionError> {
         let value = self.stack.pop();
-        if value.is_some() {
-            Ok(value.unwrap())
-        } else {
-            Err(Error {
-                message: "stack error".to_string(),
-            })
+        if let Some(value) = value {
+            Ok(value)
+        }
+        else {
+            Err(ExecutionError::Unknown)
         }
     }
 
-    pub fn pop_or_void(&mut self) -> Box<dyn Value> {
+    pub fn pop_or_void(&mut self) -> ValueContainer {
         let value = self.stack.pop();
-        if value.is_some() {
-            value.unwrap()
+        if let Some(value) = value {
+            value
         } else {
-            Box::new(PrimitiveValue::Void)
+            ValueContainer::from(false) // TODO: return void
         }
     }
 }

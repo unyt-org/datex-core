@@ -1,6 +1,6 @@
 use crate::stdlib::fmt;
 
-use crate::global::binary_codes::BinaryCode;
+use crate::global::binary_codes::InstructionCode;
 
 use super::{Error, Type};
 
@@ -10,7 +10,7 @@ pub trait Value: mopa::Any {
     fn cast(&self, dx_type: Type) -> ValueResult;
     fn binary_operation(
         &self,
-        code: BinaryCode,
+        code: InstructionCode,
         other: Box<dyn Value>,
     ) -> ValueResult;
 }

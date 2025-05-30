@@ -35,7 +35,7 @@ use strum::Display;
 // SCOPE_END <- <actu
 
 
-pub enum BinaryCode {
+pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
     CLOSE_AND_STORE = 0x01, // ;

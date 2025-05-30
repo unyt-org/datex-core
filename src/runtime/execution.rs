@@ -4,157 +4,167 @@ use crate::stdlib::cell::Cell;
 
 use crate::{
     datex_values_old::{Error, PrimitiveValue, Type, Value, ValueResult},
-    global::binary_codes::BinaryCode,
+    global::binary_codes::InstructionCode,
     parser::body,
 };
-
+use crate::datex_values::value_container::ValueContainer;
+use crate::parser::body::ParserError;
 use super::stack::Stack;
 
-fn execute_body(dxb_body: &[u8]) -> ValueResult {
+fn execute_body(dxb_body: &[u8]) -> Result<ValueContainer, ExecutionError> {
     execute_loop(dxb_body, &Cell::from(0), &Cell::from(false))
+}
+
+
+pub enum ExecutionError {
+    ParserError(ParserError),
+    Unknown
+}
+
+impl From<ParserError> for ExecutionError {
+    fn from(error: ParserError) -> Self {
+        ExecutionError::ParserError(error)
+    }
 }
 
 fn execute_loop(
     dxb_body: &[u8],
     index: &Cell<usize>,
     is_end_instruction: &Cell<bool>,
-) -> ValueResult {
+) -> Result<ValueContainer, ExecutionError> {
     let mut stack: Stack = Stack::new();
 
     let instruction_iterator =
         body::iterate_instructions(dxb_body, index, is_end_instruction);
 
     for instruction in instruction_iterator {
-        debug!("{}", &instruction);
+        let instruction = instruction?;
+        debug!("{:?}", &instruction);
 
-        let code = instruction.code;
 
-        let _slot = instruction.slot.unwrap_or_default();
-        let has_primitive_value = instruction.primitive_value.is_some();
-        let has_value = instruction.value.is_some();
-
-        let error = match code {
-            BinaryCode::ADD => binary_operation(code, &mut stack),
-            BinaryCode::SUBTRACT => binary_operation(code, &mut stack),
-            BinaryCode::MULTIPLY => binary_operation(code, &mut stack),
-            BinaryCode::DIVIDE => binary_operation(code, &mut stack),
-            BinaryCode::MODULO => binary_operation(code, &mut stack),
-            BinaryCode::POWER => binary_operation(code, &mut stack),
-            BinaryCode::AND => binary_operation(code, &mut stack),
-            BinaryCode::OR => binary_operation(code, &mut stack),
-
-            BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack),
-
-            _ => {
-                // add value to stack
-
-                if has_value {
-                    let value = instruction
-                        .value
-                        .unwrap_or(Box::new(PrimitiveValue::Void));
-                    stack.push(value)
-                } else if has_primitive_value {
-                    let primitive_value =
-                        instruction.primitive_value.unwrap_or_default();
-                    stack.push(Box::new(primitive_value));
-                };
-                None
-            }
-        };
-
-        if error.is_some() {
-            let error_val = error.unwrap();
-            error!("error: {}", &error_val);
-            return Err(error_val);
-        }
+        // let _slot = instruction.slot.unwrap_or_default();
+        // let has_primitive_value = instruction.value.is_some();
+        // let has_value = instruction.value.is_some();
+        // // 
+        // let error = match code {
+        //     // BinaryCode::ADD => binary_operation(code, &mut stack),
+        //     // BinaryCode::SUBTRACT => binary_operation(code, &mut stack),
+        //     // BinaryCode::MULTIPLY => binary_operation(code, &mut stack),
+        //     // BinaryCode::DIVIDE => binary_operation(code, &mut stack),
+        //     // BinaryCode::MODULO => binary_operation(code, &mut stack),
+        //     // BinaryCode::POWER => binary_operation(code, &mut stack),
+        //     // BinaryCode::AND => binary_operation(code, &mut stack),
+        //     // BinaryCode::OR => binary_operation(code, &mut stack),
+        // 
+        //     // BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack),
+        // 
+        //     _ => {
+        //         // add value to stack
+        // 
+        //         // if has_value && let Some(value) = instruction.value{
+        //         //     stack.push(value)
+        //         // } else if has_primitive_value {
+        //         //     let primitive_value =
+        //         //         instruction.primitive_value.unwrap_or_default();
+        //         //     stack.push(Box::new(primitive_value));
+        //         // };
+        //         None
+        //     }
+        // };
+        // 
+        // if error.is_some() {
+        //     let error_val = error.unwrap();
+        //     error!("error: {}", &error_val);
+        //     return Err(ExecutionError::Unknown); //TODO
+        // }
 
         // enter new subscope - continue at index?
-        if instruction.subscope_continue {
-            let sub_result = execute_loop(dxb_body, index, is_end_instruction);
-
-            // propagate error from subscope
-            if sub_result.is_err() {
-                return Err(sub_result.err().unwrap());
-            }
-            // push subscope result to stack
-            else {
-                let res = sub_result.ok().unwrap();
-                info!("sub result: {res}");
-                stack.push(res);
-            }
-        }
+        // if instruction.subscope_continue {
+        //     let sub_result = execute_loop(dxb_body, index, is_end_instruction);
+        // 
+        //     // propagate error from subscope
+        //     if sub_result.is_err() {
+        //         return Err(sub_result.err().unwrap());
+        //     }
+        //     // push subscope result to stack
+        //     else {
+        //         let res = sub_result.ok().unwrap();
+        //         info!("sub result: {res:?}");
+        //         stack.push(res);
+        //     }
+        // }
     }
 
-    clear_stack(&mut stack);
+    // clear_stack(&mut stack);
 
     Ok(stack.pop_or_void())
 }
-
-// reset stack
-// clear from end and set final value as first stack value of new stack
-fn clear_stack(stack: &mut Stack) -> Option<Error> {
-    if stack.size() == 0 {
-        return None;
-    }; // nothing to clear
-
-    let mut current: Box<dyn Value> = stack.pop_or_void(); // get last stack value
-
-    while stack.size() != 0 {
-        let next = stack.pop_or_void();
-
-        // type cast
-        if next.is::<Type>() {
-            debug!("cast {next} {current}");
-            let dx_type = next.downcast::<Type>();
-            if dx_type.is_ok() {
-                let res = current.cast(*dx_type.ok().unwrap());
-                if res.is_ok() {
-                    current = res.ok().unwrap();
-                } else {
-                    return res.err();
-                }
-            } else {
-                return Some(Error {
-                    message: "rust downcasting error".to_string(),
-                });
-            }
-        }
-        // other apply
-        else {
-            debug!("apply {next} {current}");
-        }
-    }
-
-    stack.push(current);
-
-    None
-}
-
-// operator handlers
-
-fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
-    stack.print();
-
-    // pop 2 operands from stack
-    let _s1 = stack.pop();
-    if _s1.is_err() {
-        return _s1.err();
-    }
-    let s1 = _s1.ok().unwrap();
-
-    let _s2 = stack.pop();
-    if _s2.is_err() {
-        return _s2.err();
-    }
-    let s2 = _s2.ok().unwrap();
-
-    // binary operation
-    match s2.binary_operation(code, s1) {
-        Ok(result) => {
-            info!("binary op result: {result}");
-            stack.push(result);
-            None
-        }
-        Err(err) => Some(err),
-    }
-}
+//
+// // reset stack
+// // clear from end and set final value as first stack value of new stack
+// fn clear_stack(stack: &mut Stack) -> Option<Error> {
+//     if stack.size() == 0 {
+//         return None;
+//     }; // nothing to clear
+//
+//     let mut current: Box<dyn Value> = stack.pop_or_void(); // get last stack value
+//
+//     while stack.size() != 0 {
+//         let next = stack.pop_or_void();
+//
+//         // type cast
+//         if next.is::<Type>() {
+//             debug!("cast {next} {current}");
+//             let dx_type = next.downcast::<Type>();
+//             if dx_type.is_ok() {
+//                 let res = current.cast(*dx_type.ok().unwrap());
+//                 if res.is_ok() {
+//                     current = res.ok().unwrap();
+//                 } else {
+//                     return res.err();
+//                 }
+//             } else {
+//                 return Some(Error {
+//                     message: "rust downcasting error".to_string(),
+//                 });
+//             }
+//         }
+//         // other apply
+//         else {
+//             debug!("apply {next} {current}");
+//         }
+//     }
+//
+//     stack.push(current);
+//
+//     None
+// }
+//
+// // operator handlers
+//
+// fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
+//     stack.print();
+//
+//     // pop 2 operands from stack
+//     let _s1 = stack.pop();
+//     if _s1.is_err() {
+//         return _s1.err();
+//     }
+//     let s1 = _s1.ok().unwrap();
+//
+//     let _s2 = stack.pop();
+//     if _s2.is_err() {
+//         return _s2.err();
+//     }
+//     let s2 = _s2.ok().unwrap();
+//
+//     // binary operation
+//     match s2.binary_operation(code, s1) {
+//         Ok(result) => {
+//             info!("binary op result: {result}");
+//             stack.push(result);
+//             None
+//         }
+//         Err(err) => Some(err),
+//     }
+// }

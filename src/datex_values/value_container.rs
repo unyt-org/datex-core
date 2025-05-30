@@ -1,6 +1,6 @@
 use super::{pointer::Pointer, value::Value};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ValueContainer {
     Value(Value),
     Pointer(Pointer),

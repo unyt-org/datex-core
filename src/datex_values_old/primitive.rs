@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use num_bigint::BigInt;
 use regex::Regex;
 
-use crate::global::binary_codes::BinaryCode;
+use crate::global::binary_codes::InstructionCode;
 
 use super::{primitives::time::Time, Error, Quantity, Url, Value, ValueResult};
 
@@ -112,7 +112,7 @@ impl Value for PrimitiveValue {
 
     fn binary_operation(
         &self,
-        code: BinaryCode,
+        code: InstructionCode,
         other: Box<dyn Value>,
     ) -> ValueResult {
         if other.is::<PrimitiveValue>() {
@@ -121,12 +121,12 @@ impl Value for PrimitiveValue {
                 .expect("error casting stack value to primitive");
 
             return match match code {
-                BinaryCode::ADD => self.sum(other_prim),
-                BinaryCode::SUBTRACT => self.difference(other_prim),
-                BinaryCode::MULTIPLY => self.product(other_prim),
-                BinaryCode::DIVIDE => self.quotient(other_prim),
-                BinaryCode::MODULO => self.modulo(other_prim),
-                BinaryCode::POWER => self.power(other_prim),
+                InstructionCode::ADD => self.sum(other_prim),
+                InstructionCode::SUBTRACT => self.difference(other_prim),
+                InstructionCode::MULTIPLY => self.product(other_prim),
+                InstructionCode::DIVIDE => self.quotient(other_prim),
+                InstructionCode::MODULO => self.modulo(other_prim),
+                InstructionCode::POWER => self.power(other_prim),
 
                 _ => Err(Error {
                     message: "invalid binary operation".to_string(),

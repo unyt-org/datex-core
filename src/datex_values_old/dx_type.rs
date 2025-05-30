@@ -1,6 +1,6 @@
 use crate::stdlib::fmt;
 
-use crate::global::binary_codes::BinaryCode;
+use crate::global::binary_codes::InstructionCode;
 
 use super::{Value, ValueResult};
 
@@ -32,7 +32,7 @@ impl Value for Type {
 
     fn binary_operation(
         &self,
-        _code: BinaryCode,
+        _code: InstructionCode,
         _other: Box<dyn Value>,
     ) -> ValueResult {
         todo!()

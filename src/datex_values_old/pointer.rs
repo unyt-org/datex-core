@@ -1,7 +1,7 @@
 use super::{Value, ValueResult};
 use crate::stdlib::fmt;
 use crate::{
-    global::binary_codes::BinaryCode, utils::buffers::buffer_to_hex_advanced,
+    global::binary_codes::InstructionCode, utils::buffers::buffer_to_hex_advanced,
 };
 
 pub struct Pointer {
@@ -26,7 +26,7 @@ impl Value for Pointer {
 
     fn binary_operation(
         &self,
-        _code: BinaryCode,
+        _code: InstructionCode,
         _other: Box<dyn Value>,
     ) -> ValueResult {
         todo!()

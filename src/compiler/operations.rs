@@ -1,6 +1,6 @@
 use pest::iterators::Pair;
 use crate::compiler::parser::Rule;
-use crate::global::binary_codes::BinaryCode;
+use crate::global::binary_codes::InstructionCode;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OperationMode {
@@ -9,13 +9,13 @@ pub enum OperationMode {
     Multiply,
     Divide,
 }
-impl From<OperationMode> for BinaryCode {
+impl From<OperationMode> for InstructionCode {
     fn from(mode: OperationMode) -> Self {
         match mode {
-            OperationMode::Add => BinaryCode::ADD,
-            OperationMode::Subtract => BinaryCode::SUBTRACT,
-            OperationMode::Multiply => BinaryCode::MULTIPLY,
-            OperationMode::Divide => BinaryCode::DIVIDE,
+            OperationMode::Add => InstructionCode::ADD,
+            OperationMode::Subtract => InstructionCode::SUBTRACT,
+            OperationMode::Multiply => InstructionCode::MULTIPLY,
+            OperationMode::Divide => InstructionCode::DIVIDE,
         }
     }
 }

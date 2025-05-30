@@ -83,7 +83,7 @@ impl<V: CoreValue> From<&V> for DatexValueInner {
 
 #[derive(Clone)]
 pub struct Value {
-    pub inner: DatexValueInner, //Arc<dyn Value>,
+    pub inner: DatexValueInner,
     pub actual_type: Type, // custom type for the value that can not be changed
 }
 

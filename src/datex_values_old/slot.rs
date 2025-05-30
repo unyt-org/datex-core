@@ -1,6 +1,6 @@
 use crate::stdlib::fmt;
 
-#[derive(Clone, PartialEq, Eq, Default)]
+#[derive(Clone, PartialEq, Eq, Default, Debug)]
 pub struct SlotIdentifier {
     pub index: u16,
 }
