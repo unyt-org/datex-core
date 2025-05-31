@@ -28,15 +28,6 @@ term = _{
 multiplicative_operator = { "*" | "/" | "%" }
 additive_operator = { "+" | "-" }
 
-// expression
-// can consist of two levels, either multiplicative (prio) or additive
-// 1 + 2
-// 1 * 2
-// 1 * x(1)
-//multiplicative_expression = { atom ~ (multiplicative_operator ~ atom)+ }
-//additive_expression = { (multiplicative_expression | atom) ~ (additive_operator ~ (multiplicative_expression | atom))+ }
-
-
 // apply
 // can apply a ident to a term or multiple terms to a term, or function as a property access
 // when prefixed with a dot
@@ -64,17 +55,35 @@ level_1_operation = !{(apply | term) ~ (multiplicative_operator ~ (apply | term)
 // assignment operation
 assignment = !{ variable ~ "=" ~ expression }
 
-
-
-tuple = !{ term ~ "," ~ (term ~ ","?)+ }
+// declaration operation
+var_type = {"val" |"ref"}
+type_declaration = { ":" ~ inline_expression }
+declaration = !{ var_type ~ variable ~ type_declaration? ~ "=" ~ expression }
 
 // expression
 // can be either:
 // - any operation (apply, level_1_operation, level_2_operation)
 // - assignment
+// - declaration
 // - tuple
 // - term
-expression = _{ level_2_operation | level_1_operation | apply | assignment | tuple | term }
+expression = _{ declaration | level_2_operation | level_1_operation | apply | assignment | tuple | term }
+expression_without_tuple = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term }
+expression_with_key_value = _{ declaration | level_2_operation | level_1_operation | apply | assignment | key_value | term }
+
+// expression that can used inline at all locations (e.g. type declarations). TODO improve this concept
+inline_expression = _{ declaration | level_2_operation | level_1_operation | apply | term }
+
+// tuple
+// combination of 2-n expressions, separated with a ",", with optional keys
+// a single key-value pair (e.g. "a: 4") is also interpreted as a tuple
+literal_key = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+key = _{text | literal_key}
+key_value = { key ~ ":" ~ expression_without_tuple}
+tuple_element = _{key_value | expression_without_tuple}
+tuple = !{ (tuple_element ~ "," ~ (tuple_element ~ ","?)+) | (key_value ~ ","?) }
+keyed_tuple = !{ (key_value ~ "," ~ (key_value ~ ","?)+) | (key_value ~ ","?) }
+indexed_tuple = !{ (expression_with_key_value ~ "," ~ (expression_with_key_value ~ ","?)+) | (expression_with_key_value ~ ","?) }
 
 
 // literal primitive values
@@ -100,10 +109,7 @@ placeholder = { "?" }
 // object
 // - {}
 // - { "x": 1, "y": 4 }
-object = {
-    "{" ~ "}" |
-    "{" ~ pair ~ ("," ~ pair)* ~ "}"
-}
+object = { "{" ~ keyed_tuple? ~ "}"}
 
 // pair
 // "test": 42
@@ -112,7 +118,7 @@ pair = { text ~ ":" ~ term }
 // array
 // such as [1,2] or []
 array = {
-    "[" ~ tuple? ~ "]"
+    "[" ~ (indexed_tuple)? ~ "]"
 }
 
 
@@ -141,8 +147,8 @@ single_quoted_text = { "'" ~ single_text_chunk* ~ "'" }
 double_text_chunk = _{ escape_sequence | double_normal_chars }
 single_text_chunk = _{ escape_sequence | single_normal_chars }
 escape_sequence = { "\\" ~ ( "\"" | "'" | "\\" | "n" | "t" | "r" ) }
-double_normal_chars = { (!( "\"" | "\\" ) ~ ANY)+ }
-single_normal_chars = { (!( "'" | "\\" ) ~ ANY)+ }
+double_normal_chars = _{ (!( "\"" | "\\" ) ~ ANY)+ }
+single_normal_chars = _{ (!( "'" | "\\" ) ~ ANY)+ }
 
 // variable
 // such as myvar
