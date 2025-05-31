@@ -12,7 +12,7 @@ use log::info;
 use regex::Regex;
 
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{Instruction, Int16Data, Int32Data, Int64Data, Int8Data};
+use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use self::constants::tokens::get_code_color;
@@ -172,7 +172,7 @@ impl DecompilerGlobalState<'_> {
 fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserError> {
 
     let mut output = String::new();
-    
+
     let instruction_iterator = body::iterate_instructions(
         state.dxb_body,
         state.index,
@@ -182,7 +182,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
     for instruction in instruction_iterator {
         let instruction = instruction?;
         info!("decompile instruction: {:?}", instruction);
-        
+
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
                 handle_before_operand(state, &mut output)?;
@@ -200,15 +200,31 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
                 handle_before_operand(state, &mut output)?;
                 write!(output, "{i64}")?;
             }
+            Instruction::Float64(Float64Data(f64)) => {
+                handle_before_operand(state, &mut output)?;
+                write!(output, "{f64}")?;
+            }
+            Instruction::ShortText(ShortTextData(text)) => {
+                handle_before_operand(state, &mut output)?;
+                let text = escape_text(&text);
+                write!(output, "\"{text}\"")?;
+            }
+            Instruction::Text(TextData(text)) => {
+                handle_before_operand(state, &mut output)?;
+                let text = escape_text(&text);
+                write!(output, "\"{text}\"")?;
+            }
+
+
             Instruction::CloseAndStore => {
                 write!(output, ";")?;
             }
-            
+
             // operations
             Instruction::Add => {
                 state.active_operator = Some((Instruction::Add, true));
             }
-            
+
             _ => {
                 write!(output, "{instruction:?}")?;
             }
@@ -216,6 +232,19 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
     }
 
     Ok(output)
+}
+
+fn escape_text(text: &str) -> String {
+    // escape quotes and backslashes in text
+    text
+        .replace('\\', r#"\\"#)
+        .replace('"', r#"\""#)
+        .replace('\u{0008}', r#"\b"#)
+        .replace('\u{000c}', r#"\f"#)
+        .replace('\r', r#"\r"#)
+        .replace('\t', r#"\t"#)
+        .replace('\u{000b}', r#"\v"#)
+        .replace('\n', r#"\n"#)
 }
 
 

@@ -42,24 +42,26 @@ pub fn compile_literals() {
     init_logger();
     compare_compiled_with_decompiled("42;");
     compare_compiled_with_decompiled("4200000000000;");
-    // compare_compiled_with_decompiled("1.23;");
-    // compare_compiled_with_decompiled(r#""Hello World";"#);
-    // compare_compiled_with_decompiled(r#""ölz1中文";"#);
-    // compare_compiled_with_decompiled(r#""\\";"#);
-    // compare_compiled_with_decompiled(r#""\\\"";"#);
-    // compare_compiled_with_decompiled(r#""\n";"#);
-    // compare_compiled_with_decompiled(r#""\r\n";"#);
-    // compare_compiled_with_decompiled(r#""\t";"#);
-    //     compare_compiled(
-    //         r#""a
-    // b
-    // c";"#,
-    //         "\"a\\nb\\nc\";",
-    //     );
+    compare_compiled_with_decompiled("1.23;");
+    compare_compiled_with_decompiled(r#""Hello World";"#);
+    compare_compiled_with_decompiled(r#""ölz1中文";"#);
+    compare_compiled_with_decompiled(r#""\\";"#);
+    compare_compiled_with_decompiled(r#""\\\"";"#);
+    compare_compiled_with_decompiled(r#""\n";"#);
+    compare_compiled_with_decompiled(r#""\r\n";"#);
+    compare_compiled_with_decompiled(r#""\t";"#);
+    compare_compiled(
+            r#""a
+b
+c";"#,
+            "\"a\\nb\\nc\";",
+        );
 }
+
 
 #[test]
 pub fn compile_expressions() {
     init_logger();
     compare_compiled_with_decompiled("1 + 2;");
+    compare_compiled_with_decompiled("[1, 2]");
 }

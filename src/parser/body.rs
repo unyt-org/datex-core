@@ -9,7 +9,7 @@ use crate::datex_values_old::{
     Time, Type, Url,
 };
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{Instruction, Int16Data, Int32Data, Int64Data, Int8Data};
+use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
 use crate::utils::buffers;
 
 fn extract_slot_identifier(
@@ -76,6 +76,7 @@ pub enum ParserError {
     FailedToReadInstructionCode,
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
+    FromUtf8Error(std::string::FromUtf8Error),
 }
 
 impl From<fmt::Error> for ParserError {
@@ -87,6 +88,12 @@ impl From<fmt::Error> for ParserError {
 impl From<binrw::Error> for ParserError {
     fn from(error: binrw::Error) -> Self {
         ParserError::BinRwError(error)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for ParserError {
+    fn from(error: std::string::FromUtf8Error) -> Self {
+        ParserError::FromUtf8Error(error)
     }
 }
 
@@ -148,6 +155,46 @@ pub fn iterate_instructions<'a>(
                         let data = Int64Data::read(&mut reader);
                         if let Err(err) = data { Err(err.into()) }
                         else { Ok(Instruction::Int64(data.unwrap())) }
+                    }
+                    
+                    InstructionCode::FLOAT_64 => {
+                        let data = Float64Data::read(&mut reader);
+                        if let Err(err) = data { Err(err.into()) }
+                        else { Ok(Instruction::Float64(data.unwrap())) }
+                    }
+                    
+                    InstructionCode::SHORT_TEXT => {
+                        let raw_data = ShortTextDataRaw::read(&mut reader);
+                        if let Err(err) = raw_data {
+                            Err(err.into())
+                        } else {
+                            let raw_data = raw_data.unwrap();
+                            let text = String::from_utf8(raw_data.text);
+                            if let Err(err) = text {
+                                Err(err.into())
+                            }
+                            else {
+                                let text = text.unwrap();
+                                Ok(Instruction::ShortText(ShortTextData(text)))
+                            }
+                        }
+                    }
+                    
+                    InstructionCode::TEXT => {
+                        let raw_data = TextDataRaw::read(&mut reader);
+                        if let Err(err) = raw_data {
+                            Err(err.into())
+                        } else {
+                            let raw_data = raw_data.unwrap();
+                            let text = String::from_utf8(raw_data.text);
+                            if let Err(err) = text {
+                                Err(err.into())
+                            }
+                            else {
+                                let text = text.unwrap();
+                                Ok(Instruction::Text(TextData(text)))
+                            }
+                        }
                     }
                     
                     InstructionCode::CLOSE_AND_STORE => {
