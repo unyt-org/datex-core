@@ -69,7 +69,7 @@ declaration = !{ var_type ~ variable ~ type_declaration? ~ "=" ~ expression }
 // - term_or_scope
 expression = _{ declaration | level_2_operation | level_1_operation | apply | assignment | tuple | term_or_scope }
 expression_without_tuple = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term_or_scope }
-expression_with_key_value = _{ declaration | level_2_operation | level_1_operation | apply | assignment | key_value | term_or_scope }
+expression_without_keys = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term_or_scope }
 
 // expression that can used inline at all locations (e.g. type declarations). TODO improve this concept
 inline_expression = _{ declaration | level_2_operation | level_1_operation | apply | term_or_scope }
@@ -83,7 +83,7 @@ key_value = { key ~ ":" ~ expression_without_tuple}
 tuple_element = _{key_value | expression_without_tuple}
 tuple = !{ (tuple_element ~ "," ~ (tuple_element ~ ","?)+) | (key_value ~ ","?) }
 keyed_tuple = _{ (key_value ~ "," ~ (key_value ~ ","?)+) | (key_value ~ ","?) }
-indexed_tuple = _{ (expression_with_key_value ~ "," ~ (expression_with_key_value ~ ","?)+) | (expression_with_key_value ~ ","?) }
+indexed_tuple = _{ (expression_without_keys ~ "," ~ (expression_without_keys ~ ","?)+) | (expression_without_keys ~ ","?) }
 
 
 // literal primitive values

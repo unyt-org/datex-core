@@ -56,7 +56,7 @@ pub fn compile_literals() {
 b
 c";"#,
             "\"a\\nb\\nc\";",
-        );
+    );
     compare_compiled_with_decompiled("true");
     compare_compiled_with_decompiled("false");
     compare_compiled_with_decompiled("null");
