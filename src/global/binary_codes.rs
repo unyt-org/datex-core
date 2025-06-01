@@ -249,11 +249,11 @@ pub enum InstructionCode {
     OBJECT_END = 0xe3,
     TUPLE_START = 0xe4, // (a,b,c)
     TUPLE_END = 0xe5,
-    ELEMENT_WITH_KEY = 0xe6,     // for object elements
-    ELEMENT_WITH_INT_KEY = 0xe7, // for array elements
-    ELEMENT_WITH_DYNAMIC_KEY = 0xe8, // for object elements with dynamic key
-    KEY_PERMISSION = 0xe9,       // for object elements with permission prefix
-    ELEMENT = 0xea,              // for array elements
+    KEY_VALUE_SHORT_TEXT = 0xe6,
+    KEY_VALUE_TEXT = 0xe7,   
+    // KEY_VALUE_INTEGER = 0xe8, // for array elements
+    KEY_VALUE_DYNAMIC = 0xe9, // for object elements with dynamic key
+    KEY_PERMISSION = 0xea,       // for object elements with permission prefix
     INTERNAL_OBJECT_SLOT = 0xef, // for object internal slots
 
     // special instructions 0xf0 - 0xff

@@ -8,12 +8,13 @@ use datex_core::{
 use log::info;
 use pest::Parser;
 use datex_core::compiler::bytecode::compile_script;
+use datex_core::decompiler::DecompileOptions;
 use datex_core::logger::init_logger;
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
     let dxb_body = compile_script(datex_script).unwrap();
 
-    let decompiled = decompile_body(&dxb_body, false, false, false)
+    let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
     // let decompiled_color = decompile_body(&dxb_body, true, true, true)
     //     .unwrap_or_else(|err| panic!("Failed to decompile with color: {err:?}"));
@@ -26,9 +27,9 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 fn compare_compiled(datex_script: &str, expected: &str) {
     let dxb_body = compile_script(datex_script).unwrap();
 
-    let decompiled_color = decompile_body(&dxb_body, true, true, true)
+    let decompiled_color = decompile_body(&dxb_body, DecompileOptions {formatted: true, colorized: true, resolve_slots: true})
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
-    let decompiled = decompile_body(&dxb_body, false, false, false)
+    let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
 
     info!("original   : {datex_script}");
@@ -62,6 +63,10 @@ c";"#,
 #[test]
 pub fn compile_expressions() {
     init_logger();
-    compare_compiled_with_decompiled("1 + 2;");
-    compare_compiled_with_decompiled("[1, 2]");
+    compare_compiled_with_decompiled("1+2;");
+    compare_compiled_with_decompiled("[1,2]");
+    compare_compiled("[1,2,3+4]","[1,2,(3+4)]");
+    compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
+    compare_compiled_with_decompiled("(1,2,[3],[4,5],6)");
+    compare_compiled("1,2,[3],[4,5],6", "(1,2,[3],[4,5],6)");
 }

@@ -8,6 +8,7 @@ use crate::datex_values_old::{
     BaseUnit, Pointer, PrimitiveValue, Quantity, SlotIdentifier,
     Time, Type, Url,
 };
+use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
 use crate::utils::buffers;
@@ -77,6 +78,7 @@ pub enum ParserError {
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
     FromUtf8Error(std::string::FromUtf8Error),
+    InvalidScopeEndType{expected: ScopeType, found: ScopeType}
 }
 
 impl From<fmt::Error> for ParserError {
@@ -195,6 +197,33 @@ pub fn iterate_instructions<'a>(
                                 Ok(Instruction::Text(TextData(text)))
                             }
                         }
+                    }
+                    
+                    // complex terms
+                    InstructionCode::ARRAY_START => {
+                        Ok(Instruction::ArrayStart)
+                    }
+                    InstructionCode::OBJECT_START => {
+                        Ok(Instruction::ObjectStart)
+                    }
+                    InstructionCode::TUPLE_START => {
+                        Ok(Instruction::TupleStart)
+                    }
+                    InstructionCode::SCOPE_START => {
+                        Ok(Instruction::ScopeStart)
+                    }
+                    
+                    InstructionCode::ARRAY_END => {
+                        Ok(Instruction::ArrayEnd)
+                    }
+                    InstructionCode::OBJECT_END => {
+                        Ok(Instruction::ObjectEnd)
+                    }
+                    InstructionCode::TUPLE_END => {
+                        Ok(Instruction::TupleEnd)
+                    }
+                    InstructionCode::SCOPE_END => {
+                        Ok(Instruction::ScopeEnd)
                     }
                     
                     InstructionCode::CLOSE_AND_STORE => {

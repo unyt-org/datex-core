@@ -65,6 +65,23 @@ impl<'a> CompilationScope<'a> {
         self.append_buffer(bytes);
     }
 
+    fn insert_key_string(&mut self, key_string: &str) {
+        let unescaped_string = self.unescape_string(key_string);
+
+        let bytes = unescaped_string.as_bytes();
+        let len = bytes.len();
+
+        if len < 256 {
+            self.append_binary_code(InstructionCode::KEY_VALUE_SHORT_TEXT);
+            self.append_u8(len as u8);
+        } else {
+            self.append_binary_code(InstructionCode::KEY_VALUE_TEXT);
+            self.append_u32(len as u32);
+        }
+
+        self.append_buffer(bytes);
+    }
+
     fn unescape_string(&mut self, string: &str) -> String {
         let re = Regex::new(r"\\(.)").unwrap();
 
@@ -199,8 +216,8 @@ pub fn compile_template(
 /// Example:
 /// ```
 /// use datex_core::compile;
-/// compile!("x + {}", 42);
-/// compile!("{x} + {y}");
+/// compile!("4 + ?", 42);
+/// compile!("? + ?", 1, 2);
 #[macro_export]
 macro_rules! compile {
     ($fmt:literal $(, $arg:expr )* $(,)?) => {
@@ -249,10 +266,6 @@ fn parse_atom(
     }
 
     match rule {
-        Rule::term => {
-            parse_term(compilation_scope, term);
-        }
-
         Rule::level_1_operation | Rule::level_2_operation => {
             let mut inner = term.into_inner();
 
@@ -279,20 +292,13 @@ fn parse_atom(
                 }
             }
         }
-        // Rule::expression => {
-        //     compilation_scope.append_binary_code(BinaryCode::SCOPE_START);
-        //     parse_expression(compilation_scope, term);
-        //     compilation_scope.append_binary_code(BinaryCode::SCOPE_END);
-        // }
         Rule::end_of_statement => {
             compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
         }
 
+        // is either a Rule::term or a rule that could be inside a term (e.g. literal, integer, array, ...)
         _ => {
-            unreachable!(
-                "Expected Rule::term, but found {:?}",
-                term.as_rule()
-            );
+            parse_term(compilation_scope, term, scope_required_for_complex_expressions);
         }
     }
 
@@ -302,23 +308,83 @@ fn parse_atom(
 }
 
 /// A term can only contain a single value
-fn parse_term(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
-    assert_eq!(pair.as_rule(), Rule::term, "Expected Rule::term");
+fn parse_term(
+    compilation_scope: &mut CompilationScope,
+    pair: Pair<'_, Rule>,
+    scope_required_for_complex_terms: bool
+) {
+    // if Rule::term, get inner rule, else keep rule
+    let term = match pair.as_rule() {
+        Rule::term => pair.into_inner().next().unwrap(),
+        _ => pair,
+    };
 
-    let ident = pair.into_inner().next().unwrap();
-    match ident.as_rule() {
+    let rule = term.as_rule();
+    let scoped = scope_required_for_complex_terms && rule_must_be_scoped(rule);
+
+    if scoped {
+        compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
+    }
+
+    match term.as_rule() {
         Rule::integer => {
-            let int = ident.as_str().parse::<i64>().unwrap();
+            let int = term.as_str().parse::<i64>().unwrap();
             compilation_scope.insert_int(int);
         }
         Rule::decimal => {
-            let decimal = ident.as_str().parse::<f64>().unwrap();
+            let decimal = term.as_str().parse::<f64>().unwrap();
             compilation_scope.insert_float64(decimal);
         }
         Rule::text => {
-            let string = ident.as_str();
+            let string = term.as_str();
             let inner_string = &string[1..string.len() - 1];
             compilation_scope.insert_string(inner_string);
+        }
+        Rule::array => {
+            compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
+            let inner = term.into_inner();
+            for item in inner {
+                parse_atom(compilation_scope, item, true);
+            }
+            compilation_scope.append_binary_code(InstructionCode::ARRAY_END);
+        }
+        // tuples
+        Rule::tuple => {
+            compilation_scope.append_binary_code(InstructionCode::TUPLE_START);
+            let inner = term.into_inner();
+            for item in inner {
+                parse_atom(compilation_scope, item, true);
+            }
+            compilation_scope.append_binary_code(InstructionCode::TUPLE_END);
+        }
+        Rule::key_value => {
+            let mut inner = term.into_inner();
+            let key = inner.next().unwrap();
+            let value = inner.next().unwrap();
+
+            // select key value type based on key
+            // text key: text | literal_key
+            // integer key: integer
+            // dynamic key: any other type
+            let key_rule = key.as_rule();
+            match key_rule {
+                Rule::text => {
+                    let string = key.as_str();
+                    let inner_string = &string[1..string.len() - 1];
+                    compilation_scope.insert_key_string(inner_string);
+                }
+                Rule::literal_key => {
+                    compilation_scope.insert_key_string(key.as_str());
+                }
+                _ => {
+                    compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                    // insert dynamic key
+                    parse_atom(compilation_scope, key, true);
+                }
+            }
+
+            // insert value
+            parse_atom(compilation_scope, value, true);
         }
         Rule::placeholder => {
             let value_container = compilation_scope.inserted_values
@@ -339,10 +405,14 @@ fn parse_term(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
         }
         _ => {
             unreachable!(
-                "Expected Rule::integer, Rule::decimal or Rule::text, but found {:?}",
-                ident.as_rule()
+                "Unexpected term {:?}",
+                term.as_rule()
             );
         }
+    }
+
+    if scoped {
+        compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
     }
 }
 
@@ -585,7 +655,7 @@ pub mod tests {
     #[test]
     fn test_empty_array() {
         init_logger();
-        let datex_script = "[]"; // []
+        let datex_script = "[]";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
             InstructionCode::ARRAY_START.into(),
@@ -593,6 +663,255 @@ pub mod tests {
         ];
         assert_eq!(result, expected);
     }
+
+    // Test array with single element
+    #[test]
+    fn test_single_element_array() {
+        init_logger();
+        let datex_script = "[42]";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ARRAY_START.into(),
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::ARRAY_END.into(),
+            ]
+        );
+    }
+
+    // Test array with multiple elements
+    #[test]
+    fn test_multi_element_array() {
+        init_logger();
+        let datex_script = "[1, 2, 3]";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ARRAY_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::ARRAY_END.into(),
+            ]
+        );
+    }
+
+    // Test nested arrays
+    #[test]
+    fn test_nested_arrays() {
+        init_logger();
+        let datex_script = "[1, [2, 3], 4]";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ARRAY_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::ARRAY_START.into(),
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::ARRAY_END.into(),
+                InstructionCode::INT_8.into(),
+                4,
+                InstructionCode::ARRAY_END.into(),
+            ]
+        );
+    }
+
+    // Test array with expressions inside
+    #[test]
+    fn test_array_with_expressions() {
+        init_logger();
+        let datex_script = "[1 + 2, 3 * 4]";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ARRAY_START.into(),
+                InstructionCode::SCOPE_START.into(),
+                InstructionCode::ADD.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::SCOPE_START.into(),
+                InstructionCode::MULTIPLY.into(),
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::INT_8.into(),
+                4,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::ARRAY_END.into(),
+            ]
+        );
+    }
+
+    // Test array with mixed expressions
+    #[test]
+    fn test_array_with_mixed_expressions() {
+        init_logger();
+        let datex_script = "[1, 2, 3 + 4]";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ARRAY_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::SCOPE_START.into(),
+                InstructionCode::ADD.into(),
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::INT_8.into(),
+                4,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::ARRAY_END.into(),
+            ]
+        );
+    }
+
+    // Test tuple
+    #[test]
+    fn test_tuple() {
+        init_logger();
+        let datex_script = "(1, 2, 3)";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::TUPLE_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::TUPLE_END.into(),
+            ]
+        );
+    }
+
+    // Nested tuple
+    #[test]
+    fn test_nested_tuple() {
+        init_logger();
+        let datex_script = "(1, (2, 3), 4)";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::TUPLE_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::TUPLE_START.into(),
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::TUPLE_END.into(),
+                InstructionCode::INT_8.into(),
+                4,
+                InstructionCode::TUPLE_END.into(),
+            ]
+        );
+    }
+
+    // Tuple without parentheses
+    #[test]
+    fn test_tuple_without_parentheses() {
+        init_logger();
+        let datex_script = "1, 2, 3";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::TUPLE_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::TUPLE_END.into(),
+            ]
+        );
+    }
+
+    // key-value pair
+    #[test]
+    fn test_key_value_tuple() {
+        init_logger();
+        let datex_script = "key: 42";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            3, // length of "key"
+            b'k', b'e', b'y',
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::TUPLE_END.into(),
+        ];
+        assert_eq!(
+            result,
+            expected,
+        );
+    }
+
+    // key-value pair with string key
+    #[test]
+    fn test_key_value_string() {
+        init_logger();
+        let datex_script = "\"key\": 42";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            3, // length of "key"
+            b'k', b'e', b'y',
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::TUPLE_END.into(),
+        ];
+        assert_eq!(
+            result,
+            expected,
+        );
+    }
+
+    // key-value pair with integer key
+    #[test]
+    fn test_key_value_integer() {
+        init_logger();
+        let datex_script = "10: 42";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_DYNAMIC.into(),
+            InstructionCode::INT_8.into(),
+            10,
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::TUPLE_END.into(),
+        ];
+        assert_eq!(
+            result,
+            expected,
+        );
+    }
+
 
     #[test]
     fn test_compile() {

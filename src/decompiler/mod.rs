@@ -28,9 +28,7 @@ lazy_static! {
  */
 pub fn decompile(
     dxb: &[u8],
-    formatted: bool,
-    colorized: bool,
-    resolve_slots: bool,
+    options: DecompileOptions,
 ) -> String {
     todo!();
     /*let mut body = dxb;
@@ -56,19 +54,21 @@ pub fn decompile(
 
 pub fn decompile_body(
     dxb_body: &[u8],
-    formatted: bool,
-    colorized: bool,
-    resolve_slots: bool,
+    options: DecompileOptions,
 ) -> Result<String, ParserError> {
     let mut initial_state = DecompilerGlobalState {
         dxb_body,
+        options,
+
         index: &Cell::from(0),
         is_end_instruction: &Cell::from(false),
-        active_operator: None,
-
-        formatted,
-        colorized,
-        resolve_slots,
+        scopes: vec![
+            ScopeState {
+                is_outer_scope: true,
+                active_operator: None,
+                active_scope: (ScopeType::default(), true),
+            }
+        ],
 
         current_label: 0,
         labels: HashMap::new(),
@@ -103,9 +103,64 @@ fn int_to_label(n: i32) -> String {
     label
 }
 
-struct DecompilerGlobalState<'a> {
-    // ctx
+#[derive(Debug, Clone, Default)]
+pub struct DecompileOptions {
+    pub formatted: bool,
+    pub colorized: bool,
+    pub resolve_slots: bool, // display slots with generated variable names
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum ScopeType {
+    #[default]
+    Default,
+    Tuple,
+    Array,
+    Object,
+}
+
+impl ScopeType {
+    pub fn write_start(&self, output: &mut String) -> Result<(), ParserError> {
+        match self {
+            ScopeType::Default => write!(output, "(")?,
+            ScopeType::Tuple => write!(output, "(")?,
+            ScopeType::Array => write!(output, "[")?,
+            ScopeType::Object => write!(output, "{{")?,
+        }
+        Ok(())
+    }
+    pub fn write_end(&self, output: &mut String) -> Result<(), ParserError> {
+        match self {
+            ScopeType::Default => write!(output, ")")?,
+            ScopeType::Tuple => write!(output, ")")?,
+            ScopeType::Array => write!(output, "]")?,
+            ScopeType::Object => write!(output, "}}")?,
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ScopeState {
+    is_outer_scope: bool, // true if this is the outer scope (default scope)
     active_operator: Option<(Instruction, bool)>,
+    active_scope: (ScopeType, bool),
+}
+
+impl ScopeState {
+    fn write_start(&self, output: &mut String) -> Result<(), ParserError> {
+        self.active_scope.0.write_start(output)
+    }
+    fn write_end(&self, output: &mut String) -> Result<(), ParserError> {
+        self.active_scope.0.write_end(output)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct DecompilerGlobalState<'a> {
+
+    // stack of scopes
+    scopes: Vec<ScopeState>,
 
     // dxb
     dxb_body: &'a [u8],
@@ -113,9 +168,7 @@ struct DecompilerGlobalState<'a> {
     is_end_instruction: &'a Cell<bool>,
 
     // options
-    formatted: bool,
-    colorized: bool,
-    resolve_slots: bool, // display slots with generated variable names
+    options: DecompileOptions,
 
     // state
     current_label: i32,
@@ -123,6 +176,26 @@ struct DecompilerGlobalState<'a> {
     inserted_labels: HashSet<usize>,
     variables: HashMap<u16, String>,
 }
+
+impl DecompilerGlobalState<'_> {
+    fn get_current_scope(&mut self) -> &mut ScopeState {
+        self.scopes.last_mut().unwrap()
+    }
+    fn new_scope(&mut self, scope_type: ScopeType) {
+        self.scopes.push(ScopeState {
+            is_outer_scope: false,
+            active_operator: None,
+            active_scope: (scope_type, true),
+        });
+    }
+    fn close_scope(&mut self) {
+        if !self.scopes.is_empty() {
+            self.scopes.pop();
+        }
+    }
+}
+
+
 
 impl DecompilerGlobalState<'_> {
     fn get_insert_label(&mut self, index: usize) -> String {
@@ -145,7 +218,7 @@ impl DecompilerGlobalState<'_> {
     // returns variable name and variable type if initialization
     fn get_variable_name(&mut self, slot: &SlotIdentifier) -> (String, String) {
         // return slot name
-        if slot.is_reserved() || slot.is_object_slot() || !self.resolve_slots {
+        if slot.is_reserved() || slot.is_object_slot() || !self.options.resolve_slots {
             return (slot.as_string(), "".to_string());
         }
         // existing variable
@@ -185,36 +258,67 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 write!(output, "{i8}")?;
             }
             Instruction::Int16(Int16Data(i16)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 write!(output, "{i16}")?;
             }
             Instruction::Int32(Int32Data(i32)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 write!(output, "{i32}")?;
             }
             Instruction::Int64(Int64Data(i64)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 write!(output, "{i64}")?;
             }
             Instruction::Float64(Float64Data(f64)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 write!(output, "{f64}")?;
             }
             Instruction::ShortText(ShortTextData(text)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
             }
             Instruction::Text(TextData(text)) => {
-                handle_before_operand(state, &mut output)?;
+                handle_before_term(state, &mut output)?;
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
             }
-
+            Instruction::ArrayStart => {
+                handle_before_term(state, &mut output)?;
+                state.new_scope(ScopeType::Array);
+                state.get_current_scope().write_start(&mut output)?;
+            }
+            Instruction::ObjectStart => {
+                handle_before_term(state, &mut output)?;
+                state.new_scope(ScopeType::Object);
+                state.get_current_scope().write_start(&mut output)?;
+            }
+            Instruction::TupleStart => {
+                handle_before_term(state, &mut output)?;
+                state.new_scope(ScopeType::Tuple);
+                state.get_current_scope().write_start(&mut output)?;
+            }
+            Instruction::ScopeStart => {
+                handle_before_term(state, &mut output)?;
+                state.new_scope(ScopeType::Default);
+                state.get_current_scope().write_start(&mut output)?;
+            }
+            Instruction::ScopeEnd => {
+                handle_scope_close(state, &mut output, ScopeType::Default)?;
+            }
+            Instruction::ArrayEnd => {
+                handle_scope_close(state, &mut output, ScopeType::Array)?;
+            }
+            Instruction::ObjectEnd => {
+                handle_scope_close(state, &mut output, ScopeType::Object)?;
+            }
+            Instruction::TupleEnd => {
+                handle_scope_close(state, &mut output, ScopeType::Tuple)?;
+            }
 
             Instruction::CloseAndStore => {
                 write!(output, ";")?;
@@ -222,7 +326,7 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 
             // operations
             Instruction::Add => {
-                state.active_operator = Some((Instruction::Add, true));
+                state.get_current_scope().active_operator = Some((Instruction::Add, true));
             }
 
             _ => {
@@ -248,16 +352,73 @@ fn escape_text(text: &str) -> String {
 }
 
 
+/// insert syntax before a term (e.g. operators, commas, etc.)
+fn handle_before_term(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
+    handle_before_operand(state, output)?;
+    handle_before_item(state, output)?;
+    Ok(())
+}
+
+
+/// before scope close (insert scope closing syntax)
+fn handle_scope_close(
+    state: &mut DecompilerGlobalState,
+    output: &mut String,
+    actual_scope_end_type: ScopeType,
+) -> Result<(), ParserError> {
+    // check if actual scope end is the same as current scope type, otherwise this is an invalid byte code
+    if state.get_current_scope().active_scope.0 != actual_scope_end_type {
+        return Err(ParserError::InvalidScopeEndType {
+            expected: state.get_current_scope().active_scope.0.clone(),
+            found: actual_scope_end_type,
+        });
+    }
+    let scope = state.get_current_scope();
+    // close only if not outer scope
+    if !scope.is_outer_scope {
+        state.get_current_scope().write_end(output)?;
+    }
+    // close scope
+    state.close_scope();
+    Ok(())
+}
+
+/// insert comma syntax before a term (e.g. ",")
+fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
+    match state.get_current_scope().active_scope {
+        (_, true) => {
+            // if first is true, set to false
+            state.get_current_scope().active_scope.1 = false;
+        }
+        (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false) => {
+            if state.options.formatted {
+                write!(output, ", ")?;
+            } else {
+                write!(output, ",")?;
+            }
+        }
+        _ => {
+            // don't insert comma for default scope
+        }
+    }
+    Ok(())
+}
+
+/// insert operator syntax before an operand (e.g. +, -, etc.)
 fn handle_before_operand(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
-    if let Some(operator) = &state.active_operator {
+    if let Some(operator) = &state.get_current_scope().active_operator {
         // handle the operator before the operand
         match operator {
             (_, true) => {
                 // if first is true, set to false
-                state.active_operator = Some((operator.0.clone(), false));
+                state.get_current_scope().active_operator = Some((operator.0.clone(), false));
             }
-            (Instruction::Add, _) => {
-                write!(output, " + ")?;
+            (Instruction::Add, false) => {
+                if state.options.formatted {
+                    write!(output, " + ")?;
+                } else {
+                    write!(output, "+")?;
+                }
             }
             _ => {
                 panic!("Invalid operator: {:?}", operator);

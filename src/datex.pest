@@ -78,12 +78,12 @@ inline_expression = _{ declaration | level_2_operation | level_1_operation | app
 // combination of 2-n expressions, separated with a ",", with optional keys
 // a single key-value pair (e.g. "a: 4") is also interpreted as a tuple
 literal_key = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-key = _{text | literal_key}
+key = _{text | decimal | integer | literal_key | "(" ~ statements? ~ ")"}
 key_value = { key ~ ":" ~ expression_without_tuple}
 tuple_element = _{key_value | expression_without_tuple}
 tuple = !{ (tuple_element ~ "," ~ (tuple_element ~ ","?)+) | (key_value ~ ","?) }
-keyed_tuple = !{ (key_value ~ "," ~ (key_value ~ ","?)+) | (key_value ~ ","?) }
-indexed_tuple = !{ (expression_with_key_value ~ "," ~ (expression_with_key_value ~ ","?)+) | (expression_with_key_value ~ ","?) }
+keyed_tuple = _{ (key_value ~ "," ~ (key_value ~ ","?)+) | (key_value ~ ","?) }
+indexed_tuple = _{ (expression_with_key_value ~ "," ~ (expression_with_key_value ~ ","?)+) | (expression_with_key_value ~ ","?) }
 
 
 // literal primitive values
@@ -110,10 +110,6 @@ placeholder = { "?" }
 // - {}
 // - { "x": 1, "y": 4 }
 object = { "{" ~ keyed_tuple? ~ "}"}
-
-// pair
-// "test": 42
-pair = { text ~ ":" ~ term_or_scope }
 
 // array
 // such as [1,2] or []
