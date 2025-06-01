@@ -21,6 +21,7 @@ lazy_static! {
     static ref NEW_LINE: Regex = Regex::new(r"\r\n").unwrap();
     static ref LAST_LINE: Regex = Regex::new(r"   (.)$").unwrap();
     static ref INDENT: String = "\r\n   ".to_string();
+    static ref ALPAHNUMERIC_IDENTIFIER: Regex = Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_-]*$").unwrap();
 }
 
 /**
@@ -64,9 +65,8 @@ pub fn decompile_body(
         is_end_instruction: &Cell::from(false),
         scopes: vec![
             ScopeState {
-                is_outer_scope: true,
-                active_operator: None,
-                active_scope: (ScopeType::default(), true),
+                scope_type: (ScopeType::default(), true),
+                ..ScopeState::default()
             }
         ],
 
@@ -140,19 +140,20 @@ impl ScopeType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct ScopeState {
     is_outer_scope: bool, // true if this is the outer scope (default scope)
     active_operator: Option<(Instruction, bool)>,
-    active_scope: (ScopeType, bool),
+    scope_type: (ScopeType, bool),
+    skip_comma_for_next_item: bool, // skip inserted comma for next item (already inserted before key)
 }
 
 impl ScopeState {
     fn write_start(&self, output: &mut String) -> Result<(), ParserError> {
-        self.active_scope.0.write_start(output)
+        self.scope_type.0.write_start(output)
     }
     fn write_end(&self, output: &mut String) -> Result<(), ParserError> {
-        self.active_scope.0.write_end(output)
+        self.scope_type.0.write_end(output)
     }
 }
 
@@ -185,7 +186,8 @@ impl DecompilerGlobalState<'_> {
         self.scopes.push(ScopeState {
             is_outer_scope: false,
             active_operator: None,
-            active_scope: (scope_type, true),
+            scope_type: (scope_type, true),
+            skip_comma_for_next_item: false,
         });
     }
     fn close_scope(&mut self) {
@@ -287,6 +289,18 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
             }
+            Instruction::True => {
+                handle_before_term(state, &mut output)?;
+                write!(output, "true")?;
+            }
+            Instruction::False => {
+                handle_before_term(state, &mut output)?;
+                write!(output, "false")?;
+            }
+            Instruction::Null => {
+                handle_before_term(state, &mut output)?;
+                write!(output, "null")?;
+            }
             Instruction::ArrayStart => {
                 handle_before_term(state, &mut output)?;
                 state.new_scope(ScopeType::Array);
@@ -319,7 +333,18 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
             Instruction::TupleEnd => {
                 handle_scope_close(state, &mut output, ScopeType::Tuple)?;
             }
-
+            Instruction::KeyValueShortText(text_data) => {
+                handle_before_term(state, &mut output)?;
+                // prevent redundant comma for value
+                state.get_current_scope().skip_comma_for_next_item = true;
+                write_text_key(&text_data.0, &mut output, state.options.formatted)?;
+            }
+            Instruction::KeyValueText(text_data) => {
+                handle_before_term(state, &mut output)?;
+                // prevent redundant comma for value
+                state.get_current_scope().skip_comma_for_next_item = true;
+                write_text_key(&text_data.0, &mut output, state.options.formatted)?;
+            }
             Instruction::CloseAndStore => {
                 write!(output, ";")?;
             }
@@ -351,6 +376,20 @@ fn escape_text(text: &str) -> String {
         .replace('\n', r#"\n"#)
 }
 
+fn write_text_key(text: &str, output: &mut String, formatted: bool) -> Result<(), ParserError> {
+    // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
+    let text = if ALPAHNUMERIC_IDENTIFIER.is_match(text) {
+        text.to_string()
+    } else {
+        format!("\"{}\"", escape_text(text))
+    };
+    if formatted {
+        write!(output, "{text}: ")?;
+    } else {
+        write!(output, "{text}:")?;
+    }
+    Ok(())
+}
 
 /// insert syntax before a term (e.g. operators, commas, etc.)
 fn handle_before_term(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
@@ -367,9 +406,9 @@ fn handle_scope_close(
     actual_scope_end_type: ScopeType,
 ) -> Result<(), ParserError> {
     // check if actual scope end is the same as current scope type, otherwise this is an invalid byte code
-    if state.get_current_scope().active_scope.0 != actual_scope_end_type {
+    if state.get_current_scope().scope_type.0 != actual_scope_end_type {
         return Err(ParserError::InvalidScopeEndType {
-            expected: state.get_current_scope().active_scope.0.clone(),
+            expected: state.get_current_scope().scope_type.0.clone(),
             found: actual_scope_end_type,
         });
     }
@@ -385,13 +424,15 @@ fn handle_scope_close(
 
 /// insert comma syntax before a term (e.g. ",")
 fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
-    match state.get_current_scope().active_scope {
+    let formatted = state.options.formatted;
+    let scope = state.get_current_scope();
+    match scope.scope_type {
         (_, true) => {
             // if first is true, set to false
-            state.get_current_scope().active_scope.1 = false;
+            scope.scope_type.1 = false;
         }
-        (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false) => {
-            if state.options.formatted {
+        (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false) if !scope.skip_comma_for_next_item => {
+            if formatted {
                 write!(output, ", ")?;
             } else {
                 write!(output, ",")?;
@@ -401,6 +442,10 @@ fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String) ->
             // don't insert comma for default scope
         }
     }
+    
+    // reset skip_comma_for_next_item flag
+    scope.skip_comma_for_next_item = false;
+    
     Ok(())
 }
 

@@ -340,6 +340,13 @@ fn parse_term(
             let inner_string = &string[1..string.len() - 1];
             compilation_scope.insert_string(inner_string);
         }
+        Rule::boolean => {
+            let boolean = term.as_str() == "true";
+            compilation_scope.insert_boolean(boolean);
+        }
+        Rule::null => {
+            compilation_scope.append_binary_code(InstructionCode::NULL);
+        }
         Rule::array => {
             compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
             let inner = term.into_inner();
@@ -348,7 +355,6 @@ fn parse_term(
             }
             compilation_scope.append_binary_code(InstructionCode::ARRAY_END);
         }
-        // tuples
         Rule::tuple => {
             compilation_scope.append_binary_code(InstructionCode::TUPLE_START);
             let inner = term.into_inner();
@@ -356,6 +362,14 @@ fn parse_term(
                 parse_atom(compilation_scope, item, true);
             }
             compilation_scope.append_binary_code(InstructionCode::TUPLE_END);
+        }
+        Rule::object => {
+            compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
+            let inner = term.into_inner();
+            for item in inner {
+                parse_atom(compilation_scope, item, true);
+            }
+            compilation_scope.append_binary_code(InstructionCode::OBJECT_END);
         }
         Rule::key_value => {
             let mut inner = term.into_inner();
@@ -911,6 +925,145 @@ pub mod tests {
             expected,
         );
     }
+
+    // dynamic key-value pair
+    #[test]
+    fn test_dynamic_key_value() {
+        init_logger();
+        let datex_script = "(1+2): 42";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_DYNAMIC.into(),
+            InstructionCode::SCOPE_START.into(),
+            InstructionCode::ADD.into(),
+            InstructionCode::INT_8.into(),
+            1,
+            InstructionCode::INT_8.into(),
+            2,
+            InstructionCode::SCOPE_END.into(),
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::TUPLE_END.into(),
+        ];
+    }
+
+    // multiple key-value pairs
+    #[test]
+    fn test_multiple_key_value_pairs() {
+        init_logger();
+        let datex_script = "key: 42, 4: 43, (1+2): 44";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            3, // length of "key"
+            b'k', b'e', b'y',
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::KEY_VALUE_DYNAMIC.into(),
+            InstructionCode::INT_8.into(),
+            4,
+            InstructionCode::INT_8.into(),
+            43,
+            InstructionCode::KEY_VALUE_DYNAMIC.into(),
+            InstructionCode::SCOPE_START.into(),
+            InstructionCode::ADD.into(),
+            InstructionCode::INT_8.into(),
+            1,
+            InstructionCode::INT_8.into(),
+            2,
+            InstructionCode::SCOPE_END.into(),
+            InstructionCode::INT_8.into(),
+            44,
+            InstructionCode::TUPLE_END.into(),
+        ];
+        assert_eq!(
+            result,
+            expected,
+        );
+    }
+
+    // key value pair with parentheses
+    #[test]
+    fn test_key_value_with_parentheses() {
+        init_logger();
+        let datex_script = "(key: 42)";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            3, // length of "key"
+            b'k', b'e', b'y',
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::TUPLE_END.into(),
+        ];
+        assert_eq!(
+            result,
+            expected,
+        );
+    }
+
+    // empty object
+    #[test]
+    fn test_empty_object() {
+        init_logger();
+        let datex_script = "{}";
+        let result = compile_and_log(datex_script);
+        let expected: Vec<u8> = vec![
+            InstructionCode::OBJECT_START.into(),
+            InstructionCode::OBJECT_END.into(),
+        ];
+        assert_eq!(result, expected);
+    }
+
+    // object with single key-value pair
+    #[test]
+    fn test_single_key_value_object() {
+        init_logger();
+        let datex_script = "{key: 42}";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::OBJECT_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            3, // length of "key"
+            b'k', b'e', b'y',
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::OBJECT_END.into(),
+        ];
+        assert_eq!(result, expected);
+    }
+
+    // object with multiple key-value pairs
+    #[test]
+    fn test_multi_key_value_object() {
+        init_logger();
+        let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::OBJECT_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            4, // length of "key1"
+            b'k', b'e', b'y', b'1',
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            4, // length of "key2"
+            b'k', b'e', b'y', b'2',
+            InstructionCode::INT_8.into(),
+            43,
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            4, // length of "key3"
+            b'k', b'e', b'y', b'3',
+            InstructionCode::INT_8.into(),
+            44,
+            InstructionCode::OBJECT_END.into(),
+        ];
+        assert_eq!(result, expected);
+    }
+
 
 
     #[test]

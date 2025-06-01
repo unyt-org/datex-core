@@ -57,6 +57,9 @@ b
 c";"#,
             "\"a\\nb\\nc\";",
         );
+    compare_compiled_with_decompiled("true");
+    compare_compiled_with_decompiled("false");
+    compare_compiled_with_decompiled("null");
 }
 
 
@@ -69,4 +72,8 @@ pub fn compile_expressions() {
     compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
     compare_compiled_with_decompiled("(1,2,[3],[4,5],6)");
     compare_compiled("1,2,[3],[4,5],6", "(1,2,[3],[4,5],6)");
+    compare_compiled_with_decompiled("{a:42,b:\"test\"}");
+    compare_compiled_with_decompiled("{a:42,b:\"test\",c:{d:1,e:[2,3]}}");
+    compare_compiled_with_decompiled("{\"a b\":42}");
+    compare_compiled_with_decompiled("{\"1\":42}");
 }

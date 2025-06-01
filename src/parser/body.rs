@@ -99,7 +99,39 @@ impl From<std::string::FromUtf8Error> for ParserError {
     }
 }
 
+fn get_short_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<ShortTextData, ParserError> {
+    let raw_data = ShortTextDataRaw::read(&mut reader);
+    if let Err(err) = raw_data {
+        Err(err.into())
+    } else {
+        let raw_data = raw_data?;
+        let text = String::from_utf8(raw_data.text);
+        if let Err(err) = text {
+            Err(err.into())
+        }
+        else {
+            let text = text?;
+            Ok(ShortTextData(text))
+        }
+    }
+}
 
+fn get_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<TextData, ParserError> {
+    let raw_data = TextDataRaw::read(&mut reader);
+    if let Err(err) = raw_data {
+        Err(err.into())
+    } else {
+        let raw_data = raw_data?;
+        let text = String::from_utf8(raw_data.text);
+        if let Err(err) = text {
+            Err(err.into())
+        }
+        else {
+            let text = text?;
+            Ok(TextData(text))
+        }
+    }
+}
 
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
@@ -166,37 +198,31 @@ pub fn iterate_instructions<'a>(
                     }
                     
                     InstructionCode::SHORT_TEXT => {
-                        let raw_data = ShortTextDataRaw::read(&mut reader);
-                        if let Err(err) = raw_data {
-                            Err(err.into())
+                        let short_text_data = get_short_text_data(&mut reader);
+                        if let Err(err) = short_text_data {
+                            Err(err)
                         } else {
-                            let raw_data = raw_data.unwrap();
-                            let text = String::from_utf8(raw_data.text);
-                            if let Err(err) = text {
-                                Err(err.into())
-                            }
-                            else {
-                                let text = text.unwrap();
-                                Ok(Instruction::ShortText(ShortTextData(text)))
-                            }
+                            Ok(Instruction::ShortText(short_text_data.unwrap()))
                         }
                     }
                     
                     InstructionCode::TEXT => {
-                        let raw_data = TextDataRaw::read(&mut reader);
-                        if let Err(err) = raw_data {
-                            Err(err.into())
+                        let text_data = get_text_data(&mut reader);
+                        if let Err(err) = text_data {
+                            Err(err)
                         } else {
-                            let raw_data = raw_data.unwrap();
-                            let text = String::from_utf8(raw_data.text);
-                            if let Err(err) = text {
-                                Err(err.into())
-                            }
-                            else {
-                                let text = text.unwrap();
-                                Ok(Instruction::Text(TextData(text)))
-                            }
+                            Ok(Instruction::Text(text_data.unwrap()))
                         }
+                    }
+                    
+                    InstructionCode::TRUE => {
+                        Ok(Instruction::True)
+                    }
+                    InstructionCode::FALSE => {
+                        Ok(Instruction::False)
+                    }
+                    InstructionCode::NULL => {
+                        Ok(Instruction::Null)
                     }
                     
                     // complex terms
@@ -212,7 +238,6 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::SCOPE_START => {
                         Ok(Instruction::ScopeStart)
                     }
-                    
                     InstructionCode::ARRAY_END => {
                         Ok(Instruction::ArrayEnd)
                     }
@@ -224,6 +249,28 @@ pub fn iterate_instructions<'a>(
                     }
                     InstructionCode::SCOPE_END => {
                         Ok(Instruction::ScopeEnd)
+                    }
+                    
+                    InstructionCode::KEY_VALUE_SHORT_TEXT => {
+                        let short_text_data = get_short_text_data(&mut reader);
+                        if let Err(err) = short_text_data {
+                            Err(err)
+                        } else {
+                            Ok(Instruction::KeyValueShortText(short_text_data.unwrap()))
+                        }
+                    }
+                    
+                    InstructionCode::KEY_VALUE_TEXT => {
+                        let text_data = get_text_data(&mut reader);
+                        if let Err(err) = text_data {
+                            Err(err)
+                        } else {
+                            Ok(Instruction::KeyValueText(text_data.unwrap()))
+                        }
+                    }
+                    
+                    InstructionCode::KEY_VALUE_DYNAMIC => {
+                        Ok(Instruction::KeyValueDynamic)
                     }
                     
                     InstructionCode::CLOSE_AND_STORE => {
