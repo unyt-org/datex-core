@@ -4,6 +4,7 @@ use std::fmt::Write;
 use crate::stdlib::cell::Cell;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
+use std::io::Cursor;
 // FIXME no-std
 
 use crate::datex_values_old::SlotIdentifier;
@@ -11,7 +12,7 @@ use lazy_static::lazy_static;
 use log::info;
 use regex::Regex;
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{Style, ThemeSet};
+use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
@@ -393,20 +394,22 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 fn add_syntax_highlighting(datex_script: String) -> Result<String, ParserError> {
     let mut output = String::new();
 
-    // load datex syntax
+    // load datex syntax + custom theme
     static DATEX_SCRIPT_DEF: &str = include_str!("../../datex-language/datex.tmbundle/Syntaxes/datex.sublime-text");
+    static DATEX_THEME_DEF: &str = include_str!("../../datex-language/themes/datex-dark.tmTheme");
     let mut builder = SyntaxSetBuilder::new();
     let syntax = SyntaxDefinition::load_from_str(
         DATEX_SCRIPT_DEF,
         true,
         None
-    ).unwrap();
+    ).expect("Failed to load syntax definition");
     builder.add(syntax);
+    let theme: Theme = ThemeSet::load_from_reader(&mut Cursor::new(DATEX_THEME_DEF))
+        .expect("Failed to load theme");
     
     let ps = builder.build();
-    let ts = ThemeSet::load_defaults();
     let syntax = ps.find_syntax_by_extension("dx").unwrap();
-    let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
+    let mut h = HighlightLines::new(syntax, &theme);
 
     for line in LinesWithEndings::from(&datex_script) {
         let ranges: Vec<(Style, &str)> = h.highlight_line(line, &ps).unwrap();
