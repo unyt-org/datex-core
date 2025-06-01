@@ -1,0 +1,19 @@
+%YAML 1.2
+---
+name: DATEX
+file_extensions:
+  - dx
+scope: source.datex
+contexts:
+  main:
+    - match: '"([^"\\]|\\.)*"'   # Match double-quoted strings, including escaped quotes
+      scope: string.quoted.double.datex
+
+    - match: '\b(true|false|null)\b'  # Booleans and null
+      scope: constant.language.datex
+
+    - match: '\b\d+\b'            # Integers
+      scope: constant.numeric.integer.datex
+
+    - match: '\s+'                # Whitespace (ignored)
+      scope: text.whitespace.datex

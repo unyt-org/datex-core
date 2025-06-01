@@ -10,7 +10,10 @@ use crate::datex_values_old::SlotIdentifier;
 use lazy_static::lazy_static;
 use log::info;
 use regex::Regex;
-
+use syntect::easy::HighlightLines;
+use syntect::highlighting::{Style, ThemeSet};
+use syntect::parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder};
+use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
 use crate::parser::body;
@@ -381,6 +384,39 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
         }
     }
 
+    // add syntax highlighting
+    if state.options.colorized {
+        output = add_syntax_highlighting(output)?;
+    }
+
+    Ok(output)
+}
+
+fn add_syntax_highlighting(datex_script: String) -> Result<String, ParserError> {
+    let mut output = String::new();
+
+    // load datex syntax
+    static DATEX_SCRIPT_DEF: &str = include_str!("../../datex-language/datex.tmbundle/Syntaxes/datex.sublime-text");
+    let mut builder = SyntaxSetBuilder::new();
+    let syntax = SyntaxDefinition::load_from_str(
+        DATEX_SCRIPT_DEF,
+        true,
+        None
+    ).unwrap();
+    builder.add(syntax);
+    
+    let ps = builder.build();
+    let ts = ThemeSet::load_defaults();
+    let syntax = ps.find_syntax_by_extension("dx").unwrap();
+    let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
+
+    for line in LinesWithEndings::from(&datex_script) {
+        let ranges: Vec<(Style, &str)> = h.highlight_line(line, &ps).unwrap();
+        let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+        write!(output, "{escaped}")?;
+    }
+    // reset style
+    write!(output, "\x1b[0m")?;
     Ok(output)
 }
 
