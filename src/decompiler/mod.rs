@@ -142,10 +142,14 @@ impl ScopeType {
 
 #[derive(Debug, Clone, Default)]
 struct ScopeState {
-    is_outer_scope: bool, // true if this is the outer scope (default scope)
+    /// true if this is the outer scope (default scope)
+    is_outer_scope: bool,
     active_operator: Option<(Instruction, bool)>,
     scope_type: (ScopeType, bool),
-    skip_comma_for_next_item: bool, // skip inserted comma for next item (already inserted before key)
+    /// skip inserted comma for next item (already inserted before key)
+    skip_comma_for_next_item: bool,
+    /// set to true if next item is a key (e.g. in object)
+    next_item_is_key: bool,
 }
 
 impl ScopeState {
@@ -184,10 +188,8 @@ impl DecompilerGlobalState<'_> {
     }
     fn new_scope(&mut self, scope_type: ScopeType) {
         self.scopes.push(ScopeState {
-            is_outer_scope: false,
-            active_operator: None,
             scope_type: (scope_type, true),
-            skip_comma_for_next_item: false,
+            ..ScopeState::default()
         });
     }
     fn close_scope(&mut self) {
@@ -260,90 +262,109 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 write!(output, "{i8}")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int16(Int16Data(i16)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 write!(output, "{i16}")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int32(Int32Data(i32)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 write!(output, "{i32}")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int64(Int64Data(i64)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 write!(output, "{i64}")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::Float64(Float64Data(f64)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 write!(output, "{f64}")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::ShortText(ShortTextData(text)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::Text(TextData(text)) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::True => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 write!(output, "true")?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::False => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 write!(output, "false")?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::Null => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 write!(output, "null")?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::ArrayStart => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 state.new_scope(ScopeType::Array);
                 state.get_current_scope().write_start(&mut output)?;
             }
             Instruction::ObjectStart => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 state.new_scope(ScopeType::Object);
                 state.get_current_scope().write_start(&mut output)?;
             }
             Instruction::TupleStart => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 state.new_scope(ScopeType::Tuple);
                 state.get_current_scope().write_start(&mut output)?;
             }
             Instruction::ScopeStart => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, true)?;
                 state.new_scope(ScopeType::Default);
                 state.get_current_scope().write_start(&mut output)?;
             }
             Instruction::ScopeEnd => {
                 handle_scope_close(state, &mut output, ScopeType::Default)?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::ArrayEnd => {
                 handle_scope_close(state, &mut output, ScopeType::Array)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::ObjectEnd => {
                 handle_scope_close(state, &mut output, ScopeType::Object)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::TupleEnd => {
                 handle_scope_close(state, &mut output, ScopeType::Tuple)?;
+                handle_after_term(state, &mut output, true)?;
             }
             Instruction::KeyValueShortText(text_data) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 // prevent redundant comma for value
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write_text_key(&text_data.0, &mut output, state.options.formatted)?;
             }
             Instruction::KeyValueText(text_data) => {
-                handle_before_term(state, &mut output)?;
+                handle_before_term(state, &mut output, false)?;
                 // prevent redundant comma for value
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write_text_key(&text_data.0, &mut output, state.options.formatted)?;
+            }
+            Instruction::KeyValueDynamic => {
+                handle_before_term(state, &mut output, false)?;
+                state.get_current_scope().skip_comma_for_next_item = true;
+                state.get_current_scope().next_item_is_key = true;
             }
             Instruction::CloseAndStore => {
                 write!(output, ";")?;
@@ -392,9 +413,37 @@ fn write_text_key(text: &str, output: &mut String, formatted: bool) -> Result<()
 }
 
 /// insert syntax before a term (e.g. operators, commas, etc.)
-fn handle_before_term(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
+/// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
+/// e.g. for text ("key": "value") the parenthesis are not needed
+fn handle_before_term(state: &mut DecompilerGlobalState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
     handle_before_operand(state, output)?;
-    handle_before_item(state, output)?;
+    handle_before_item(state, output, is_standalone_key)?;
+    Ok(())
+}
+
+/// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
+/// e.g. for text ("key": "value") the parenthesis are not needed
+fn handle_after_term(
+    state: &mut DecompilerGlobalState,
+    output: &mut String,
+    is_standalone_key: bool
+) -> Result<(), ParserError> {
+    // next_item_is_key
+    if state.get_current_scope().next_item_is_key {
+        if !is_standalone_key {
+            write!(output, ")")?;
+        }
+        // set next_item_is_key to false
+        state.get_current_scope().next_item_is_key = false;
+        if state.options.formatted {
+            write!(output, ": ")?;
+        } else {
+            write!(output, ":")?;
+        }
+        // prevent redundant comma before value
+        state.get_current_scope().skip_comma_for_next_item = true;
+    }
+
     Ok(())
 }
 
@@ -423,9 +472,17 @@ fn handle_scope_close(
 }
 
 /// insert comma syntax before a term (e.g. ",")
-fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
+/// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
+/// e.g. for text ("key": "value") the parenthesis are not needed
+fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
     let formatted = state.options.formatted;
     let scope = state.get_current_scope();
+
+    // if next_item_is_key, add opening parenthesis
+    if !is_standalone_key && scope.next_item_is_key {
+        write!(output, "(")?;
+    }
+
     match scope.scope_type {
         (_, true) => {
             // if first is true, set to false
@@ -442,10 +499,10 @@ fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String) ->
             // don't insert comma for default scope
         }
     }
-    
+
     // reset skip_comma_for_next_item flag
     scope.skip_comma_for_next_item = false;
-    
+
     Ok(())
 }
 

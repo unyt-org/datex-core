@@ -76,4 +76,6 @@ pub fn compile_expressions() {
     compare_compiled_with_decompiled("{a:42,b:\"test\",c:{d:1,e:[2,3]}}");
     compare_compiled_with_decompiled("{\"a b\":42}");
     compare_compiled_with_decompiled("{\"1\":42}");
+    compare_compiled_with_decompiled("{(1+2):42}");
+    compare_compiled_with_decompiled("(1:42,(1+2):42,(true):42)");
 }
