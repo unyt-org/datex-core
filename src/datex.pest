@@ -5,7 +5,7 @@ multiline_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 // simple identifier such as primitive types or variables
 // such as 42 or []
-ident = !{
+term = !{
 	object |
 	array |
 	text |
@@ -16,12 +16,12 @@ ident = !{
     variable
 }
 
-// term is either a single identifier or a list of expressions
+// term_or_scope is either a single identifier or a list of expressions
 // such as "test" or (a + b) or (a+b;)
 
-term = _{
+term_or_scope = _{
     "(" ~ statements? ~ ")" |
-	ident
+	term
 }
 
 // operators
@@ -29,7 +29,7 @@ multiplicative_operator = { "*" | "/" | "%" }
 additive_operator = { "+" | "-" }
 
 // apply
-// can apply a ident to a term or multiple terms to a term, or function as a property access
+// can apply a term to a term_or_scope or multiple terms to a term_or_scope, or function as a property access
 // when prefixed with a dot
 // apply:
 //  test 42
@@ -40,17 +40,17 @@ additive_operator = { "+" | "-" }
 //  text.x.(y)
 // combined
 //  test.x(1,2)(3).y
-apply = ${("(" ~ statements? ~ ")" | ident) ~ ((WHITESPACE+ ~ (tuple|ident)) | (WHITESPACE* ~ params) | prop)+}
+apply = ${("(" ~ statements? ~ ")" | term) ~ ((WHITESPACE+ ~ (tuple|term)) | (WHITESPACE* ~ params) | prop)+}
 
 // any property access (such as .y or .(1+2))
-prop = { WHITESPACE* ~ "." ~ term }
+prop = { WHITESPACE* ~ "." ~ term_or_scope }
 // params used when applying a scope to a function (e.g. test(x+y) or test(1))
 params = !{ "(" ~ statements? ~ ")" }
 
 // additive operation
-level_2_operation = !{(level_1_operation | apply | term) ~ (additive_operator ~ (level_1_operation | apply | term))+}
+level_2_operation = !{(level_1_operation | apply | term_or_scope) ~ (additive_operator ~ (level_1_operation | apply | term_or_scope))+}
 // multiplicative operation
-level_1_operation = !{(apply | term) ~ (multiplicative_operator ~ (apply | term))+}
+level_1_operation = !{(apply | term_or_scope) ~ (multiplicative_operator ~ (apply | term_or_scope))+}
 
 // assignment operation
 assignment = !{ variable ~ "=" ~ expression }
@@ -66,13 +66,13 @@ declaration = !{ var_type ~ variable ~ type_declaration? ~ "=" ~ expression }
 // - assignment
 // - declaration
 // - tuple
-// - term
-expression = _{ declaration | level_2_operation | level_1_operation | apply | assignment | tuple | term }
-expression_without_tuple = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term }
-expression_with_key_value = _{ declaration | level_2_operation | level_1_operation | apply | assignment | key_value | term }
+// - term_or_scope
+expression = _{ declaration | level_2_operation | level_1_operation | apply | assignment | tuple | term_or_scope }
+expression_without_tuple = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term_or_scope }
+expression_with_key_value = _{ declaration | level_2_operation | level_1_operation | apply | assignment | key_value | term_or_scope }
 
 // expression that can used inline at all locations (e.g. type declarations). TODO improve this concept
-inline_expression = _{ declaration | level_2_operation | level_1_operation | apply | term }
+inline_expression = _{ declaration | level_2_operation | level_1_operation | apply | term_or_scope }
 
 // tuple
 // combination of 2-n expressions, separated with a ",", with optional keys
@@ -113,7 +113,7 @@ object = { "{" ~ keyed_tuple? ~ "}"}
 
 // pair
 // "test": 42
-pair = { text ~ ":" ~ term }
+pair = { text ~ ":" ~ term_or_scope }
 
 // array
 // such as [1,2] or []

@@ -250,12 +250,7 @@ fn parse_atom(
 
     match rule {
         Rule::term => {
-            for inner in term.into_inner() {
-                parse_atom(compilation_scope, inner, true);
-            }
-        }
-        Rule::ident => {
-            parse_ident(compilation_scope, term);
+            parse_term(compilation_scope, term);
         }
 
         Rule::level_1_operation | Rule::level_2_operation => {
@@ -295,7 +290,7 @@ fn parse_atom(
 
         _ => {
             unreachable!(
-                "Expected Rule::ident, but found {:?}",
+                "Expected Rule::term, but found {:?}",
                 term.as_rule()
             );
         }
@@ -306,9 +301,9 @@ fn parse_atom(
     }
 }
 
-/// An ident can only contain a single value
-fn parse_ident(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
-    assert_eq!(pair.as_rule(), Rule::ident, "Expected Rule::ident");
+/// A term can only contain a single value
+fn parse_term(compilation_scope: &mut CompilationScope, pair: Pair<'_, Rule>) {
+    assert_eq!(pair.as_rule(), Rule::term, "Expected Rule::term");
 
     let ident = pair.into_inner().next().unwrap();
     match ident.as_rule() {
@@ -583,6 +578,19 @@ pub mod tests {
             val.len() as u8,
         ];
         expected.extend(val.bytes());
+        assert_eq!(result, expected);
+    }
+
+    // Test empty array
+    #[test]
+    fn test_empty_array() {
+        init_logger();
+        let datex_script = "[]"; // []
+        let result = compile_and_log(datex_script);
+        let expected: Vec<u8> = vec![
+            InstructionCode::ARRAY_START.into(),
+            InstructionCode::ARRAY_END.into(),
+        ];
         assert_eq!(result, expected);
     }
 
