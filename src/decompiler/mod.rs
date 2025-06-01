@@ -12,13 +12,11 @@ use log::info;
 use regex::Regex;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
-use syntect::parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder};
+use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
-use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
-use self::constants::tokens::get_code_color;
 
 lazy_static! {
     static ref NEW_LINE: Regex = Regex::new(r"\r\n").unwrap();
@@ -559,7 +557,7 @@ fn handle_before_operand(state: &mut DecompilerGlobalState, output: &mut String)
                 }
             }
             _ => {
-                panic!("Invalid operator: {:?}", operator);
+                panic!("Invalid operator: {operator:?}");
             }
         }
     }

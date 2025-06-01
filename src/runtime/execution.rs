@@ -1,12 +1,8 @@
-use log::{debug, error, info};
+use log::debug;
 
 use crate::stdlib::cell::Cell;
 
-use crate::{
-    datex_values_old::{Error, PrimitiveValue, Type, Value, ValueResult},
-    global::binary_codes::InstructionCode,
-    parser::body,
-};
+use crate::parser::body;
 use crate::datex_values::value_container::ValueContainer;
 use crate::parser::body::ParserError;
 use super::stack::Stack;

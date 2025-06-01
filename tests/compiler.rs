@@ -1,12 +1,5 @@
-use datex_core::{
-    compiler::{
-        compile_block,
-        parser::{DatexParser, Rule},
-    },
-    decompiler::decompile_body,
-};
+use datex_core::decompiler::decompile_body;
 use log::info;
-use pest::Parser;
 use datex_core::compiler::bytecode::compile_script;
 use datex_core::decompiler::DecompileOptions;
 use datex_core::logger::init_logger;

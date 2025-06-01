@@ -932,8 +932,7 @@ pub mod tests {
         init_logger();
         let datex_script = "(1+2): 42";
         let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+        let expected = [InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::SCOPE_START.into(),
             InstructionCode::ADD.into(),
@@ -944,8 +943,7 @@ pub mod tests {
             InstructionCode::SCOPE_END.into(),
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into(),
-        ];
+            InstructionCode::TUPLE_END.into()];
     }
 
     // multiple key-value pairs

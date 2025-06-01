@@ -5,8 +5,7 @@ use crate::stdlib::cell::Cell;
 use crate::stdlib::fmt;
 
 use crate::datex_values_old::{
-    BaseUnit, Pointer, PrimitiveValue, Quantity, SlotIdentifier,
-    Time, Type, Url,
+    SlotIdentifier, Type,
 };
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
