@@ -1,7 +1,6 @@
 mod constants;
 
 use std::fmt::Write;
-use crate::stdlib::cell::Cell;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
 use std::io::Cursor;

@@ -2,7 +2,6 @@ use std::fmt::Display;
 use std::io::Cursor;
 use binrw::BinRead;
 use log::info;
-use crate::stdlib::cell::Cell;
 use crate::stdlib::fmt;
 
 use crate::datex_values_old::{
