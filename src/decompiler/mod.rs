@@ -369,7 +369,11 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
                 state.get_current_scope().next_item_is_key = true;
             }
             Instruction::CloseAndStore => {
-                write!(output, ";")?;
+                if state.options.formatted {
+                    write!(output, ";\r\n")?;
+                } else {
+                    write!(output, ";")?;
+                }
             }
 
             // operations

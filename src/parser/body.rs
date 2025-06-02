@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::io::Cursor;
 use binrw::BinRead;
 use log::info;
@@ -97,6 +98,22 @@ impl From<std::string::FromUtf8Error> for ParserError {
         ParserError::FromUtf8Error(error)
     }
 }
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParserError::InvalidBinaryCode(code) => write!(f, "Invalid binary code: {code}"),
+            ParserError::FailedToReadInstructionCode => write!(f, "Failed to read instruction code"),
+            ParserError::FmtError(err) => write!(f, "Formatting error: {err}"),
+            ParserError::BinRwError(err) => write!(f, "Binary read/write error: {err}"),
+            ParserError::FromUtf8Error(err) => write!(f, "UTF-8 conversion error: {err}"),
+            ParserError::InvalidScopeEndType { expected, found } => {
+                write!(f, "Invalid scope end type: expected {expected:?}, found {found:?}")
+            }
+        }
+    }
+}
+
 
 fn get_short_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<ShortTextData, ParserError> {
     let raw_data = ShortTextDataRaw::read(&mut reader);

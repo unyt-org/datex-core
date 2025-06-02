@@ -3,6 +3,7 @@ use pest::error::Error;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use regex::Regex;
+use crate::compiler::CompilerError;
 use crate::compiler::operations::parse_operator;
 use crate::compiler::parser::{DatexParser, Rule};
 use crate::datex_values::value::DatexValueInner;
@@ -16,6 +17,7 @@ struct CompilationScope<'a> {
     buffer: &'a mut Vec<u8>,
     inserted_values: Vec<ValueContainer>
 }
+
 
 impl<'a> CompilationScope<'a> {
     const MAX_INT_32: i64 = 2_147_483_647;
@@ -184,7 +186,7 @@ impl<'a> CompilationScope<'a> {
 }
 
 /// Compiles a DATEX script text into a DXB body
-pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
+pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
     compile_template(
         datex_script,
         vec![]
@@ -195,9 +197,9 @@ pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, Box<Error<Rule>>> {
 pub fn compile_template(
     datex_script: &str,
     inserted_values: Vec<ValueContainer>,
-) -> Result<Vec<u8>, Box<Error<Rule>>> {
+) -> Result<Vec<u8>, CompilerError> {
     let pairs =
-        DatexParser::parse(Rule::datex, datex_script).map_err(Box::new)?; //.next().unwrap();
+        DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
 
     let mut buffer = Vec::with_capacity(256);
     let compilation_scope = CompilationScope {
@@ -206,7 +208,7 @@ pub fn compile_template(
         inserted_value_index: 0,
         inserted_values,
     };
-    parse_statements(compilation_scope, pairs);
+    parse_statements(compilation_scope, pairs)?;
 
     Ok(buffer)
 }
@@ -235,15 +237,16 @@ macro_rules! compile {
 fn parse_statements(
     mut compilation_scope: CompilationScope,
     pairs: Pairs<'_, Rule>,
-) {
+) -> Result<(), CompilerError> {
     for statement in pairs {
         match statement.as_rule() {
             Rule::EOI => {}
             _ => {
-                parse_atom(&mut compilation_scope, statement, false);
+                parse_atom(&mut compilation_scope, statement, false)?;
             }
         }
     }
+    Ok(())
 }
 
 fn rule_must_be_scoped(rule: Rule) -> bool {
@@ -255,7 +258,7 @@ fn parse_atom(
     compilation_scope: &mut CompilationScope,
     term: Pair<Rule>,
     scope_required_for_complex_expressions: bool
-) {
+) -> Result<(), CompilerError> {
     let rule = term.as_rule();
     info!(">> RULE {:?}", rule);
 
@@ -282,12 +285,12 @@ fn parse_atom(
                         compilation_scope
                             .append_binary_code(operation_mode.into());
                     }
-                    parse_atom(compilation_scope, prev_operand, true);
+                    parse_atom(compilation_scope, prev_operand, true)?;
                     prev_operand = inner.next().unwrap();
                 }
                 // no more operator, add last remaining operand
                 else {
-                    parse_atom(compilation_scope, prev_operand, true);
+                    parse_atom(compilation_scope, prev_operand, true)?;
                     break;
                 }
             }
@@ -298,13 +301,15 @@ fn parse_atom(
 
         // is either a Rule::term or a rule that could be inside a term (e.g. literal, integer, array, ...)
         _ => {
-            parse_term(compilation_scope, term, scope_required_for_complex_expressions);
+            parse_term(compilation_scope, term, scope_required_for_complex_expressions)?;
         }
     }
 
     if scoped {
         compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
     }
+
+    Ok(())
 }
 
 /// A term can only contain a single value
@@ -312,7 +317,7 @@ fn parse_term(
     compilation_scope: &mut CompilationScope,
     pair: Pair<'_, Rule>,
     scope_required_for_complex_terms: bool
-) {
+) -> Result<(), CompilerError> {
     // if Rule::term, get inner rule, else keep rule
     let term = match pair.as_rule() {
         Rule::term => pair.into_inner().next().unwrap(),
@@ -351,7 +356,7 @@ fn parse_term(
             compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
             let inner = term.into_inner();
             for item in inner {
-                parse_atom(compilation_scope, item, true);
+                parse_atom(compilation_scope, item, true)?;
             }
             compilation_scope.append_binary_code(InstructionCode::ARRAY_END);
         }
@@ -359,7 +364,7 @@ fn parse_term(
             compilation_scope.append_binary_code(InstructionCode::TUPLE_START);
             let inner = term.into_inner();
             for item in inner {
-                parse_atom(compilation_scope, item, true);
+                parse_atom(compilation_scope, item, true)?;
             }
             compilation_scope.append_binary_code(InstructionCode::TUPLE_END);
         }
@@ -367,7 +372,7 @@ fn parse_term(
             compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
             let inner = term.into_inner();
             for item in inner {
-                parse_atom(compilation_scope, item, true);
+                parse_atom(compilation_scope, item, true)?;
             }
             compilation_scope.append_binary_code(InstructionCode::OBJECT_END);
         }
@@ -393,12 +398,12 @@ fn parse_term(
                 _ => {
                     compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
                     // insert dynamic key
-                    parse_atom(compilation_scope, key, true);
+                    parse_atom(compilation_scope, key, true)?;
                 }
             }
 
             // insert value
-            parse_atom(compilation_scope, value, true);
+            parse_atom(compilation_scope, value, true)?;
         }
         Rule::placeholder => {
             let value_container = compilation_scope.inserted_values
@@ -418,16 +423,19 @@ fn parse_term(
             }
         }
         _ => {
-            unreachable!(
-                "Unexpected term {:?}",
-                term.as_rule()
-            );
+            return Err(CompilerError::UnexpectedTerm(term.as_rule()))
+            // unreachable!(
+            //     "Unexpected term {:?}",
+            //     term.as_rule()
+            // );
         }
     }
 
     if scoped {
         compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -944,6 +952,10 @@ pub mod tests {
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::TUPLE_END.into()];
+        assert_eq!(
+            result,
+            expected,
+        );
     }
 
     // multiple key-value pairs

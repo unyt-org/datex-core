@@ -1,3 +1,5 @@
+use std::fmt::Display;
+use pest::error::Error;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -12,16 +14,39 @@ pub mod bytecode;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::compile_script;
+use crate::compiler::parser::Rule;
 
-#[derive(Debug, Display)]
-pub enum CompilationError {
-    InvalidRule(String),
+#[derive(Debug)]
+pub enum CompilerError {
+    UnexpectedTerm(Rule),
+    SyntaxError(Box<Error<Rule>>),
     SerializationError(binrw::Error),
 }
 
-pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
-    let body = compile_script(datex_script)
-        .map_err(|e| CompilationError::InvalidRule(e.to_string()))?;
+impl From<Error<Rule>> for CompilerError {
+    fn from(error: Error<Rule>) -> Self {
+        CompilerError::SyntaxError(Box::new(error))
+    }
+}
+
+impl Display for CompilerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompilerError::UnexpectedTerm(rule) => {
+                write!(f, "Unexpected term: {rule:?}")
+            }
+            CompilerError::SyntaxError(error) => {
+                write!(f, "Sytnax error: {error}")
+            }
+            CompilerError::SerializationError(error) => {
+                write!(f, "Serialization error: {error}")
+            }
+        }
+    }
+}
+
+pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
+    let body = compile_script(datex_script)?;
 
     let routing_header = RoutingHeader {
         version: 2,
@@ -49,6 +74,6 @@ pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilationError> {
 
     let bytes = block
         .to_bytes()
-        .map_err(CompilationError::SerializationError)?;
+        .map_err(CompilerError::SerializationError)?;
     Ok(bytes)
 }
