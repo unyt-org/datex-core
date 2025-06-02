@@ -67,9 +67,9 @@ declaration = !{ var_type ~ variable ~ type_declaration? ~ "=" ~ expression }
 // - declaration
 // - tuple
 // - term_or_scope
-expression = _{ declaration | level_2_operation | level_1_operation | apply | assignment | tuple | term_or_scope }
-expression_without_tuple = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term_or_scope }
-expression_without_keys = _{ declaration | level_2_operation | level_1_operation | apply | assignment | term_or_scope }
+expression = _{ declaration | assignment | tuple | level_2_operation | level_1_operation | apply | term_or_scope }
+expression_without_tuple = _{ declaration | assignment | level_2_operation | level_1_operation | apply | term_or_scope }
+expression_without_keys = _{ declaration | assignment | level_2_operation | level_1_operation | apply | term_or_scope }
 
 // expression that can used inline at all locations (e.g. type declarations). TODO improve this concept
 inline_expression = _{ declaration | level_2_operation | level_1_operation | apply | term_or_scope }
@@ -81,7 +81,7 @@ literal_key = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 key = _{text | decimal | integer | literal_key | "(" ~ statements? ~ ")"}
 key_value = { key ~ ":" ~ expression_without_tuple}
 tuple_element = _{key_value | expression_without_tuple}
-tuple = !{ (tuple_element ~ "," ~ (tuple_element ~ ","?)+) | (key_value ~ ","?) }
+tuple = !{ (tuple_element ~ "," ~ (tuple_element ~ ","?)*) | (key_value ~ ","?) }
 keyed_tuple = _{ (key_value ~ "," ~ (key_value ~ ","?)+) | (key_value ~ ","?) }
 indexed_tuple = _{ (expression_without_keys ~ "," ~ (expression_without_keys ~ ","?)+) | (expression_without_keys ~ ","?) }
 
