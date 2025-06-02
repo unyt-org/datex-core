@@ -385,13 +385,13 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 
     // add syntax highlighting
     if state.options.colorized {
-        output = add_syntax_highlighting(output)?;
+        output = apply_syntax_highlighting(output)?;
     }
 
     Ok(output)
 }
 
-fn add_syntax_highlighting(datex_script: String) -> Result<String, ParserError> {
+pub fn apply_syntax_highlighting(datex_script: String) -> Result<String, ParserError> {
     let mut output = String::new();
 
     // load datex syntax + custom theme
