@@ -10,7 +10,7 @@ use log::info;
 
 use crate::network::com_hub::ComHub;
 
-mod execution;
+pub mod execution;
 pub mod global_context;
 pub mod memory;
 mod stack;

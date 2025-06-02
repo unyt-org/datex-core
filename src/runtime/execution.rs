@@ -1,17 +1,33 @@
-use log::debug;
-
-use crate::stdlib::cell::Cell;
-
+use std::fmt::Display;
 use crate::parser::body;
 use crate::datex_values::value_container::ValueContainer;
 use crate::parser::body::ParserError;
 use super::stack::Stack;
 
-fn execute_body(dxb_body: &[u8]) -> Result<ValueContainer, ExecutionError> {
-    execute_loop(dxb_body, &Cell::from(0), &Cell::from(false))
+#[derive(Debug, Clone, Default)]
+pub struct ExecutionOptions {
+    pub verbose: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ExecutionContext {
+    dxb_body: Vec<u8>,
+    options: ExecutionOptions,
+    index: usize,
+    stack: Stack
+}
+
+pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<ValueContainer, ExecutionError> {
+    let context = ExecutionContext {
+        dxb_body,
+        options,
+        ..ExecutionContext::default()
+    };
+    execute_loop(context)
 }
 
 
+#[derive(Debug)]
 pub enum ExecutionError {
     ParserError(ParserError),
     Unknown
@@ -23,20 +39,29 @@ impl From<ParserError> for ExecutionError {
     }
 }
 
+impl Display for ExecutionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExecutionError::ParserError(err) => write!(f, "Parser error: {err}"),
+            ExecutionError::Unknown => write!(f, "Unknown execution error"),
+        }
+    }
+}
+
 fn execute_loop(
-    dxb_body: &[u8],
-    index: &Cell<usize>,
-    is_end_instruction: &Cell<bool>,
+    context: ExecutionContext,
 ) -> Result<ValueContainer, ExecutionError> {
-    let mut stack: Stack = Stack::new();
+    let dxb_body = context.dxb_body;
+    let mut stack = context.stack;
 
     let instruction_iterator =
-        body::iterate_instructions(dxb_body, index, is_end_instruction);
+        body::iterate_instructions(&dxb_body);
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
-        debug!("{:?}", &instruction);
-
+        if context.options.verbose {
+            println!("[Exec]: {:?}", &instruction);
+        }
 
         // let _slot = instruction.slot.unwrap_or_default();
         // let has_primitive_value = instruction.value.is_some();

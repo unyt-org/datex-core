@@ -2,15 +2,12 @@ use log::info;
 use crate::datex_values::value_container::ValueContainer;
 use crate::runtime::execution::ExecutionError;
 
+#[derive(Debug, Default, Clone)]
 pub struct Stack {
     stack: Vec<ValueContainer>,
 }
 
 impl Stack {
-    pub fn new() -> Stack {
-        Stack { stack: Vec::new() }
-    }
-
     // custom stack operations
 
     pub fn print(&mut self) {

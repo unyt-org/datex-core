@@ -152,8 +152,6 @@ fn get_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<TextData, ParserError
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
-    mut _index: &'a Cell<usize>,
-    is_end_instruction: &'a Cell<bool>,
 ) -> impl Iterator<Item = Result<Instruction, ParserError>> + 'a {
     std::iter::from_coroutine(
         #[coroutine]

@@ -63,8 +63,6 @@ pub fn decompile_body(
         dxb_body,
         options,
 
-        index: &Cell::from(0),
-        is_end_instruction: &Cell::from(false),
         scopes: vec![
             ScopeState {
                 scope_type: (ScopeType::default(), true),
@@ -171,8 +169,6 @@ struct DecompilerGlobalState<'a> {
 
     // dxb
     dxb_body: &'a [u8],
-    index: &'a Cell<usize>,
-    is_end_instruction: &'a Cell<bool>,
 
     // options
     options: DecompileOptions,
@@ -254,8 +250,6 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
 
     let instruction_iterator = body::iterate_instructions(
         state.dxb_body,
-        state.index,
-        state.is_end_instruction,
     );
 
     for instruction in instruction_iterator {
