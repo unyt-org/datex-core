@@ -276,6 +276,10 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::ADD => {
                         Ok(Instruction::Add)
                     }
+                    
+                    InstructionCode::MULTIPLY => {
+                        Ok(Instruction::Multiply)
+                    }
 
                     _ => {
                         Err(ParserError::InvalidBinaryCode(instruction_code as u8))

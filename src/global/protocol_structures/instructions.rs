@@ -20,6 +20,7 @@ pub enum Instruction {
     KeyValueShortText(ShortTextData),
     CloseAndStore,
     Add,
+    Multiply,
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]

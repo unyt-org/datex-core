@@ -353,6 +353,9 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
             Instruction::Add => {
                 state.get_current_scope().active_operator = Some((Instruction::Add, true));
             }
+            Instruction::Multiply => {
+                state.get_current_scope().active_operator = Some((Instruction::Multiply, true));
+            }
 
             _ => {
                 write!(output, "{instruction:?}")?;
@@ -522,16 +525,25 @@ fn handle_before_operand(state: &mut DecompilerState, output: &mut String) -> Re
                 state.get_current_scope().active_operator = Some((operator.0.clone(), false));
             }
             (Instruction::Add, false) => {
-                if state.options.formatted {
-                    write!(output, " + ")?;
-                } else {
-                    write!(output, "+")?;
-                }
+                write_operator(state, output, "+")?;
+            }
+            (Instruction::Multiply, false) => {
+                write_operator(state, output, "*")?;
             }
             _ => {
                 panic!("Invalid operator: {operator:?}");
             }
         }
+    }
+    Ok(())
+}
+
+
+fn write_operator(state: &mut DecompilerState, output: &mut String, operator: &str) -> Result<(), ParserError> {
+    if state.options.formatted {
+        write!(output, " {operator} ")?;
+    } else {
+        write!(output, "{operator}")?;
     }
     Ok(())
 }

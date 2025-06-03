@@ -2,7 +2,8 @@ use std::ops::{Add, AddAssign, Not};
 use std::vec;
 
 use serde::{de, Deserialize, Deserializer, Serialize};
-
+use crate::datex_values::pointer::Pointer;
+use crate::datex_values::value_container::{ValueContainer, ValueError};
 // Array<?>
 // $0 = Int
 // $1 = Bool
@@ -31,6 +32,7 @@ pub enum DatexValueInner {
     Endpoint(Endpoint),
     Array(DatexArray),
 }
+
 
 impl DatexValueInner {
     pub fn to_dyn(&self) -> &dyn CoreValue {
@@ -253,6 +255,36 @@ impl TryFrom<SerializableDatexValue> for Value {
     }
 }
 
+impl From<Pointer> for Value {
+    fn from(pointer: Pointer) -> Self {
+        pointer.value
+    }
+}
+
+impl TryFrom<ValueContainer> for Value {
+    type Error = ValueError;
+
+    fn try_from(value_container: ValueContainer) -> Result<Self, Self::Error> {
+        match value_container {
+            ValueContainer::Value(value) => Ok(value),
+            ValueContainer::Pointer(pointer) => Ok(pointer.value),
+            ValueContainer::Void => Err(ValueError::IsVoid),
+        }
+    }
+}
+
+impl TryFrom<&ValueContainer> for Value {
+    type Error = ValueError;
+
+    fn try_from(value_container: &ValueContainer) -> Result<Self, Self::Error> {
+        match value_container {
+            ValueContainer::Value(value) => Ok(value.clone()),
+            ValueContainer::Pointer(pointer) => Ok(pointer.value.clone()),
+            ValueContainer::Void => Err(ValueError::IsVoid),
+        }
+    }
+}
+
 impl Value {
     pub fn null() -> Self {
         Value::boxed(Null)
@@ -276,21 +308,22 @@ impl PartialEq for Value {
 }
 
 impl Add for Value {
-    type Output = Option<Value>;
+    type Output = Result<Value, ValueError>;
     fn add(self, rhs: Value) -> Self::Output {
         // TODO sync with typed_datex_values
         match (self.inner, rhs.inner) {
             (DatexValueInner::Text(text), other)
             | (other, DatexValueInner::Text(text)) => {
                 let other =
-                    try_cast_to_value_dyn::<Text>(other.to_dyn()).ok()?;
+                    try_cast_to_value_dyn::<Text>(other.to_dyn())
+                        .map_err(|_| ValueError::TypeConversionError)?;
                 let text = text.add(other);
-                Some(text.as_datex_value())
+                Ok(text.as_datex_value())
             }
             (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
-                Some(lhs.add(rhs).as_datex_value())
+                Ok(lhs.add(rhs).as_datex_value())
             }
-            _ => None,
+            _ => Err(ValueError::InvalidOperation),
         }
     }
 }
@@ -481,15 +514,15 @@ mod test {
         let c = Value::from(false);
         assert_eq!(a.get_type(), Type::Bool);
         assert_eq!(b.get_type(), Type::Bool);
-        assert!(a != b);
-        assert!(b == c);
+        assert_ne!(a, b);
+        assert_eq!(b, c);
 
         let d = (!b.clone()).unwrap();
         assert_eq!(a, d);
 
         // We can't add two booleans together, so this should return None
         let a_plus_b = a.clone() + b.clone();
-        assert!(a_plus_b.is_none());
+        assert!(a_plus_b.is_err());
     }
 
     #[test]

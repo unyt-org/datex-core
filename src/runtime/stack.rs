@@ -1,46 +1,73 @@
-use log::info;
 use crate::datex_values::value_container::ValueContainer;
-use crate::runtime::execution::ExecutionError;
+use crate::global::protocol_structures::instructions::Instruction;
 
-#[derive(Debug, Default, Clone)]
-pub struct Stack {
-    stack: Vec<ValueContainer>,
+#[derive(Debug, Clone, Default)]
+pub struct Scope {
+    active_value: ValueContainer,
 }
 
-impl Stack {
-    // custom stack operations
+#[derive(Debug, Clone)]
+pub struct ScopeStack {
+    stack: Vec<Scope>,
+    active_operation: Option<Instruction>
+}
 
-    pub fn print(&mut self) {
-        info!("[CURRENT STACK]");
-        for item in &self.stack {
-            info!("{:?}", &item)
+impl Default for ScopeStack {
+    fn default() -> Self {
+        ScopeStack {
+            stack: vec![Scope::default()],
+            active_operation: None,
         }
     }
+}
 
-    pub fn size(&mut self) -> usize {
-        self.stack.len()
+impl ScopeStack {
+        
+    #[inline]
+    pub fn get_current_scope_mut(&mut self) -> &mut Scope {
+        // assumes that the stack always has at least one scope
+        self.stack.last_mut().unwrap()
+    }
+    // TODO: dont unwrap here! bytecode (scope start/end matching) might be invalid, leading to panic!
+    pub fn get_current_scope(&self) -> &Scope {
+        // assumes that the stack always has at least one scope
+        self.stack.last().unwrap()
+    }
+    
+    pub fn pop(&mut self) -> ValueContainer {
+        // assumes that the stack always has at least one scope
+        self.stack.pop().unwrap().active_value
+    }
+    
+    pub fn create_scope(&mut self) {
+        self.stack.push(Scope::default());
+    }
+    
+    pub fn set_active_value(&mut self, value: ValueContainer) {
+        let scope = self.get_current_scope_mut();
+        scope.active_value = value;
+    }
+    
+    pub fn get_active_value(&self) -> &ValueContainer {
+        let scope = self.get_current_scope();
+        &scope.active_value
     }
 
-    pub fn push(&mut self, value: ValueContainer) {
-        self.stack.push(value)
+    pub fn get_active_value_mut(&mut self) -> &mut ValueContainer {
+        let scope = self.get_current_scope_mut();
+        &mut scope.active_value
     }
-
-    pub fn pop(&mut self) -> Result<ValueContainer, ExecutionError> {
-        let value = self.stack.pop();
-        if let Some(value) = value {
-            Ok(value)
-        }
-        else {
-            Err(ExecutionError::Unknown)
-        }
+    
+    pub fn clear_active_value(&mut self) {
+        let scope = self.get_current_scope_mut();
+        scope.active_value = ValueContainer::Void;
     }
-
-    pub fn pop_or_void(&mut self) -> ValueContainer {
-        let value = self.stack.pop();
-        if let Some(value) = value {
-            value
-        } else {
-            ValueContainer::from(false) // TODO: return void
-        }
+    
+    pub fn set_active_operation(&mut self, operation: Instruction) {
+        self.active_operation = Some(operation);
+    }
+    
+    pub fn get_active_operation(&self) -> Option<&Instruction> {
+        self.active_operation.as_ref()
     }
 }
