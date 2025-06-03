@@ -1,5 +1,3 @@
-mod constants;
-
 use std::fmt::Write;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
@@ -329,19 +327,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 state.get_current_scope().write_start(&mut output)?;
             }
             Instruction::ScopeEnd => {
-                handle_scope_close(state, &mut output, ScopeType::Default)?;
-                handle_after_term(state, &mut output, true)?;
-            }
-            Instruction::ArrayEnd => {
-                handle_scope_close(state, &mut output, ScopeType::Array)?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            Instruction::ObjectEnd => {
-                handle_scope_close(state, &mut output, ScopeType::Object)?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            Instruction::TupleEnd => {
-                handle_scope_close(state, &mut output, ScopeType::Tuple)?;
+                handle_scope_close(state, &mut output)?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::KeyValueShortText(text_data) => {
@@ -480,15 +466,7 @@ fn handle_after_term(
 fn handle_scope_close(
     state: &mut DecompilerState,
     output: &mut String,
-    actual_scope_end_type: ScopeType,
 ) -> Result<(), ParserError> {
-    // check if actual scope end is the same as current scope type, otherwise this is an invalid byte code
-    if state.get_current_scope().scope_type.0 != actual_scope_end_type {
-        return Err(ParserError::InvalidScopeEndType {
-            expected: state.get_current_scope().scope_type.0.clone(),
-            found: actual_scope_end_type,
-        });
-    }
     let scope = state.get_current_scope();
     // close only if not outer scope
     if !scope.is_outer_scope {

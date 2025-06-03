@@ -356,7 +356,7 @@ fn parse_term(
             for item in inner {
                 parse_atom(compilation_scope, item, true)?;
             }
-            compilation_scope.append_binary_code(InstructionCode::ARRAY_END);
+            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
         Rule::tuple => {
             compilation_scope.append_binary_code(InstructionCode::TUPLE_START);
@@ -364,7 +364,7 @@ fn parse_term(
             for item in inner {
                 parse_atom(compilation_scope, item, true)?;
             }
-            compilation_scope.append_binary_code(InstructionCode::TUPLE_END);
+            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
         Rule::object => {
             compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
@@ -372,7 +372,7 @@ fn parse_term(
             for item in inner {
                 parse_atom(compilation_scope, item, true)?;
             }
-            compilation_scope.append_binary_code(InstructionCode::OBJECT_END);
+            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
         Rule::key_value => {
             let mut inner = term.into_inner();
@@ -679,7 +679,7 @@ pub mod tests {
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
             InstructionCode::ARRAY_START.into(),
-            InstructionCode::ARRAY_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -696,7 +696,7 @@ pub mod tests {
                 InstructionCode::ARRAY_START.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::ARRAY_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -717,7 +717,7 @@ pub mod tests {
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::ARRAY_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -739,10 +739,10 @@ pub mod tests {
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::ARRAY_END.into(),
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::INT_8.into(),
                 4,
-                InstructionCode::ARRAY_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -771,7 +771,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 4,
                 InstructionCode::SCOPE_END.into(),
-                InstructionCode::ARRAY_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -797,7 +797,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 4,
                 InstructionCode::SCOPE_END.into(),
-                InstructionCode::ARRAY_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -818,7 +818,7 @@ pub mod tests {
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::TUPLE_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -840,10 +840,10 @@ pub mod tests {
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::TUPLE_END.into(),
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::INT_8.into(),
                 4,
-                InstructionCode::TUPLE_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -864,7 +864,7 @@ pub mod tests {
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::TUPLE_END.into(),
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -882,7 +882,7 @@ pub mod tests {
             b'k', b'e', b'y',
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(
             result,
@@ -903,7 +903,7 @@ pub mod tests {
             b'k', b'e', b'y',
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(
             result,
@@ -924,7 +924,7 @@ pub mod tests {
             10,
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(
             result,
@@ -949,7 +949,7 @@ pub mod tests {
         expected.extend(vec![
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ]);
         assert_eq!(
             result,
@@ -974,7 +974,7 @@ pub mod tests {
             InstructionCode::SCOPE_END.into(),
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into()];
+            InstructionCode::SCOPE_END.into()];
         assert_eq!(
             result,
             expected,
@@ -1009,7 +1009,7 @@ pub mod tests {
             InstructionCode::SCOPE_END.into(),
             InstructionCode::INT_8.into(),
             44,
-            InstructionCode::TUPLE_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(
             result,
@@ -1030,7 +1030,7 @@ pub mod tests {
             b'k', b'e', b'y',
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::TUPLE_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(
             result,
@@ -1046,7 +1046,7 @@ pub mod tests {
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
             InstructionCode::OBJECT_START.into(),
-            InstructionCode::OBJECT_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1064,7 +1064,7 @@ pub mod tests {
             b'k', b'e', b'y',
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::OBJECT_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1092,7 +1092,7 @@ pub mod tests {
             b'k', b'e', b'y', b'3',
             InstructionCode::INT_8.into(),
             44,
-            InstructionCode::OBJECT_END.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }

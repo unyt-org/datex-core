@@ -244,11 +244,8 @@ pub enum InstructionCode {
 
     // arrays, objects and tuples 0xe0 - 0xef
     ARRAY_START = 0xe0, // array / or array
-    ARRAY_END = 0xe1,
     OBJECT_START = 0xe2, // {}
-    OBJECT_END = 0xe3,
     TUPLE_START = 0xe4, // (a,b,c)
-    TUPLE_END = 0xe5,
     KEY_VALUE_SHORT_TEXT = 0xe6,
     KEY_VALUE_DYNAMIC = 0xe9, // for object elements with dynamic key
     KEY_PERMISSION = 0xea,       // for object elements with permission prefix

@@ -251,15 +251,6 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::SCOPE_START => {
                         Ok(Instruction::ScopeStart)
                     }
-                    InstructionCode::ARRAY_END => {
-                        Ok(Instruction::ArrayEnd)
-                    }
-                    InstructionCode::OBJECT_END => {
-                        Ok(Instruction::ObjectEnd)
-                    }
-                    InstructionCode::TUPLE_END => {
-                        Ok(Instruction::TupleEnd)
-                    }
                     InstructionCode::SCOPE_END => {
                         Ok(Instruction::ScopeEnd)
                     }
