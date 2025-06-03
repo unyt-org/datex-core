@@ -158,7 +158,6 @@ pub fn get_code_color(code: &InstructionCode) -> Color {
 
         InstructionCode::WILDCARD => Color::PrimitiveConstant,
 
-        InstructionCode::KEY_VALUE_TEXT => Color::DefaultLight,
         // InstructionCode::KEY_VALUE_INTEGER => Color::DefaultLight,
 
         _ => Color::DEFAULT,

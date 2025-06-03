@@ -35,7 +35,7 @@ impl Display for CompilerError {
                 write!(f, "Unexpected term: {rule:?}")
             }
             CompilerError::SyntaxError(error) => {
-                write!(f, "Sytnax error: {error}")
+                write!(f, "Syntax error: {error}")
             }
             CompilerError::SerializationError(error) => {
                 write!(f, "Serialization error: {error}")

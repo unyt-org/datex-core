@@ -250,8 +250,6 @@ pub enum InstructionCode {
     TUPLE_START = 0xe4, // (a,b,c)
     TUPLE_END = 0xe5,
     KEY_VALUE_SHORT_TEXT = 0xe6,
-    KEY_VALUE_TEXT = 0xe7,   
-    // KEY_VALUE_INTEGER = 0xe8, // for array elements
     KEY_VALUE_DYNAMIC = 0xe9, // for object elements with dynamic key
     KEY_PERMISSION = 0xea,       // for object elements with permission prefix
     INTERNAL_OBJECT_SLOT = 0xef, // for object internal slots

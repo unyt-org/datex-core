@@ -273,15 +273,6 @@ pub fn iterate_instructions<'a>(
                         }
                     }
                     
-                    InstructionCode::KEY_VALUE_TEXT => {
-                        let text_data = get_text_data(&mut reader);
-                        if let Err(err) = text_data {
-                            Err(err)
-                        } else {
-                            Ok(Instruction::KeyValueText(text_data.unwrap()))
-                        }
-                    }
-                    
                     InstructionCode::KEY_VALUE_DYNAMIC => {
                         Ok(Instruction::KeyValueDynamic)
                     }

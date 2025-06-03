@@ -106,6 +106,37 @@ ref x: text = "test";
     null_value: null
 }
 
+// TODO: template strings:
+x = `adsf asdf $(1+2)`
+
+// TODO: eternal
+use eternal (x,y) from ./xy-eternal-data.dx;
+
+const CONST = 10;
+// @unyt.std
+// transferable function -> function + code
+export move function a(callback) (
+    CONST
+    callback()
+    #endpoint // @unyt.std
+)
+
+// datex-block
+move (
+    export function a() ()
+)
+
+// @me
+use a from @unyt.std;
+ref a = 10;
+const callback = function () (
+   a
+)
+a(move callback);
+
+
+#asdfasdf =  123;
+
 // special tuple cases
 1+2,3
 1,2+3

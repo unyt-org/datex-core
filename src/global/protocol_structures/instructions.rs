@@ -21,7 +21,6 @@ pub enum Instruction {
     TupleEnd,
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
-    KeyValueText(TextData),
     CloseAndStore,
     Add,
 }

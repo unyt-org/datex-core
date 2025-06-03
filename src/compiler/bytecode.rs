@@ -75,12 +75,11 @@ impl<'a> CompilationScope<'a> {
         if len < 256 {
             self.append_binary_code(InstructionCode::KEY_VALUE_SHORT_TEXT);
             self.append_u8(len as u8);
+            self.append_buffer(bytes);
         } else {
-            self.append_binary_code(InstructionCode::KEY_VALUE_TEXT);
-            self.append_u32(len as u32);
+            self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+            self.insert_string(key_string);
         }
-
-        self.append_buffer(bytes);
     }
 
     fn unescape_string(&mut self, string: &str) -> String {
@@ -927,6 +926,31 @@ pub mod tests {
             42,
             InstructionCode::TUPLE_END.into(),
         ];
+        assert_eq!(
+            result,
+            expected,
+        );
+    }
+
+    // key-value pair with long text key (>255 bytes)
+    #[test]
+    fn test_key_value_long_text() {
+        init_logger();
+        let long_key = "a".repeat(300);
+        let datex_script = format!("\"{long_key}\": 42");
+        let result = compile_and_log(&datex_script);
+        let mut expected: Vec<u8> = vec![
+            InstructionCode::TUPLE_START.into(),
+            InstructionCode::KEY_VALUE_DYNAMIC.into(),
+            InstructionCode::TEXT.into(),
+        ];
+        expected.extend((long_key.len() as u32).to_le_bytes());
+        expected.extend(long_key.as_bytes());
+        expected.extend(vec![
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::TUPLE_END.into(),
+        ]);
         assert_eq!(
             result,
             expected,

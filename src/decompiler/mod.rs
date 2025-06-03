@@ -58,7 +58,7 @@ pub fn decompile_body(
     dxb_body: &[u8],
     options: DecompileOptions,
 ) -> Result<String, ParserError> {
-    let mut initial_state = DecompilerGlobalState {
+    let mut initial_state = DecompilerState {
         dxb_body,
         options,
 
@@ -161,7 +161,7 @@ impl ScopeState {
 }
 
 #[derive(Debug, Clone)]
-struct DecompilerGlobalState<'a> {
+struct DecompilerState<'a> {
 
     // stack of scopes
     scopes: Vec<ScopeState>,
@@ -179,7 +179,7 @@ struct DecompilerGlobalState<'a> {
     variables: HashMap<u16, String>,
 }
 
-impl DecompilerGlobalState<'_> {
+impl DecompilerState<'_> {
     fn get_current_scope(&mut self) -> &mut ScopeState {
         self.scopes.last_mut().unwrap()
     }
@@ -198,7 +198,7 @@ impl DecompilerGlobalState<'_> {
 
 
 
-impl DecompilerGlobalState<'_> {
+impl DecompilerState<'_> {
     fn get_insert_label(&mut self, index: usize) -> String {
         // existing
         if self.labels.contains_key(&index) {
@@ -243,7 +243,7 @@ impl DecompilerGlobalState<'_> {
 }
 
 
-fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserError> {
+fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
 
     let mut output = String::new();
 
@@ -350,12 +350,6 @@ fn decompile_loop(state: &mut DecompilerGlobalState) -> Result<String, ParserErr
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write_text_key(&text_data.0, &mut output, state.options.formatted)?;
             }
-            Instruction::KeyValueText(text_data) => {
-                handle_before_term(state, &mut output, false)?;
-                // prevent redundant comma for value
-                state.get_current_scope().skip_comma_for_next_item = true;
-                write_text_key(&text_data.0, &mut output, state.options.formatted)?;
-            }
             Instruction::KeyValueDynamic => {
                 handle_before_term(state, &mut output, false)?;
                 state.get_current_scope().skip_comma_for_next_item = true;
@@ -449,7 +443,7 @@ fn write_text_key(text: &str, output: &mut String, formatted: bool) -> Result<()
 /// insert syntax before a term (e.g. operators, commas, etc.)
 /// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
 /// e.g. for text ("key": "value") the parenthesis are not needed
-fn handle_before_term(state: &mut DecompilerGlobalState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
+fn handle_before_term(state: &mut DecompilerState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
     handle_before_operand(state, output)?;
     handle_before_item(state, output, is_standalone_key)?;
     Ok(())
@@ -458,7 +452,7 @@ fn handle_before_term(state: &mut DecompilerGlobalState, output: &mut String, is
 /// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
 /// e.g. for text ("key": "value") the parenthesis are not needed
 fn handle_after_term(
-    state: &mut DecompilerGlobalState,
+    state: &mut DecompilerState,
     output: &mut String,
     is_standalone_key: bool
 ) -> Result<(), ParserError> {
@@ -484,7 +478,7 @@ fn handle_after_term(
 
 /// before scope close (insert scope closing syntax)
 fn handle_scope_close(
-    state: &mut DecompilerGlobalState,
+    state: &mut DecompilerState,
     output: &mut String,
     actual_scope_end_type: ScopeType,
 ) -> Result<(), ParserError> {
@@ -508,7 +502,7 @@ fn handle_scope_close(
 /// insert comma syntax before a term (e.g. ",")
 /// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
 /// e.g. for text ("key": "value") the parenthesis are not needed
-fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
+fn handle_before_item(state: &mut DecompilerState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
     let formatted = state.options.formatted;
     let scope = state.get_current_scope();
 
@@ -541,7 +535,7 @@ fn handle_before_item(state: &mut DecompilerGlobalState, output: &mut String, is
 }
 
 /// insert operator syntax before an operand (e.g. +, -, etc.)
-fn handle_before_operand(state: &mut DecompilerGlobalState, output: &mut String) -> Result<(), ParserError> {
+fn handle_before_operand(state: &mut DecompilerState, output: &mut String) -> Result<(), ParserError> {
     if let Some(operator) = &state.get_current_scope().active_operator {
         // handle the operator before the operand
         match operator {
