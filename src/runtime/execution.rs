@@ -29,12 +29,25 @@ pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<Optio
     execute_loop(context)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InvalidProgramError {
+    InvalidScopeClose,
+}
+
+impl Display for InvalidProgramError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidProgramError::InvalidScopeClose => write!(f, "Invalid scope close"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ExecutionError {
     ParserError(ParserError),
-    Unknown,
     ValueError(ValueError),
+    InvalidProgram(InvalidProgramError),
+    Unknown,
 }
 
 impl From<ParserError> for ExecutionError {
@@ -49,12 +62,21 @@ impl From<ValueError> for ExecutionError {
     }
 }
 
+impl From<InvalidProgramError> for ExecutionError {
+    fn from(error: InvalidProgramError) -> Self {
+        ExecutionError::InvalidProgram(error)
+    }
+}
+
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ExecutionError::ParserError(err) => write!(f, "Parser error: {err}"),
             ExecutionError::Unknown => write!(f, "Unknown execution error"),
             ExecutionError::ValueError(err) => write!(f, "Value error: {err}"),
+            ExecutionError::InvalidProgram(err) => {
+                write!(f, "Invalid program error: {err}")
+            }
         }
     }
 }
@@ -100,7 +122,7 @@ fn execute_loop(
             Instruction::ScopeEnd => {
                 // pop scope and return value
                 info!("Scope end reached, returning value");
-                scope_stack.pop()
+                scope_stack.pop()?
             }
 
             i => {
@@ -117,7 +139,7 @@ fn execute_loop(
             // operation
             if let Some(operation) = scope_stack.get_active_operation() {
                 let active_value = scope_stack.get_active_value();
-                if active_value == &None {
+                if active_value.is_none() {
                     // set active value to operation result
                     scope_stack.set_active_value(val);
                 } else if let Some(active_value) = active_value  {
@@ -191,26 +213,32 @@ fn execute_loop(
         // }
     }
 
-    Ok(scope_stack.pop())
+    Ok(scope_stack.pop_last()?)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::compiler::bytecode::compile_script;
+    use crate::global::binary_codes::InstructionCode;
     use super::*;
 
-    fn execute_dxb_debug(datex_script: &str) -> Option<ValueContainer> {
-        let dxb = compile_script(&datex_script).unwrap();
+    fn execute_datex_script_debug(datex_script: &str) -> Option<ValueContainer> {
+        let dxb = compile_script(datex_script).unwrap();
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb, options).unwrap_or_else(|err| {
             panic!("Execution failed: {err}");
         })
     }
+    
+    fn execute_dxb_debug(dxb_body: Vec<u8>) -> Result<Option<ValueContainer>, ExecutionError> {
+        let options = ExecutionOptions { verbose: true };
+        execute_dxb(dxb_body, options)
+    }
 
     #[test]
     fn test_empty_script() {
         assert_eq!(
-            execute_dxb_debug(""),
+            execute_datex_script_debug(""),
             None
         );
     }
@@ -218,7 +246,7 @@ mod tests {
     #[test]
     fn test_empty_script_semicolon() {
         assert_eq!(
-            execute_dxb_debug(";;;"),
+            execute_datex_script_debug(";;;"),
             None
         );
     }
@@ -226,7 +254,7 @@ mod tests {
     #[test]
     fn test_single_value() {
         assert_eq!(
-            execute_dxb_debug("42"),
+            execute_datex_script_debug("42"),
             ValueContainer::from(42).into()
         );
     }
@@ -234,7 +262,7 @@ mod tests {
     #[test]
     fn test_single_value_semicolon() {
         assert_eq!(
-            execute_dxb_debug("42;"),
+            execute_datex_script_debug("42;"),
             None
         )
     }
@@ -242,20 +270,32 @@ mod tests {
     #[test]
     fn test_single_value_scope() {
         assert_eq!(
-            execute_dxb_debug("(42)"),
+            execute_datex_script_debug("(42)"),
             ValueContainer::from(42).into()
         );
     }
 
     #[test]
     fn test_add() {
-        let result = execute_dxb_debug("1 + 2");
+        let result = execute_datex_script_debug("1 + 2");
         assert_eq!(result, ValueContainer::from(3).into());
     }
     
     #[test]
     fn test_nested_scope() {
-        let result = execute_dxb_debug("1 + (2 + 3)");
+        let result = execute_datex_script_debug("1 + (2 + 3)");
         assert_eq!(result, ValueContainer::from(6).into());
+    }
+    
+    #[test]
+    fn test_invalid_scope_close() {
+        let result = execute_dxb_debug(
+            vec![
+                InstructionCode::SCOPE_START.into(),
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::SCOPE_END.into(), // Invalid close, no matching start
+            ]
+        );
+        assert!(matches!(result, Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidScopeClose))));
     }
 }

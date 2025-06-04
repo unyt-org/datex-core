@@ -1,5 +1,6 @@
 use crate::datex_values::value_container::{ValueContainer};
 use crate::global::protocol_structures::instructions::Instruction;
+use crate::runtime::execution::InvalidProgramError;
 
 #[derive(Debug, Clone, Default)]
 pub struct Scope {
@@ -22,51 +23,78 @@ impl Default for ScopeStack {
 }
 
 impl ScopeStack {
-        
+    
+    /// Returns a reference to the currently active scope.
+    #[inline]
+    pub fn get_current_scope(&self) -> &Scope {
+        // assumes that the stack always has at least one scope
+        self.stack.last().unwrap()
+    }
+
+    /// Returns a mutable reference to the currently active scope.
     #[inline]
     pub fn get_current_scope_mut(&mut self) -> &mut Scope {
         // assumes that the stack always has at least one scope
         self.stack.last_mut().unwrap()
     }
-    // TODO: dont unwrap here! bytecode (scope start/end matching) might be invalid, leading to panic!
-    pub fn get_current_scope(&self) -> &Scope {
-        // assumes that the stack always has at least one scope
-        self.stack.last().unwrap()
+    
+    /// Pops the currently active scope from the stack and return its active value
+    /// If there is no active value, it returns None
+    /// If there are not at least two scopes in the stack, it returns an error
+    pub fn pop(&mut self) -> Result<Option<ValueContainer>, InvalidProgramError> {
+        // make sure there are at least two scopes in the stack, otherwise the byte code was invalid
+        if self.stack.len() < 2 {
+            return Err(InvalidProgramError::InvalidScopeClose);
+        }
+        Ok(self.stack.pop().unwrap().active_value)
     }
     
-    pub fn pop(&mut self) -> Option<ValueContainer> {
-        // assumes that the stack always has at least one scope
-        self.stack.pop().unwrap().active_value
+    /// Pops the last scope from the stack and return its active value.
+    /// This should only be called at the end of an execution, when extracting the active value
+    /// from the outer scope, otherwise it will return an error.
+    pub fn pop_last(&mut self) -> Result<Option<ValueContainer>, InvalidProgramError> {
+        // this is only valid if there is exactly one scope in the stack
+        if self.stack.len() != 1 {
+            return Err(InvalidProgramError::InvalidScopeClose);
+        }
+        Ok(self.stack.pop().unwrap().active_value)
     }
     
+    /// Adds a new scope to the stack.
     pub fn create_scope(&mut self) {
         self.stack.push(Scope::default());
     }
     
+    /// Sets the active value of the current scope.
     pub fn set_active_value(&mut self, value: ValueContainer) {
         let scope = self.get_current_scope_mut();
         scope.active_value = value.into();
     }
     
+    /// Sets the active value of the current scope to None.
     pub fn get_active_value(&self) -> &Option<ValueContainer> {
         let scope = self.get_current_scope();
         &scope.active_value
     }
 
+    /// Returns a mutable reference to the active value of the current scope.
     pub fn get_active_value_mut(&mut self) -> &mut Option<ValueContainer> {
         let scope = self.get_current_scope_mut();
         &mut scope.active_value
     }
     
+    /// Clears the active value of the current scope.
     pub fn clear_active_value(&mut self) {
         let scope = self.get_current_scope_mut();
         scope.active_value = None;
     }
     
+    /// Sets the active operation for the current scope.
     pub fn set_active_operation(&mut self, operation: Instruction) {
         self.active_operation = Some(operation);
     }
     
+    /// Returns the active operation for the current scope, if any.
     pub fn get_active_operation(&self) -> Option<&Instruction> {
         self.active_operation.as_ref()
     }
