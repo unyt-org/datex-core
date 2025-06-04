@@ -87,7 +87,7 @@ impl ScopeStack {
 
     /// Adds a new scope to the stack.
     pub fn create_scope(&mut self, scope_type: ScopeType) {
-        self.stack.push(Scope::default());
+        self.stack.push(Scope::new(scope_type));
     }
 
     /// Sets the active value of the current scope.

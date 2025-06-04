@@ -98,17 +98,19 @@ fn execute_loop(
         if context.options.verbose {
             println!("[Exec]: {:?}", &instruction);
         }
+        
+        let mut is_scope_start = false;
 
         let value: Option<ValueContainer> = match instruction {
 
             Instruction::Int8(Int8Data(i8)) => {
                 Some(i8.into())
             }
-            
+
             Instruction::ShortText(ShortTextData(text)) => {
                 Some(text.into())
             }
-            
+
             // operations
             Instruction::Add => {
                 scope_stack.set_active_operation(Instruction::Add);
@@ -119,17 +121,17 @@ fn execute_loop(
                 scope_stack.clear_active_value();
                 None
             }
-            
+
             Instruction::ScopeStart => {
                 scope_stack.create_scope(ScopeType::Default);
                 None
             }
-            
+
             Instruction::ArrayStart => {
                 info!("Array start reached, creating new scope for array");
                 scope_stack.create_scope(ScopeType::Array);
-                scope_stack.set_active_value(Value::from(DatexArray::default()).into());
-                None
+                is_scope_start = true;
+                Some(Value::from(DatexArray::default()).into())
             }
 
             Instruction::ScopeEnd => {
@@ -168,7 +170,7 @@ fn execute_loop(
                 }
             }
             // special scope: Array
-            else if scope_stack.get_current_scope_type() == ScopeType::Array {
+            else if !is_scope_start && scope_stack.get_current_scope_type() == ScopeType::Array {
                 // add value to array scope
                 let mut array = scope_stack.get_active_value_mut();
                 match &mut array {
@@ -181,7 +183,7 @@ fn execute_loop(
                     }
                 }
             }
-                
+
             // set active value in current scope
             else {
                 scope_stack.set_active_value(val);
@@ -257,7 +259,7 @@ mod tests {
             panic!("Execution failed: {err}");
         })
     }
-    
+
     fn execute_dxb_debug(dxb_body: Vec<u8>) -> Result<Option<ValueContainer>, ExecutionError> {
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb_body, options)
@@ -308,13 +310,13 @@ mod tests {
         let result = execute_datex_script_debug("1 + 2");
         assert_eq!(result, ValueContainer::from(3).into());
     }
-    
+
     #[test]
     fn test_nested_scope() {
         let result = execute_datex_script_debug("1 + (2 + 3)");
         assert_eq!(result, ValueContainer::from(6).into());
     }
-    
+
     #[test]
     fn test_invalid_scope_close() {
         let result = execute_dxb_debug(
