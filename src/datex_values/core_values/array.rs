@@ -2,25 +2,25 @@ use std::{
     fmt,
     ops::{AddAssign, Index},
 };
-
+use crate::datex_values::value_container::ValueContainer;
 use super::super::{
     core_value::CoreValue,
     datex_type::Type,
     typed_value::TypedValue,
-    value::{SerializableDatexValue, Value},
+    value::Value,
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct DatexArray(pub Vec<Value>);
+pub struct DatexArray(pub Vec<ValueContainer>);
 impl DatexArray {
     pub fn length(&self) -> usize {
         self.0.len()
     }
-    pub fn get(&self, index: usize) -> Option<&Value> {
+    pub fn get(&self, index: usize) -> Option<&ValueContainer> {
         self.0.get(index)
     }
 
-    pub fn push<T: Into<Value>>(&mut self, value: T) {
+    pub fn push<T: Into<ValueContainer>>(&mut self, value: T) {
         self.0.push(value.into());
     }
 }
@@ -42,32 +42,12 @@ impl CoreValue for DatexArray {
         Value::boxed(self.clone())
     }
 
-    fn static_type() -> Type {
-        Type::Array
-    }
-
     fn get_type(&self) -> Type {
         Self::static_type()
     }
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![];
-        for value in &self.0 {
-            let repr: SerializableDatexValue = value.into();
-            bytes.extend(repr.to_bytes());
-        }
-        bytes
-    }
-    fn from_bytes(bytes: &[u8]) -> Self {
-        // let mut values = vec![];
-        // let mut offset = 0;
-        // while offset < bytes.len() {
-        //     let (value, size) =
-        //         SerializableDatexValue::from_bytes(&bytes[offset..]);
-        //     values.push(value);
-        //     offset += size;
-        // }
-        // DatexArray(values)
-        DatexArray(vec![])
+
+    fn static_type() -> Type {
+        Type::Array
     }
 }
 
@@ -86,7 +66,7 @@ impl fmt::Display for DatexArray {
 
 impl<T> From<Vec<T>> for DatexArray
 where
-    T: Into<Value>,
+    T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
         DatexArray(vec.into_iter().map(Into::into).collect())
@@ -97,7 +77,7 @@ where
 macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
-            let arr = vec![$( $crate::datex_values::value::Value::from($x) ),*];
+            let arr = vec![$( $crate::datex_values::value::ValueContainer::from($x) ),*];
             DatexArray(arr)
         }
     };
@@ -113,7 +93,7 @@ where
 }
 
 impl Index<usize> for DatexArray {
-    type Output = Value;
+    type Output = ValueContainer;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
@@ -121,7 +101,7 @@ impl Index<usize> for DatexArray {
 }
 
 impl Index<usize> for TypedValue<DatexArray> {
-    type Output = Value;
+    type Output = ValueContainer;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]

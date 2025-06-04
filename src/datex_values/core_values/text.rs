@@ -4,14 +4,12 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use serde::{Deserialize, Serialize};
-
 use super::{
     super::core_value::CoreValue, super::datex_type::Type,
     super::typed_value::TypedValue, super::value::Value, int::I8,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Text(pub String);
 
 impl Display for Text {
@@ -64,23 +62,12 @@ impl CoreValue for Text {
         Value::boxed(self.clone())
     }
 
-    fn static_type() -> Type {
-        Type::Text
-    }
-
     fn get_type(&self) -> Type {
         Self::static_type()
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
-        self.0.as_bytes().to_vec()
-    }
-    fn from_bytes(bytes: &[u8]) -> Self
-    where
-        Self: Sized,
-    {
-        let s = String::from_utf8_lossy(bytes).to_string();
-        Text(s)
+    fn static_type() -> Type {
+        Type::Text
     }
 }
 

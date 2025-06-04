@@ -13,12 +13,6 @@ pub trait CoreValue: Display + Send + Sync {
     fn static_type() -> Type
     where
         Self: Sized;
-
-    // FIXME deprecate
-    fn to_bytes(&self) -> Vec<u8>;
-    fn from_bytes(bytes: &[u8]) -> Self
-    where
-        Self: Sized;
 }
 
 pub fn try_cast_to_value<T: CoreValue + Clone + 'static>(

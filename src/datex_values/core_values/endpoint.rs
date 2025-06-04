@@ -92,12 +92,6 @@ impl CoreValue for Endpoint {
     fn get_type(&self) -> Type {
         Self::static_type()
     }
-    fn to_bytes(&self) -> Vec<u8> {
-        todo!()
-    }
-    fn from_bytes(bytes: &[u8]) -> Self {
-        todo!()
-    }
 }
 
 impl From<Endpoint> for TypedValue<Endpoint> {

@@ -2,9 +2,29 @@ use crate::datex_values::value_container::{ValueContainer};
 use crate::global::protocol_structures::instructions::Instruction;
 use crate::runtime::execution::InvalidProgramError;
 
+// TODO: use same struct as in decompiler?
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum ScopeType {
+    #[default]
+    Default,
+    Tuple,
+    Array,
+    Object,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Scope {
     active_value: Option<ValueContainer>,
+    scope_type: ScopeType,
+}
+
+impl Scope {
+    pub fn new(scope_type: ScopeType) -> Self {
+        Scope {
+            scope_type,
+            ..Self::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +81,7 @@ impl ScopeStack {
     }
     
     /// Adds a new scope to the stack.
-    pub fn create_scope(&mut self) {
+    pub fn create_scope(&mut self, scope_type: ScopeType) {
         self.stack.push(Scope::default());
     }
     

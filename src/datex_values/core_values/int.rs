@@ -38,20 +38,12 @@ impl CoreValue for I8 {
         Value::boxed(self.clone())
     }
 
-    fn static_type() -> Type {
-        Type::I8
-    }
-
     fn get_type(&self) -> Type {
         Self::static_type()
     }
-    fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_le_bytes().to_vec()
-    }
-    fn from_bytes(bytes: &[u8]) -> Self {
-        let mut arr = [0; 1];
-        arr.copy_from_slice(&bytes[0..1]);
-        I8(i8::from_le_bytes(arr))
+
+    fn static_type() -> Type {
+        Type::I8
     }
 }
 

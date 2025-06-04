@@ -1,11 +1,13 @@
 use std::fmt::Display;
 use std::ops::Add;
 use log::info;
+use crate::datex_values::core_values::array::DatexArray;
+use crate::datex_values::value::{DatexValueInner, Value};
 use crate::parser::body;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{Instruction, Int8Data};
+use crate::global::protocol_structures::instructions::{Instruction, Int8Data, ShortTextData};
 use crate::parser::body::ParserError;
-use super::stack::ScopeStack;
+use super::stack::{ScopeStack, ScopeType};
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -102,7 +104,11 @@ fn execute_loop(
             Instruction::Int8(Int8Data(i8)) => {
                 Some(i8.into())
             }
-
+            
+            Instruction::ShortText(ShortTextData(text)) => {
+                Some(text.into())
+            }
+            
             // operations
             Instruction::Add => {
                 scope_stack.set_active_operation(Instruction::Add);
@@ -115,7 +121,14 @@ fn execute_loop(
             }
             
             Instruction::ScopeStart => {
-                scope_stack.create_scope();
+                scope_stack.create_scope(ScopeType::Default);
+                None
+            }
+            
+            Instruction::ArrayStart => {
+                info!("Array start reached, creating new scope for array");
+                scope_stack.create_scope(ScopeType::Array);
+                scope_stack.set_active_value(Value::from(DatexArray::default()).into());
                 None
             }
 

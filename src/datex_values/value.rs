@@ -186,32 +186,9 @@ impl Value {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde()]
-pub struct SerializableDatexValue {
-    #[serde(rename = "type")]
-    _type: Type,
-    value: Vec<u8>,
-}
-impl SerializableDatexValue {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![];
-        bytes.push(self._type.clone() as u8);
-        bytes.extend_from_slice(&self.value);
-        bytes
-    }
-}
-impl From<&Value> for SerializableDatexValue {
-    fn from(value: &Value) -> Self {
-        SerializableDatexValue {
-            _type: value.get_type(),
-            value: value.to_dyn().to_bytes(),
-        }
-    }
-}
 impl<T> From<Vec<T>> for Value
 where
-    T: Into<Value>,
+    T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
         let items = vec.into_iter().map(Into::into).collect();
@@ -221,37 +198,6 @@ where
 impl From<DatexArray> for Value {
     fn from(arr: DatexArray) -> Self {
         Value::boxed(arr)
-    }
-}
-impl Serialize for Value {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let repr: SerializableDatexValue = self.into();
-        repr.serialize(serializer)
-    }
-}
-impl TryFrom<SerializableDatexValue> for Value {
-    type Error = String;
-
-    fn try_from(dxvalue: SerializableDatexValue) -> Result<Self, Self::Error> {
-        match dxvalue._type {
-            Type::Text => {
-                let text = Text::from_bytes(&dxvalue.value);
-                Ok(Value::boxed(text))
-            }
-            Type::I8 => {
-                let i8 = I8::from_bytes(&dxvalue.value);
-                Ok(Value::boxed(i8))
-            }
-            Type::Bool => {
-                let bool = Bool::from_bytes(&dxvalue.value);
-                Ok(Value::boxed(bool))
-            }
-            Type::Null => Ok(Value::null()),
-            _ => Err(format!("Unsupported type: {:?}", dxvalue.value)),
-        }
     }
 }
 
@@ -384,17 +330,6 @@ where
     }
 }
 
-impl<'de> Deserialize<'de> for Value {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let intermediate = SerializableDatexValue::deserialize(deserializer)?;
-        Value::try_from(intermediate).map_err(de::Error::custom)
-    }
-}
-
-
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
@@ -473,17 +408,18 @@ mod test {
         debug!("Array: {}", c);
     }
 
-    #[test]
-    fn serialize() {
-        init_logger();
-        test_serialize_and_deserialize(Value::from(42));
-        test_serialize_and_deserialize(Value::from("Hello World!"));
-        test_serialize_and_deserialize(Value::from(true));
-        test_serialize_and_deserialize(Value::from(false));
-        test_serialize_and_deserialize(Value::null());
-        test_serialize_and_deserialize(Value::from(0));
-        test_serialize_and_deserialize(Value::from(1));
-    }
+    // TODO: think about a serialization/deserialization strategy in combination with the compiler
+    // #[test]
+    // fn serialize() {
+    //     init_logger();
+    //     test_serialize_and_deserialize(Value::from(42));
+    //     test_serialize_and_deserialize(Value::from("Hello World!"));
+    //     test_serialize_and_deserialize(Value::from(true));
+    //     test_serialize_and_deserialize(Value::from(false));
+    //     test_serialize_and_deserialize(Value::null());
+    //     test_serialize_and_deserialize(Value::from(0));
+    //     test_serialize_and_deserialize(Value::from(1));
+    // }
 
     #[test]
     fn typed_boolean() {
@@ -712,19 +648,19 @@ mod test {
         info!("{} + {} = {}", b.clone(), a.clone(), b_plus_a);
     }
 
-    fn serialize_datex_value(value: &Value) -> String {
-        let res = serde_json::to_string(value).unwrap();
-        info!("Serialized DatexValue: {}", res);
-        res
-    }
-    fn deserialize_datex_value(json: &str) -> Value {
-        let res = serde_json::from_str(json).unwrap();
-        info!("Deserialized DatexValue: {}", res);
-        res
-    }
-    fn test_serialize_and_deserialize(value: Value) {
-        let json = serialize_datex_value(&value);
-        let deserialized = deserialize_datex_value(&json);
-        assert_eq!(value, deserialized);
-    }
+    // fn serialize_datex_value(value: &Value) -> String {
+    //     let res = serde_json::to_string(value).unwrap();
+    //     info!("Serialized DatexValue: {}", res);
+    //     res
+    // }
+    // fn deserialize_datex_value(json: &str) -> Value {
+    //     let res = serde_json::from_str(json).unwrap();
+    //     info!("Deserialized DatexValue: {}", res);
+    //     res
+    // }
+    // fn test_serialize_and_deserialize(value: Value) {
+    //     let json = serialize_datex_value(&value);
+    //     let deserialized = deserialize_datex_value(&json);
+    //     assert_eq!(value, deserialized);
+    // }
 }

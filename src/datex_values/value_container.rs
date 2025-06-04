@@ -25,6 +25,16 @@ pub enum ValueContainer {
     Pointer(Pointer),
 }
 
+impl Display for ValueContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueContainer::Value(value) => write!(f, "{value}"),
+            // TODO: only simple temporary way to distinguish between Value and Pointer
+            ValueContainer::Pointer(pointer) => write!(f, "$({})", pointer.value),
+        }
+    }
+}
+
 impl ValueContainer {
     fn get_value(&self) -> &Value {
         match self {

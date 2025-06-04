@@ -1,13 +1,11 @@
 use std::{fmt::Display, ops::Not};
 
-use serde::{Deserialize, Serialize};
-
 use super::{
     super::core_value::CoreValue, super::datex_type::Type,
     super::typed_value::TypedValue, super::value::Value, text::Text,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bool(pub bool);
 
 impl Bool {
@@ -47,20 +45,12 @@ impl CoreValue for Bool {
         Value::boxed(self.clone())
     }
 
-    fn static_type() -> Type {
-        Type::Bool
-    }
-
     fn get_type(&self) -> Type {
         Self::static_type()
     }
-    fn to_bytes(&self) -> Vec<u8> {
-        vec![if self.0 { 1 } else { 0 }]
-    }
-    fn from_bytes(bytes: &[u8]) -> Self {
-        let mut arr = [0; 1];
-        arr.copy_from_slice(&bytes[0..1]);
-        Bool(arr[0] != 0)
+
+    fn static_type() -> Type {
+        Type::Bool
     }
 }
 
