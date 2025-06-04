@@ -276,7 +276,7 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::ADD => {
                         Ok(Instruction::Add)
                     }
-                    
+
                     InstructionCode::MULTIPLY => {
                         Ok(Instruction::Multiply)
                     }

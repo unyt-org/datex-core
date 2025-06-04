@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use binrw::{BinRead, BinWrite};
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -21,6 +22,33 @@ pub enum Instruction {
     CloseAndStore,
     Add,
     Multiply,
+}
+
+impl Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Instruction::Int8(data) => write!(f, "INT_8 {}", data.0),
+            Instruction::Int16(data) => write!(f, "INT_16 {}", data.0),
+            Instruction::Int32(data) => write!(f, "INT_32 {}", data.0),
+            Instruction::Int64(data) => write!(f, "INT_64 {}", data.0),
+            Instruction::Float64(data) => write!(f, "FLOAT_64 {}", data.0),
+            Instruction::ShortText(data) => write!(f, "SHORT_TEXT {}", data.0),
+            Instruction::Text(data) => write!(f, "TEXT {}", data.0),
+            Instruction::True => write!(f, "TRUE"),
+            Instruction::False => write!(f, "FALSE"),
+            Instruction::Null => write!(f, "NULL"),
+            Instruction::ScopeStart => write!(f, "SCOPE_START"),
+            Instruction::ArrayStart => write!(f, "ARRAY_START"),
+            Instruction::ObjectStart => write!(f, "OBJECT_START"),
+            Instruction::TupleStart => write!(f, "TUPLE_START"),
+            Instruction::ScopeEnd => write!(f, "SCOPE_END"),
+            Instruction::KeyValueDynamic => write!(f, "KEY_VALUE_DYNAMIC"),
+            Instruction::KeyValueShortText(data) => write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0),
+            Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
+            Instruction::Add => write!(f, "ADD"),
+            Instruction::Multiply => write!(f, "MULTIPLY"),
+        }
+    }
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]

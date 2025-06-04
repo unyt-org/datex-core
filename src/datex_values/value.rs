@@ -23,7 +23,7 @@ use super::core_values::text::Text;
 use super::datex_type::Type;
 use super::typed_value::TypedValue;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexValueInner {
     Bool(Bool),
     I8(I8),
@@ -215,14 +215,7 @@ impl Value {
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         if self.actual_type == other.actual_type {
-            match (&self.inner, &other.inner) {
-                (DatexValueInner::Bool(a), DatexValueInner::Bool(b)) => a == b,
-                (DatexValueInner::I8(a), DatexValueInner::I8(b)) => a == b,
-                (DatexValueInner::Text(a), DatexValueInner::Text(b)) => a == b,
-                (DatexValueInner::Null(_), DatexValueInner::Null(_)) => true,
-                (DatexValueInner::Array(a), DatexValueInner::Array(b)) => false, // TODO
-                _ => false,
-            }
+            self.inner == other.inner
         } else {
             false
         }
@@ -255,12 +248,18 @@ impl Add for &Value {
     fn add(self, rhs: &Value) -> Self::Output {
         // TODO sync with typed_datex_values
         match (&self.inner, &rhs.inner) {
-            (DatexValueInner::Text(text), other)
-            | (other, DatexValueInner::Text(text)) => {
+            (DatexValueInner::Text(text), other) => {
                 let other =
                     try_cast_to_value_dyn::<Text>(other.to_dyn())
                         .map_err(|_| ValueError::TypeConversionError)?;
-                let text = text.add(other);
+                let text = text + other;
+                Ok(text.as_datex_value())
+            }
+            (other, DatexValueInner::Text(text)) => {
+                let other =
+                    try_cast_to_value_dyn::<Text>(other.to_dyn())
+                        .map_err(|_| ValueError::TypeConversionError)?;
+                let text = other + text;
                 Ok(text.as_datex_value())
             }
             (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {

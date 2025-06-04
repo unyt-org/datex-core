@@ -36,14 +36,14 @@ impl Display for ValueContainer {
 }
 
 impl ValueContainer {
-    fn get_value(&self) -> &Value {
+    pub fn get_value(&self) -> &Value {
         match self {
             ValueContainer::Value(value) => value,
             ValueContainer::Pointer(pointer) => &pointer.value,
         }
     }
     
-    fn to_value(self) -> Value {
+    pub fn into_value(self) -> Value {
         match self {
             ValueContainer::Value(value) => value,
             ValueContainer::Pointer(pointer) => pointer.value,
@@ -62,8 +62,8 @@ impl Add<ValueContainer> for ValueContainer {
     type Output = Result<ValueContainer, ValueError>;
 
     fn add(self, rhs: ValueContainer) -> Self::Output {
-        let lhs = self.to_value();
-        let rhs = rhs.to_value();
+        let lhs = self.into_value();
+        let rhs = rhs.into_value();
         (lhs + rhs)
             .map(|v| Ok(ValueContainer::Value(v)))?
     }

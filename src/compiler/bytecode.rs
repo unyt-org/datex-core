@@ -1,4 +1,5 @@
-use log::info;
+use std::cell::{Cell, RefCell};
+use log::{info};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use regex::Regex;
@@ -10,15 +11,15 @@ use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use crate::utils::buffers::{append_f64, append_i16, append_i32, append_i64, append_i8, append_u32, append_u8};
 
-struct CompilationScope<'a> {
-    index: usize,
-    inserted_value_index: usize,
-    buffer: &'a mut Vec<u8>,
-    inserted_values: Vec<ValueContainer>
+struct CompilationScope {
+    index: Cell<usize>,
+    inserted_value_index: Cell<usize>,
+    buffer: RefCell<Vec<u8>>,
+    inserted_values: RefCell<Vec<ValueContainer>>
 }
 
 
-impl<'a> CompilationScope<'a> {
+impl CompilationScope {
     const MAX_INT_32: i64 = 2_147_483_647;
     const MIN_INT_32: i64 = -2_147_483_648;
 
@@ -41,7 +42,7 @@ impl<'a> CompilationScope<'a> {
     const FLOAT_64_BYTES: u8 = 8;
 
     // value insert functions
-    fn insert_boolean(&mut self, boolean: bool) {
+    fn insert_boolean(&self, boolean: bool) {
         if boolean {
             self.append_binary_code(InstructionCode::TRUE);
         } else {
@@ -49,7 +50,7 @@ impl<'a> CompilationScope<'a> {
         }
     }
 
-    fn insert_string(&mut self, string: &str) {
+    fn insert_string(&self, string: &str) {
         let unescaped_string = self.unescape_string(string);
 
         let bytes = unescaped_string.as_bytes();
@@ -66,7 +67,7 @@ impl<'a> CompilationScope<'a> {
         self.append_buffer(bytes);
     }
 
-    fn insert_key_string(&mut self, key_string: &str) {
+    fn insert_key_string(&self, key_string: &str) {
         let unescaped_string = self.unescape_string(key_string);
 
         let bytes = unescaped_string.as_bytes();
@@ -82,7 +83,7 @@ impl<'a> CompilationScope<'a> {
         }
     }
 
-    fn unescape_string(&mut self, string: &str) -> String {
+    fn unescape_string(&self, string: &str) -> String {
         let re = Regex::new(r"\\(.)").unwrap();
 
         // TODO: escape, unicode, hex, octal?
@@ -99,12 +100,12 @@ impl<'a> CompilationScope<'a> {
             .into_owned()
     }
 
-    fn insert_float64(&mut self, float64: f64) {
+    fn insert_float64(&self, float64: f64) {
         self.append_binary_code(InstructionCode::FLOAT_64);
         self.append_f64(float64);
     }
 
-    fn insert_int(&mut self, int: i64) {
+    fn insert_int(&self, int: i64) {
         if (CompilationScope::MIN_INT_8..=CompilationScope::MAX_INT_8)
             .contains(&int)
         {
@@ -122,63 +123,63 @@ impl<'a> CompilationScope<'a> {
         }
     }
 
-    fn insert_int8(&mut self, int8: i8) {
+    fn insert_int8(&self, int8: i8) {
         self.append_binary_code(InstructionCode::INT_8);
         self.append_i8(int8);
     }
-    fn insert_int16(&mut self, int16: i16) {
+    fn insert_int16(&self, int16: i16) {
         self.append_binary_code(InstructionCode::INT_16);
         self.append_i16(int16);
     }
-    fn insert_int32(&mut self, int32: i32) {
+    fn insert_int32(&self, int32: i32) {
         self.append_binary_code(InstructionCode::INT_32);
         self.append_i32(int32);
     }
-    fn insert_int64(&mut self, int64: i64) {
+    fn insert_int64(&self, int64: i64) {
         self.append_binary_code(InstructionCode::INT_64);
         self.append_i64(int64);
     }
 
     // buffer functions
-    fn append_u8(&mut self, u8: u8) {
-        append_u8(self.buffer, u8);
-        self.index += CompilationScope::UINT_8_BYTES as usize;
+    fn append_u8(&self, u8: u8) {
+        append_u8(self.buffer.borrow_mut().as_mut(), u8);
+        self.index.update(|x| x + CompilationScope::UINT_8_BYTES as usize);
     }
-    fn append_u32(&mut self, u32: u32) {
-        append_u32(self.buffer, u32);
-        self.index += CompilationScope::UINT_32_BYTES as usize;
+    fn append_u32(&self, u32: u32) {
+        append_u32(self.buffer.borrow_mut().as_mut(), u32);
+        self.index.update(|x| x + CompilationScope::UINT_32_BYTES as usize);
     }
-    fn append_i8(&mut self, i8: i8) {
-        append_i8(self.buffer, i8);
-        self.index += CompilationScope::INT_8_BYTES as usize;
+    fn append_i8(&self, i8: i8) {
+        append_i8(self.buffer.borrow_mut().as_mut(), i8);
+        self.index.update(|x| x + CompilationScope::INT_8_BYTES as usize);
     }
-    fn append_i16(&mut self, i16: i16) {
-        append_i16(self.buffer, i16);
-        self.index += CompilationScope::INT_16_BYTES as usize;
+    fn append_i16(&self, i16: i16) {
+        append_i16(self.buffer.borrow_mut().as_mut(), i16);
+        self.index.update(|x| x + CompilationScope::INT_16_BYTES as usize);
     }
-    fn append_i32(&mut self, i32: i32) {
-        append_i32(self.buffer, i32);
-        self.index += CompilationScope::INT_32_BYTES as usize;
+    fn append_i32(&self, i32: i32) {
+        append_i32(self.buffer.borrow_mut().as_mut(), i32);
+        self.index.update(|x| x + CompilationScope::INT_32_BYTES as usize);
     }
-    fn append_i64(&mut self, i64: i64) {
-        append_i64(self.buffer, i64);
-        self.index += CompilationScope::INT_64_BYTES as usize;
+    fn append_i64(&self, i64: i64) {
+        append_i64(self.buffer.borrow_mut().as_mut(), i64);
+        self.index.update(|x| x + CompilationScope::INT_64_BYTES as usize);
     }
-    fn append_f64(&mut self, f64: f64) {
-        append_f64(self.buffer, f64);
-        self.index += CompilationScope::FLOAT_64_BYTES as usize;
+    fn append_f64(&self, f64: f64) {
+        append_f64(self.buffer.borrow_mut().as_mut(), f64);
+        self.index.update(|x| x + CompilationScope::FLOAT_64_BYTES as usize);
     }
-    fn append_string_utf8(&mut self, string: &str) {
+    fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();
-        self.buffer.extend_from_slice(bytes);
-        self.index += bytes.len()
+        (&mut *self.buffer.borrow_mut()).extend_from_slice(bytes);
+        self.index.update(|x| x + bytes.len());
     }
-    fn append_buffer(&mut self, buffer: &[u8]) {
-        self.buffer.extend_from_slice(buffer);
-        self.index += buffer.len()
+    fn append_buffer(&self, buffer: &[u8]) {
+        (&mut *self.buffer.borrow_mut()).extend_from_slice(buffer);
+        self.index.update(|x| x + buffer.len());
     }
 
-    fn append_binary_code(&mut self, binary_code: InstructionCode) {
+    fn append_binary_code(&self, binary_code: InstructionCode) {
         self.append_u8(binary_code as u8);
     }
 }
@@ -199,16 +200,16 @@ pub fn compile_template(
     let pairs =
         DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
 
-    let mut buffer = Vec::with_capacity(256);
-    let compilation_scope = CompilationScope {
-        buffer: &mut buffer,
-        index: 0,
-        inserted_value_index: 0,
-        inserted_values,
+    let buffer = RefCell::new(Vec::with_capacity(256));
+    let mut compilation_scope = CompilationScope {
+        buffer,
+        index: Cell::new(0),
+        inserted_value_index: Cell::new(0),
+        inserted_values: RefCell::new(inserted_values),
     };
-    parse_statements(compilation_scope, pairs)?;
+    parse_statements(&mut compilation_scope, pairs)?;
 
-    Ok(buffer)
+    Ok(compilation_scope.buffer.take())
 }
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
@@ -233,14 +234,14 @@ macro_rules! compile {
 
 
 fn parse_statements(
-    mut compilation_scope: CompilationScope,
+    compilation_scope: &mut CompilationScope,
     pairs: Pairs<'_, Rule>,
 ) -> Result<(), CompilerError> {
     for statement in pairs {
         match statement.as_rule() {
             Rule::EOI => {}
             _ => {
-                parse_atom(&mut compilation_scope, statement, false)?;
+                parse_atom(compilation_scope, statement, false)?;
             }
         }
     }
@@ -253,7 +254,7 @@ fn rule_must_be_scoped(rule: Rule) -> bool {
 
 // apply | term (statements or ident)
 fn parse_atom(
-    compilation_scope: &mut CompilationScope,
+    compilation_scope: &CompilationScope,
     term: Pair<Rule>,
     scope_required_for_complex_expressions: bool
 ) -> Result<(), CompilerError> {
@@ -312,7 +313,7 @@ fn parse_atom(
 
 /// A term can only contain a single value
 fn parse_term(
-    compilation_scope: &mut CompilationScope,
+    compilation_scope: &CompilationScope,
     pair: Pair<'_, Rule>,
     scope_required_for_complex_terms: bool
 ) -> Result<(), CompilerError> {
@@ -404,21 +405,14 @@ fn parse_term(
             parse_atom(compilation_scope, value, true)?;
         }
         Rule::placeholder => {
-            let value_container = compilation_scope.inserted_values
-                .get(compilation_scope.inserted_value_index)
-                .unwrap(); // TODO: bubble up error
-            compilation_scope.inserted_value_index += 1;
-            match value_container {
-                ValueContainer::Value(val) => {
-                    match &val.inner {
-                        DatexValueInner::I8(val) => {
-                            compilation_scope.insert_int8(val.0);
-                        }
-                        _ => todo!(),
-                    }
-                }
-                _ => todo!(),
-            }
+            insert_value_container(
+                compilation_scope,
+                compilation_scope.inserted_values
+                    .borrow()
+                    .get(compilation_scope.inserted_value_index.get())
+                    .unwrap()
+            );
+            compilation_scope.inserted_value_index.update(|x| x + 1);
         }
         _ => {
             return Err(CompilerError::UnexpectedTerm(term.as_rule()))
@@ -434,6 +428,33 @@ fn parse_term(
     }
 
     Ok(())
+}
+
+fn insert_value_container(
+    compilation_scope: &CompilationScope,
+    value_container: &ValueContainer
+) {
+    match value_container {
+        ValueContainer::Value(val) => {
+            match &val.inner {
+                DatexValueInner::I8(val) => {
+                    compilation_scope.insert_int8(val.0);
+                }
+                DatexValueInner::Text(val) => {
+                    compilation_scope.insert_string(&val.0.clone());
+                }
+                DatexValueInner::Array(val) => {
+                    compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
+                    for item in val {
+                        insert_value_container(compilation_scope, item);
+                    }
+                    compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+                }
+                _ => todo!(),
+            }
+        }
+        _ => todo!(),
+    }
 }
 
 #[cfg(test)]

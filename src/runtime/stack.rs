@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::datex_values::value_container::{ValueContainer};
 use crate::global::protocol_structures::instructions::Instruction;
 use crate::runtime::execution::InvalidProgramError;
@@ -16,6 +17,7 @@ pub enum ScopeType {
 pub struct Scope {
     active_value: Option<ValueContainer>,
     scope_type: ScopeType,
+    active_operation: Option<Instruction>
 }
 
 impl Scope {
@@ -30,15 +32,29 @@ impl Scope {
 #[derive(Debug, Clone)]
 pub struct ScopeStack {
     stack: Vec<Scope>,
-    active_operation: Option<Instruction>
 }
 
 impl Default for ScopeStack {
     fn default() -> Self {
         ScopeStack {
             stack: vec![Scope::default()],
-            active_operation: None,
         }
+    }
+}
+
+impl Display for ScopeStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "ScopeStack: [")?;
+        for scope in self.stack.iter() {
+            writeln!(
+                f,
+                "  [TYPE: {:?}, ACTIVE_VALUE: {}, ACTIVE_OPERATION: {}]",
+                scope.scope_type,
+                scope.active_value.clone().map(|v|v.to_string()).unwrap_or("void".to_string()),
+                scope.active_operation.clone().map(|op| op.to_string()).unwrap_or("None".to_string())
+            )?;
+        }
+        write!(f, "]")
     }
 }
 
@@ -57,7 +73,7 @@ impl ScopeStack {
         // assumes that the stack always has at least one scope
         self.stack.last_mut().unwrap()
     }
-    
+
     /// Returns the type of the currently active scope.
     pub fn get_current_scope_type(&self) -> ScopeType {
         self.get_current_scope().scope_type.clone()
@@ -116,11 +132,11 @@ impl ScopeStack {
 
     /// Sets the active operation for the current scope.
     pub fn set_active_operation(&mut self, operation: Instruction) {
-        self.active_operation = Some(operation);
+        self.get_current_scope_mut().active_operation = Some(operation);
     }
 
     /// Returns the active operation for the current scope, if any.
     pub fn get_active_operation(&self) -> Option<&Instruction> {
-        self.active_operation.as_ref()
+        self.get_current_scope().active_operation.as_ref()
     }
 }

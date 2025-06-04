@@ -50,6 +50,7 @@ pub enum ExecutionError {
     ValueError(ValueError),
     InvalidProgram(InvalidProgramError),
     Unknown,
+    NotImplemented(String),
 }
 
 impl From<ParserError> for ExecutionError {
@@ -78,6 +79,9 @@ impl Display for ExecutionError {
             ExecutionError::ValueError(err) => write!(f, "Value error: {err}"),
             ExecutionError::InvalidProgram(err) => {
                 write!(f, "Invalid program error: {err}")
+            },
+            ExecutionError::NotImplemented(msg) => {
+                write!(f, "Not implemented: {msg}")
             }
         }
     }
@@ -96,9 +100,9 @@ fn execute_loop(
     for instruction in instruction_iterator {
         let instruction = instruction?;
         if context.options.verbose {
-            println!("[Exec]: {:?}", &instruction);
+            println!("[Exec]: {instruction}");
         }
-        
+
         let mut is_scope_start = false;
 
         let value: Option<ValueContainer> = match instruction {
@@ -128,7 +132,7 @@ fn execute_loop(
             }
 
             Instruction::ArrayStart => {
-                info!("Array start reached, creating new scope for array");
+                println!("Array start reached, creating new scope for array");
                 scope_stack.create_scope(ScopeType::Array);
                 is_scope_start = true;
                 Some(Value::from(DatexArray::default()).into())
@@ -136,13 +140,12 @@ fn execute_loop(
 
             Instruction::ScopeEnd => {
                 // pop scope and return value
-                info!("Scope end reached, returning value");
+                println!("Scope end reached, returning value");
                 scope_stack.pop()?
             }
 
             i => {
-                info!("Instruction not implemented: {i:?}");
-                None
+                return Err(ExecutionError::NotImplemented(format!("Instruction {i}").to_string()));
             }
         };
 
@@ -159,7 +162,14 @@ fn execute_loop(
                     scope_stack.set_active_value(val);
                 } else if let Some(active_value) = active_value  {
                     // apply operation to active value
-                    let res = active_value + &val;
+                    let res = match operation {
+                        Instruction::Add => {
+                            active_value + &val
+                        }
+                        _ => {
+                            unreachable!("Instruction {:?} is not a valid operation", operation);
+                        }
+                    };
                     if let Ok(val) = res {
                         // set active value to operation result
                         scope_stack.set_active_value(val);
@@ -260,6 +270,10 @@ mod tests {
         })
     }
 
+    fn execute_datex_script_debug_with_result(datex_script: &str) -> ValueContainer {
+        execute_datex_script_debug(datex_script).unwrap()
+    }
+
     fn execute_dxb_debug(dxb_body: Vec<u8>) -> Result<Option<ValueContainer>, ExecutionError> {
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb_body, options)
@@ -284,8 +298,8 @@ mod tests {
     #[test]
     fn test_single_value() {
         assert_eq!(
-            execute_datex_script_debug("42"),
-            ValueContainer::from(42).into()
+            execute_datex_script_debug_with_result("42"),
+            42.into()
         );
     }
 
@@ -300,21 +314,21 @@ mod tests {
     #[test]
     fn test_single_value_scope() {
         assert_eq!(
-            execute_datex_script_debug("(42)"),
-            ValueContainer::from(42).into()
+            execute_datex_script_debug_with_result("(42)"),
+            42.into()
         );
     }
 
     #[test]
     fn test_add() {
-        let result = execute_datex_script_debug("1 + 2");
-        assert_eq!(result, ValueContainer::from(3).into());
+        let result = execute_datex_script_debug_with_result("1 + 2");
+        assert_eq!(result, 3.into());
     }
 
     #[test]
     fn test_nested_scope() {
-        let result = execute_datex_script_debug("1 + (2 + 3)");
-        assert_eq!(result, ValueContainer::from(6).into());
+        let result = execute_datex_script_debug_with_result("1 + (2 + 3)");
+        assert_eq!(result, 6.into());
     }
 
     #[test]
@@ -327,5 +341,26 @@ mod tests {
             ]
         );
         assert!(matches!(result, Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidScopeClose))));
+    }
+
+
+    #[test]
+    fn test_empty_array() {
+        let result = execute_datex_script_debug_with_result("[]");
+        assert_eq!(result, Vec::<ValueContainer>::new().into());
+    }
+
+    #[test]
+    fn test_array_with_values() {
+        let result = execute_datex_script_debug_with_result("[1, 2, 3]");
+        let expected: Vec<ValueContainer> = vec![1.into(), 2.into(), 3.into()];
+        assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn test_array_with_nested_scope() {
+        let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
+        let expected: Vec<ValueContainer> = vec![1.into(), 5.into(), 4.into()];
+        assert_eq!(result, expected.into());
     }
 }

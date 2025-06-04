@@ -10,7 +10,7 @@ use super::super::{
     value::Value,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DatexArray(pub Vec<ValueContainer>);
 impl DatexArray {
     pub fn length(&self) -> usize {
@@ -105,6 +105,24 @@ impl Index<usize> for TypedValue<DatexArray> {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
+    }
+}
+
+impl IntoIterator for DatexArray {
+    type Item = ValueContainer;
+    type IntoIter = std::vec::IntoIter<ValueContainer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl <'a> IntoIterator for &'a DatexArray {
+    type Item = &'a ValueContainer;
+    type IntoIter = std::slice::Iter<'a, ValueContainer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 
