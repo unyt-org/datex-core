@@ -167,6 +167,21 @@ fn execute_loop(
                     }
                 }
             }
+            // special scope: Array
+            else if scope_stack.get_current_scope_type() == ScopeType::Array {
+                // add value to array scope
+                let mut array = scope_stack.get_active_value_mut();
+                match &mut array {
+                    Some(ValueContainer::Value(Value {inner: DatexValueInner::Array(array), .. })) => {
+                        // append value to array
+                        array.push(val);
+                    }
+                    _ => {
+                        unreachable!("Expected active value in array scope to be an array, but got: {:?}", array);
+                    }
+                }
+            }
+                
             // set active value in current scope
             else {
                 scope_stack.set_active_value(val);
