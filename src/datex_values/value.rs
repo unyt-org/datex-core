@@ -261,30 +261,6 @@ impl From<Pointer> for Value {
     }
 }
 
-impl TryFrom<ValueContainer> for Value {
-    type Error = ValueError;
-
-    fn try_from(value_container: ValueContainer) -> Result<Self, Self::Error> {
-        match value_container {
-            ValueContainer::Value(value) => Ok(value),
-            ValueContainer::Pointer(pointer) => Ok(pointer.value),
-            ValueContainer::Void => Err(ValueError::IsVoid),
-        }
-    }
-}
-
-impl TryFrom<&ValueContainer> for Value {
-    type Error = ValueError;
-
-    fn try_from(value_container: &ValueContainer) -> Result<Self, Self::Error> {
-        match value_container {
-            ValueContainer::Value(value) => Ok(value.clone()),
-            ValueContainer::Pointer(pointer) => Ok(pointer.value.clone()),
-            ValueContainer::Void => Err(ValueError::IsVoid),
-        }
-    }
-}
-
 impl Value {
     pub fn null() -> Self {
         Value::boxed(Null)
@@ -312,6 +288,27 @@ impl Add for Value {
     fn add(self, rhs: Value) -> Self::Output {
         // TODO sync with typed_datex_values
         match (self.inner, rhs.inner) {
+            (DatexValueInner::Text(text), other)
+            | (other, DatexValueInner::Text(text)) => {
+                let other =
+                    try_cast_to_value_dyn::<Text>(other.to_dyn())
+                        .map_err(|_| ValueError::TypeConversionError)?;
+                let text = text.add(other);
+                Ok(text.as_datex_value())
+            }
+            (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
+                Ok(lhs.add(rhs).as_datex_value())
+            }
+            _ => Err(ValueError::InvalidOperation),
+        }
+    }
+}
+
+impl Add for &Value {
+    type Output = Result<Value, ValueError>;
+    fn add(self, rhs: &Value) -> Self::Output {
+        // TODO sync with typed_datex_values
+        match (&self.inner, &rhs.inner) {
             (DatexValueInner::Text(text), other)
             | (other, DatexValueInner::Text(text)) => {
                 let other =

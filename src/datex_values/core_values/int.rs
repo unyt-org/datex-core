@@ -63,6 +63,15 @@ impl Add for I8 {
     }
 }
 
+impl Add for &I8 {
+    type Output = I8;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        I8(self.0 + rhs.0)
+    }
+}
+
+
 impl AddAssign for I8 {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;

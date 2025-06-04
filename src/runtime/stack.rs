@@ -1,9 +1,9 @@
-use crate::datex_values::value_container::ValueContainer;
+use crate::datex_values::value_container::{ValueContainer};
 use crate::global::protocol_structures::instructions::Instruction;
 
 #[derive(Debug, Clone, Default)]
 pub struct Scope {
-    active_value: ValueContainer,
+    active_value: Option<ValueContainer>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ impl ScopeStack {
         self.stack.last().unwrap()
     }
     
-    pub fn pop(&mut self) -> ValueContainer {
+    pub fn pop(&mut self) -> Option<ValueContainer> {
         // assumes that the stack always has at least one scope
         self.stack.pop().unwrap().active_value
     }
@@ -45,22 +45,22 @@ impl ScopeStack {
     
     pub fn set_active_value(&mut self, value: ValueContainer) {
         let scope = self.get_current_scope_mut();
-        scope.active_value = value;
+        scope.active_value = value.into();
     }
     
-    pub fn get_active_value(&self) -> &ValueContainer {
+    pub fn get_active_value(&self) -> &Option<ValueContainer> {
         let scope = self.get_current_scope();
         &scope.active_value
     }
 
-    pub fn get_active_value_mut(&mut self) -> &mut ValueContainer {
+    pub fn get_active_value_mut(&mut self) -> &mut Option<ValueContainer> {
         let scope = self.get_current_scope_mut();
         &mut scope.active_value
     }
     
     pub fn clear_active_value(&mut self) {
         let scope = self.get_current_scope_mut();
-        scope.active_value = ValueContainer::Void;
+        scope.active_value = None;
     }
     
     pub fn set_active_operation(&mut self, operation: Instruction) {

@@ -2,14 +2,6 @@ use std::fmt::Display;
 use std::ops::Add;
 use super::{pointer::Pointer, value::Value};
 
-#[derive(Clone, Debug, PartialEq, Default)]
-pub enum ValueContainer {
-    Value(Value),
-    Pointer(Pointer),
-    #[default]
-    Void,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
     IsVoid,
@@ -27,12 +19,27 @@ impl Display for ValueError {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ValueContainer {
+    Value(Value),
+    Pointer(Pointer),
+}
 
-// impl From<Value> for ValueContainer {
-//     fn from(value: Value) -> Self {
-//         ValueContainer::Value(value)
-//     }
-// }
+impl ValueContainer {
+    fn get_value(&self) -> &Value {
+        match self {
+            ValueContainer::Value(value) => value,
+            ValueContainer::Pointer(pointer) => &pointer.value,
+        }
+    }
+    
+    fn to_value(self) -> Value {
+        match self {
+            ValueContainer::Value(value) => value,
+            ValueContainer::Pointer(pointer) => pointer.value,
+        }
+    }
+}
 
 impl<T: Into<Value>> From<T> for ValueContainer {
     fn from(value: T) -> Self {
@@ -45,8 +52,8 @@ impl Add<ValueContainer> for ValueContainer {
     type Output = Result<ValueContainer, ValueError>;
 
     fn add(self, rhs: ValueContainer) -> Self::Output {
-        let lhs = Value::try_from(self)?;
-        let rhs = Value::try_from(rhs)?;
+        let lhs = self.to_value();
+        let rhs = rhs.to_value();
         (lhs + rhs)
             .map(|v| Ok(ValueContainer::Value(v)))?
     }
@@ -56,8 +63,8 @@ impl Add<&ValueContainer> for &ValueContainer {
     type Output = Result<ValueContainer, ValueError>;
 
     fn add(self, rhs: &ValueContainer) -> Self::Output {
-        let lhs = Value::try_from(self)?;
-        let rhs = Value::try_from(rhs)?;
+        let lhs = self.get_value();
+        let rhs = rhs.get_value();
         (lhs + rhs)
             .map(|v| Ok(ValueContainer::Value(v)))?
     }

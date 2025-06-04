@@ -20,7 +20,7 @@ pub struct ExecutionContext {
     scope_stack: ScopeStack
 }
 
-pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<ValueContainer, ExecutionError> {
+pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<Option<ValueContainer>, ExecutionError> {
     let context = ExecutionContext {
         dxb_body,
         options,
@@ -62,7 +62,7 @@ impl Display for ExecutionError {
 
 fn execute_loop(
     context: ExecutionContext,
-) -> Result<ValueContainer, ExecutionError> {
+) -> Result<Option<ValueContainer>, ExecutionError> {
     let dxb_body = context.dxb_body;
     let mut scope_stack = context.scope_stack;
 
@@ -100,7 +100,7 @@ fn execute_loop(
             Instruction::ScopeEnd => {
                 // pop scope and return value
                 info!("Scope end reached, returning value");
-                Some(scope_stack.pop())
+                scope_stack.pop()
             }
 
             i => {
@@ -117,10 +117,10 @@ fn execute_loop(
             // operation
             if let Some(operation) = scope_stack.get_active_operation() {
                 let active_value = scope_stack.get_active_value();
-                if active_value == &ValueContainer::Void {
+                if active_value == &None {
                     // set active value to operation result
                     scope_stack.set_active_value(val);
-                } else {
+                } else if let Some(active_value) = active_value  {
                     // apply operation to active value
                     let res = active_value + &val;
                     if let Ok(val) = res {
@@ -191,8 +191,6 @@ fn execute_loop(
         // }
     }
 
-    // clear_stack(&mut stack);
-
     Ok(scope_stack.pop())
 }
 
@@ -201,7 +199,7 @@ mod tests {
     use crate::compiler::bytecode::compile_script;
     use super::*;
 
-    fn execute_dxb_debug(datex_script: &str) -> ValueContainer {
+    fn execute_dxb_debug(datex_script: &str) -> Option<ValueContainer> {
         let dxb = compile_script(&datex_script).unwrap();
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb, options).unwrap_or_else(|err| {
@@ -213,7 +211,7 @@ mod tests {
     fn test_empty_script() {
         assert_eq!(
             execute_dxb_debug(""),
-            ValueContainer::Void
+            None
         );
     }
 
@@ -221,7 +219,7 @@ mod tests {
     fn test_empty_script_semicolon() {
         assert_eq!(
             execute_dxb_debug(";;;"),
-            ValueContainer::Void
+            None
         );
     }
 
@@ -229,7 +227,7 @@ mod tests {
     fn test_single_value() {
         assert_eq!(
             execute_dxb_debug("42"),
-            ValueContainer::from(42)
+            ValueContainer::from(42).into()
         );
     }
 
@@ -237,7 +235,7 @@ mod tests {
     fn test_single_value_semicolon() {
         assert_eq!(
             execute_dxb_debug("42;"),
-            ValueContainer::Void
+            None
         )
     }
 
@@ -245,91 +243,19 @@ mod tests {
     fn test_single_value_scope() {
         assert_eq!(
             execute_dxb_debug("(42)"),
-            ValueContainer::from(42)
+            ValueContainer::from(42).into()
         );
     }
 
     #[test]
     fn test_add() {
         let result = execute_dxb_debug("1 + 2");
-        assert_eq!(result, ValueContainer::from(3));
+        assert_eq!(result, ValueContainer::from(3).into());
     }
     
     #[test]
     fn test_nested_scope() {
         let result = execute_dxb_debug("1 + (2 + 3)");
-        assert_eq!(result, ValueContainer::from(6));
+        assert_eq!(result, ValueContainer::from(6).into());
     }
 }
-
-
-
-//
-// // reset stack
-// // clear from end and set final value as first stack value of new stack
-// fn clear_stack(stack: &mut Stack) -> Option<Error> {
-//     if stack.size() == 0 {
-//         return None;
-//     }; // nothing to clear
-//
-//     let mut current: Box<dyn Value> = stack.pop_or_void(); // get last stack value
-//
-//     while stack.size() != 0 {
-//         let next = stack.pop_or_void();
-//
-//         // type cast
-//         if next.is::<Type>() {
-//             debug!("cast {next} {current}");
-//             let dx_type = next.downcast::<Type>();
-//             if dx_type.is_ok() {
-//                 let res = current.cast(*dx_type.ok().unwrap());
-//                 if res.is_ok() {
-//                     current = res.ok().unwrap();
-//                 } else {
-//                     return res.err();
-//                 }
-//             } else {
-//                 return Some(Error {
-//                     message: "rust downcasting error".to_string(),
-//                 });
-//             }
-//         }
-//         // other apply
-//         else {
-//             debug!("apply {next} {current}");
-//         }
-//     }
-//
-//     stack.push(current);
-//
-//     None
-// }
-//
-// // operator handlers
-//
-// fn binary_operation(code: BinaryCode, stack: &mut Stack) -> Option<Error> {
-//     stack.print();
-//
-//     // pop 2 operands from stack
-//     let _s1 = stack.pop();
-//     if _s1.is_err() {
-//         return _s1.err();
-//     }
-//     let s1 = _s1.ok().unwrap();
-//
-//     let _s2 = stack.pop();
-//     if _s2.is_err() {
-//         return _s2.err();
-//     }
-//     let s2 = _s2.ok().unwrap();
-//
-//     // binary operation
-//     match s2.binary_operation(code, s1) {
-//         Ok(result) => {
-//             info!("binary op result: {result}");
-//             stack.push(result);
-//             None
-//         }
-//         Err(err) => Some(err),
-//     }
-// }
