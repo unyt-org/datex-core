@@ -1,7 +1,7 @@
 use core::fmt;
 use std::fmt::Display;
 
-use super::super::{core_value::CoreValue, datex_type::Type, value::Value};
+use super::super::{core_value::CoreValue, datex_type::CoreValueType, value::Value};
 
 #[derive(Debug, Clone)]
 pub struct Null;
@@ -14,9 +14,9 @@ impl CoreValue for Null {
         self
     }
 
-    fn cast_to(&self, target: Type) -> Option<Value> {
+    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
         match target {
-            Type::Null => Some(Value::boxed(Null)),
+            CoreValueType::Null => Some(Value::boxed(Null)),
             _ => None,
         }
     }
@@ -25,12 +25,12 @@ impl CoreValue for Null {
         Value::boxed(Null)
     }
 
-    fn get_type(&self) -> Type {
+    fn get_type(&self) -> CoreValueType {
         Self::static_type()
     }
 
-    fn static_type() -> Type {
-        Type::Null
+    fn static_type() -> CoreValueType {
+        CoreValueType::Null
     }
 }
 

@@ -5,7 +5,7 @@ use std::{
 
 use super::{
     core_value::{try_cast_to_value, CoreValue},
-    datex_type::Type,
+    datex_type::CoreValueType,
     value::Value,
 };
 use std::ops::Deref;
@@ -22,7 +22,7 @@ impl<T: CoreValue + 'static> TypedValue<T> {
         &self.0
     }
 
-    pub fn get_type(&self) -> Type {
+    pub fn get_type(&self) -> CoreValueType {
         self.0.get_type()
     }
     pub fn try_cast_to_value<X: CoreValue + Clone + 'static>(
@@ -68,8 +68,8 @@ impl<T: CoreValue> DerefMut for TypedValue<T> {
 
 #[derive(Debug)]
 pub struct TypeMismatchError {
-    pub expected: Type,
-    pub found: Type,
+    pub expected: CoreValueType,
+    pub found: CoreValueType,
 }
 
 impl<T: CoreValue + Clone + 'static> TryFrom<Value> for TypedValue<T> {

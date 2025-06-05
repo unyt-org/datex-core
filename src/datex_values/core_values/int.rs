@@ -6,7 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    super::core_value::CoreValue, super::datex_type::Type,
+    super::core_value::CoreValue, super::datex_type::CoreValueType,
     super::typed_value::TypedValue, super::value::Value, text::Text,
 };
 
@@ -26,10 +26,10 @@ impl CoreValue for I8 {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: Type) -> Option<Value> {
+    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
         match target {
-            Type::I8 => Some(self.as_datex_value()),
-            Type::Text => Some(Value::boxed(Text(self.0.to_string()))),
+            CoreValueType::I8 => Some(self.as_datex_value()),
+            CoreValueType::Text => Some(Value::boxed(Text(self.0.to_string()))),
             _ => None,
         }
     }
@@ -38,12 +38,12 @@ impl CoreValue for I8 {
         Value::boxed(self.clone())
     }
 
-    fn get_type(&self) -> Type {
+    fn get_type(&self) -> CoreValueType {
         Self::static_type()
     }
 
-    fn static_type() -> Type {
-        Type::I8
+    fn static_type() -> CoreValueType {
+        CoreValueType::I8
     }
 }
 

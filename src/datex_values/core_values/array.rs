@@ -5,14 +5,14 @@ use std::{
 use crate::datex_values::value_container::ValueContainer;
 use super::super::{
     core_value::CoreValue,
-    datex_type::Type,
+    datex_type::CoreValueType,
     typed_value::TypedValue,
     value::Value,
 };
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct DatexArray(pub Vec<ValueContainer>);
-impl DatexArray {
+pub struct Array(pub Vec<ValueContainer>);
+impl Array {
     pub fn length(&self) -> usize {
         self.0.len()
     }
@@ -24,16 +24,16 @@ impl DatexArray {
         self.0.push(value.into());
     }
 }
-impl CoreValue for DatexArray {
+impl CoreValue for Array {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: Type) -> Option<Value> {
+    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
         match target {
-            Type::Array => Some(self.as_datex_value()),
+            CoreValueType::Array => Some(self.as_datex_value()),
             _ => None,
         }
     }
@@ -42,16 +42,16 @@ impl CoreValue for DatexArray {
         Value::boxed(self.clone())
     }
 
-    fn get_type(&self) -> Type {
+    fn get_type(&self) -> CoreValueType {
         Self::static_type()
     }
 
-    fn static_type() -> Type {
-        Type::Array
+    fn static_type() -> CoreValueType {
+        CoreValueType::Array
     }
 }
 
-impl fmt::Display for DatexArray {
+impl fmt::Display for Array {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         for (i, value) in self.0.iter().enumerate() {
@@ -64,12 +64,21 @@ impl fmt::Display for DatexArray {
     }
 }
 
-impl<T> From<Vec<T>> for DatexArray
+impl<T> From<Vec<T>> for Array
 where
     T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
-        DatexArray(vec.into_iter().map(Into::into).collect())
+        Array(vec.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<T> FromIterator<T> for Array
+where
+    T: Into<ValueContainer>,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Array(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -78,12 +87,12 @@ macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
             let arr = vec![$( $crate::datex_values::value::ValueContainer::from($x) ),*];
-            DatexArray(arr)
+            Array(arr)
         }
     };
 }
 
-impl<T> AddAssign<T> for TypedValue<DatexArray>
+impl<T> AddAssign<T> for TypedValue<Array>
 where
     Value: From<T>,
 {
@@ -92,7 +101,7 @@ where
     }
 }
 
-impl Index<usize> for DatexArray {
+impl Index<usize> for Array {
     type Output = ValueContainer;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -100,7 +109,7 @@ impl Index<usize> for DatexArray {
     }
 }
 
-impl Index<usize> for TypedValue<DatexArray> {
+impl Index<usize> for TypedValue<Array> {
     type Output = ValueContainer;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -108,7 +117,7 @@ impl Index<usize> for TypedValue<DatexArray> {
     }
 }
 
-impl IntoIterator for DatexArray {
+impl IntoIterator for Array {
     type Item = ValueContainer;
     type IntoIter = std::vec::IntoIter<ValueContainer>;
 
@@ -117,7 +126,7 @@ impl IntoIterator for DatexArray {
     }
 }
 
-impl <'a> IntoIterator for &'a DatexArray {
+impl <'a> IntoIterator for &'a Array {
     type Item = &'a ValueContainer;
     type IntoIter = std::slice::Iter<'a, ValueContainer>;
 

@@ -1,16 +1,16 @@
 use std::any::Any;
 use std::fmt::Display;
 
-use super::datex_type::Type;
+use super::datex_type::CoreValueType;
 use super::value::Value;
 
 pub trait CoreValue: Display + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn cast_to(&self, target: Type) -> Option<Value>;
+    fn cast_to(&self, target: CoreValueType) -> Option<Value>;
     fn as_datex_value(&self) -> Value;
-    fn get_type(&self) -> Type;
-    fn static_type() -> Type
+    fn get_type(&self) -> CoreValueType;
+    fn static_type() -> CoreValueType
     where
         Self: Sized;
 }

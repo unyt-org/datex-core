@@ -1,6 +1,6 @@
 use crate::crypto::random;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::datex_type::Type;
+use crate::datex_values::datex_type::CoreValueType;
 use crate::datex_values::typed_value::TypedValue;
 use crate::datex_values::value::Value;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
@@ -74,9 +74,9 @@ impl CoreValue for Endpoint {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: Type) -> Option<Value> {
+    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
         match target {
-            Type::Text => Some(Value::boxed(Text(self.to_string()))),
+            CoreValueType::Text => Some(Value::boxed(Text(self.to_string()))),
             _ => None,
         }
     }
@@ -85,11 +85,11 @@ impl CoreValue for Endpoint {
         Value::boxed(self.clone())
     }
 
-    fn static_type() -> Type {
-        Type::Endpoint
+    fn static_type() -> CoreValueType {
+        CoreValueType::Endpoint
     }
 
-    fn get_type(&self) -> Type {
+    fn get_type(&self) -> CoreValueType {
         Self::static_type()
     }
 }

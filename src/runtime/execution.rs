@@ -1,13 +1,12 @@
 use std::fmt::Display;
-use std::ops::Add;
-use log::info;
-use crate::datex_values::core_values::array::DatexArray;
+use crate::datex_values::core_values::array::Array;
+use crate::datex_values::core_values::object::Object;
 use crate::datex_values::value::{DatexValueInner, Value};
 use crate::parser::body;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{Instruction, Int8Data, ShortTextData};
 use crate::parser::body::ParserError;
-use super::stack::{ScopeStack, ScopeType};
+use super::stack::{ActiveValue, ScopeStack, ScopeType};
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -34,12 +33,14 @@ pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<Optio
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {
     InvalidScopeClose,
+    InvalidKeyValuePair
 }
 
 impl Display for InvalidProgramError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InvalidProgramError::InvalidScopeClose => write!(f, "Invalid scope close"),
+            InvalidProgramError::InvalidKeyValuePair => write!(f, "Invalid key-value pair"),
         }
     }
 }
@@ -105,37 +106,53 @@ fn execute_loop(
 
         let mut is_scope_start = false;
 
-        let value: Option<ValueContainer> = match instruction {
+        let value: ActiveValue = match instruction {
 
             Instruction::Int8(Int8Data(i8)) => {
-                Some(i8.into())
+                i8.into()
             }
 
             Instruction::ShortText(ShortTextData(text)) => {
-                Some(text.into())
+                text.into()
             }
 
             // operations
             Instruction::Add => {
                 scope_stack.set_active_operation(Instruction::Add);
-                None
+                ActiveValue::None
             }
 
             Instruction::CloseAndStore => {
                 scope_stack.clear_active_value();
-                None
+                /// values
+                ActiveValue::None
             }
 
             Instruction::ScopeStart => {
                 scope_stack.create_scope(ScopeType::Default);
-                None
+                ActiveValue::None
             }
 
             Instruction::ArrayStart => {
-                println!("Array start reached, creating new scope for array");
                 scope_stack.create_scope(ScopeType::Array);
                 is_scope_start = true;
-                Some(Value::from(DatexArray::default()).into())
+                Array::default().into()
+            }
+
+            Instruction::ObjectStart => {
+                scope_stack.create_scope(ScopeType::Object);
+                is_scope_start = true;
+                Object::default().into()
+            }
+
+            Instruction::KeyValueShortText(ShortTextData(key)) => {
+                scope_stack.set_active_key(key.into());
+                ActiveValue::None
+            }
+
+            Instruction::KeyValueDynamic => {
+                scope_stack.set_active_key(ActiveValue::None);
+                ActiveValue::None
             }
 
             Instruction::ScopeEnd => {
@@ -149,57 +166,105 @@ fn execute_loop(
             }
         };
 
-        // has processable value
-        if let Some(val) = value {
+        match value {
 
-            // unary operations....
+            ActiveValue::ValueContainer(value_container) => {
 
-            // operation
-            if let Some(operation) = scope_stack.get_active_operation() {
-                let active_value = scope_stack.get_active_value();
-                if active_value.is_none() {
-                    // set active value to operation result
-                    scope_stack.set_active_value(val);
-                } else if let Some(active_value) = active_value  {
-                    // apply operation to active value
-                    let res = match operation {
-                        Instruction::Add => {
-                            active_value + &val
+                // TODO: try to optimize and initialize variables only when needed, currently leeds to borrow errors
+                let active_operation = scope_stack.get_active_operation().cloned();
+                let scope_type = scope_stack.get_current_scope_type().clone();
+                let active_key = scope_stack.get_active_key();
+                let active_value = scope_stack.get_active_value_mut();
+
+                // check if active_key_value_pair exists
+                if let Some(active_key) = active_key {
+                    println!("Adding key-value pair: {:?} , {}", active_key, value_container);
+
+                    match active_key {
+                        // set key for key-value pair (for dynamic keys)
+                        ActiveValue::None => {
+                            scope_stack.set_active_key(value_container.into());
                         }
-                        _ => {
-                            unreachable!("Instruction {:?} is not a valid operation", operation);
+
+                        // set value for key-value pair
+                        ActiveValue::ValueContainer(key) => {
+                            // insert key value pair into active object
+                            match active_value {
+                                ActiveValue::ValueContainer(ValueContainer::Value(Value {inner: DatexValueInner::Object(object), .. })) => {
+                                    // make sure key is a string
+                                    match key {
+                                        ValueContainer::Value(Value {inner: DatexValueInner::Text(key_str), .. }) => {
+                                            object.set(&key_str.0, value_container);
+                                        }
+                                        _ => {
+                                            return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
+                                        }
+                                    }
+                                }
+                                // TODO: tuple
+                                _ => {
+                                    unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_value);
+                                }
+                            }
                         }
-                    };
-                    if let Ok(val) = res {
-                        // set active value to operation result
-                        scope_stack.set_active_value(val);
-                    } else {
-                        // handle error
-                        return Err(ExecutionError::ValueError(res.unwrap_err()));
+                    }
+                }
+
+                else {
+                    match active_value {
+
+                        ActiveValue::None => {
+
+                            // TODO: unary operations
+
+                            // set active value to new value
+                            scope_stack.set_active_value_container(value_container);
+                        }
+
+                        // value and active value exists
+                        ActiveValue::ValueContainer(ref mut active_value_container) => {
+                            // binary operation
+                            if let Some(operation) = active_operation {
+                                // apply operation to active value
+                                let res = match operation {
+                                    Instruction::Add => {
+                                        active_value_container as & _ + &value_container
+                                    }
+                                    _ => {
+                                        unreachable!("Instruction {:?} is not a valid operation", operation);
+                                    }
+                                };
+                                if let Ok(val) = res {
+                                    // set active value to operation result
+                                    scope_stack.set_active_value_container(val);
+                                } else {
+                                    // handle error
+                                    return Err(ExecutionError::ValueError(res.unwrap_err()));
+                                }
+                            }
+
+                            // special scope: Array
+                            else if !is_scope_start && scope_type == ScopeType::Array {
+                                // add value to array scope
+                                match active_value_container {
+                                    ValueContainer::Value(Value {inner: DatexValueInner::Array(array), .. }) => {
+                                        // append value to array
+                                        array.push(value_container);
+                                    }
+                                    _ => {
+                                        unreachable!("Expected active value in array scope to be an array, but got: {}", active_value_container);
+                                    }
+                                }
+                            }
+                        }
+
                     }
                 }
             }
-            // special scope: Array
-            else if !is_scope_start && scope_stack.get_current_scope_type() == ScopeType::Array {
-                // add value to array scope
-                let mut array = scope_stack.get_active_value_mut();
-                match &mut array {
-                    Some(ValueContainer::Value(Value {inner: DatexValueInner::Array(array), .. })) => {
-                        // append value to array
-                        array.push(val);
-                    }
-                    _ => {
-                        unreachable!("Expected active value in array scope to be an array, but got: {:?}", array);
-                    }
-                }
-            }
 
-            // set active value in current scope
-            else {
-                scope_stack.set_active_value(val);
-            }
+            ActiveValue::None => {}
+
         }
-
         // let _slot = instruction.slot.unwrap_or_default();
         // let has_primitive_value = instruction.value.is_some();
         // let has_value = instruction.value.is_some();
@@ -253,7 +318,12 @@ fn execute_loop(
         // }
     }
 
-    Ok(scope_stack.pop_last()?)
+    Ok(
+        match scope_stack.pop_last()? {
+            ActiveValue::None => None,
+            ActiveValue::ValueContainer(val) => Some(val),
+        }
+    )
 }
 
 #[cfg(test)]

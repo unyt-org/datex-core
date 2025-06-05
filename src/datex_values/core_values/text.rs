@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::{
-    super::core_value::CoreValue, super::datex_type::Type,
+    super::core_value::CoreValue, super::datex_type::CoreValueType,
     super::typed_value::TypedValue, super::value::Value, int::I8,
 };
 
@@ -50,10 +50,10 @@ impl CoreValue for Text {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-    fn cast_to(&self, target: Type) -> Option<Value> {
+    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
         match target {
-            Type::Text => Some(self.as_datex_value()),
-            Type::I8 => self.0.parse::<i8>().ok().map(|v| Value::boxed(I8(v))),
+            CoreValueType::Text => Some(self.as_datex_value()),
+            CoreValueType::I8 => self.0.parse::<i8>().ok().map(|v| Value::boxed(I8(v))),
             _ => None,
         }
     }
@@ -62,12 +62,12 @@ impl CoreValue for Text {
         Value::boxed(self.clone())
     }
 
-    fn get_type(&self) -> Type {
+    fn get_type(&self) -> CoreValueType {
         Self::static_type()
     }
 
-    fn static_type() -> Type {
-        Type::Text
+    fn static_type() -> CoreValueType {
+        CoreValueType::Text
     }
 }
 

@@ -2,6 +2,7 @@ use std::ops::{Add, AddAssign, Not};
 use std::vec;
 
 use serde::{de, Deserialize, Deserializer, Serialize};
+use crate::datex_values::core_values::object::Object;
 use crate::datex_values::pointer::Pointer;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 // Array<?>
@@ -14,13 +15,13 @@ use crate::datex_values::value_container::{ValueContainer, ValueError};
 // Box<len, data>
 
 use super::core_value::{try_cast_to_value_dyn, CoreValue};
-use super::core_values::array::DatexArray;
+use super::core_values::array::Array;
 use super::core_values::bool::Bool;
 use super::core_values::endpoint::Endpoint;
 use super::core_values::int::I8;
 use super::core_values::null::Null;
 use super::core_values::text::Text;
-use super::datex_type::Type;
+use super::datex_type::CoreValueType;
 use super::typed_value::TypedValue;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -30,7 +31,8 @@ pub enum DatexValueInner {
     Text(Text),
     Null(Null),
     Endpoint(Endpoint),
-    Array(DatexArray),
+    Array(Array),
+    Object(Object),
 }
 
 
@@ -43,6 +45,7 @@ impl DatexValueInner {
             DatexValueInner::Null(v) => v,
             DatexValueInner::Endpoint(v) => v,
             DatexValueInner::Array(v) => v,
+            DatexValueInner::Object(v) => v,
         }
     }
     pub fn to_dyn_mut(&mut self) -> &mut dyn CoreValue {
@@ -53,6 +56,7 @@ impl DatexValueInner {
             DatexValueInner::Null(v) => v,
             DatexValueInner::Endpoint(v) => v,
             DatexValueInner::Array(v) => v,
+            DatexValueInner::Object(v) => v,
         }
     }
 }
@@ -61,22 +65,25 @@ impl<V: CoreValue> From<&V> for DatexValueInner {
     fn from(value: &V) -> Self {
         // FIMXE deprecate as_any
         match value.get_type() {
-            Type::Bool => DatexValueInner::Bool(
+            CoreValueType::Bool => DatexValueInner::Bool(
                 value.as_any().downcast_ref::<Bool>().unwrap().clone(),
             ),
-            Type::I8 => DatexValueInner::I8(
+            CoreValueType::I8 => DatexValueInner::I8(
                 value.as_any().downcast_ref::<I8>().unwrap().clone(),
             ),
-            Type::Text => DatexValueInner::Text(
+            CoreValueType::Text => DatexValueInner::Text(
                 value.as_any().downcast_ref::<Text>().unwrap().clone(),
             ),
-            Type::Null => DatexValueInner::Null(
+            CoreValueType::Null => DatexValueInner::Null(
                 value.as_any().downcast_ref::<Null>().unwrap().clone(),
             ),
-            Type::Array => DatexValueInner::Array(
-                value.as_any().downcast_ref::<DatexArray>().unwrap().clone(),
+            CoreValueType::Array => DatexValueInner::Array(
+                value.as_any().downcast_ref::<Array>().unwrap().clone(),
             ),
-            Type::Endpoint => DatexValueInner::Endpoint(
+            CoreValueType::Object => DatexValueInner::Object(
+                value.as_any().downcast_ref::<Object>().unwrap().clone()
+            ),
+            CoreValueType::Endpoint => DatexValueInner::Endpoint(
                 value.as_any().downcast_ref::<Endpoint>().unwrap().clone(),
             ),
         }
@@ -86,7 +93,7 @@ impl<V: CoreValue> From<&V> for DatexValueInner {
 #[derive(Clone)]
 pub struct Value {
     pub inner: DatexValueInner,
-    pub actual_type: Type, // custom type for the value that can not be changed
+    pub actual_type: CoreValueType, // custom type for the value that can not be changed
 }
 
 impl<T: CoreValue + 'static> From<TypedValue<T>> for Value {
@@ -99,20 +106,20 @@ impl<T: CoreValue + 'static> From<TypedValue<T>> for Value {
 }
 
 impl Value {
-    pub fn is_of_type(&self, target: Type) -> bool {
+    pub fn is_of_type(&self, target: CoreValueType) -> bool {
         self.get_type() == target
     }
     pub fn is_null(&self) -> bool {
-        self.is_of_type(Type::Null)
+        self.is_of_type(CoreValueType::Null)
     }
     pub fn is_text(&self) -> bool {
-        self.is_of_type(Type::Text)
+        self.is_of_type(CoreValueType::Text)
     }
     pub fn is_i8(&self) -> bool {
-        self.is_of_type(Type::I8)
+        self.is_of_type(CoreValueType::I8)
     }
     pub fn is_bool(&self) -> bool {
-        self.is_of_type(Type::Bool)
+        self.is_of_type(CoreValueType::Bool)
     }
 }
 
@@ -152,7 +159,7 @@ impl Value {
         }
     }
 
-    pub fn cast_to(&self, target: Type) -> Option<Value> {
+    pub fn cast_to(&self, target: CoreValueType) -> Option<Value> {
         self.to_dyn().cast_to(target)
     }
     pub fn try_cast_to_typed<T: CoreValue + Clone + 'static>(
@@ -181,7 +188,7 @@ impl Value {
         })
     }
 
-    pub fn get_type(&self) -> Type {
+    pub fn get_type(&self) -> CoreValueType {
         self.actual_type.clone()
     }
 }
@@ -192,12 +199,19 @@ where
 {
     fn from(vec: Vec<T>) -> Self {
         let items = vec.into_iter().map(Into::into).collect();
-        Value::from(DatexArray(items))
+        Value::from(Array(items))
     }
 }
-impl From<DatexArray> for Value {
-    fn from(arr: DatexArray) -> Self {
+
+impl From<Array> for Value {
+    fn from(arr: Array) -> Self {
         Value::boxed(arr)
+    }
+}
+
+impl From<Object> for Value {
+    fn from(obj: Object) -> Self {
+        Value::boxed(obj)
     }
 }
 
@@ -336,7 +350,7 @@ mod test {
     use super::*;
     use crate::{
         datex_array,
-        datex_values::core_values::{array::DatexArray, endpoint::Endpoint},
+        datex_values::core_values::{array::Array, endpoint::Endpoint},
         logger::init_logger,
     };
     use log::{debug, info};
@@ -346,11 +360,11 @@ mod test {
         init_logger();
         let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
         debug!("Endpoint: {}", endpoint);
-        assert_eq!(endpoint.get_type(), Type::Endpoint);
+        assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
 
         let a = TypedValue::from(Endpoint::from_str("@test").unwrap());
-        assert_eq!(a.get_type(), Type::Endpoint);
+        assert_eq!(a.get_type(), CoreValueType::Endpoint);
         assert_eq!(a.to_string(), "@test");
     }
 
@@ -360,7 +374,7 @@ mod test {
         let y = Value::from(27);
 
         x += y.clone();
-        assert_eq!(x.get_type(), Type::I8);
+        assert_eq!(x.get_type(), CoreValueType::I8);
         assert_eq!(x, Value::from(69));
     }
 
@@ -370,7 +384,7 @@ mod test {
         let y = Value::from(27);
 
         let z = (x.clone() + y.clone()).unwrap();
-        assert_eq!(z.get_type(), Type::I8);
+        assert_eq!(z.get_type(), CoreValueType::I8);
         assert_eq!(z, Value::from(69));
     }
 
@@ -383,19 +397,19 @@ mod test {
             Value::from(true),
         ]);
 
-        let mut a = a.cast_to_typed::<DatexArray>();
+        let mut a = a.cast_to_typed::<Array>();
         a.push(Value::from(42));
         a.push(4);
         a += 42;
-        a += DatexArray::from(vec!["inner", "array"]);
-        let a: DatexArray = a.into_inner();
+        a += Array::from(vec!["inner", "array"]);
+        let a: Array = a.into_inner();
 
         assert_eq!(a.length(), 7);
         debug!("Array: {}", a);
 
-        let b = DatexArray::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        let b = Array::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         assert_eq!(b.length(), 11);
-        assert_eq!(b.get_type(), Type::Array);
+        assert_eq!(b.get_type(), CoreValueType::Array);
 
         let c = datex_array![1, "test", 3, true, false];
         assert_eq!(c.length(), 5);
@@ -426,8 +440,8 @@ mod test {
         let a = TypedValue::from(true);
         let b = TypedValue::from(false);
 
-        assert_eq!(a.get_type(), Type::Bool);
-        assert_eq!(b.get_type(), Type::Bool);
+        assert_eq!(a.get_type(), CoreValueType::Bool);
+        assert_eq!(b.get_type(), CoreValueType::Bool);
         assert_ne!(a, b);
         assert_eq!(b, false);
         assert_eq!(!a, b);
@@ -444,8 +458,8 @@ mod test {
         let a = Value::from(true);
         let b = Value::from(false);
         let c = Value::from(false);
-        assert_eq!(a.get_type(), Type::Bool);
-        assert_eq!(b.get_type(), Type::Bool);
+        assert_eq!(a.get_type(), CoreValueType::Bool);
+        assert_eq!(b.get_type(), CoreValueType::Bool);
         assert_ne!(a, b);
         assert_eq!(b, c);
 
@@ -461,10 +475,10 @@ mod test {
     fn type_casting_into() {
         init_logger();
         let a: TypedValue<Text> = Value::from("42").try_into().unwrap();
-        assert_eq!(a.get_type(), Type::Text);
+        assert_eq!(a.get_type(), CoreValueType::Text);
 
         let a: TypedValue<Text> = Value::from(42).try_into().unwrap();
-        assert_eq!(a.get_type(), Type::Text);
+        assert_eq!(a.get_type(), CoreValueType::Text);
 
         // This should fail because we are trying to cast a null value into a TypedDatexValue<Text>
         let a: Result<TypedValue<Text>, _> = Value::null().try_into();
@@ -475,14 +489,14 @@ mod test {
     fn test_cast_type() {
         init_logger();
         let a = Value::from(42);
-        let b = a.cast_to(Type::Text).unwrap();
-        assert_eq!(b.get_type(), Type::Text);
+        let b = a.cast_to(CoreValueType::Text).unwrap();
+        assert_eq!(b.get_type(), CoreValueType::Text);
 
         let c = a.cast_to_typed::<I8>();
         assert_eq!(c.into_erased(), Value::from(42));
 
         let d = a.cast_to_typed::<Text>();
-        assert_eq!(d.get_type(), Type::Text);
+        assert_eq!(d.get_type(), CoreValueType::Text);
         assert_eq!(d.as_str(), "42");
     }
 
@@ -494,11 +508,11 @@ mod test {
         let c = TypedValue::from("11");
         assert_eq!(c.length(), 2);
 
-        assert_eq!(a.get_type(), Type::I8);
-        assert_eq!(b.get_type(), Type::I8);
+        assert_eq!(a.get_type(), CoreValueType::I8);
+        assert_eq!(b.get_type(), CoreValueType::I8);
 
         let a_plus_b = a.clone() + b.clone();
-        assert_eq!(a_plus_b.clone().get_type(), Type::I8);
+        assert_eq!(a_plus_b.clone().get_type(), CoreValueType::I8);
         assert_eq!(a_plus_b.clone().into_erased(), Value::from(53));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
@@ -508,12 +522,12 @@ mod test {
         init_logger();
 
         let null_value = Value::null();
-        assert_eq!(null_value.get_type(), Type::Null);
+        assert_eq!(null_value.get_type(), CoreValueType::Null);
         assert_eq!(null_value.to_string(), "null");
 
         let maybe_value: Option<i8> = None;
         let null_value = Value::from(maybe_value);
-        assert_eq!(null_value.get_type(), Type::Null);
+        assert_eq!(null_value.get_type(), CoreValueType::Null);
         assert_eq!(null_value.to_string(), "null");
     }
 
@@ -522,7 +536,7 @@ mod test {
         init_logger();
         let a = TypedValue::from("Hello");
         assert_eq!(a, "Hello");
-        assert_eq!(a.get_type(), Type::Text);
+        assert_eq!(a.get_type(), CoreValueType::Text);
         assert_eq!(a.length(), 5);
         assert_eq!(a.to_string(), "\"Hello\"");
         assert_eq!(a.as_str(), "Hello");
@@ -588,12 +602,12 @@ mod test {
         assert_eq!(a, 42);
         assert_eq!(b, 27);
 
-        assert_eq!(a.get_type(), Type::I8);
-        assert_eq!(b.get_type(), Type::I8);
+        assert_eq!(a.get_type(), CoreValueType::I8);
+        assert_eq!(b.get_type(), CoreValueType::I8);
 
         let a_plus_b = a.clone() + b.clone();
 
-        assert_eq!(a_plus_b.get_type(), Type::I8);
+        assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
 
         assert_eq!(a_plus_b, TypedValue::from(69));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
@@ -605,12 +619,12 @@ mod test {
         let a = Value::from(42);
         let b = Value::from(27);
 
-        assert_eq!(a.get_type(), Type::I8);
-        assert_eq!(b.get_type(), Type::I8);
+        assert_eq!(a.get_type(), CoreValueType::I8);
+        assert_eq!(b.get_type(), CoreValueType::I8);
 
         let a_plus_b = (a.clone() + b.clone()).unwrap();
 
-        assert_eq!(a_plus_b.get_type(), Type::I8);
+        assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
 
         assert_eq!(a_plus_b, Value::from(69));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
@@ -622,8 +636,8 @@ mod test {
         let a = Value::from("Hello ");
         let b = Value::from(42i8);
 
-        assert_eq!(a.get_type(), Type::Text);
-        assert_eq!(b.get_type(), Type::I8);
+        assert_eq!(a.get_type(), CoreValueType::Text);
+        assert_eq!(b.get_type(), CoreValueType::I8);
 
         let a_plus_b = a.clone() + b.clone();
         let b_plus_a = b.clone() + a.clone();
@@ -637,8 +651,8 @@ mod test {
         let a_plus_b = a_plus_b.unwrap();
         let b_plus_a = b_plus_a.unwrap();
 
-        assert_eq!(a_plus_b.get_type(), Type::Text);
-        assert_eq!(b_plus_a.get_type(), Type::Text);
+        assert_eq!(a_plus_b.get_type(), CoreValueType::Text);
+        assert_eq!(b_plus_a.get_type(), CoreValueType::Text);
 
         assert_eq!(a_plus_b, Value::from("Hello 42"));
         assert_eq!(b_plus_a, Value::from("42Hello "));

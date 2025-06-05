@@ -104,7 +104,12 @@ fn int_to_label(n: i32) -> String {
 pub struct DecompileOptions {
     pub formatted: bool,
     pub colorized: bool,
-    pub resolve_slots: bool, // display slots with generated variable names
+    /// display slots with generated variable names
+    pub resolve_slots: bool,
+    /// TODO
+    /// when set to true, the output is generated as compatible as possible with JSON, e.g. by
+    /// always adding double quotes around keys
+    pub json_compat: bool
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]

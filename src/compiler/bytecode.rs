@@ -41,6 +41,43 @@ impl CompilationScope {
     const UINT_64_BYTES: u8 = 8;
     const FLOAT_64_BYTES: u8 = 8;
 
+
+    fn insert_value_container(
+        &self,
+        value_container: &ValueContainer
+    ) {
+        match value_container {
+            ValueContainer::Value(val) => {
+                match &val.inner {
+                    DatexValueInner::I8(val) => {
+                        self.insert_int8(val.0);
+                    }
+                    DatexValueInner::Text(val) => {
+                        self.insert_string(&val.0.clone());
+                    }
+                    DatexValueInner::Array(val) => {
+                        self.append_binary_code(InstructionCode::ARRAY_START);
+                        for item in val {
+                            self.insert_value_container(item);
+                        }
+                        self.append_binary_code(InstructionCode::SCOPE_END);
+                    }
+                    DatexValueInner::Object(val) => {
+                        self.append_binary_code(InstructionCode::OBJECT_START);
+                        println!("Object: {:?}", val);
+                        for (key, value) in val {
+                            self.insert_key_string(key);
+                            self.insert_value_container(value);
+                        }
+                        self.append_binary_code(InstructionCode::SCOPE_END);
+                    }
+                    _ => todo!(),
+                }
+            }
+            _ => todo!(),
+        }
+    }
+
     // value insert functions
     fn insert_boolean(&self, boolean: bool) {
         if boolean {
@@ -405,8 +442,7 @@ fn parse_term(
             parse_atom(compilation_scope, value, true)?;
         }
         Rule::placeholder => {
-            insert_value_container(
-                compilation_scope,
+            compilation_scope.insert_value_container(
                 compilation_scope.inserted_values
                     .borrow()
                     .get(compilation_scope.inserted_value_index.get())
@@ -428,33 +464,6 @@ fn parse_term(
     }
 
     Ok(())
-}
-
-fn insert_value_container(
-    compilation_scope: &CompilationScope,
-    value_container: &ValueContainer
-) {
-    match value_container {
-        ValueContainer::Value(val) => {
-            match &val.inner {
-                DatexValueInner::I8(val) => {
-                    compilation_scope.insert_int8(val.0);
-                }
-                DatexValueInner::Text(val) => {
-                    compilation_scope.insert_string(&val.0.clone());
-                }
-                DatexValueInner::Array(val) => {
-                    compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
-                    for item in val {
-                        insert_value_container(compilation_scope, item);
-                    }
-                    compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
-                }
-                _ => todo!(),
-            }
-        }
-        _ => todo!(),
-    }
 }
 
 #[cfg(test)]
