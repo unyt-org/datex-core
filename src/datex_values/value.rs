@@ -1,7 +1,5 @@
 use std::ops::{Add, AddAssign, Not};
-use std::vec;
 
-use serde::{de, Deserialize, Deserializer, Serialize};
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::pointer::Pointer;
 use crate::datex_values::value_container::{ValueContainer, ValueError};

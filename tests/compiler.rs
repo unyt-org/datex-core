@@ -1,8 +1,8 @@
-use datex_core::decompiler::decompile_body;
-use log::info;
 use datex_core::compiler::bytecode::compile_script;
+use datex_core::decompiler::decompile_body;
 use datex_core::decompiler::DecompileOptions;
 use datex_core::logger::init_logger;
+use log::info;
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
     let dxb_body = compile_script(datex_script).unwrap();
@@ -20,8 +20,16 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 fn compare_compiled(datex_script: &str, expected: &str) {
     let dxb_body = compile_script(datex_script).unwrap();
 
-    let decompiled_color = decompile_body(&dxb_body, DecompileOptions {formatted: true, colorized: true, resolve_slots: true})
-        .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
+    let decompiled_color = decompile_body(
+        &dxb_body,
+        DecompileOptions {
+            json_compat: false,
+            formatted: true,
+            colorized: true,
+            resolve_slots: true,
+        },
+    )
+    .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
     let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
 
@@ -45,16 +53,15 @@ pub fn compile_literals() {
     compare_compiled_with_decompiled(r#""\r\n";"#);
     compare_compiled_with_decompiled(r#""\t";"#);
     compare_compiled(
-            r#""a
+        r#""a
 b
 c";"#,
-            "\"a\\nb\\nc\";",
+        "\"a\\nb\\nc\";",
     );
     compare_compiled_with_decompiled("true");
     compare_compiled_with_decompiled("false");
     compare_compiled_with_decompiled("null");
 }
-
 
 #[test]
 pub fn compile_expressions() {
@@ -62,7 +69,7 @@ pub fn compile_expressions() {
     compare_compiled_with_decompiled("1+2;");
     compare_compiled_with_decompiled("[1,2]");
     // ARR_START 1 2 3 SCOPE_END
-    compare_compiled("[1,2,3+4]","[1,2,(3+4)]");
+    compare_compiled("[1,2,3+4]", "[1,2,(3+4)]");
     compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
     compare_compiled_with_decompiled("(1,2,[3],[4,5],6)");
     compare_compiled("1,2,[3],[4,5],6", "(1,2,[3],[4,5],6)");

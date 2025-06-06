@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer};
 use crate::global::protocol_structures::instructions::Instruction;
 use crate::runtime::execution::InvalidProgramError;

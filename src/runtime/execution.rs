@@ -185,8 +185,7 @@ fn execute_loop(
                 // check if active_key_value_pair exists
                 if let Some(active_key) = active_key {
                     println!(
-                        "Adding key-value pair: {:?} , {}",
-                        active_key, value_container
+                        "Adding key-value pair: {active_key:?} , {value_container}"
                     );
 
                     match active_key {

@@ -64,7 +64,7 @@ impl CompilationScope {
                     }
                     DatexValueInner::Object(val) => {
                         self.append_binary_code(InstructionCode::OBJECT_START);
-                        println!("Object: {:?}", val);
+                        println!("Object: {val:?}");
                         for (key, value) in val {
                             self.insert_key_string(key);
                             self.insert_value_container(value);
@@ -208,11 +208,11 @@ impl CompilationScope {
     }
     fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();
-        (&mut *self.buffer.borrow_mut()).extend_from_slice(bytes);
+        (*self.buffer.borrow_mut()).extend_from_slice(bytes);
         self.index.update(|x| x + bytes.len());
     }
     fn append_buffer(&self, buffer: &[u8]) {
-        (&mut *self.buffer.borrow_mut()).extend_from_slice(buffer);
+        (*self.buffer.borrow_mut()).extend_from_slice(buffer);
         self.index.update(|x| x + buffer.len());
     }
 
