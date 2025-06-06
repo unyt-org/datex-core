@@ -1,12 +1,14 @@
-use std::fmt::Display;
+use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::value::{DatexValueInner, Value};
-use crate::parser::body;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{Instruction, Int8Data, ShortTextData};
+use crate::global::protocol_structures::instructions::{
+    Instruction, Int8Data, ShortTextData,
+};
+use crate::parser::body;
 use crate::parser::body::ParserError;
-use super::stack::{ActiveValue, ScopeStack, ScopeType};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -18,10 +20,13 @@ pub struct ExecutionContext {
     dxb_body: Vec<u8>,
     options: ExecutionOptions,
     index: usize,
-    scope_stack: ScopeStack
+    scope_stack: ScopeStack,
 }
 
-pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<Option<ValueContainer>, ExecutionError> {
+pub fn execute_dxb(
+    dxb_body: Vec<u8>,
+    options: ExecutionOptions,
+) -> Result<Option<ValueContainer>, ExecutionError> {
     let context = ExecutionContext {
         dxb_body,
         options,
@@ -33,14 +38,18 @@ pub fn execute_dxb(dxb_body: Vec<u8>, options: ExecutionOptions) -> Result<Optio
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {
     InvalidScopeClose,
-    InvalidKeyValuePair
+    InvalidKeyValuePair,
 }
 
 impl Display for InvalidProgramError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InvalidProgramError::InvalidScopeClose => write!(f, "Invalid scope close"),
-            InvalidProgramError::InvalidKeyValuePair => write!(f, "Invalid key-value pair"),
+            InvalidProgramError::InvalidScopeClose => {
+                write!(f, "Invalid scope close")
+            }
+            InvalidProgramError::InvalidKeyValuePair => {
+                write!(f, "Invalid key-value pair")
+            }
         }
     }
 }
@@ -75,12 +84,14 @@ impl From<InvalidProgramError> for ExecutionError {
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExecutionError::ParserError(err) => write!(f, "Parser error: {err}"),
+            ExecutionError::ParserError(err) => {
+                write!(f, "Parser error: {err}")
+            }
             ExecutionError::Unknown => write!(f, "Unknown execution error"),
             ExecutionError::ValueError(err) => write!(f, "Value error: {err}"),
             ExecutionError::InvalidProgram(err) => {
                 write!(f, "Invalid program error: {err}")
-            },
+            }
             ExecutionError::NotImplemented(msg) => {
                 write!(f, "Not implemented: {msg}")
             }
@@ -88,15 +99,13 @@ impl Display for ExecutionError {
     }
 }
 
-
 fn execute_loop(
     context: ExecutionContext,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let dxb_body = context.dxb_body;
     let mut scope_stack = context.scope_stack;
 
-    let instruction_iterator =
-        body::iterate_instructions(&dxb_body);
+    let instruction_iterator = body::iterate_instructions(&dxb_body);
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
@@ -107,14 +116,11 @@ fn execute_loop(
         let mut is_scope_start = false;
 
         let value: ActiveValue = match instruction {
+            Instruction::True => true.into(),
+            Instruction::False => false.into(),
+            Instruction::Int8(Int8Data(i8)) => i8.into(),
 
-            Instruction::Int8(Int8Data(i8)) => {
-                i8.into()
-            }
-
-            Instruction::ShortText(ShortTextData(text)) => {
-                text.into()
-            }
+            Instruction::ShortText(ShortTextData(text)) => text.into(),
 
             // operations
             Instruction::Add => {
@@ -124,7 +130,6 @@ fn execute_loop(
 
             Instruction::CloseAndStore => {
                 scope_stack.clear_active_value();
-                /// values
                 ActiveValue::None
             }
 
@@ -162,23 +167,27 @@ fn execute_loop(
             }
 
             i => {
-                return Err(ExecutionError::NotImplemented(format!("Instruction {i}").to_string()));
+                return Err(ExecutionError::NotImplemented(
+                    format!("Instruction {i}").to_string(),
+                ));
             }
         };
 
         match value {
-
             ActiveValue::ValueContainer(value_container) => {
-
                 // TODO: try to optimize and initialize variables only when needed, currently leeds to borrow errors
-                let active_operation = scope_stack.get_active_operation().cloned();
+                let active_operation =
+                    scope_stack.get_active_operation().cloned();
                 let scope_type = scope_stack.get_current_scope_type().clone();
                 let active_key = scope_stack.get_active_key();
                 let active_value = scope_stack.get_active_value_mut();
 
                 // check if active_key_value_pair exists
                 if let Some(active_key) = active_key {
-                    println!("Adding key-value pair: {:?} , {}", active_key, value_container);
+                    println!(
+                        "Adding key-value pair: {:?} , {}",
+                        active_key, value_container
+                    );
 
                     match active_key {
                         // set key for key-value pair (for dynamic keys)
@@ -190,11 +199,23 @@ fn execute_loop(
                         ActiveValue::ValueContainer(key) => {
                             // insert key value pair into active object
                             match active_value {
-                                ActiveValue::ValueContainer(ValueContainer::Value(Value {inner: DatexValueInner::Object(object), .. })) => {
+                                ActiveValue::ValueContainer(
+                                    ValueContainer::Value(Value {
+                                        inner: DatexValueInner::Object(object),
+                                        ..
+                                    }),
+                                ) => {
                                     // make sure key is a string
                                     match key {
-                                        ValueContainer::Value(Value {inner: DatexValueInner::Text(key_str), .. }) => {
-                                            object.set(&key_str.0, value_container);
+                                        ValueContainer::Value(Value {
+                                            inner:
+                                                DatexValueInner::Text(key_str),
+                                            ..
+                                        }) => {
+                                            object.set(
+                                                &key_str.0,
+                                                value_container,
+                                            );
                                         }
                                         _ => {
                                             return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
@@ -208,27 +229,27 @@ fn execute_loop(
                             }
                         }
                     }
-                }
-
-                else {
+                } else {
                     match active_value {
-
                         ActiveValue::None => {
-
                             // TODO: unary operations
 
                             // set active value to new value
-                            scope_stack.set_active_value_container(value_container);
+                            scope_stack
+                                .set_active_value_container(value_container);
                         }
 
                         // value and active value exists
-                        ActiveValue::ValueContainer(ref mut active_value_container) => {
+                        ActiveValue::ValueContainer(
+                            ref mut active_value_container,
+                        ) => {
                             // binary operation
                             if let Some(operation) = active_operation {
                                 // apply operation to active value
                                 let res = match operation {
                                     Instruction::Add => {
-                                        active_value_container as & _ + &value_container
+                                        active_value_container as &_
+                                            + &value_container
                                     }
                                     _ => {
                                         unreachable!("Instruction {:?} is not a valid operation", operation);
@@ -239,15 +260,21 @@ fn execute_loop(
                                     scope_stack.set_active_value_container(val);
                                 } else {
                                     // handle error
-                                    return Err(ExecutionError::ValueError(res.unwrap_err()));
+                                    return Err(ExecutionError::ValueError(
+                                        res.unwrap_err(),
+                                    ));
                                 }
                             }
-
                             // special scope: Array
-                            else if !is_scope_start && scope_type == ScopeType::Array {
+                            else if !is_scope_start
+                                && scope_type == ScopeType::Array
+                            {
                                 // add value to array scope
                                 match active_value_container {
-                                    ValueContainer::Value(Value {inner: DatexValueInner::Array(array), .. }) => {
+                                    ValueContainer::Value(Value {
+                                        inner: DatexValueInner::Array(array),
+                                        ..
+                                    }) => {
                                         // append value to array
                                         array.push(value_container);
                                     }
@@ -257,18 +284,16 @@ fn execute_loop(
                                 }
                             }
                         }
-
                     }
                 }
             }
 
             ActiveValue::None => {}
-
         }
         // let _slot = instruction.slot.unwrap_or_default();
         // let has_primitive_value = instruction.value.is_some();
         // let has_value = instruction.value.is_some();
-        // // 
+        // //
         // let error = match code {
         //     // BinaryCode::ADD => binary_operation(code, &mut stack),
         //     // BinaryCode::SUBTRACT => binary_operation(code, &mut stack),
@@ -278,12 +303,12 @@ fn execute_loop(
         //     // BinaryCode::POWER => binary_operation(code, &mut stack),
         //     // BinaryCode::AND => binary_operation(code, &mut stack),
         //     // BinaryCode::OR => binary_operation(code, &mut stack),
-        // 
+        //
         //     // BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack),
-        // 
+        //
         //     _ => {
         //         // add value to stack
-        // 
+        //
         //         // if has_value && let Some(value) = instruction.value{
         //         //     stack.push(value)
         //         // } else if has_primitive_value {
@@ -294,7 +319,7 @@ fn execute_loop(
         //         None
         //     }
         // };
-        // 
+        //
         // if error.is_some() {
         //     let error_val = error.unwrap();
         //     error!("error: {}", &error_val);
@@ -304,7 +329,7 @@ fn execute_loop(
         // enter new subscope - continue at index?
         // if instruction.subscope_continue {
         //     let sub_result = execute_loop(dxb_body, index, is_end_instruction);
-        // 
+        //
         //     // propagate error from subscope
         //     if sub_result.is_err() {
         //         return Err(sub_result.err().unwrap());
@@ -318,21 +343,21 @@ fn execute_loop(
         // }
     }
 
-    Ok(
-        match scope_stack.pop_last()? {
-            ActiveValue::None => None,
-            ActiveValue::ValueContainer(val) => Some(val),
-        }
-    )
+    Ok(match scope_stack.pop_last()? {
+        ActiveValue::None => None,
+        ActiveValue::ValueContainer(val) => Some(val),
+    })
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::compiler::bytecode::compile_script;
     use crate::global::binary_codes::InstructionCode;
-    use super::*;
 
-    fn execute_datex_script_debug(datex_script: &str) -> Option<ValueContainer> {
+    fn execute_datex_script_debug(
+        datex_script: &str,
+    ) -> Option<ValueContainer> {
         let dxb = compile_script(datex_script).unwrap();
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb, options).unwrap_or_else(|err| {
@@ -340,53 +365,42 @@ mod tests {
         })
     }
 
-    fn execute_datex_script_debug_with_result(datex_script: &str) -> ValueContainer {
+    fn execute_datex_script_debug_with_result(
+        datex_script: &str,
+    ) -> ValueContainer {
         execute_datex_script_debug(datex_script).unwrap()
     }
 
-    fn execute_dxb_debug(dxb_body: Vec<u8>) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn execute_dxb_debug(
+        dxb_body: Vec<u8>,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb_body, options)
     }
 
     #[test]
     fn test_empty_script() {
-        assert_eq!(
-            execute_datex_script_debug(""),
-            None
-        );
+        assert_eq!(execute_datex_script_debug(""), None);
     }
 
     #[test]
     fn test_empty_script_semicolon() {
-        assert_eq!(
-            execute_datex_script_debug(";;;"),
-            None
-        );
+        assert_eq!(execute_datex_script_debug(";;;"), None);
     }
 
     #[test]
     fn test_single_value() {
-        assert_eq!(
-            execute_datex_script_debug_with_result("42"),
-            42.into()
-        );
+        assert_eq!(execute_datex_script_debug_with_result("42"), 42.into());
     }
 
     #[test]
     fn test_single_value_semicolon() {
-        assert_eq!(
-            execute_datex_script_debug("42;"),
-            None
-        )
+        assert_eq!(execute_datex_script_debug("42;"), None)
     }
 
     #[test]
     fn test_single_value_scope() {
-        assert_eq!(
-            execute_datex_script_debug_with_result("(42)"),
-            42.into()
-        );
+        assert_eq!(execute_datex_script_debug_with_result("(42)"), 42.into());
     }
 
     #[test]
@@ -403,16 +417,18 @@ mod tests {
 
     #[test]
     fn test_invalid_scope_close() {
-        let result = execute_dxb_debug(
-            vec![
-                InstructionCode::SCOPE_START.into(),
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::SCOPE_END.into(), // Invalid close, no matching start
-            ]
-        );
-        assert!(matches!(result, Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidScopeClose))));
+        let result = execute_dxb_debug(vec![
+            InstructionCode::SCOPE_START.into(),
+            InstructionCode::SCOPE_END.into(),
+            InstructionCode::SCOPE_END.into(), // Invalid close, no matching start
+        ]);
+        assert!(matches!(
+            result,
+            Err(ExecutionError::InvalidProgram(
+                InvalidProgramError::InvalidScopeClose
+            ))
+        ));
     }
-
 
     #[test]
     fn test_empty_array() {
@@ -432,5 +448,14 @@ mod tests {
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
         let expected: Vec<ValueContainer> = vec![1.into(), 5.into(), 4.into()];
         assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn test_boolean() {
+        let result = execute_datex_script_debug_with_result("true");
+        assert_eq!(result, true.into());
+
+        let result = execute_datex_script_debug_with_result("false");
+        assert_eq!(result, false.into());
     }
 }

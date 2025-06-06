@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use binrw::{BinRead, BinWrite};
+use std::fmt::Display;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
     Int8(Int8Data),
@@ -43,7 +43,9 @@ impl Display for Instruction {
             Instruction::TupleStart => write!(f, "TUPLE_START"),
             Instruction::ScopeEnd => write!(f, "SCOPE_END"),
             Instruction::KeyValueDynamic => write!(f, "KEY_VALUE_DYNAMIC"),
-            Instruction::KeyValueShortText(data) => write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0),
+            Instruction::KeyValueShortText(data) => {
+                write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
+            }
             Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
             Instruction::Add => write!(f, "ADD"),
             Instruction::Multiply => write!(f, "MULTIPLY"),
@@ -92,7 +94,6 @@ pub struct ShortTextData(pub String);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextData(pub String);
-
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

@@ -10,4 +10,5 @@ pub enum CoreValueType {
     Array,
     Object,
     Endpoint,
+    // Tuple,
 }
