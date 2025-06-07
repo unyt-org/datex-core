@@ -231,14 +231,14 @@ impl Not for CoreValue {
 impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            CoreValue::Bool(bool) => write!(f, "{}", bool),
-            CoreValue::Integer(int) => write!(f, "{}", int),
-            CoreValue::Text(text) => write!(f, "{}", text),
+            CoreValue::Bool(bool) => write!(f, "{bool}"),
+            CoreValue::Integer(int) => write!(f, "{int}"),
+            CoreValue::Text(text) => write!(f, "{text}"),
             CoreValue::Null(_) => write!(f, "null"),
-            CoreValue::Endpoint(endpoint) => write!(f, "{}", endpoint),
-            CoreValue::Array(array) => write!(f, "{}", array),
-            CoreValue::Object(object) => write!(f, "{}", object),
-            CoreValue::Tuple(tuple) => write!(f, "{}", tuple),
+            CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
+            CoreValue::Array(array) => write!(f, "{array}"),
+            CoreValue::Object(object) => write!(f, "{object}"),
+            CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
         }
     }
 }

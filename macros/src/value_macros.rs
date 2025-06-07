@@ -1,6 +1,6 @@
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
-use syn::{Data, DeriveInput, Fields, Ident, ImplItemFn, ItemImpl};
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{Data, DeriveInput, Fields};
 
 pub fn from_core_value_derive_impl(input: DeriveInput) -> TokenStream {
     let enum_name = input.ident;
@@ -30,7 +30,7 @@ pub fn from_core_value_derive_impl(input: DeriveInput) -> TokenStream {
         }
     }
 
-    TokenStream::from(quote! {
+    quote! {
         #(#from_impls)*
-    })
+    }
 }

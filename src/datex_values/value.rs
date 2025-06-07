@@ -83,7 +83,7 @@ impl Value {
     /// ```
     pub fn cast_to(&self, target_type: CoreValueType) -> Value {
         self.try_cast_to(target_type.clone()).unwrap_or_else(|| {
-            panic!("Failed to cast value to target type: {:?}", target_type)
+            panic!("Failed to cast value to target type: {target_type:?}")
         })
     }
 
