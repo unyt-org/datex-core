@@ -3,7 +3,6 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use webrtc::media::audio::buffer::info;
 
 use super::super::core_value_trait::CoreValueTrait;
 
@@ -25,7 +24,7 @@ impl Eq for Integer {}
 
 impl PartialEq for Integer {
     fn eq(&self, other: &Self) -> bool {
-        println!("Comparing integers: {} and {}", self, other);
+        println!("Comparing integers: {self} and {other}");
         let a = self.as_u128();
         let b = other.as_u128();
         println!("Converted to u128: {} and {} = {}", a, b, a == b);
