@@ -3,10 +3,9 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq, Hash)]
 pub enum Integer {
     I8(i8),
     I16(i16),
@@ -20,6 +19,11 @@ pub enum Integer {
     U128(u128),
 }
 
+impl PartialEq for Integer {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_i128() == other.as_i128()
+    }
+}
 impl Integer {
     fn as_u128(&self) -> u128 {
         match self {

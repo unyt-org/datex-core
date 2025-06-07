@@ -530,21 +530,19 @@ mod tests {
     fn test_tuple() {
         init_logger();
         let result = execute_datex_script_debug_with_result("(x:1, 2, 42)");
-        // iterate over the tuple values
         let tuple: CoreValue = result.clone().into_value().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
+        assert_eq!(tuple.size(), 3);
+        assert_eq!(tuple.get(&"x".into()), Some(&1.into()));
         debug!("Tuple result: {}", tuple);
         // FIXME
-        assert_eq!(tuple.size(), 3);
-        assert_eq!(tuple.get(&0.into()), Some(&1.into()));
-        assert_eq!(tuple.get(&1.into()), Some(&2.into()));
-        assert_eq!(tuple.get(&2.into()), Some(&42.into()));
 
         let expected: Tuple = Tuple::from(vec![
-            (0.into(), 1.into()),
+            ("x".into(), 1.into()),
             (1.into(), 2.into()),
             (2.into(), 42.into()),
         ]);
+        debug!("Expected tuple: {}", expected);
         assert_eq!(result, expected.into());
     }
 }

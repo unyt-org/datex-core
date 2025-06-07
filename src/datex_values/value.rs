@@ -8,10 +8,24 @@ use std::ops::{Add, AddAssign, Not};
 use super::core_values::null::Null;
 use super::datex_type::CoreValueType;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Hash)]
 pub struct Value {
     pub inner: CoreValue,
     pub actual_type: CoreValueType, // custom type for the value that can not be changed
+}
+impl Eq for Value {}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        // FIXME
+        self.inner.get_default_type() == other.inner.get_default_type()
+            && self.inner == other.inner
+        // if self.actual_type == other.actual_type {
+
+        // } else {
+        //     false
+        // }
+    }
 }
 
 impl<T: Into<CoreValue>> From<T> for Value {
@@ -281,6 +295,48 @@ mod test {
         // We can't add two booleans together, so this should return None
         let a_plus_b = a.clone() + b.clone();
         assert!(a_plus_b.is_err());
+    }
+
+    #[test]
+    fn equality_same_type() {
+        init_logger();
+        let a = Value::from(42);
+        let b = Value::from(42);
+        let c = Value::from(27);
+
+        assert_eq!(a.get_type(), CoreValueType::I8);
+        assert_eq!(b.get_type(), CoreValueType::I8);
+        assert_eq!(c.get_type(), CoreValueType::I8);
+
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+        assert_ne!(b, c);
+
+        info!("{} == {}", a.clone(), b.clone());
+        info!("{} != {}", a.clone(), c.clone());
+    }
+
+    #[test]
+    fn equality_different_type() {
+        init_logger();
+
+        // let x = CoreValue::from(1 as i8);
+        // let y = CoreValue::from(1 as i32);
+        // info!("{:?}", x);
+        // info!("{:?}", y);
+        // assert_eq!(x, y);
+
+        // return;
+
+        let a = Value::from(42 as i8);
+        let b = Value::from(42 as i32);
+
+        assert_eq!(a.get_type(), CoreValueType::I8);
+        assert_eq!(b.get_type(), CoreValueType::I32);
+
+        assert_eq!(a, b);
+
+        info!("{} == {}", a.clone(), b.clone());
     }
 
     #[test]
