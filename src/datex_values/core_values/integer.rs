@@ -16,6 +16,12 @@ impl SoftEq for Integer {
     }
 }
 
+impl Integer {
+    pub fn to_smallest_fitting(&self) -> TypedInteger {
+        self.0.to_smallest_fitting()
+    }
+}
+
 impl<T: Into<TypedInteger>> From<T> for Integer {
     fn from(value: T) -> Self {
         Integer(value.into())
@@ -56,6 +62,7 @@ pub fn smallest_fitting_signed(val: i128) -> TypedInteger {
     }
 }
 
+// FIXME use integer i32 by default and switch automaticially if a calculation provoces one of the values to get out of bounds
 impl Add for Integer {
     type Output = Option<Integer>;
 
@@ -526,16 +533,6 @@ impl Sub for TypedInteger {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_addition() {
-        let a: u8 = 10;
-    }
-}
-
 impl From<i8> for TypedInteger {
     fn from(v: i8) -> Self {
         TypedInteger::I8(v)
@@ -584,5 +581,128 @@ impl From<u64> for TypedInteger {
 impl From<u128> for TypedInteger {
     fn from(v: u128) -> Self {
         TypedInteger::U128(v)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_typed_integer_addition() {
+        let a = TypedInteger::I8(10);
+        let b = TypedInteger::I8(20);
+
+        let result = a + b;
+        assert_eq!(result, Some(TypedInteger::I8(30)));
+
+        let c = TypedInteger::U8(10);
+        let result = a + c;
+        assert_eq!(result, Some(TypedInteger::I8(20)));
+
+        let result = c + a;
+        assert_eq!(result, Some(TypedInteger::U8(20)));
+
+        // out of bounds
+        let d = TypedInteger::I8(100);
+        let e = TypedInteger::I8(50);
+        let result = d + e;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_typed_integer_subtraction() {
+        let a = TypedInteger::I8(30);
+        let b = TypedInteger::I8(20);
+        let result = a - b;
+        assert_eq!(result, Some(TypedInteger::I8(10)));
+
+        // negative result
+        let c = TypedInteger::I8(20);
+        let d = TypedInteger::I8(30);
+        let result = c - d;
+        assert_eq!(result, Some(TypedInteger::I8(-10)));
+
+        // out of bounds
+        let e = TypedInteger::I8(-100);
+        let f = TypedInteger::I8(50);
+        let result = e - f;
+        assert_eq!(result, None);
+
+        let g = TypedInteger::U8(30);
+        let h = TypedInteger::I8(30);
+        let result = g - h;
+        assert_eq!(result, Some(TypedInteger::U8(0)));
+
+        let h = TypedInteger::U8(30);
+        let i = TypedInteger::I8(31);
+
+        let result = h - i;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_integer_addition() {
+        let a = Integer::from(10 as i8);
+        let b = Integer::from(20 as i8);
+        let result = a + b;
+        assert_eq!(result, Some(Integer(TypedInteger::I8(30))));
+
+        // let c = Integer::from(10 as u8);
+        // let result = a + c;
+        // assert_eq!(result, Some(Integer(TypedInteger::I8(20))));
+
+        // let result = c + a;
+        // assert_eq!(result, Some(Integer(TypedInteger::U8(20))));
+
+        // // out of bounds
+        // let d = Integer::from(100 as i8);
+        // let e = Integer::from(50 as i8);
+        // let result = d + e;
+        // assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_integer() {
+        let a = Integer::from(1 as i8);
+        assert_eq!(a.0, TypedInteger::I8(1));
+
+        let b = Integer::from(1 as u8);
+        assert_eq!(b.0, TypedInteger::U8(1));
+
+        let c = Integer::from(1 as i16);
+        assert_eq!(c.0, TypedInteger::I16(1));
+
+        let d = Integer::from(1 as u16);
+        assert_eq!(d.0, TypedInteger::U16(1));
+
+        let e = Integer::from(1 as i32);
+        assert_eq!(e.0, TypedInteger::I32(1));
+
+        let f = Integer::from(1 as u32);
+        assert_eq!(f.0, TypedInteger::U32(1));
+
+        let g = Integer::from(1 as i64);
+        assert_eq!(g.0, TypedInteger::I64(1));
+
+        let h = Integer::from(1 as u64);
+        assert_eq!(h.0, TypedInteger::U64(1));
+
+        let i = Integer::from(1 as i128);
+        assert_eq!(i.0, TypedInteger::I128(1));
+
+        let j = Integer::from(1 as u128);
+        assert_eq!(j.0, TypedInteger::U128(1));
+
+        assert_eq!(a.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(b.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(c.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(d.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(e.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(f.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(g.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(h.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(i.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(j.to_smallest_fitting(), TypedInteger::U8(1));
     }
 }
