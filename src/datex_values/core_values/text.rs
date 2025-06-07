@@ -3,9 +3,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use super::{
-    super::core_value_trait::CoreValueTrait,
-};
+use super::super::core_value_trait::CoreValueTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Text(pub String);
@@ -41,14 +39,19 @@ impl Text {
     }
 }
 
-impl CoreValueTrait for Text {
-}
+impl CoreValueTrait for Text {}
 
 /// The froms are used for this magic. This will automatically convert
 /// the Rust types to Text when using the += operator.
 impl From<&str> for Text {
     fn from(s: &str) -> Self {
         Text(s.to_string())
+    }
+}
+
+impl From<String> for Text {
+    fn from(s: String) -> Self {
+        Text(s)
     }
 }
 

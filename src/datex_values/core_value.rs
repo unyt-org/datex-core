@@ -1,3 +1,5 @@
+use datex_macros::FromCoreValue;
+
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::bool::Bool;
 use crate::datex_values::core_values::endpoint::Endpoint;
@@ -11,7 +13,7 @@ use crate::datex_values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Bool(Bool),
     Integer(Integer),
@@ -23,11 +25,6 @@ pub enum CoreValue {
     Tuple(Tuple),
 }
 
-impl From<Text> for CoreValue {
-    fn from(value: Text) -> Self {
-        CoreValue::Text(value)
-    }
-}
 impl From<&str> for CoreValue {
     fn from(value: &str) -> Self {
         CoreValue::Text(value.into())
@@ -36,12 +33,6 @@ impl From<&str> for CoreValue {
 impl From<String> for CoreValue {
     fn from(value: String) -> Self {
         CoreValue::Text(Text(value))
-    }
-}
-
-impl From<Array> for CoreValue {
-    fn from(value: Array) -> Self {
-        CoreValue::Array(value)
     }
 }
 
@@ -63,21 +54,9 @@ where
     }
 }
 
-impl From<Bool> for CoreValue {
-    fn from(value: Bool) -> Self {
-        CoreValue::Bool(value)
-    }
-}
-
 impl From<bool> for CoreValue {
     fn from(value: bool) -> Self {
         CoreValue::Bool(value.into())
-    }
-}
-
-impl From<Integer> for CoreValue {
-    fn from(value: Integer) -> Self {
-        CoreValue::Integer(value)
     }
 }
 
@@ -87,31 +66,14 @@ impl From<i8> for CoreValue {
     }
 }
 
-impl From<Null> for CoreValue {
-    fn from(value: Null) -> Self {
-        CoreValue::Null(value)
-    }
-}
-
-impl From<Endpoint> for CoreValue {
-    fn from(value: Endpoint) -> Self {
-        CoreValue::Endpoint(value)
-    }
-}
-
-impl From<Object> for CoreValue {
-    fn from(value: Object) -> Self {
-        CoreValue::Object(value)
-    }
-}
-
-impl From<Tuple> for CoreValue {
-    fn from(value: Tuple) -> Self {
-        CoreValue::Tuple(value)
-    }
-}
-
 impl CoreValue {
+    pub fn new<T>(value: T) -> CoreValue
+    where
+        CoreValue: From<T>,
+    {
+        value.into()
+    }
+
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Bool(_) => CoreValueType::Bool,
@@ -268,15 +230,6 @@ impl Not for CoreValue {
 
 impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        match self {
-            CoreValue::Bool(v) => write!(f, "{v}"),
-            CoreValue::Integer(v) => write!(f, "{v}"),
-            CoreValue::Text(v) => write!(f, "{v}"),
-            CoreValue::Null(v) => write!(f, "{v}"),
-            CoreValue::Endpoint(v) => write!(f, "{v}"),
-            CoreValue::Array(v) => write!(f, "{v}"),
-            CoreValue::Object(v) => write!(f, "{v}"),
-            CoreValue::Tuple(v) => write!(f, "{v}"),
-        }
+        return write!(f, "{}", self);
     }
 }
