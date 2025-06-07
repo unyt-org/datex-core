@@ -246,7 +246,16 @@ fn execute_loop(
                                         }
                                     }
                                 }
-                                // TODO: tuple
+                                // tuple
+                                ActiveValue::ValueContainer(
+                                    ValueContainer::Value(Value {
+                                        inner: CoreValue::Tuple(tuple),
+                                        ..
+                                    }),
+                                ) => {
+                                    // set key-value pair in tuple
+                                    tuple.set(key, value_container);
+                                }
                                 _ => {
                                     unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_value);
                                 }
@@ -521,12 +530,12 @@ mod tests {
     #[test]
     fn test_tuple() {
         init_logger();
-        let result = execute_datex_script_debug_with_result("(1, 2, 42)");
+        let result = execute_datex_script_debug_with_result("(x:1, 2, 42)");
         // iterate over the tuple values
         let tuple: CoreValue = result.clone().into_value().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
         debug!("Tuple result: {}", tuple);
-
+        // FIXME
         assert_eq!(tuple.size(), 3);
         assert_eq!(tuple.get(&0.into()), Some(&1.into()));
         assert_eq!(tuple.get(&1.into()), Some(&2.into()));
