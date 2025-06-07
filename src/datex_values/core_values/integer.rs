@@ -5,34 +5,8 @@ use std::{
 };
 
 use crate::datex_values::soft_eq::SoftEq;
-
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, Eq, Copy)]
-pub struct Integer(pub TypedInteger);
-impl SoftEq for Integer {
-    fn soft_eq(&self, other: &Self) -> bool {
-        self.0.soft_eq(&other.0)
-    }
-}
-
-impl Integer {
-    pub fn to_smallest_fitting(&self) -> TypedInteger {
-        self.0.to_smallest_fitting()
-    }
-}
-
-impl<T: Into<TypedInteger>> From<T> for Integer {
-    fn from(value: T) -> Self {
-        Integer(value.into())
-    }
-}
-
-impl Display for Integer {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 pub fn smallest_fitting_unsigned(val: u128) -> TypedInteger {
     if val <= u8::MAX as u128 {
@@ -59,6 +33,33 @@ pub fn smallest_fitting_signed(val: i128) -> TypedInteger {
         TypedInteger::I64(val as i64)
     } else {
         TypedInteger::I128(val)
+    }
+}
+
+
+#[derive(Debug, Clone, Eq, Copy)]
+pub struct Integer(pub TypedInteger);
+impl Integer {
+    pub fn to_smallest_fitting(&self) -> TypedInteger {
+        self.0.to_smallest_fitting()
+    }
+}
+
+impl SoftEq for Integer {
+    fn soft_eq(&self, other: &Self) -> bool {
+        self.0.soft_eq(&other.0)
+    }
+}
+
+impl<T: Into<TypedInteger>> From<T> for Integer {
+    fn from(value: T) -> Self {
+        Integer(value.into())
+    }
+}
+
+impl Display for Integer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

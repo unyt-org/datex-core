@@ -2,7 +2,7 @@ use datex_macros::FromCoreValue;
 
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::bool::Bool;
-use crate::datex_values::core_values::decimal::Decimal;
+use crate::datex_values::core_values::decimal::{Decimal, TypedDecimal};
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::integer::{Integer, TypedInteger};
 use crate::datex_values::core_values::null::Null;
@@ -18,9 +18,10 @@ use std::ops::{Add, AddAssign, Not};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Bool(Bool),
-    TypedInteger(TypedInteger),
     Integer(Integer),
+    TypedInteger(TypedInteger),
     Decimal(Decimal),
+    TypedDecimal(TypedDecimal),
     Text(Text),
     Null(Null),
     Endpoint(Endpoint),
@@ -32,6 +33,8 @@ impl SoftEq for CoreValue {
     fn soft_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (CoreValue::Bool(a), CoreValue::Bool(b)) => a.soft_eq(b),
+            
+            (CoreValue::Integer(a), CoreValue::Integer(b)) => a.soft_eq(b),
             (CoreValue::TypedInteger(a), CoreValue::TypedInteger(b)) => {
                 a.soft_eq(b)
             }
@@ -41,11 +44,12 @@ impl SoftEq for CoreValue {
             (CoreValue::Integer(a), CoreValue::TypedInteger(b)) => {
                 a.0.soft_eq(b)
             }
-            (CoreValue::Integer(a), CoreValue::Integer(b)) => {
-                a.soft_eq(b)
-            }
+            
             (CoreValue::Decimal(a), CoreValue::Decimal(b)) => a.soft_eq(b),
-
+            (CoreValue::TypedDecimal(a), CoreValue::TypedDecimal(b)) => a.soft_eq(b),
+            (CoreValue::TypedDecimal(a), CoreValue::Decimal(b)) => a.soft_eq(&b.0),
+            (CoreValue::Decimal(a), CoreValue::TypedDecimal(b)) => a.0.soft_eq(b),
+            
             // FIXME
             // add decimal -> integer soft equality
             (CoreValue::Text(a), CoreValue::Text(b)) => a.soft_eq(b),
@@ -148,12 +152,12 @@ impl From<u128> for CoreValue {
 
 impl From<f32> for CoreValue {
     fn from(value: f32) -> Self {
-        CoreValue::Decimal(value.into())
+        CoreValue::TypedDecimal(value.into())
     }
 }
 impl From<f64> for CoreValue {
     fn from(value: f64) -> Self {
-        CoreValue::Decimal(value.into())
+        CoreValue::TypedDecimal(value.into())
     }
 }
 
@@ -182,7 +186,10 @@ impl CoreValue {
                 TypedInteger::U64(_) => CoreValueType::U64,
                 TypedInteger::U128(_) => CoreValueType::U128,
             },
-            CoreValue::Decimal(_) => CoreValueType::F32,
+            CoreValue::TypedDecimal(decimal) => match decimal {
+                TypedDecimal::F32(_) => CoreValueType::F32,
+                TypedDecimal::F64(_) => CoreValueType::F64,
+            },
             CoreValue::Text(_) => CoreValueType::Text,
             CoreValue::Null(_) => CoreValueType::Null,
             CoreValue::Endpoint(_) => CoreValueType::Endpoint,
@@ -190,6 +197,7 @@ impl CoreValue {
             CoreValue::Object(_) => CoreValueType::Object,
             CoreValue::Tuple(_) => CoreValueType::Tuple,
             CoreValue::Integer(_) => CoreValueType::Integer,
+            CoreValue::Decimal(_) => CoreValueType::Decimal,
         }
     }
 
@@ -209,7 +217,7 @@ impl CoreValue {
                 Some(CoreValue::TypedInteger(self.cast_to_integer()?))
             }
             CoreValueType::F32 | CoreValueType::F64 => {
-                Some(CoreValue::Decimal(self.cast_to_decimal()?))
+                Some(CoreValue::TypedDecimal(self.cast_to_decimal()?))
             }
             CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text())),
             CoreValueType::Null => Some(CoreValue::Null(Null)),
@@ -245,15 +253,15 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_decimal(&self) -> Option<Decimal> {
+    pub fn cast_to_decimal(&self) -> Option<TypedDecimal> {
         match self {
             CoreValue::Text(text) => {
-                text.to_string().parse::<f64>().ok().map(Decimal::from)
+                text.to_string().parse::<f64>().ok().map(TypedDecimal::from)
             }
             CoreValue::TypedInteger(int) => {
-                Some(Decimal::from(int.as_i128()? as f64))
+                Some(TypedDecimal::from(int.as_i128()? as f64))
             }
-            CoreValue::Decimal(decimal) => Some(decimal.clone()),
+            CoreValue::TypedDecimal(decimal) => Some(decimal.clone()),
             _ => None,
         }
     }
@@ -335,8 +343,8 @@ impl Add for CoreValue {
                 ))
             }
 
-            (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
-                Ok(CoreValue::Decimal(lhs + rhs))
+            (CoreValue::TypedDecimal(lhs), CoreValue::TypedDecimal(rhs)) => {
+                Ok(CoreValue::TypedDecimal(lhs + rhs))
             }
             _ => Err(ValueError::InvalidOperation),
         }
@@ -377,7 +385,7 @@ impl Display for CoreValue {
         match self {
             CoreValue::Bool(bool) => write!(f, "{bool}"),
             CoreValue::TypedInteger(int) => write!(f, "{int}"),
-            CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
+            CoreValue::TypedDecimal(decimal) => write!(f, "{decimal}"),
             CoreValue::Text(text) => write!(f, "{text}"),
             CoreValue::Null(null) => write!(f, "{null}"),
             CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
@@ -385,6 +393,7 @@ impl Display for CoreValue {
             CoreValue::Object(object) => write!(f, "{object}"),
             CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
+            CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
         }
     }
 }
