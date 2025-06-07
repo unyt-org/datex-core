@@ -1,5 +1,8 @@
 use crate::crypto::random;
+use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_value_trait::CoreValueTrait;
+use crate::datex_values::value::Value;
+use crate::datex_values::value_container::ValueError;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
@@ -10,7 +13,6 @@ use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
 use strum::Display;
-
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -63,10 +65,7 @@ pub struct Endpoint {
     pub instance: EndpointInstance,
 }
 
-impl CoreValueTrait for Endpoint {
-
-}
-
+impl CoreValueTrait for Endpoint {}
 
 impl Default for Endpoint {
     fn default() -> Self {
@@ -80,6 +79,22 @@ impl From<&str> for Endpoint {
             return endpoint;
         }
         panic!("Failed to parse endpoint from string: {name}");
+    }
+}
+
+// impl From<CoreValue> for Endpoint {
+//     fn from(value: CoreValue) -> Self {
+//         return value.cast_to_endpoint().unwrap();
+//     }
+// }
+
+impl TryFrom<CoreValue> for Endpoint {
+    type Error = ValueError;
+    fn try_from(value: CoreValue) -> Result<Self, Self::Error> {
+        if let Some(endpoint) = value.cast_to_endpoint() {
+            return Ok(endpoint);
+        }
+        Err(ValueError::TypeConversionError)
     }
 }
 

@@ -1,5 +1,8 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::value_container::ValueContainer;
+use crate::datex_values::{
+    core_value::CoreValue,
+    value_container::{ValueContainer, ValueError},
+};
 use std::{fmt, ops::Index};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
@@ -83,4 +86,14 @@ macro_rules! datex_array {
             Array(arr)
         }
     };
+}
+
+impl TryFrom<CoreValue> for Array {
+    type Error = ValueError;
+    fn try_from(value: CoreValue) -> Result<Self, Self::Error> {
+        if let Some(array) = value.cast_to_array() {
+            return Ok(array);
+        }
+        Err(ValueError::TypeConversionError)
+    }
 }

@@ -212,12 +212,8 @@ mod test {
         assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
 
-        let endpoint_text = Value::from("@test");
-        let endpoint = endpoint_text
-            .try_cast_to(CoreValueType::Endpoint)
-            .expect("Failed to cast to Endpoint type");
+        let endpoint: Endpoint = CoreValue::from("@test").try_into().unwrap();
         debug!("Endpoint: {}", endpoint);
-        assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
     }
 
@@ -244,21 +240,18 @@ mod test {
     #[test]
     fn array() {
         init_logger();
-        let mut a = Value::from(vec![
+        let mut a: Array = CoreValue::from(vec![
             Value::from("42"),
             Value::from(42),
             Value::from(true),
-        ]);
+        ])
+        .try_into()
+        .unwrap();
 
-        if let CoreValue::Array(a) = &mut a.inner {
-            a.push(Value::from(42));
-            a.push(4);
+        a.push(Value::from(42));
+        a.push(4);
 
-            assert_eq!(a.length(), 5);
-            debug!("Array: {}", a);
-        } else {
-            panic!("Expected Array type");
-        }
+        assert_eq!(a.length(), 5);
 
         let b = Array::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         assert_eq!(b.length(), 11);
@@ -268,23 +261,8 @@ mod test {
         assert_eq!(c[0], 1.into());
         assert_eq!(c[1], "test".into());
         assert_eq!(c[2], 3.into());
-
-        //c.insert(0, 1.into());
         debug!("Array: {}", c);
     }
-
-    // TODO: think about a serialization/deserialization strategy in combination with the compiler
-    // #[test]
-    // fn serialize() {
-    //     init_logger();
-    //     test_serialize_and_deserialize(Value::from(42));
-    //     test_serialize_and_deserialize(Value::from("Hello World!"));
-    //     test_serialize_and_deserialize(Value::from(true));
-    //     test_serialize_and_deserialize(Value::from(false));
-    //     test_serialize_and_deserialize(Value::null());
-    //     test_serialize_and_deserialize(Value::from(0));
-    //     test_serialize_and_deserialize(Value::from(1));
-    // }
 
     #[test]
     fn boolean() {
@@ -344,88 +322,6 @@ mod test {
         assert_eq!(null_value.to_string(), "null");
     }
 
-    // #[test]
-    // fn test_text() {
-    //     init_logger();
-    //     let a = CoreValue::from("Hello");
-    //     assert_eq!(a, "Hello");
-    //     assert_eq!(a.get_type(), CoreValueType::Text);
-    //     assert_eq!(a.length(), 5);
-    //     assert_eq!(a.to_string(), "\"Hello\"");
-    //     assert_eq!(a.as_str(), "Hello");
-    //     assert_eq!(a.to_uppercase(), "HELLO".into());
-    //     assert_eq!(a.to_lowercase(), "hello".into());
-    //
-    //     let b = &mut TypedValue::from("World");
-    //     b.reverse();
-    //     assert_eq!(b.length(), 5);
-    //     assert_eq!(b.as_str(), "dlroW");
-    // }
-
-    // #[test]
-    // /// A TypedDatexValue<T> should allow custom TypedDatexValue<X> to be added to it.
-    // /// This won't change the type of the TypedDatexValue<T> but will allow the value to be modified.
-    // /// A untyped DatexValue can be assigned to TypedDatexValue<T> but this might throw an error if the type is not compatible.
-    // fn test_test_assign1() {
-    //     init_logger();
-    //     let mut a: TypedValue<Text> = TypedValue::from("Hello");
-    //     a += " World"; // see (#2)
-    //     a += TypedValue::from("4"); // Is typesafe
-    //     a += 2;
-    //     a += TypedValue::from(42); // Is typesafe see (#1)
-    //                                // We won't allow this: `a += TypedDatexValue::from(true);`
-    //     a += Value::from("!"); // Might throw if the assignment would be incompatible.
-    //     assert_eq!(a.length(), 16);
-    //     assert_eq!(a.as_str(), "Hello World4242!");
-    // }
-    //
-    // #[test]
-    // fn test_test_assign2() {
-    //     init_logger();
-    //     let mut a = TypedValue::from("Hello");
-    //     a += " World";
-    //     a += Value::from("!");
-    //
-    //     assert_eq!(a.length(), 12);
-    //     assert_eq!(a.as_str(), "Hello World!");
-    //
-    //     a += 42;
-    //
-    //     assert_eq!(a.length(), 14);
-    //     assert_eq!(a.as_str(), "Hello World!42");
-    //
-    //     let mut b = Value::from("Hello");
-    //     b += " World ";
-    //     b += TypedValue::from(42);
-    //     b += Value::from("!");
-    //
-    //     let b = b.cast_to_typed::<Text>();
-    //
-    //     info!("{}", b);
-    //     assert_eq!(b.length(), 15);
-    //     assert_eq!(b.as_str(), "Hello World 42!");
-    // }
-    //
-    // #[test]
-    // fn test_typed_addition() {
-    //     init_logger();
-    //     let a = TypedValue::from(42);
-    //     let b = TypedValue::from(27);
-    //
-    //     assert_eq!(a, 42);
-    //     assert_eq!(b, 27);
-    //
-    //     assert_eq!(a.get_type(), CoreValueType::I8);
-    //     assert_eq!(b.get_type(), CoreValueType::I8);
-    //
-    //     let a_plus_b = a.clone() + b.clone();
-    //
-    //     assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
-    //
-    //     assert_eq!(a_plus_b, TypedValue::from(69));
-    //     info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
-    // }
-
     #[test]
     fn test_addition() {
         init_logger();
@@ -452,17 +348,8 @@ mod test {
         assert_eq!(a.get_type(), CoreValueType::Text);
         assert_eq!(b.get_type(), CoreValueType::I8);
 
-        let a_plus_b = a.clone() + b.clone();
-        let b_plus_a = b.clone() + a.clone();
-
-        info!("a: {}", a);
-        info!("b: {}", b);
-        info!("a + b: {:?}", b_plus_a);
-
-        return;
-
-        let a_plus_b = a_plus_b.unwrap();
-        let b_plus_a = b_plus_a.unwrap();
+        let a_plus_b = (a.clone() + b.clone()).unwrap();
+        let b_plus_a = (b.clone() + a.clone()).unwrap();
 
         assert_eq!(a_plus_b.get_type(), CoreValueType::Text);
         assert_eq!(b_plus_a.get_type(), CoreValueType::Text);
@@ -473,20 +360,86 @@ mod test {
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
         info!("{} + {} = {}", b.clone(), a.clone(), b_plus_a);
     }
-
-    // fn serialize_datex_value(value: &Value) -> String {
-    //     let res = serde_json::to_string(value).unwrap();
-    //     info!("Serialized DatexValue: {}", res);
-    //     res
-    // }
-    // fn deserialize_datex_value(json: &str) -> Value {
-    //     let res = serde_json::from_str(json).unwrap();
-    //     info!("Deserialized DatexValue: {}", res);
-    //     res
-    // }
-    // fn test_serialize_and_deserialize(value: Value) {
-    //     let json = serialize_datex_value(&value);
-    //     let deserialized = deserialize_datex_value(&json);
-    //     assert_eq!(value, deserialized);
-    // }
 }
+
+// #[test]
+// fn test_text() {
+//     init_logger();
+//     let a = CoreValue::from("Hello");
+//     assert_eq!(a, "Hello");
+//     assert_eq!(a.get_type(), CoreValueType::Text);
+//     assert_eq!(a.length(), 5);
+//     assert_eq!(a.to_string(), "\"Hello\"");
+//     assert_eq!(a.as_str(), "Hello");
+//     assert_eq!(a.to_uppercase(), "HELLO".into());
+//     assert_eq!(a.to_lowercase(), "hello".into());
+//
+//     let b = &mut TypedValue::from("World");
+//     b.reverse();
+//     assert_eq!(b.length(), 5);
+//     assert_eq!(b.as_str(), "dlroW");
+// }
+
+// #[test]
+// /// A TypedDatexValue<T> should allow custom TypedDatexValue<X> to be added to it.
+// /// This won't change the type of the TypedDatexValue<T> but will allow the value to be modified.
+// /// A untyped DatexValue can be assigned to TypedDatexValue<T> but this might throw an error if the type is not compatible.
+// fn test_test_assign1() {
+//     init_logger();
+//     let mut a: TypedValue<Text> = TypedValue::from("Hello");
+//     a += " World"; // see (#2)
+//     a += TypedValue::from("4"); // Is typesafe
+//     a += 2;
+//     a += TypedValue::from(42); // Is typesafe see (#1)
+//                                // We won't allow this: `a += TypedDatexValue::from(true);`
+//     a += Value::from("!"); // Might throw if the assignment would be incompatible.
+//     assert_eq!(a.length(), 16);
+//     assert_eq!(a.as_str(), "Hello World4242!");
+// }
+//
+// #[test]
+// fn test_test_assign2() {
+//     init_logger();
+//     let mut a = TypedValue::from("Hello");
+//     a += " World";
+//     a += Value::from("!");
+//
+//     assert_eq!(a.length(), 12);
+//     assert_eq!(a.as_str(), "Hello World!");
+//
+//     a += 42;
+//
+//     assert_eq!(a.length(), 14);
+//     assert_eq!(a.as_str(), "Hello World!42");
+//
+//     let mut b = Value::from("Hello");
+//     b += " World ";
+//     b += TypedValue::from(42);
+//     b += Value::from("!");
+//
+//     let b = b.cast_to_typed::<Text>();
+//
+//     info!("{}", b);
+//     assert_eq!(b.length(), 15);
+//     assert_eq!(b.as_str(), "Hello World 42!");
+// }
+//
+// #[test]
+// fn test_typed_addition() {
+//     init_logger();
+//     let a = TypedValue::from(42);
+//     let b = TypedValue::from(27);
+//
+//     assert_eq!(a, 42);
+//     assert_eq!(b, 27);
+//
+//     assert_eq!(a.get_type(), CoreValueType::I8);
+//     assert_eq!(b.get_type(), CoreValueType::I8);
+//
+//     let a_plus_b = a.clone() + b.clone();
+//
+//     assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
+//
+//     assert_eq!(a_plus_b, TypedValue::from(69));
+//     info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
+// }
