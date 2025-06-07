@@ -328,8 +328,8 @@ mod test {
 
         // return;
 
-        let a = Value::from(42 as i8);
-        let b = Value::from(42 as i32);
+        let a = Value::from(42_i8);
+        let b = Value::from(42_i32);
 
         assert_eq!(a.get_type(), CoreValueType::I8);
         assert_eq!(b.get_type(), CoreValueType::I32);
