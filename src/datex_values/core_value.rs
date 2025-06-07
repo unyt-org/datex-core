@@ -270,7 +270,7 @@ impl CoreValue {
                 .parse::<i128>()
                 .ok()
                 .map(TypedInteger::from),
-            CoreValue::TypedInteger(int) => Some(int.clone()),
+            CoreValue::TypedInteger(int) => Some(*int),
             _ => None,
         }
     }
@@ -340,7 +340,7 @@ impl Add for CoreValue {
             }
             (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
                 Ok(CoreValue::Integer(
-                    (lhs + rhs).ok_or(ValueError::IntegerOverflow)?.into(),
+                    (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
                 ))
             }
 

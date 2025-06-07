@@ -271,7 +271,7 @@ impl Add for TypedInteger {
                     i16::try_from((v1 as i128).checked_add(v2)?).ok()?
                 }
                 TypedInteger::U8(v2) => {
-                    i16::try_from((v1 as i16).checked_add(v2 as i16)?).ok()?
+                    i16::try_from(v1.checked_add(v2 as i16)?).ok()?
                 }
                 TypedInteger::U16(v2) => {
                     i16::try_from((v1 as i32).checked_add(v2 as i32)?).ok()?
@@ -325,7 +325,7 @@ impl Add for TypedInteger {
                     i64::try_from((v1 as i32).checked_add(v2 as i32)?).ok()?
                 }
                 TypedInteger::U32(v2) => {
-                    i64::try_from((v1 as i64).checked_add(v2 as i64)?).ok()?
+                    i64::try_from(v1.checked_add(v2 as i64)?).ok()?
                 }
                 TypedInteger::U64(v2) => {
                     i64::try_from((v1 as i128).checked_add(v2 as i128)?).ok()?
@@ -488,14 +488,14 @@ impl Add for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        TypedInteger::add(self.clone(), rhs.clone())
+        TypedInteger::add(*self, *rhs)
     }
 }
 
 impl AddAssign for TypedInteger {
     // FIXME add try_add_assign
     fn add_assign(&mut self, rhs: Self) {
-        let res = (self.clone() + rhs).unwrap();
+        let res = (*self + rhs).unwrap();
         match res {
             TypedInteger::I8(v) => *self = TypedInteger::I8(v),
             TypedInteger::I16(v) => *self = TypedInteger::I16(v),
@@ -643,8 +643,8 @@ mod tests {
 
     #[test]
     fn test_integer_addition() {
-        let a = Integer::from(10 as i8);
-        let b = Integer::from(20 as i8);
+        let a = Integer::from(10_i8);
+        let b = Integer::from(20_i8);
         let result = a + b;
         assert_eq!(result, Some(Integer(TypedInteger::I8(30))));
 
@@ -664,34 +664,34 @@ mod tests {
 
     #[test]
     fn test_integer() {
-        let a = Integer::from(1 as i8);
+        let a = Integer::from(1_i8);
         assert_eq!(a.0, TypedInteger::I8(1));
 
-        let b = Integer::from(1 as u8);
+        let b = Integer::from(1_u8);
         assert_eq!(b.0, TypedInteger::U8(1));
 
-        let c = Integer::from(1 as i16);
+        let c = Integer::from(1_i16);
         assert_eq!(c.0, TypedInteger::I16(1));
 
-        let d = Integer::from(1 as u16);
+        let d = Integer::from(1_u16);
         assert_eq!(d.0, TypedInteger::U16(1));
 
-        let e = Integer::from(1 as i32);
+        let e = Integer::from(1_i32);
         assert_eq!(e.0, TypedInteger::I32(1));
 
-        let f = Integer::from(1 as u32);
+        let f = Integer::from(1_u32);
         assert_eq!(f.0, TypedInteger::U32(1));
 
-        let g = Integer::from(1 as i64);
+        let g = Integer::from(1_i64);
         assert_eq!(g.0, TypedInteger::I64(1));
 
-        let h = Integer::from(1 as u64);
+        let h = Integer::from(1_u64);
         assert_eq!(h.0, TypedInteger::U64(1));
 
-        let i = Integer::from(1 as i128);
+        let i = Integer::from(1_i128);
         assert_eq!(i.0, TypedInteger::I128(1));
 
-        let j = Integer::from(1 as u128);
+        let j = Integer::from(1_u128);
         assert_eq!(j.0, TypedInteger::U128(1));
 
         assert_eq!(a.to_smallest_fitting(), TypedInteger::I8(1));

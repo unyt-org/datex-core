@@ -1,7 +1,7 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::integer::{Integer, TypedInteger};
+use crate::datex_values::core_values::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
@@ -557,8 +557,8 @@ mod tests {
         assert_eq!(tuple.get(&"x".into()), Some(&1.into()));
         // FIXME
 
-        let x = CoreValue::from(1 as u8);
-        let y = CoreValue::from(1 as u16);
+        let x = CoreValue::from(1_u8);
+        let y = CoreValue::from(1_u16);
         assert_eq!(x, y);
 
         // return;
