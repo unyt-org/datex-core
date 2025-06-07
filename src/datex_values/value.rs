@@ -284,6 +284,21 @@ mod test {
     }
 
     #[test]
+    fn decimal() {
+        init_logger();
+        let a = Value::from(42.1f32);
+        let b = Value::from(27f32);
+
+        assert_eq!(a.get_type(), CoreValueType::F32);
+        assert_eq!(b.get_type(), CoreValueType::F32);
+
+        let a_plus_b = (a.clone() + b.clone()).unwrap();
+        assert_eq!(a_plus_b.get_type(), CoreValueType::F32);
+        assert_eq!(a_plus_b, Value::from(69.1f32));
+        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
+    }
+
+    #[test]
     fn test_cast_type() {
         init_logger();
         let a = Value::from(42);

@@ -5,11 +5,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    super::core_value_trait::CoreValueTrait
-};
+use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Integer {
     I8(i8),
     I16(i16),
@@ -55,7 +53,14 @@ impl Integer {
     }
 
     pub fn is_signed(&self) -> bool {
-        matches!(self, Integer::I8(_) | Integer::I16(_) | Integer::I32(_) | Integer::I64(_) | Integer::I128(_))
+        matches!(
+            self,
+            Integer::I8(_)
+                | Integer::I16(_)
+                | Integer::I32(_)
+                | Integer::I64(_)
+                | Integer::I128(_)
+        )
     }
 }
 
@@ -76,8 +81,7 @@ impl Display for Integer {
     }
 }
 
-impl CoreValueTrait for Integer {
-}
+impl CoreValueTrait for Integer {}
 
 impl Add for Integer {
     type Output = Integer;
@@ -216,7 +220,6 @@ impl Add for &Integer {
     }
 }
 
-
 impl AddAssign for Integer {
     fn add_assign(&mut self, rhs: Self) {
         let res = self.clone() + rhs;
@@ -234,7 +237,6 @@ impl AddAssign for Integer {
         }
     }
 }
-
 
 impl From<i8> for Integer {
     fn from(v: i8) -> Self {

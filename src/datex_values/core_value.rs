@@ -2,8 +2,9 @@ use datex_macros::FromCoreValue;
 
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::bool::Bool;
+use crate::datex_values::core_values::decimal::Decimal;
 use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::int::Integer;
+use crate::datex_values::core_values::integer::Integer;
 use crate::datex_values::core_values::null::Null;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
@@ -17,6 +18,7 @@ use std::ops::{Add, AddAssign, Not};
 pub enum CoreValue {
     Bool(Bool),
     Integer(Integer),
+    Decimal(Decimal),
     Text(Text),
     Null(Null),
     Endpoint(Endpoint),
@@ -66,6 +68,17 @@ impl From<i8> for CoreValue {
     }
 }
 
+impl From<f32> for CoreValue {
+    fn from(value: f32) -> Self {
+        CoreValue::Decimal(value.into())
+    }
+}
+impl From<f64> for CoreValue {
+    fn from(value: f64) -> Self {
+        CoreValue::Decimal(value.into())
+    }
+}
+
 impl CoreValue {
     pub fn new<T>(value: T) -> CoreValue
     where
@@ -78,6 +91,7 @@ impl CoreValue {
         match self {
             CoreValue::Bool(_) => CoreValueType::Bool,
             CoreValue::Integer(_) => CoreValueType::I8,
+            CoreValue::Decimal(_) => CoreValueType::F32,
             CoreValue::Text(_) => CoreValueType::Text,
             CoreValue::Null(_) => CoreValueType::Null,
             CoreValue::Endpoint(_) => CoreValueType::Endpoint,
@@ -101,6 +115,9 @@ impl CoreValue {
             | CoreValueType::U64
             | CoreValueType::U128 => {
                 Some(CoreValue::Integer(self.cast_to_integer()?))
+            }
+            CoreValueType::F32 | CoreValueType::F64 => {
+                Some(CoreValue::Decimal(self.cast_to_decimal()?))
             }
             CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text()?)),
             CoreValueType::Null => Some(CoreValue::Null(Null)),
@@ -129,6 +146,19 @@ impl CoreValue {
             CoreValue::Bool(bool) => Some(bool.clone()),
             CoreValue::Integer(int) => Some(Bool(int.as_i128() != 0)),
             CoreValue::Null(_) => Some(Bool(false)),
+            _ => None,
+        }
+    }
+
+    pub fn cast_to_decimal(&self) -> Option<Decimal> {
+        match self {
+            CoreValue::Text(text) => {
+                text.to_string().parse::<f64>().ok().map(Decimal::from)
+            }
+            CoreValue::Integer(int) => {
+                Some(Decimal::from(int.as_i128() as f64))
+            }
+            CoreValue::Decimal(decimal) => Some(decimal.clone()),
             _ => None,
         }
     }
@@ -194,6 +224,9 @@ impl Add for CoreValue {
             (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
                 Ok(CoreValue::Integer(lhs + rhs))
             }
+            (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
+                Ok(CoreValue::Decimal(lhs + rhs))
+            }
             _ => Err(ValueError::InvalidOperation),
         }
     }
@@ -233,6 +266,7 @@ impl Display for CoreValue {
         match self {
             CoreValue::Bool(bool) => write!(f, "{bool}"),
             CoreValue::Integer(int) => write!(f, "{int}"),
+            CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
             CoreValue::Text(text) => write!(f, "{text}"),
             CoreValue::Null(_) => write!(f, "null"),
             CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
