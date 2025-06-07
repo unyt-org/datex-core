@@ -1,9 +1,9 @@
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Not};
-use log::error;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::pointer::Pointer;
-use crate::datex_values::value_container::{ValueError};
+use crate::datex_values::value_container::ValueError;
+use log::error;
+use std::fmt::{Display, Formatter};
+use std::ops::{Add, AddAssign, Not};
 
 use super::core_values::null::Null;
 use super::datex_type::CoreValueType;
@@ -18,13 +18,9 @@ impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
         let actual_type = inner.get_default_type();
-        Value {
-            inner,
-            actual_type,
-        }
+        Value { inner, actual_type }
     }
 }
-
 
 impl Value {
     pub fn is_of_type(&self, target: CoreValueType) -> bool {
@@ -43,11 +39,72 @@ impl Value {
         self.is_of_type(CoreValueType::Bool)
     }
 
-    pub fn cast_to(&self, target_type: CoreValueType) -> Option<Value> {
+    /// Attempts to cast the value to the target type, returning an Option<Value>.
+    /// If the cast fails, it returns None.
+    /// This is useful for cases where you want to handle the failure gracefully.
+    /// # Arguments
+    /// * `target_type` - The target type to cast the value to.
+    /// # Returns
+    /// * `Option<Value>` - Some(Value) if the cast is successful, None if it fails.
+    ////
+    /// # Example
+    /// ```
+    /// # use datex_core::datex_values::datex_type::CoreValueType;
+    /// # use datex_core::datex_values::value::Value;
+    /// let value = Value::from(42);
+    /// let casted_value = value.try_cast_to(CoreValueType::Text);
+    /// assert!(casted_value.is_some());
+    /// assert_eq!(casted_value.unwrap().get_type(), CoreValueType::Text);
+    /// ```
+    pub fn try_cast_to(&self, target_type: CoreValueType) -> Option<Value> {
         self.inner.cast_to(target_type.clone()).map(|inner| Value {
             inner,
             actual_type: target_type,
         })
+    }
+
+    /// Casts the value to the target type, returning a Value.
+    /// If the cast fails, it panics with an error message.
+    /// This is useful for cases where you expect the cast to succeed and want to avoid handling the failure.
+    /// # Arguments
+    /// * `target_type` - The target type to cast the value to.
+    /// # Returns
+    /// * `Value` - The casted value.
+    /// # Panics
+    /// * If the cast fails, it panics with an error message.
+    /// # Example
+    /// ```
+    /// # use datex_core::datex_values::datex_type::CoreValueType;
+    /// # use datex_core::datex_values::value::Value;
+    /// let value = Value::from(42);
+    /// let casted_value = value.cast_to(CoreValueType::Text);
+    /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
+    /// assert_eq!(casted_value, "42".into());
+    /// ```
+    pub fn cast_to(&self, target_type: CoreValueType) -> Value {
+        self.try_cast_to(target_type.clone()).unwrap_or_else(|| {
+            panic!("Failed to cast value to target type: {:?}", target_type)
+        })
+    }
+
+    /// Casts the value to the target type, returning a Value.
+    /// If the cast fails, it returns a Value with type Null.
+    /// This is similar to `cast_to`, but it returns a Value instead of an Option<Value>.
+    /// # Arguments
+    /// * `target_type` - The target type to cast the value to.
+    /// # Returns
+    /// * `Value` - The casted value, or a Value::null() if the cast fails.
+    /// # Example
+    /// ```
+    /// # use datex_core::datex_values::datex_type::CoreValueType;
+    /// # use datex_core::datex_values::value::Value;
+    /// let value = Value::from(42);
+    /// let casted_value = value.cast_or_null(CoreValueType::Text);
+    /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
+    /// assert_eq!(casted_value.to_string(), "42");
+    /// ```
+    pub fn cast_or_null(&self, target_type: CoreValueType) -> Value {
+        self.try_cast_to(target_type).unwrap_or(Value::null())
     }
 
     pub fn get_type(&self) -> CoreValueType {
@@ -58,7 +115,6 @@ impl Value {
         CoreValue::Null(Null).into()
     }
 }
-
 
 impl From<Pointer> for Value {
     fn from(pointer: Pointer) -> Self {
@@ -114,7 +170,6 @@ where
     }
 }
 
-
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", self.inner)
@@ -135,10 +190,8 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
     use super::*;
     use crate::{
         datex_array,
@@ -146,11 +199,23 @@ mod test {
         logger::init_logger,
     };
     use log::{debug, info};
+    use std::str::FromStr;
 
     #[test]
     fn test_endpoint() {
         init_logger();
         let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
+        assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
+        assert_eq!(endpoint.to_string(), "@test");
+
+        let endpoint = Value::from("@test").cast_to(CoreValueType::Endpoint);
+        assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
+        assert_eq!(endpoint.to_string(), "@test");
+
+        let endpoint_text = Value::from("@test");
+        let endpoint = endpoint_text
+            .try_cast_to(CoreValueType::Endpoint)
+            .expect("Failed to cast to Endpoint type");
         debug!("Endpoint: {}", endpoint);
         assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
@@ -244,7 +309,7 @@ mod test {
     fn test_cast_type() {
         init_logger();
         let a = Value::from(42);
-        let b = a.cast_to(CoreValueType::Text).unwrap();
+        let b = a.try_cast_to(CoreValueType::Text).unwrap();
         assert_eq!(b.get_type(), CoreValueType::Text);
     }
 
