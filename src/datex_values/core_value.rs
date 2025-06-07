@@ -3,7 +3,7 @@ use crate::datex_values::core_values::bool::Bool;
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::int::Integer;
 use crate::datex_values::core_values::null::Null;
-use crate::datex_values::core_values::object::{self, Object};
+use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::datex_type::CoreValueType;
@@ -39,7 +39,6 @@ impl From<String> for CoreValue {
     }
 }
 
-//
 impl From<Array> for CoreValue {
     fn from(value: Array) -> Self {
         CoreValue::Array(value)
