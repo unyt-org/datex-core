@@ -6,7 +6,7 @@ use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
-    Float64Data, Instruction, Int16Data, Int8Data, ShortTextData,
+    Float64Data, Instruction, ShortTextData,
 };
 use crate::parser::body;
 use crate::parser::body::ParserError;
@@ -328,8 +328,7 @@ fn execute_loop(
                                     }) => {
                                         let index: CoreValue = CoreValue::from(
                                             tuple.size() as i64,
-                                        )
-                                        .into();
+                                        );
                                         tuple.set(index, value_container);
                                     }
                                     _ => {

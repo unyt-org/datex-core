@@ -122,7 +122,7 @@ impl TryFrom<CoreValue> for Tuple {
         if let CoreValue::Tuple(tuple) = value {
             Ok(tuple)
         } else {
-            Err(format!("Expected CoreValue::Tuple, found {:?}", value))
+            Err(format!("Expected CoreValue::Tuple, found {value:?}"))
         }
     }
 }
