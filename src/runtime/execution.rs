@@ -534,15 +534,22 @@ mod tests {
         let tuple: Tuple = tuple.try_into().unwrap();
         assert_eq!(tuple.size(), 3);
         assert_eq!(tuple.get(&"x".into()), Some(&1.into()));
-        debug!("Tuple result: {}", tuple);
         // FIXME
 
+        // let x = CoreValue::from(1 as u8);
+        // let y = CoreValue::from(1 as u16);
+        // assert_eq!(x, y);
+
+        // return;
+
         let expected: Tuple = Tuple::from(vec![
-            ("x".into(), 1.into()),
-            (1.into(), 2.into()),
-            (2.into(), 42.into()),
+            ("x".into(), (1).into()),
+            (1.into(), (2).into()),
+            (2.into(), (42).into()),
         ]);
         debug!("Expected tuple: {}", expected);
+        debug!("Tuple result: {}", tuple);
+
         assert_eq!(result, expected.into());
     }
 }

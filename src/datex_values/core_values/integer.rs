@@ -3,9 +3,11 @@ use std::{
     ops::{Add, AddAssign},
 };
 
+use webrtc::media::audio::buffer::info;
+
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum Integer {
     I8(i8),
     I16(i16),
@@ -19,12 +21,33 @@ pub enum Integer {
     U128(u128),
 }
 
+impl Eq for Integer {}
+
 impl PartialEq for Integer {
     fn eq(&self, other: &Self) -> bool {
+        println!("Comparing integers: {} and {}", self, other);
+        let a = self.as_u128();
+        let b = other.as_u128();
+        println!("Converted to u128: {} and {} = {}", a, b, a == b);
+
         self.as_i128() == other.as_i128()
     }
 }
 impl Integer {
+    fn subtype(&self) -> &'static str {
+        match self {
+            Integer::I8(_) => "/i8",
+            Integer::I16(_) => "/i16",
+            Integer::I32(_) => "/i32",
+            Integer::I64(_) => "/i64",
+            Integer::I128(_) => "/i128",
+            Integer::U8(_) => "/u8",
+            Integer::U16(_) => "/u16",
+            Integer::U32(_) => "/u32",
+            Integer::U64(_) => "/u64",
+            Integer::U128(_) => "/u128",
+        }
+    }
     fn as_u128(&self) -> u128 {
         match self {
             Integer::I8(v) => *v as u128,

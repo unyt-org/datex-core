@@ -314,7 +314,7 @@ impl Display for CoreValue {
             CoreValue::Integer(int) => write!(f, "{int}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
             CoreValue::Text(text) => write!(f, "{text}"),
-            CoreValue::Null(_) => write!(f, "null"),
+            CoreValue::Null(null) => write!(f, "{null}"),
             CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
             CoreValue::Array(array) => write!(f, "{array}"),
             CoreValue::Object(object) => write!(f, "{object}"),

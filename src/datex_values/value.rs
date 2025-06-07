@@ -136,16 +136,6 @@ impl From<Pointer> for Value {
     }
 }
 
-// impl PartialEq for Value {
-//     fn eq(&self, other: &Self) -> bool {
-//         if self.actual_type == other.actual_type {
-//             self.inner == other.inner
-//         } else {
-//             false
-//         }
-//     }
-// }
-
 impl Add for Value {
     type Output = Result<Value, ValueError>;
     fn add(self, rhs: Value) -> Self::Output {
