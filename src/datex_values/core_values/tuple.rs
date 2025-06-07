@@ -1,6 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::integer::Integer;
+use crate::datex_values::core_values::integer::TypedInteger;
 use crate::datex_values::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
@@ -91,7 +91,7 @@ where
         Tuple(
             iter.into_iter()
                 .enumerate()
-                .map(|(i, v)| (Integer::from(i as u64).into(), v.into()))
+                .map(|(i, v)| (TypedInteger::from(i as u64).into(), v.into()))
                 .collect(),
         )
     }

@@ -4,7 +4,7 @@ use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::bool::Bool;
 use crate::datex_values::core_values::decimal::Decimal;
 use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::Integer;
+use crate::datex_values::core_values::integer::TypedInteger;
 use crate::datex_values::core_values::null::Null;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
@@ -18,7 +18,7 @@ use std::ops::{Add, AddAssign, Not};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Bool(Bool),
-    Integer(Integer),
+    Integer(TypedInteger),
     Decimal(Decimal),
     Text(Text),
     Null(Null),
@@ -33,6 +33,9 @@ impl SoftEq for CoreValue {
             (CoreValue::Bool(a), CoreValue::Bool(b)) => a.soft_eq(b),
             (CoreValue::Integer(a), CoreValue::Integer(b)) => a.soft_eq(b),
             (CoreValue::Decimal(a), CoreValue::Decimal(b)) => a.soft_eq(b),
+
+            // FIXME
+            // add decimal -> integer soft equality
             (CoreValue::Text(a), CoreValue::Text(b)) => a.soft_eq(b),
             (CoreValue::Null(_), CoreValue::Null(_)) => true,
             (CoreValue::Endpoint(a), CoreValue::Endpoint(b)) => a.soft_eq(b),
@@ -244,11 +247,13 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_integer(&self) -> Option<Integer> {
+    pub fn cast_to_integer(&self) -> Option<TypedInteger> {
         match self {
-            CoreValue::Text(text) => {
-                text.to_string().parse::<i128>().ok().map(Integer::from)
-            }
+            CoreValue::Text(text) => text
+                .to_string()
+                .parse::<i128>()
+                .ok()
+                .map(TypedInteger::from),
             CoreValue::Integer(int) => Some(int.clone()),
             _ => None,
         }
