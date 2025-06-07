@@ -4,7 +4,7 @@ use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::bool::Bool;
 use crate::datex_values::core_values::decimal::Decimal;
 use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::TypedInteger;
+use crate::datex_values::core_values::integer::{Integer, TypedInteger};
 use crate::datex_values::core_values::null::Null;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
@@ -18,7 +18,8 @@ use std::ops::{Add, AddAssign, Not};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Bool(Bool),
-    Integer(TypedInteger),
+    TypedInteger(TypedInteger),
+    Integer(Integer),
     Decimal(Decimal),
     Text(Text),
     Null(Null),
@@ -31,7 +32,9 @@ impl SoftEq for CoreValue {
     fn soft_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (CoreValue::Bool(a), CoreValue::Bool(b)) => a.soft_eq(b),
-            (CoreValue::Integer(a), CoreValue::Integer(b)) => a.soft_eq(b),
+            (CoreValue::TypedInteger(a), CoreValue::TypedInteger(b)) => {
+                a.soft_eq(b)
+            }
             (CoreValue::Decimal(a), CoreValue::Decimal(b)) => a.soft_eq(b),
 
             // FIXME
@@ -84,53 +87,53 @@ impl From<bool> for CoreValue {
 
 impl From<i8> for CoreValue {
     fn from(value: i8) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<i16> for CoreValue {
     fn from(value: i16) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<i32> for CoreValue {
     fn from(value: i32) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<i64> for CoreValue {
     fn from(value: i64) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<i128> for CoreValue {
     fn from(value: i128) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 
 impl From<u8> for CoreValue {
     fn from(value: u8) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<u16> for CoreValue {
     fn from(value: u16) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<u32> for CoreValue {
     fn from(value: u32) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<u64> for CoreValue {
     fn from(value: u64) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 impl From<u128> for CoreValue {
     fn from(value: u128) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::TypedInteger(value.into())
     }
 }
 
@@ -174,7 +177,19 @@ impl CoreValue {
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Bool(_) => CoreValueType::Bool,
-            CoreValue::Integer(_) => CoreValueType::I8,
+            CoreValue::TypedInteger(int) => match int {
+                TypedInteger::I8(_) => CoreValueType::I8,
+                TypedInteger::I16(_) => CoreValueType::I16,
+                TypedInteger::I32(_) => CoreValueType::I32,
+                TypedInteger::I64(_) => CoreValueType::I64,
+                TypedInteger::I128(_) => CoreValueType::I128,
+
+                TypedInteger::U8(_) => CoreValueType::U8,
+                TypedInteger::U16(_) => CoreValueType::U16,
+                TypedInteger::U32(_) => CoreValueType::U32,
+                TypedInteger::U64(_) => CoreValueType::U64,
+                TypedInteger::U128(_) => CoreValueType::U128,
+            },
             CoreValue::Decimal(_) => CoreValueType::F32,
             CoreValue::Text(_) => CoreValueType::Text,
             CoreValue::Null(_) => CoreValueType::Null,
@@ -182,6 +197,7 @@ impl CoreValue {
             CoreValue::Array(_) => CoreValueType::Array,
             CoreValue::Object(_) => CoreValueType::Object,
             CoreValue::Tuple(_) => CoreValueType::Tuple,
+            CoreValue::Integer(_) => CoreValueType::Integer,
         }
     }
 
@@ -198,7 +214,7 @@ impl CoreValue {
             | CoreValueType::U32
             | CoreValueType::U64
             | CoreValueType::U128 => {
-                Some(CoreValue::Integer(self.cast_to_integer()?))
+                Some(CoreValue::TypedInteger(self.cast_to_integer()?))
             }
             CoreValueType::F32 | CoreValueType::F64 => {
                 Some(CoreValue::Decimal(self.cast_to_decimal()?))
@@ -228,7 +244,7 @@ impl CoreValue {
     pub fn cast_to_bool(&self) -> Option<Bool> {
         match self {
             CoreValue::Bool(bool) => Some(bool.clone()),
-            CoreValue::Integer(int) => Some(Bool(int.as_i128() != 0)),
+            CoreValue::TypedInteger(int) => Some(Bool(int.as_i128()? != 0)),
             CoreValue::Null(_) => Some(Bool(false)),
             _ => None,
         }
@@ -239,8 +255,8 @@ impl CoreValue {
             CoreValue::Text(text) => {
                 text.to_string().parse::<f64>().ok().map(Decimal::from)
             }
-            CoreValue::Integer(int) => {
-                Some(Decimal::from(int.as_i128() as f64))
+            CoreValue::TypedInteger(int) => {
+                Some(Decimal::from(int.as_i128()? as f64))
             }
             CoreValue::Decimal(decimal) => Some(decimal.clone()),
             _ => None,
@@ -254,7 +270,7 @@ impl CoreValue {
                 .parse::<i128>()
                 .ok()
                 .map(TypedInteger::from),
-            CoreValue::Integer(int) => Some(int.clone()),
+            CoreValue::TypedInteger(int) => Some(int.clone()),
             _ => None,
         }
     }
@@ -307,9 +323,27 @@ impl Add for CoreValue {
                     .ok_or(ValueError::TypeConversionError)?;
                 Ok(CoreValue::Text(other + text))
             }
-            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
-                Ok(CoreValue::Integer(lhs + rhs))
+            (CoreValue::TypedInteger(lhs), CoreValue::TypedInteger(rhs)) => {
+                Ok(CoreValue::TypedInteger(
+                    (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
+                ))
             }
+            (CoreValue::TypedInteger(lhs), CoreValue::Integer(rhs)) => {
+                Ok(CoreValue::Integer(
+                    (lhs + &rhs.0).ok_or(ValueError::IntegerOverflow)?.into(),
+                ))
+            }
+            (CoreValue::Integer(lhs), CoreValue::TypedInteger(rhs)) => {
+                Ok(CoreValue::Integer(
+                    (&lhs.0 + rhs).ok_or(ValueError::IntegerOverflow)?.into(),
+                ))
+            }
+            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
+                Ok(CoreValue::Integer(
+                    (lhs + rhs).ok_or(ValueError::IntegerOverflow)?.into(),
+                ))
+            }
+
             (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
                 Ok(CoreValue::Decimal(lhs + rhs))
             }
@@ -351,7 +385,7 @@ impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             CoreValue::Bool(bool) => write!(f, "{bool}"),
-            CoreValue::Integer(int) => write!(f, "{int}"),
+            CoreValue::TypedInteger(int) => write!(f, "{int}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
             CoreValue::Text(text) => write!(f, "{text}"),
             CoreValue::Null(null) => write!(f, "{null}"),
@@ -359,6 +393,7 @@ impl Display for CoreValue {
             CoreValue::Array(array) => write!(f, "{array}"),
             CoreValue::Object(object) => write!(f, "{object}"),
             CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
+            CoreValue::Integer(integer) => write!(f, "{integer}"),
         }
     }
 }

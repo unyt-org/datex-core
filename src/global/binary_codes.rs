@@ -34,13 +34,12 @@ use strum::Display;
 // asdfasdf
 // SCOPE_END <- <actu
 
-
 pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
     CLOSE_AND_STORE = 0x01, // ;
-    SCOPE_START = 0x02,  // (
-    SCOPE_END = 0x03,    // )
+    SCOPE_START = 0x02,     // (
+    SCOPE_END = 0x03,       // )
     CACHE_POINT = 0x04,     // cache dxb from this point on
     CACHE_RESET = 0x05,     // reset dxb scope cache
 
@@ -208,6 +207,10 @@ pub enum InstructionCode {
     INT_16 = 0xc2,
     INT_32 = 0xc3,
     INT_64 = 0xc4,
+    INT_128 = 0xf8,
+
+    UINT_128 = 0xfd,
+
     FLOAT_64 = 0xc5,
     TRUE = 0xc6,
     FALSE = 0xc7,
@@ -243,12 +246,12 @@ pub enum InstructionCode {
     TIME = 0xdd, // ~2022-10-10~
 
     // arrays, objects and tuples 0xe0 - 0xef
-    ARRAY_START = 0xe0, // array / or array
+    ARRAY_START = 0xe0,  // array / or array
     OBJECT_START = 0xe2, // {}
-    TUPLE_START = 0xe4, // (a,b,c)
+    TUPLE_START = 0xe4,  // (a,b,c)
     KEY_VALUE_SHORT_TEXT = 0xe6,
     KEY_VALUE_DYNAMIC = 0xe9, // for object elements with dynamic key
-    KEY_PERMISSION = 0xea,       // for object elements with permission prefix
+    KEY_PERMISSION = 0xea,    // for object elements with permission prefix
     INTERNAL_OBJECT_SLOT = 0xef, // for object internal slots
 
     // special instructions 0xf0 - 0xff

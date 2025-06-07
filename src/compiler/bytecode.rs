@@ -1,23 +1,26 @@
-use std::cell::{Cell, RefCell};
-use log::{info};
+use crate::compiler::operations::parse_operator;
+use crate::compiler::parser::{DatexParser, Rule};
+use crate::compiler::CompilerError;
+use crate::datex_values::core_value::CoreValue;
+use crate::datex_values::core_values::integer::TypedInteger;
+use crate::datex_values::value_container::ValueContainer;
+use crate::global::binary_codes::InstructionCode;
+use crate::utils::buffers::{
+    append_f64, append_i128, append_i16, append_i32, append_i64, append_i8,
+    append_u128, append_u32, append_u8,
+};
+use log::info;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use regex::Regex;
-use crate::compiler::CompilerError;
-use crate::compiler::operations::parse_operator;
-use crate::compiler::parser::{DatexParser, Rule};
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::value_container::ValueContainer;
-use crate::global::binary_codes::InstructionCode;
-use crate::utils::buffers::{append_f64, append_i16, append_i32, append_i64, append_i8, append_u32, append_u8};
+use std::cell::{Cell, RefCell};
 
 struct CompilationScope {
     index: Cell<usize>,
     inserted_value_index: Cell<usize>,
     buffer: RefCell<Vec<u8>>,
-    inserted_values: RefCell<Vec<ValueContainer>>
+    inserted_values: RefCell<Vec<ValueContainer>>,
 }
-
 
 impl CompilationScope {
     const MAX_INT_32: i64 = 2_147_483_647;
@@ -35,45 +38,67 @@ impl CompilationScope {
     const INT_16_BYTES: u8 = 2;
     const INT_32_BYTES: u8 = 4;
     const INT_64_BYTES: u8 = 8;
-    const UINT_8_BYTES: u8 = 1;
-    const UINT_16_BYTES: u8 = 2;
-    const UINT_32_BYTES: u8 = 4;
-    const UINT_64_BYTES: u8 = 8;
+    const INT_128_BYTES: u8 = 16;
+
     const FLOAT_64_BYTES: u8 = 8;
 
-
-    fn insert_value_container(
-        &self,
-        value_container: &ValueContainer
-    ) {
+    fn insert_value_container(&self, value_container: &ValueContainer) {
         match value_container {
-            ValueContainer::Value(val) => {
-                match &val.inner {
-                    CoreValue::Integer(val) => {
-                        self.insert_int8(val.as_i128() as i8); // TODO
+            ValueContainer::Value(val) => match &val.inner {
+                CoreValue::TypedInteger(val) => match val.to_smallest_fitting()
+                {
+                    TypedInteger::I8(val) => {
+                        self.insert_i8(val);
                     }
-                    CoreValue::Text(val) => {
-                        self.insert_string(&val.0.clone());
+                    TypedInteger::I16(val) => {
+                        self.insert_i16(val);
                     }
-                    CoreValue::Array(val) => {
-                        self.append_binary_code(InstructionCode::ARRAY_START);
-                        for item in val {
-                            self.insert_value_container(item);
-                        }
-                        self.append_binary_code(InstructionCode::SCOPE_END);
+                    TypedInteger::I32(val) => {
+                        self.insert_i32(val);
                     }
-                    CoreValue::Object(val) => {
-                        self.append_binary_code(InstructionCode::OBJECT_START);
-                        println!("Object: {val:?}");
-                        for (key, value) in val {
-                            self.insert_key_string(key);
-                            self.insert_value_container(value);
-                        }
-                        self.append_binary_code(InstructionCode::SCOPE_END);
+                    TypedInteger::I64(val) => {
+                        self.insert_i64(val);
                     }
-                    _ => todo!(),
+                    TypedInteger::I128(val) => {
+                        self.insert_i128(val);
+                    }
+                    TypedInteger::U8(val) => {
+                        self.insert_u8(val);
+                    }
+                    TypedInteger::U16(val) => {
+                        self.insert_u16(val);
+                    }
+                    TypedInteger::U32(val) => {
+                        self.insert_u32(val);
+                    }
+                    TypedInteger::U64(val) => {
+                        self.insert_u64(val);
+                    }
+                    TypedInteger::U128(val) => {
+                        self.insert_u128(val);
+                    }
+                },
+                CoreValue::Text(val) => {
+                    self.insert_string(&val.0.clone());
                 }
-            }
+                CoreValue::Array(val) => {
+                    self.append_binary_code(InstructionCode::ARRAY_START);
+                    for item in val {
+                        self.insert_value_container(item);
+                    }
+                    self.append_binary_code(InstructionCode::SCOPE_END);
+                }
+                CoreValue::Object(val) => {
+                    self.append_binary_code(InstructionCode::OBJECT_START);
+                    println!("Object: {val:?}");
+                    for (key, value) in val {
+                        self.insert_key_string(key);
+                        self.insert_value_container(value);
+                    }
+                    self.append_binary_code(InstructionCode::SCOPE_END);
+                }
+                _ => todo!(),
+            },
             _ => todo!(),
         }
     }
@@ -134,7 +159,7 @@ impl CompilationScope {
                 .replace("\\n", "\n"),
             "$1",
         )
-            .into_owned()
+        .into_owned()
     }
 
     fn insert_float64(&self, float64: f64) {
@@ -146,65 +171,107 @@ impl CompilationScope {
         if (CompilationScope::MIN_INT_8..=CompilationScope::MAX_INT_8)
             .contains(&int)
         {
-            self.insert_int8(int as i8)
+            self.insert_i8(int as i8)
         } else if (CompilationScope::MIN_INT_16..=CompilationScope::MAX_INT_16)
             .contains(&int)
         {
-            self.insert_int16(int as i16)
+            self.insert_i16(int as i16)
         } else if (CompilationScope::MIN_INT_32..=CompilationScope::MAX_INT_32)
             .contains(&int)
         {
-            self.insert_int32(int as i32)
+            self.insert_i32(int as i32)
         } else {
-            self.insert_int64(int)
+            self.insert_i64(int)
         }
     }
 
-    fn insert_int8(&self, int8: i8) {
+    fn insert_i8(&self, int8: i8) {
         self.append_binary_code(InstructionCode::INT_8);
         self.append_i8(int8);
     }
-    fn insert_int16(&self, int16: i16) {
+
+    fn insert_i16(&self, int16: i16) {
         self.append_binary_code(InstructionCode::INT_16);
         self.append_i16(int16);
     }
-    fn insert_int32(&self, int32: i32) {
+    fn insert_i32(&self, int32: i32) {
         self.append_binary_code(InstructionCode::INT_32);
         self.append_i32(int32);
     }
-    fn insert_int64(&self, int64: i64) {
+    fn insert_i64(&self, int64: i64) {
         self.append_binary_code(InstructionCode::INT_64);
         self.append_i64(int64);
     }
-
-    // buffer functions
+    fn insert_i128(&self, int128: i128) {
+        self.append_binary_code(InstructionCode::INT_128);
+        self.append_i128(int128);
+    }
+    fn insert_u8(&self, uint8: u8) {
+        self.append_binary_code(InstructionCode::INT_16);
+        self.append_i16(uint8 as i16);
+    }
+    fn insert_u16(&self, uint16: u16) {
+        self.append_binary_code(InstructionCode::INT_32);
+        self.append_i32(uint16 as i32);
+    }
+    fn insert_u32(&self, uint32: u32) {
+        self.append_binary_code(InstructionCode::INT_64);
+        self.append_i64(uint32 as i64);
+    }
+    fn insert_u64(&self, uint64: u64) {
+        self.append_binary_code(InstructionCode::INT_128);
+        self.append_i128(uint64 as i128);
+    }
+    fn insert_u128(&self, uint128: u128) {
+        self.append_binary_code(InstructionCode::UINT_128);
+        self.append_i128(uint128 as i128);
+    }
     fn append_u8(&self, u8: u8) {
         append_u8(self.buffer.borrow_mut().as_mut(), u8);
-        self.index.update(|x| x + CompilationScope::UINT_8_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::INT_8_BYTES as usize);
     }
     fn append_u32(&self, u32: u32) {
         append_u32(self.buffer.borrow_mut().as_mut(), u32);
-        self.index.update(|x| x + CompilationScope::UINT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::INT_32_BYTES as usize);
     }
     fn append_i8(&self, i8: i8) {
         append_i8(self.buffer.borrow_mut().as_mut(), i8);
-        self.index.update(|x| x + CompilationScope::INT_8_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::INT_8_BYTES as usize);
     }
     fn append_i16(&self, i16: i16) {
         append_i16(self.buffer.borrow_mut().as_mut(), i16);
-        self.index.update(|x| x + CompilationScope::INT_16_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::INT_16_BYTES as usize);
     }
     fn append_i32(&self, i32: i32) {
         append_i32(self.buffer.borrow_mut().as_mut(), i32);
-        self.index.update(|x| x + CompilationScope::INT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::INT_32_BYTES as usize);
     }
     fn append_i64(&self, i64: i64) {
         append_i64(self.buffer.borrow_mut().as_mut(), i64);
-        self.index.update(|x| x + CompilationScope::INT_64_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::INT_64_BYTES as usize);
     }
+    fn append_i128(&self, i128: i128) {
+        append_i128(self.buffer.borrow_mut().as_mut(), i128);
+        self.index
+            .update(|x| x + CompilationScope::INT_128_BYTES as usize);
+    }
+
+    fn append_u128(&self, u128: u128) {
+        append_u128(self.buffer.borrow_mut().as_mut(), u128);
+        self.index
+            .update(|x| x + CompilationScope::INT_128_BYTES as usize);
+    }
+
     fn append_f64(&self, f64: f64) {
         append_f64(self.buffer.borrow_mut().as_mut(), f64);
-        self.index.update(|x| x + CompilationScope::FLOAT_64_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationScope::FLOAT_64_BYTES as usize);
     }
     fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();
@@ -223,10 +290,7 @@ impl CompilationScope {
 
 /// Compiles a DATEX script text into a DXB body
 pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
-    compile_template(
-        datex_script,
-        vec![]
-    )
+    compile_template(datex_script, vec![])
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -234,8 +298,7 @@ pub fn compile_template(
     datex_script: &str,
     inserted_values: Vec<ValueContainer>,
 ) -> Result<Vec<u8>, CompilerError> {
-    let pairs =
-        DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
+    let pairs = DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
 
     let buffer = RefCell::new(Vec::with_capacity(256));
     let mut compilation_scope = CompilationScope {
@@ -268,8 +331,6 @@ macro_rules! compile {
     }
 }
 
-
-
 fn parse_statements(
     compilation_scope: &mut CompilationScope,
     pairs: Pairs<'_, Rule>,
@@ -293,12 +354,13 @@ fn rule_must_be_scoped(rule: Rule) -> bool {
 fn parse_atom(
     compilation_scope: &CompilationScope,
     term: Pair<Rule>,
-    scope_required_for_complex_expressions: bool
+    scope_required_for_complex_expressions: bool,
 ) -> Result<(), CompilerError> {
     let rule = term.as_rule();
     info!(">> RULE {:?}", rule);
 
-    let scoped = scope_required_for_complex_expressions && rule_must_be_scoped(rule);
+    let scoped =
+        scope_required_for_complex_expressions && rule_must_be_scoped(rule);
 
     if scoped {
         compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
@@ -332,12 +394,17 @@ fn parse_atom(
             }
         }
         Rule::end_of_statement => {
-            compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
+            compilation_scope
+                .append_binary_code(InstructionCode::CLOSE_AND_STORE);
         }
 
         // is either a Rule::term or a rule that could be inside a term (e.g. literal, integer, array, ...)
         _ => {
-            parse_term(compilation_scope, term, scope_required_for_complex_expressions)?;
+            parse_term(
+                compilation_scope,
+                term,
+                scope_required_for_complex_expressions,
+            )?;
         }
     }
 
@@ -352,7 +419,7 @@ fn parse_atom(
 fn parse_term(
     compilation_scope: &CompilationScope,
     pair: Pair<'_, Rule>,
-    scope_required_for_complex_terms: bool
+    scope_required_for_complex_terms: bool,
 ) -> Result<(), CompilerError> {
     // if Rule::term, get inner rule, else keep rule
     let term = match pair.as_rule() {
@@ -432,7 +499,8 @@ fn parse_term(
                     compilation_scope.insert_key_string(key.as_str());
                 }
                 _ => {
-                    compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                    compilation_scope
+                        .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
                     // insert dynamic key
                     parse_atom(compilation_scope, key, true)?;
                 }
@@ -443,15 +511,16 @@ fn parse_term(
         }
         Rule::placeholder => {
             compilation_scope.insert_value_container(
-                compilation_scope.inserted_values
+                compilation_scope
+                    .inserted_values
                     .borrow()
                     .get(compilation_scope.inserted_value_index.get())
-                    .unwrap()
+                    .unwrap(),
             );
             compilation_scope.inserted_value_index.update(|x| x + 1);
         }
         _ => {
-            return Err(CompilerError::UnexpectedTerm(term.as_rule()))
+            return Err(CompilerError::UnexpectedTerm(term.as_rule()));
             // unreachable!(
             //     "Unexpected term {:?}",
             //     term.as_rule()
@@ -468,12 +537,11 @@ fn parse_term(
 
 #[cfg(test)]
 pub mod tests {
-    use super::{compile_template};
+    use super::compile_template;
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
-    
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
@@ -662,13 +730,7 @@ pub mod tests {
         let val: u8 = 42;
         let datex_script = format!("{val}"); // 42
         let result = compile_and_log(&datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::INT_8.into(),
-                val,
-            ]
-        );
+        assert_eq!(result, vec![InstructionCode::INT_8.into(), val,]);
     }
 
     // Test for decimal
@@ -680,8 +742,7 @@ pub mod tests {
         let result = compile_and_log(&datex_script);
         let bytes = val.to_le_bytes();
 
-        let mut expected: Vec<u8> =
-            vec![InstructionCode::FLOAT_64.into()];
+        let mut expected: Vec<u8> = vec![InstructionCode::FLOAT_64.into()];
         expected.extend(bytes);
 
         assert_eq!(result, expected);
@@ -694,10 +755,8 @@ pub mod tests {
         let val = "unyt";
         let datex_script = format!("\"{val}\""); // "42"
         let result = compile_and_log(&datex_script);
-        let mut expected: Vec<u8> = vec![
-            InstructionCode::SHORT_TEXT.into(),
-            val.len() as u8,
-        ];
+        let mut expected: Vec<u8> =
+            vec![InstructionCode::SHORT_TEXT.into(), val.len() as u8];
         expected.extend(val.bytes());
         assert_eq!(result, expected);
     }
@@ -910,15 +969,14 @@ pub mod tests {
             InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
-            b'k', b'e', b'y',
+            b'k',
+            b'e',
+            b'y',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(
-            result,
-            expected,
-        );
+        assert_eq!(result, expected,);
     }
 
     // key-value pair with string key
@@ -931,15 +989,14 @@ pub mod tests {
             InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
-            b'k', b'e', b'y',
+            b'k',
+            b'e',
+            b'y',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(
-            result,
-            expected,
-        );
+        assert_eq!(result, expected,);
     }
 
     // key-value pair with integer key
@@ -957,10 +1014,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(
-            result,
-            expected,
-        );
+        assert_eq!(result, expected,);
     }
 
     // key-value pair with long text key (>255 bytes)
@@ -982,10 +1036,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ]);
-        assert_eq!(
-            result,
-            expected,
-        );
+        assert_eq!(result, expected,);
     }
 
     // dynamic key-value pair
@@ -994,7 +1045,8 @@ pub mod tests {
         init_logger();
         let datex_script = "(1+2): 42";
         let result = compile_and_log(datex_script);
-        let expected = [InstructionCode::TUPLE_START.into(),
+        let expected = [
+            InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::SCOPE_START.into(),
             InstructionCode::ADD.into(),
@@ -1005,11 +1057,9 @@ pub mod tests {
             InstructionCode::SCOPE_END.into(),
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into()];
-        assert_eq!(
-            result,
-            expected,
-        );
+            InstructionCode::SCOPE_END.into(),
+        ];
+        assert_eq!(result, expected,);
     }
 
     // multiple key-value pairs
@@ -1022,7 +1072,9 @@ pub mod tests {
             InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
-            b'k', b'e', b'y',
+            b'k',
+            b'e',
+            b'y',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
@@ -1042,10 +1094,7 @@ pub mod tests {
             44,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(
-            result,
-            expected,
-        );
+        assert_eq!(result, expected,);
     }
 
     // key value pair with parentheses
@@ -1058,15 +1107,14 @@ pub mod tests {
             InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
-            b'k', b'e', b'y',
+            b'k',
+            b'e',
+            b'y',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(
-            result,
-            expected,
-        );
+        assert_eq!(result, expected,);
     }
 
     // empty object
@@ -1092,7 +1140,9 @@ pub mod tests {
             InstructionCode::OBJECT_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
-            b'k', b'e', b'y',
+            b'k',
+            b'e',
+            b'y',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::SCOPE_END.into(),
@@ -1110,17 +1160,26 @@ pub mod tests {
             InstructionCode::OBJECT_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             4, // length of "key1"
-            b'k', b'e', b'y', b'1',
+            b'k',
+            b'e',
+            b'y',
+            b'1',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             4, // length of "key2"
-            b'k', b'e', b'y', b'2',
+            b'k',
+            b'e',
+            b'y',
+            b'2',
             InstructionCode::INT_8.into(),
             43,
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             4, // length of "key3"
-            b'k', b'e', b'y', b'3',
+            b'k',
+            b'e',
+            b'y',
+            b'3',
             InstructionCode::INT_8.into(),
             44,
             InstructionCode::SCOPE_END.into(),
@@ -1128,13 +1187,10 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-
-
     #[test]
     fn test_compile() {
         init_logger();
-        let result = compile_template(
-            "? + ?", vec![1.into(), 2.into()]);
+        let result = compile_template("? + ?", vec![1.into(), 2.into()]);
         assert_eq!(
             result.unwrap(),
             vec![
@@ -1151,13 +1207,7 @@ pub mod tests {
     fn test_compile_macro() {
         init_logger();
         let result = compile!("?", 1);
-        assert_eq!(
-            result.unwrap(),
-            vec![
-                InstructionCode::INT_8.into(),
-                1,
-            ]
-        );
+        assert_eq!(result.unwrap(), vec![InstructionCode::INT_8.into(), 1,]);
     }
 
     #[test]

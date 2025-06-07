@@ -9,6 +9,7 @@ use std::ops::Add;
 pub enum ValueError {
     IsVoid,
     InvalidOperation,
+    IntegerOverflow,
     TypeConversionError,
 }
 
@@ -21,6 +22,9 @@ impl Display for ValueError {
             }
             ValueError::TypeConversionError => {
                 write!(f, "Type conversion error")
+            }
+            ValueError::IntegerOverflow => {
+                write!(f, "Integer overflow occurred")
             }
         }
     }

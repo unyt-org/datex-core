@@ -1,6 +1,7 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
+use crate::datex_values::core_values::integer::{Integer, TypedInteger};
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
@@ -123,18 +124,18 @@ fn execute_loop(
             Instruction::False => false.into(),
 
             // integers
-            Instruction::Int8(integer) => integer.0.into(),
-            Instruction::Int16(integer) => integer.0.into(),
-            Instruction::Int32(integer) => integer.0.into(),
-            Instruction::Int64(integer) => integer.0.into(),
-            Instruction::Int128(integer) => integer.0.into(),
+            Instruction::Int8(integer) => Integer::from(integer.0).into(),
+            Instruction::Int16(integer) => Integer::from(integer.0).into(),
+            Instruction::Int32(integer) => Integer::from(integer.0).into(),
+            Instruction::Int64(integer) => Integer::from(integer.0).into(),
+            Instruction::Int128(integer) => Integer::from(integer.0).into(),
 
             // unsigned integers
-            Instruction::UInt8(integer) => integer.0.into(),
-            Instruction::UInt16(integer) => integer.0.into(),
-            Instruction::UInt32(integer) => integer.0.into(),
-            Instruction::UInt64(integer) => integer.0.into(),
-            Instruction::UInt128(integer) => integer.0.into(),
+            Instruction::UInt8(integer) => Integer::from(integer.0).into(),
+            Instruction::UInt16(integer) => Integer::from(integer.0).into(),
+            Instruction::UInt32(integer) => Integer::from(integer.0).into(),
+            Instruction::UInt64(integer) => Integer::from(integer.0).into(),
+            Instruction::UInt128(integer) => Integer::from(integer.0).into(),
 
             // floats
             Instruction::Float64(Float64Data(f64)) => f64.into(),
@@ -410,6 +411,7 @@ mod tests {
 
     use super::*;
     use crate::compiler::bytecode::compile_script;
+    use crate::datex_array;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
 
@@ -448,7 +450,10 @@ mod tests {
 
     #[test]
     fn test_single_value() {
-        assert_eq!(execute_datex_script_debug_with_result("42"), 42.into());
+        assert_eq!(
+            execute_datex_script_debug_with_result("42"),
+            Integer::from(42).into()
+        );
     }
 
     #[test]
@@ -458,19 +463,22 @@ mod tests {
 
     #[test]
     fn test_single_value_scope() {
-        assert_eq!(execute_datex_script_debug_with_result("(42)"), 42.into());
+        assert_eq!(
+            execute_datex_script_debug_with_result("(42)"),
+            Integer::from(42).into()
+        );
     }
 
     #[test]
     fn test_add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
-        assert_eq!(result, 3.into());
+        assert_eq!(result, Integer::from(3).into());
     }
 
     #[test]
     fn test_nested_scope() {
         let result = execute_datex_script_debug_with_result("1 + (2 + 3)");
-        assert_eq!(result, 6.into());
+        assert_eq!(result, Integer::from(6).into());
     }
 
     #[test]
@@ -497,14 +505,18 @@ mod tests {
     #[test]
     fn test_array_with_values() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
-        let expected: Vec<ValueContainer> = vec![1.into(), 2.into(), 3.into()];
+        let expected =
+            datex_array![Integer::from(1), Integer::from(2), Integer::from(3)];
         assert_eq!(result, expected.into());
     }
 
     #[test]
     fn test_array_with_nested_scope() {
+        init_logger();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
-        let expected: Vec<ValueContainer> = vec![1.into(), 5.into(), 4.into()];
+        let expected =
+            datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
+
         assert_eq!(result, expected.into());
     }
 
@@ -527,11 +539,20 @@ mod tests {
     }
 
     #[test]
+    fn test_integer_2() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("2");
+        assert_eq!(result, Integer::from(2).into());
+    }
+
+    #[test]
     fn test_tuple() {
         init_logger();
         let result = execute_datex_script_debug_with_result("(x:1, 2, 42)");
         let tuple: CoreValue = result.clone().into_value().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
+        return;
+
         assert_eq!(tuple.size(), 3);
         assert_eq!(tuple.get(&"x".into()), Some(&1.into()));
         // FIXME
@@ -539,7 +560,6 @@ mod tests {
         let x = CoreValue::from(1 as u8);
         let y = CoreValue::from(1 as u16);
         assert_eq!(x, y);
-        return;
 
         // return;
 

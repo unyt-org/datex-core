@@ -204,6 +204,12 @@ pub fn write_i64(buffer: &mut Vec<u8>, index: &mut usize, val: i64) {
 pub fn append_i64(buffer: &mut Vec<u8>, val: i64) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
+pub fn append_i128(buffer: &mut Vec<u8>, val: i128) {
+    buffer.extend_from_slice(&val.to_le_bytes());
+}
+pub fn append_u128(buffer: &mut Vec<u8>, val: u128) {
+    buffer.extend_from_slice(&val.to_le_bytes());
+}
 
 pub fn write_f64(buffer: &mut Vec<u8>, index: &mut usize, val: f64) {
     let bytes = val.to_le_bytes();

@@ -1,22 +1,34 @@
 use std::{
     fmt::Display,
     hash::Hash,
-    ops::{Add, AddAssign, Sub},
+    ops::{Add, AddAssign, Neg, Sub},
 };
 
 use crate::datex_values::soft_eq::SoftEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, Eq)]
-pub struct Integer(TypedInteger);
+#[derive(Debug, Clone, Eq, Copy)]
+pub struct Integer(pub TypedInteger);
 impl SoftEq for Integer {
     fn soft_eq(&self, other: &Self) -> bool {
         self.0.soft_eq(&other.0)
     }
 }
 
-fn smallest_fitting_unsigned(val: u128) -> TypedInteger {
+impl<T: Into<TypedInteger>> From<T> for Integer {
+    fn from(value: T) -> Self {
+        Integer(value.into())
+    }
+}
+
+impl Display for Integer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+pub fn smallest_fitting_unsigned(val: u128) -> TypedInteger {
     if val <= u8::MAX as u128 {
         TypedInteger::U8(val as u8)
     } else if val <= u16::MAX as u128 {
@@ -30,7 +42,7 @@ fn smallest_fitting_unsigned(val: u128) -> TypedInteger {
     }
 }
 
-fn smallest_fitting_signed(val: i128) -> TypedInteger {
+pub fn smallest_fitting_signed(val: i128) -> TypedInteger {
     if val >= i8::MIN as i128 && val <= i8::MAX as i128 {
         TypedInteger::I8(val as i8)
     } else if val >= i16::MIN as i128 && val <= i16::MAX as i128 {
@@ -56,9 +68,28 @@ impl Add for Integer {
             )))
         } else {
             Some(Integer(smallest_fitting_signed(
-                a.as_i128().checked_add(b.as_i128())?,
+                a.as_i128()?.checked_add(b.as_i128()?)?,
             )))
         }
+    }
+}
+impl Add for &Integer {
+    type Output = Option<Integer>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Integer::add(*self, *rhs)
+    }
+}
+
+impl Sub for Integer {
+    type Output = Option<Integer>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let a = self.0;
+        let b = rhs.0;
+        Some(Integer(smallest_fitting_signed(
+            a.as_i128()?.checked_sub(b.as_i128()?)?,
+        )))
     }
 }
 
@@ -78,7 +109,7 @@ impl Hash for Integer {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub enum TypedInteger {
     I8(i8),
     I16(i16),
@@ -93,6 +124,14 @@ pub enum TypedInteger {
 }
 
 impl TypedInteger {
+    pub fn to_smallest_fitting(&self) -> TypedInteger {
+        if self.is_unsigned() {
+            smallest_fitting_unsigned(self.as_u128())
+        } else {
+            smallest_fitting_signed(self.as_i128().unwrap())
+        }
+    }
+
     fn subtype(&self) -> &'static str {
         match self {
             TypedInteger::I8(_) => "/i8",
@@ -109,31 +148,27 @@ impl TypedInteger {
     }
     fn as_u128(&self) -> u128 {
         match self {
-            TypedInteger::I8(v) => *v as u128,
-            TypedInteger::I16(v) => *v as u128,
-            TypedInteger::I32(v) => *v as u128,
-            TypedInteger::I64(v) => *v as u128,
-            TypedInteger::I128(v) => *v as u128,
             TypedInteger::U8(v) => *v as u128,
             TypedInteger::U16(v) => *v as u128,
             TypedInteger::U32(v) => *v as u128,
             TypedInteger::U64(v) => *v as u128,
             TypedInteger::U128(v) => *v,
+            _ => unreachable!("as_u128 called on a signed integer"),
         }
     }
 
-    pub fn as_i128(&self) -> i128 {
+    pub fn as_i128(&self) -> Option<i128> {
         match self {
-            TypedInteger::I8(v) => *v as i128,
-            TypedInteger::I16(v) => *v as i128,
-            TypedInteger::I32(v) => *v as i128,
-            TypedInteger::I64(v) => *v as i128,
-            TypedInteger::I128(v) => *v,
-            TypedInteger::U8(v) => *v as i128,
-            TypedInteger::U16(v) => *v as i128,
-            TypedInteger::U32(v) => *v as i128,
-            TypedInteger::U64(v) => *v as i128,
-            TypedInteger::U128(v) => *v as i128, // This will panic if v > i128::MAX
+            TypedInteger::I8(v) => Some(*v as i128),
+            TypedInteger::I16(v) => Some(*v as i128),
+            TypedInteger::I32(v) => Some(*v as i128),
+            TypedInteger::I64(v) => Some(*v as i128),
+            TypedInteger::I128(v) => Some(*v),
+            TypedInteger::U8(v) => Some(*v as i128),
+            TypedInteger::U16(v) => Some(*v as i128),
+            TypedInteger::U32(v) => Some(*v as i128),
+            TypedInteger::U64(v) => Some(*v as i128),
+            TypedInteger::U128(v) => Some(i128::try_from(*v).ok()?),
         }
     }
     pub fn is_signed(&self) -> bool {
@@ -154,7 +189,7 @@ impl TypedInteger {
 impl Display for TypedInteger {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            (v) => write!(f, "{v}"),
+            TypedInteger::I8(v) => write!(f, "{v}"),
             TypedInteger::I16(v) => write!(f, "{v}"),
             TypedInteger::I32(v) => write!(f, "{v}"),
             TypedInteger::I64(v) => write!(f, "{v}"),
@@ -469,13 +504,27 @@ impl AddAssign for TypedInteger {
     }
 }
 
-// impl Sub for TypedInteger {
-//     type Output = Option<TypedInteger>;
+impl Sub for TypedInteger {
+    type Output = Option<TypedInteger>;
 
-//     fn sub(self, rhs: Self) -> Self::Output {
-//         rhs.
-//     }
-// }
+    fn sub(self, rhs: Self) -> Self::Output {
+        let neg_rhs = match rhs {
+            TypedInteger::I8(v) => TypedInteger::I8(v.neg()),
+            TypedInteger::I16(v) => TypedInteger::I16(v.neg()),
+            TypedInteger::I32(v) => TypedInteger::I32(v.neg()),
+            TypedInteger::I64(v) => TypedInteger::I64(v.neg()),
+            TypedInteger::I128(v) => TypedInteger::I128(v.neg()),
+            TypedInteger::U8(v) => TypedInteger::I16((v as i16).neg()),
+            TypedInteger::U16(v) => TypedInteger::I32((v as i32).neg()),
+            TypedInteger::U32(v) => TypedInteger::I64((v as i64).neg()),
+            TypedInteger::U64(v) => TypedInteger::I128((v as i128).neg()),
+            TypedInteger::U128(v) => {
+                TypedInteger::I128((i128::try_from(v).ok()?).neg())
+            }
+        };
+        self + neg_rhs
+    }
+}
 
 #[cfg(test)]
 mod tests {
