@@ -1,4 +1,5 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::integer::Integer;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
@@ -47,7 +48,7 @@ impl fmt::Display for Tuple {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "({key}): {value}")?;
+            write!(f, "{key}: {value}")?;
         }
         write!(f, ")")
     }
@@ -94,6 +95,11 @@ impl<'a> IntoIterator for &'a Tuple {
         self.0.iter()
     }
 }
+impl From<Vec<(ValueContainer, ValueContainer)>> for Tuple {
+    fn from(vec: Vec<(ValueContainer, ValueContainer)>) -> Self {
+        Tuple(vec.into_iter().collect())
+    }
+}
 
 impl From<IndexMap<ValueContainer, ValueContainer>> for Tuple {
     fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
@@ -107,5 +113,16 @@ impl From<IndexMap<String, ValueContainer>> for Tuple {
                 .map(|(k, v)| (k.into(), v))
                 .collect::<IndexMap<ValueContainer, ValueContainer>>(),
         )
+    }
+}
+impl TryFrom<CoreValue> for Tuple {
+    type Error = String;
+
+    fn try_from(value: CoreValue) -> Result<Self, Self::Error> {
+        if let CoreValue::Tuple(tuple) = value {
+            Ok(tuple)
+        } else {
+            Err(format!("Expected CoreValue::Tuple, found {:?}", value))
+        }
     }
 }

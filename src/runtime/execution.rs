@@ -2,6 +2,7 @@ use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::object::Object;
+use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
@@ -169,6 +170,12 @@ fn execute_loop(
                 Object::default().into()
             }
 
+            Instruction::TupleStart => {
+                scope_stack.create_scope(ScopeType::Tuple);
+                is_scope_start = true;
+                Tuple::default().into()
+            }
+
             Instruction::KeyValueShortText(ShortTextData(key)) => {
                 scope_stack.set_active_key(key.into());
                 ActiveValue::None
@@ -300,6 +307,27 @@ fn execute_loop(
                                     }
                                 }
                             }
+                            // special scope: Tuple
+                            else if !is_scope_start
+                                && scope_type == ScopeType::Tuple
+                            {
+                                // add value to array scope
+                                match active_value_container {
+                                    ValueContainer::Value(Value {
+                                        inner: CoreValue::Tuple(tuple),
+                                        ..
+                                    }) => {
+                                        let index: CoreValue = CoreValue::from(
+                                            tuple.size() as i64,
+                                        )
+                                        .into();
+                                        tuple.set(index, value_container);
+                                    }
+                                    _ => {
+                                        unreachable!("Expected active value in tuple scope to be a tuple, but got: {}", active_value_container);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -368,9 +396,14 @@ fn execute_loop(
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
+
+    use log::debug;
+
     use super::*;
     use crate::compiler::bytecode::compile_script;
     use crate::global::binary_codes::InstructionCode;
+    use crate::logger::init_logger;
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -483,5 +516,27 @@ mod tests {
 
         let result = execute_datex_script_debug_with_result("2.71828");
         assert_eq!(result, 2.71828.into());
+    }
+
+    #[test]
+    fn test_tuple() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("(1, 2, 42)");
+        // iterate over the tuple values
+        let tuple: CoreValue = result.clone().into_value().inner;
+        let tuple: Tuple = tuple.try_into().unwrap();
+        debug!("Tuple result: {}", tuple);
+
+        assert_eq!(tuple.size(), 3);
+        assert_eq!(tuple.get(&0.into()), Some(&1.into()));
+        assert_eq!(tuple.get(&1.into()), Some(&2.into()));
+        assert_eq!(tuple.get(&2.into()), Some(&42.into()));
+
+        let expected: Tuple = Tuple::from(vec![
+            (0.into(), 1.into()),
+            (1.into(), 2.into()),
+            (2.into(), 42.into()),
+        ]);
+        assert_eq!(result, expected.into());
     }
 }
