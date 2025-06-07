@@ -1,10 +1,12 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::datex_values::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::iter::zip;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Object(pub IndexMap<String, ValueContainer>);
@@ -22,6 +24,20 @@ impl Object {
 
     pub fn remove(&mut self, key: &str) -> Option<ValueContainer> {
         self.0.remove(key)
+    }
+}
+
+impl SoftEq for Object {
+    fn soft_eq(&self, other: &Self) -> bool {
+        if self.size() != other.size() {
+            return false;
+        }
+        for (key, value) in zip(self.0.iter(), other.0.iter()) {
+            if key.0 != value.0 || !key.1.soft_eq(value.1) {
+                return false;
+            }
+        }
+        true
     }
 }
 

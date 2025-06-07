@@ -3,6 +3,8 @@ use std::{
     ops::{Add, AddAssign},
 };
 
+use crate::datex_values::soft_eq::SoftEq;
+
 use super::super::core_value_trait::CoreValueTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -40,6 +42,12 @@ impl Text {
 }
 
 impl CoreValueTrait for Text {}
+
+impl SoftEq for Text {
+    fn soft_eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
 
 /// The froms are used for this magic. This will automatically convert
 /// the Rust types to Text when using the += operator.

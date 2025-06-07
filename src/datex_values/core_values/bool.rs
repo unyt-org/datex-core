@@ -1,8 +1,8 @@
 use std::{fmt::Display, ops::Not};
 
-use super::{
-    super::core_value_trait::CoreValueTrait,
-};
+use crate::datex_values::soft_eq::SoftEq;
+
+use super::super::core_value_trait::CoreValueTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Bool(pub bool);
@@ -24,9 +24,13 @@ impl Display for Bool {
     }
 }
 
-impl CoreValueTrait for Bool {
-}
+impl CoreValueTrait for Bool {}
 
+impl SoftEq for Bool {
+    fn soft_eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
 
 impl From<bool> for Bool {
     fn from(v: bool) -> Self {

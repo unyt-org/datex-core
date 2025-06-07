@@ -1,6 +1,7 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::{
     core_value::CoreValue,
+    soft_eq::SoftEq,
     value_container::{ValueContainer, ValueError},
 };
 use std::{fmt, ops::Index};
@@ -20,6 +21,20 @@ impl Array {
     }
 }
 impl CoreValueTrait for Array {}
+
+impl SoftEq for Array {
+    fn soft_eq(&self, other: &Self) -> bool {
+        if self.length() != other.length() {
+            return false;
+        }
+        for (a, b) in self.0.iter().zip(other.0.iter()) {
+            if !a.soft_eq(b) {
+                return false;
+            }
+        }
+        true
+    }
+}
 
 impl fmt::Display for Array {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

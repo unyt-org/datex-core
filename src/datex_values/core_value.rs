@@ -10,6 +10,7 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::datex_type::CoreValueType;
+use crate::datex_values::soft_eq::SoftEq;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not};
@@ -25,6 +26,22 @@ pub enum CoreValue {
     Array(Array),
     Object(Object),
     Tuple(Tuple),
+}
+impl SoftEq for CoreValue {
+    fn soft_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (CoreValue::Bool(a), CoreValue::Bool(b)) => a.soft_eq(b),
+            (CoreValue::Integer(a), CoreValue::Integer(b)) => a.soft_eq(b),
+            (CoreValue::Decimal(a), CoreValue::Decimal(b)) => a.soft_eq(b),
+            (CoreValue::Text(a), CoreValue::Text(b)) => a.soft_eq(b),
+            (CoreValue::Null(_), CoreValue::Null(_)) => true,
+            (CoreValue::Endpoint(a), CoreValue::Endpoint(b)) => a.soft_eq(b),
+            (CoreValue::Array(a), CoreValue::Array(b)) => a.soft_eq(b),
+            (CoreValue::Object(a), CoreValue::Object(b)) => a.soft_eq(b),
+            (CoreValue::Tuple(a), CoreValue::Tuple(b)) => a.soft_eq(b),
+            _ => false,
+        }
+    }
 }
 
 impl From<&str> for CoreValue {
@@ -132,6 +149,24 @@ impl CoreValue {
     {
         value.into()
     }
+
+    // [1,24][0]
+    // [1,24][0]
+
+    // val == val
+    // float32 == float64
+
+    // ref key = 43443
+    // (0: "xxx", 43443: 3433, [key]: "xxx", 0: "xxxxyxx")
+    // key = 0
+
+    // val x = 43434
+    // ref y = 42
+    // Map<K,V> map = {x: 5, 0: "xx", 3223: "llele", *y: "xxxxxx"}
+    // val z = y // copy
+    // map[y] ->
+    // ref x =
+    // ref entry = map[key]
 
     pub fn get_default_type(&self) -> CoreValueType {
         match self {

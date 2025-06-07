@@ -1,5 +1,6 @@
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::pointer::Pointer;
+use crate::datex_values::reference::Reference;
+use crate::datex_values::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
@@ -8,23 +9,14 @@ use std::ops::{Add, AddAssign, Not};
 use super::core_values::null::Null;
 use super::datex_type::CoreValueType;
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
     pub inner: CoreValue,
     pub actual_type: CoreValueType, // custom type for the value that can not be changed
 }
-impl Eq for Value {}
-
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        // FIXME
-        self.inner.get_default_type() == other.inner.get_default_type()
-            && self.inner == other.inner
-        // if self.actual_type == other.actual_type {
-
-        // } else {
-        //     false
-        // }
+impl SoftEq for Value {
+    fn soft_eq(&self, other: &Self) -> bool {
+        self.inner.soft_eq(&other.inner)
     }
 }
 
@@ -130,8 +122,8 @@ impl Value {
     }
 }
 
-impl From<Pointer> for Value {
-    fn from(pointer: Pointer) -> Self {
+impl From<Reference> for Value {
+    fn from(pointer: Reference) -> Self {
         pointer.value
     }
 }

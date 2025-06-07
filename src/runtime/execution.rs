@@ -519,11 +519,11 @@ mod tests {
 
     #[test]
     fn test_decimal() {
-        let result = execute_datex_script_debug_with_result("3.14");
-        assert_eq!(result, 3.14.into());
+        let result = execute_datex_script_debug_with_result("3.947");
+        assert_eq!(result, 3.947.into());
 
-        let result = execute_datex_script_debug_with_result("2.71828");
-        assert_eq!(result, 2.71828.into());
+        let result = execute_datex_script_debug_with_result("2.424");
+        assert_eq!(result, 2.424.into());
     }
 
     #[test]
@@ -536,9 +536,10 @@ mod tests {
         assert_eq!(tuple.get(&"x".into()), Some(&1.into()));
         // FIXME
 
-        // let x = CoreValue::from(1 as u8);
-        // let y = CoreValue::from(1 as u16);
-        // assert_eq!(x, y);
+        let x = CoreValue::from(1 as u8);
+        let y = CoreValue::from(1 as u16);
+        assert_eq!(x, y);
+        return;
 
         // return;
 

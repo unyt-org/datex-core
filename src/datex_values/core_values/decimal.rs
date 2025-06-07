@@ -5,7 +5,7 @@ use std::{
 
 use ordered_float::OrderedFloat;
 
-use crate::datex_values::core_value_trait::CoreValueTrait;
+use crate::datex_values::{core_value_trait::CoreValueTrait, soft_eq::SoftEq};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Decimal {
@@ -13,6 +13,21 @@ pub enum Decimal {
     F64(OrderedFloat<f64>),
 }
 impl CoreValueTrait for Decimal {}
+
+impl SoftEq for Decimal {
+    fn soft_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Decimal::F32(a), Decimal::F32(b)) => a == b,
+            (Decimal::F64(a), Decimal::F64(b)) => a == b,
+            (Decimal::F32(a), Decimal::F64(b)) => {
+                a.into_inner() as f64 == b.into_inner()
+            }
+            (Decimal::F64(a), Decimal::F32(b)) => {
+                a.into_inner() == b.into_inner() as f64
+            }
+        }
+    }
+}
 
 impl Decimal {
     pub fn as_f32(&self) -> Option<f32> {

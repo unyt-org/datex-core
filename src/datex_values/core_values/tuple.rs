@@ -1,6 +1,7 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::integer::Integer;
+use crate::datex_values::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;
@@ -27,6 +28,24 @@ impl Tuple {
         value: V,
     ) {
         self.0.insert(key.into(), value.into());
+    }
+}
+
+impl SoftEq for Tuple {
+    fn soft_eq(&self, other: &Self) -> bool {
+        if self.size() != other.size() {
+            return false;
+        }
+        for (key, value) in self.0.iter() {
+            if let Some(other_value) = other.get(key) {
+                if !value.soft_eq(other_value) {
+                    return false;
+                }
+            } else {
+                return false; // Key not found in the other tuple
+            }
+        }
+        true
     }
 }
 

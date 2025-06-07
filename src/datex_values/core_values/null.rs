@@ -1,12 +1,18 @@
+use crate::datex_values::soft_eq::SoftEq;
 use core::fmt;
 use std::fmt::Display;
 use std::hash::Hash;
-use super::super::{core_value_trait::CoreValueTrait};
+
+use super::super::core_value_trait::CoreValueTrait;
 
 #[derive(Debug, Clone, Eq)]
 pub struct Null;
 
-impl CoreValueTrait for Null {
+impl CoreValueTrait for Null {}
+impl SoftEq for Null {
+    fn soft_eq(&self, _other: &Self) -> bool {
+        true
+    }
 }
 
 impl Display for Null {

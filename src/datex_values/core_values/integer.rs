@@ -3,10 +3,11 @@ use std::{
     ops::{Add, AddAssign},
 };
 
+use crate::datex_values::soft_eq::SoftEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Integer {
     I8(i8),
     I16(i16),
@@ -20,18 +21,6 @@ pub enum Integer {
     U128(u128),
 }
 
-impl Eq for Integer {}
-
-impl PartialEq for Integer {
-    fn eq(&self, other: &Self) -> bool {
-        println!("Comparing integers: {self} and {other}");
-        let a = self.as_u128();
-        let b = other.as_u128();
-        println!("Converted to u128: {} and {} = {}", a, b, a == b);
-
-        self.as_i128() == other.as_i128()
-    }
-}
 impl Integer {
     fn subtype(&self) -> &'static str {
         match self {
@@ -76,7 +65,6 @@ impl Integer {
             Integer::U128(v) => *v as i128, // This will panic if v > i128::MAX
         }
     }
-
     pub fn is_signed(&self) -> bool {
         matches!(
             self,
@@ -86,6 +74,9 @@ impl Integer {
                 | Integer::I64(_)
                 | Integer::I128(_)
         )
+    }
+    pub fn is_unsigned(&self) -> bool {
+        !self.is_signed()
     }
 }
 
@@ -107,6 +98,16 @@ impl Display for Integer {
 }
 
 impl CoreValueTrait for Integer {}
+
+impl SoftEq for Integer {
+    fn soft_eq(&self, other: &Self) -> bool {
+        if self.is_unsigned() && other.is_unsigned() {
+            self.as_u128() == other.as_u128()
+        } else {
+            self.as_i128() == other.as_i128()
+        }
+    }
+}
 
 impl Add for Integer {
     type Output = Integer;

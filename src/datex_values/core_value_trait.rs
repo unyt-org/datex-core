@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
+use crate::datex_values::soft_eq::SoftEq;
 
-pub trait CoreValueTrait: Display + Send + Sync {
+pub trait CoreValueTrait: Display + Send + Sync + SoftEq {
     // fn as_any(&self) -> &dyn Any;
     // fn as_any_mut(&mut self) -> &mut dyn Any;
     // fn cast_to(&self, target: CoreValueType) -> Option<Value>;
@@ -11,7 +12,7 @@ pub trait CoreValueTrait: Display + Send + Sync {
     // where
     //     Self: Sized;
 }
-// 
+//
 // pub fn try_cast_to_value<T: CoreValue + Clone + 'static>(
 //     value: &impl CoreValue,
 // ) -> Result<T, ()> {
@@ -19,7 +20,7 @@ pub trait CoreValueTrait: Display + Send + Sync {
 //     let casted = casted.cast_to_typed::<T>();
 //     Ok(casted.into_inner())
 // }
-// 
+//
 // pub fn try_cast_to_value_dyn<T: CoreValue + Clone + 'static>(
 //     value: &dyn CoreValue,
 // ) -> Result<T, ()> {
