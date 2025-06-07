@@ -35,6 +35,15 @@ impl SoftEq for CoreValue {
             (CoreValue::TypedInteger(a), CoreValue::TypedInteger(b)) => {
                 a.soft_eq(b)
             }
+            (CoreValue::TypedInteger(a), CoreValue::Integer(b)) => {
+                a.soft_eq(&b.0)
+            }
+            (CoreValue::Integer(a), CoreValue::TypedInteger(b)) => {
+                a.0.soft_eq(b)
+            }
+            (CoreValue::Integer(a), CoreValue::Integer(b)) => {
+                a.soft_eq(b)
+            }
             (CoreValue::Decimal(a), CoreValue::Decimal(b)) => a.soft_eq(b),
 
             // FIXME
@@ -156,23 +165,6 @@ impl CoreValue {
         value.into()
     }
 
-    // [1,24][0]
-    // [1,24][0]
-
-    // val == val
-    // float32 == float64
-
-    // ref key = 43443
-    // (0: "xxx", 43443: 3433, [key]: "xxx", 0: "xxxxyxx")
-    // key = 0
-
-    // val x = 43434
-    // ref y = 42
-    // Map<K,V> map = {x: 5, 0: "xx", 3223: "llele", *y: "xxxxxx"}
-    // val z = y // copy
-    // map[y] ->
-    // ref x =
-    // ref entry = map[key]
 
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
@@ -219,7 +211,7 @@ impl CoreValue {
             CoreValueType::F32 | CoreValueType::F64 => {
                 Some(CoreValue::Decimal(self.cast_to_decimal()?))
             }
-            CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text()?)),
+            CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text())),
             CoreValueType::Null => Some(CoreValue::Null(Null)),
             CoreValueType::Endpoint => {
                 Some(CoreValue::Endpoint(self.cast_to_endpoint()?))
@@ -237,8 +229,11 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_text(&self) -> Option<Text> {
-        Some(Text(self.to_string()))
+    pub fn cast_to_text(&self) -> Text {
+        match self {
+            CoreValue::Text(text) => text.clone(),
+            _ => Text(self.to_string())
+        }
     }
 
     pub fn cast_to_bool(&self) -> Option<Bool> {
@@ -312,15 +307,11 @@ impl Add for CoreValue {
     fn add(self, rhs: CoreValue) -> Self::Output {
         match (&self, &rhs) {
             (CoreValue::Text(text), other) => {
-                let other = other
-                    .cast_to_text()
-                    .ok_or(ValueError::TypeConversionError)?;
+                let other = other.cast_to_text();
                 Ok(CoreValue::Text(text + other))
             }
             (other, CoreValue::Text(text)) => {
-                let other = other
-                    .cast_to_text()
-                    .ok_or(ValueError::TypeConversionError)?;
+                let other = other.cast_to_text();
                 Ok(CoreValue::Text(other + text))
             }
             (CoreValue::TypedInteger(lhs), CoreValue::TypedInteger(rhs)) => {

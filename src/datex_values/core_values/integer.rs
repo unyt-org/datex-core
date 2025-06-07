@@ -102,7 +102,7 @@ impl Sub for Integer {
 
 impl PartialEq for Integer {
     fn eq(&self, other: &Self) -> bool {
-        self.0.soft_eq(&other.0)
+        self.soft_eq(other)
     }
 }
 

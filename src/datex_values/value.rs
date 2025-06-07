@@ -107,7 +107,7 @@ impl Value {
     /// let value = Value::from(42);
     /// let casted_value = value.cast_or_null(CoreValueType::Text);
     /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
-    /// assert_eq!(casted_value.to_string(), "42");
+    /// assert_eq!(casted_value.inner.cast_to_text().0, "42".to_string());
     /// ```
     pub fn cast_or_null(&self, target_type: CoreValueType) -> Value {
         self.try_cast_to(target_type).unwrap_or(Value::null())
@@ -189,13 +189,10 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        datex_array,
-        datex_values::core_values::{array::Array, endpoint::Endpoint},
-        logger::init_logger,
-    };
+    use crate::{assert_soft_eq, datex_array, datex_values::core_values::{array::Array, endpoint::Endpoint}, logger::init_logger};
     use log::{debug, info};
     use std::str::FromStr;
+    use crate::datex_values::core_values::integer::{Integer, TypedInteger};
 
     #[test]
     fn test_endpoint() {
@@ -215,22 +212,22 @@ mod test {
 
     #[test]
     fn new_addition_assignments() {
-        let mut x = Value::from(42);
-        let y = Value::from(27);
+        let mut x = Value::from(42i8);
+        let y = Value::from(27i8);
 
         x += y.clone();
         assert_eq!(x.get_type(), CoreValueType::I8);
-        assert_eq!(x, Value::from(69));
+        assert_eq!(x, Value::from(69i8));
     }
 
     #[test]
     fn new_additions() {
-        let x = Value::from(42);
-        let y = Value::from(27);
+        let x = Value::from(42i8);
+        let y = Value::from(27i8);
 
         let z = (x.clone() + y.clone()).unwrap();
         assert_eq!(z.get_type(), CoreValueType::I8);
-        assert_eq!(z, Value::from(69));
+        assert_eq!(z, Value::from(69i8));
     }
 
     #[test]
@@ -282,9 +279,9 @@ mod test {
     #[test]
     fn equality_same_type() {
         init_logger();
-        let a = Value::from(42);
-        let b = Value::from(42);
-        let c = Value::from(27);
+        let a = Value::from(42i8);
+        let b = Value::from(42i8);
+        let c = Value::from(27i8);
 
         assert_eq!(a.get_type(), CoreValueType::I8);
         assert_eq!(b.get_type(), CoreValueType::I8);
@@ -294,31 +291,8 @@ mod test {
         assert_ne!(a, c);
         assert_ne!(b, c);
 
-        info!("{} == {}", a.clone(), b.clone());
-        info!("{} != {}", a.clone(), c.clone());
-    }
-
-    #[test]
-    fn equality_different_type() {
-        init_logger();
-
-        // let x = CoreValue::from(1 as i8);
-        // let y = CoreValue::from(1 as i32);
-        // info!("{:?}", x);
-        // info!("{:?}", y);
-        // assert_eq!(x, y);
-
-        // return;
-
-        let a = Value::from(42_i8);
-        let b = Value::from(42_i32);
-
-        assert_eq!(a.get_type(), CoreValueType::I8);
-        assert_eq!(b.get_type(), CoreValueType::I32);
-
-        assert_eq!(a, b);
-
-        info!("{} == {}", a.clone(), b.clone());
+        info!("{} === {}", a.clone(), b.clone());
+        info!("{} !== {}", a.clone(), c.clone());
     }
 
     #[test]
@@ -347,16 +321,16 @@ mod test {
     #[test]
     fn test_infer_type() {
         init_logger();
-        let a = CoreValue::from(42);
-        let b = CoreValue::from(11);
+        let a = CoreValue::from(42i32);
+        let b = CoreValue::from(11i32);
         let c = CoreValue::from("11");
 
-        assert_eq!(a.get_default_type(), CoreValueType::I8);
-        assert_eq!(b.get_default_type(), CoreValueType::I8);
+        assert_eq!(a.get_default_type(), CoreValueType::I32);
+        assert_eq!(b.get_default_type(), CoreValueType::I32);
         assert_eq!(c.get_default_type(), CoreValueType::Text);
 
         let a_plus_b = (a.clone() + b.clone()).unwrap();
-        assert_eq!(a_plus_b.clone().get_default_type(), CoreValueType::I8);
+        assert_eq!(a_plus_b.clone().get_default_type(), CoreValueType::I32);
         assert_eq!(a_plus_b.clone(), CoreValue::from(53));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
@@ -378,8 +352,8 @@ mod test {
     #[test]
     fn test_addition() {
         init_logger();
-        let a = Value::from(42);
-        let b = Value::from(27);
+        let a = Value::from(42i8);
+        let b = Value::from(27i8);
 
         assert_eq!(a.get_type(), CoreValueType::I8);
         assert_eq!(b.get_type(), CoreValueType::I8);
@@ -388,7 +362,7 @@ mod test {
 
         assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
 
-        assert_eq!(a_plus_b, Value::from(69));
+        assert_eq!(a_plus_b, Value::from(69i8));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
     }
 
@@ -412,6 +386,32 @@ mod test {
 
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
         info!("{} + {} = {}", b.clone(), a.clone(), b_plus_a);
+    }
+
+    #[test]
+    fn test_soft_equals() {
+        let a = Value::from(42_i8);
+        let b = Value::from(42_i32);
+
+        assert_eq!(a.get_type(), CoreValueType::I8);
+        assert_eq!(b.get_type(), CoreValueType::I32);
+
+        assert_soft_eq!(a, b);
+
+        assert_eq!(
+            Value::from(Integer(TypedInteger::I8(42))),
+            Value::from(Integer(TypedInteger::U32(42))),
+        );
+
+        assert_soft_eq!(
+            Value::from(Integer(TypedInteger::I8(42))),
+            Value::from(Integer(TypedInteger::U32(42))),
+        );
+        
+        assert_soft_eq!(
+            Value::from(42_i8),
+            Value::from(Integer::from(42_i8))
+        );
     }
 }
 
