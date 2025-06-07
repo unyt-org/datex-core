@@ -25,7 +25,7 @@ pub enum CoreValue {
 
 impl From<Text> for CoreValue {
     fn from(value: Text) -> Self {
-        CoreValue::Text(value.into())
+        CoreValue::Text(value)
     }
 }
 impl From<&str> for CoreValue {
@@ -35,14 +35,14 @@ impl From<&str> for CoreValue {
 }
 impl From<String> for CoreValue {
     fn from(value: String) -> Self {
-        CoreValue::Text(Text(value.into()))
+        CoreValue::Text(Text(value))
     }
 }
 
 //
 impl From<Array> for CoreValue {
     fn from(value: Array) -> Self {
-        CoreValue::Array(value.into())
+        CoreValue::Array(value)
     }
 }
 
@@ -66,7 +66,7 @@ where
 
 impl From<Bool> for CoreValue {
     fn from(value: Bool) -> Self {
-        CoreValue::Bool(value.into())
+        CoreValue::Bool(value)
     }
 }
 
@@ -78,7 +78,7 @@ impl From<bool> for CoreValue {
 
 impl From<Integer> for CoreValue {
     fn from(value: Integer) -> Self {
-        CoreValue::Integer(value.into())
+        CoreValue::Integer(value)
     }
 }
 
@@ -90,25 +90,25 @@ impl From<i8> for CoreValue {
 
 impl From<Null> for CoreValue {
     fn from(value: Null) -> Self {
-        CoreValue::Null(value.into())
+        CoreValue::Null(value)
     }
 }
 
 impl From<Endpoint> for CoreValue {
     fn from(value: Endpoint) -> Self {
-        CoreValue::Endpoint(value.into())
+        CoreValue::Endpoint(value)
     }
 }
 
 impl From<Object> for CoreValue {
     fn from(value: Object) -> Self {
-        CoreValue::Object(value.into())
+        CoreValue::Object(value)
     }
 }
 
 impl From<Tuple> for CoreValue {
     fn from(value: Tuple) -> Self {
-        CoreValue::Tuple(value.into())
+        CoreValue::Tuple(value)
     }
 }
 
@@ -206,14 +206,14 @@ impl Add for CoreValue {
         match (&self, &rhs) {
             (CoreValue::Text(text), other) => {
                 let other = other.cast_to_text().ok_or(ValueError::TypeConversionError)?;
-                Ok(CoreValue::Text(text + other).into())
+                Ok(CoreValue::Text(text + other))
             }
             (other, CoreValue::Text(text)) => {
                 let other = other.cast_to_text().ok_or(ValueError::TypeConversionError)?;
-                Ok(CoreValue::Text(other + text).into())
+                Ok(CoreValue::Text(other + text))
             }
             (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
-                Ok(CoreValue::Integer(lhs + rhs).into())
+                Ok(CoreValue::Integer(lhs + rhs))
             }
             _ => Err(ValueError::InvalidOperation),
         }
@@ -233,7 +233,7 @@ impl AddAssign<CoreValue> for CoreValue {
         if let Ok(value) = res {
             *self = value;
         } else {
-            panic!("Failed to add value: {:?}", res);
+            panic!("Failed to add value: {res:?}");
         }
     }
 }
@@ -253,14 +253,14 @@ impl Not for CoreValue {
 impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            CoreValue::Bool(v) => write!(f, "{}", v),
-            CoreValue::Integer(v) => write!(f, "{}", v),
-            CoreValue::Text(v) => write!(f, "{}", v),
-            CoreValue::Null(v) => write!(f, "{}", v),
-            CoreValue::Endpoint(v) => write!(f, "{}", v),
-            CoreValue::Array(v) => write!(f, "{}", v),
-            CoreValue::Object(v) => write!(f, "{}", v),
-            CoreValue::Tuple(v) => write!(f, "{}", v),
+            CoreValue::Bool(v) => write!(f, "{v}"),
+            CoreValue::Integer(v) => write!(f, "{v}"),
+            CoreValue::Text(v) => write!(f, "{v}"),
+            CoreValue::Null(v) => write!(f, "{v}"),
+            CoreValue::Endpoint(v) => write!(f, "{v}"),
+            CoreValue::Array(v) => write!(f, "{v}"),
+            CoreValue::Object(v) => write!(f, "{v}"),
+            CoreValue::Tuple(v) => write!(f, "{v}"),
         }
     }
 }

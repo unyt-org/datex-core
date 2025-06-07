@@ -62,16 +62,16 @@ impl Integer {
 impl Display for Integer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Integer::I8(v) => write!(f, "{}", v),
-            Integer::I16(v) => write!(f, "{}", v),
-            Integer::I32(v) => write!(f, "{}", v),
-            Integer::I64(v) => write!(f, "{}", v),
-            Integer::I128(v) => write!(f, "{}", v),
-            Integer::U8(v) => write!(f, "{}", v),
-            Integer::U16(v) => write!(f, "{}", v),
-            Integer::U32(v) => write!(f, "{}", v),
-            Integer::U64(v) => write!(f, "{}", v),
-            Integer::U128(v) => write!(f, "{}", v),
+            Integer::I8(v) => write!(f, "{v}"),
+            Integer::I16(v) => write!(f, "{v}"),
+            Integer::I32(v) => write!(f, "{v}"),
+            Integer::I64(v) => write!(f, "{v}"),
+            Integer::I128(v) => write!(f, "{v}"),
+            Integer::U8(v) => write!(f, "{v}"),
+            Integer::U16(v) => write!(f, "{v}"),
+            Integer::U32(v) => write!(f, "{v}"),
+            Integer::U64(v) => write!(f, "{v}"),
+            Integer::U128(v) => write!(f, "{v}"),
         }
     }
 }

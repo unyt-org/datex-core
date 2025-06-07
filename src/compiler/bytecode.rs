@@ -473,7 +473,7 @@ pub mod tests {
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
-    use crate::datex_values::core_value::CoreValue;
+    
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();

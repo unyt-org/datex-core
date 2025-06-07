@@ -94,7 +94,7 @@ impl Not for Value {
     type Output = Option<Value>;
 
     fn not(self) -> Self::Output {
-        (!self.inner).map(|inner| Value::from(inner))
+        (!self.inner).map(Value::from)
     }
 }
 
