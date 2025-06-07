@@ -1,13 +1,11 @@
-use super::super::{
-    core_value_trait::CoreValueTrait
-};
+use super::super::core_value_trait::CoreValueTrait;
+use crate::datex_values::core_values::int::Integer;
 use crate::datex_values::value_container::ValueContainer;
+use indexmap::map::{IntoIter, Iter};
+use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use indexmap::IndexMap;
-use indexmap::map::{IntoIter, Iter};
-use crate::datex_values::core_values::int::Integer;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Tuple(pub IndexMap<ValueContainer, ValueContainer>);
@@ -22,7 +20,11 @@ impl Tuple {
 
     /// Set a key-value pair in the tuple. This method should only be used internal, since tuples
     /// are immutable after creation as per DATEX specification.
-    pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(&mut self, key: K, value: V) {
+    pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
+        &mut self,
+        key: K,
+        value: V,
+    ) {
         self.0.insert(key.into(), value.into());
     }
 }
@@ -36,8 +38,7 @@ impl Hash for Tuple {
     }
 }
 
-impl CoreValueTrait for Tuple {
-}
+impl CoreValueTrait for Tuple {}
 
 impl fmt::Display for Tuple {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -67,7 +68,12 @@ where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Tuple(iter.into_iter().enumerate().map(|(i, v)| (Integer::from(i as u64).into(), v.into())).collect())
+        Tuple(
+            iter.into_iter()
+                .enumerate()
+                .map(|(i, v)| (Integer::from(i as u64).into(), v.into()))
+                .collect(),
+        )
     }
 }
 
@@ -86,5 +92,20 @@ impl<'a> IntoIterator for &'a Tuple {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
+    }
+}
+
+impl From<IndexMap<ValueContainer, ValueContainer>> for Tuple {
+    fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
+        Tuple(map)
+    }
+}
+impl From<IndexMap<String, ValueContainer>> for Tuple {
+    fn from(map: IndexMap<String, ValueContainer>) -> Self {
+        Tuple(
+            map.into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+        )
     }
 }

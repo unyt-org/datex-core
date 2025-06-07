@@ -1,15 +1,15 @@
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Not};
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::bool::Bool;
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::int::Integer;
 use crate::datex_values::core_values::null::Null;
-use crate::datex_values::core_values::object::Object;
+use crate::datex_values::core_values::object::{self, Object};
 use crate::datex_values::core_values::text::Text;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::datex_type::CoreValueType;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
+use std::fmt::{Display, Formatter};
+use std::ops::{Add, AddAssign, Not};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CoreValue {
@@ -113,11 +113,6 @@ impl From<Tuple> for CoreValue {
 }
 
 impl CoreValue {
-
-    pub fn text<T: Into<Text>>(text: T) -> Self {
-        CoreValue::Text(text.into())
-    }
-
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Bool(_) => CoreValueType::Bool,
@@ -134,31 +129,44 @@ impl CoreValue {
     pub fn cast_to(&self, target_type: CoreValueType) -> Option<CoreValue> {
         match target_type {
             CoreValueType::Bool => Some(CoreValue::Bool(self.cast_to_bool()?)),
-            CoreValueType::I8 => Some(CoreValue::Integer(self.cast_to_integer()?)),
+            CoreValueType::I8
+            | CoreValueType::I16
+            | CoreValueType::I32
+            | CoreValueType::I64
+            | CoreValueType::I128
+            | CoreValueType::U8
+            | CoreValueType::U16
+            | CoreValueType::U32
+            | CoreValueType::U64
+            | CoreValueType::U128 => {
+                Some(CoreValue::Integer(self.cast_to_integer()?))
+            }
             CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text()?)),
             CoreValueType::Null => Some(CoreValue::Null(Null)),
-            CoreValueType::Endpoint => Some(CoreValue::Endpoint(self.cast_to_endpoint()?)),
-            CoreValueType::Array => Some(CoreValue::Array(self.cast_to_array()?)),
-            CoreValueType::Object => Some(CoreValue::Object(self.cast_to_object()?)),
-            CoreValueType::Tuple => Some(CoreValue::Tuple(self.cast_to_tuple()?)),
-            _ => todo!()
+            CoreValueType::Endpoint => {
+                Some(CoreValue::Endpoint(self.cast_to_endpoint()?))
+            }
+            CoreValueType::Array => {
+                Some(CoreValue::Array(self.cast_to_array()?))
+            }
+            CoreValueType::Object => {
+                Some(CoreValue::Object(self.cast_to_object()?))
+            }
+            CoreValueType::Tuple => {
+                Some(CoreValue::Tuple(self.cast_to_tuple()?))
+            }
+            _ => todo!(),
         }
     }
 
     pub fn cast_to_text(&self) -> Option<Text> {
-        match self {
-            CoreValue::Text(text) => Some(text.clone()),
-            CoreValue::Integer(int) => Some(Text(int.to_string())),
-            CoreValue::Bool(bool) => Some(Text(bool.to_string())),
-            CoreValue::Null(_) => Some(Text("null".to_string())),
-            _ => None,
-        }
+        Some(Text(self.to_string()))
     }
 
     pub fn cast_to_bool(&self) -> Option<Bool> {
         match self {
             CoreValue::Bool(bool) => Some(bool.clone()),
-            CoreValue::Integer(int) => Some(Bool(int.as_i128() != 0)), // TODO <- handle unsigned?
+            CoreValue::Integer(int) => Some(Bool(int.as_i128() != 0)),
             CoreValue::Null(_) => Some(Bool(false)),
             _ => None,
         }
@@ -166,6 +174,9 @@ impl CoreValue {
 
     pub fn cast_to_integer(&self) -> Option<Integer> {
         match self {
+            CoreValue::Text(text) => {
+                text.to_string().parse::<i128>().ok().map(Integer::from)
+            }
             CoreValue::Integer(int) => Some(int.clone()),
             _ => None,
         }
@@ -173,6 +184,7 @@ impl CoreValue {
 
     pub fn cast_to_endpoint(&self) -> Option<Endpoint> {
         match self {
+            CoreValue::Text(text) => Endpoint::try_from(text.as_str()).ok(),
             CoreValue::Endpoint(endpoint) => Some(endpoint.clone()),
             _ => None,
         }
@@ -187,6 +199,7 @@ impl CoreValue {
 
     pub fn cast_to_object(&self) -> Option<Object> {
         match self {
+            CoreValue::Tuple(tuple) => Some(Object::from(tuple.0.clone())),
             CoreValue::Object(object) => Some(object.clone()),
             _ => None,
         }
@@ -194,6 +207,7 @@ impl CoreValue {
 
     pub fn cast_to_tuple(&self) -> Option<Tuple> {
         match self {
+            CoreValue::Object(object) => Some(Tuple::from(object.0.clone())),
             CoreValue::Tuple(tuple) => Some(tuple.clone()),
             _ => None,
         }
@@ -205,11 +219,15 @@ impl Add for CoreValue {
     fn add(self, rhs: CoreValue) -> Self::Output {
         match (&self, &rhs) {
             (CoreValue::Text(text), other) => {
-                let other = other.cast_to_text().ok_or(ValueError::TypeConversionError)?;
+                let other = other
+                    .cast_to_text()
+                    .ok_or(ValueError::TypeConversionError)?;
                 Ok(CoreValue::Text(text + other))
             }
             (other, CoreValue::Text(text)) => {
-                let other = other.cast_to_text().ok_or(ValueError::TypeConversionError)?;
+                let other = other
+                    .cast_to_text()
+                    .ok_or(ValueError::TypeConversionError)?;
                 Ok(CoreValue::Text(other + text))
             }
             (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
@@ -248,7 +266,6 @@ impl Not for CoreValue {
         }
     }
 }
-
 
 impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {

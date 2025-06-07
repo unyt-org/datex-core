@@ -1,11 +1,6 @@
-use std::{
-    fmt,
-    ops::{Index},
-};
+use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::value_container::ValueContainer;
-use super::super::{
-    core_value_trait::CoreValueTrait,
-};
+use std::{fmt, ops::Index};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Array(pub Vec<ValueContainer>);
@@ -21,8 +16,7 @@ impl Array {
         self.0.push(value.into());
     }
 }
-impl CoreValueTrait for Array {
-}
+impl CoreValueTrait for Array {}
 
 impl fmt::Display for Array {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -55,16 +49,6 @@ where
     }
 }
 
-#[macro_export]
-macro_rules! datex_array {
-    ( $( $x:expr ),* ) => {
-        {
-            let arr = vec![$( $crate::datex_values::value_container::ValueContainer::from($x) ),*];
-            Array(arr)
-        }
-    };
-}
-
 impl Index<usize> for Array {
     type Output = ValueContainer;
 
@@ -72,7 +56,6 @@ impl Index<usize> for Array {
         &self.0[index]
     }
 }
-
 
 impl IntoIterator for Array {
     type Item = ValueContainer;
@@ -83,7 +66,7 @@ impl IntoIterator for Array {
     }
 }
 
-impl <'a> IntoIterator for &'a Array {
+impl<'a> IntoIterator for &'a Array {
     type Item = &'a ValueContainer;
     type IntoIter = std::slice::Iter<'a, ValueContainer>;
 
@@ -92,22 +75,12 @@ impl <'a> IntoIterator for &'a Array {
     }
 }
 
-// FIXME: Deref and DerefMut are not implemented for DatexArray.
-// If we implement these two traits, we can use all the methods of Vec<DatexValue> directly on DatexArray.
-// This is not recommended most probably, but it is possible.
-// Since we want to listen for changes in the array, we should not implement these traits and the spec
-// shall also just mention the methods that are available on DatexArray, not all rust magic since not
-// all will be implemented by runtime nor on any other platform.
-// impl Deref for DatexArray {
-//     type Target = Vec<DatexValue>;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
-
-// impl DerefMut for DatexArray {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.0
-//     }
-// }
+#[macro_export]
+macro_rules! datex_array {
+    ( $( $x:expr ),* ) => {
+        {
+            let arr = vec![$( $crate::datex_values::value_container::ValueContainer::from($x) ),*];
+            Array(arr)
+        }
+    };
+}

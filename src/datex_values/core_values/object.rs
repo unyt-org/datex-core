@@ -1,14 +1,10 @@
-use std::{
-    fmt,
-};
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use indexmap::IndexMap;
-use indexmap::map::{IntoIter, Iter};
+use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::value_container::ValueContainer;
-use super::super::{
-    core_value_trait::CoreValueTrait,
-};
+use indexmap::map::{IntoIter, Iter};
+use indexmap::IndexMap;
+use std::collections::HashMap;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Object(pub IndexMap<String, ValueContainer>);
@@ -38,8 +34,7 @@ impl Hash for Object {
     }
 }
 
-impl CoreValueTrait for Object {
-}
+impl CoreValueTrait for Object {}
 
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -72,7 +67,6 @@ where
     }
 }
 
-
 impl IntoIterator for Object {
     type Item = (String, ValueContainer);
     type IntoIter = IntoIter<String, ValueContainer>;
@@ -82,11 +76,17 @@ impl IntoIterator for Object {
     }
 }
 
-impl <'a> IntoIterator for &'a Object {
+impl<'a> IntoIterator for &'a Object {
     type Item = (&'a String, &'a ValueContainer);
     type IntoIter = Iter<'a, String, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
+    }
+}
+
+impl From<IndexMap<ValueContainer, ValueContainer>> for Object {
+    fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
+        Object(map.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
     }
 }
