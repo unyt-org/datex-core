@@ -6,6 +6,14 @@ pub enum Instruction {
     Int16(Int16Data),
     Int32(Int32Data),
     Int64(Int64Data),
+    Int128(Int128Data),
+
+    UInt8(UInt8Data),
+    UInt16(UInt16Data),
+    UInt32(UInt32Data),
+    UInt64(UInt64Data),
+    UInt128(UInt128Data),
+
     Float64(Float64Data),
     ShortText(ShortTextData),
     Text(TextData),
@@ -31,6 +39,14 @@ impl Display for Instruction {
             Instruction::Int16(data) => write!(f, "INT_16 {}", data.0),
             Instruction::Int32(data) => write!(f, "INT_32 {}", data.0),
             Instruction::Int64(data) => write!(f, "INT_64 {}", data.0),
+            Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
+
+            Instruction::UInt8(data) => write!(f, "UINT_8 {}", data.0),
+            Instruction::UInt16(data) => write!(f, "UINT_16 {}", data.0),
+            Instruction::UInt32(data) => write!(f, "UINT_32 {}", data.0),
+            Instruction::UInt64(data) => write!(f, "UINT_64 {}", data.0),
+            Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
+
             Instruction::Float64(data) => write!(f, "FLOAT_64 {}", data.0),
             Instruction::ShortText(data) => write!(f, "SHORT_TEXT {}", data.0),
             Instruction::Text(data) => write!(f, "TEXT {}", data.0),
@@ -68,6 +84,30 @@ pub struct Int32Data(pub i32);
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct Int64Data(pub i64);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct Int128Data(pub i128);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UInt8Data(pub u8);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UInt16Data(pub u16);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UInt32Data(pub u32);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UInt64Data(pub u64);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UInt128Data(pub u128);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

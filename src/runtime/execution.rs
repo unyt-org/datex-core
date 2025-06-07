@@ -1,15 +1,15 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
+use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::object::Object;
-use crate::datex_values::value::{Value};
+use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
-    Instruction, Int8Data, ShortTextData,
+    Float64Data, Instruction, Int16Data, Int8Data, ShortTextData,
 };
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
-use crate::datex_values::core_value::CoreValue;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -117,10 +117,28 @@ fn execute_loop(
         let mut is_scope_start = false;
 
         let value: ActiveValue = match instruction {
+            // boolean
             Instruction::True => true.into(),
             Instruction::False => false.into(),
-            Instruction::Int8(Int8Data(i8)) => i8.into(),
 
+            // integers
+            Instruction::Int8(integer) => integer.0.into(),
+            Instruction::Int16(integer) => integer.0.into(),
+            Instruction::Int32(integer) => integer.0.into(),
+            Instruction::Int64(integer) => integer.0.into(),
+            Instruction::Int128(integer) => integer.0.into(),
+
+            // unsigned integers
+            Instruction::UInt8(integer) => integer.0.into(),
+            Instruction::UInt16(integer) => integer.0.into(),
+            Instruction::UInt32(integer) => integer.0.into(),
+            Instruction::UInt64(integer) => integer.0.into(),
+            Instruction::UInt128(integer) => integer.0.into(),
+
+            // floats
+            Instruction::Float64(Float64Data(f64)) => f64.into(),
+
+            // text
             Instruction::ShortText(ShortTextData(text)) => text.into(),
 
             // operations
@@ -208,8 +226,7 @@ fn execute_loop(
                                     // make sure key is a string
                                     match key {
                                         ValueContainer::Value(Value {
-                                            inner:
-                                                CoreValue::Text(key_str),
+                                            inner: CoreValue::Text(key_str),
                                             ..
                                         }) => {
                                             object.set(
@@ -457,5 +474,14 @@ mod tests {
 
         let result = execute_datex_script_debug_with_result("false");
         assert_eq!(result, false.into());
+    }
+
+    #[test]
+    fn test_decimal() {
+        let result = execute_datex_script_debug_with_result("3.14");
+        assert_eq!(result, 3.14.into());
+
+        let result = execute_datex_script_debug_with_result("2.71828");
+        assert_eq!(result, 2.71828.into());
     }
 }

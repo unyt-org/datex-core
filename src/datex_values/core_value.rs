@@ -67,6 +67,52 @@ impl From<i8> for CoreValue {
         CoreValue::Integer(value.into())
     }
 }
+impl From<i16> for CoreValue {
+    fn from(value: i16) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<i32> for CoreValue {
+    fn from(value: i32) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<i64> for CoreValue {
+    fn from(value: i64) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<i128> for CoreValue {
+    fn from(value: i128) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+
+impl From<u8> for CoreValue {
+    fn from(value: u8) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<u16> for CoreValue {
+    fn from(value: u16) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<u32> for CoreValue {
+    fn from(value: u32) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<u64> for CoreValue {
+    fn from(value: u64) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
+impl From<u128> for CoreValue {
+    fn from(value: u128) -> Self {
+        CoreValue::Integer(value.into())
+    }
+}
 
 impl From<f32> for CoreValue {
     fn from(value: f32) -> Self {
