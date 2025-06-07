@@ -2,15 +2,16 @@ use std::{
     fmt,
 };
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use indexmap::IndexMap;
+use indexmap::map::{IntoIter, Iter};
 use crate::datex_values::value_container::ValueContainer;
 use super::super::{
-    core_value::CoreValue,
-    datex_type::CoreValueType,
-    value::Value,
+    core_value_trait::CoreValueTrait,
 };
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Object(pub HashMap<String, ValueContainer>);
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Object(pub IndexMap<String, ValueContainer>);
 impl Object {
     pub fn size(&self) -> usize {
         self.0.len()
@@ -27,31 +28,17 @@ impl Object {
         self.0.remove(key)
     }
 }
-impl CoreValue for Object {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        match target {
-            CoreValueType::Object => Some(self.as_datex_value()),
-            _ => None,
+
+impl Hash for Object {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for (k, v) in &self.0 {
+            k.hash(state);
+            v.hash(state);
         }
     }
+}
 
-    fn as_datex_value(&self) -> Value {
-        Value::boxed(self.clone())
-    }
-
-    fn get_type(&self) -> CoreValueType {
-        Self::static_type()
-    }
-
-    fn static_type() -> CoreValueType {
-        CoreValueType::Object
-    }
+impl CoreValueTrait for Object {
 }
 
 impl fmt::Display for Object {
@@ -88,7 +75,7 @@ where
 
 impl IntoIterator for Object {
     type Item = (String, ValueContainer);
-    type IntoIter = std::collections::hash_map::IntoIter<String, ValueContainer>;
+    type IntoIter = IntoIter<String, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -97,7 +84,7 @@ impl IntoIterator for Object {
 
 impl <'a> IntoIterator for &'a Object {
     type Item = (&'a String, &'a ValueContainer);
-    type IntoIter = std::collections::hash_map::Iter<'a, String, ValueContainer>;
+    type IntoIter = Iter<'a, String, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

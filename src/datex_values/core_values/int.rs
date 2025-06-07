@@ -6,95 +6,283 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    super::core_value::CoreValue, super::datex_type::CoreValueType,
-    super::typed_value::TypedValue, super::value::Value, text::Text,
+    super::core_value_trait::CoreValueTrait
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct I8(pub i8);
-
-impl Display for I8 {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+pub enum Integer {
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    I128(i128),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    U128(u128),
 }
 
-impl CoreValue for I8 {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        match target {
-            CoreValueType::I8 => Some(self.as_datex_value()),
-            CoreValueType::Text => Some(Value::boxed(Text(self.0.to_string()))),
-            _ => None,
+impl Integer {
+    fn as_u128(&self) -> u128 {
+        match self {
+            Integer::I8(v) => *v as u128,
+            Integer::I16(v) => *v as u128,
+            Integer::I32(v) => *v as u128,
+            Integer::I64(v) => *v as u128,
+            Integer::I128(v) => *v as u128,
+            Integer::U8(v) => *v as u128,
+            Integer::U16(v) => *v as u128,
+            Integer::U32(v) => *v as u128,
+            Integer::U64(v) => *v as u128,
+            Integer::U128(v) => *v,
         }
     }
 
-    fn as_datex_value(&self) -> Value {
-        Value::boxed(self.clone())
+    pub fn as_i128(&self) -> i128 {
+        match self {
+            Integer::I8(v) => *v as i128,
+            Integer::I16(v) => *v as i128,
+            Integer::I32(v) => *v as i128,
+            Integer::I64(v) => *v as i128,
+            Integer::I128(v) => *v,
+            Integer::U8(v) => *v as i128,
+            Integer::U16(v) => *v as i128,
+            Integer::U32(v) => *v as i128,
+            Integer::U64(v) => *v as i128,
+            Integer::U128(v) => *v as i128, // This will panic if v > i128::MAX
+        }
     }
 
-    fn get_type(&self) -> CoreValueType {
-        Self::static_type()
-    }
-
-    fn static_type() -> CoreValueType {
-        CoreValueType::I8
+    pub fn is_signed(&self) -> bool {
+        matches!(self, Integer::I8(_) | Integer::I16(_) | Integer::I32(_) | Integer::I64(_) | Integer::I128(_))
     }
 }
 
-impl Add for I8 {
-    type Output = I8;
+impl Display for Integer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Integer::I8(v) => write!(f, "{}", v),
+            Integer::I16(v) => write!(f, "{}", v),
+            Integer::I32(v) => write!(f, "{}", v),
+            Integer::I64(v) => write!(f, "{}", v),
+            Integer::I128(v) => write!(f, "{}", v),
+            Integer::U8(v) => write!(f, "{}", v),
+            Integer::U16(v) => write!(f, "{}", v),
+            Integer::U32(v) => write!(f, "{}", v),
+            Integer::U64(v) => write!(f, "{}", v),
+            Integer::U128(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl CoreValueTrait for Integer {
+}
+
+impl Add for Integer {
+    type Output = Integer;
 
     fn add(self, rhs: Self) -> Self::Output {
-        I8(self.0 + rhs.0)
+        match self {
+            Integer::I8(v1) => match rhs {
+                Integer::I8(v2) => Integer::I8(v1 + v2),
+                Integer::I16(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::I32(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::I64(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::I128(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::U8(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::U16(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::U32(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::U64(v2) => Integer::I8(v1 + v2 as i8),
+                Integer::U128(v2) => Integer::I8(v1 + v2 as i8),
+            },
+            Integer::I16(v1) => match rhs {
+                Integer::I8(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::I16(v2) => Integer::I16(v1 + v2),
+                Integer::I32(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::I64(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::I128(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::U8(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::U16(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::U32(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::U64(v2) => Integer::I16(v1 + v2 as i16),
+                Integer::U128(v2) => Integer::I16(v1 + v2 as i16),
+            },
+            Integer::I32(v1) => match rhs {
+                Integer::I8(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::I16(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::I32(v2) => Integer::I32(v1 + v2),
+                Integer::I64(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::I128(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::U8(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::U16(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::U32(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::U64(v2) => Integer::I32(v1 + v2 as i32),
+                Integer::U128(v2) => Integer::I32(v1 + v2 as i32),
+            },
+            Integer::I64(v1) => match rhs {
+                Integer::I8(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::I16(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::I32(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::I64(v2) => Integer::I64(v1 + v2),
+                Integer::I128(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::U8(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::U16(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::U32(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::U64(v2) => Integer::I64(v1 + v2 as i64),
+                Integer::U128(v2) => Integer::I64(v1 + v2 as i64),
+            },
+            Integer::I128(v1) => match rhs {
+                Integer::I8(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::I16(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::I32(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::I64(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::I128(v2) => Integer::I128(v1 + v2),
+                Integer::U8(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::U16(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::U32(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::U64(v2) => Integer::I128(v1 + v2 as i128),
+                Integer::U128(v2) => Integer::I128(v1 + v2 as i128),
+            },
+            Integer::U8(v1) => match rhs {
+                Integer::I8(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::I16(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::I32(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::I64(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::I128(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::U8(v2) => Integer::U8(v1 + v2),
+                Integer::U16(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::U32(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::U64(v2) => Integer::U8(v1 + v2 as u8),
+                Integer::U128(v2) => Integer::U8(v1 + v2 as u8),
+            },
+            Integer::U16(v1) => match rhs {
+                Integer::I8(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::I16(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::I32(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::I64(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::I128(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::U8(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::U16(v2) => Integer::U16(v1 + v2),
+                Integer::U32(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::U64(v2) => Integer::U16(v1 + v2 as u16),
+                Integer::U128(v2) => Integer::U16(v1 + v2 as u16),
+            },
+            Integer::U32(v1) => match rhs {
+                Integer::I8(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::I16(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::I32(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::I64(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::I128(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::U8(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::U16(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::U32(v2) => Integer::U32(v1 + v2),
+                Integer::U64(v2) => Integer::U32(v1 + v2 as u32),
+                Integer::U128(v2) => Integer::U32(v1 + v2 as u32),
+            },
+            Integer::U64(v1) => match rhs {
+                Integer::I8(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::I16(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::I32(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::I64(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::I128(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::U8(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::U16(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::U32(v2) => Integer::U64(v1 + v2 as u64),
+                Integer::U64(v2) => Integer::U64(v1 + v2),
+                Integer::U128(v2) => Integer::U64(v1 + v2 as u64),
+            },
+            Integer::U128(v1) => match rhs {
+                Integer::I8(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::I16(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::I32(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::I64(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::I128(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::U8(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::U16(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::U32(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::U64(v2) => Integer::U128(v1 + v2 as u128),
+                Integer::U128(v2) => Integer::U128(v1 + v2),
+            },
+        }
     }
 }
 
-impl Add for &I8 {
-    type Output = I8;
+impl Add for &Integer {
+    type Output = Integer;
 
     fn add(self, rhs: Self) -> Self::Output {
-        I8(self.0 + rhs.0)
+        Integer::add(self.clone(), rhs.clone())
     }
 }
 
 
-impl AddAssign for I8 {
+impl AddAssign for Integer {
     fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
+        let res = self.clone() + rhs;
+        match res {
+            Integer::I8(v) => *self = Integer::I8(v),
+            Integer::I16(v) => *self = Integer::I16(v),
+            Integer::I32(v) => *self = Integer::I32(v),
+            Integer::I64(v) => *self = Integer::I64(v),
+            Integer::I128(v) => *self = Integer::I128(v),
+            Integer::U8(v) => *self = Integer::U8(v),
+            Integer::U16(v) => *self = Integer::U16(v),
+            Integer::U32(v) => *self = Integer::U32(v),
+            Integer::U64(v) => *self = Integer::U64(v),
+            Integer::U128(v) => *self = Integer::U128(v),
+        }
     }
 }
 
-impl From<I8> for TypedValue<I8> {
-    fn from(p: I8) -> Self {
-        TypedValue(p)
-    }
-}
 
-impl From<i8> for TypedValue<I8> {
+impl From<i8> for Integer {
     fn from(v: i8) -> Self {
-        TypedValue(I8(v))
+        Integer::I8(v)
     }
 }
-
-impl From<i8> for Value {
-    fn from(v: i8) -> Self {
-        Value::boxed(I8(v))
+impl From<i16> for Integer {
+    fn from(v: i16) -> Self {
+        Integer::I16(v)
     }
 }
-impl PartialEq<i8> for TypedValue<I8> {
-    fn eq(&self, other: &i8) -> bool {
-        self.inner().0 == *other
+impl From<i32> for Integer {
+    fn from(v: i32) -> Self {
+        Integer::I32(v)
     }
 }
-
-impl PartialEq<TypedValue<I8>> for i8 {
-    fn eq(&self, other: &TypedValue<I8>) -> bool {
-        *self == other.inner().0
+impl From<i64> for Integer {
+    fn from(v: i64) -> Self {
+        Integer::I64(v)
+    }
+}
+impl From<i128> for Integer {
+    fn from(v: i128) -> Self {
+        Integer::I128(v)
+    }
+}
+impl From<u8> for Integer {
+    fn from(v: u8) -> Self {
+        Integer::U8(v)
+    }
+}
+impl From<u16> for Integer {
+    fn from(v: u16) -> Self {
+        Integer::U16(v)
+    }
+}
+impl From<u32> for Integer {
+    fn from(v: u32) -> Self {
+        Integer::U32(v)
+    }
+}
+impl From<u64> for Integer {
+    fn from(v: u64) -> Self {
+        Integer::U64(v)
+    }
+}
+impl From<u128> for Integer {
+    fn from(v: u128) -> Self {
+        Integer::U128(v)
     }
 }

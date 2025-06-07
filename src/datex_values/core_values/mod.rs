@@ -5,4 +5,4 @@ pub mod int;
 pub mod null;
 pub mod object;
 pub mod text;
-// pub mod tuple;
+pub mod tuple;

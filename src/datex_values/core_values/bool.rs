@@ -1,11 +1,10 @@
 use std::{fmt::Display, ops::Not};
 
 use super::{
-    super::core_value::CoreValue, super::datex_type::CoreValueType,
-    super::typed_value::TypedValue, super::value::Value, text::Text,
+    super::core_value_trait::CoreValueTrait,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Bool(pub bool);
 
 impl Bool {
@@ -25,67 +24,20 @@ impl Display for Bool {
     }
 }
 
-impl CoreValue for Bool {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        match target {
-            CoreValueType::Bool => Some(self.as_datex_value()),
-            CoreValueType::Text => Some(Value::boxed(Text(self.0.to_string()))),
-            CoreValueType::I8 => Some(Value::boxed(Bool(self.0))),
-            _ => None,
-        }
-    }
-
-    fn as_datex_value(&self) -> Value {
-        Value::boxed(self.clone())
-    }
-
-    fn get_type(&self) -> CoreValueType {
-        Self::static_type()
-    }
-
-    fn static_type() -> CoreValueType {
-        CoreValueType::Bool
-    }
+impl CoreValueTrait for Bool {
 }
 
-impl From<Bool> for TypedValue<Bool> {
-    fn from(p: Bool) -> Self {
-        TypedValue(p)
-    }
-}
 
-impl From<bool> for TypedValue<Bool> {
+impl From<bool> for Bool {
     fn from(v: bool) -> Self {
-        TypedValue(Bool(v))
+        Bool(v)
     }
 }
 
-impl From<bool> for Value {
-    fn from(v: bool) -> Self {
-        Value::boxed(Bool(v))
-    }
-}
-impl PartialEq<bool> for TypedValue<Bool> {
-    fn eq(&self, other: &bool) -> bool {
-        self.inner().0 == *other
-    }
-}
-
-impl PartialEq<TypedValue<Bool>> for bool {
-    fn eq(&self, other: &TypedValue<Bool>) -> bool {
-        *self == other.inner().0
-    }
-}
-impl Not for TypedValue<Bool> {
-    type Output = TypedValue<Bool>;
+impl Not for Bool {
+    type Output = Bool;
 
     fn not(self) -> Self::Output {
-        TypedValue::from(!self.inner().0)
+        Bool(!self.0)
     }
 }

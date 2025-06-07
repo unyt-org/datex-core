@@ -1,37 +1,12 @@
 use core::fmt;
 use std::fmt::Display;
+use std::hash::Hash;
+use super::super::{core_value_trait::CoreValueTrait};
 
-use super::super::{core_value::CoreValue, datex_type::CoreValueType, value::Value};
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Null;
 
-impl CoreValue for Null {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-
-    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        match target {
-            CoreValueType::Null => Some(Value::boxed(Null)),
-            _ => None,
-        }
-    }
-
-    fn as_datex_value(&self) -> Value {
-        Value::boxed(Null)
-    }
-
-    fn get_type(&self) -> CoreValueType {
-        Self::static_type()
-    }
-
-    fn static_type() -> CoreValueType {
-        CoreValueType::Null
-    }
+impl CoreValueTrait for Null {
 }
 
 impl Display for Null {
@@ -42,5 +17,12 @@ impl Display for Null {
 impl PartialEq for Null {
     fn eq(&self, _other: &Self) -> bool {
         true
+    }
+}
+
+impl Hash for Null {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Null has no state, so we can use a constant value
+        0.hash(state);
     }
 }

@@ -1,16 +1,13 @@
 use std::{
     fmt,
-    ops::{AddAssign, Index},
+    ops::{Index},
 };
 use crate::datex_values::value_container::ValueContainer;
 use super::super::{
-    core_value::CoreValue,
-    datex_type::CoreValueType,
-    typed_value::TypedValue,
-    value::Value,
+    core_value_trait::CoreValueTrait,
 };
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Array(pub Vec<ValueContainer>);
 impl Array {
     pub fn length(&self) -> usize {
@@ -24,31 +21,7 @@ impl Array {
         self.0.push(value.into());
     }
 }
-impl CoreValue for Array {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        match target {
-            CoreValueType::Array => Some(self.as_datex_value()),
-            _ => None,
-        }
-    }
-
-    fn as_datex_value(&self) -> Value {
-        Value::boxed(self.clone())
-    }
-
-    fn get_type(&self) -> CoreValueType {
-        Self::static_type()
-    }
-
-    fn static_type() -> CoreValueType {
-        CoreValueType::Array
-    }
+impl CoreValueTrait for Array {
 }
 
 impl fmt::Display for Array {
@@ -86,19 +59,10 @@ where
 macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
-            let arr = vec![$( $crate::datex_values::value::ValueContainer::from($x) ),*];
+            let arr = vec![$( $crate::datex_values::value_container::ValueContainer::from($x) ),*];
             Array(arr)
         }
     };
-}
-
-impl<T> AddAssign<T> for TypedValue<Array>
-where
-    Value: From<T>,
-{
-    fn add_assign(&mut self, rhs: T) {
-        self.0.push(Value::from(rhs));
-    }
 }
 
 impl Index<usize> for Array {
@@ -109,13 +73,6 @@ impl Index<usize> for Array {
     }
 }
 
-impl Index<usize> for TypedValue<Array> {
-    type Output = ValueContainer;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
 
 impl IntoIterator for Array {
     type Item = ValueContainer;

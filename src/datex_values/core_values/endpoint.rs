@@ -1,7 +1,5 @@
 use crate::crypto::random;
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::datex_type::CoreValueType;
-use crate::datex_values::typed_value::TypedValue;
+use crate::datex_values::core_value_trait::CoreValueTrait;
 use crate::datex_values::value::Value;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
@@ -67,44 +65,10 @@ pub struct Endpoint {
     pub instance: EndpointInstance,
 }
 
-impl CoreValue for Endpoint {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        match target {
-            CoreValueType::Text => Some(Value::boxed(Text(self.to_string()))),
-            _ => None,
-        }
-    }
+impl CoreValueTrait for Endpoint {
 
-    fn as_datex_value(&self) -> Value {
-        Value::boxed(self.clone())
-    }
-
-    fn static_type() -> CoreValueType {
-        CoreValueType::Endpoint
-    }
-
-    fn get_type(&self) -> CoreValueType {
-        Self::static_type()
-    }
 }
 
-impl From<Endpoint> for TypedValue<Endpoint> {
-    fn from(p: Endpoint) -> Self {
-        TypedValue(p)
-    }
-}
-
-impl From<Endpoint> for Value {
-    fn from(v: Endpoint) -> Self {
-        Value::boxed(v)
-    }
-}
 
 impl Default for Endpoint {
     fn default() -> Self {

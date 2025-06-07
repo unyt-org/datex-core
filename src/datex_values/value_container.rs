@@ -19,7 +19,7 @@ impl Display for ValueError {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ValueContainer {
     Value(Value),
     Pointer(Pointer),

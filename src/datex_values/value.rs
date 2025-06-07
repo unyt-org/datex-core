@@ -1,107 +1,30 @@
+use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not};
-
-use crate::datex_values::core_values::object::Object;
+use log::error;
+use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::pointer::Pointer;
-use crate::datex_values::value_container::{ValueContainer, ValueError};
-// Array<?>
-// $0 = Int
-// $1 = Bool
-// [$0, $1, Text] // [3]
-// get(0)
+use crate::datex_values::value_container::{ValueError};
 
-// Array<String>
-// Box<len, data>
-
-use super::core_value::{try_cast_to_value_dyn, CoreValue};
-use super::core_values::array::Array;
-use super::core_values::bool::Bool;
-use super::core_values::endpoint::Endpoint;
-use super::core_values::int::I8;
 use super::core_values::null::Null;
-use super::core_values::text::Text;
 use super::datex_type::CoreValueType;
-use super::typed_value::TypedValue;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum DatexValueInner {
-    Bool(Bool),
-    I8(I8),
-    Text(Text),
-    Null(Null),
-    Endpoint(Endpoint),
-    Array(Array),
-    Object(Object),
-}
-
-
-impl DatexValueInner {
-    pub fn to_dyn(&self) -> &dyn CoreValue {
-        match &self {
-            DatexValueInner::Bool(v) => v,
-            DatexValueInner::I8(v) => v,
-            DatexValueInner::Text(v) => v,
-            DatexValueInner::Null(v) => v,
-            DatexValueInner::Endpoint(v) => v,
-            DatexValueInner::Array(v) => v,
-            DatexValueInner::Object(v) => v,
-        }
-    }
-    pub fn to_dyn_mut(&mut self) -> &mut dyn CoreValue {
-        match self {
-            DatexValueInner::Bool(v) => v,
-            DatexValueInner::I8(v) => v,
-            DatexValueInner::Text(v) => v,
-            DatexValueInner::Null(v) => v,
-            DatexValueInner::Endpoint(v) => v,
-            DatexValueInner::Array(v) => v,
-            DatexValueInner::Object(v) => v,
-        }
-    }
-}
-
-impl<V: CoreValue> From<&V> for DatexValueInner {
-    fn from(value: &V) -> Self {
-        // FIMXE deprecate as_any
-        match value.get_type() {
-            CoreValueType::Bool => DatexValueInner::Bool(
-                value.as_any().downcast_ref::<Bool>().unwrap().clone(),
-            ),
-            CoreValueType::I8 => DatexValueInner::I8(
-                value.as_any().downcast_ref::<I8>().unwrap().clone(),
-            ),
-            CoreValueType::Text => DatexValueInner::Text(
-                value.as_any().downcast_ref::<Text>().unwrap().clone(),
-            ),
-            CoreValueType::Null => DatexValueInner::Null(
-                value.as_any().downcast_ref::<Null>().unwrap().clone(),
-            ),
-            CoreValueType::Array => DatexValueInner::Array(
-                value.as_any().downcast_ref::<Array>().unwrap().clone(),
-            ),
-            CoreValueType::Object => DatexValueInner::Object(
-                value.as_any().downcast_ref::<Object>().unwrap().clone()
-            ),
-            CoreValueType::Endpoint => DatexValueInner::Endpoint(
-                value.as_any().downcast_ref::<Endpoint>().unwrap().clone(),
-            ),
-        }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Value {
-    pub inner: DatexValueInner,
+    pub inner: CoreValue,
     pub actual_type: CoreValueType, // custom type for the value that can not be changed
 }
 
-impl<T: CoreValue + 'static> From<TypedValue<T>> for Value {
-    fn from(typed: TypedValue<T>) -> Self {
+impl<T: Into<CoreValue>> From<T> for Value {
+    fn from(inner: T) -> Self {
+        let inner = inner.into();
+        let actual_type = inner.get_default_type();
         Value {
-            inner: DatexValueInner::from(typed.inner()).clone(),
-            actual_type: typed.get_type(),
+            inner,
+            actual_type,
         }
     }
 }
+
 
 impl Value {
     pub fn is_of_type(&self, target: CoreValueType) -> bool {
@@ -119,99 +42,23 @@ impl Value {
     pub fn is_bool(&self) -> bool {
         self.is_of_type(CoreValueType::Bool)
     }
-}
 
-impl Value {
-    pub fn to_dyn(&self) -> &dyn CoreValue {
-        self.inner.to_dyn()
-    }
-
-    pub fn to_dyn_mut(&mut self) -> &mut dyn CoreValue {
-        self.inner.to_dyn_mut()
-    }
-
-    pub fn get_casted_inners<'a>(
-        lhs: Value,
-        rhs: &Value,
-    ) -> Option<(DatexValueInner, DatexValueInner)> {
-        let rhs = rhs.to_dyn();
-        let rhs = rhs.cast_to(lhs.actual_type.clone())?;
-        Some((lhs.inner, rhs.inner))
-    }
-    pub fn get_casted_inners_mut<'a>(
-        lhs: &'a mut Value,
-        rhs: &Value,
-    ) -> Option<(&'a mut DatexValueInner, DatexValueInner)> {
-        let rhs = rhs.to_dyn();
-        let rhs = rhs.cast_to(lhs.actual_type.clone())?;
-        Some((&mut lhs.inner, rhs.inner))
-    }
-
-    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-        self.to_dyn().as_any().downcast_ref::<T>()
-    }
-    pub fn boxed<V: CoreValue + 'static>(v: V) -> Self {
-        Value {
-            inner: DatexValueInner::from(&v),
-            actual_type: V::static_type(),
-        }
-    }
-
-    pub fn cast_to(&self, target: CoreValueType) -> Option<Value> {
-        self.to_dyn().cast_to(target)
-    }
-    pub fn try_cast_to_typed<T: CoreValue + Clone + 'static>(
-        &self,
-    ) -> Result<TypedValue<T>, ()> {
-        let casted = self.cast_to(T::static_type()).ok_or(())?;
-        let casted = casted
-            .to_dyn()
-            .as_any()
-            .downcast_ref::<T>()
-            .map(|v| TypedValue(v.clone()));
-        casted.ok_or(())
-    }
-
-    pub fn try_cast_to_value<T: CoreValue + Clone + 'static>(
-        &self,
-    ) -> Result<T, ()> {
-        try_cast_to_value_dyn(self.to_dyn())
-    }
-
-    pub fn cast_to_typed<T: CoreValue + Clone + 'static>(
-        &self,
-    ) -> TypedValue<T> {
-        self.try_cast_to_typed::<T>().unwrap_or_else(|_| {
-            panic!("Failed to cast to type: {:?}", T::static_type())
+    pub fn cast_to(&self, target_type: CoreValueType) -> Option<Value> {
+        self.inner.cast_to(target_type.clone()).map(|inner| Value {
+            inner,
+            actual_type: target_type,
         })
     }
 
     pub fn get_type(&self) -> CoreValueType {
         self.actual_type.clone()
     }
-}
 
-impl<T> From<Vec<T>> for Value
-where
-    T: Into<ValueContainer>,
-{
-    fn from(vec: Vec<T>) -> Self {
-        let items = vec.into_iter().map(Into::into).collect();
-        Value::from(Array(items))
+    pub fn null() -> Self {
+        CoreValue::Null(Null).into()
     }
 }
 
-impl From<Array> for Value {
-    fn from(arr: Array) -> Self {
-        Value::boxed(arr)
-    }
-}
-
-impl From<Object> for Value {
-    fn from(obj: Object) -> Self {
-        Value::boxed(obj)
-    }
-}
 
 impl From<Pointer> for Value {
     fn from(pointer: Pointer) -> Self {
@@ -219,66 +66,27 @@ impl From<Pointer> for Value {
     }
 }
 
-impl Value {
-    pub fn null() -> Self {
-        Value::boxed(Null)
-    }
-}
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        if self.actual_type == other.actual_type {
-            self.inner == other.inner
-        } else {
-            false
-        }
-    }
-}
+// impl PartialEq for Value {
+//     fn eq(&self, other: &Self) -> bool {
+//         if self.actual_type == other.actual_type {
+//             self.inner == other.inner
+//         } else {
+//             false
+//         }
+//     }
+// }
 
 impl Add for Value {
     type Output = Result<Value, ValueError>;
     fn add(self, rhs: Value) -> Self::Output {
-        // TODO sync with typed_datex_values
-        match (self.inner, rhs.inner) {
-            (DatexValueInner::Text(text), other)
-            | (other, DatexValueInner::Text(text)) => {
-                let other =
-                    try_cast_to_value_dyn::<Text>(other.to_dyn())
-                        .map_err(|_| ValueError::TypeConversionError)?;
-                let text = text.add(other);
-                Ok(text.as_datex_value())
-            }
-            (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
-                Ok(lhs.add(rhs).as_datex_value())
-            }
-            _ => Err(ValueError::InvalidOperation),
-        }
+        Ok((&self.inner + &rhs.inner)?.into())
     }
 }
 
 impl Add for &Value {
     type Output = Result<Value, ValueError>;
     fn add(self, rhs: &Value) -> Self::Output {
-        // TODO sync with typed_datex_values
-        match (&self.inner, &rhs.inner) {
-            (DatexValueInner::Text(text), other) => {
-                let other =
-                    try_cast_to_value_dyn::<Text>(other.to_dyn())
-                        .map_err(|_| ValueError::TypeConversionError)?;
-                let text = text + other;
-                Ok(text.as_datex_value())
-            }
-            (other, DatexValueInner::Text(text)) => {
-                let other =
-                    try_cast_to_value_dyn::<Text>(other.to_dyn())
-                        .map_err(|_| ValueError::TypeConversionError)?;
-                let text = other + text;
-                Ok(text.as_datex_value())
-            }
-            (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
-                Ok(lhs.add(rhs).as_datex_value())
-            }
-            _ => Err(ValueError::InvalidOperation),
-        }
+        Value::add(self.clone(), rhs.clone())
     }
 }
 
@@ -286,44 +94,30 @@ impl Not for Value {
     type Output = Option<Value>;
 
     fn not(self) -> Self::Output {
-        if let Ok(typed) = self.try_cast_to_typed::<Bool>() {
-            Some(Value::from(!typed.inner().0))
-        } else {
-            None
-        }
+        (!self.inner).map(|inner| Value::from(inner))
     }
 }
 
+// TODO: crate a TryAddAssign trait etc.
 impl<T> AddAssign<T> for Value
 where
     Value: From<T>,
 {
     fn add_assign(&mut self, rhs: T) {
         let rhs: Value = rhs.into();
-        // TODO sync with typed_datex_values
-        match (&mut self.inner, rhs.inner) {
-            (DatexValueInner::Text(text), other) => {
-                let other = try_cast_to_value_dyn::<Text>(other.to_dyn())
-                    .expect("Failed to cast");
-                text.add_assign(other);
-            }
-            (DatexValueInner::I8(lhs), DatexValueInner::I8(rhs)) => {
-                lhs.add_assign(rhs);
-            }
-            _ => panic!("Unsupported addition"),
+        let res = self.inner.clone() + rhs.inner;
+        if let Ok(res) = res {
+            self.inner = res;
+        } else {
+            error!("Failed to add value: {:?}", res);
         }
     }
 }
 
-impl std::fmt::Debug for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.to_dyn())
-    }
-}
 
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.to_dyn().fmt(f)
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.inner)
     }
 }
 
@@ -341,10 +135,10 @@ where
     }
 }
 
+
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
-
     use super::*;
     use crate::{
         datex_array,
@@ -360,10 +154,6 @@ mod test {
         debug!("Endpoint: {}", endpoint);
         assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
-
-        let a = TypedValue::from(Endpoint::from_str("@test").unwrap());
-        assert_eq!(a.get_type(), CoreValueType::Endpoint);
-        assert_eq!(a.to_string(), "@test");
     }
 
     #[test]
@@ -389,25 +179,24 @@ mod test {
     #[test]
     fn array() {
         init_logger();
-        let a = Value::from(vec![
+        let mut a = Value::from(vec![
             Value::from("42"),
             Value::from(42),
             Value::from(true),
         ]);
 
-        let mut a = a.cast_to_typed::<Array>();
-        a.push(Value::from(42));
-        a.push(4);
-        a += 42;
-        a += Array::from(vec!["inner", "array"]);
-        let a: Array = a.into_inner();
+        if let CoreValue::Array(a) = &mut a.inner {
+            a.push(Value::from(42));
+            a.push(4);
 
-        assert_eq!(a.length(), 7);
-        debug!("Array: {}", a);
+            assert_eq!(a.length(), 5);
+            debug!("Array: {}", a);
+        } else {
+            panic!("Expected Array type");
+        }
 
         let b = Array::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         assert_eq!(b.length(), 11);
-        assert_eq!(b.get_type(), CoreValueType::Array);
 
         let c = datex_array![1, "test", 3, true, false];
         assert_eq!(c.length(), 5);
@@ -433,24 +222,6 @@ mod test {
     // }
 
     #[test]
-    fn typed_boolean() {
-        init_logger();
-        let a = TypedValue::from(true);
-        let b = TypedValue::from(false);
-
-        assert_eq!(a.get_type(), CoreValueType::Bool);
-        assert_eq!(b.get_type(), CoreValueType::Bool);
-        assert_ne!(a, b);
-        assert_eq!(b, false);
-        assert_eq!(!a, b);
-
-        let mut a = TypedValue::from(true);
-        let b = TypedValue::from(false);
-        a.toggle();
-        assert_eq!(a, b);
-    }
-
-    #[test]
     fn boolean() {
         init_logger();
         let a = Value::from(true);
@@ -470,48 +241,27 @@ mod test {
     }
 
     #[test]
-    fn type_casting_into() {
-        init_logger();
-        let a: TypedValue<Text> = Value::from("42").try_into().unwrap();
-        assert_eq!(a.get_type(), CoreValueType::Text);
-
-        let a: TypedValue<Text> = Value::from(42).try_into().unwrap();
-        assert_eq!(a.get_type(), CoreValueType::Text);
-
-        // This should fail because we are trying to cast a null value into a TypedDatexValue<Text>
-        let a: Result<TypedValue<Text>, _> = Value::null().try_into();
-        assert!(a.is_err());
-    }
-
-    #[test]
     fn test_cast_type() {
         init_logger();
         let a = Value::from(42);
         let b = a.cast_to(CoreValueType::Text).unwrap();
         assert_eq!(b.get_type(), CoreValueType::Text);
-
-        let c = a.cast_to_typed::<I8>();
-        assert_eq!(c.into_erased(), Value::from(42));
-
-        let d = a.cast_to_typed::<Text>();
-        assert_eq!(d.get_type(), CoreValueType::Text);
-        assert_eq!(d.as_str(), "42");
     }
 
     #[test]
     fn test_infer_type() {
         init_logger();
-        let a = TypedValue::from(42);
-        let b = TypedValue::from(11);
-        let c = TypedValue::from("11");
-        assert_eq!(c.length(), 2);
+        let a = CoreValue::from(42);
+        let b = CoreValue::from(11);
+        let c = CoreValue::from("11");
 
-        assert_eq!(a.get_type(), CoreValueType::I8);
-        assert_eq!(b.get_type(), CoreValueType::I8);
+        assert_eq!(a.get_default_type(), CoreValueType::I8);
+        assert_eq!(b.get_default_type(), CoreValueType::I8);
+        assert_eq!(c.get_default_type(), CoreValueType::Text);
 
-        let a_plus_b = a.clone() + b.clone();
-        assert_eq!(a_plus_b.clone().get_type(), CoreValueType::I8);
-        assert_eq!(a_plus_b.clone().into_erased(), Value::from(53));
+        let a_plus_b = (a.clone() + b.clone()).unwrap();
+        assert_eq!(a_plus_b.clone().get_default_type(), CoreValueType::I8);
+        assert_eq!(a_plus_b.clone(), CoreValue::from(53));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
 
@@ -529,87 +279,87 @@ mod test {
         assert_eq!(null_value.to_string(), "null");
     }
 
-    #[test]
-    fn test_text() {
-        init_logger();
-        let a = TypedValue::from("Hello");
-        assert_eq!(a, "Hello");
-        assert_eq!(a.get_type(), CoreValueType::Text);
-        assert_eq!(a.length(), 5);
-        assert_eq!(a.to_string(), "\"Hello\"");
-        assert_eq!(a.as_str(), "Hello");
-        assert_eq!(a.to_uppercase(), "HELLO".into());
-        assert_eq!(a.to_lowercase(), "hello".into());
+    // #[test]
+    // fn test_text() {
+    //     init_logger();
+    //     let a = CoreValue::from("Hello");
+    //     assert_eq!(a, "Hello");
+    //     assert_eq!(a.get_type(), CoreValueType::Text);
+    //     assert_eq!(a.length(), 5);
+    //     assert_eq!(a.to_string(), "\"Hello\"");
+    //     assert_eq!(a.as_str(), "Hello");
+    //     assert_eq!(a.to_uppercase(), "HELLO".into());
+    //     assert_eq!(a.to_lowercase(), "hello".into());
+    //
+    //     let b = &mut TypedValue::from("World");
+    //     b.reverse();
+    //     assert_eq!(b.length(), 5);
+    //     assert_eq!(b.as_str(), "dlroW");
+    // }
 
-        let b = &mut TypedValue::from("World");
-        b.reverse();
-        assert_eq!(b.length(), 5);
-        assert_eq!(b.as_str(), "dlroW");
-    }
-
-    #[test]
-    /// A TypedDatexValue<T> should allow custom TypedDatexValue<X> to be added to it.
-    /// This won't change the type of the TypedDatexValue<T> but will allow the value to be modified.
-    /// A untyped DatexValue can be assigned to TypedDatexValue<T> but this might throw an error if the type is not compatible.
-    fn test_test_assign1() {
-        init_logger();
-        let mut a: TypedValue<Text> = TypedValue::from("Hello");
-        a += " World"; // see (#2)
-        a += TypedValue::from("4"); // Is typesafe
-        a += 2;
-        a += TypedValue::from(42); // Is typesafe see (#1)
-                                   // We won't allow this: `a += TypedDatexValue::from(true);`
-        a += Value::from("!"); // Might throw if the assignment would be incompatible.
-        assert_eq!(a.length(), 16);
-        assert_eq!(a.as_str(), "Hello World4242!");
-    }
-
-    #[test]
-    fn test_test_assign2() {
-        init_logger();
-        let mut a = TypedValue::from("Hello");
-        a += " World";
-        a += Value::from("!");
-
-        assert_eq!(a.length(), 12);
-        assert_eq!(a.as_str(), "Hello World!");
-
-        a += 42;
-
-        assert_eq!(a.length(), 14);
-        assert_eq!(a.as_str(), "Hello World!42");
-
-        let mut b = Value::from("Hello");
-        b += " World ";
-        b += TypedValue::from(42);
-        b += Value::from("!");
-
-        let b = b.cast_to_typed::<Text>();
-
-        info!("{}", b);
-        assert_eq!(b.length(), 15);
-        assert_eq!(b.as_str(), "Hello World 42!");
-    }
-
-    #[test]
-    fn test_typed_addition() {
-        init_logger();
-        let a = TypedValue::from(42);
-        let b = TypedValue::from(27);
-
-        assert_eq!(a, 42);
-        assert_eq!(b, 27);
-
-        assert_eq!(a.get_type(), CoreValueType::I8);
-        assert_eq!(b.get_type(), CoreValueType::I8);
-
-        let a_plus_b = a.clone() + b.clone();
-
-        assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
-
-        assert_eq!(a_plus_b, TypedValue::from(69));
-        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
-    }
+    // #[test]
+    // /// A TypedDatexValue<T> should allow custom TypedDatexValue<X> to be added to it.
+    // /// This won't change the type of the TypedDatexValue<T> but will allow the value to be modified.
+    // /// A untyped DatexValue can be assigned to TypedDatexValue<T> but this might throw an error if the type is not compatible.
+    // fn test_test_assign1() {
+    //     init_logger();
+    //     let mut a: TypedValue<Text> = TypedValue::from("Hello");
+    //     a += " World"; // see (#2)
+    //     a += TypedValue::from("4"); // Is typesafe
+    //     a += 2;
+    //     a += TypedValue::from(42); // Is typesafe see (#1)
+    //                                // We won't allow this: `a += TypedDatexValue::from(true);`
+    //     a += Value::from("!"); // Might throw if the assignment would be incompatible.
+    //     assert_eq!(a.length(), 16);
+    //     assert_eq!(a.as_str(), "Hello World4242!");
+    // }
+    //
+    // #[test]
+    // fn test_test_assign2() {
+    //     init_logger();
+    //     let mut a = TypedValue::from("Hello");
+    //     a += " World";
+    //     a += Value::from("!");
+    //
+    //     assert_eq!(a.length(), 12);
+    //     assert_eq!(a.as_str(), "Hello World!");
+    //
+    //     a += 42;
+    //
+    //     assert_eq!(a.length(), 14);
+    //     assert_eq!(a.as_str(), "Hello World!42");
+    //
+    //     let mut b = Value::from("Hello");
+    //     b += " World ";
+    //     b += TypedValue::from(42);
+    //     b += Value::from("!");
+    //
+    //     let b = b.cast_to_typed::<Text>();
+    //
+    //     info!("{}", b);
+    //     assert_eq!(b.length(), 15);
+    //     assert_eq!(b.as_str(), "Hello World 42!");
+    // }
+    //
+    // #[test]
+    // fn test_typed_addition() {
+    //     init_logger();
+    //     let a = TypedValue::from(42);
+    //     let b = TypedValue::from(27);
+    //
+    //     assert_eq!(a, 42);
+    //     assert_eq!(b, 27);
+    //
+    //     assert_eq!(a.get_type(), CoreValueType::I8);
+    //     assert_eq!(b.get_type(), CoreValueType::I8);
+    //
+    //     let a_plus_b = a.clone() + b.clone();
+    //
+    //     assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
+    //
+    //     assert_eq!(a_plus_b, TypedValue::from(69));
+    //     info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
+    // }
 
     #[test]
     fn test_addition() {

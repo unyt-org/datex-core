@@ -1,7 +1,7 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::object::Object;
-use crate::datex_values::value::{DatexValueInner, Value};
+use crate::datex_values::value::{Value};
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
     Instruction, Int8Data, ShortTextData,
@@ -9,6 +9,7 @@ use crate::global::protocol_structures::instructions::{
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
+use crate::datex_values::core_value::CoreValue;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -200,7 +201,7 @@ fn execute_loop(
                             match active_value {
                                 ActiveValue::ValueContainer(
                                     ValueContainer::Value(Value {
-                                        inner: DatexValueInner::Object(object),
+                                        inner: CoreValue::Object(object),
                                         ..
                                     }),
                                 ) => {
@@ -208,7 +209,7 @@ fn execute_loop(
                                     match key {
                                         ValueContainer::Value(Value {
                                             inner:
-                                                DatexValueInner::Text(key_str),
+                                                CoreValue::Text(key_str),
                                             ..
                                         }) => {
                                             object.set(
@@ -271,7 +272,7 @@ fn execute_loop(
                                 // add value to array scope
                                 match active_value_container {
                                     ValueContainer::Value(Value {
-                                        inner: DatexValueInner::Array(array),
+                                        inner: CoreValue::Array(array),
                                         ..
                                     }) => {
                                         // append value to array

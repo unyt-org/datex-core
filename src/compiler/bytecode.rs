@@ -6,7 +6,7 @@ use regex::Regex;
 use crate::compiler::CompilerError;
 use crate::compiler::operations::parse_operator;
 use crate::compiler::parser::{DatexParser, Rule};
-use crate::datex_values::value::DatexValueInner;
+use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use crate::utils::buffers::{append_f64, append_i16, append_i32, append_i64, append_i8, append_u32, append_u8};
@@ -49,20 +49,20 @@ impl CompilationScope {
         match value_container {
             ValueContainer::Value(val) => {
                 match &val.inner {
-                    DatexValueInner::I8(val) => {
-                        self.insert_int8(val.0);
+                    CoreValue::Integer(val) => {
+                        self.insert_int8(val.as_i128() as i8); // TODO
                     }
-                    DatexValueInner::Text(val) => {
+                    CoreValue::Text(val) => {
                         self.insert_string(&val.0.clone());
                     }
-                    DatexValueInner::Array(val) => {
+                    CoreValue::Array(val) => {
                         self.append_binary_code(InstructionCode::ARRAY_START);
                         for item in val {
                             self.insert_value_container(item);
                         }
                         self.append_binary_code(InstructionCode::SCOPE_END);
                     }
-                    DatexValueInner::Object(val) => {
+                    CoreValue::Object(val) => {
                         self.append_binary_code(InstructionCode::OBJECT_START);
                         println!("Object: {val:?}");
                         for (key, value) in val {
@@ -473,6 +473,7 @@ pub mod tests {
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
+    use crate::datex_values::core_value::CoreValue;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
