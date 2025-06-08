@@ -831,7 +831,7 @@ pub mod tests {
     #[test]
     fn test_decimal() {
         init_logger();
-        let val: f64 = 42.1;
+        let val: f32 = 42.1;
         let datex_script = format!("{val}"); // 42.1
         let result = compile_and_log(&datex_script);
         let bytes = val.to_le_bytes();
