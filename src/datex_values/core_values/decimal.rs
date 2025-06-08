@@ -388,7 +388,6 @@ pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
     }
 }
 
-// TODO: normal decimal must always use f64 under the hood, otherwise soft_eq and eq will not work correctly for all cases!
 #[derive(Debug, Clone, Eq)]
 pub struct Decimal(pub TypedDecimal);
 impl SoftEq for Decimal {
@@ -399,7 +398,10 @@ impl SoftEq for Decimal {
 impl<T: Into<TypedDecimal>> From<T> for Decimal {
     fn from(value: T) -> Self {
         let typed = value.into();
-        Decimal(TypedDecimal::Big(ExtendedBigDecimal::from(typed.as_f64())))
+        match typed {
+            TypedDecimal::Big(_) => Decimal(typed),
+            _ => Decimal(TypedDecimal::Big(ExtendedBigDecimal::from(typed.as_f64())))
+        }
     }
 }
 

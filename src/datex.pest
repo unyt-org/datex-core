@@ -148,12 +148,12 @@ decimal = @{
 
 // text
 // such as 'test' or "test" including proper escape literals
-text = { double_quoted_text | single_quoted_text }
+text = @{ double_quoted_text | single_quoted_text }
 double_quoted_text = { "\"" ~ double_text_chunk* ~ "\"" }
 single_quoted_text = { "'" ~ single_text_chunk* ~ "'" }
-double_text_chunk = _{ escape_sequence | double_normal_chars }
+double_text_chunk = _{ escape_sequence  | double_normal_chars }
 single_text_chunk = _{ escape_sequence | single_normal_chars }
-escape_sequence = { "\\" ~ ( "\"" | "'" | "\\" | "n" | "t" | "r" ) }
+escape_sequence = _{ "\\" ~ ANY }
 double_normal_chars = _{ (!( "\"" | "\\" ) ~ ANY)+ }
 single_normal_chars = _{ (!( "'" | "\\" ) ~ ANY)+ }
 

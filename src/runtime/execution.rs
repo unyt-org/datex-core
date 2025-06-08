@@ -144,7 +144,7 @@ fn execute_loop(
                 Decimal::from(i32 as f32).into()
             }
             Instruction::DecimalBig(BigDecimalData(big_decimal)) => {
-                Decimal::from(big_decimal).into()
+                Decimal(TypedDecimal::Big(big_decimal)).into()
             }
 
             // null
@@ -215,7 +215,6 @@ fn execute_loop(
 
             Instruction::ScopeEnd => {
                 // pop scope and return value
-                println!("Scope end reached, returning value");
                 scope_stack.pop()?
             }
 
@@ -572,15 +571,14 @@ mod tests {
         assert_soft_eq!(result, ValueContainer::from(false));
     }
 
-    // TODO: normal decimal must always use f64 under the hood, otherwise soft_eq and eq will not work correctly for all cases!
     #[test]
     fn test_decimal() {
         let result = execute_datex_script_debug_with_result("1.2345");
-        assert_eq!(result, Decimal::from(1.2345).into());
+        assert_eq!(result, Decimal::from("1.2345").into());
         assert_soft_eq!(result, ValueContainer::from(1.2345));
 
         let result = execute_datex_script_debug_with_result("-3.456");
-        assert_eq!(result, Decimal::from(-3.456).into());
+        assert_eq!(result, Decimal::from("-3.456").into());
         assert_soft_eq!(result, ValueContainer::from(-3.456));
     }
 
