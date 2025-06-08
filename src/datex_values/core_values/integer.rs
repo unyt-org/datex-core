@@ -154,7 +154,7 @@ impl TypedInteger {
             TypedInteger::U128(_) => "/u128",
         }
     }
-    fn as_u128(&self) -> u128 {
+    pub fn as_u128(&self) -> u128 {
         match self {
             TypedInteger::U8(v) => *v as u128,
             TypedInteger::U16(v) => *v as u128,

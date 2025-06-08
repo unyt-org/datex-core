@@ -211,6 +211,7 @@ pub enum InstructionCode {
 
     UINT_128 = 0xfd,
 
+    FLOAT_32 = 0xfa,
     FLOAT_64 = 0xc5,
     TRUE = 0xc6,
     FALSE = 0xc7,
@@ -220,7 +221,7 @@ pub enum InstructionCode {
     SCOPE_BLOCK_START = 0xcb,
     QUANTITY = 0xcc,
     FLOAT_AS_INT_32 = 0xcd,
-    FLOAT_AS_INT_8 = 0xde,
+    FLOAT_AS_INT_16 = 0xde,
     BIG_INT = 0xdf,
 
     SHORT_TEXT = 0xce, // string with max. 255 characters

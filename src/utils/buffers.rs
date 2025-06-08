@@ -222,6 +222,10 @@ pub fn append_f64(buffer: &mut Vec<u8>, val: f64) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
 
+pub fn append_f32(buffer: &mut Vec<u8>, val: f32) {
+    buffer.extend_from_slice(&val.to_le_bytes());
+}
+
 pub fn append_string_utf8(buffer: &mut Vec<u8>, val: &str) {
     buffer.extend_from_slice(val.as_bytes());
 }

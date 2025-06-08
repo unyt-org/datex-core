@@ -1,5 +1,7 @@
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
+use crate::datex_values::core_values::decimal::decimal_to_string;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
     Int8(Int8Data),
@@ -7,14 +9,13 @@ pub enum Instruction {
     Int32(Int32Data),
     Int64(Int64Data),
     Int128(Int128Data),
-
-    UInt8(UInt8Data),
-    UInt16(UInt16Data),
-    UInt32(UInt32Data),
-    UInt64(UInt64Data),
     UInt128(UInt128Data),
 
+    Float32(Float32Data),
     Float64(Float64Data),
+    FloatAsInt16(FloatAsInt16Data),
+    FloatAsInt32(FloatAsInt32Data),
+
     ShortText(ShortTextData),
     Text(TextData),
     True,
@@ -40,14 +41,12 @@ impl Display for Instruction {
             Instruction::Int32(data) => write!(f, "INT_32 {}", data.0),
             Instruction::Int64(data) => write!(f, "INT_64 {}", data.0),
             Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
-
-            Instruction::UInt8(data) => write!(f, "UINT_8 {}", data.0),
-            Instruction::UInt16(data) => write!(f, "UINT_16 {}", data.0),
-            Instruction::UInt32(data) => write!(f, "UINT_32 {}", data.0),
-            Instruction::UInt64(data) => write!(f, "UINT_64 {}", data.0),
             Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
 
-            Instruction::Float64(data) => write!(f, "FLOAT_64 {}", data.0),
+            Instruction::FloatAsInt16(data) => write!(f, "FLOAT_AS_INT_16 {}", data.0),
+            Instruction::FloatAsInt32(data) => write!(f, "FLOAT_AS_INT_32 {}", data.0),
+            Instruction::Float32(data) => write!(f, "FLOAT_32 {}", decimal_to_string(data.0, false)),
+            Instruction::Float64(data) => write!(f, "FLOAT_64 {}", decimal_to_string(data.0, false)),
             Instruction::ShortText(data) => write!(f, "SHORT_TEXT {}", data.0),
             Instruction::Text(data) => write!(f, "TEXT {}", data.0),
             Instruction::True => write!(f, "TRUE"),
@@ -111,7 +110,19 @@ pub struct UInt128Data(pub u128);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
+pub struct Float32Data(pub f32);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
 pub struct Float64Data(pub f64);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct FloatAsInt16Data(pub i16);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct FloatAsInt32Data(pub i32);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

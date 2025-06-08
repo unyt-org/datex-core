@@ -6,12 +6,11 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{
-    Float64Data, Instruction, ShortTextData,
-};
+use crate::global::protocol_structures::instructions::{Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
+use crate::datex_values::core_values::decimal::Decimal;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -131,15 +130,21 @@ fn execute_loop(
             Instruction::Int128(integer) => Integer::from(integer.0).into(),
 
             // unsigned integers
-            Instruction::UInt8(integer) => Integer::from(integer.0).into(),
-            Instruction::UInt16(integer) => Integer::from(integer.0).into(),
-            Instruction::UInt32(integer) => Integer::from(integer.0).into(),
-            Instruction::UInt64(integer) => Integer::from(integer.0).into(),
             Instruction::UInt128(integer) => Integer::from(integer.0).into(),
 
             // floats
-            Instruction::Float64(Float64Data(f64)) => f64.into(),
-
+            Instruction::Float32(Float32Data(f32)) => Decimal::from(f32).into(),
+            Instruction::Float64(Float64Data(f64)) => Decimal::from(f64).into(),
+            Instruction::FloatAsInt16(FloatAsInt16Data(i16)) => {
+                Decimal::from(i16 as f32).into()
+            }
+            Instruction::FloatAsInt32(FloatAsInt32Data(i32)) => {
+                Decimal::from(i32 as f32).into()
+            }
+            
+            // null
+            Instruction::Null => Value::null().into(),
+            
             // text
             Instruction::ShortText(ShortTextData(text)) => text.into(),
 

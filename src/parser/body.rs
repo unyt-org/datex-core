@@ -9,7 +9,7 @@ use crate::datex_values_old::{
 };
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
+use crate::global::protocol_structures::instructions::{Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
 use crate::utils::buffers;
 
 fn extract_slot_identifier(
@@ -204,10 +204,33 @@ pub fn iterate_instructions<'a>(
                         else { Ok(Instruction::Int64(data.unwrap())) }
                     }
                     
+                    InstructionCode::INT_128 => {
+                        let data = Int128Data::read(&mut reader);
+                        if let Err(err) = data { Err(err.into()) }
+                        else { Ok(Instruction::Int128(data.unwrap())) }
+                    }
+                    
+                    InstructionCode::FLOAT_32 => {
+                        let data = Float32Data::read(&mut reader);
+                        if let Err(err) = data { Err(err.into()) }
+                        else { Ok(Instruction::Float32(data.unwrap())) }
+                    }
                     InstructionCode::FLOAT_64 => {
                         let data = Float64Data::read(&mut reader);
                         if let Err(err) = data { Err(err.into()) }
                         else { Ok(Instruction::Float64(data.unwrap())) }
+                    }
+                    
+                    InstructionCode::FLOAT_AS_INT_16 => {
+                        let data = FloatAsInt16Data::read(&mut reader);
+                        if let Err(err) = data { Err(err.into()) }
+                        else { Ok(Instruction::FloatAsInt16(data.unwrap())) }
+                    }
+                    
+                    InstructionCode::FLOAT_AS_INT_32 => {
+                        let data = FloatAsInt32Data::read(&mut reader);
+                        if let Err(err) = data { Err(err.into()) }
+                        else { Ok(Instruction::FloatAsInt32(data.unwrap())) }
                     }
                     
                     InstructionCode::SHORT_TEXT => {

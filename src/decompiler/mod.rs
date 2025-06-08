@@ -12,7 +12,8 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
-use crate::global::protocol_structures::instructions::{Float64Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
+use crate::datex_values::core_values::decimal::decimal_to_string;
+use crate::global::protocol_structures::instructions::{Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 
@@ -279,9 +280,24 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 write!(output, "{i64}")?;
                 handle_after_term(state, &mut output, true)?;
             }
+            Instruction::Float32(Float32Data(f32)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{}", decimal_to_string(f32, state.options.json_compat))?;
+                handle_after_term(state, &mut output, true)?;
+            }
             Instruction::Float64(Float64Data(f64)) => {
                 handle_before_term(state, &mut output, true)?;
-                write!(output, "{f64}")?;
+                write!(output, "{}", decimal_to_string(f64, state.options.json_compat))?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::FloatAsInt16(FloatAsInt16Data(i16)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{}", decimal_to_string(i16 as f32, state.options.json_compat))?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::FloatAsInt32(FloatAsInt32Data(i32)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{}", decimal_to_string(i32 as f32, state.options.json_compat))?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::ShortText(ShortTextData(text)) => {

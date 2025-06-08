@@ -2,18 +2,16 @@ use crate::compiler::operations::parse_operator;
 use crate::compiler::parser::{DatexParser, Rule};
 use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::integer::TypedInteger;
+use crate::datex_values::core_values::integer::{smallest_fitting_signed, Integer, TypedInteger};
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
-use crate::utils::buffers::{
-    append_f64, append_i128, append_i16, append_i32, append_i64, append_i8,
-    append_u128, append_u32, append_u8,
-};
+use crate::utils::buffers::{append_f32, append_f64, append_i128, append_i16, append_i32, append_i64, append_i8, append_u128, append_u32, append_u8};
 use log::info;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
+use crate::datex_values::core_values::decimal::{smallest_fitting_float, Decimal, TypedDecimal};
 
 struct CompilationScope {
     index: Cell<usize>,
@@ -40,44 +38,50 @@ impl CompilationScope {
     const INT_64_BYTES: u8 = 8;
     const INT_128_BYTES: u8 = 16;
 
+    const FLOAT_32_BYTES: u8 = 4;
     const FLOAT_64_BYTES: u8 = 8;
 
     fn insert_value_container(&self, value_container: &ValueContainer) {
         match value_container {
             ValueContainer::Value(val) => match &val.inner {
-                CoreValue::TypedInteger(val) => match val.to_smallest_fitting()
-                {
-                    TypedInteger::I8(val) => {
-                        self.insert_i8(val);
-                    }
-                    TypedInteger::I16(val) => {
-                        self.insert_i16(val);
-                    }
-                    TypedInteger::I32(val) => {
-                        self.insert_i32(val);
-                    }
-                    TypedInteger::I64(val) => {
-                        self.insert_i64(val);
-                    }
-                    TypedInteger::I128(val) => {
-                        self.insert_i128(val);
-                    }
-                    TypedInteger::U8(val) => {
-                        self.insert_u8(val);
-                    }
-                    TypedInteger::U16(val) => {
-                        self.insert_u16(val);
-                    }
-                    TypedInteger::U32(val) => {
-                        self.insert_u32(val);
-                    }
-                    TypedInteger::U64(val) => {
-                        self.insert_u64(val);
-                    }
-                    TypedInteger::U128(val) => {
-                        self.insert_u128(val);
-                    }
-                },
+                CoreValue::TypedInteger(val) |
+                CoreValue::Integer(Integer(val)) =>
+                    match val.to_smallest_fitting() {
+                        TypedInteger::I8(val) => {
+                            self.insert_i8(val);
+                        }
+                        TypedInteger::I16(val) => {
+                            self.insert_i16(val);
+                        }
+                        TypedInteger::I32(val) => {
+                            self.insert_i32(val);
+                        }
+                        TypedInteger::I64(val) => {
+                            self.insert_i64(val);
+                        }
+                        TypedInteger::I128(val) => {
+                            self.insert_i128(val);
+                        }
+                        TypedInteger::U8(val) => {
+                            self.insert_u8(val);
+                        }
+                        TypedInteger::U16(val) => {
+                            self.insert_u16(val);
+                        }
+                        TypedInteger::U32(val) => {
+                            self.insert_u32(val);
+                        }
+                        TypedInteger::U64(val) => {
+                            self.insert_u64(val);
+                        }
+                        TypedInteger::U128(val) => {
+                            self.insert_u128(val);
+                        }
+                    },
+                CoreValue::Decimal(Decimal(val)) |
+                CoreValue::TypedDecimal(val) => self.insert_decimal(val),
+                CoreValue::Bool(val) => self.insert_boolean(val.0),
+                CoreValue::Null(_) => self.append_binary_code(InstructionCode::NULL),
                 CoreValue::Text(val) => {
                     self.insert_string(&val.0.clone());
                 }
@@ -161,10 +165,56 @@ impl CompilationScope {
         )
         .into_owned()
     }
+    
+    fn insert_decimal(&self, decimal: &TypedDecimal) {
+        
+        fn insert_f32_or_f64 (scope: &CompilationScope, decimal: &TypedDecimal) {
+            match decimal {
+                TypedDecimal::F32(val) => {
+                    scope.insert_float32(val.into_inner());
+                }
+                TypedDecimal::F64(val) => {
+                    scope.insert_float64(val.into_inner());
+                }
+            }
+        }
+        
+        match decimal.as_integer() {
+            Some(int) => {
+                let smallest = smallest_fitting_signed(int as i128);
+                match smallest {
+                    TypedInteger::I8(val) => {
+                        self.insert_float_as_i16(val as i16);
+                    }
+                    TypedInteger::I16(val) => {
+                        self.insert_float_as_i16(val);
+                    }
+                    TypedInteger::I32(val) => {
+                        self.insert_float_as_i32(val);
+                    }
+                    _  => insert_f32_or_f64(&self, decimal)
+                }
+            }
+            None => insert_f32_or_f64(&self, decimal)
+        }
+    }
 
+    fn insert_float32(&self, float32: f32) {
+        self.append_binary_code(InstructionCode::FLOAT_32);
+        self.append_f32(float32);
+    }
     fn insert_float64(&self, float64: f64) {
         self.append_binary_code(InstructionCode::FLOAT_64);
         self.append_f64(float64);
+    }
+
+    fn insert_float_as_i16(&self, int: i16) {
+        self.append_binary_code(InstructionCode::FLOAT_AS_INT_16);
+        self.append_i16(int);
+    }
+    fn insert_float_as_i32(&self, int: i32) {
+        self.append_binary_code(InstructionCode::FLOAT_AS_INT_32);
+        self.append_i32(int);
     }
 
     fn insert_int(&self, int: i64) {
@@ -268,6 +318,11 @@ impl CompilationScope {
             .update(|x| x + CompilationScope::INT_128_BYTES as usize);
     }
 
+    fn append_f32(&self, f32: f32) {
+        append_f32(self.buffer.borrow_mut().as_mut(), f32);
+        self.index
+            .update(|x| x + CompilationScope::FLOAT_32_BYTES as usize);
+    }
     fn append_f64(&self, f64: f64) {
         append_f64(self.buffer.borrow_mut().as_mut(), f64);
         self.index
@@ -441,7 +496,8 @@ fn parse_term(
         }
         Rule::decimal => {
             let decimal = term.as_str().parse::<f64>().unwrap();
-            compilation_scope.insert_float64(decimal);
+            let smallest_decimal = smallest_fitting_float(decimal);
+            compilation_scope.insert_decimal(&smallest_decimal);
         }
         Rule::text => {
             let string = term.as_str();

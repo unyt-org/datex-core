@@ -93,8 +93,7 @@ indexed_tuple = _{ (expression_without_keys ~ "," ~ (expression_without_keys ~ "
 // - null
 boolean = { "true" | "false" }
 null = { "null" }
-void = { "void" }
-reserved_literals = _{ boolean | null | void }
+reserved_literals = _{ boolean | null }
 literals = _{ reserved_literals ~ !ASCII_ALPHANUMERIC }
 
 
@@ -128,10 +127,15 @@ integer = @{
 // decimal
 // such as 4.2 or 4.
 decimal = @{
-    "-"?
-    ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
-    ~ ("." ~ ASCII_DIGIT*)
-    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+	"-"? ~
+    (
+      (
+          ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+          ~ ("." ~ ASCII_DIGIT*)
+          ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+      )
+      | "nan" | "infinity" | "NaN" | "Infinity"
+    )
 }
 
 
