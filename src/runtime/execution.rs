@@ -6,7 +6,7 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData};
+use crate::global::protocol_structures::instructions::{Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData, TextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
@@ -147,6 +147,7 @@ fn execute_loop(
 
             // text
             Instruction::ShortText(ShortTextData(text)) => text.into(),
+            Instruction::Text(TextData(text)) => text.into(),
 
             // operations
             Instruction::Add => {
