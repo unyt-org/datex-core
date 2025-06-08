@@ -1,16 +1,19 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
+use crate::datex_values::core_values::decimal::Decimal;
 use crate::datex_values::core_values::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData, TextData};
+use crate::global::protocol_structures::instructions::{
+    Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction,
+    ShortTextData, TextData,
+};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
-use crate::datex_values::core_values::decimal::Decimal;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -334,7 +337,9 @@ fn execute_loop(
                                         ..
                                     }) => {
                                         // automatic tuple keys are always default integer values
-                                        let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
+                                        let index = CoreValue::Integer(
+                                            Integer::from(tuple.next_int_key()),
+                                        );
                                         tuple.set(index, value_container);
                                     }
                                     _ => {
@@ -416,9 +421,10 @@ mod tests {
 
     use super::*;
     use crate::compiler::bytecode::compile_script;
-    use crate::datex_array;
+    use crate::datex_values::soft_eq::SoftEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
+    use crate::{assert_soft_eq, datex_array};
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -468,15 +474,15 @@ mod tests {
 
     #[test]
     fn test_single_value_scope() {
-        assert_eq!(
-            execute_datex_script_debug_with_result("(42)"),
-            Integer::from(42).into()
-        );
+        let result = execute_datex_script_debug_with_result("(42)");
+        assert_eq!(result, Integer::from(42).into());
+        assert_soft_eq!(result, ValueContainer::from(42 as u128));
     }
 
     #[test]
     fn test_add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
+        assert_soft_eq!(result, ValueContainer::from(3 as u128));
         assert_eq!(result, Integer::from(3).into());
     }
 
@@ -505,6 +511,7 @@ mod tests {
     fn test_empty_array() {
         let result = execute_datex_script_debug_with_result("[]");
         assert_eq!(result, Vec::<ValueContainer>::new().into());
+        assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
     }
 
     #[test]
@@ -513,6 +520,8 @@ mod tests {
         let expected =
             datex_array![Integer::from(1), Integer::from(2), Integer::from(3)];
         assert_eq!(result, expected.into());
+        assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
+        assert_soft_eq!(result, ValueContainer::from(vec![1, 2, 3]));
     }
 
     #[test]
@@ -523,15 +532,25 @@ mod tests {
             datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
 
         assert_eq!(result, expected.into());
+        assert_ne!(
+            result,
+            ValueContainer::from(vec![1 as u8, 5 as u8, 4 as u8])
+        );
+        assert_soft_eq!(
+            result,
+            ValueContainer::from(vec![1 as u8, 5 as u8, 4 as u8])
+        );
     }
 
     #[test]
     fn test_boolean() {
         let result = execute_datex_script_debug_with_result("true");
         assert_eq!(result, true.into());
+        assert_soft_eq!(result, ValueContainer::from(true));
 
         let result = execute_datex_script_debug_with_result("false");
         assert_eq!(result, false.into());
+        assert_soft_eq!(result, ValueContainer::from(false));
     }
 
     // TODO: normal decimal must always use f64 under the hood, otherwise soft_eq and eq will not work correctly for all cases!
@@ -539,9 +558,11 @@ mod tests {
     fn test_decimal() {
         let result = execute_datex_script_debug_with_result("1.2345");
         assert_eq!(result, Decimal::from(1.2345).into());
+        assert_soft_eq!(result, ValueContainer::from(1.2345));
 
         let result = execute_datex_script_debug_with_result("-3.456");
         assert_eq!(result, Decimal::from(-3.456).into());
+        assert_soft_eq!(result, ValueContainer::from(-3.456));
     }
 
     #[test]
@@ -549,6 +570,8 @@ mod tests {
         init_logger();
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
+        assert_ne!(result, (2 as u8).into());
+        assert_soft_eq!(result, ValueContainer::from(2 as u8));
     }
 
     #[test]
