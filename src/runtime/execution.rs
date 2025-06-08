@@ -141,10 +141,10 @@ fn execute_loop(
             Instruction::FloatAsInt32(FloatAsInt32Data(i32)) => {
                 Decimal::from(i32 as f32).into()
             }
-            
+
             // null
             Instruction::Null => Value::null().into(),
-            
+
             // text
             Instruction::ShortText(ShortTextData(text)) => text.into(),
 
@@ -332,9 +332,8 @@ fn execute_loop(
                                         inner: CoreValue::Tuple(tuple),
                                         ..
                                     }) => {
-                                        let index: CoreValue = CoreValue::from(
-                                            tuple.size() as i64,
-                                        );
+                                        // automatic tuple keys are always default integer values
+                                        let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
                                         tuple.set(index, value_container);
                                     }
                                     _ => {
@@ -534,13 +533,14 @@ mod tests {
         assert_eq!(result, false.into());
     }
 
+    // TODO: normal decimal must always use f64 under the hood, otherwise soft_eq and eq will not work correctly for all cases!
     #[test]
     fn test_decimal() {
-        let result = execute_datex_script_debug_with_result("3.947");
-        assert_eq!(result, 3.947.into());
+        let result = execute_datex_script_debug_with_result("1.2345");
+        assert_eq!(result, Decimal::from(1.2345).into());
 
-        let result = execute_datex_script_debug_with_result("2.424");
-        assert_eq!(result, 2.424.into());
+        let result = execute_datex_script_debug_with_result("-3.456");
+        assert_eq!(result, Decimal::from(-3.456).into());
     }
 
     #[test]

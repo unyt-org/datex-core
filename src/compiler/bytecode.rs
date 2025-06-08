@@ -12,6 +12,7 @@ use pest::Parser;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
 use crate::datex_values::core_values::decimal::{smallest_fitting_float, Decimal, TypedDecimal};
+use crate::datex_values::value::Value;
 
 struct CompilationScope {
     index: Cell<usize>,
@@ -101,6 +102,23 @@ impl CompilationScope {
                     }
                     self.append_binary_code(InstructionCode::SCOPE_END);
                 }
+                CoreValue::Tuple(val) => {
+                    self.append_binary_code(InstructionCode::TUPLE_START);
+                    let mut next_expected_integer_key: i128 = 0;
+                    for (key, value) in val {
+                        // if next expected integer key, ignore and just insert value
+                        if let ValueContainer::Value(key) = key
+                            && let CoreValue::Integer(Integer(integer)) = key.inner
+                            && let Some(int) = integer.as_i128() && int == next_expected_integer_key {
+                                next_expected_integer_key += 1;
+                                self.insert_value_container(value);
+                        }
+                        else {
+                            self.insert_key_value_pair(key, value);
+                        }
+                    }
+                    self.append_binary_code(InstructionCode::SCOPE_END);
+                }
                 _ => todo!(),
             },
             _ => todo!(),
@@ -131,6 +149,26 @@ impl CompilationScope {
         }
 
         self.append_buffer(bytes);
+    }
+
+    fn insert_key_value_pair(
+        &self,
+        key: &ValueContainer,
+        value: &ValueContainer,
+    ) {
+        // insert key
+        match key {
+            // if text, insert_key_string, else dynamic
+            ValueContainer::Value(Value {inner:CoreValue::Text(text), ..}) => {
+                self.insert_key_string(&text.0);
+            }
+            _ => {
+                self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                self.insert_value_container(key);
+            }
+        }
+        // insert value
+        self.insert_value_container(value);
     }
 
     fn insert_key_string(&self, key_string: &str) {
@@ -165,9 +203,9 @@ impl CompilationScope {
         )
         .into_owned()
     }
-    
+
     fn insert_decimal(&self, decimal: &TypedDecimal) {
-        
+
         fn insert_f32_or_f64 (scope: &CompilationScope, decimal: &TypedDecimal) {
             match decimal {
                 TypedDecimal::F32(val) => {
@@ -178,7 +216,7 @@ impl CompilationScope {
                 }
             }
         }
-        
+
         match decimal.as_integer() {
             Some(int) => {
                 let smallest = smallest_fitting_signed(int as i128);
@@ -798,7 +836,7 @@ pub mod tests {
         let result = compile_and_log(&datex_script);
         let bytes = val.to_le_bytes();
 
-        let mut expected: Vec<u8> = vec![InstructionCode::FLOAT_64.into()];
+        let mut expected: Vec<u8> = vec![InstructionCode::FLOAT_32.into()];
         expected.extend(bytes);
 
         assert_eq!(result, expected);

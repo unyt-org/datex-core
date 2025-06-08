@@ -8,16 +8,33 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use crate::datex_values::value::Value;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Tuple(pub IndexMap<ValueContainer, ValueContainer>);
+pub struct Tuple {
+    pub entries: IndexMap<ValueContainer, ValueContainer>, 
+    next_int_key: u32
+}
 impl Tuple {
+    
+    pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
+        Tuple {
+            entries,
+            next_int_key: 0,
+        }
+    }
+    
     pub fn size(&self) -> usize {
-        self.0.len()
+        self.entries.len()
+    }
+    
+    /// returns the next integer key in the tuple, starting from 0
+    pub fn next_int_key(&self) -> u32 {
+        self.next_int_key
     }
 
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
-        self.0.get(key)
+        self.entries.get(key)
     }
 
     /// Set a key-value pair in the tuple. This method should only be used internal, since tuples
@@ -27,7 +44,15 @@ impl Tuple {
         key: K,
         value: V,
     ) {
-        self.0.insert(key.into(), value.into());
+        let key = key.into();
+        // if key is integer and the expected next int key, increment the next_int_key
+        if let ValueContainer::Value(Value{inner: CoreValue::Integer(typed_int), ..}) = key
+            && let Some(int) = typed_int.0.as_i128()
+            && int == self.next_int_key as i128
+        {
+            self.next_int_key += 1;
+        }
+        self.entries.insert(key, value.into());
     }
 }
 
@@ -36,7 +61,7 @@ impl SoftEq for Tuple {
         if self.size() != other.size() {
             return false;
         }
-        for (key, value) in self.0.iter() {
+        for (key, value) in self.entries.iter() {
             if let Some(other_value) = other.get(key) {
                 if !value.soft_eq(other_value) {
                     return false;
@@ -51,7 +76,7 @@ impl SoftEq for Tuple {
 
 impl Hash for Tuple {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for (k, v) in &self.0 {
+        for (k, v) in &self.entries {
             k.hash(state);
             v.hash(state);
         }
@@ -63,7 +88,7 @@ impl CoreValueTrait for Tuple {}
 impl fmt::Display for Tuple {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(")?;
-        for (i, (key, value)) in self.0.iter().enumerate() {
+        for (i, (key, value)) in self.entries.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
@@ -79,7 +104,7 @@ where
     V: Into<ValueContainer>,
 {
     fn from(map: HashMap<K, V>) -> Self {
-        Tuple(map.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+        Tuple::new(map.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
     }
 }
 
@@ -88,7 +113,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Tuple(
+        Tuple::new(
             iter.into_iter()
                 .enumerate()
                 .map(|(i, v)| (TypedInteger::from(i as u64).into(), v.into()))
@@ -102,7 +127,7 @@ impl IntoIterator for Tuple {
     type IntoIter = IntoIter<ValueContainer, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.entries.into_iter()
     }
 }
 
@@ -111,23 +136,23 @@ impl<'a> IntoIterator for &'a Tuple {
     type IntoIter = Iter<'a, ValueContainer, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.entries.iter()
     }
 }
 impl From<Vec<(ValueContainer, ValueContainer)>> for Tuple {
     fn from(vec: Vec<(ValueContainer, ValueContainer)>) -> Self {
-        Tuple(vec.into_iter().collect())
+        Tuple::new(vec.into_iter().collect())
     }
 }
 
 impl From<IndexMap<ValueContainer, ValueContainer>> for Tuple {
     fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
-        Tuple(map)
+        Tuple::new(map)
     }
 }
 impl From<IndexMap<String, ValueContainer>> for Tuple {
     fn from(map: IndexMap<String, ValueContainer>) -> Self {
-        Tuple(
+        Tuple::new(
             map.into_iter()
                 .map(|(k, v)| (k.into(), v))
                 .collect::<IndexMap<ValueContainer, ValueContainer>>(),

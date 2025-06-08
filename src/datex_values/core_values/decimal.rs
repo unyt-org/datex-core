@@ -19,6 +19,7 @@ pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
     }
 }
 
+// TODO: normal decimal must always use f64 under the hood, otherwise soft_eq and eq will not work correctly for all cases!
 #[derive(Debug, Clone, Eq, Copy)]
 pub struct Decimal(pub TypedDecimal);
 impl SoftEq for Decimal {
@@ -130,7 +131,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) =>
                 value.into_inner() as f64 >= i64::MIN as f64 && value.into_inner() as f64 <= i64::MAX as f64 &&
-                    !(value.into_inner().is_zero() && value.into_inner().is_sign_negative()) && 
+                    !(value.into_inner().is_zero() && value.into_inner().is_sign_negative()) &&
                     value.into_inner().fract() == 0.0,
             TypedDecimal::F64(value) =>
                 value.into_inner() >= i64::MIN as f64 && value.into_inner() <= i64::MAX as f64 &&
@@ -180,7 +181,7 @@ impl TypedDecimal {
 impl Display for TypedDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypedDecimal::F32(value) => 
+            TypedDecimal::F32(value) =>
                 decimal_to_string(value.into_inner(), false).fmt(f),
             TypedDecimal::F64(value) =>
                 decimal_to_string(value.into_inner(), false).fmt(f)

@@ -308,7 +308,7 @@ impl CoreValue {
 
     pub fn cast_to_object(&self) -> Option<Object> {
         match self {
-            CoreValue::Tuple(tuple) => Some(Object::from(tuple.0.clone())),
+            CoreValue::Tuple(tuple) => Some(Object::from(tuple.entries.clone())),
             CoreValue::Object(object) => Some(object.clone()),
             _ => None,
         }
