@@ -244,10 +244,10 @@ impl CompilationScope {
                     TypedInteger::I32(val) => {
                         self.insert_float_as_i32(val);
                     }
-                    _ => insert_f32_or_f64(&self, decimal),
+                    _ => insert_f32_or_f64(self, decimal),
                 }
             }
-            None => insert_f32_or_f64(&self, decimal),
+            None => insert_f32_or_f64(self, decimal),
         }
     }
 

@@ -6,7 +6,6 @@ use log::error;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not};
 
-use super::core_values::null::Null;
 use super::datex_type::CoreValueType;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

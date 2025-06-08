@@ -476,13 +476,13 @@ mod tests {
     fn test_single_value_scope() {
         let result = execute_datex_script_debug_with_result("(42)");
         assert_eq!(result, Integer::from(42).into());
-        assert_soft_eq!(result, ValueContainer::from(42 as u128));
+        assert_soft_eq!(result, ValueContainer::from(42_u128));
     }
 
     #[test]
     fn test_add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
-        assert_soft_eq!(result, ValueContainer::from(3 as u128));
+        assert_soft_eq!(result, ValueContainer::from(3_u128));
         assert_eq!(result, Integer::from(3).into());
     }
 
@@ -534,11 +534,11 @@ mod tests {
         assert_eq!(result, expected.into());
         assert_ne!(
             result,
-            ValueContainer::from(vec![1 as u8, 5 as u8, 4 as u8])
+            ValueContainer::from(vec![1_u8, 5_u8, 4_u8])
         );
         assert_soft_eq!(
             result,
-            ValueContainer::from(vec![1 as u8, 5 as u8, 4 as u8])
+            ValueContainer::from(vec![1_u8, 5_u8, 4_u8])
         );
     }
 
@@ -570,8 +570,8 @@ mod tests {
         init_logger();
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
-        assert_ne!(result, (2 as u8).into());
-        assert_soft_eq!(result, ValueContainer::from(2 as u8));
+        assert_ne!(result, 2_u8.into());
+        assert_soft_eq!(result, ValueContainer::from(2_u8));
     }
 
     #[test]

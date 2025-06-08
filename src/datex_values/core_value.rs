@@ -5,7 +5,6 @@ use crate::datex_values::core_values::bool::Bool;
 use crate::datex_values::core_values::decimal::{Decimal, TypedDecimal};
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::integer::{Integer, TypedInteger};
-use crate::datex_values::core_values::null::Null;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
 use crate::datex_values::core_values::tuple::Tuple;
@@ -267,7 +266,7 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => {
                 Some(TypedDecimal::from(int.as_i128()? as f64))
             }
-            CoreValue::TypedDecimal(decimal) => Some(decimal.clone()),
+            CoreValue::TypedDecimal(decimal) => Some(*decimal),
             _ => None,
         }
     }
