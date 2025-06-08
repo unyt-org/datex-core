@@ -206,9 +206,12 @@ pub fn decimal_to_string<T: Float + Display>(value: T, json_compatible: bool) ->
             }
         )
     }
+    else if value.fract() == T::zero() {
+        format!("{value:.1}")
+    }
     // TODO: add e-notation for large numbers
     else {
-        format!("{value:.1}")
+        format!("{value}")
     }
 }
 
