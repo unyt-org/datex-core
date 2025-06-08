@@ -594,11 +594,11 @@ mod tests {
         // access by key
         assert_eq!(tuple.get(&"x".into()), Some(&Integer::from(1).into()));
         assert_eq!(
-            tuple.get(&Integer::from(0 as u32).into()),
+            tuple.get(&Integer::from(0_u32).into()),
             Some(&Integer::from(2).into())
         );
         assert_eq!(
-            tuple.get(&Integer::from(1 as u32).into()),
+            tuple.get(&Integer::from(1_u32).into()),
             Some(&Integer::from(42).into())
         );
 
@@ -612,9 +612,9 @@ mod tests {
 
         // strict equality checks
         let expected_strict: Tuple = Tuple::from(vec![
-            ("x".into(), Integer::from(1 as u32).into()),
-            ((0 as u32).into(), Integer::from(2 as u32).into()),
-            ((1 as u32).into(), Integer::from(42 as u32).into()),
+            ("x".into(), Integer::from(1_u32).into()),
+            (0_u32.into(), Integer::from(2_u32).into()),
+            (1_u32.into(), Integer::from(42_u32).into()),
         ]);
         debug!("Expected tuple: {}", expected_strict);
         debug!("Tuple result: {}", tuple);
