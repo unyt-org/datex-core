@@ -208,11 +208,16 @@ pub enum InstructionCode {
     INT_32 = 0xc3,
     INT_64 = 0xc4,
     INT_128 = 0xf8,
+    INT_BIG = 0xdf,
 
     UINT_128 = 0xfd,
 
-    FLOAT_32 = 0xfa,
-    FLOAT_64 = 0xc5,
+    DECIMAL_F32 = 0xfa,
+    DECIMAL_F64 = 0xc5,
+    DECIMAL_BIG = 0xfb,
+    DECIMAL_AS_INT_32 = 0xcd,
+    DECIMAL_AS_INT_16 = 0xde,
+    
     TRUE = 0xc6,
     FALSE = 0xc7,
     NULL = 0xc8,
@@ -220,9 +225,6 @@ pub enum InstructionCode {
     BUFFER = 0xca,
     SCOPE_BLOCK_START = 0xcb,
     QUANTITY = 0xcc,
-    FLOAT_AS_INT_32 = 0xcd,
-    FLOAT_AS_INT_16 = 0xde,
-    BIG_INT = 0xdf,
 
     SHORT_TEXT = 0xce, // string with max. 255 characters
 

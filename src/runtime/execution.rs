@@ -1,16 +1,13 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::decimal::Decimal;
+use crate::datex_values::core_values::decimal::{Decimal, TypedDecimal};
 use crate::datex_values::core_values::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{
-    Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction,
-    ShortTextData, TextData,
-};
+use crate::global::protocol_structures::instructions::{BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData, TextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
@@ -135,14 +132,19 @@ fn execute_loop(
             // unsigned integers
             Instruction::UInt128(integer) => Integer::from(integer.0).into(),
 
-            // floats
-            Instruction::Float32(Float32Data(f32)) => Decimal::from(f32).into(),
-            Instruction::Float64(Float64Data(f64)) => Decimal::from(f64).into(),
-            Instruction::FloatAsInt16(FloatAsInt16Data(i16)) => {
+            // specific floats
+            Instruction::DecimalF32(Float32Data(f32)) => TypedDecimal::from(f32).into(),
+            Instruction::DecimalF64(Float64Data(f64)) => TypedDecimal::from(f64).into(),
+
+            // default decimals (big decimals)
+            Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
                 Decimal::from(i16 as f32).into()
             }
-            Instruction::FloatAsInt32(FloatAsInt32Data(i32)) => {
+            Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
                 Decimal::from(i32 as f32).into()
+            }
+            Instruction::DecimalBig(BigDecimalData(big_decimal)) => {
+                Decimal::from(big_decimal).into()
             }
 
             // null
@@ -155,6 +157,21 @@ fn execute_loop(
             // operations
             Instruction::Add => {
                 scope_stack.set_active_operation(Instruction::Add);
+                ActiveValue::None
+            }
+
+            Instruction::Subtract => {
+                scope_stack.set_active_operation(Instruction::Subtract);
+                ActiveValue::None
+            }
+
+            Instruction::Multiply => {
+                scope_stack.set_active_operation(Instruction::Multiply);
+                ActiveValue::None
+            }
+
+            Instruction::Divide => {
+                scope_stack.set_active_operation(Instruction::Divide);
                 ActiveValue::None
             }
 
@@ -293,6 +310,10 @@ fn execute_loop(
                                     Instruction::Add => {
                                         active_value_container as &_
                                             + &value_container
+                                    }
+                                    Instruction::Subtract => {
+                                        active_value_container as &_
+                                            - &value_container
                                     }
                                     _ => {
                                         unreachable!("Instruction {:?} is not a valid operation", operation);

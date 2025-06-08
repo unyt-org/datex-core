@@ -4,7 +4,7 @@ use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Deref, Not};
+use std::ops::{Add, AddAssign, Deref, Not, Sub};
 
 use super::datex_type::CoreValueType;
 
@@ -146,6 +146,20 @@ impl Add for &Value {
     type Output = Result<Value, ValueError>;
     fn add(self, rhs: &Value) -> Self::Output {
         Value::add(self.clone(), rhs.clone())
+    }
+}
+
+impl Sub for Value {
+    type Output = Result<Value, ValueError>;
+    fn sub(self, rhs: Value) -> Self::Output {
+        Ok((&self.inner - &rhs.inner)?.into())
+    }
+}
+
+impl Sub for &Value {
+    type Output = Result<Value, ValueError>;
+    fn sub(self, rhs: &Value) -> Self::Output {
+        Value::sub(self.clone(), rhs.clone())
     }
 }
 

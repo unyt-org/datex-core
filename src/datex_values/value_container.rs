@@ -4,7 +4,7 @@ use crate::datex_values::traits::soft_eq::SoftEq;
 use super::{reference::Reference, value::Value};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::{Add, Deref};
+use std::ops::{Add, Deref, Sub};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -135,5 +135,26 @@ impl Add<&ValueContainer> for &ValueContainer {
         let lhs = self.value();
         let rhs = rhs.value();
         (lhs + rhs).map(|v| Ok(ValueContainer::Value(v)))?
+    }
+}
+
+
+impl Sub<ValueContainer> for ValueContainer {
+    type Output = Result<ValueContainer, ValueError>;
+
+    fn sub(self, rhs: ValueContainer) -> Self::Output {
+        let lhs = self.into_value();
+        let rhs = rhs.into_value();
+        (lhs - rhs).map(|v| Ok(ValueContainer::Value(v)))?
+    }
+}
+
+impl Sub<&ValueContainer> for &ValueContainer {
+    type Output = Result<ValueContainer, ValueError>;
+
+    fn sub(self, rhs: &ValueContainer) -> Self::Output {
+        let lhs = self.value();
+        let rhs = rhs.value();
+        (lhs - rhs).map(|v| Ok(ValueContainer::Value(v)))?
     }
 }

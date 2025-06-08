@@ -66,10 +66,10 @@ c";"#,
 #[test]
 pub fn compile_expressions() {
     init_logger();
-    compare_compiled_with_decompiled("1+2;");
+    compare_compiled_with_decompiled("1 + 2;");
     compare_compiled_with_decompiled("[1,2]");
     // ARR_START 1 2 3 SCOPE_END
-    compare_compiled("[1,2,3+4]", "[1,2,(3+4)]");
+    compare_compiled("[1,2,3 + 4]", "[1,2,(3 + 4)]");
     compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
     compare_compiled_with_decompiled("(1,2,[3],[4,5],6)");
     compare_compiled("1,2,[3],[4,5],6", "(1,2,[3],[4,5],6)");
@@ -77,6 +77,6 @@ pub fn compile_expressions() {
     compare_compiled_with_decompiled("{a:42,b:\"test\",c:{d:1,e:[2,3]}}");
     compare_compiled_with_decompiled("{\"a b\":42}");
     compare_compiled_with_decompiled("{\"1\":42}");
-    compare_compiled_with_decompiled("{(1+2):42}");
-    compare_compiled_with_decompiled("(1:42,(1+2):42,(true):42)");
+    compare_compiled_with_decompiled("{(1 + 2):42}");
+    compare_compiled_with_decompiled("(1:42,(1 + 2):42,(true):42)");
 }

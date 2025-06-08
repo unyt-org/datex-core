@@ -11,7 +11,7 @@
 (1,2);
 
 // standalone tuple
-1,2
+1,2;
 
 // string
 "test";

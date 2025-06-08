@@ -1,6 +1,6 @@
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
-use crate::datex_values::core_values::decimal::decimal_to_string;
+use crate::datex_values::core_values::decimal::{decimal_to_string, ExtendedBigDecimal};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -11,10 +11,11 @@ pub enum Instruction {
     Int128(Int128Data),
     UInt128(UInt128Data),
 
-    Float32(Float32Data),
-    Float64(Float64Data),
-    FloatAsInt16(FloatAsInt16Data),
-    FloatAsInt32(FloatAsInt32Data),
+    DecimalF32(Float32Data),
+    DecimalF64(Float64Data),
+    DecimalAsInt16(FloatAsInt16Data),
+    DecimalAsInt32(FloatAsInt32Data),
+    DecimalBig(BigDecimalData),
 
     ShortText(ShortTextData),
     Text(TextData),
@@ -30,7 +31,9 @@ pub enum Instruction {
     KeyValueShortText(ShortTextData),
     CloseAndStore,
     Add,
+    Subtract,
     Multiply,
+    Divide,
 }
 
 impl Display for Instruction {
@@ -43,10 +46,11 @@ impl Display for Instruction {
             Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
             Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
 
-            Instruction::FloatAsInt16(data) => write!(f, "FLOAT_AS_INT_16 {}", data.0),
-            Instruction::FloatAsInt32(data) => write!(f, "FLOAT_AS_INT_32 {}", data.0),
-            Instruction::Float32(data) => write!(f, "FLOAT_32 {}", decimal_to_string(data.0, false)),
-            Instruction::Float64(data) => write!(f, "FLOAT_64 {}", decimal_to_string(data.0, false)),
+            Instruction::DecimalAsInt16(data) => write!(f, "DECIMAL_AS_INT_16 {}", data.0),
+            Instruction::DecimalAsInt32(data) => write!(f, "DECIMAL_AS_INT_32 {}", data.0),
+            Instruction::DecimalF32(data) => write!(f, "DECIMAL_F32 {}", decimal_to_string(data.0, false)),
+            Instruction::DecimalF64(data) => write!(f, "DECIMAL_F64 {}", decimal_to_string(data.0, false)),
+            Instruction::DecimalBig(data) => write!(f, "DECIMAL_BIG {}", data.0),
             Instruction::ShortText(data) => write!(f, "SHORT_TEXT {}", data.0),
             Instruction::Text(data) => write!(f, "TEXT {}", data.0),
             Instruction::True => write!(f, "TRUE"),
@@ -63,7 +67,9 @@ impl Display for Instruction {
             }
             Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
             Instruction::Add => write!(f, "ADD"),
+            Instruction::Subtract => write!(f, "SUBTRACT"),
             Instruction::Multiply => write!(f, "MULTIPLY"),
+            Instruction::Divide => write!(f, "DIVIDE"),
         }
     }
 }
@@ -123,6 +129,11 @@ pub struct FloatAsInt16Data(pub i16);
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct FloatAsInt32Data(pub i32);
+
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct BigDecimalData(pub ExtendedBigDecimal);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

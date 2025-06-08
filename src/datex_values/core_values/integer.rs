@@ -99,6 +99,14 @@ impl Sub for Integer {
     }
 }
 
+impl Sub for &Integer {
+    type Output = Option<Integer>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Integer::sub(*self, *rhs)
+    }
+}
+
 impl PartialEq for Integer {
     fn eq(&self, other: &Self) -> bool {
         self.soft_eq(other)
@@ -529,6 +537,14 @@ impl Sub for TypedInteger {
             }
         };
         self + neg_rhs
+    }
+}
+
+impl Sub for &TypedInteger {
+    type Output = Option<TypedInteger>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        TypedInteger::sub(*self, *rhs)
     }
 }
 

@@ -20,6 +20,8 @@ pub enum CompilerError {
     UnexpectedTerm(Rule),
     SyntaxError(Box<Error<Rule>>),
     SerializationError(binrw::Error),
+    BigDecimalOutOfBoundsError,
+    IntegerOutOfBoundsError,
 }
 
 impl From<Error<Rule>> for CompilerError {
@@ -39,6 +41,12 @@ impl Display for CompilerError {
             }
             CompilerError::SerializationError(error) => {
                 write!(f, "Serialization error: {error}")
+            }
+            CompilerError::BigDecimalOutOfBoundsError => {
+                write!(f, "BigDecimal out of bounds error")
+            }
+            CompilerError::IntegerOutOfBoundsError => {
+                write!(f, "Integer out of bounds error")
             }
         }
     }

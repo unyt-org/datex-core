@@ -48,9 +48,9 @@ prop = { WHITESPACE* ~ "." ~ term_or_scope }
 params = !{ "(" ~ statements? ~ ")" }
 
 // additive operation
-level_2_operation = !{(level_1_operation | apply | term_or_scope) ~ (additive_operator ~ (level_1_operation | apply | term_or_scope))+}
+level_2_operation = ${(level_1_operation | apply | term_or_scope) ~ (WHITESPACE+ ~ additive_operator ~ WHITESPACE+ ~ (level_1_operation | apply | term_or_scope))+}
 // multiplicative operation
-level_1_operation = !{(apply | term_or_scope) ~ (multiplicative_operator ~ (apply | term_or_scope))+}
+level_1_operation = ${(apply | term_or_scope) ~ (WHITESPACE+ ~ multiplicative_operator ~ WHITESPACE+ ~ (apply | term_or_scope))+}
 
 // assignment operation
 assignment = !{ variable ~ "=" ~ expression }
@@ -119,20 +119,27 @@ array = {
 
 // integer
 // such as 42
-integer = @{
-    "-"?
-    ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
-}
+
+dec_integer = @{ ("-"|"+")? ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*) }
+hex_integer = @{ ("-"|"+")? ~ (("0x" | "0X") ~ ASCII_HEX_DIGIT+) }
+oct_integer =  @{ ("-"|"+")? ~ (("0o" | "0O") ~ ASCII_OCT_DIGIT+) }
+bin_integer = @{ ("-"|"+")? ~ (("0b" | "0B") ~ ("0"|"1")+) }
+
+integer = _{  (hex_integer | bin_integer | oct_integer | dec_integer) }
 
 // decimal
 // such as 4.2 or 4.
 decimal = @{
-	"-"? ~
+	("-"|"+")? ~
     (
       (
           ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)?
           ~ ("." ~ ASCII_DIGIT*)
           ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+      ) |
+      (
+          ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+          ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)
       )
       | "nan" | "infinity" | "NaN" | "Infinity"
     )

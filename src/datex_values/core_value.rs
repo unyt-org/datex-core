@@ -12,7 +12,7 @@ use crate::datex_values::datex_type::CoreValueType;
 use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Not};
+use std::ops::{Add, AddAssign, Not, Sub};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -194,6 +194,7 @@ impl CoreValue {
             CoreValue::TypedDecimal(decimal) => match decimal {
                 TypedDecimal::F32(_) => CoreValueType::F32,
                 TypedDecimal::F64(_) => CoreValueType::F64,
+                TypedDecimal::Big(_) => CoreValueType::BigDecimal,
             },
             CoreValue::Text(_) => CoreValueType::Text,
             CoreValue::Null => CoreValueType::Null,
@@ -278,7 +279,7 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => {
                 Some(TypedDecimal::from(int.as_i128()? as f64))
             }
-            CoreValue::TypedDecimal(decimal) => Some(*decimal),
+            CoreValue::TypedDecimal(decimal) => Some(decimal.clone()),
             _ => None,
         }
     }
@@ -408,6 +409,45 @@ impl Add for &CoreValue {
         CoreValue::add(self.clone(), rhs.clone())
     }
 }
+
+impl Sub for CoreValue {
+    type Output = Result<CoreValue, ValueError>;
+    fn sub(self, rhs: CoreValue) -> Self::Output {
+        match (&self, &rhs) {
+            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
+                Ok(CoreValue::Integer(
+                    (lhs - rhs).ok_or(ValueError::IntegerOverflow)?,
+                ))
+            }
+
+            (
+                CoreValue::TypedInteger(lhs) | CoreValue::Integer(Integer(lhs)),
+                CoreValue::TypedInteger(rhs) | CoreValue::Integer(Integer(rhs)),
+            ) => Ok(CoreValue::TypedInteger(
+                (lhs - rhs).ok_or(ValueError::IntegerOverflow)?,
+            )),
+
+            (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
+                Ok(CoreValue::Decimal(lhs - rhs))
+            }
+
+            (
+                CoreValue::TypedDecimal(lhs) | CoreValue::Decimal(Decimal(lhs)),
+                CoreValue::TypedDecimal(rhs) | CoreValue::Decimal(Decimal(rhs)),
+            ) => Ok(CoreValue::TypedDecimal(lhs - rhs)),
+
+            _ => Err(ValueError::InvalidOperation),
+        }
+    }
+}
+
+impl Sub for &CoreValue {
+    type Output = Result<CoreValue, ValueError>;
+    fn sub(self, rhs: &CoreValue) -> Self::Output {
+        CoreValue::sub(self.clone(), rhs.clone())
+    }
+}
+
 
 impl AddAssign<CoreValue> for CoreValue {
     fn add_assign(&mut self, rhs: CoreValue) {

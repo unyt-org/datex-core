@@ -2,9 +2,7 @@ use crate::compiler::operations::parse_operator;
 use crate::compiler::parser::{DatexParser, Rule};
 use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::decimal::{
-    smallest_fitting_float, Decimal, TypedDecimal,
-};
+use crate::datex_values::core_values::decimal::{smallest_fitting_float, Decimal, ExtendedBigDecimal, TypedDecimal};
 use crate::datex_values::core_values::integer::{
     smallest_fitting_signed, Integer, TypedInteger,
 };
@@ -20,6 +18,9 @@ use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
+use std::io::Cursor;
+use binrw::BinWrite;
+use num_traits::ToPrimitive;
 
 struct CompilationScope {
     index: Cell<usize>,
@@ -87,8 +88,15 @@ impl CompilationScope {
                         }
                     }
                 }
-                CoreValue::Decimal(Decimal(val))
-                | CoreValue::TypedDecimal(val) => self.insert_decimal(val),
+                CoreValue::Decimal(Decimal(val)) => {
+                    match val {
+                        TypedDecimal::Big(val) => {
+                            self.insert_big_decimal(val);
+                        },
+                        _ => unreachable!("Decimal must contain TypedDecimal::Big"),
+                    }
+                }
+                CoreValue::TypedDecimal(val) => self.insert_decimal(val),
                 CoreValue::Bool(val) => self.insert_boolean(val.0),
                 CoreValue::Null => {
                     self.append_binary_code(InstructionCode::NULL)
@@ -228,6 +236,9 @@ impl CompilationScope {
                 TypedDecimal::F64(val) => {
                     scope.insert_float64(val.into_inner());
                 }
+                TypedDecimal::Big(val) => {
+                    scope.insert_big_decimal(val);
+                }
             }
         }
 
@@ -252,20 +263,36 @@ impl CompilationScope {
     }
 
     fn insert_float32(&self, float32: f32) {
-        self.append_binary_code(InstructionCode::FLOAT_32);
+        self.append_binary_code(InstructionCode::DECIMAL_F32);
         self.append_f32(float32);
     }
     fn insert_float64(&self, float64: f64) {
-        self.append_binary_code(InstructionCode::FLOAT_64);
+        self.append_binary_code(InstructionCode::DECIMAL_F64);
         self.append_f64(float64);
     }
 
+    fn insert_big_decimal(&self, big_decimal: &ExtendedBigDecimal) {
+        self.append_binary_code(InstructionCode::DECIMAL_BIG);
+        // big_decimal binrw write into buffer
+        let mut buffer = self.buffer.borrow_mut();
+        let original_length = buffer.len();
+        let mut buffer_writer = Cursor::new(&mut *buffer);
+        // set writer position to end
+        buffer_writer.set_position(original_length as u64);
+        big_decimal.write_le(&mut buffer_writer).expect("Failed to write big decimal");
+        // get byte count of written data
+        let byte_count = buffer_writer.position() as usize;
+        // update index
+        self.index
+            .update(|x| x + byte_count - original_length);
+    }
+
     fn insert_float_as_i16(&self, int: i16) {
-        self.append_binary_code(InstructionCode::FLOAT_AS_INT_16);
+        self.append_binary_code(InstructionCode::DECIMAL_AS_INT_16);
         self.append_i16(int);
     }
     fn insert_float_as_i32(&self, int: i32) {
-        self.append_binary_code(InstructionCode::FLOAT_AS_INT_32);
+        self.append_binary_code(InstructionCode::DECIMAL_AS_INT_32);
         self.append_i32(int);
     }
 
@@ -542,14 +569,39 @@ fn parse_term(
     }
 
     match term.as_rule() {
-        Rule::integer => {
+        Rule::dec_integer => {
             let int = term.as_str().parse::<i64>().unwrap();
             compilation_scope.insert_int(int);
         }
+        Rule::hex_integer => {
+            insert_int_with_radix(compilation_scope, term.as_str(), 16)?;
+        }
+        Rule::oct_integer => {
+            insert_int_with_radix(compilation_scope, term.as_str(), 8)?;
+        }
+        Rule::bin_integer => {
+            insert_int_with_radix(compilation_scope, term.as_str(), 2)?;
+        }
         Rule::decimal => {
-            let decimal = term.as_str().parse::<f64>().unwrap();
-            let smallest_decimal = smallest_fitting_float(decimal);
-            compilation_scope.insert_decimal(&smallest_decimal);
+            let decimal = ExtendedBigDecimal::from_string(term.as_str()).ok_or(
+                CompilerError::BigDecimalOutOfBoundsError
+            )?;
+            match &decimal {
+                ExtendedBigDecimal::Finite(big_decimal) if big_decimal.is_integer() => { 
+                    if let Some(int) = big_decimal.to_i16() {
+                        compilation_scope.insert_float_as_i16(int);
+                    }
+                    else if let Some(int) = big_decimal.to_i32() {
+                        compilation_scope.insert_float_as_i32(int);
+                    }
+                    else {
+                        compilation_scope.insert_big_decimal(&decimal);
+                    }
+                }
+                _ => {
+                    compilation_scope.insert_big_decimal(&decimal);
+                }
+            }
         }
         Rule::text => {
             let string = term.as_str();
@@ -640,6 +692,24 @@ fn parse_term(
         compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
     }
 
+    Ok(())
+}
+
+fn insert_int_with_radix(
+    compilation_scope: &CompilationScope,
+    int_str: &str,
+    radix: u32,
+) -> Result<(), CompilerError> {
+    let is_negative = int_str.starts_with('-');
+    let is_positive = int_str.starts_with('+');
+    let int = i64::from_str_radix(&int_str[if is_negative || is_positive { 3 } else { 2 }..], radix).map_err(|_| {
+        CompilerError::IntegerOutOfBoundsError
+    })?;
+    if is_negative {
+        compilation_scope.insert_int(-int);
+    } else {
+        compilation_scope.insert_int(int);
+    }
     Ok(())
 }
 
@@ -845,12 +915,11 @@ pub mod tests {
     #[test]
     fn test_decimal() {
         init_logger();
-        let val: f32 = 42.1;
-        let datex_script = format!("{val}"); // 42.1
+        let datex_script = "42.0";
         let result = compile_and_log(&datex_script);
-        let bytes = val.to_le_bytes();
+        let bytes = 42_i16.to_le_bytes();
 
-        let mut expected: Vec<u8> = vec![InstructionCode::FLOAT_32.into()];
+        let mut expected: Vec<u8> = vec![InstructionCode::DECIMAL_AS_INT_16.into()];
         expected.extend(bytes);
 
         assert_eq!(result, expected);
@@ -1151,7 +1220,7 @@ pub mod tests {
     #[test]
     fn test_dynamic_key_value() {
         init_logger();
-        let datex_script = "(1+2): 42";
+        let datex_script = "(1 + 2): 42";
         let result = compile_and_log(datex_script);
         let expected = [
             InstructionCode::TUPLE_START.into(),
@@ -1174,7 +1243,7 @@ pub mod tests {
     #[test]
     fn test_multiple_key_value_pairs() {
         init_logger();
-        let datex_script = "key: 42, 4: 43, (1+2): 44";
+        let datex_script = "key: 42, 4: 43, (1 + 2): 44";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::TUPLE_START.into(),
