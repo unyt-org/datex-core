@@ -295,6 +295,7 @@ impl Add for ExtendedBigDecimal {
             (ExtendedBigDecimal::Finite(a), ExtendedBigDecimal::Finite(b)) => {
                 ExtendedBigDecimal::Finite(a + b)
             }
+            (ExtendedBigDecimal::MinusZero, ExtendedBigDecimal::Zero) | (ExtendedBigDecimal::Zero, ExtendedBigDecimal::MinusZero) => ExtendedBigDecimal::Zero,
             (ExtendedBigDecimal::Zero, b) | (b, ExtendedBigDecimal::Zero) => b,
             (ExtendedBigDecimal::MinusZero, b) | (b, ExtendedBigDecimal::MinusZero) => b,
             (ExtendedBigDecimal::Infinity, ExtendedBigDecimal::NegativeInfinity) | (ExtendedBigDecimal::NegativeInfinity, ExtendedBigDecimal::Infinity) => {
@@ -787,5 +788,82 @@ mod tests {
             result3,
             Decimal::from("0.3")
         );
+    }
+    
+    #[test]
+    fn test_infinity_calculations() {
+        let a = Decimal::from("1.0");
+        let b = Decimal::from("infinity");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("infinity"));
+
+        let a = Decimal::from("infinity");
+        let b = Decimal::from("-infinity");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("nan"));
+        
+        let a = Decimal::from("infinity");
+        let b = Decimal::from("-0.0");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("infinity"));
+        
+        let a = Decimal::from("-infinity");
+        let b = Decimal::from("0.0");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("-infinity"));
+        
+        let a = Decimal::from("0.0");
+        let b = Decimal::from("-0.0");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("0.0"));
+        
+        let a = Decimal::from("-0.0");
+        let b = Decimal::from("0.0");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("0.0"));
+        
+        let a = Decimal::from("nan");
+        let b = Decimal::from("1.0");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("nan"));
+        
+        let a = Decimal::from("1.0");
+        let b = Decimal::from("nan");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("nan"));
+        
+        let a = Decimal::from("nan");
+        let b = Decimal::from("nan");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("nan"));
+        
+        let a = Decimal::from("-nan");
+        let b = Decimal::from("1.0");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("nan"));
+    }
+    
+    #[test]
+    fn test_large_decimal_addition() {
+        let a = Decimal::from("100000000000000000000.00000000000000000001");
+        let b = Decimal::from("100000000000000000000.00000000000000000001");
+        let result = a + b;
+        assert_eq!(
+            result,
+            Decimal::from("200000000000000000000.00000000000000000002")
+        );
+    }
+    
+    #[test]
+    fn test_e_notation_decimal_addition() {
+        let a = Decimal::from("1e10");
+        let b = Decimal::from("2e10");
+        let result = a + b;
+        assert_eq!(result, Decimal::from("3e10"));
+
+        let c = Decimal::from("1.5e10");
+        let d = Decimal::from("2.5e10");
+        let result2 = c + d;
+        assert_eq!(result2, Decimal::from("4e10"));
     }
 }
