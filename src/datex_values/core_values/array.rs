@@ -1,7 +1,7 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::{
     core_value::CoreValue,
-    soft_eq::SoftEq,
+    traits::soft_eq::SoftEq,
     value_container::{ValueContainer, ValueError},
 };
 use std::{fmt, ops::Index};
@@ -9,7 +9,7 @@ use std::{fmt, ops::Index};
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Array(pub Vec<ValueContainer>);
 impl Array {
-    pub fn length(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
     pub fn get(&self, index: usize) -> Option<&ValueContainer> {
@@ -24,7 +24,7 @@ impl CoreValueTrait for Array {}
 
 impl SoftEq for Array {
     fn soft_eq(&self, other: &Self) -> bool {
-        if self.length() != other.length() {
+        if self.len() != other.len() {
             return false;
         }
         for (a, b) in self.0.iter().zip(other.0.iter()) {

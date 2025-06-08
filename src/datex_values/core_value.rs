@@ -1,7 +1,7 @@
 use datex_macros::FromCoreValue;
 
 use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::bool::Bool;
+use crate::datex_values::core_values::boolean::Boolean;
 use crate::datex_values::core_values::decimal::{Decimal, TypedDecimal};
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::integer::{Integer, TypedInteger};
@@ -9,7 +9,7 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::datex_type::CoreValueType;
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not};
@@ -17,7 +17,7 @@ use std::ops::{Add, AddAssign, Not};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Null,
-    Bool(Bool),
+    Bool(Boolean),
     Integer(Integer),
     TypedInteger(TypedInteger),
     Decimal(Decimal),
@@ -238,6 +238,12 @@ impl CoreValue {
             CoreValueType::Tuple => {
                 Some(CoreValue::Tuple(self.cast_to_tuple()?))
             }
+            CoreValueType::Integer => {
+                Some(CoreValue::Integer(self.cast_to_integer()?.into()))
+            }
+            CoreValueType::Decimal => {
+                Some(CoreValue::Decimal(self.cast_to_decimal()?.into()))
+            }
             _ => todo!(),
         }
     }
@@ -249,11 +255,17 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_bool(&self) -> Option<Bool> {
+    pub fn cast_to_bool(&self) -> Option<Boolean> {
         match self {
+            CoreValue::Text(text) => match text.0.as_str() {
+                // FIXME can we combine thruthiness and casts??!
+                "true" | "1" | "yes" => Some(Boolean(true)),
+                "false" | "0" | "no" => Some(Boolean(false)),
+                _ => None,
+            },
             CoreValue::Bool(bool) => Some(bool.clone()),
-            CoreValue::TypedInteger(int) => Some(Bool(int.as_i128()? != 0)),
-            CoreValue::Null => Some(Bool(false)),
+            CoreValue::TypedInteger(int) => Some(Boolean(int.as_i128()? != 0)),
+            CoreValue::Null => Some(Boolean(false)),
             _ => None,
         }
     }
@@ -279,6 +291,13 @@ impl CoreValue {
                 .ok()
                 .map(TypedInteger::from),
             CoreValue::TypedInteger(int) => Some(*int),
+            CoreValue::Integer(Integer(int)) => Some(*int),
+            CoreValue::Decimal(decimal) => {
+                Some(TypedInteger::from(decimal.0.as_f64() as i64))
+            }
+            CoreValue::TypedDecimal(decimal) => {
+                Some(TypedInteger::from(decimal.as_f64() as i64))
+            }
             _ => None,
         }
     }
@@ -427,5 +446,107 @@ impl Display for CoreValue {
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
         }
+    }
+}
+
+#[cfg(test)]
+/// This module contains tests for the CoreValue struct.
+/// Each CoreValue is a representation of a underlying native value.
+/// The tests cover addition, casting, and type conversions.
+mod tests {
+    use log::{debug, info};
+
+    use crate::logger::init_logger;
+
+    use super::*;
+
+    #[test]
+    fn test_addition() {
+        init_logger();
+        let a = CoreValue::from(42i32);
+        let b = CoreValue::from(11i32);
+        let c = CoreValue::from("11");
+
+        assert_eq!(a.get_default_type(), CoreValueType::I32);
+        assert_eq!(b.get_default_type(), CoreValueType::I32);
+        assert_eq!(c.get_default_type(), CoreValueType::Text);
+
+        let a_plus_b = (a.clone() + b.clone()).unwrap();
+        assert_eq!(a_plus_b.clone().get_default_type(), CoreValueType::I32);
+        assert_eq!(a_plus_b.clone(), CoreValue::from(53));
+        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
+    }
+
+    #[test]
+    fn test_endpoint() {
+        let endpoint: Endpoint = CoreValue::from("@test").try_into().unwrap();
+        debug!("Endpoint: {}", endpoint);
+        assert_eq!(endpoint.to_string(), "@test");
+    }
+
+    #[test]
+    fn test_integer_decimal_casting() {
+        let int_value = CoreValue::from(42);
+        assert_eq!(
+            int_value.cast_to(CoreValueType::Decimal).unwrap(),
+            CoreValue::from(Decimal::from(42.0))
+        );
+
+        let decimal_value = CoreValue::from(Decimal::from(42.7));
+        assert_eq!(
+            decimal_value.cast_to(CoreValueType::Integer).unwrap(),
+            CoreValue::from(Integer::from(42))
+        );
+    }
+
+    #[test]
+    fn test_boolean_casting() {
+        let bool_value = CoreValue::from(true);
+        assert_eq!(
+            bool_value.cast_to(CoreValueType::Bool).unwrap(),
+            CoreValue::from(true)
+        );
+
+        let int_value = CoreValue::from(1);
+        assert_eq!(
+            int_value.cast_to(CoreValueType::Bool).unwrap(),
+            CoreValue::from(true)
+        );
+
+        let zero_int_value = CoreValue::from(0);
+        assert_eq!(
+            zero_int_value.cast_to(CoreValueType::Bool).unwrap(),
+            CoreValue::from(false)
+        );
+
+        let text_value = CoreValue::from("true");
+        assert_eq!(
+            text_value.cast_to(CoreValueType::Bool).unwrap(),
+            CoreValue::from(true)
+        );
+        let false_text_value = CoreValue::from("false");
+        assert_eq!(
+            false_text_value.cast_to(CoreValueType::Bool).unwrap(),
+            CoreValue::from(false)
+        );
+        let invalid_text_value = CoreValue::from("invalid");
+        assert_eq!(invalid_text_value.cast_to(CoreValueType::Bool), None);
+    }
+
+    #[test]
+    fn test_invalid_casting() {
+        let text_value = CoreValue::from("Hello, World!");
+        assert_eq!(text_value.cast_to(CoreValueType::Integer), None);
+        assert_eq!(text_value.cast_to(CoreValueType::I16), None);
+        assert_eq!(text_value.cast_to(CoreValueType::I32), None);
+        assert_eq!(text_value.cast_to(CoreValueType::I64), None);
+        assert_eq!(text_value.cast_to(CoreValueType::F32), None);
+        assert_eq!(text_value.cast_to(CoreValueType::F64), None);
+
+        let int_value = CoreValue::from(42);
+        assert_eq!(int_value.cast_to(CoreValueType::Endpoint), None);
+        assert_eq!(int_value.cast_to(CoreValueType::Array), None);
+        assert_eq!(int_value.cast_to(CoreValueType::Object), None);
+        assert_eq!(int_value.cast_to(CoreValueType::Tuple), None);
     }
 }

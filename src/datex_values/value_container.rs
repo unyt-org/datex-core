@@ -1,9 +1,10 @@
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::identical::Identical;
+use crate::datex_values::traits::soft_eq::SoftEq;
 
 use super::{reference::Reference, value::Value};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::Add;
+use std::ops::{Add, Deref};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -35,6 +36,16 @@ pub enum ValueContainer {
     Value(Value),
     Reference(Reference),
 }
+impl Deref for ValueContainer {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ValueContainer::Value(value) => value,
+            ValueContainer::Reference(pointer) => &pointer.value,
+        }
+    }
+}
 
 impl Hash for ValueContainer {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -47,17 +58,29 @@ impl Hash for ValueContainer {
 
 impl PartialEq for ValueContainer {
     fn eq(&self, other: &Self) -> bool {
-        let a = self.get_value();
-        let b = other.get_value();
+        let a = self.value();
+        let b = other.value();
         a == b
     }
 }
 
 impl SoftEq for ValueContainer {
     fn soft_eq(&self, other: &Self) -> bool {
-        let a = self.get_value();
-        let b = other.get_value();
+        let a = self.value();
+        let b = other.value();
         a.soft_eq(b)
+    }
+}
+
+impl Identical for ValueContainer {
+    fn identical(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ValueContainer::Value(_), ValueContainer::Value(_)) => false,
+            (ValueContainer::Reference(a), ValueContainer::Reference(b)) => {
+                a.pointer_id() == b.pointer_id()
+            }
+            _ => false,
+        }
     }
 }
 
@@ -74,7 +97,7 @@ impl Display for ValueContainer {
 }
 
 impl ValueContainer {
-    pub fn get_value(&self) -> &Value {
+    pub fn value(&self) -> &Value {
         match self {
             ValueContainer::Value(value) => value,
             ValueContainer::Reference(pointer) => &pointer.value,
@@ -109,8 +132,8 @@ impl Add<&ValueContainer> for &ValueContainer {
     type Output = Result<ValueContainer, ValueError>;
 
     fn add(self, rhs: &ValueContainer) -> Self::Output {
-        let lhs = self.get_value();
-        let rhs = rhs.get_value();
+        let lhs = self.value();
+        let rhs = rhs.value();
         (lhs + rhs).map(|v| Ok(ValueContainer::Value(v)))?
     }
 }

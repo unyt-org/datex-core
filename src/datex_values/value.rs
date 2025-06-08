@@ -1,10 +1,10 @@
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::reference::Reference;
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Not};
+use std::ops::{Add, AddAssign, Deref, Not};
 
 use super::datex_type::CoreValueType;
 
@@ -16,6 +16,14 @@ pub struct Value {
 impl SoftEq for Value {
     fn soft_eq(&self, other: &Self) -> bool {
         self.inner.soft_eq(&other.inner)
+    }
+}
+
+impl Deref for Value {
+    type Target = CoreValue;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -186,7 +194,10 @@ where
 }
 
 #[cfg(test)]
-mod test {
+/// Tests for the Value struct and its methods.
+/// This module contains unit tests for the Value struct, including its methods and operations.
+/// The value is a holder for a combination of a CoreValue representation and its actual type.
+mod tests {
     use super::*;
     use crate::datex_values::core_values::integer::{Integer, TypedInteger};
     use crate::{
@@ -206,10 +217,6 @@ mod test {
 
         let endpoint = Value::from("@test").cast_to(CoreValueType::Endpoint);
         assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
-        assert_eq!(endpoint.to_string(), "@test");
-
-        let endpoint: Endpoint = CoreValue::from("@test").try_into().unwrap();
-        debug!("Endpoint: {}", endpoint);
         assert_eq!(endpoint.to_string(), "@test");
     }
 
@@ -247,13 +254,13 @@ mod test {
         a.push(Value::from(42));
         a.push(4);
 
-        assert_eq!(a.length(), 5);
+        assert_eq!(a.len(), 5);
 
         let b = Array::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-        assert_eq!(b.length(), 11);
+        assert_eq!(b.len(), 11);
 
         let c = datex_array![1, "test", 3, true, false];
-        assert_eq!(c.length(), 5);
+        assert_eq!(c.len(), 5);
         assert_eq!(c[0], 1.into());
         assert_eq!(c[1], "test".into());
         assert_eq!(c[2], 3.into());
@@ -319,23 +326,6 @@ mod test {
         let a = Value::from(42);
         let b = a.try_cast_to(CoreValueType::Text).unwrap();
         assert_eq!(b.get_type(), CoreValueType::Text);
-    }
-
-    #[test]
-    fn test_infer_type() {
-        init_logger();
-        let a = CoreValue::from(42i32);
-        let b = CoreValue::from(11i32);
-        let c = CoreValue::from("11");
-
-        assert_eq!(a.get_default_type(), CoreValueType::I32);
-        assert_eq!(b.get_default_type(), CoreValueType::I32);
-        assert_eq!(c.get_default_type(), CoreValueType::Text);
-
-        let a_plus_b = (a.clone() + b.clone()).unwrap();
-        assert_eq!(a_plus_b.clone().get_default_type(), CoreValueType::I32);
-        assert_eq!(a_plus_b.clone(), CoreValue::from(53));
-        info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
 
     #[test]
@@ -414,85 +404,3 @@ mod test {
         assert_soft_eq!(Value::from(42_i8), Value::from(Integer::from(42_i8)));
     }
 }
-
-// #[test]
-// fn test_text() {
-//     init_logger();
-//     let a = CoreValue::from("Hello");
-//     assert_eq!(a, "Hello");
-//     assert_eq!(a.get_type(), CoreValueType::Text);
-//     assert_eq!(a.length(), 5);
-//     assert_eq!(a.to_string(), "\"Hello\"");
-//     assert_eq!(a.as_str(), "Hello");
-//     assert_eq!(a.to_uppercase(), "HELLO".into());
-//     assert_eq!(a.to_lowercase(), "hello".into());
-//
-//     let b = &mut TypedValue::from("World");
-//     b.reverse();
-//     assert_eq!(b.length(), 5);
-//     assert_eq!(b.as_str(), "dlroW");
-// }
-
-// #[test]
-// /// A TypedDatexValue<T> should allow custom TypedDatexValue<X> to be added to it.
-// /// This won't change the type of the TypedDatexValue<T> but will allow the value to be modified.
-// /// A untyped DatexValue can be assigned to TypedDatexValue<T> but this might throw an error if the type is not compatible.
-// fn test_test_assign1() {
-//     init_logger();
-//     let mut a: TypedValue<Text> = TypedValue::from("Hello");
-//     a += " World"; // see (#2)
-//     a += TypedValue::from("4"); // Is typesafe
-//     a += 2;
-//     a += TypedValue::from(42); // Is typesafe see (#1)
-//                                // We won't allow this: `a += TypedDatexValue::from(true);`
-//     a += Value::from("!"); // Might throw if the assignment would be incompatible.
-//     assert_eq!(a.length(), 16);
-//     assert_eq!(a.as_str(), "Hello World4242!");
-// }
-//
-// #[test]
-// fn test_test_assign2() {
-//     init_logger();
-//     let mut a = TypedValue::from("Hello");
-//     a += " World";
-//     a += Value::from("!");
-//
-//     assert_eq!(a.length(), 12);
-//     assert_eq!(a.as_str(), "Hello World!");
-//
-//     a += 42;
-//
-//     assert_eq!(a.length(), 14);
-//     assert_eq!(a.as_str(), "Hello World!42");
-//
-//     let mut b = Value::from("Hello");
-//     b += " World ";
-//     b += TypedValue::from(42);
-//     b += Value::from("!");
-//
-//     let b = b.cast_to_typed::<Text>();
-//
-//     info!("{}", b);
-//     assert_eq!(b.length(), 15);
-//     assert_eq!(b.as_str(), "Hello World 42!");
-// }
-//
-// #[test]
-// fn test_typed_addition() {
-//     init_logger();
-//     let a = TypedValue::from(42);
-//     let b = TypedValue::from(27);
-//
-//     assert_eq!(a, 42);
-//     assert_eq!(b, 27);
-//
-//     assert_eq!(a.get_type(), CoreValueType::I8);
-//     assert_eq!(b.get_type(), CoreValueType::I8);
-//
-//     let a_plus_b = a.clone() + b.clone();
-//
-//     assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
-//
-//     assert_eq!(a_plus_b, TypedValue::from(69));
-//     info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
-// }

@@ -1,5 +1,5 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;

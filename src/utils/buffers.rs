@@ -339,7 +339,7 @@ pub fn hex_to_buffer_advanced(hex: String, seperator: &str) -> Vec<u8> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{
         buffer_to_hex, buffer_to_hex_advanced, hex_to_buffer,
         hex_to_buffer_advanced,

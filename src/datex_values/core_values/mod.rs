@@ -1,5 +1,5 @@
 pub mod array;
-pub mod bool;
+pub mod boolean;
 pub mod decimal;
 pub mod endpoint;
 pub mod integer;

@@ -1,4 +1,4 @@
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use core::fmt;
 use std::fmt::Display;
 use std::hash::Hash;

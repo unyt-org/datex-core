@@ -1,16 +1,21 @@
+use num_traits::{Float, Zero};
+use ordered_float::OrderedFloat;
+use std::hash::Hash;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign},
 };
-use std::hash::Hash;
-use num_traits::{Float, Zero};
-use ordered_float::OrderedFloat;
 
-use crate::datex_values::{core_value_trait::CoreValueTrait, soft_eq::SoftEq};
+use crate::datex_values::{
+    core_value_trait::CoreValueTrait, traits::soft_eq::SoftEq,
+};
 
 // TODO: currently not required
 pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
-    if value.is_nan() || value.is_infinite() || (value >= f32::MIN as f64 && value <= f32::MAX as f64) {
+    if value.is_nan()
+        || value.is_infinite()
+        || (value >= f32::MIN as f64 && value <= f32::MAX as f64)
+    {
         TypedDecimal::F32(OrderedFloat(value as f32))
     }
     // otherwise use f64
@@ -43,28 +48,28 @@ impl Add for Decimal {
     type Output = Decimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Decimal(
-            match (self.0, rhs.0) {
-                (TypedDecimal::F32(a), TypedDecimal::F32(b)) => {
-                    let res = a + b;
-                    // if out of f32 range, try adding as f64
-                    if res.is_infinite() {
-                        TypedDecimal::F64(OrderedFloat(a.into_inner() as f64 + b.into_inner() as f64))
-                    } else {
-                        TypedDecimal::F32(res)
-                    }
-                }
-                (TypedDecimal::F64(a), TypedDecimal::F64(b)) => {
-                    TypedDecimal::F64(OrderedFloat(a.into_inner() + b.into_inner()))
-                }
-                (TypedDecimal::F32(a), TypedDecimal::F64(b)) => {
-                    TypedDecimal::F64(OrderedFloat(a.into_inner() as f64 + b.into_inner()))
-                }
-                (TypedDecimal::F64(a), TypedDecimal::F32(b)) => {
-                    TypedDecimal::F64(OrderedFloat(a.into_inner() + b.into_inner() as f64))
+        Decimal(match (self.0, rhs.0) {
+            (TypedDecimal::F32(a), TypedDecimal::F32(b)) => {
+                let res = a + b;
+                // if out of f32 range, try adding as f64
+                if res.is_infinite() {
+                    TypedDecimal::F64(OrderedFloat(
+                        a.into_inner() as f64 + b.into_inner() as f64,
+                    ))
+                } else {
+                    TypedDecimal::F32(res)
                 }
             }
-        )
+            (TypedDecimal::F64(a), TypedDecimal::F64(b)) => {
+                TypedDecimal::F64(OrderedFloat(a.into_inner() + b.into_inner()))
+            }
+            (TypedDecimal::F32(a), TypedDecimal::F64(b)) => TypedDecimal::F64(
+                OrderedFloat(a.into_inner() as f64 + b.into_inner()),
+            ),
+            (TypedDecimal::F64(a), TypedDecimal::F32(b)) => TypedDecimal::F64(
+                OrderedFloat(a.into_inner() + b.into_inner() as f64),
+            ),
+        })
     }
 }
 
@@ -75,7 +80,6 @@ impl Add for &Decimal {
         Decimal::add(*self, *rhs)
     }
 }
-
 
 impl PartialEq for Decimal {
     fn eq(&self, other: &Self) -> bool {
@@ -129,14 +133,20 @@ impl TypedDecimal {
     /// Returns true if the value can be represented as an exact integer in the range of i64.
     pub fn is_integer(&self) -> bool {
         match self {
-            TypedDecimal::F32(value) =>
-                value.into_inner() as f64 >= i64::MIN as f64 && value.into_inner() as f64 <= i64::MAX as f64 &&
-                    !(value.into_inner().is_zero() && value.into_inner().is_sign_negative()) &&
-                    value.into_inner().fract() == 0.0,
-            TypedDecimal::F64(value) =>
-                value.into_inner() >= i64::MIN as f64 && value.into_inner() <= i64::MAX as f64 &&
-                    !(value.into_inner().is_zero() && value.into_inner().is_sign_negative()) &&
-                    value.into_inner().fract() == 0.0,
+            TypedDecimal::F32(value) => {
+                value.into_inner() as f64 >= i64::MIN as f64
+                    && value.into_inner() as f64 <= i64::MAX as f64
+                    && !(value.into_inner().is_zero()
+                        && value.into_inner().is_sign_negative())
+                    && value.into_inner().fract() == 0.0
+            }
+            TypedDecimal::F64(value) => {
+                value.into_inner() >= i64::MIN as f64
+                    && value.into_inner() <= i64::MAX as f64
+                    && !(value.into_inner().is_zero()
+                        && value.into_inner().is_sign_negative())
+                    && value.into_inner().fract() == 0.0
+            }
         }
     }
 
@@ -181,15 +191,20 @@ impl TypedDecimal {
 impl Display for TypedDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypedDecimal::F32(value) =>
-                decimal_to_string(value.into_inner(), false).fmt(f),
-            TypedDecimal::F64(value) =>
+            TypedDecimal::F32(value) => {
                 decimal_to_string(value.into_inner(), false).fmt(f)
+            }
+            TypedDecimal::F64(value) => {
+                decimal_to_string(value.into_inner(), false).fmt(f)
+            }
         }
     }
 }
 
-pub fn decimal_to_string<T: Float + Display>(value: T, json_compatible: bool) -> String {
+pub fn decimal_to_string<T: Float + Display>(
+    value: T,
+    json_compatible: bool,
+) -> String {
     if value.is_nan() {
         if json_compatible {
             "NaN".to_string()
@@ -199,15 +214,14 @@ pub fn decimal_to_string<T: Float + Display>(value: T, json_compatible: bool) ->
     } else if value.is_infinite() {
         format!(
             "{}{}",
-            if value.is_sign_positive() { "" } else { "-" }, if json_compatible {
+            if value.is_sign_positive() { "" } else { "-" },
+            if json_compatible {
                 "Infinity".to_string()
-            }
-            else {
+            } else {
                 "infinity".to_string()
             }
         )
-    }
-    else if value.fract() == T::zero() {
+    } else if value.fract() == T::zero() {
         format!("{value:.1}")
     }
     // TODO: add e-notation for large numbers
@@ -215,7 +229,6 @@ pub fn decimal_to_string<T: Float + Display>(value: T, json_compatible: bool) ->
         format!("{value}")
     }
 }
-
 
 impl Add for TypedDecimal {
     type Output = TypedDecimal;
@@ -232,9 +245,9 @@ impl Add for TypedDecimal {
                 TypedDecimal::F32(b) => TypedDecimal::F64(OrderedFloat(
                     a.into_inner() + b.into_inner() as f64,
                 )),
-                TypedDecimal::F64(b) => {
-                    TypedDecimal::F64(OrderedFloat(a.into_inner() + b.into_inner()))
-                }
+                TypedDecimal::F64(b) => TypedDecimal::F64(OrderedFloat(
+                    a.into_inner() + b.into_inner(),
+                )),
             },
         }
     }
@@ -265,17 +278,28 @@ impl From<f64> for TypedDecimal {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_smallest_fitting_float() {
-        assert_eq!(smallest_fitting_float(1.0), TypedDecimal::F32(OrderedFloat(1.0)));
-        assert_eq!(smallest_fitting_float(1.5), TypedDecimal::F32(OrderedFloat(1.5)));
-        assert_eq!(smallest_fitting_float(1e200), TypedDecimal::F64(OrderedFloat(1e200)));
-        assert_eq!(smallest_fitting_float(f64::NAN), TypedDecimal::F32(OrderedFloat(f32::NAN)));
+        assert_eq!(
+            smallest_fitting_float(1.0),
+            TypedDecimal::F32(OrderedFloat(1.0))
+        );
+        assert_eq!(
+            smallest_fitting_float(1.5),
+            TypedDecimal::F32(OrderedFloat(1.5))
+        );
+        assert_eq!(
+            smallest_fitting_float(1e200),
+            TypedDecimal::F64(OrderedFloat(1e200))
+        );
+        assert_eq!(
+            smallest_fitting_float(f64::NAN),
+            TypedDecimal::F32(OrderedFloat(f32::NAN))
+        );
     }
 
     #[test]
@@ -288,11 +312,17 @@ mod tests {
         let c = Decimal::from(TypedDecimal::F64(OrderedFloat(1.5)));
         let d = Decimal::from(TypedDecimal::F64(OrderedFloat(2.5)));
         let result2 = c + d;
-        assert_eq!(result2, Decimal::from(TypedDecimal::F64(OrderedFloat(4.0))));
+        assert_eq!(
+            result2,
+            Decimal::from(TypedDecimal::F64(OrderedFloat(4.0)))
+        );
 
         let e = Decimal::from(TypedDecimal::F32(OrderedFloat(0.1)));
         let f = Decimal::from(TypedDecimal::F32(OrderedFloat(0.2)));
         let result3 = e + f;
-        assert_eq!(result3, Decimal::from(TypedDecimal::F32(OrderedFloat(0.3))));
+        assert_eq!(
+            result3,
+            Decimal::from(TypedDecimal::F32(OrderedFloat(0.3)))
+        );
     }
 }

@@ -421,7 +421,7 @@ mod tests {
 
     use super::*;
     use crate::compiler::bytecode::compile_script;
-    use crate::datex_values::soft_eq::SoftEq;
+    use crate::datex_values::traits::soft_eq::SoftEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
     use crate::{assert_soft_eq, datex_array};
@@ -510,15 +510,19 @@ mod tests {
     #[test]
     fn test_empty_array() {
         let result = execute_datex_script_debug_with_result("[]");
+        let array: Array = result.cast_to_array().unwrap();
+        assert_eq!(array.len(), 0);
         assert_eq!(result, Vec::<ValueContainer>::new().into());
         assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
     }
 
     #[test]
-    fn test_array_with_values() {
+    fn test_array() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
+        let array: Array = result.cast_to_array().unwrap();
         let expected =
             datex_array![Integer::from(1), Integer::from(2), Integer::from(3)];
+        assert_eq!(array.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
         assert_soft_eq!(result, ValueContainer::from(vec![1, 2, 3]));
@@ -532,14 +536,8 @@ mod tests {
             datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
 
         assert_eq!(result, expected.into());
-        assert_ne!(
-            result,
-            ValueContainer::from(vec![1_u8, 5_u8, 4_u8])
-        );
-        assert_soft_eq!(
-            result,
-            ValueContainer::from(vec![1_u8, 5_u8, 4_u8])
-        );
+        assert_ne!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
+        assert_soft_eq!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
     }
 
     #[test]
@@ -585,29 +583,42 @@ mod tests {
     #[test]
     fn test_tuple() {
         init_logger();
-        let result = execute_datex_script_debug_with_result("(x:1, 2, 42)");
+        let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
         let tuple: CoreValue = result.clone().into_value().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
-        return;
 
+        // form and size
+        assert_eq!(tuple.to_string(), "(\"x\": 1, 0: 2, 1: 42)");
         assert_eq!(tuple.size(), 3);
-        assert_eq!(tuple.get(&"x".into()), Some(&1.into()));
-        // FIXME
 
-        let x = CoreValue::from(1_u8);
-        let y = CoreValue::from(1_u16);
-        assert_eq!(x, y);
+        // access by key
+        assert_eq!(tuple.get(&"x".into()), Some(&Integer::from(1).into()));
+        assert_eq!(
+            tuple.get(&Integer::from(0 as u32).into()),
+            Some(&Integer::from(2).into())
+        );
+        assert_eq!(
+            tuple.get(&Integer::from(1 as u32).into()),
+            Some(&Integer::from(42).into())
+        );
 
-        // return;
-
-        let expected: Tuple = Tuple::from(vec![
-            ("x".into(), (1).into()),
-            (1.into(), (2).into()),
-            (2.into(), (42).into()),
+        // soft equality checks
+        let expected_se: Tuple = Tuple::from(vec![
+            ("x".into(), 1.into()),
+            (0.into(), 2.into()),
+            (1.into(), 42.into()),
         ]);
-        debug!("Expected tuple: {}", expected);
-        debug!("Tuple result: {}", tuple);
+        assert_soft_eq!(tuple, expected_se);
 
-        assert_eq!(result, expected.into());
+        // strict equality checks
+        let expected_strict: Tuple = Tuple::from(vec![
+            ("x".into(), Integer::from(1 as u32).into()),
+            ((0 as u32).into(), Integer::from(2 as u32).into()),
+            ((1 as u32).into(), Integer::from(42 as u32).into()),
+        ]);
+        debug!("Expected tuple: {}", expected_strict);
+        debug!("Tuple result: {}", tuple);
+        // FIXME type information gets lost on compile
+        // assert_eq!(result, expected.into());
     }
 }

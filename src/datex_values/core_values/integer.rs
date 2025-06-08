@@ -4,9 +4,8 @@ use std::{
     ops::{Add, AddAssign, Neg, Sub},
 };
 
-use crate::datex_values::soft_eq::SoftEq;
 use super::super::core_value_trait::CoreValueTrait;
-
+use crate::datex_values::traits::soft_eq::SoftEq;
 
 pub fn smallest_fitting_unsigned(val: u128) -> TypedInteger {
     if val <= u8::MAX as u128 {
@@ -35,7 +34,6 @@ pub fn smallest_fitting_signed(val: i128) -> TypedInteger {
         TypedInteger::I128(val)
     }
 }
-
 
 #[derive(Debug, Clone, Eq, Copy)]
 pub struct Integer(pub TypedInteger);

@@ -1,35 +1,35 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::integer::TypedInteger;
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use crate::datex_values::value::Value;
+use std::fmt::{self, Display};
+use std::hash::{DefaultHasher, Hash, Hasher};
+use webrtc::media::audio::buffer::info;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Tuple {
-    pub entries: IndexMap<ValueContainer, ValueContainer>, 
-    next_int_key: u32
+    pub entries: IndexMap<ValueContainer, ValueContainer>,
+    next_int_key: u32,
 }
 impl Tuple {
-    
     pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
         Tuple {
             entries,
             next_int_key: 0,
         }
     }
-    
+
     pub fn size(&self) -> usize {
         self.entries.len()
     }
-    
+
     /// returns the next integer key in the tuple, starting from 0
-    pub fn next_int_key(&self) -> u32 {
+    pub(crate) fn next_int_key(&self) -> u32 {
         self.next_int_key
     }
 
@@ -46,7 +46,10 @@ impl Tuple {
     ) {
         let key = key.into();
         // if key is integer and the expected next int key, increment the next_int_key
-        if let ValueContainer::Value(Value{inner: CoreValue::Integer(typed_int), ..}) = key
+        if let ValueContainer::Value(Value {
+            inner: CoreValue::Integer(typed_int),
+            ..
+        }) = key
             && let Some(int) = typed_int.0.as_i128()
             && int == self.next_int_key as i128
         {
@@ -61,13 +64,11 @@ impl SoftEq for Tuple {
         if self.size() != other.size() {
             return false;
         }
-        for (key, value) in self.entries.iter() {
-            if let Some(other_value) = other.get(key) {
-                if !value.soft_eq(other_value) {
-                    return false;
-                }
-            } else {
-                return false; // Key not found in the other tuple
+        for ((key, value), (other_key, other_value)) in
+            self.entries.iter().zip(other.entries.iter())
+        {
+            if !key.soft_eq(other_key) || !value.soft_eq(other_value) {
+                return false;
             }
         }
         true
@@ -85,7 +86,7 @@ impl Hash for Tuple {
 
 impl CoreValueTrait for Tuple {}
 
-impl fmt::Display for Tuple {
+impl Display for Tuple {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(")?;
         for (i, (key, value)) in self.entries.iter().enumerate() {

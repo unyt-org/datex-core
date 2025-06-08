@@ -1,47 +1,47 @@
 use std::{fmt::Display, ops::Not};
 
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Bool(pub bool);
+pub struct Boolean(pub bool);
 
-impl Bool {
+impl Boolean {
     pub fn as_bool(&self) -> bool {
         self.0
     }
 }
-impl Bool {
+impl Boolean {
     pub fn toggle(&mut self) {
         self.0 = !self.0;
     }
 }
 
-impl Display for Bool {
+impl Display for Boolean {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl CoreValueTrait for Bool {}
+impl CoreValueTrait for Boolean {}
 
-impl SoftEq for Bool {
+impl SoftEq for Boolean {
     fn soft_eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl From<bool> for Bool {
+impl From<bool> for Boolean {
     fn from(v: bool) -> Self {
-        Bool(v)
+        Boolean(v)
     }
 }
 
-impl Not for Bool {
-    type Output = Bool;
+impl Not for Boolean {
+    type Output = Boolean;
 
     fn not(self) -> Self::Output {
-        Bool(!self.0)
+        Boolean(!self.0)
     }
 }

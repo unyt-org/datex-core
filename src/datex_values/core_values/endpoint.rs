@@ -1,7 +1,7 @@
 use crate::crypto::random;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_value_trait::CoreValueTrait;
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value_container::ValueError;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
@@ -545,7 +545,7 @@ impl FromStr for Endpoint {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

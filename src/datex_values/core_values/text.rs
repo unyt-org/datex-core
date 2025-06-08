@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use crate::datex_values::soft_eq::SoftEq;
+use crate::datex_values::traits::soft_eq::SoftEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 
