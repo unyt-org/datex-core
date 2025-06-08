@@ -118,7 +118,7 @@ impl Value {
     }
 
     pub fn null() -> Self {
-        CoreValue::Null(Null).into()
+        CoreValue::Null.into()
     }
 }
 
@@ -189,10 +189,14 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{assert_soft_eq, datex_array, datex_values::core_values::{array::Array, endpoint::Endpoint}, logger::init_logger};
+    use crate::datex_values::core_values::integer::{Integer, TypedInteger};
+    use crate::{
+        assert_soft_eq, datex_array,
+        datex_values::core_values::{array::Array, endpoint::Endpoint},
+        logger::init_logger,
+    };
     use log::{debug, info};
     use std::str::FromStr;
-    use crate::datex_values::core_values::integer::{Integer, TypedInteger};
 
     #[test]
     fn test_endpoint() {
@@ -407,11 +411,8 @@ mod test {
             Value::from(Integer(TypedInteger::I8(42))),
             Value::from(Integer(TypedInteger::U32(42))),
         );
-        
-        assert_soft_eq!(
-            Value::from(42_i8),
-            Value::from(Integer::from(42_i8))
-        );
+
+        assert_soft_eq!(Value::from(42_i8), Value::from(Integer::from(42_i8)));
     }
 }
 

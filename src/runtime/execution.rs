@@ -575,6 +575,14 @@ mod tests {
     }
 
     #[test]
+    fn test_null() {
+        let result = execute_datex_script_debug_with_result("null");
+        assert_eq!(result, ValueContainer::from(CoreValue::Null));
+        assert_eq!(result, CoreValue::Null.into());
+        assert_soft_eq!(result, ValueContainer::from(CoreValue::Null));
+    }
+
+    #[test]
     fn test_tuple() {
         init_logger();
         let result = execute_datex_script_debug_with_result("(x:1, 2, 42)");

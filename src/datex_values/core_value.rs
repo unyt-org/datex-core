@@ -17,13 +17,13 @@ use std::ops::{Add, AddAssign, Not};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
+    Null,
     Bool(Bool),
     Integer(Integer),
     TypedInteger(TypedInteger),
     Decimal(Decimal),
     TypedDecimal(TypedDecimal),
     Text(Text),
-    Null(Null),
     Endpoint(Endpoint),
     Array(Array),
     Object(Object),
@@ -38,35 +38,29 @@ impl SoftEq for CoreValue {
             (
                 CoreValue::Integer(Integer(a)) | CoreValue::TypedInteger(a),
                 CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
-            ) => {
-                a.soft_eq(b)
-            }
+            ) => a.soft_eq(b),
 
             // Decimals + TypedDecimals
             (
                 CoreValue::Decimal(Decimal(a)) | CoreValue::TypedDecimal(a),
                 CoreValue::Decimal(Decimal(b)) | CoreValue::TypedDecimal(b),
-            ) => {
-                a.soft_eq(b)
-            }
+            ) => a.soft_eq(b),
 
             // Mixed Integer and Decimal comparisons
             (
                 CoreValue::Decimal(Decimal(a)) | CoreValue::TypedDecimal(a),
-                CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)
-            ) |
-            (
+                CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
+            )
+            | (
                 CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
                 CoreValue::Decimal(Decimal(a)) | CoreValue::TypedDecimal(a),
-            ) => {
-                match a.as_integer() {
-                    Some(int) => b.soft_eq(&TypedInteger::from(int)),
-                    None => false,
-                }
-            }
+            ) => match a.as_integer() {
+                Some(int) => b.soft_eq(&TypedInteger::from(int)),
+                None => false,
+            },
 
             (CoreValue::Text(a), CoreValue::Text(b)) => a.soft_eq(b),
-            (CoreValue::Null(_), CoreValue::Null(_)) => true,
+            (CoreValue::Null, CoreValue::Null) => true,
             (CoreValue::Endpoint(a), CoreValue::Endpoint(b)) => a.soft_eq(b),
             (CoreValue::Array(a), CoreValue::Array(b)) => a.soft_eq(b),
             (CoreValue::Object(a), CoreValue::Object(b)) => a.soft_eq(b),
@@ -182,7 +176,6 @@ impl CoreValue {
         value.into()
     }
 
-
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Bool(_) => CoreValueType::Bool,
@@ -204,7 +197,7 @@ impl CoreValue {
                 TypedDecimal::F64(_) => CoreValueType::F64,
             },
             CoreValue::Text(_) => CoreValueType::Text,
-            CoreValue::Null(_) => CoreValueType::Null,
+            CoreValue::Null => CoreValueType::Null,
             CoreValue::Endpoint(_) => CoreValueType::Endpoint,
             CoreValue::Array(_) => CoreValueType::Array,
             CoreValue::Object(_) => CoreValueType::Object,
@@ -233,7 +226,7 @@ impl CoreValue {
                 Some(CoreValue::TypedDecimal(self.cast_to_decimal()?))
             }
             CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text())),
-            CoreValueType::Null => Some(CoreValue::Null(Null)),
+            CoreValueType::Null => Some(CoreValue::Null),
             CoreValueType::Endpoint => {
                 Some(CoreValue::Endpoint(self.cast_to_endpoint()?))
             }
@@ -253,7 +246,7 @@ impl CoreValue {
     pub fn cast_to_text(&self) -> Text {
         match self {
             CoreValue::Text(text) => text.clone(),
-            _ => Text(self.to_string())
+            _ => Text(self.to_string()),
         }
     }
 
@@ -261,7 +254,7 @@ impl CoreValue {
         match self {
             CoreValue::Bool(bool) => Some(bool.clone()),
             CoreValue::TypedInteger(int) => Some(Bool(int.as_i128()? != 0)),
-            CoreValue::Null(_) => Some(Bool(false)),
+            CoreValue::Null => Some(Bool(false)),
             _ => None,
         }
     }
@@ -308,7 +301,9 @@ impl CoreValue {
 
     pub fn cast_to_object(&self) -> Option<Object> {
         match self {
-            CoreValue::Tuple(tuple) => Some(Object::from(tuple.entries.clone())),
+            CoreValue::Tuple(tuple) => {
+                Some(Object::from(tuple.entries.clone()))
+            }
             CoreValue::Object(object) => Some(object.clone()),
             _ => None,
         }
@@ -337,10 +332,7 @@ impl Add for CoreValue {
             }
 
             // Integers
-            (
-                CoreValue::Integer(lhs),
-                CoreValue::Integer(rhs),
-            )  => {
+            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
                 Ok(CoreValue::Integer(
                     (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
                 ))
@@ -349,35 +341,32 @@ impl Add for CoreValue {
             (
                 CoreValue::TypedInteger(lhs) | CoreValue::Integer(Integer(lhs)),
                 CoreValue::TypedInteger(rhs) | CoreValue::Integer(Integer(rhs)),
-            )  => {
-                Ok(CoreValue::TypedInteger(
-                    (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
-                ))
-            }
+            ) => Ok(CoreValue::TypedInteger(
+                (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
+            )),
 
             // Decimals
-            (
-                CoreValue::Decimal(lhs),
-                CoreValue::Decimal(rhs),
-            )  => {
+            (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
                 Ok(CoreValue::Decimal(lhs + rhs))
             }
 
             (
                 CoreValue::TypedDecimal(lhs) | CoreValue::Decimal(Decimal(lhs)),
                 CoreValue::TypedDecimal(rhs) | CoreValue::Decimal(Decimal(rhs)),
-            )  => {
-                Ok(CoreValue::TypedDecimal(lhs + rhs))
-            }
+            ) => Ok(CoreValue::TypedDecimal(lhs + rhs)),
 
             // Mixed Integer and Decimal additions
             (
-                CoreValue::Decimal(Decimal(decimal)) | CoreValue::TypedDecimal(decimal),
-                CoreValue::Integer(Integer(integer)) | CoreValue::TypedInteger(integer)
-            ) |
-            (
-                CoreValue::Integer(Integer(integer)) | CoreValue::TypedInteger(integer),
-                CoreValue::Decimal(Decimal(decimal)) | CoreValue::TypedDecimal(decimal),
+                CoreValue::Decimal(Decimal(decimal))
+                | CoreValue::TypedDecimal(decimal),
+                CoreValue::Integer(Integer(integer))
+                | CoreValue::TypedInteger(integer),
+            )
+            | (
+                CoreValue::Integer(Integer(integer))
+                | CoreValue::TypedInteger(integer),
+                CoreValue::Decimal(Decimal(decimal))
+                | CoreValue::TypedDecimal(decimal),
             ) => {
                 // convert integer to float
                 let int_as_float = if integer.is_signed() {
@@ -386,7 +375,7 @@ impl Add for CoreValue {
                     integer.as_u128() as f64
                 };
                 Ok(CoreValue::TypedDecimal(
-                    decimal + &TypedDecimal::from(int_as_float)
+                    decimal + &TypedDecimal::from(int_as_float),
                 ))
             }
 
@@ -431,7 +420,7 @@ impl Display for CoreValue {
             CoreValue::TypedInteger(int) => write!(f, "{int}"),
             CoreValue::TypedDecimal(decimal) => write!(f, "{decimal}"),
             CoreValue::Text(text) => write!(f, "{text}"),
-            CoreValue::Null(null) => write!(f, "{null}"),
+            CoreValue::Null => write!(f, "null"),
             CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
             CoreValue::Array(array) => write!(f, "{array}"),
             CoreValue::Object(object) => write!(f, "{object}"),

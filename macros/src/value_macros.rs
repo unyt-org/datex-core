@@ -24,9 +24,7 @@ pub fn from_core_value_derive_impl(input: DeriveInput) -> TokenStream {
                     }
                 });
             }
-            _ => {
-                panic!("Only tuple variants with a single field are supported")
-            }
+            _ => {}
         }
     }
 
