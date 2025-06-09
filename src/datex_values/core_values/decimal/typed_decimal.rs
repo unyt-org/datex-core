@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero() {
+    fn test_zero_and_neg_zero() {
         let a = TypedDecimal::from(0.0);
         matches!(a, TypedDecimal::Big(ExtendedBigDecimal::Zero));
 

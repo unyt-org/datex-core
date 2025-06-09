@@ -464,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn test_minus_zero() {
+    fn test_neg_zero() {
         let a = ExtendedBigDecimal::from(-0.0f32);
         assert!(matches!(a, ExtendedBigDecimal::NegZero));
         assert!(!matches!(a, ExtendedBigDecimal::Zero));
@@ -479,7 +479,7 @@ mod tests {
     }
 
     #[test]
-    fn test_infinity() {
+    fn test_inf() {
         let a = ExtendedBigDecimal::from(f32::INFINITY);
         assert!(matches!(a, ExtendedBigDecimal::Inf));
 
@@ -491,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn test_negative_infinity() {
+    fn test_neg_inf() {
         let a = ExtendedBigDecimal::from(f32::NEG_INFINITY);
         assert!(matches!(a, ExtendedBigDecimal::NegInf));
 
