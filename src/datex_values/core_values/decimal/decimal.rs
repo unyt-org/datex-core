@@ -2,11 +2,8 @@ use crate::datex_values::core_values::decimal::big_decimal::ExtendedBigDecimal;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::traits::soft_eq::SoftEq;
 use std::hash::Hash;
-use std::ops::{Neg, Sub};
-use std::{
-    fmt::Display,
-    ops::Add,
-};
+use std::ops::{Deref, Neg, Sub};
+use std::{fmt::Display, ops::Add};
 
 #[derive(Debug, Clone, Eq)]
 pub struct Decimal(pub TypedDecimal);
@@ -15,6 +12,15 @@ impl SoftEq for Decimal {
         self.0 == other.0
     }
 }
+
+impl Deref for Decimal {
+    type Target = TypedDecimal;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<T: Into<TypedDecimal>> From<T> for Decimal {
     fn from(value: T) -> Self {
         let typed = value.into();
@@ -103,12 +109,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_zero_construct() {
-        let c = Decimal(TypedDecimal::F32(0.0.into()));
+    fn test_zero() {
+        let a = Decimal::from("0.0");
+        let b = Decimal::from("0.0");
+        matches!(a.0, TypedDecimal::Big(_));
+        matches!(b.0, TypedDecimal::Big(_));
+        assert!(a.is_zero());
+        assert!(b.is_zero());
+        assert_eq!(a, b);
     }
 
     #[test]
-    fn test_nan_no_eq() {
+    fn test_neg_zero() {
+        let a = Decimal::from("-0.0");
+        let b = Decimal::from("-0.0");
+        matches!(a.0, TypedDecimal::Big(_));
+        matches!(b.0, TypedDecimal::Big(_));
+        assert!(a.is_zero());
+        assert!(b.is_zero());
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_nan_eq() {
         // implicit big decimal NaN
         let a = Decimal::from("nan");
         let b = Decimal::from("nan");
@@ -185,8 +208,10 @@ mod tests {
         init_logger();
         let a = Decimal::from("0.0");
         let b = Decimal::from("0.0");
+        let c = Decimal::from("-0.0");
 
         assert_eq!(a, b);
+        assert_ne!(a, c);
     }
 
     #[test]

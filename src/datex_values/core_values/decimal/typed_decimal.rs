@@ -114,6 +114,14 @@ impl TypedDecimal {
         }
     }
 
+    pub fn is_zero(&self) -> bool {
+        match self {
+            TypedDecimal::F32(value) => value.into_inner().is_zero(),
+            TypedDecimal::F64(value) => value.into_inner().is_zero(),
+            TypedDecimal::Big(value) => value.is_zero(),
+        }
+    }
+
     /// Returns true if the value can be represented as an exact integer in the range of i64.
     pub fn is_integer(&self) -> bool {
         match self {
@@ -137,7 +145,7 @@ impl TypedDecimal {
                         && big_value.to_f64().unwrap_or(f64::NAN).is_finite()
                 }
                 ExtendedBigDecimal::Zero => true,
-                ExtendedBigDecimal::MinusZero => true,
+                ExtendedBigDecimal::NegZero => true,
                 ExtendedBigDecimal::Inf
                 | ExtendedBigDecimal::NegInf
                 | ExtendedBigDecimal::NaN => false,
@@ -154,7 +162,7 @@ impl TypedDecimal {
                 TypedDecimal::Big(value) => match value {
                     ExtendedBigDecimal::Finite(big_value) => big_value.to_i64(),
                     ExtendedBigDecimal::Zero => Some(0),
-                    ExtendedBigDecimal::MinusZero => Some(0),
+                    ExtendedBigDecimal::NegZero => Some(0),
                     ExtendedBigDecimal::Inf
                     | ExtendedBigDecimal::NegInf
                     | ExtendedBigDecimal::NaN => None,
@@ -180,7 +188,7 @@ impl TypedDecimal {
                     big_value.is_positive()
                 }
                 ExtendedBigDecimal::Zero => true,
-                ExtendedBigDecimal::MinusZero => false,
+                ExtendedBigDecimal::NegZero => false,
                 ExtendedBigDecimal::Inf => true,
                 ExtendedBigDecimal::NegInf | ExtendedBigDecimal::NaN => false,
             },
@@ -195,7 +203,7 @@ impl TypedDecimal {
                     big_value.is_negative()
                 }
                 ExtendedBigDecimal::Zero => false,
-                ExtendedBigDecimal::MinusZero => true,
+                ExtendedBigDecimal::NegZero => true,
                 ExtendedBigDecimal::Inf | ExtendedBigDecimal::NaN => false,
                 ExtendedBigDecimal::NegInf => true,
             },
@@ -323,14 +331,39 @@ impl From<ExtendedBigDecimal> for TypedDecimal {
 
 #[cfg(test)]
 mod tests {
+    use ordered_float::OrderedFloat;
+
     use crate::datex_values::core_values::decimal::{
         big_decimal::ExtendedBigDecimal, typed_decimal::TypedDecimal,
     };
 
     #[test]
-    fn test_zero_construct() {
+    fn test_f32() {
+        let c = TypedDecimal::from(1.5f32);
+        matches!(c, TypedDecimal::F32(OrderedFloat(1.5)));
+        assert_eq!(c.as_f32(), 1.5);
+        assert_eq!(c.as_f64(), 1.5);
+    }
+
+    #[test]
+    fn test_f64() {
+        let c = TypedDecimal::from(1.5f64);
+        matches!(c, TypedDecimal::F64(OrderedFloat(1.5)));
+        assert_eq!(c.as_f32(), 1.5);
+        assert_eq!(c.as_f64(), 1.5);
+    }
+
+    #[test]
+    fn test_zero() {
+        let a = TypedDecimal::from(0.0);
+        matches!(a, TypedDecimal::Big(ExtendedBigDecimal::Zero));
+
+        let a = TypedDecimal::from(-0.0);
+        matches!(a, TypedDecimal::Big(ExtendedBigDecimal::NegZero));
+
         // f32
         let c = TypedDecimal::F32(0.0.into());
+        matches!(c, TypedDecimal::F32(OrderedFloat(0.0)));
         assert_eq!(c.as_f32(), 0.0);
         assert_eq!(c.as_f32(), -0.0);
         assert_eq!(c.as_f64(), 0.0);
@@ -338,6 +371,7 @@ mod tests {
 
         // f64
         let c = TypedDecimal::F64(0.0.into());
+        matches!(c, TypedDecimal::F64(OrderedFloat(0.0)));
         assert_eq!(c.as_f32(), 0.0);
         assert_eq!(c.as_f32(), -0.0);
         assert_eq!(c.as_f64(), 0.0);
