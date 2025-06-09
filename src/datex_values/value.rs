@@ -213,10 +213,13 @@ where
 /// The value is a holder for a combination of a CoreValue representation and its actual type.
 mod tests {
     use super::*;
-    use crate::datex_values::core_values::integer::{Integer, TypedInteger};
     use crate::{
         assert_soft_eq, datex_array,
-        datex_values::core_values::{array::Array, endpoint::Endpoint},
+        datex_values::core_values::{
+            array::Array,
+            endpoint::Endpoint,
+            integer::{integer::Integer, typed_integer::TypedInteger},
+        },
         logger::init_logger,
     };
     use log::{debug, info};

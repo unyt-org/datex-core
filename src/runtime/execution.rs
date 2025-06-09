@@ -3,7 +3,7 @@ use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::core_values::integer::Integer;
+use crate::datex_values::core_values::integer::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;

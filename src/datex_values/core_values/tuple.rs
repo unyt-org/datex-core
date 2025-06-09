@@ -1,6 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::integer::TypedInteger;
+use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
 use crate::datex_values::traits::soft_eq::SoftEq;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
