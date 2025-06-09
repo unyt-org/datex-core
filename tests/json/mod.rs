@@ -6,7 +6,6 @@ use datex_core::datex_values::core_values::object::Object;
 use datex_core::datex_values::value::Value;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
-use datex_core::global::protocol_structures::instructions::Instruction;
 use datex_core::runtime::execution::{execute_dxb, ExecutionOptions};
 use itertools::Itertools;
 use json_syntax::Parse;
@@ -23,7 +22,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
             // num string only contains +, - and digits
             let is_integer = num_str
                 .chars()
-                .all(|c| c.is_digit(10) || c == '+' || c == '-');
+                .all(|c| c.is_ascii_digit() || c == '+' || c == '-');
             if is_integer {
                 // Parse as integer
                 let int_value = num_str.parse::<i128>().unwrap();
@@ -33,7 +32,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
                 Value::from(Decimal::from(num_str))
             }
         }
-        json_syntax::Value::Boolean(b) => Value::from(b.clone()),
+        json_syntax::Value::Boolean(b) => Value::from(*b),
         json_syntax::Value::Array(arr) => {
             let mut vec = Vec::new();
             for value in arr {
@@ -58,8 +57,8 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
 
 fn compare_datex_result_with_json(json_string: &str) {
     println!(" JSON String: {json_string}");
-    let json_value = json_syntax::Value::parse_str(&json_string).unwrap().0;
-    let dxb = compile_script(&json_string).unwrap();
+    let json_value = json_syntax::Value::parse_str(json_string).unwrap().0;
+    let dxb = compile_script(json_string).unwrap();
     let datex_value = execute_dxb(
         dxb,
         ExecutionOptions {
@@ -79,7 +78,7 @@ fn compare_datex_result_with_json(json_string: &str) {
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
-    let dxb = compile_script(&json_string).unwrap();
+    let dxb = compile_script(json_string).unwrap();
     let decompiled = decompile_body(
         &dxb,
         DecompileOptions {
@@ -124,7 +123,6 @@ fn iterate_test_cases<'a>() -> impl Iterator<Item = (PathBuf, PathBuf)> + 'a {
             // go through directory files in alphabetical order
             for entry in std::fs::read_dir(test_dir)
                 .unwrap()
-                .into_iter()
                 .map(|e| e.unwrap())
                 .sorted_by_key(|e| e.path())
             {

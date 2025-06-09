@@ -70,10 +70,10 @@ impl SoftEq for TypedDecimal {
             (TypedDecimal::Big(a), TypedDecimal::Big(b)) => a.soft_eq(b),
             (a, TypedDecimal::Big(b)) | (TypedDecimal::Big(b), a) => match a {
                 TypedDecimal::F32(value) => {
-                    b.try_into_f32().map_or(false, |v| v == value.into_inner())
+                    b.try_into_f32().is_some_and(|v| v == value.into_inner())
                 }
                 TypedDecimal::F64(value) => {
-                    b.try_into_f64().map_or(false, |v| v == value.into_inner())
+                    b.try_into_f64().is_some_and(|v| v == value.into_inner())
                 }
                 _ => false,
             },

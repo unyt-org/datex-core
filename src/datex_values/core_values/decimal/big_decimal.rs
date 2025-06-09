@@ -1,20 +1,16 @@
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::{
-    core_value_trait::CoreValueTrait, traits::soft_eq::SoftEq,
-};
+use crate::datex_values::traits::soft_eq::SoftEq;
 use bigdecimal::BigDecimal;
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num_bigint::BigInt;
 use num_enum::TryFromPrimitive;
-use num_traits::{Float, FromBytes, Signed, ToBytes, ToPrimitive, Zero};
-use ordered_float::OrderedFloat;
+use num_traits::{Float, Signed, ToBytes, ToPrimitive, Zero};
 use std::hash::Hash;
 use std::io::{Read, Seek};
-use std::ops::{Neg, Sub};
 use std::str::FromStr;
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign},
+    ops::Add,
 };
 
 #[derive(Debug, Clone, Eq, Hash)]
@@ -91,7 +87,7 @@ impl ExtendedBigDecimal {
 impl Display for ExtendedBigDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExtendedBigDecimal::Finite(value) => write!(f, "{}", value),
+            ExtendedBigDecimal::Finite(value) => write!(f, "{value}"),
             ExtendedBigDecimal::Zero => write!(f, "0.0"),
             ExtendedBigDecimal::MinusZero => write!(f, "-0.0"),
             ExtendedBigDecimal::Inf => write!(f, "infinity"),

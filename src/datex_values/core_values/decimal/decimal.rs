@@ -1,21 +1,11 @@
 use crate::datex_values::core_values::decimal::big_decimal::ExtendedBigDecimal;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::{
-    core_value_trait::CoreValueTrait, traits::soft_eq::SoftEq,
-};
-use bigdecimal::BigDecimal;
-use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
-use num_bigint::BigInt;
-use num_enum::TryFromPrimitive;
-use num_traits::{Float, FromBytes, Signed, ToBytes, ToPrimitive, Zero};
-use ordered_float::OrderedFloat;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use std::hash::Hash;
-use std::io::{Read, Seek};
 use std::ops::{Neg, Sub};
-use std::str::FromStr;
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign},
+    ops::Add,
 };
 
 #[derive(Debug, Clone, Eq)]
@@ -40,7 +30,7 @@ impl<T: Into<TypedDecimal>> From<T> for Decimal {
 impl From<&str> for Decimal {
     fn from(value: &str) -> Self {
         Decimal(TypedDecimal::Big(
-            ExtendedBigDecimal::from_string(&value)
+            ExtendedBigDecimal::from_string(value)
                 .unwrap_or(ExtendedBigDecimal::NaN),
         ))
     }
