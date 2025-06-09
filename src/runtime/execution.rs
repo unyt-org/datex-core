@@ -9,7 +9,7 @@ use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
-    BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data,
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, Instruction, ShortTextData, TextData,
 };
 use crate::parser::body;
@@ -151,8 +151,8 @@ fn execute_loop(
             Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
                 Decimal::from(i32 as f32).into()
             }
-            Instruction::DecimalBig(BigDecimalData(big_decimal)) => {
-                Decimal(TypedDecimal::Big(big_decimal)).into()
+            Instruction::Decimal(DecimalData(big_decimal)) => {
+                big_decimal.into()
             }
 
             // null
@@ -581,13 +581,16 @@ mod tests {
 
     #[test]
     fn test_decimal() {
-        let result = execute_datex_script_debug_with_result("1.2345");
-        assert_eq!(result, Decimal::from("1.2345").into());
-        assert_soft_eq!(result, ValueContainer::from(1.2345));
+        let result = execute_datex_script_debug_with_result("1.5");
+        assert_eq!(result, Decimal::from_string("1.5").into());
+        assert_soft_eq!(result, ValueContainer::from(1.5));
+    }
 
-        let result = execute_datex_script_debug_with_result("-3.456");
-        assert_eq!(result, Decimal::from("-3.456").into());
-        assert_soft_eq!(result, ValueContainer::from(-3.456));
+    #[test]
+    fn test_decimal_and_integer() {
+        let result = execute_datex_script_debug_with_result("-2341324.0");
+        assert_eq!(result, Decimal::from_string("-2341324").into());
+        assert_soft_eq!(result, ValueContainer::from(-2341324));
     }
 
     #[test]

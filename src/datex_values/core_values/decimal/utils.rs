@@ -51,10 +51,7 @@ pub fn decimal_to_string<T: Float + Display>(
 #[cfg(test)]
 mod tests {
     use ordered_float::OrderedFloat;
-
-    use crate::datex_values::core_values::decimal::{
-        typed_decimal::TypedDecimal, utils::smallest_fitting_float,
-    };
+    use super::*;
 
     #[test]
     fn test_smallest_fitting_float() {

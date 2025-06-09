@@ -7,7 +7,7 @@ use std::io::Cursor;
 use crate::datex_values::core_values::decimal::utils::decimal_to_string;
 use crate::datex_values_old::SlotIdentifier;
 use crate::global::protocol_structures::instructions::{
-    BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data,
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data,
     ShortTextData, TextData,
 };
@@ -312,7 +312,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 )?;
                 handle_after_term(state, &mut output, true)?;
             }
-            Instruction::DecimalBig(BigDecimalData(big_decimal)) => {
+            Instruction::Decimal(DecimalData(big_decimal)) => {
                 handle_before_term(state, &mut output, true)?;
                 write!(output, "{big_decimal}")?;
                 handle_after_term(state, &mut output, true)?;

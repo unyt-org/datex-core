@@ -1,8 +1,9 @@
 use crate::datex_values::core_values::decimal::{
-    big_decimal::ExtendedBigDecimal, utils::decimal_to_string,
+    utils::decimal_to_string,
 };
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
+use crate::datex_values::core_values::decimal::decimal::Decimal;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -17,7 +18,7 @@ pub enum Instruction {
     DecimalF64(Float64Data),
     DecimalAsInt16(FloatAsInt16Data),
     DecimalAsInt32(FloatAsInt32Data),
-    DecimalBig(BigDecimalData),
+    Decimal(DecimalData),
 
     ShortText(ShortTextData),
     Text(TextData),
@@ -60,7 +61,7 @@ impl Display for Instruction {
             Instruction::DecimalF64(data) => {
                 write!(f, "DECIMAL_F64 {}", decimal_to_string(data.0, false))
             }
-            Instruction::DecimalBig(data) => {
+            Instruction::Decimal(data) => {
                 write!(f, "DECIMAL_BIG {}", data.0)
             }
             Instruction::ShortText(data) => write!(f, "SHORT_TEXT {}", data.0),
@@ -144,7 +145,7 @@ pub struct FloatAsInt32Data(pub i32);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
-pub struct BigDecimalData(pub ExtendedBigDecimal);
+pub struct DecimalData(pub Decimal);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

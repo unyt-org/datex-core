@@ -9,7 +9,7 @@ use crate::datex_values_old::{
 };
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
+use crate::global::protocol_structures::instructions::{DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
 use crate::utils::buffers;
 
 fn extract_slot_identifier(
@@ -222,9 +222,9 @@ pub fn iterate_instructions<'a>(
                     }
                     
                     InstructionCode::DECIMAL_BIG => {
-                        let data = BigDecimalData::read(&mut reader);
+                        let data = DecimalData::read(&mut reader);
                         if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::DecimalBig(data.unwrap())) }
+                        else { Ok(Instruction::Decimal(data.unwrap())) }
                     }
                     
                     InstructionCode::DECIMAL_AS_INT_16 => {

@@ -40,25 +40,31 @@ impl SoftEq for CoreValue {
                 CoreValue::Integer(Integer(a)) | CoreValue::TypedInteger(a),
                 CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
             ) => a.soft_eq(b),
+            
+            // Decimals
+            (CoreValue::Decimal(a), CoreValue::Decimal(b)) => 
+                a.soft_eq(b),
 
-            // Decimals + TypedDecimals
+            // TypedDecimals
             (
-                CoreValue::Decimal(Decimal(a)) | CoreValue::TypedDecimal(a),
-                CoreValue::Decimal(Decimal(b)) | CoreValue::TypedDecimal(b),
+                CoreValue::TypedDecimal(a),
+                CoreValue::TypedDecimal(b),
             ) => a.soft_eq(b),
-
-            // Mixed Integer and Decimal comparisons
-            (
-                CoreValue::Decimal(Decimal(a)) | CoreValue::TypedDecimal(a),
-                CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
-            )
-            | (
-                CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
-                CoreValue::Decimal(Decimal(a)) | CoreValue::TypedDecimal(a),
-            ) => match a.as_integer() {
-                Some(int) => b.soft_eq(&TypedInteger::from(int)),
-                None => false,
-            },
+            
+            // Decimal + TypedDecimal
+            (CoreValue::Decimal(a), CoreValue::TypedDecimal(b)) |
+            (CoreValue::TypedDecimal(b), CoreValue::Decimal(a))
+                => TypedDecimal::Decimal(a.clone()).soft_eq(b),
+            
+            // Decimal + Integer/TypedInteger
+            (CoreValue::Decimal(a), CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)) |
+            (CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b), CoreValue::Decimal(a))
+                => a.soft_eq(&Decimal::from_string(&b.to_string())), // TODO: user bigints once implemented
+            
+            // TypedDecimal + Integer/TypedInteger
+            (CoreValue::TypedDecimal(a), CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)) |
+            (CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b), CoreValue::TypedDecimal(a))
+                => a.soft_eq(&TypedDecimal::Decimal(Decimal::from_string(&b.to_string()))),
 
             (CoreValue::Text(a), CoreValue::Text(b)) => a.soft_eq(b),
             (CoreValue::Null, CoreValue::Null) => true,
@@ -66,7 +72,8 @@ impl SoftEq for CoreValue {
             (CoreValue::Array(a), CoreValue::Array(b)) => a.soft_eq(b),
             (CoreValue::Object(a), CoreValue::Object(b)) => a.soft_eq(b),
             (CoreValue::Tuple(a), CoreValue::Tuple(b)) => a.soft_eq(b),
-            _ => false,
+            
+            _ => false
         }
     }
 }
@@ -196,7 +203,7 @@ impl CoreValue {
             CoreValue::TypedDecimal(decimal) => match decimal {
                 TypedDecimal::F32(_) => CoreValueType::F32,
                 TypedDecimal::F64(_) => CoreValueType::F64,
-                TypedDecimal::Big(_) => CoreValueType::BigDecimal,
+                TypedDecimal::Decimal(_) => CoreValueType::Decimal,
             },
             CoreValue::Text(_) => CoreValueType::Text,
             CoreValue::Null => CoreValueType::Null,
@@ -225,7 +232,7 @@ impl CoreValue {
                 Some(CoreValue::TypedInteger(self.cast_to_integer()?))
             }
             CoreValueType::F32 | CoreValueType::F64 => {
-                Some(CoreValue::TypedDecimal(self.cast_to_decimal()?))
+                Some(CoreValue::TypedDecimal(self.cast_to_float()?))
             }
             CoreValueType::Text => Some(CoreValue::Text(self.cast_to_text())),
             CoreValueType::Null => Some(CoreValue::Null),
@@ -245,7 +252,7 @@ impl CoreValue {
                 Some(CoreValue::Integer(self.cast_to_integer()?.into()))
             }
             CoreValueType::Decimal => {
-                Some(CoreValue::Decimal(self.cast_to_decimal()?.into()))
+                Some(CoreValue::Decimal(Decimal::from_string(self.cast_to_text().as_str())))
             }
             _ => todo!(),
         }
@@ -273,7 +280,7 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_decimal(&self) -> Option<TypedDecimal> {
+    pub fn cast_to_float(&self) -> Option<TypedDecimal> {
         match self {
             CoreValue::Text(text) => {
                 text.to_string().parse::<f64>().ok().map(TypedDecimal::from)
@@ -296,7 +303,7 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => Some(*int),
             CoreValue::Integer(Integer(int)) => Some(*int),
             CoreValue::Decimal(decimal) => {
-                Some(TypedInteger::from(decimal.0.as_f64() as i64))
+                Some(TypedInteger::from(decimal.try_into_f64()? as i128)) // TODO: handle bigints once implemented
             }
             CoreValue::TypedDecimal(decimal) => {
                 Some(TypedInteger::from(decimal.as_f64() as i64))
@@ -343,64 +350,119 @@ impl Add for CoreValue {
     type Output = Result<CoreValue, ValueError>;
     fn add(self, rhs: CoreValue) -> Self::Output {
         match (&self, &rhs) {
+            // x + text or text + x (order does not matter)
             (CoreValue::Text(text), other) => {
                 let other = other.cast_to_text();
-                Ok(CoreValue::Text(text + other))
+                return Ok(CoreValue::Text(text + other))
             }
             (other, CoreValue::Text(text)) => {
                 let other = other.cast_to_text();
-                Ok(CoreValue::Text(other + text))
+                return Ok(CoreValue::Text(other + text))
             }
 
-            // Integers
-            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
-                Ok(CoreValue::Integer(
+            // same type additions
+            (CoreValue::TypedInteger(lhs), CoreValue::TypedInteger(rhs)) => {
+                return Ok(CoreValue::TypedInteger(
                     (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
                 ))
             }
-
-            (
-                CoreValue::TypedInteger(lhs) | CoreValue::Integer(Integer(lhs)),
-                CoreValue::TypedInteger(rhs) | CoreValue::Integer(Integer(rhs)),
-            ) => Ok(CoreValue::TypedInteger(
-                (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
-            )),
-
-            // Decimals
-            (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
-                Ok(CoreValue::Decimal(lhs + rhs))
-            }
-
-            (
-                CoreValue::TypedDecimal(lhs) | CoreValue::Decimal(Decimal(lhs)),
-                CoreValue::TypedDecimal(rhs) | CoreValue::Decimal(Decimal(rhs)),
-            ) => Ok(CoreValue::TypedDecimal(lhs + rhs)),
-
-            // Mixed Integer and Decimal additions
-            (
-                CoreValue::Decimal(Decimal(decimal))
-                | CoreValue::TypedDecimal(decimal),
-                CoreValue::Integer(Integer(integer))
-                | CoreValue::TypedInteger(integer),
-            )
-            | (
-                CoreValue::Integer(Integer(integer))
-                | CoreValue::TypedInteger(integer),
-                CoreValue::Decimal(Decimal(decimal))
-                | CoreValue::TypedDecimal(decimal),
-            ) => {
-                // convert integer to float
-                let int_as_float = if integer.is_signed() {
-                    integer.as_i128().unwrap() as f64
-                } else {
-                    integer.as_u128() as f64
-                };
-                Ok(CoreValue::TypedDecimal(
-                    decimal + &TypedDecimal::from(int_as_float),
+            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
+                return Ok(CoreValue::Integer(
+                    (lhs + rhs).ok_or(ValueError::IntegerOverflow)?,
                 ))
             }
+            (CoreValue::TypedDecimal(lhs), CoreValue::TypedDecimal(rhs)) => {
+                return Ok(CoreValue::TypedDecimal(lhs + rhs))
+            }
+            (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
+                return Ok(CoreValue::Decimal(lhs + rhs))
+            }
 
+            _ => {}
+        }
+
+        // other cases
+        match &self {
+            // integer
+            CoreValue::Integer(lhs) => match &rhs {
+                CoreValue::TypedInteger(rhs) => {
+                    Ok(CoreValue::Integer(Integer::from(
+                        (&lhs.0 + rhs).ok_or(ValueError::IntegerOverflow)?,
+                    )))
+                }
+                CoreValue::Decimal(_) => {
+                    let integer = rhs.cast_to_integer().ok_or(ValueError::InvalidOperation)?;
+                    Ok(CoreValue::Integer(Integer::from(
+                        (&lhs.0 + &integer).ok_or(ValueError::IntegerOverflow)?,
+                    )))
+                }
+                CoreValue::TypedDecimal(rhs) => {
+                    let decimal = rhs.as_f64();
+                    let integer = TypedInteger::from(decimal as i128);
+                    Ok(CoreValue::Integer(Integer::from(
+                        (&lhs.0 + &integer).ok_or(ValueError::IntegerOverflow)?,
+                    )))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
+
+            // typed integer
+            CoreValue::TypedInteger(lhs) => match &rhs {
+                CoreValue::Integer(rhs) => {
+                    Ok(CoreValue::TypedInteger(
+                        (lhs + &rhs.0).ok_or(ValueError::IntegerOverflow)?,
+                    ))
+                }
+                CoreValue::Decimal(_) => {
+                    let integer = rhs.cast_to_integer().ok_or(ValueError::InvalidOperation)?;
+                    Ok(CoreValue::TypedInteger(
+                        (lhs + &integer).ok_or(ValueError::IntegerOverflow)?,
+                    ))
+                }
+                CoreValue::TypedDecimal(rhs) => {
+                    let decimal = rhs.as_f64();
+                    let integer = TypedInteger::from(decimal as i128);
+                    Ok(CoreValue::TypedInteger(
+                        (lhs + &integer).ok_or(ValueError::IntegerOverflow)?,
+                    ))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
+
+            // decimal
+            CoreValue::Decimal(lhs) => match rhs {
+                CoreValue::TypedDecimal(rhs) => {
+                    Ok(CoreValue::Decimal(lhs + &Decimal::from(rhs)))
+                }
+                CoreValue::TypedInteger(rhs) => {
+                    let decimal = Decimal::from(rhs.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::Decimal(lhs + &decimal))
+                }
+                CoreValue::Integer(rhs) => {
+                    let decimal = Decimal::from(rhs.0.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::Decimal(lhs + &decimal))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
+
+            // typed decimal
+            CoreValue::TypedDecimal(lhs) => match rhs {
+                CoreValue::Decimal(rhs) => {
+                    Ok(CoreValue::TypedDecimal(lhs + &TypedDecimal::Decimal(rhs)))
+                }
+                CoreValue::TypedInteger(rhs) => {
+                    let decimal = TypedDecimal::from(rhs.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::TypedDecimal(lhs + &decimal))
+                }
+                CoreValue::Integer(rhs) => {
+                    let decimal = TypedDecimal::from(rhs.0.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::TypedDecimal(lhs + &decimal))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
+            
             _ => Err(ValueError::InvalidOperation),
+
         }
     }
 }
@@ -415,29 +477,107 @@ impl Add for &CoreValue {
 impl Sub for CoreValue {
     type Output = Result<CoreValue, ValueError>;
     fn sub(self, rhs: CoreValue) -> Self::Output {
+        // same type subtractions
         match (&self, &rhs) {
-            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
-                Ok(CoreValue::Integer(
+            (CoreValue::TypedInteger(lhs), CoreValue::TypedInteger(rhs)) => {
+                return Ok(CoreValue::TypedInteger(
                     (lhs - rhs).ok_or(ValueError::IntegerOverflow)?,
                 ))
             }
-
-            (
-                CoreValue::TypedInteger(lhs) | CoreValue::Integer(Integer(lhs)),
-                CoreValue::TypedInteger(rhs) | CoreValue::Integer(Integer(rhs)),
-            ) => Ok(CoreValue::TypedInteger(
-                (lhs - rhs).ok_or(ValueError::IntegerOverflow)?,
-            )),
-
+            (CoreValue::Integer(lhs), CoreValue::Integer(rhs)) => {
+                return Ok(CoreValue::Integer(
+                    (lhs - rhs).ok_or(ValueError::IntegerOverflow)?,
+                ))
+            }
+            (CoreValue::TypedDecimal(lhs), CoreValue::TypedDecimal(rhs)) => {
+                return Ok(CoreValue::TypedDecimal(lhs - rhs))
+            }
             (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
-                Ok(CoreValue::Decimal(lhs - rhs))
+                return Ok(CoreValue::Decimal(lhs - rhs))
             }
 
-            (
-                CoreValue::TypedDecimal(lhs) | CoreValue::Decimal(Decimal(lhs)),
-                CoreValue::TypedDecimal(rhs) | CoreValue::Decimal(Decimal(rhs)),
-            ) => Ok(CoreValue::TypedDecimal(lhs - rhs)),
+            _ => {}
+        }
+        
+        // other cases
+        match &self {
+            // integer
+            CoreValue::Integer(lhs) => match &rhs {
+                CoreValue::TypedInteger(rhs) => {
+                    Ok(CoreValue::Integer(Integer::from(
+                        (&lhs.0 - rhs).ok_or(ValueError::IntegerOverflow)?,
+                    )))
+                }
+                CoreValue::Decimal(_) => {
+                    let integer = rhs.cast_to_integer().ok_or(ValueError::InvalidOperation)?;
+                    Ok(CoreValue::Integer(Integer::from(
+                        (&lhs.0 - &integer).ok_or(ValueError::IntegerOverflow)?,
+                    )))
+                }
+                CoreValue::TypedDecimal(rhs) => {
+                    let decimal = rhs.as_f64();
+                    let integer = TypedInteger::from(decimal as i128);
+                    Ok(CoreValue::Integer(Integer::from(
+                        (&lhs.0 - &integer).ok_or(ValueError::IntegerOverflow)?,
+                    )))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
 
+            // typed integer
+            CoreValue::TypedInteger(lhs) => match &rhs {
+                CoreValue::Integer(rhs) => {
+                    Ok(CoreValue::TypedInteger(
+                        (lhs - &rhs.0).ok_or(ValueError::IntegerOverflow)?,
+                    ))
+                }
+                CoreValue::Decimal(_) => {
+                    let integer = rhs.cast_to_integer().ok_or(ValueError::InvalidOperation)?;
+                    Ok(CoreValue::TypedInteger(
+                        (lhs - &integer).ok_or(ValueError::IntegerOverflow)?,
+                    ))
+                }
+                CoreValue::TypedDecimal(rhs) => {
+                    let decimal = rhs.as_f64();
+                    let integer = TypedInteger::from(decimal as i128);
+                    Ok(CoreValue::TypedInteger(
+                        (lhs - &integer).ok_or(ValueError::IntegerOverflow)?,
+                    ))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
+
+            // decimal
+            CoreValue::Decimal(lhs) => match rhs {
+                CoreValue::TypedDecimal(rhs) => {
+                    Ok(CoreValue::Decimal(lhs - &Decimal::from(rhs)))
+                }
+                CoreValue::TypedInteger(rhs) => {
+                    let decimal = Decimal::from(rhs.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::Decimal(lhs - &decimal))
+                }
+                CoreValue::Integer(rhs) => {
+                    let decimal = Decimal::from(rhs.0.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::Decimal(lhs - &decimal))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
+
+            // typed decimal
+            CoreValue::TypedDecimal(lhs) => match rhs {
+                CoreValue::Decimal(rhs) => {
+                    Ok(CoreValue::TypedDecimal(lhs - &TypedDecimal::Decimal(rhs)))
+                }
+                CoreValue::TypedInteger(rhs) => {
+                    let decimal = TypedDecimal::from(rhs.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::TypedDecimal(lhs - &decimal))
+                }
+                CoreValue::Integer(rhs) => {
+                    let decimal = TypedDecimal::from(rhs.0.as_i128().ok_or(ValueError::IntegerOverflow)? as f64);
+                    Ok(CoreValue::TypedDecimal(lhs - &decimal))
+                }
+                _ => Err(ValueError::InvalidOperation),
+            },
             _ => Err(ValueError::InvalidOperation),
         }
     }

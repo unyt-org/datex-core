@@ -6,4 +6,3 @@ pub mod integer;
 pub mod object;
 pub mod text;
 pub mod tuple;
-pub mod decimal_new;

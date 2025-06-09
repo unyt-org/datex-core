@@ -24,7 +24,6 @@ pub enum CoreValueType {
     Decimal,
     F32,
     F64,
-    BigDecimal,
 
     Bool,
     Array,

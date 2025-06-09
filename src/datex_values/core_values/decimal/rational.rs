@@ -16,11 +16,15 @@ impl Rational {
     pub(crate) fn is_integer(&self) -> bool {
         self.big_rational.is_integer()
     }
-
+    pub(crate) fn to_i16(&self) -> Option<i16> {
+        self.big_rational.to_i16()
+    }
+    pub(crate) fn to_i32(&self) -> Option<i32> {
+        self.big_rational.to_i32()
+    }
     pub(crate) fn to_i64(&self) -> Option<i64> {
         self.big_rational.to_i64()
     }
-
     pub(crate) fn to_f32(&self) -> Option<f32> {
         self.big_rational.to_f32()
     }

@@ -1,24 +1,49 @@
 use crate::datex_values::{
     core_value_trait::CoreValueTrait,
-    core_values::decimal::{
-        big_decimal::ExtendedBigDecimal, utils::decimal_to_string,
-    },
     traits::soft_eq::SoftEq,
 };
-use num_traits::Signed;
-use num_traits::ToPrimitive;
-use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Neg, Sub},
+    ops::{Add, AddAssign, Sub},
 };
+use std::hash::{Hash, Hasher};
+use std::ops::Neg;
+use num_traits::Zero;
+use crate::datex_values::core_values::decimal::decimal::Decimal;
 
+// TODO: think about hash keys for NaN
 #[derive(Debug, Clone, Eq, Hash)]
 pub enum TypedDecimal {
     F32(OrderedFloat<f32>),
     F64(OrderedFloat<f64>),
-    Big(ExtendedBigDecimal),
+    Decimal(Decimal)
+}
+
+
+impl CoreValueTrait for TypedDecimal {}
+
+impl SoftEq for TypedDecimal {
+    fn soft_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TypedDecimal::F32(a), TypedDecimal::F32(b)) => a.into_inner() == b.into_inner(),
+            (TypedDecimal::F64(a), TypedDecimal::F64(b)) => a.into_inner() == b.into_inner(),
+            (TypedDecimal::F32(a), TypedDecimal::F64(b))
+            | (TypedDecimal::F64(b), TypedDecimal::F32(a)) => {
+                a.into_inner() as f64 == b.into_inner()
+            }
+            (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => a.soft_eq(b),
+            (a, TypedDecimal::Decimal(b)) | (TypedDecimal::Decimal(b), a) => match a {
+                TypedDecimal::F32(value) => {
+                    b.soft_eq(&Decimal::from(value.into_inner()))
+                }
+                TypedDecimal::F64(value) => {
+                    b.soft_eq(&Decimal::from(value.into_inner()))
+                }
+                _ => false,
+            },
+        }
+    }
 }
 
 impl PartialEq for TypedDecimal {
@@ -33,72 +58,19 @@ impl PartialEq for TypedDecimal {
                 a.into_inner() == b.into_inner()
             }
             // Big and Big
-            (TypedDecimal::Big(a), TypedDecimal::Big(b)) => a == b,
-
-            // F32 and F64
-            (TypedDecimal::F32(a), TypedDecimal::F64(b))
-            | (TypedDecimal::F64(b), TypedDecimal::F32(a)) => {
-                a.into_inner() as f64 == b.into_inner()
-            }
-
-            // Big and F32
-            (TypedDecimal::Big(a), TypedDecimal::F32(b))
-            | (TypedDecimal::F32(b), TypedDecimal::Big(a)) => {
-                a == &ExtendedBigDecimal::from(b.into_inner())
-            }
-
-            // Big and F64
-            (TypedDecimal::Big(a), TypedDecimal::F64(b))
-            | (TypedDecimal::F64(b), TypedDecimal::Big(a)) => {
-                a == &ExtendedBigDecimal::from(b.into_inner())
-            }
+            (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => a == b,
+            _ => false
         }
     }
 }
 
-impl CoreValueTrait for TypedDecimal {}
-
-impl SoftEq for TypedDecimal {
-    fn soft_eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (TypedDecimal::F32(a), TypedDecimal::F32(b)) => a == b,
-            (TypedDecimal::F64(a), TypedDecimal::F64(b)) => a == b,
-            (TypedDecimal::F32(a), TypedDecimal::F64(b))
-            | (TypedDecimal::F64(b), TypedDecimal::F32(a)) => {
-                a.into_inner() as f64 == b.into_inner()
-            }
-            (TypedDecimal::Big(a), TypedDecimal::Big(b)) => a.soft_eq(b),
-            (a, TypedDecimal::Big(b)) | (TypedDecimal::Big(b), a) => match a {
-                TypedDecimal::F32(value) => {
-                    b.try_into_f32().is_some_and(|v| v == value.into_inner())
-                }
-                TypedDecimal::F64(value) => {
-                    b.try_into_f64().is_some_and(|v| v == value.into_inner())
-                }
-                _ => false,
-            },
-        }
-    }
-}
 
 impl TypedDecimal {
-    pub fn as_big(&self) -> ExtendedBigDecimal {
-        match self {
-            TypedDecimal::F32(value) => {
-                ExtendedBigDecimal::from(value.into_inner())
-            }
-            TypedDecimal::F64(value) => {
-                ExtendedBigDecimal::from(value.into_inner())
-            }
-            TypedDecimal::Big(value) => value.clone(),
-        }
-    }
-
     pub fn as_f32(&self) -> f32 {
         match self {
             TypedDecimal::F32(value) => value.into_inner(),
             TypedDecimal::F64(value) => value.into_inner() as f32,
-            TypedDecimal::Big(value) => {
+            TypedDecimal::Decimal(value) => {
                 value.try_into_f32().unwrap_or(f32::NAN)
             }
         }
@@ -108,7 +80,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.into_inner() as f64,
             TypedDecimal::F64(value) => value.into_inner(),
-            TypedDecimal::Big(value) => {
+            TypedDecimal::Decimal(value) => {
                 value.try_into_f64().unwrap_or(f64::NAN)
             }
         }
@@ -118,7 +90,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.into_inner().is_zero(),
             TypedDecimal::F64(value) => value.into_inner().is_zero(),
-            TypedDecimal::Big(value) => value.is_zero(),
+            TypedDecimal::Decimal(value) => value == &Decimal::Zero || value == &Decimal::NegZero,
         }
     }
 
@@ -129,26 +101,26 @@ impl TypedDecimal {
                 value.into_inner() as f64 >= i64::MIN as f64
                     && value.into_inner() as f64 <= i64::MAX as f64
                     && !(value.into_inner().is_zero()
-                        && value.into_inner().is_sign_negative())
+                    && value.into_inner().is_sign_negative())
                     && value.into_inner().fract() == 0.0
             }
             TypedDecimal::F64(value) => {
                 value.into_inner() >= i64::MIN as f64
                     && value.into_inner() <= i64::MAX as f64
                     && !(value.into_inner().is_zero()
-                        && value.into_inner().is_sign_negative())
+                    && value.into_inner().is_sign_negative())
                     && value.into_inner().fract() == 0.0
             }
-            TypedDecimal::Big(value) => match value {
-                ExtendedBigDecimal::Finite(big_value) => {
+            TypedDecimal::Decimal(value) => match value {
+                Decimal::Finite(big_value) => {
                     big_value.is_integer()
                         && big_value.to_f64().unwrap_or(f64::NAN).is_finite()
                 }
-                ExtendedBigDecimal::Zero => true,
-                ExtendedBigDecimal::NegZero => true,
-                ExtendedBigDecimal::Inf
-                | ExtendedBigDecimal::NegInf
-                | ExtendedBigDecimal::NaN => false,
+                Decimal::Zero => true,
+                Decimal::NegZero => true,
+                Decimal::Infinity => false,
+                Decimal::NegInfinity => false,
+                Decimal::NaN => false,
             },
         }
     }
@@ -156,18 +128,16 @@ impl TypedDecimal {
     /// Returns the value as an integer if it is an exact integer, otherwise returns None.
     pub fn as_integer(&self) -> Option<i64> {
         if self.is_integer() {
-            match self {
-                TypedDecimal::F32(value) => Some(value.into_inner() as i64),
-                TypedDecimal::F64(value) => Some(value.into_inner() as i64),
-                TypedDecimal::Big(value) => match value {
-                    ExtendedBigDecimal::Finite(big_value) => big_value.to_i64(),
-                    ExtendedBigDecimal::Zero => Some(0),
-                    ExtendedBigDecimal::NegZero => Some(0),
-                    ExtendedBigDecimal::Inf
-                    | ExtendedBigDecimal::NegInf
-                    | ExtendedBigDecimal::NaN => None,
+            Some(match self {
+                TypedDecimal::F32(value) => value.into_inner() as i64,
+                TypedDecimal::F64(value) => value.into_inner() as i64,
+                TypedDecimal::Decimal(value) => match value {
+                    Decimal::Finite(big_value) => big_value.to_i64().unwrap(),
+                    Decimal::Zero => 0,
+                    Decimal::NegZero => 0,
+                    _ => unreachable!(),
                 },
-            }
+            })
         } else {
             None
         }
@@ -183,14 +153,13 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_sign_positive(),
             TypedDecimal::F64(value) => value.is_sign_positive(),
-            TypedDecimal::Big(value) => match value {
-                ExtendedBigDecimal::Finite(big_value) => {
-                    big_value.is_positive()
-                }
-                ExtendedBigDecimal::Zero => true,
-                ExtendedBigDecimal::NegZero => false,
-                ExtendedBigDecimal::Inf => true,
-                ExtendedBigDecimal::NegInf | ExtendedBigDecimal::NaN => false,
+            TypedDecimal::Decimal(value) => match value {
+                Decimal::Finite(big_value) => big_value.is_positive(),
+                Decimal::Zero => true,
+                Decimal::NegZero => false,
+                Decimal::Infinity => true,
+                Decimal::NegInfinity => false,
+                Decimal::NaN => false,
             },
         }
     }
@@ -198,14 +167,13 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_sign_negative(),
             TypedDecimal::F64(value) => value.is_sign_negative(),
-            TypedDecimal::Big(value) => match value {
-                ExtendedBigDecimal::Finite(big_value) => {
-                    big_value.is_negative()
-                }
-                ExtendedBigDecimal::Zero => false,
-                ExtendedBigDecimal::NegZero => true,
-                ExtendedBigDecimal::Inf | ExtendedBigDecimal::NaN => false,
-                ExtendedBigDecimal::NegInf => true,
+            TypedDecimal::Decimal(value) => match value {
+                Decimal::Finite(big_value) => big_value.is_negative(),
+                Decimal::Zero => false,
+                Decimal::NegZero => false,
+                Decimal::Infinity => false,
+                Decimal::NegInfinity => true,
+                Decimal::NaN => false,
             },
         }
     }
@@ -213,10 +181,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_nan(),
             TypedDecimal::F64(value) => value.is_nan(),
-            TypedDecimal::Big(value) => match value {
-                ExtendedBigDecimal::NaN => true,
-                _ => false,
-            },
+            TypedDecimal::Decimal(value) => matches!(value, Decimal::NaN),
         }
     }
 }
@@ -224,13 +189,9 @@ impl TypedDecimal {
 impl Display for TypedDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypedDecimal::F32(value) => {
-                decimal_to_string(value.into_inner(), false).fmt(f)
-            }
-            TypedDecimal::F64(value) => {
-                decimal_to_string(value.into_inner(), false).fmt(f)
-            }
-            TypedDecimal::Big(value) => value.to_string().fmt(f),
+            TypedDecimal::F32(value) => write!(f, "{}", value.into_inner()),
+            TypedDecimal::F64(value) => write!(f, "{}", value.into_inner()),
+            TypedDecimal::Decimal(value) => write!(f, "{value}"),
         }
     }
 }
@@ -245,8 +206,8 @@ impl Add for TypedDecimal {
                 TypedDecimal::F64(b) => TypedDecimal::F32(OrderedFloat(
                     a.into_inner() + b.into_inner() as f32,
                 )),
-                TypedDecimal::Big(b) => {
-                    let result = b + TypedDecimal::F32(a);
+                TypedDecimal::Decimal(b) => {
+                    let result = Decimal::from(a.into_inner()) + b;
                     if let Some(result_f32) = result.try_into_f32() {
                         TypedDecimal::F32(result_f32.into())
                     } else {
@@ -259,8 +220,8 @@ impl Add for TypedDecimal {
                     a.into_inner() + b.into_inner() as f64,
                 )),
                 TypedDecimal::F64(b) => TypedDecimal::F64(a + b),
-                TypedDecimal::Big(b) => {
-                    let result = b + TypedDecimal::F64(a);
+                TypedDecimal::Decimal(b) => {
+                    let result = Decimal::from(a.into_inner()) + b;
                     if let Some(result_f64) = result.try_into_f64() {
                         TypedDecimal::F64(result_f64.into())
                     } else {
@@ -268,7 +229,7 @@ impl Add for TypedDecimal {
                     }
                 }
             },
-            TypedDecimal::Big(a) => TypedDecimal::Big(a + rhs),
+            TypedDecimal::Decimal(a) => TypedDecimal::Decimal(a + Decimal::from(rhs)),
         }
     }
 }
@@ -285,16 +246,15 @@ impl Sub for TypedDecimal {
     type Output = TypedDecimal;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let neg_rhs = match rhs {
-            TypedDecimal::F32(v) => {
-                TypedDecimal::F32(OrderedFloat(v.into_inner().neg()))
-            }
-            TypedDecimal::F64(v) => {
-                TypedDecimal::F64(OrderedFloat(v.into_inner().neg()))
-            }
-            TypedDecimal::Big(v) => TypedDecimal::Big(v.neg()),
+        // negate rhs
+        let negated_rhs = match rhs {
+            TypedDecimal::F32(value) => TypedDecimal::F32(value.neg()),
+            TypedDecimal::F64(value) => TypedDecimal::F64(value.neg()),
+            TypedDecimal::Decimal(value) => TypedDecimal::Decimal(value.neg()),
         };
-        TypedDecimal::add(self, neg_rhs)
+        
+        // perform addition with negated rhs
+        TypedDecimal::add(self, negated_rhs)
     }
 }
 
@@ -323,19 +283,12 @@ impl From<f64> for TypedDecimal {
     }
 }
 
-impl From<ExtendedBigDecimal> for TypedDecimal {
-    fn from(value: ExtendedBigDecimal) -> Self {
-        TypedDecimal::Big(value)
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use ordered_float::OrderedFloat;
-
-    use crate::datex_values::core_values::decimal::{
-        big_decimal::ExtendedBigDecimal, typed_decimal::TypedDecimal,
-    };
+    use crate::datex_values::core_values::decimal::decimal::Decimal;
+    use super::*;
 
     #[test]
     fn test_f32() {
@@ -356,10 +309,10 @@ mod tests {
     #[test]
     fn test_zero_and_neg_zero() {
         let a = TypedDecimal::from(0.0);
-        matches!(a, TypedDecimal::Big(ExtendedBigDecimal::Zero));
+        matches!(a, TypedDecimal::Decimal(Decimal::Zero));
 
         let a = TypedDecimal::from(-0.0);
-        matches!(a, TypedDecimal::Big(ExtendedBigDecimal::NegZero));
+        matches!(a, TypedDecimal::Decimal(Decimal::NegZero));
 
         // f32
         let c = TypedDecimal::F32(0.0.into());
@@ -378,8 +331,8 @@ mod tests {
         assert_eq!(c.as_f64(), -0.0);
 
         // big
-        let c = TypedDecimal::Big(ExtendedBigDecimal::from(0.0));
-        matches!(c, TypedDecimal::Big(ExtendedBigDecimal::Zero));
+        let c = TypedDecimal::Decimal(Decimal::from(0.0));
+        matches!(c, TypedDecimal::Decimal(Decimal::Zero));
 
         assert_eq!(c.as_f32(), 0.0);
         assert_eq!(c.as_f32(), -0.0);

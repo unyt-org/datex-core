@@ -2,7 +2,6 @@ use crate::compiler::operations::parse_operator;
 use crate::compiler::parser::{DatexParser, Rule};
 use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::decimal::big_decimal::ExtendedBigDecimal;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::core_values::integer::integer::Integer;
@@ -90,13 +89,8 @@ impl CompilationScope {
                         }
                     }
                 }
-                CoreValue::Decimal(Decimal(val)) => match val {
-                    TypedDecimal::Big(val) => {
-                        self.insert_big_decimal(val);
-                    }
-                    _ => unreachable!("Decimal must contain TypedDecimal::Big"),
-                },
-                CoreValue::TypedDecimal(val) => self.insert_decimal(val),
+                CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
+                CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
                 CoreValue::Bool(val) => self.insert_boolean(val.0),
                 CoreValue::Null => {
                     self.append_binary_code(InstructionCode::NULL)
@@ -227,7 +221,7 @@ impl CompilationScope {
         .into_owned()
     }
 
-    fn insert_decimal(&self, decimal: &TypedDecimal) {
+    fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
         fn insert_f32_or_f64(scope: &CompilationScope, decimal: &TypedDecimal) {
             match decimal {
                 TypedDecimal::F32(val) => {
@@ -236,8 +230,8 @@ impl CompilationScope {
                 TypedDecimal::F64(val) => {
                     scope.insert_float64(val.into_inner());
                 }
-                TypedDecimal::Big(val) => {
-                    scope.insert_big_decimal(val);
+                TypedDecimal::Decimal(val) => {
+                    scope.insert_decimal(val);
                 }
             }
         }
@@ -271,7 +265,7 @@ impl CompilationScope {
         self.append_f64(float64);
     }
 
-    fn insert_big_decimal(&self, big_decimal: &ExtendedBigDecimal) {
+    fn insert_decimal(&self, decimal: &Decimal) {
         self.append_binary_code(InstructionCode::DECIMAL_BIG);
         // big_decimal binrw write into buffer
         let mut buffer = self.buffer.borrow_mut();
@@ -279,7 +273,7 @@ impl CompilationScope {
         let mut buffer_writer = Cursor::new(&mut *buffer);
         // set writer position to end
         buffer_writer.set_position(original_length as u64);
-        big_decimal
+        decimal
             .write_le(&mut buffer_writer)
             .expect("Failed to write big decimal");
         // get byte count of written data
@@ -584,10 +578,9 @@ fn parse_term(
             insert_int_with_radix(compilation_scope, term.as_str(), 2)?;
         }
         Rule::decimal => {
-            let decimal = ExtendedBigDecimal::from_string(term.as_str())
-                .ok_or(CompilerError::BigDecimalOutOfBoundsError)?;
+            let decimal = Decimal::from_string(term.as_str());
             match &decimal {
-                ExtendedBigDecimal::Finite(big_decimal)
+                Decimal::Finite(big_decimal)
                     if big_decimal.is_integer() =>
                 {
                     if let Some(int) = big_decimal.to_i16() {
@@ -595,11 +588,11 @@ fn parse_term(
                     } else if let Some(int) = big_decimal.to_i32() {
                         compilation_scope.insert_float_as_i32(int);
                     } else {
-                        compilation_scope.insert_big_decimal(&decimal);
+                        compilation_scope.insert_decimal(&decimal);
                     }
                 }
                 _ => {
-                    compilation_scope.insert_big_decimal(&decimal);
+                    compilation_scope.insert_decimal(&decimal);
                 }
             }
         }
