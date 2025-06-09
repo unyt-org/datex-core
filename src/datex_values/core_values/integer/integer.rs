@@ -1,11 +1,10 @@
 use std::{
     fmt::Display,
     hash::Hash,
-    ops::{Add, AddAssign, Neg, Sub},
+    ops::{Add, Sub},
 };
 
 use crate::datex_values::{
-    core_value_trait::CoreValueTrait,
     core_values::integer::{
         typed_integer::TypedInteger,
         utils::{smallest_fitting_signed, smallest_fitting_unsigned},

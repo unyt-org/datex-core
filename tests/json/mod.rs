@@ -1,7 +1,7 @@
 use datex_core::compiler::bytecode::compile_script;
 use datex_core::datex_values::core_value::CoreValue;
 use datex_core::datex_values::core_values::decimal::decimal::Decimal;
-use datex_core::datex_values::core_values::integer::Integer;
+use datex_core::datex_values::core_values::integer::integer::Integer;
 use datex_core::datex_values::core_values::object::Object;
 use datex_core::datex_values::value::Value;
 use datex_core::datex_values::value_container::ValueContainer;
