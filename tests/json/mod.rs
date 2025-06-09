@@ -193,6 +193,14 @@ fn test_compare_with_expected() {
 /// It will overwrite the expected results with the current decompiled output.
 fn update_expected() {
     for (input_path, output_path) in iterate_test_cases() {
+        // only update if output_path does not exist
+        if output_path.exists() {
+            println!(
+                "Expected results already exist for: {}. Skipping update.",
+                input_path.display()
+            );
+            continue;
+        }
         println!("Updating expected results for: {}", input_path.display());
         let file_content = std::fs::read_to_string(input_path).unwrap();
         let decompiled = get_datex_decompiled_from_json(&file_content);

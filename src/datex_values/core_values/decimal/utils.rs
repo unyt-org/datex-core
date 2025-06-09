@@ -19,7 +19,7 @@ pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
     }
 }
 
-pub fn decimal_to_string<T: Float + Display>(
+pub fn decimal_to_string<T: Float + Display + std::fmt::LowerExp>(
     value: T,
     json_compatible: bool,
 ) -> String {
@@ -39,10 +39,14 @@ pub fn decimal_to_string<T: Float + Display>(
                 "infinity".to_string()
             }
         )
-    } else if value.fract() == T::zero() {
+    }
+    // e notation for large or small numbers
+    else if value.abs() > T::from(1e20).unwrap() || value.abs() < T::from(1e-7).unwrap() {
+        format!("{value:.e}")
+    }
+    else if value.fract() == T::zero() {
         format!("{value:.1}")
     }
-    // TODO: add e-notation for large numbers
     else {
         format!("{value}")
     }
@@ -71,5 +75,24 @@ mod tests {
             smallest_fitting_float(f64::NAN).is_nan(),
             TypedDecimal::F32(OrderedFloat(f32::NAN)).is_nan()
         );
+    }
+
+    #[test]
+    fn test_format_e_notation() {
+        let value = 1e20;
+        let formatted = decimal_to_string(value, false);
+        assert_eq!(formatted, "100000000000000000000.0");
+
+        let value = 1e-7;
+        let formatted = decimal_to_string(value, false);
+        assert_eq!(formatted, "0.0000001");
+
+        let value = 1e-8;
+        let formatted = decimal_to_string(value, false);
+        assert_eq!(formatted, "1e-8");
+
+        let value = 1e21;
+        let formatted = decimal_to_string(value, false);
+        assert_eq!(formatted, "1e21");
     }
 }

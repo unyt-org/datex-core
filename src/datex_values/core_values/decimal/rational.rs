@@ -53,6 +53,7 @@ impl Rational {
         Rational { big_rational }
     }
 
+    // TODO: support e-notation for large numbers
     pub(crate) fn finite_fraction_to_decimal_string(
         mut numerator: BigInt,
         denominator: BigInt,

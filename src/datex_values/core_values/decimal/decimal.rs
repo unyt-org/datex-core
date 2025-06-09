@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::Display;
 use std::io::{Read, Seek};
 use std::ops::{Add, Neg, Sub};
@@ -62,12 +63,19 @@ impl Decimal {
     fn parse_decimal_to_rational(s: &str) -> Option<BigRational> {
         let decimal = BigDecimal::from_str(s).ok()?;
         let (bigint, scale) = decimal.as_bigint_and_exponent();
+        let ten = BigInt::from(10);
 
-        // Convert to BigRational by placing bigint over 10^scale
-        let denominator = BigInt::from(10u32).pow(scale as u32);
-        let rational = BigRational::new(bigint, denominator);
-
-        Some(rational)
+        match scale.cmp(&0) {
+            Ordering::Equal => Some(BigRational::from(bigint)),
+            Ordering::Greater => {
+                let denominator = ten.pow(scale as u32);
+                Some(BigRational::new(bigint, denominator))
+            }
+            Ordering::Less => {
+                let numerator = bigint * ten.pow((-scale) as u32);
+                Some(BigRational::from(numerator))
+            }
+        }
     }
     
     pub fn from_fraction(numerator: &str, denominator: &str) -> Self {
@@ -94,6 +102,7 @@ impl Decimal {
                         Decimal::NaN
                     }
                 }
+
                 else {
                     let big_rational = Decimal::parse_decimal_to_rational(s);
                     match big_rational {
