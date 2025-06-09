@@ -99,7 +99,6 @@ impl Hash for Decimal {
 
 #[cfg(test)]
 mod tests {
-    
 
     use crate::logger::init_logger;
 
@@ -254,7 +253,7 @@ mod tests {
         let a = Decimal::from("infinity");
         let b = Decimal::from("-infinity");
         let result = a + b;
-        assert_eq!(result, Decimal::from("nan"));
+        assert!(result.is_nan());
 
         let a = Decimal::from("infinity");
         let b = Decimal::from("-0.0");
@@ -279,22 +278,22 @@ mod tests {
         let a = Decimal::from("nan");
         let b = Decimal::from("1.0");
         let result = a + b;
-        assert_eq!(result, Decimal::from("nan"));
+        assert!(result.is_nan());
 
         let a = Decimal::from("1.0");
         let b = Decimal::from("nan");
         let result = a + b;
-        assert_eq!(result, Decimal::from("nan"));
+        assert!(result.is_nan());
 
         let a = Decimal::from("nan");
         let b = Decimal::from("nan");
         let result = a + b;
-        assert_eq!(result, Decimal::from("nan"));
+        assert!(result.is_nan());
 
         let a = Decimal::from("-nan");
         let b = Decimal::from("1.0");
         let result = a + b;
-        assert_eq!(result, Decimal::from("nan"));
+        assert!(result.is_nan());
     }
 
     #[test]
