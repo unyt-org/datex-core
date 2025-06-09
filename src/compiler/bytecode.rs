@@ -2,7 +2,9 @@ use crate::compiler::operations::parse_operator;
 use crate::compiler::parser::{DatexParser, Rule};
 use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::decimal::{smallest_fitting_float, Decimal, ExtendedBigDecimal, TypedDecimal};
+use crate::datex_values::core_values::decimal::big_decimal::ExtendedBigDecimal;
+use crate::datex_values::core_values::decimal::decimal::Decimal;
+use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::core_values::integer::{
     smallest_fitting_signed, Integer, TypedInteger,
 };
@@ -13,14 +15,14 @@ use crate::utils::buffers::{
     append_f32, append_f64, append_i128, append_i16, append_i32, append_i64,
     append_i8, append_u128, append_u32, append_u8,
 };
+use binrw::BinWrite;
 use log::info;
+use num_traits::ToPrimitive;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::io::Cursor;
-use binrw::BinWrite;
-use num_traits::ToPrimitive;
 
 struct CompilationScope {
     index: Cell<usize>,
@@ -88,14 +90,12 @@ impl CompilationScope {
                         }
                     }
                 }
-                CoreValue::Decimal(Decimal(val)) => {
-                    match val {
-                        TypedDecimal::Big(val) => {
-                            self.insert_big_decimal(val);
-                        },
-                        _ => unreachable!("Decimal must contain TypedDecimal::Big"),
+                CoreValue::Decimal(Decimal(val)) => match val {
+                    TypedDecimal::Big(val) => {
+                        self.insert_big_decimal(val);
                     }
-                }
+                    _ => unreachable!("Decimal must contain TypedDecimal::Big"),
+                },
                 CoreValue::TypedDecimal(val) => self.insert_decimal(val),
                 CoreValue::Bool(val) => self.insert_boolean(val.0),
                 CoreValue::Null => {
@@ -279,12 +279,13 @@ impl CompilationScope {
         let mut buffer_writer = Cursor::new(&mut *buffer);
         // set writer position to end
         buffer_writer.set_position(original_length as u64);
-        big_decimal.write_le(&mut buffer_writer).expect("Failed to write big decimal");
+        big_decimal
+            .write_le(&mut buffer_writer)
+            .expect("Failed to write big decimal");
         // get byte count of written data
         let byte_count = buffer_writer.position() as usize;
         // update index
-        self.index
-            .update(|x| x + byte_count - original_length);
+        self.index.update(|x| x + byte_count - original_length);
     }
 
     fn insert_float_as_i16(&self, int: i16) {
@@ -583,18 +584,17 @@ fn parse_term(
             insert_int_with_radix(compilation_scope, term.as_str(), 2)?;
         }
         Rule::decimal => {
-            let decimal = ExtendedBigDecimal::from_string(term.as_str()).ok_or(
-                CompilerError::BigDecimalOutOfBoundsError
-            )?;
+            let decimal = ExtendedBigDecimal::from_string(term.as_str())
+                .ok_or(CompilerError::BigDecimalOutOfBoundsError)?;
             match &decimal {
-                ExtendedBigDecimal::Finite(big_decimal) if big_decimal.is_integer() => { 
+                ExtendedBigDecimal::Finite(big_decimal)
+                    if big_decimal.is_integer() =>
+                {
                     if let Some(int) = big_decimal.to_i16() {
                         compilation_scope.insert_float_as_i16(int);
-                    }
-                    else if let Some(int) = big_decimal.to_i32() {
+                    } else if let Some(int) = big_decimal.to_i32() {
                         compilation_scope.insert_float_as_i32(int);
-                    }
-                    else {
+                    } else {
                         compilation_scope.insert_big_decimal(&decimal);
                     }
                 }
@@ -702,9 +702,11 @@ fn insert_int_with_radix(
 ) -> Result<(), CompilerError> {
     let is_negative = int_str.starts_with('-');
     let is_positive = int_str.starts_with('+');
-    let int = i64::from_str_radix(&int_str[if is_negative || is_positive { 3 } else { 2 }..], radix).map_err(|_| {
-        CompilerError::IntegerOutOfBoundsError
-    })?;
+    let int = i64::from_str_radix(
+        &int_str[if is_negative || is_positive { 3 } else { 2 }..],
+        radix,
+    )
+    .map_err(|_| CompilerError::IntegerOutOfBoundsError)?;
     if is_negative {
         compilation_scope.insert_int(-int);
     } else {
@@ -919,7 +921,8 @@ pub mod tests {
         let result = compile_and_log(&datex_script);
         let bytes = 42_i16.to_le_bytes();
 
-        let mut expected: Vec<u8> = vec![InstructionCode::DECIMAL_AS_INT_16.into()];
+        let mut expected: Vec<u8> =
+            vec![InstructionCode::DECIMAL_AS_INT_16.into()];
         expected.extend(bytes);
 
         assert_eq!(result, expected);

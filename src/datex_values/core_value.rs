@@ -2,7 +2,8 @@ use datex_macros::FromCoreValue;
 
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::boolean::Boolean;
-use crate::datex_values::core_values::decimal::{Decimal, TypedDecimal};
+use crate::datex_values::core_values::decimal::decimal::Decimal;
+use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::integer::{Integer, TypedInteger};
 use crate::datex_values::core_values::object::Object;
@@ -447,7 +448,6 @@ impl Sub for &CoreValue {
         CoreValue::sub(self.clone(), rhs.clone())
     }
 }
-
 
 impl AddAssign<CoreValue> for CoreValue {
     fn add_assign(&mut self, rhs: CoreValue) {

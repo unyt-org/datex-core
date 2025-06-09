@@ -1,9 +1,6 @@
-use std::path::PathBuf;
-use itertools::Itertools;
-use json_syntax::Parse;
 use datex_core::compiler::bytecode::compile_script;
 use datex_core::datex_values::core_value::CoreValue;
-use datex_core::datex_values::core_values::decimal::Decimal;
+use datex_core::datex_values::core_values::decimal::decimal::Decimal;
 use datex_core::datex_values::core_values::integer::Integer;
 use datex_core::datex_values::core_values::object::Object;
 use datex_core::datex_values::value::Value;
@@ -11,21 +8,27 @@ use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
 use datex_core::global::protocol_structures::instructions::Instruction;
 use datex_core::runtime::execution::{execute_dxb, ExecutionOptions};
+use itertools::Itertools;
+use json_syntax::Parse;
+use std::path::PathBuf;
 
 fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
     match json {
         json_syntax::Value::Null => Value::null(),
-        json_syntax::Value::String(s) => Value::from(CoreValue::Text(s.to_string().into())),
+        json_syntax::Value::String(s) => {
+            Value::from(CoreValue::Text(s.to_string().into()))
+        }
         json_syntax::Value::Number(n) => {
             let num_str = n.as_str();
             // num string only contains +, - and digits
-            let is_integer = num_str.chars().all(|c| c.is_digit(10) || c == '+' || c == '-');
+            let is_integer = num_str
+                .chars()
+                .all(|c| c.is_digit(10) || c == '+' || c == '-');
             if is_integer {
                 // Parse as integer
                 let int_value = num_str.parse::<i128>().unwrap();
                 Value::from(Integer::from(int_value))
-            }
-            else {
+            } else {
                 // Parse as big decimal
                 Value::from(Decimal::from(num_str))
             }
@@ -41,19 +44,31 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
         json_syntax::Value::Object(obj) => {
             let mut map = std::collections::HashMap::new();
             for entry in obj {
-                map.insert(entry.key.to_string(), ValueContainer::from(json_value_to_datex_value(&entry.value.clone())));
+                map.insert(
+                    entry.key.to_string(),
+                    ValueContainer::from(json_value_to_datex_value(
+                        &entry.value.clone(),
+                    )),
+                );
             }
             Value::from(Object::from(map))
         }
     }
 }
 
-
 fn compare_datex_result_with_json(json_string: &str) {
     println!(" JSON String: {json_string}");
     let json_value = json_syntax::Value::parse_str(&json_string).unwrap().0;
     let dxb = compile_script(&json_string).unwrap();
-    let datex_value = execute_dxb(dxb, ExecutionOptions {verbose: false, ..ExecutionOptions::default()}).unwrap().unwrap();
+    let datex_value = execute_dxb(
+        dxb,
+        ExecutionOptions {
+            verbose: false,
+            ..ExecutionOptions::default()
+        },
+    )
+    .unwrap()
+    .unwrap();
     let json_value_converted = json_value_to_datex_value(&json_value);
 
     println!(" JSON Value: {json_value}");
@@ -65,12 +80,16 @@ fn compare_datex_result_with_json(json_string: &str) {
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
     let dxb = compile_script(&json_string).unwrap();
-    let decompiled = decompile_body(&dxb, DecompileOptions {
-        json_compat: true,
-        formatted: true,
-        colorized: false,
-        ..DecompileOptions::default()
-    }).unwrap();
+    let decompiled = decompile_body(
+        &dxb,
+        DecompileOptions {
+            json_compat: true,
+            formatted: true,
+            colorized: false,
+            ..DecompileOptions::default()
+        },
+    )
+    .unwrap();
     // try to parse JSON, if failed, panic
     let parsed_json = json_syntax::Value::parse_str(&decompiled);
     if parsed_json.is_err() {
@@ -79,34 +98,50 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
     decompiled
 }
 
-fn compare_datex_result_with_expected(json_string: &str, expected: &str, path: PathBuf) {
+fn compare_datex_result_with_expected(
+    json_string: &str,
+    expected: &str,
+    path: PathBuf,
+) {
     let datex_decompiled = get_datex_decompiled_from_json(json_string);
 
     // println!(" Expected: {expected}");
     // println!(" Decompiled: {datex_decompiled}");
-    assert_eq!(datex_decompiled, expected, "Decompiled output does not match expected output for file: {}", path.display());
+    assert_eq!(
+        datex_decompiled,
+        expected,
+        "Decompiled output does not match expected output for file: {}",
+        path.display()
+    );
 }
 
-fn iterate_test_cases<'a>() -> impl Iterator<Item = (PathBuf, PathBuf)>  + 'a {
+fn iterate_test_cases<'a>() -> impl Iterator<Item = (PathBuf, PathBuf)> + 'a {
     std::iter::from_coroutine(
         #[coroutine]
         move || {
             // read test cases from directory ./test_cases/<filename>.json
             let test_dir = std::path::Path::new("tests/json/test_cases");
             // go through directory files in alphabetical order
-            for entry in std::fs::read_dir(test_dir).unwrap().into_iter().map(|e| e.unwrap()).sorted_by_key(|e| e.path()) {
-                if entry.file_type().unwrap().is_file() && entry.path().extension().unwrap() == "json" {
+            for entry in std::fs::read_dir(test_dir)
+                .unwrap()
+                .into_iter()
+                .map(|e| e.unwrap())
+                .sorted_by_key(|e| e.path())
+            {
+                if entry.file_type().unwrap().is_file()
+                    && entry.path().extension().unwrap() == "json"
+                {
                     let input_path = entry.path();
                     // output path is ./expected_results/<filename>.json
-                    let output_path = std::path::PathBuf::from("tests/json/expected_results").join(entry.file_name());
+                    let output_path =
+                        std::path::PathBuf::from("tests/json/expected_results")
+                            .join(entry.file_name());
                     yield (input_path, output_path);
                 }
             }
-        }
+        },
     )
 }
-
-
 
 #[test]
 fn test_basic_json() {
@@ -123,8 +158,12 @@ fn test_basic_json() {
     compare_datex_result_with_json("1234567890");
     compare_datex_result_with_json("[]");
     compare_datex_result_with_json("{}");
-    compare_datex_result_with_json(r#"{"key": "value", "number": 123, "boolean": true, "null_value": null}"#);
-    compare_datex_result_with_json(r#"{"array": [1, 2, 3], "object": {"key": "value"}}"#);
+    compare_datex_result_with_json(
+        r#"{"key": "value", "number": 123, "boolean": true, "null_value": null}"#,
+    );
+    compare_datex_result_with_json(
+        r#"{"array": [1, 2, 3], "object": {"key": "value"}}"#,
+    );
 }
 
 #[test]
@@ -142,7 +181,11 @@ fn test_compare_with_expected() {
         println!("Testing JSON file: {}", input_path.display());
         let file_content = std::fs::read_to_string(input_path.clone()).unwrap();
         let expected_content = std::fs::read_to_string(output_path).unwrap();
-        compare_datex_result_with_expected(&file_content, &expected_content, input_path);
+        compare_datex_result_with_expected(
+            &file_content,
+            &expected_content,
+            input_path,
+        );
     }
 }
 

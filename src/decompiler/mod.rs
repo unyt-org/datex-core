@@ -1,10 +1,18 @@
-use std::fmt::Write;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
+use std::fmt::Write;
 use std::io::Cursor;
 // FIXME no-std
 
+use crate::datex_values::core_values::decimal::utils::decimal_to_string;
 use crate::datex_values_old::SlotIdentifier;
+use crate::global::protocol_structures::instructions::{
+    BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data,
+    FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data,
+    ShortTextData, TextData,
+};
+use crate::parser::body;
+use crate::parser::body::ParserError;
 use lazy_static::lazy_static;
 use log::info;
 use regex::Regex;
@@ -12,25 +20,19 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
-use crate::datex_values::core_values::decimal::decimal_to_string;
-use crate::global::protocol_structures::instructions::{BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, TextData};
-use crate::parser::body;
-use crate::parser::body::ParserError;
 
 lazy_static! {
     static ref NEW_LINE: Regex = Regex::new(r"\r\n").unwrap();
     static ref LAST_LINE: Regex = Regex::new(r"   (.)$").unwrap();
     static ref INDENT: String = "\r\n   ".to_string();
-    static ref ALPAHNUMERIC_IDENTIFIER: Regex = Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_-]*$").unwrap();
+    static ref ALPAHNUMERIC_IDENTIFIER: Regex =
+        Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_-]*$").unwrap();
 }
 
 /**
  * Converts DXB (with or without header) to DATEX Script
  */
-pub fn decompile(
-    dxb: &[u8],
-    options: DecompileOptions,
-) -> String {
+pub fn decompile(dxb: &[u8], options: DecompileOptions) -> String {
     todo!();
     /*let mut body = dxb;
 
@@ -61,12 +63,10 @@ pub fn decompile_body(
         dxb_body,
         options,
 
-        scopes: vec![
-            ScopeState {
-                scope_type: (ScopeType::default(), true),
-                ..ScopeState::default()
-            }
-        ],
+        scopes: vec![ScopeState {
+            scope_type: (ScopeType::default(), true),
+            ..ScopeState::default()
+        }],
 
         current_label: 0,
         labels: HashMap::new(),
@@ -110,7 +110,7 @@ pub struct DecompileOptions {
     /// TODO
     /// when set to true, the output is generated as compatible as possible with JSON, e.g. by
     /// always adding double quotes around keys
-    pub json_compat: bool
+    pub json_compat: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -166,7 +166,6 @@ impl ScopeState {
 
 #[derive(Debug, Clone)]
 struct DecompilerState<'a> {
-
     // stack of scopes
     scopes: Vec<ScopeState>,
 
@@ -200,8 +199,6 @@ impl DecompilerState<'_> {
     }
 }
 
-
-
 impl DecompilerState<'_> {
     fn get_insert_label(&mut self, index: usize) -> String {
         // existing
@@ -223,7 +220,10 @@ impl DecompilerState<'_> {
     // returns variable name and variable type if initialization
     fn get_variable_name(&mut self, slot: &SlotIdentifier) -> (String, String) {
         // return slot name
-        if slot.is_reserved() || slot.is_object_slot() || !self.options.resolve_slots {
+        if slot.is_reserved()
+            || slot.is_object_slot()
+            || !self.options.resolve_slots
+        {
             return (slot.as_string(), "".to_string());
         }
         // existing variable
@@ -246,14 +246,10 @@ impl DecompilerState<'_> {
     }
 }
 
-
 fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
-
     let mut output = String::new();
 
-    let instruction_iterator = body::iterate_instructions(
-        state.dxb_body,
-    );
+    let instruction_iterator = body::iterate_instructions(state.dxb_body);
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
@@ -282,22 +278,38 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
             }
             Instruction::DecimalF32(Float32Data(f32)) => {
                 handle_before_term(state, &mut output, true)?;
-                write!(output, "{}", decimal_to_string(f32, state.options.json_compat))?;
+                write!(
+                    output,
+                    "{}",
+                    decimal_to_string(f32, state.options.json_compat)
+                )?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalF64(Float64Data(f64)) => {
                 handle_before_term(state, &mut output, true)?;
-                write!(output, "{}", decimal_to_string(f64, state.options.json_compat))?;
+                write!(
+                    output,
+                    "{}",
+                    decimal_to_string(f64, state.options.json_compat)
+                )?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
                 handle_before_term(state, &mut output, true)?;
-                write!(output, "{}", decimal_to_string(i16 as f32, state.options.json_compat))?;
+                write!(
+                    output,
+                    "{}",
+                    decimal_to_string(i16 as f32, state.options.json_compat)
+                )?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
                 handle_before_term(state, &mut output, true)?;
-                write!(output, "{}", decimal_to_string(i32 as f32, state.options.json_compat))?;
+                write!(
+                    output,
+                    "{}",
+                    decimal_to_string(i32 as f32, state.options.json_compat)
+                )?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalBig(BigDecimalData(big_decimal)) => {
@@ -360,7 +372,12 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 handle_before_term(state, &mut output, false)?;
                 // prevent redundant comma for value
                 state.get_current_scope().skip_comma_for_next_item = true;
-                write_text_key(state, &text_data.0, &mut output, state.options.formatted)?;
+                write_text_key(
+                    state,
+                    &text_data.0,
+                    &mut output,
+                    state.options.formatted,
+                )?;
             }
             Instruction::KeyValueDynamic => {
                 handle_before_term(state, &mut output, false)?;
@@ -377,16 +394,20 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
 
             // operations
             Instruction::Add => {
-                state.get_current_scope().active_operator = Some((Instruction::Add, true));
+                state.get_current_scope().active_operator =
+                    Some((Instruction::Add, true));
             }
             Instruction::Subtract => {
-                state.get_current_scope().active_operator = Some((Instruction::Subtract, true));
+                state.get_current_scope().active_operator =
+                    Some((Instruction::Subtract, true));
             }
             Instruction::Multiply => {
-                state.get_current_scope().active_operator = Some((Instruction::Multiply, true));
+                state.get_current_scope().active_operator =
+                    Some((Instruction::Multiply, true));
             }
             Instruction::Divide => {
-                state.get_current_scope().active_operator = Some((Instruction::Divide, true));
+                state.get_current_scope().active_operator =
+                    Some((Instruction::Divide, true));
             }
 
             _ => {
@@ -403,22 +424,25 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
     Ok(output)
 }
 
-pub fn apply_syntax_highlighting(datex_script: String) -> Result<String, ParserError> {
+pub fn apply_syntax_highlighting(
+    datex_script: String,
+) -> Result<String, ParserError> {
     let mut output = String::new();
 
     // load datex syntax + custom theme
-    static DATEX_SCRIPT_DEF: &str = include_str!("../../datex-language/datex.tmbundle/Syntaxes/datex.sublime-text");
-    static DATEX_THEME_DEF: &str = include_str!("../../datex-language/themes/datex-dark.tmTheme");
+    static DATEX_SCRIPT_DEF: &str = include_str!(
+        "../../datex-language/datex.tmbundle/Syntaxes/datex.sublime-text"
+    );
+    static DATEX_THEME_DEF: &str =
+        include_str!("../../datex-language/themes/datex-dark.tmTheme");
     let mut builder = SyntaxSetBuilder::new();
-    let syntax = SyntaxDefinition::load_from_str(
-        DATEX_SCRIPT_DEF,
-        true,
-        None
-    ).expect("Failed to load syntax definition");
+    let syntax = SyntaxDefinition::load_from_str(DATEX_SCRIPT_DEF, true, None)
+        .expect("Failed to load syntax definition");
     builder.add(syntax);
-    let theme: Theme = ThemeSet::load_from_reader(&mut Cursor::new(DATEX_THEME_DEF))
-        .expect("Failed to load theme");
-    
+    let theme: Theme =
+        ThemeSet::load_from_reader(&mut Cursor::new(DATEX_THEME_DEF))
+            .expect("Failed to load theme");
+
     let ps = builder.build();
     let syntax = ps.find_syntax_by_extension("dx").unwrap();
     let mut h = HighlightLines::new(syntax, &theme);
@@ -435,8 +459,7 @@ pub fn apply_syntax_highlighting(datex_script: String) -> Result<String, ParserE
 
 fn escape_text(text: &str) -> String {
     // escape quotes and backslashes in text
-    text
-        .replace('\\', r#"\\"#)
+    text.replace('\\', r#"\\"#)
         .replace('"', r#"\""#)
         .replace('\u{0008}', r#"\b"#)
         .replace('\u{000c}', r#"\f"#)
@@ -446,9 +469,16 @@ fn escape_text(text: &str) -> String {
         .replace('\n', r#"\n"#)
 }
 
-fn write_text_key(state: &mut DecompilerState, text: &str, output: &mut String, formatted: bool) -> Result<(), ParserError> {
+fn write_text_key(
+    state: &mut DecompilerState,
+    text: &str,
+    output: &mut String,
+    formatted: bool,
+) -> Result<(), ParserError> {
     // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
-    let text = if !state.options.json_compat && ALPAHNUMERIC_IDENTIFIER.is_match(text) {
+    let text = if !state.options.json_compat
+        && ALPAHNUMERIC_IDENTIFIER.is_match(text)
+    {
         text.to_string()
     } else {
         format!("\"{}\"", escape_text(text))
@@ -464,7 +494,11 @@ fn write_text_key(state: &mut DecompilerState, text: &str, output: &mut String, 
 /// insert syntax before a term (e.g. operators, commas, etc.)
 /// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
 /// e.g. for text ("key": "value") the parenthesis are not needed
-fn handle_before_term(state: &mut DecompilerState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
+fn handle_before_term(
+    state: &mut DecompilerState,
+    output: &mut String,
+    is_standalone_key: bool,
+) -> Result<(), ParserError> {
     handle_before_operand(state, output)?;
     handle_before_item(state, output, is_standalone_key)?;
     Ok(())
@@ -475,7 +509,7 @@ fn handle_before_term(state: &mut DecompilerState, output: &mut String, is_stand
 fn handle_after_term(
     state: &mut DecompilerState,
     output: &mut String,
-    is_standalone_key: bool
+    is_standalone_key: bool,
 ) -> Result<(), ParserError> {
     // next_item_is_key
     if state.get_current_scope().next_item_is_key {
@@ -496,7 +530,6 @@ fn handle_after_term(
     Ok(())
 }
 
-
 /// before scope close (insert scope closing syntax)
 fn handle_scope_close(
     state: &mut DecompilerState,
@@ -515,7 +548,11 @@ fn handle_scope_close(
 /// insert comma syntax before a term (e.g. ",")
 /// if is_standalone_key is set to true, no parenthesis are wrapped around the item if it is a key,
 /// e.g. for text ("key": "value") the parenthesis are not needed
-fn handle_before_item(state: &mut DecompilerState, output: &mut String, is_standalone_key: bool) -> Result<(), ParserError> {
+fn handle_before_item(
+    state: &mut DecompilerState,
+    output: &mut String,
+    is_standalone_key: bool,
+) -> Result<(), ParserError> {
     let formatted = state.options.formatted;
     let scope = state.get_current_scope();
 
@@ -529,7 +566,9 @@ fn handle_before_item(state: &mut DecompilerState, output: &mut String, is_stand
             // if first is true, set to false
             scope.scope_type.1 = false;
         }
-        (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false) if !scope.skip_comma_for_next_item => {
+        (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false)
+            if !scope.skip_comma_for_next_item =>
+        {
             if formatted {
                 write!(output, ", ")?;
             } else {
@@ -548,13 +587,17 @@ fn handle_before_item(state: &mut DecompilerState, output: &mut String, is_stand
 }
 
 /// insert operator syntax before an operand (e.g. +, -, etc.)
-fn handle_before_operand(state: &mut DecompilerState, output: &mut String) -> Result<(), ParserError> {
+fn handle_before_operand(
+    state: &mut DecompilerState,
+    output: &mut String,
+) -> Result<(), ParserError> {
     if let Some(operator) = &state.get_current_scope().active_operator {
         // handle the operator before the operand
         match operator {
             (_, true) => {
                 // if first is true, set to false
-                state.get_current_scope().active_operator = Some((operator.0.clone(), false));
+                state.get_current_scope().active_operator =
+                    Some((operator.0.clone(), false));
             }
             (Instruction::Add, false) => {
                 write_operator(state, output, "+")?;
@@ -576,8 +619,11 @@ fn handle_before_operand(state: &mut DecompilerState, output: &mut String) -> Re
     Ok(())
 }
 
-
-fn write_operator(state: &mut DecompilerState, output: &mut String, operator: &str) -> Result<(), ParserError> {
+fn write_operator(
+    state: &mut DecompilerState,
+    output: &mut String,
+    operator: &str,
+) -> Result<(), ParserError> {
     write!(output, " {operator} ")?;
     Ok(())
 }

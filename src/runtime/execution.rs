@@ -1,13 +1,17 @@
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::decimal::{Decimal, TypedDecimal};
+use crate::datex_values::core_values::decimal::decimal::Decimal;
+use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::core_values::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData, TextData};
+use crate::global::protocol_structures::instructions::{
+    BigDecimalData, Float32Data, Float64Data, FloatAsInt16Data,
+    FloatAsInt32Data, Instruction, ShortTextData, TextData,
+};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
@@ -133,8 +137,12 @@ fn execute_loop(
             Instruction::UInt128(integer) => Integer::from(integer.0).into(),
 
             // specific floats
-            Instruction::DecimalF32(Float32Data(f32)) => TypedDecimal::from(f32).into(),
-            Instruction::DecimalF64(Float64Data(f64)) => TypedDecimal::from(f64).into(),
+            Instruction::DecimalF32(Float32Data(f32)) => {
+                TypedDecimal::from(f32).into()
+            }
+            Instruction::DecimalF64(Float64Data(f64)) => {
+                TypedDecimal::from(f64).into()
+            }
 
             // default decimals (big decimals)
             Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
