@@ -918,7 +918,7 @@ pub mod tests {
     fn test_decimal() {
         init_logger();
         let datex_script = "42.0";
-        let result = compile_and_log(&datex_script);
+        let result = compile_and_log(datex_script);
         let bytes = 42_i16.to_le_bytes();
 
         let mut expected: Vec<u8> =

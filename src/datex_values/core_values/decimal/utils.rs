@@ -19,35 +19,6 @@ pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use ordered_float::OrderedFloat;
-
-    use crate::datex_values::core_values::decimal::{
-        typed_decimal::TypedDecimal, utils::smallest_fitting_float,
-    };
-
-    #[test]
-    fn test_smallest_fitting_float() {
-        assert_eq!(
-            smallest_fitting_float(1.0),
-            TypedDecimal::F32(OrderedFloat(1.0))
-        );
-        assert_eq!(
-            smallest_fitting_float(1.5),
-            TypedDecimal::F32(OrderedFloat(1.5))
-        );
-        assert_eq!(
-            smallest_fitting_float(1e200),
-            TypedDecimal::F64(OrderedFloat(1e200))
-        );
-        assert_eq!(
-            smallest_fitting_float(f64::NAN).is_nan(),
-            TypedDecimal::F32(OrderedFloat(f32::NAN)).is_nan()
-        );
-    }
-}
-
 pub fn decimal_to_string<T: Float + Display>(
     value: T,
     json_compatible: bool,
@@ -74,5 +45,34 @@ pub fn decimal_to_string<T: Float + Display>(
     // TODO: add e-notation for large numbers
     else {
         format!("{value}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ordered_float::OrderedFloat;
+
+    use crate::datex_values::core_values::decimal::{
+        typed_decimal::TypedDecimal, utils::smallest_fitting_float,
+    };
+
+    #[test]
+    fn test_smallest_fitting_float() {
+        assert_eq!(
+            smallest_fitting_float(1.0),
+            TypedDecimal::F32(OrderedFloat(1.0))
+        );
+        assert_eq!(
+            smallest_fitting_float(1.5),
+            TypedDecimal::F32(OrderedFloat(1.5))
+        );
+        assert_eq!(
+            smallest_fitting_float(1e200),
+            TypedDecimal::F64(OrderedFloat(1e200))
+        );
+        assert_eq!(
+            smallest_fitting_float(f64::NAN).is_nan(),
+            TypedDecimal::F32(OrderedFloat(f32::NAN)).is_nan()
+        );
     }
 }

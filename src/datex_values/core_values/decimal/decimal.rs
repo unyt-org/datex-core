@@ -99,12 +99,9 @@ impl Hash for Decimal {
 
 #[cfg(test)]
 mod tests {
-    use log::debug;
+    
 
-    use crate::{
-        datex_values::core_values::decimal::utils::smallest_fitting_float,
-        logger::init_logger,
-    };
+    use crate::logger::init_logger;
 
     use super::*;
 
