@@ -107,7 +107,7 @@ impl CompilationScope {
                 }
                 CoreValue::Object(val) => {
                     self.append_binary_code(InstructionCode::OBJECT_START);
-                    println!("Object: {val:?}");
+                    // println!("Object: {val:?}");
                     for (key, value) in val {
                         self.insert_key_string(key);
                         self.insert_value_container(value);

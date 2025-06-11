@@ -244,9 +244,6 @@ fn execute_loop(
 
                 // check if active_key_value_pair exists
                 if let Some(active_key) = active_key {
-                    println!(
-                        "Adding key-value pair: {active_key:?} , {value_container}"
-                    );
 
                     match active_key {
                         // set key for key-value pair (for dynamic keys)

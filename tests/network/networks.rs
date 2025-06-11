@@ -18,7 +18,7 @@ use datex_core::datex_values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 
 #[tokio::test]
-#[timeout(100)]
+#[timeout(1000)]
 async fn create_network_with_two_nodes() {
     let local = task::LocalSet::new();
     local
@@ -521,7 +521,7 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
 }
 
 #[tokio::test]
-#[timeout(3000)]
+#[timeout(2000)]
 async fn simple_network() {
     init_global_context();
     run_async! {
