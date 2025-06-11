@@ -4,7 +4,7 @@ use crate::datex_values::{
 };
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::ops::Neg;
 use std::{
     fmt::Display,

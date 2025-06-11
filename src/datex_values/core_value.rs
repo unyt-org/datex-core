@@ -393,14 +393,14 @@ impl Add for CoreValue {
                 CoreValue::Decimal(_) => {
                     let integer = rhs.cast_to_integer().ok_or(ValueError::InvalidOperation)?;
                     Ok(CoreValue::Integer(Integer::from(
-                        (&lhs.0 + &integer).ok_or(ValueError::IntegerOverflow)?,
+                        (lhs.0 + integer).ok_or(ValueError::IntegerOverflow)?,
                     )))
                 }
                 CoreValue::TypedDecimal(rhs) => {
                     let decimal = rhs.as_f64();
                     let integer = TypedInteger::from(decimal as i128);
                     Ok(CoreValue::Integer(Integer::from(
-                        (&lhs.0 + &integer).ok_or(ValueError::IntegerOverflow)?,
+                        (lhs.0 + integer).ok_or(ValueError::IntegerOverflow)?,
                     )))
                 }
                 _ => Err(ValueError::InvalidOperation),
@@ -511,14 +511,14 @@ impl Sub for CoreValue {
                 CoreValue::Decimal(_) => {
                     let integer = rhs.cast_to_integer().ok_or(ValueError::InvalidOperation)?;
                     Ok(CoreValue::Integer(Integer::from(
-                        (&lhs.0 - &integer).ok_or(ValueError::IntegerOverflow)?,
+                        (lhs.0 - integer).ok_or(ValueError::IntegerOverflow)?,
                     )))
                 }
                 CoreValue::TypedDecimal(rhs) => {
                     let decimal = rhs.as_f64();
                     let integer = TypedInteger::from(decimal as i128);
                     Ok(CoreValue::Integer(Integer::from(
-                        (&lhs.0 - &integer).ok_or(ValueError::IntegerOverflow)?,
+                        (lhs.0 - integer).ok_or(ValueError::IntegerOverflow)?,
                     )))
                 }
                 _ => Err(ValueError::InvalidOperation),
