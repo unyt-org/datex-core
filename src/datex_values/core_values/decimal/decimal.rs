@@ -1,18 +1,17 @@
-use std::cmp::Ordering;
-use std::fmt::Display;
-use std::io::{Read, Seek};
-use std::ops::{Add, Neg, Sub};
-use std::str::FromStr;
+use super::rational::Rational;
+use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::datex_values::traits::soft_eq::SoftEq;
 use bigdecimal::BigDecimal;
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::BigInt;
 use num::BigRational;
 use num_enum::TryFromPrimitive;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use super::rational::Rational;
-use crate::datex_values::traits::soft_eq::SoftEq;
-
+use std::cmp::Ordering;
+use std::fmt::Display;
+use std::io::{Read, Seek};
+use std::ops::{Add, Neg, Sub};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, Hash)]
 pub enum Decimal {
@@ -21,15 +20,17 @@ pub enum Decimal {
     Zero,
     NegZero,
     Infinity,
-    NegInfinity
+    NegInfinity,
 }
 
 impl PartialEq for Decimal {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
-            (Decimal::Zero, Decimal::Zero) | (Decimal::NegZero, Decimal::NegZero) |
-            (Decimal::Zero, Decimal::NegZero) | (Decimal::NegZero, Decimal::Zero) => true,
+            (Decimal::Zero, Decimal::Zero)
+            | (Decimal::NegZero, Decimal::NegZero)
+            | (Decimal::Zero, Decimal::NegZero)
+            | (Decimal::NegZero, Decimal::Zero) => true,
             (Decimal::Infinity, Decimal::Infinity) => true,
             (Decimal::NegInfinity, Decimal::NegInfinity) => true,
             (Decimal::NaN, Decimal::NaN) => false,
@@ -59,7 +60,7 @@ impl Decimal {
             Decimal::NaN => None,
         }
     }
-    
+
     fn parse_decimal_to_rational(s: &str) -> Option<BigRational> {
         let decimal = BigDecimal::from_str(s).ok()?;
         let (bigint, scale) = decimal.as_bigint_and_exponent();
@@ -77,15 +78,15 @@ impl Decimal {
             }
         }
     }
-    
+
     pub fn from_fraction(numerator: &str, denominator: &str) -> Self {
         let rational = BigRational::new(
             BigInt::from_str(numerator).unwrap(),
-            BigInt::from_str(denominator).unwrap()
+            BigInt::from_str(denominator).unwrap(),
         );
         Decimal::from(Rational::from_big_rational(rational))
     }
-    
+
     pub fn from_string(s: &str) -> Self {
         // TODO represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
@@ -101,9 +102,7 @@ impl Decimal {
                     } else {
                         Decimal::NaN
                     }
-                }
-
-                else {
+                } else {
                     let big_rational = Decimal::parse_decimal_to_rational(s);
                     match big_rational {
                         Some(big_rational) => {
@@ -114,15 +113,14 @@ impl Decimal {
                                     Decimal::Zero
                                 }
                             } else {
-                                Decimal::Finite(Rational::from_big_rational(big_rational))
+                                Decimal::Finite(Rational::from_big_rational(
+                                    big_rational,
+                                ))
                             }
                         }
-                        None => {
-                            Decimal::NaN
-                        }
+                        None => Decimal::NaN,
                     }
                 }
-                
             }
         }
     }
@@ -135,9 +133,7 @@ impl Decimal {
 impl SoftEq for Decimal {
     fn soft_eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Decimal::Finite(a), Decimal::Finite(b)) => {
-                a == b
-            }
+            (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
             (Decimal::Zero, Decimal::Zero) => true,
             (Decimal::NegZero, Decimal::NegZero) => true,
             (Decimal::Infinity, Decimal::Infinity) => true,
@@ -168,28 +164,20 @@ impl Add for Decimal {
 
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Decimal::Finite(a), Decimal::Finite(b)) => {
-                Decimal::from(a + b)
-            }
+            (Decimal::Finite(a), Decimal::Finite(b)) => Decimal::from(a + b),
             (Decimal::NegZero, Decimal::Zero)
-            | (Decimal::Zero, Decimal::NegZero) => {
-                Decimal::Zero
-            }
+            | (Decimal::Zero, Decimal::NegZero) => Decimal::Zero,
             (Decimal::Zero, b) | (b, Decimal::Zero) => b,
-            (Decimal::NegZero, b)
-            | (b, Decimal::NegZero) => b,
+            (Decimal::NegZero, b) | (b, Decimal::NegZero) => b,
             (Decimal::Infinity, Decimal::NegInfinity)
-            | (Decimal::NegInfinity, Decimal::Infinity) => {
-                Decimal::NaN
-            }
+            | (Decimal::NegInfinity, Decimal::Infinity) => Decimal::NaN,
             (Decimal::Infinity, _) | (_, Decimal::Infinity) => {
                 Decimal::Infinity
             }
-            (Decimal::NegInfinity, _)
-            | (_, Decimal::NegInfinity) => Decimal::NegInfinity,
-            (Decimal::NaN, _) | (_, Decimal::NaN) => {
-                Decimal::NaN
+            (Decimal::NegInfinity, _) | (_, Decimal::NegInfinity) => {
+                Decimal::NegInfinity
             }
+            (Decimal::NaN, _) | (_, Decimal::NaN) => Decimal::NaN,
         }
     }
 }
@@ -230,7 +218,6 @@ impl Display for Decimal {
         }
     }
 }
-
 
 impl TryFrom<BigDecimalType> for Decimal {
     type Error = ();
@@ -282,8 +269,7 @@ impl BinRead for Decimal {
         if endian != Endian::Little {
             return Err(binrw::Error::AssertFail {
                 pos: reader.stream_position().unwrap_or(0),
-                message:
-                "Only little-endian is supported for Decimal"
+                message: "Only little-endian is supported for Decimal"
                     .to_string(),
             });
         }
@@ -292,7 +278,6 @@ impl BinRead for Decimal {
 
         match big_decimal_type {
             Ok(BigDecimalType::Finite) => {
-
                 let numerator_len = reader.read_le::<u32>()? as usize;
                 let denominator_len = reader.read_le::<u32>()? as usize;
 
@@ -303,7 +288,8 @@ impl BinRead for Decimal {
                 reader.read_exact(&mut denominator_bytes)?;
 
                 let numerator = BigInt::from_signed_bytes_le(&numerator_bytes);
-                let denominator = BigInt::from_signed_bytes_le(&denominator_bytes);
+                let denominator =
+                    BigInt::from_signed_bytes_le(&denominator_bytes);
 
                 Ok(Decimal::Finite(Rational::new(numerator, denominator)))
             }
@@ -329,8 +315,7 @@ impl BinWrite for Decimal {
         if endian != Endian::Little {
             return Err(binrw::Error::AssertFail {
                 pos: writer.stream_position().unwrap_or(0),
-                message:
-                "Only little-endian is supported for Decimal"
+                message: "Only little-endian is supported for Decimal"
                     .to_string(),
             });
         }
@@ -382,9 +367,9 @@ impl From<f32> for Decimal {
         } else if value.is_zero() {
             Decimal::Zero
         } else {
-            Decimal::Finite(
-                Rational::from_big_rational(BigRational::from_f32(value).unwrap())
-            )
+            Decimal::Finite(Rational::from_big_rational(
+                BigRational::from_f32(value).unwrap(),
+            ))
         }
     }
 }
@@ -392,13 +377,16 @@ impl From<f32> for Decimal {
 impl From<TypedDecimal> for Decimal {
     fn from(value: TypedDecimal) -> Self {
         match value {
-            TypedDecimal::F32(ordered_float) => Decimal::from(ordered_float.into_inner()),
-            TypedDecimal::F64(ordered_float) => Decimal::from(ordered_float.into_inner()),
-            TypedDecimal::Decimal(big_decimal) => big_decimal
+            TypedDecimal::F32(ordered_float) => {
+                Decimal::from(ordered_float.into_inner())
+            }
+            TypedDecimal::F64(ordered_float) => {
+                Decimal::from(ordered_float.into_inner())
+            }
+            TypedDecimal::Decimal(big_decimal) => big_decimal,
         }
     }
 }
-
 
 impl From<f64> for Decimal {
     fn from(value: f64) -> Self {
@@ -415,17 +403,17 @@ impl From<f64> for Decimal {
         } else if value.is_zero() {
             Decimal::Zero
         } else {
-            Decimal::Finite(
-                Rational::from_big_rational(BigRational::from_f64(value).unwrap())
-            )
+            Decimal::Finite(Rational::from_big_rational(
+                BigRational::from_f64(value).unwrap(),
+            ))
         }
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn test_decimal_addition() {
@@ -433,12 +421,12 @@ mod tests {
         let dec2 = Decimal::from_string("56.78");
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "69.12");
-        
+
         let dec1 = Decimal::from_string("-12345.678901234536784");
         let dec2 = Decimal::from_string("3");
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "-12342.678901234536784");
-        
+
         let dec1 = Decimal::from_string("1/3");
         let dec2 = Decimal::from_string("1/3");
         let result = dec1 + dec2;
@@ -584,8 +572,8 @@ mod tests {
     fn test_zero_neg_zero() {
         let a = Decimal::from_string("0.0");
         let b = Decimal::from_string("-0.0");
-        matches!(a, Decimal::Zero);
-        matches!(b, Decimal::NegZero);
+        assert_matches!(a, Decimal::Zero);
+        assert_matches!(b, Decimal::NegZero);
         assert_eq!(a, b);
     }
 
@@ -756,8 +744,10 @@ mod tests {
 
     #[test]
     fn test_large_decimal_addition() {
-        let a = Decimal::from_string("100000000000000000000.00000000000000000001");
-        let b = Decimal::from_string("100000000000000000000.00000000000000000001");
+        let a =
+            Decimal::from_string("100000000000000000000.00000000000000000001");
+        let b =
+            Decimal::from_string("100000000000000000000.00000000000000000001");
         let result = a + b;
         assert_eq!(
             result,

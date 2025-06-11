@@ -1,6 +1,8 @@
 #![feature(coroutines)]
 #![feature(iter_from_coroutine)]
 #![feature(let_chains)]
+#![feature(assert_matches)]
+
 #[macro_use]
 extern crate mopa;
 
