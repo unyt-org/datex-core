@@ -756,7 +756,8 @@ fn insert_int_with_radix(
 
 #[cfg(test)]
 pub mod tests {
-    use super::compile_template;
+    use std::io::Read;
+    use super::{compile_script, compile_template};
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
@@ -1444,5 +1445,26 @@ pub mod tests {
                 2
             ]
         );
+    }
+
+    fn get_json_test_string(file_path: &str) -> String {
+        // read json from test file
+        let file_path = format!("benches/json/{file_path}");
+        let file_path = std::path::Path::new(&file_path);
+        let file = std::fs::File::open(file_path).expect("Failed to open test.json");
+        let mut reader = std::io::BufReader::new(file);
+        let mut json_string = String::new();
+        reader
+            .read_to_string(&mut json_string)
+            .expect("Failed to read test.json");
+        json_string
+    }
+
+    #[test]
+    fn test_json_to_dxb_large_file() {
+        let json = get_json_test_string("test2.json");
+        println!("JSON file read");
+        let dxb = compile_script(&json).expect("Failed to parse JSON string");
+        println!("DXB: {:?}", dxb.len());
     }
 }

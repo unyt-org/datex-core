@@ -1,21 +1,16 @@
-// 1. JSON -> Runtime value
-// 2. DXB -> Runtime value
-// 3. Runtime value -> JSON
-// 4. Runtime value -> DXB
-
 use std::io::Read;
 use json_syntax::Parse;
 use serde_json::Value;
-use datex_core::compile;
-use datex_core::compiler::bytecode::{compile_script, compile_template, compile_template_with_refs, compile_value};
+use datex_core::compiler::bytecode::{compile_script, compile_value};
 use datex_core::datex_values::datex_type::CoreValueType;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
 use datex_core::runtime::execution::{execute_dxb, ExecutionOptions};
 
-pub fn get_json_test_string() -> String {
-    // read json from ./test.json
-    let file_path = std::path::Path::new("benches/json/test.json");
+pub fn get_json_test_string(file_path: &str) -> String {
+    // read json from test file
+    let file_path = format!("benches/json/{file_path}");
+    let file_path = std::path::Path::new(&file_path);
     let file = std::fs::File::open(file_path).expect("Failed to open test.json");
     let mut reader = std::io::BufReader::new(file);
     let mut json_string = String::new();
@@ -62,6 +57,11 @@ pub fn json_to_runtime_value_datex(json: &String) {
         .expect("Failed to parse JSON string");
     let json_value = execute_dxb(&dxb, ExecutionOptions::default()).unwrap().unwrap();
     assert_eq!(json_value.actual_type, CoreValueType::Object);
+}
+
+pub fn json_to_dxb(json: &String) {
+    let dxb = compile_script(json).expect("Failed to parse JSON string");
+    assert!(!dxb.is_empty(), "Expected DXB to be non-empty");
 }
 
 // DXB -> value
