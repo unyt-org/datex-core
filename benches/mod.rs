@@ -1,7 +1,6 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(criterion::runner)]
 use criterion::{Criterion, black_box, criterion_group, criterion_main, BenchmarkId};
-use criterion_macro::criterion;
 use datex_core::compiler::bytecode::compile_script;
 use crate::json::{get_json_test_string, json_to_dxb, json_to_runtime_value_baseline_serde};
 use crate::runtime::runtime_init;
@@ -11,7 +10,7 @@ mod json;
 
 
 fn bench_runtime(c: &mut Criterion) {
-    c.bench_function("runtime init", |b| b.iter(|| runtime_init()));
+    c.bench_function("runtime init", |b| b.iter(runtime_init));
 }
 
 fn bench_json_file(c: &mut Criterion, file_path: &str) {
@@ -22,31 +21,36 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
     // serde
     c.bench_with_input(BenchmarkId::new("json to runtime value serde_json", file_path), &json, |b, json| {
         b.iter(|| {
-            black_box(json_to_runtime_value_baseline_serde(black_box(json)));
+            json_to_runtime_value_baseline_serde(black_box(json));
+            black_box(());
         })
     });
     // json_syntax
     c.bench_with_input(BenchmarkId::new("json to runtime value json_syntax", file_path), &json, |b, json| {
         b.iter(|| {
-            black_box(json::json_to_runtime_value_baseline_json_syntax(black_box(json)));
+            json::json_to_runtime_value_baseline_json_syntax(black_box(json));
+            black_box(());
         })
     });
     // DATEX
     c.bench_with_input(BenchmarkId::new("json to runtime value datex", file_path), &json, |b, json| {
         b.iter(|| {
-            black_box(json::json_to_runtime_value_datex(black_box(json)));
+            json::json_to_runtime_value_datex(black_box(json));
+            black_box(());
         })
     });
     // JSON string to DXB
     c.bench_with_input(BenchmarkId::new("json to dxb", file_path), &json, |b, json| {
         b.iter(|| {
-            black_box(json_to_dxb(black_box(json)));
+            json_to_dxb(black_box(json));
+            black_box(());
         })
     });
     // DXB
     c.bench_with_input(BenchmarkId::new("dxb to runtime value", file_path), &dxb, |b, dxb| {
         b.iter(|| {
-            black_box(json::dxb_to_runtime_value(black_box(dxb)));
+            json::dxb_to_runtime_value(black_box(dxb));
+            black_box(());
         })
     });
 
@@ -58,31 +62,36 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
     // serde
     c.bench_with_input(BenchmarkId::new("runtime value to json serde_json", file_path), &json_serde, |b, json_serde| {
         b.iter(|| {
-            black_box(json::runtime_value_to_json_baseline_serde_json(black_box(json_serde)));
+            json::runtime_value_to_json_baseline_serde_json(black_box(json_serde));
+            black_box(());
         })
     });
     // json_syntax
     c.bench_with_input(BenchmarkId::new("runtime value to json json_syntax", file_path), &json_syntax, |b, json_syntax| {
         b.iter(|| {
-            black_box(json::runtime_value_to_json_baseline_json_syntax(black_box(json_syntax)));
+            json::runtime_value_to_json_baseline_json_syntax(black_box(json_syntax));
+            black_box(());
         })
     });
     // DATEX
     c.bench_with_input(BenchmarkId::new("runtime value to json datex", file_path), &json_datex, |b, json_datex| {
         b.iter(|| {
-            black_box(json::runtime_value_to_json_datex(black_box(json_datex)));
+            json::runtime_value_to_json_datex(black_box(json_datex));
+            black_box(());
         })
     });
     // DXB
     c.bench_with_input(BenchmarkId::new("runtime value to dxb", file_path), &json_datex, |b, json_datex| {
         b.iter(|| {
-            black_box(json::runtime_value_to_dxb(black_box(json_datex)));
+            json::runtime_value_to_dxb(black_box(json_datex));
+            black_box(());
         })
     });
     // DXB to JSON
     c.bench_with_input(BenchmarkId::new("dxb to json", file_path), &dxb, |b, dxb| {
         b.iter(|| {
-            black_box(json::dxb_to_json(black_box(dxb)));
+            json::dxb_to_json(black_box(dxb));
+            black_box(());
         })
     });
 }

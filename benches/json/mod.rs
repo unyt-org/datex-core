@@ -21,7 +21,7 @@ pub fn get_json_test_string(file_path: &str) -> String {
 }
 
 pub fn json_to_serde_value(json: &String) -> Value {
-    serde_json::from_str::<Value>(&json)
+    serde_json::from_str::<Value>(json)
         .expect("Failed to parse JSON string")
 }
 
@@ -42,7 +42,7 @@ pub fn json_to_datex_value(json: &String) -> ValueContainer {
 
 // json -> value
 pub fn json_to_runtime_value_baseline_serde(json: &String) {
-    let json_value = serde_json::from_str::<Value>(&json)
+    let json_value = serde_json::from_str::<Value>(json)
         .expect("Failed to parse JSON string");
     assert!(json_value.is_object(), "Expected JSON to be an object");
 }
@@ -93,6 +93,6 @@ pub fn runtime_value_to_dxb(value: &ValueContainer) {
 }
 
 pub fn dxb_to_json(dxb: &[u8]) {
-    let string = decompile_body(&dxb, DecompileOptions::json()).unwrap();
+    let string = decompile_body(dxb, DecompileOptions::json()).unwrap();
     assert!(!string.is_empty(), "Expected DATEX string to be non-empty");
 }

@@ -112,7 +112,7 @@ fn execute_loop(
     let dxb_body = context.dxb_body;
     let mut scope_stack = context.scope_stack;
 
-    let instruction_iterator = body::iterate_instructions(&dxb_body);
+    let instruction_iterator = body::iterate_instructions(dxb_body);
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
