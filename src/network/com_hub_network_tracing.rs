@@ -501,7 +501,7 @@ impl ComHub {
     ) -> Option<Vec<NetworkTraceHop>> {
         // convert DATEX to hops
         let dxb = block.body.clone();
-        let hops_datex = execute_dxb(dxb, ExecutionOptions::default())
+        let hops_datex = execute_dxb(&dxb, ExecutionOptions::default())
             .unwrap()
             .unwrap();
         info!("hops datex {}", hops_datex);

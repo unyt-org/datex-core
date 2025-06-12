@@ -22,6 +22,7 @@ pub enum CompilerError {
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
+    InvalidPlaceholderCount
 }
 
 impl From<Error<Rule>> for CompilerError {
@@ -47,6 +48,9 @@ impl Display for CompilerError {
             }
             CompilerError::IntegerOutOfBoundsError => {
                 write!(f, "Integer out of bounds error")
+            }
+            CompilerError::InvalidPlaceholderCount => {
+                write!(f, "Invalid placeholder count")
             }
         }
     }

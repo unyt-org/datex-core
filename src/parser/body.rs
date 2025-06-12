@@ -206,7 +206,7 @@ pub fn iterate_instructions<'a>(
                     return;
                 }
                 let instruction_code = instruction_code.unwrap();
-                info!("Instruction code: {:?}", instruction_code);
+                //info!("Instruction code: {:?}", instruction_code);
 
                 yield match instruction_code {
                     InstructionCode::INT_8 => {

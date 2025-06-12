@@ -20,18 +20,17 @@ use log::info;
 use num_traits::ToPrimitive;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
-use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::io::Cursor;
 
-struct CompilationScope {
+struct CompilationScope<'a> {
     index: Cell<usize>,
     inserted_value_index: Cell<usize>,
     buffer: RefCell<Vec<u8>>,
-    inserted_values: RefCell<Vec<ValueContainer>>,
+    inserted_values: RefCell<&'a [&'a ValueContainer]>,
 }
 
-impl CompilationScope {
+impl<'a> CompilationScope<'a> {
     const MAX_INT_32: i64 = 2_147_483_647;
     const MIN_INT_32: i64 = -2_147_483_648;
 
@@ -51,6 +50,15 @@ impl CompilationScope {
 
     const FLOAT_32_BYTES: u8 = 4;
     const FLOAT_64_BYTES: u8 = 8;
+
+    fn new(buffer: RefCell<Vec<u8>>, inserted_values: &'a [&'a ValueContainer]) -> Self {
+        CompilationScope {
+            index: Cell::new(0),
+            inserted_value_index: Cell::new(0),
+            buffer,
+            inserted_values: RefCell::new(inserted_values),
+        }
+    }
 
     fn insert_value_container(&self, value_container: &ValueContainer) {
         match value_container {
@@ -207,20 +215,27 @@ impl CompilationScope {
     }
 
     fn unescape_string(&self, string: &str) -> String {
-        let re = Regex::new(r"\\(.)").unwrap();
+        let mut output = String::with_capacity(string.len());
+        let mut chars = string.chars();
 
-        // TODO: escape, unicode, hex, octal?
-        re.replace_all(
-            &string
-                .replace("\\b", "\u{0008}")
-                .replace("\\f", "\u{000c}")
-                .replace("\\r", "\r")
-                .replace("\\t", "\t")
-                .replace("\\v", "\u{000b}")
-                .replace("\\n", "\n"),
-            "$1",
-        )
-        .into_owned()
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('b') => output.push('\u{0008}'),
+                    Some('f') => output.push('\u{000C}'),
+                    Some('r') => output.push('\r'),
+                    Some('t') => output.push('\t'),
+                    Some('v') => output.push('\u{000B}'),
+                    Some('n') => output.push('\n'),
+                    Some(escaped) => output.push(escaped), // keep the escaped char
+                    None => output.push('\\'), // lone backslash at end
+                }
+            } else {
+                output.push(c);
+            }
+        }
+
+        output
     }
 
     fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
@@ -426,27 +441,53 @@ impl CompilationScope {
 
 /// Compiles a DATEX script text into a DXB body
 pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
-    compile_template(datex_script, vec![])
+    compile_template(datex_script, &[])
+}
+
+/// Compiles a DATEX script template text with inserted values into a DXB body
+/// The value containers are passed by reference
+pub fn compile_template_with_refs(
+    datex_script: &str,
+    inserted_values: &[&ValueContainer],
+) -> Result<Vec<u8>, CompilerError> {
+
+    // shortcut if datex_script is "?" - call compile_value directly
+    if datex_script == "?" {
+        if inserted_values.len() != 1 {
+            return Err(CompilerError::InvalidPlaceholderCount);
+        }
+        return compile_value(inserted_values[0]);
+    }
+
+    let pairs = DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
+
+    let buffer = RefCell::new(Vec::with_capacity(256));
+    let compilation_scope = CompilationScope::new(buffer, inserted_values);
+    parse_statements(&compilation_scope, pairs)?;
+
+    Ok(compilation_scope.buffer.take())
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
 pub fn compile_template(
     datex_script: &str,
-    inserted_values: Vec<ValueContainer>,
+    inserted_values: &[ValueContainer],
 ) -> Result<Vec<u8>, CompilerError> {
-    let pairs = DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
+    compile_template_with_refs(
+        datex_script,
+        &inserted_values.iter().collect::<Vec<_>>()
+    )
+}
 
+pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let mut compilation_scope = CompilationScope {
-        buffer,
-        index: Cell::new(0),
-        inserted_value_index: Cell::new(0),
-        inserted_values: RefCell::new(inserted_values),
-    };
-    parse_statements(&mut compilation_scope, pairs)?;
+    let compilation_scope = CompilationScope::new(buffer, &[]);
+
+    compilation_scope.insert_value_container(value);
 
     Ok(compilation_scope.buffer.take())
 }
+
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
 /// behaves like the format! macro.
@@ -460,7 +501,7 @@ macro_rules! compile {
     ($fmt:literal $(, $arg:expr )* $(,)?) => {
         {
             let script: String = $fmt.into();
-            let values: Vec<$crate::datex_values::value_container::ValueContainer> = vec![$($arg.into()),*];
+            let values: &[$crate::datex_values::value_container::ValueContainer] = &[$($arg.into()),*];
 
             $crate::compiler::bytecode::compile_template(&script, values)
         }
@@ -468,7 +509,7 @@ macro_rules! compile {
 }
 
 fn parse_statements(
-    compilation_scope: &mut CompilationScope,
+    compilation_scope: &CompilationScope,
     pairs: Pairs<'_, Rule>,
 ) -> Result<(), CompilerError> {
     for statement in pairs {
@@ -1368,7 +1409,7 @@ pub mod tests {
     #[test]
     fn test_compile() {
         init_logger();
-        let result = compile_template("? + ?", vec![1.into(), 2.into()]);
+        let result = compile_template("? + ?", &vec![1.into(), 2.into()]);
         assert_eq!(
             result.unwrap(),
             vec![
@@ -1384,7 +1425,8 @@ pub mod tests {
     #[test]
     fn test_compile_macro() {
         init_logger();
-        let result = compile!("?", 1);
+        let a = 1;
+        let result = compile!("?", a);
         assert_eq!(result.unwrap(), vec![InstructionCode::INT_8.into(), 1,]);
     }
 

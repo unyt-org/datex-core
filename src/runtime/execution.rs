@@ -23,15 +23,15 @@ pub struct ExecutionOptions {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ExecutionContext {
-    dxb_body: Vec<u8>,
+pub struct ExecutionContext<'a> {
+    dxb_body: &'a [u8],
     options: ExecutionOptions,
     index: usize,
     scope_stack: ScopeStack,
 }
 
 pub fn execute_dxb(
-    dxb_body: Vec<u8>,
+    dxb_body: &[u8],
     options: ExecutionOptions,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let context = ExecutionContext {
@@ -459,7 +459,7 @@ mod tests {
     ) -> Option<ValueContainer> {
         let dxb = compile_script(datex_script).unwrap();
         let options = ExecutionOptions { verbose: true };
-        execute_dxb(dxb, options).unwrap_or_else(|err| {
+        execute_dxb(&dxb, options).unwrap_or_else(|err| {
             panic!("Execution failed: {err}");
         })
     }
@@ -471,7 +471,7 @@ mod tests {
     }
 
     fn execute_dxb_debug(
-        dxb_body: Vec<u8>,
+        dxb_body: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         let options = ExecutionOptions { verbose: true };
         execute_dxb(dxb_body, options)
@@ -522,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_invalid_scope_close() {
-        let result = execute_dxb_debug(vec![
+        let result = execute_dxb_debug(&vec![
             InstructionCode::SCOPE_START.into(),
             InstructionCode::SCOPE_END.into(),
             InstructionCode::SCOPE_END.into(), // Invalid close, no matching start

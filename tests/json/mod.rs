@@ -60,7 +60,7 @@ fn compare_datex_result_with_json(json_string: &str) {
     let json_value = json_syntax::Value::parse_str(json_string).unwrap().0;
     let dxb = compile_script(json_string).unwrap();
     let datex_value = execute_dxb(
-        dxb,
+        &dxb,
         ExecutionOptions {
             verbose: false,
             ..ExecutionOptions::default()

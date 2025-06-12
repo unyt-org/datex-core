@@ -24,6 +24,16 @@ To apply clippy fixes, run the following command:
 cargo clippy-debug
 ```
 
+### Running Benchmarks
+
+The benchmarks in the `benches` directory can be run with the following command:
+
+```bash
+cargo bench
+```
+
+Benchmarks are also run automatically in the GitHub CI on every push to the main branch or a pull request branch.
+
 ## Contributing
 
 We welcome every contribution!<br>

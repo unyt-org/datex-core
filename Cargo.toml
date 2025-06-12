@@ -14,6 +14,10 @@ license-file = "LICENSE"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bench]]
+name = "mod"
+harness = false
+
 [dependencies]
 # core dependencies
 regex = "1"

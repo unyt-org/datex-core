@@ -113,6 +113,15 @@ pub struct DecompileOptions {
     pub json_compat: bool,
 }
 
+impl DecompileOptions {
+    pub fn json() -> Self {
+        DecompileOptions {
+            json_compat: true,
+            ..DecompileOptions::default()
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum ScopeType {
     #[default]
@@ -253,7 +262,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
-        info!("decompile instruction: {:?}", instruction);
+        //info!("decompile instruction: {:?}", instruction);
 
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
