@@ -10,7 +10,7 @@ pub struct Reference {
 
     // pointer information
     // this can be None if only a local reference is needed
-    pointer_id: Option<Pointer>,
+    pointer: Option<Pointer>,
 
     /// custom type for the pointer that the Datex value is allowed to reference
     pub allowed_type: CoreValueType,
@@ -18,6 +18,6 @@ pub struct Reference {
 
 impl Reference {
     pub fn pointer_id(&self) -> Option<u64> {
-        self.pointer_id.as_ref().map(|p| p.pointer_id())
+        self.pointer.as_ref().map(|p| p.pointer_id())
     }
 }

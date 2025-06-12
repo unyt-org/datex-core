@@ -5,7 +5,6 @@ use log::info;
 use std::fmt::Display;
 use std::io::Cursor;
 
-use crate::datex_values_old::{SlotIdentifier, Type};
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
@@ -15,61 +14,10 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::utils::buffers;
 
-fn extract_slot_identifier(
-    dxb_body: &[u8],
-    index: &mut usize,
-) -> SlotIdentifier {
-    let length = buffers::read_u8(dxb_body, index);
-    // binary name (2 byte number) TODO: length no longer required
-    if length == 0 {
-        let index = buffers::read_u16(dxb_body, index);
-        SlotIdentifier::new(index)
-    }
-    // string name TODO: deprecated
-    else {
-        let _name = buffers::read_string_utf8(dxb_body, index, length as usize);
-        SlotIdentifier::default()
-    }
-}
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
     buffers::read_vec_slice(dxb_body, index, size as usize)
-}
-
-fn extract_type<'a>(
-    dxb_body: &'a [u8],
-    index: &'a mut usize,
-    is_extended: bool,
-) -> Type {
-    let namespace_length = buffers::read_u8(dxb_body, index);
-    let name_length = buffers::read_u8(dxb_body, index);
-    let mut variation_length = 0;
-    let mut _has_parameters = false; // TODO:get params
-
-    if is_extended {
-        variation_length = buffers::read_u8(dxb_body, index);
-        _has_parameters = buffers::read_u8(dxb_body, index) != 0;
-    }
-
-    let namespace =
-        buffers::read_string_utf8(dxb_body, index, namespace_length as usize);
-    let name = buffers::read_string_utf8(dxb_body, index, name_length as usize);
-    let mut variation: Option<String> = None;
-
-    if is_extended && variation_length != 0 {
-        variation = Some(buffers::read_string_utf8(
-            dxb_body,
-            index,
-            variation_length as usize,
-        ));
-    };
-
-    Type {
-        namespace,
-        name,
-        variation,
-    }
 }
 
 #[derive(Debug)]

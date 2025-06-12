@@ -20,7 +20,6 @@ harness = false
 
 [dependencies]
 # core dependencies
-regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"
 lazy_static = "1.4.0"

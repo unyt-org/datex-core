@@ -1,9 +1,9 @@
-use std::collections::HashMap; // FIXME no-std
-
-use crate::datex_values_old::Pointer;
+use std::collections::HashMap;
+use crate::datex_values::reference::Reference;
+// FIXME no-std
 
 pub struct Memory {
-    pointers: HashMap<[u8; 26], Pointer>, // all pointers
+    pointers: HashMap<[u8; 26], Reference>, // all pointers
 }
 
 impl Default for Memory {
@@ -22,14 +22,14 @@ impl Memory {
     pub fn get_pointer_by_id(
         &mut self,
         address: [u8; 26],
-    ) -> Option<&mut Pointer> {
+    ) -> Option<&mut Reference> {
         self.pointers.get_mut(&address)
     }
 
     pub fn get_pointer_by_id_vec(
         &mut self,
         address: Vec<u8>,
-    ) -> Option<&mut Pointer> {
+    ) -> Option<&mut Reference> {
         let mut address_array: [u8; 26] = [0; 26];
         for i in 0..26 {
             address_array[i] = address[i];
@@ -45,7 +45,7 @@ impl Memory {
         ids
     }
 
-    pub fn store_pointer(&mut self, address: [u8; 26], pointer: Pointer) {
-        self.pointers.insert(address, pointer);
+    pub fn store_pointer(&mut self, address: [u8; 26], reference: Reference) {
+        self.pointers.insert(address, reference);
     }
 }

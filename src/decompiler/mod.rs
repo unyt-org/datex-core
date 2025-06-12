@@ -5,7 +5,6 @@ use std::io::Cursor;
 // FIXME no-std
 
 use crate::datex_values::core_values::decimal::utils::decimal_to_string;
-use crate::datex_values_old::SlotIdentifier;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data,
@@ -13,47 +12,10 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::parser::body;
 use crate::parser::body::ParserError;
-use lazy_static::lazy_static;
-use log::info;
-use regex::Regex;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
-
-lazy_static! {
-    static ref NEW_LINE: Regex = Regex::new(r"\r\n").unwrap();
-    static ref LAST_LINE: Regex = Regex::new(r"   (.)$").unwrap();
-    static ref INDENT: String = "\r\n   ".to_string();
-    static ref ALPAHNUMERIC_IDENTIFIER: Regex =
-        Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_-]*$").unwrap();
-}
-
-/**
- * Converts DXB (with or without header) to DATEX Script
- */
-pub fn decompile(dxb: &[u8], options: DecompileOptions) -> String {
-    todo!();
-    /*let mut body = dxb;
-
-    let header_result = DXBHeader::from_bytes(dxb);
-
-    match header_result {
-        // dxb with header
-        Ok(header) => {
-            body = body::extract_body(header, dxb);
-        }
-        // assume just dxb body
-        Err(_) => (),
-    }
-    return decompile_body(
-        ctx.clone(),
-        body,
-        formatted,
-        colorized,
-        resolve_slots,
-    );*/
-}
 
 pub fn decompile_body(
     dxb_body: &[u8],
@@ -223,34 +185,6 @@ impl DecompilerState<'_> {
             self.current_label += 1;
             self.labels.insert(index, name.clone());
             name
-        }
-    }
-
-    // returns variable name and variable type if initialization
-    fn get_variable_name(&mut self, slot: &SlotIdentifier) -> (String, String) {
-        // return slot name
-        if slot.is_reserved()
-            || slot.is_object_slot()
-            || !self.options.resolve_slots
-        {
-            return (slot.as_string(), "".to_string());
-        }
-        // existing variable
-        if self.variables.contains_key(&slot.index) {
-            (
-                self.variables
-                    .get(&slot.index)
-                    .unwrap_or(&"?invalid?".to_string())
-                    .to_string(),
-                "".to_string(),
-            )
-        }
-        // init variable
-        else {
-            let name = int_to_label(self.current_label);
-            self.current_label += 1;
-            self.variables.insert(slot.index, name.clone());
-            (name, "var".to_string())
         }
     }
 }
@@ -485,8 +419,7 @@ fn write_text_key(
     formatted: bool,
 ) -> Result<(), ParserError> {
     // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
-    let text = if !state.options.json_compat
-        && ALPAHNUMERIC_IDENTIFIER.is_match(text)
+    let text = if !state.options.json_compat && is_alphanumeric_identifier(text)
     {
         text.to_string()
     } else {
@@ -498,6 +431,19 @@ fn write_text_key(
         write!(output, "{text}:")?;
     }
     Ok(())
+}
+
+fn is_alphanumeric_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+
+    // First character must be a-z, A-Z, or _
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+
+    // Remaining characters: a-z, A-Z, 0-9, _, or -
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 /// insert syntax before a term (e.g. operators, commas, etc.)
