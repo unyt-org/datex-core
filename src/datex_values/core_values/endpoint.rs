@@ -2,7 +2,7 @@ use crate::crypto::random;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_value_trait::CoreValueTrait;
 use crate::datex_values::traits::soft_eq::SoftEq;
-use crate::datex_values::value_container::ValueError;
+use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
@@ -10,6 +10,7 @@ use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME no-std
 use crate::stdlib::str;
+use std::cell::Ref;
 use std::io::Cursor;
 use std::str::FromStr;
 use strum::Display;
@@ -64,6 +65,33 @@ pub struct Endpoint {
     pub identifier: [u8; 18],
     pub instance: EndpointInstance,
 }
+
+// new into
+impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
+    type Error = ValueError;
+    fn try_from(value: Option<T>) -> Result<Self, Self::Error> {
+        if let Some(value) = value {
+            let container: ValueContainer = value.into();
+            if let Some(endpoint) = container.cast_to_endpoint() {
+                return Ok(endpoint);
+            }
+        }
+        Err(ValueError::TypeConversionError)
+    }
+}
+// also for ref
+// impl<T: Into<ValueContainer>> TryFrom<&Option<T>> for Endpoint {
+//     type Error = ValueError;
+//     fn try_from(value: &Option<T>) -> Result<Self, Self::Error> {
+//         if let Some(value) = value {
+//             let container: Ref<ValueContainer> = value.into();
+//             if let Some(endpoint) = container.cast_to_endpoint() {
+//                 return Ok(endpoint);
+//             }
+//         }
+//         Err(ValueError::TypeConversionError)
+//     }
+// }
 
 impl CoreValueTrait for Endpoint {}
 

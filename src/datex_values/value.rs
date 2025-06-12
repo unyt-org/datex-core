@@ -200,8 +200,6 @@ where
     fn from(opt: Option<T>) -> Self {
         match opt {
             Some(v) => v.into(),
-
-            // FIXME we should not use the type inference here
             None => Value::null(),
         }
     }

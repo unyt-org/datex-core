@@ -1,6 +1,8 @@
 use crate::compile;
 use crate::datex_values::core_value::CoreValue;
+use crate::datex_values::core_values::boolean::Boolean;
 use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
@@ -515,18 +517,18 @@ impl ComHub {
                     ..
                 }) = value
                 {
-                    let endpoint = obj
-                        .get("endpoint")
-                        .unwrap()
-                        .cast_to_endpoint()
-                        .unwrap();
-                    let distance = obj
-                        .get("distance")
-                        .unwrap()
-                        .cast_to_integer()
-                        .unwrap()
-                        .as_i128()? as i8;
-                    let socket = obj.get("socket").unwrap();
+                    // FIXME what should the access look like?
+                    // let endpoint: Endpoint = obj.get("endpoint").into();
+                    // let endpoint: Option<Endpoint> = obj.get("endpoint").try_into();
+                    // let endpoint: Endpoint = obj.get("endpoint").try_cast_to_endpoint().unwrap();
+                    // let endpoint: Endpoint = obj.get("endpoint").cast_to_endpoint();
+
+                    let endpoint: Endpoint =
+                        obj.get("endpoint").cast_to_endpoint().unwrap();
+                    let distance: TypedInteger =
+                        obj.try_get("distance").cloned().try_into().unwrap();
+
+                    let socket = obj.try_get("socket").unwrap();
                     let (interface_type, interface_name, channel, socket_uuid) =
                         if let ValueContainer::Value(Value {
                             inner: CoreValue::Object(socket_obj),
@@ -534,7 +536,7 @@ impl ComHub {
                         }) = socket
                         {
                             let interface_type = socket_obj
-                                .get("interface_type")
+                                .try_get("interface_type")
                                 .unwrap()
                                 .cast_to_text()
                                 .0;
@@ -542,19 +544,19 @@ impl ComHub {
                                 if let ValueContainer::Value(Value {
                                     inner: CoreValue::Text(name),
                                     ..
-                                }) = socket_obj.get("interface_name")?
+                                }) = socket_obj.try_get("interface_name")?
                                 {
                                     Some(name.clone().0)
                                 } else {
                                     None
                                 };
                             let channel = socket_obj
-                                .get("channel")
+                                .try_get("channel")
                                 .unwrap()
                                 .cast_to_text()
                                 .0;
                             let socket_uuid = socket_obj
-                                .get("socket_uuid")
+                                .try_get("socket_uuid")
                                 .unwrap()
                                 .cast_to_text()
                                 .0;
@@ -569,18 +571,15 @@ impl ComHub {
                             continue;
                         };
                     let direction =
-                        obj.get("direction").unwrap().cast_to_text().0;
-                    let fork_nr = obj.get("fork_nr").unwrap().cast_to_text().0;
-                    let bounce_back = obj
-                        .get("bounce_back")
-                        .unwrap()
-                        .cast_to_bool()
-                        .unwrap()
-                        .0;
+                        obj.try_get("direction").unwrap().cast_to_text().0;
+                    let fork_nr =
+                        obj.try_get("fork_nr").unwrap().cast_to_text().0;
+                    let bounce_back: Boolean =
+                        obj.try_get("bounce_back").cloned().try_into().unwrap();
 
                     hops.push(NetworkTraceHop {
                         endpoint,
-                        distance,
+                        distance: distance.as_i8().unwrap(),
                         socket: NetworkTraceHopSocket {
                             interface_type,
                             interface_name,
@@ -593,7 +592,7 @@ impl ComHub {
                             _ => unreachable!(),
                         },
                         fork_nr,
-                        bounce_back,
+                        bounce_back: bounce_back.0,
                     });
                 }
             }

@@ -10,6 +10,7 @@ use crate::datex_values::{
         utils::{smallest_fitting_signed, smallest_fitting_unsigned},
     },
     traits::soft_eq::SoftEq,
+    value_container::{ValueContainer, ValueError},
 };
 
 #[derive(Debug, Clone, Eq, Copy)]

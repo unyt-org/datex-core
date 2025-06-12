@@ -1,5 +1,7 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;
@@ -14,8 +16,48 @@ impl Object {
     pub fn size(&self) -> usize {
         self.0.len()
     }
-    pub fn get(&self, key: &str) -> Option<&ValueContainer> {
+    pub fn get(&self, key: &str) -> &ValueContainer {
+        self.try_get(key)
+            .unwrap_or_else(|| panic!("Key '{key}' not found in Object"))
+    }
+    pub fn try_get(&self, key: &str) -> Option<&ValueContainer> {
         self.0.get(key)
+    }
+    pub fn get_or_insert_with<F>(
+        &mut self,
+        key: &str,
+        default: F,
+    ) -> &mut ValueContainer
+    where
+        F: FnOnce() -> ValueContainer,
+    {
+        self.0.entry(key.to_string()).or_insert_with(default)
+    }
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut ValueContainer> {
+        self.0.get_mut(key)
+    }
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.0.contains_key(key)
+    }
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.0.keys()
+    }
+    pub fn values(&self) -> impl Iterator<Item = &ValueContainer> {
+        self.0.values()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &ValueContainer)> {
+        self.0.iter()
+    }
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&String, &mut ValueContainer)> {
+        self.0.iter_mut()
+    }
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn set<T: Into<ValueContainer>>(&mut self, key: &str, value: T) {
@@ -23,7 +65,7 @@ impl Object {
     }
 
     pub fn remove(&mut self, key: &str) -> Option<ValueContainer> {
-        self.0.remove(key)
+        self.0.shift_remove(key)
     }
 }
 

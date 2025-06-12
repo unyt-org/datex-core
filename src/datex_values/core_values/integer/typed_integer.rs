@@ -10,6 +10,7 @@ use crate::datex_values::{
         smallest_fitting_signed, smallest_fitting_unsigned,
     },
     traits::soft_eq::SoftEq,
+    value_container::{ValueContainer, ValueError},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
@@ -49,6 +50,69 @@ impl TypedInteger {
             TypedInteger::U128(_) => "/u128",
         }
     }
+
+    pub fn as_i8(&self) -> Option<i8> {
+        match self {
+            TypedInteger::I8(v) => i8::try_from(*v).ok(),
+            TypedInteger::I16(v) => i8::try_from(*v).ok(),
+            TypedInteger::I32(v) => i8::try_from(*v).ok(),
+            TypedInteger::I64(v) => i8::try_from(*v).ok(),
+            TypedInteger::I128(v) => i8::try_from(*v).ok(),
+
+            TypedInteger::U8(v) => i8::try_from(*v).ok(),
+            TypedInteger::U16(v) => i8::try_from(*v).ok(),
+            TypedInteger::U32(v) => i8::try_from(*v).ok(),
+            TypedInteger::U64(v) => i8::try_from(*v).ok(),
+            TypedInteger::U128(v) => i8::try_from(*v).ok(),
+        }
+    }
+    pub fn as_i16(&self) -> Option<i16> {
+        match self {
+            TypedInteger::I8(v) => i16::try_from(*v).ok(),
+            TypedInteger::I16(v) => i16::try_from(*v).ok(),
+            TypedInteger::I32(v) => i16::try_from(*v).ok(),
+            TypedInteger::I64(v) => i16::try_from(*v).ok(),
+            TypedInteger::I128(v) => i16::try_from(*v).ok(),
+
+            TypedInteger::U8(v) => i16::try_from(*v).ok(),
+            TypedInteger::U16(v) => i16::try_from(*v).ok(),
+            TypedInteger::U32(v) => i16::try_from(*v).ok(),
+            TypedInteger::U64(v) => i16::try_from(*v).ok(),
+            TypedInteger::U128(v) => i16::try_from(*v).ok(),
+        }
+    }
+    pub fn as_i32(&self) -> Option<i32> {
+        match self {
+            TypedInteger::I8(v) => i32::try_from(*v).ok(),
+            TypedInteger::I16(v) => i32::try_from(*v).ok(),
+            TypedInteger::I32(v) => i32::try_from(*v).ok(),
+            TypedInteger::I64(v) => i32::try_from(*v).ok(),
+            TypedInteger::I128(v) => i32::try_from(*v).ok(),
+
+            TypedInteger::U8(v) => i32::try_from(*v).ok(),
+            TypedInteger::U16(v) => i32::try_from(*v).ok(),
+            TypedInteger::U32(v) => i32::try_from(*v).ok(),
+            TypedInteger::U64(v) => i32::try_from(*v).ok(),
+            TypedInteger::U128(v) => i32::try_from(*v).ok(),
+        }
+    }
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            TypedInteger::I8(v) => i64::try_from(*v).ok(),
+            TypedInteger::I16(v) => i64::try_from(*v).ok(),
+            TypedInteger::I32(v) => i64::try_from(*v).ok(),
+            TypedInteger::I64(v) => i64::try_from(*v).ok(),
+            TypedInteger::I128(v) => i64::try_from(*v).ok(),
+
+            TypedInteger::U8(v) => i64::try_from(*v).ok(),
+            TypedInteger::U16(v) => i64::try_from(*v).ok(),
+            TypedInteger::U32(v) => i64::try_from(*v).ok(),
+            TypedInteger::U64(v) => i64::try_from(*v).ok(),
+            TypedInteger::U128(v) => i64::try_from(*v).ok(),
+        }
+    }
+
+    // FIXME we should probably allow casting to i128 from u128
     pub fn as_u128(&self) -> u128 {
         match self {
             TypedInteger::U8(v) => *v as u128,
@@ -485,5 +549,21 @@ impl From<u64> for TypedInteger {
 impl From<u128> for TypedInteger {
     fn from(v: u128) -> Self {
         TypedInteger::U128(v)
+    }
+}
+
+// new into
+impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
+    type Error = ValueError;
+    fn try_from(value: Option<T>) -> Result<Self, Self::Error> {
+        match value {
+            Some(v) => {
+                let integer: ValueContainer = v.into();
+                integer
+                    .cast_to_integer()
+                    .ok_or(ValueError::TypeConversionError)
+            }
+            None => Err(ValueError::IsVoid),
+        }
     }
 }

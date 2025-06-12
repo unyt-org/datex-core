@@ -1,6 +1,9 @@
 use std::{fmt::Display, ops::Not};
 
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::{
+    traits::soft_eq::SoftEq,
+    value_container::{ValueContainer, ValueError},
+};
 
 use super::super::core_value_trait::CoreValueTrait;
 
@@ -59,5 +62,20 @@ impl Not for Boolean {
 
     fn not(self) -> Self::Output {
         Boolean(!self.0)
+    }
+}
+// new into
+impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Boolean {
+    type Error = ValueError;
+    fn try_from(value: Option<T>) -> Result<Self, Self::Error> {
+        match value {
+            Some(v) => {
+                let boolean: ValueContainer = v.into();
+                boolean
+                    .cast_to_bool()
+                    .ok_or(ValueError::TypeConversionError)
+            }
+            None => Err(ValueError::IsVoid),
+        }
     }
 }
