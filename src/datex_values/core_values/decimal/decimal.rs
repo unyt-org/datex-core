@@ -9,11 +9,12 @@ use num_enum::TryFromPrimitive;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use std::cmp::Ordering;
 use std::fmt::Display;
+use std::hash::Hash;
 use std::io::{Read, Seek};
 use std::ops::{Add, Neg, Sub};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub enum Decimal {
     Finite(Rational),
     NaN,
@@ -21,6 +22,20 @@ pub enum Decimal {
     NegZero,
     Infinity,
     NegInfinity,
+}
+
+// TODO: this is only a temporary solution to make clippy happy
+impl Hash for Decimal {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Decimal::Finite(value) => value.hash(state),
+            Decimal::NaN => 0.hash(state),
+            Decimal::Zero => 1.hash(state),
+            Decimal::NegZero => 2.hash(state),
+            Decimal::Infinity => 3.hash(state),
+            Decimal::NegInfinity => 4.hash(state),
+        }
+    }
 }
 
 impl PartialEq for Decimal {
