@@ -1,5 +1,4 @@
 use crate::compile;
-use crate::compiler::bytecode::compile_template;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::object::Object;
@@ -21,7 +20,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
-use std::str::FromStr;
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

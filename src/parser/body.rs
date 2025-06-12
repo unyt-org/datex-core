@@ -4,7 +4,6 @@ use binrw::BinRead;
 use log::info;
 use std::fmt::Display;
 use std::io::Cursor;
-use std::str::FromStr;
 
 use crate::datex_values_old::{SlotIdentifier, Type};
 use crate::decompiler::ScopeType;

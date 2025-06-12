@@ -1,4 +1,3 @@
-use webrtc::mux::endpoint;
 
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;

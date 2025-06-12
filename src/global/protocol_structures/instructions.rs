@@ -50,7 +50,7 @@ impl Display for Instruction {
             Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
             Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
             Instruction::Endpoint(data) => {
-                write!(f, "ENDPOINT {}", data.to_string())
+                write!(f, "ENDPOINT {data}")
             }
 
             Instruction::DecimalAsInt16(data) => {
