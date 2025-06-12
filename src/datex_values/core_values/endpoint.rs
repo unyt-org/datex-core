@@ -10,7 +10,6 @@ use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME no-std
 use crate::stdlib::str;
-use std::cell::Ref;
 use std::io::Cursor;
 use std::str::FromStr;
 use strum::Display;
