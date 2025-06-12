@@ -4,6 +4,7 @@ use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::datex_values::core_values::integer::integer::Integer;
 use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
 use crate::datex_values::core_values::integer::utils::smallest_fitting_signed;
@@ -89,6 +90,7 @@ impl CompilationScope {
                         }
                     }
                 }
+                CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
                 CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
                 CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
                 CoreValue::Bool(val) => self.insert_boolean(val.0),
@@ -263,6 +265,11 @@ impl CompilationScope {
     fn insert_float64(&self, float64: f64) {
         self.append_binary_code(InstructionCode::DECIMAL_F64);
         self.append_f64(float64);
+    }
+
+    fn insert_endpoint(&self, endpoint: &Endpoint) {
+        self.append_binary_code(InstructionCode::ENDPOINT);
+        self.append_buffer(&endpoint.to_binary());
     }
 
     fn insert_decimal(&self, decimal: &Decimal) {
@@ -580,9 +587,7 @@ fn parse_term(
         Rule::decimal => {
             let decimal = Decimal::from_string(term.as_str());
             match &decimal {
-                Decimal::Finite(big_decimal)
-                    if big_decimal.is_integer() =>
-                {
+                Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
                     if let Some(int) = big_decimal.to_i16() {
                         compilation_scope.insert_float_as_i16(int);
                     } else if let Some(int) = big_decimal.to_i32() {

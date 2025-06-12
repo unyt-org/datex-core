@@ -1,3 +1,5 @@
+use webrtc::mux::endpoint;
+
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
@@ -9,8 +11,8 @@ use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
-    FloatAsInt32Data, Instruction, ShortTextData, TextData,
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, ShortTextData, TextData,
 };
 use crate::parser::body;
 use crate::parser::body::ParserError;
@@ -155,6 +157,9 @@ fn execute_loop(
                 big_decimal.into()
             }
 
+            // endpoint
+            Instruction::Endpoint(endpoint) => endpoint.into(),
+
             // null
             Instruction::Null => Value::null().into(),
 
@@ -244,7 +249,6 @@ fn execute_loop(
 
                 // check if active_key_value_pair exists
                 if let Some(active_key) = active_key {
-
                     match active_key {
                         // set key for key-value pair (for dynamic keys)
                         ActiveValue::None => {

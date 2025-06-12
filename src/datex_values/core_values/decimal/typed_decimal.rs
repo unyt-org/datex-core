@@ -159,7 +159,7 @@ impl TypedDecimal {
             TypedDecimal::F64(value) => value.is_positive(),
             TypedDecimal::Decimal(value) => match value {
                 Decimal::Finite(big_value) => big_value.is_positive(),
-                Decimal::Zero => false,
+                Decimal::Zero => true,
                 Decimal::NegZero => false,
                 Decimal::Infinity => true,
                 Decimal::NegInfinity => false,
@@ -174,7 +174,7 @@ impl TypedDecimal {
             TypedDecimal::Decimal(value) => match value {
                 Decimal::Finite(big_value) => big_value.is_negative(),
                 Decimal::Zero => false,
-                Decimal::NegZero => false,
+                Decimal::NegZero => true,
                 Decimal::Infinity => false,
                 Decimal::NegInfinity => true,
                 Decimal::NaN => false,
@@ -298,6 +298,39 @@ mod tests {
     use ordered_float::OrderedFloat;
 
     #[test]
+    fn zero_sign() {
+        let c = TypedDecimal::from(0.0f32);
+        assert_matches!(c, TypedDecimal::F32(_));
+        assert!(c.is_positive());
+        assert!(!c.is_negative());
+
+        let e = TypedDecimal::from(-0.0f32);
+        assert_matches!(e, TypedDecimal::F32(_));
+        assert!(!e.is_positive());
+        assert!(e.is_negative());
+
+        let f = TypedDecimal::from(0.0f64);
+        assert_matches!(f, TypedDecimal::F64(_));
+        assert!(f.is_positive());
+        assert!(!f.is_negative());
+
+        let g = TypedDecimal::from(-0.0f64);
+        assert_matches!(g, TypedDecimal::F64(_));
+        assert!(!g.is_positive());
+        assert!(g.is_negative());
+
+        let h = TypedDecimal::Decimal(Decimal::from(0.0));
+        assert_matches!(h, TypedDecimal::Decimal(Decimal::Zero));
+        assert!(h.is_positive());
+        assert!(!h.is_negative());
+
+        let i = TypedDecimal::Decimal(Decimal::from(-0.0));
+        assert_matches!(i, TypedDecimal::Decimal(Decimal::NegZero));
+        assert!(!i.is_positive());
+        assert!(i.is_negative());
+    }
+
+    #[test]
     fn is_positive() {
         let a = TypedDecimal::from(42.0f32);
         assert_matches!(a, TypedDecimal::F32(_));
@@ -307,21 +340,13 @@ mod tests {
         assert_matches!(b, TypedDecimal::F64(_));
         assert!(!b.is_positive());
 
-        let c = TypedDecimal::from(0.0f32);
-        assert_matches!(c, TypedDecimal::F32(_));
-        // assert!(!c.is_positive()); // FIXME c.is_positive should returnfalse
-
         let d = TypedDecimal::from(0.01f64);
         assert_matches!(d, TypedDecimal::F64(_));
         assert!(d.is_positive());
 
-        let e = TypedDecimal::from(-0.0f32);
-        assert_matches!(e, TypedDecimal::F32(_));
-        assert!(!e.is_positive());
-
-        let f = TypedDecimal::from(0.0f64);
-        assert_matches!(f, TypedDecimal::F64(_));
-        // assert!(!f.is_positive()); // FIXME f.is_positive should return false
+        let e = TypedDecimal::Decimal(0.0.into());
+        assert_matches!(e, TypedDecimal::Decimal(Decimal::Zero));
+        assert!(e.is_positive());
     }
 
     #[test]
@@ -346,9 +371,9 @@ mod tests {
         assert_matches!(e, TypedDecimal::F32(_));
         assert!(e.is_negative());
 
-        let f = TypedDecimal::from(0.0f64);
-        assert_matches!(f, TypedDecimal::F64(_));
-        assert!(!f.is_negative());
+        let f = TypedDecimal::Decimal((-0.0).into());
+        assert_matches!(f, TypedDecimal::Decimal(Decimal::NegZero));
+        assert!(f.is_negative());
     }
 
     #[test]

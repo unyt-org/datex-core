@@ -1,9 +1,9 @@
-use crate::datex_values::core_values::decimal::{
-    utils::decimal_to_string,
+use crate::datex_values::core_values::decimal::decimal::Decimal;
+use crate::datex_values::core_values::{
+    decimal::utils::decimal_to_string, endpoint::Endpoint,
 };
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -13,6 +13,7 @@ pub enum Instruction {
     Int64(Int64Data),
     Int128(Int128Data),
     UInt128(UInt128Data),
+    Endpoint(Endpoint),
 
     DecimalF32(Float32Data),
     DecimalF64(Float64Data),
@@ -48,6 +49,9 @@ impl Display for Instruction {
             Instruction::Int64(data) => write!(f, "INT_64 {}", data.0),
             Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
             Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
+            Instruction::Endpoint(data) => {
+                write!(f, "ENDPOINT {}", data.to_string())
+            }
 
             Instruction::DecimalAsInt16(data) => {
                 write!(f, "DECIMAL_AS_INT_16 {}", data.0)

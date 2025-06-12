@@ -16,6 +16,22 @@ impl Boolean {
     pub fn toggle(&mut self) {
         self.0 = !self.0;
     }
+    pub fn is_true(&self) -> bool {
+        self.0
+    }
+    pub fn is_false(&self) -> bool {
+        !self.0
+    }
+    pub fn as_string(&self) -> String {
+        self.0.to_string()
+    }
+    pub fn as_str(&self) -> &str {
+        if self.0 {
+            "true"
+        } else {
+            "false"
+        }
+    }
 }
 
 impl Display for Boolean {

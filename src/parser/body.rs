@@ -1,15 +1,19 @@
-use std::fmt::Display;
-use std::io::Cursor;
+use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::stdlib::fmt;
 use binrw::BinRead;
 use log::info;
-use crate::stdlib::fmt;
+use std::fmt::Display;
+use std::io::Cursor;
+use std::str::FromStr;
 
-use crate::datex_values_old::{
-    SlotIdentifier, Type,
-};
+use crate::datex_values_old::{SlotIdentifier, Type};
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, TextData, TextDataRaw};
+use crate::global::protocol_structures::instructions::{
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data,
+    ShortTextData, ShortTextDataRaw, TextData, TextDataRaw,
+};
 use crate::utils::buffers;
 
 fn extract_slot_identifier(
@@ -69,15 +73,18 @@ fn extract_type<'a>(
     }
 }
 
-
 #[derive(Debug)]
 pub enum ParserError {
+    InvalidEndpoint(String),
     InvalidBinaryCode(u8),
     FailedToReadInstructionCode,
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
     FromUtf8Error(std::string::FromUtf8Error),
-    InvalidScopeEndType{expected: ScopeType, found: ScopeType}
+    InvalidScopeEndType {
+        expected: ScopeType,
+        found: ScopeType,
+    },
 }
 
 impl From<fmt::Error> for ParserError {
@@ -101,11 +108,22 @@ impl From<std::string::FromUtf8Error> for ParserError {
 impl Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParserError::InvalidBinaryCode(code) => write!(f, "Invalid binary code: {code}"),
-            ParserError::FailedToReadInstructionCode => write!(f, "Failed to read instruction code"),
+            ParserError::InvalidBinaryCode(code) => {
+                write!(f, "Invalid binary code: {code}")
+            }
+            ParserError::InvalidEndpoint(endpoint) => {
+                write!(f, "Invalid endpoint: {endpoint}")
+            }
+            ParserError::FailedToReadInstructionCode => {
+                write!(f, "Failed to read instruction code")
+            }
             ParserError::FmtError(err) => write!(f, "Formatting error: {err}"),
-            ParserError::BinRwError(err) => write!(f, "Binary read/write error: {err}"),
-            ParserError::FromUtf8Error(err) => write!(f, "UTF-8 conversion error: {err}"),
+            ParserError::BinRwError(err) => {
+                write!(f, "Binary read/write error: {err}")
+            }
+            ParserError::FromUtf8Error(err) => {
+                write!(f, "UTF-8 conversion error: {err}")
+            }
             ParserError::InvalidScopeEndType { expected, found } => {
                 write!(f, "Invalid scope end type: expected {expected:?}, found {found:?}")
             }
@@ -113,8 +131,9 @@ impl Display for ParserError {
     }
 }
 
-
-fn get_short_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<ShortTextData, ParserError> {
+fn get_short_text_data(
+    mut reader: &mut Cursor<&[u8]>,
+) -> Result<ShortTextData, ParserError> {
     let raw_data = ShortTextDataRaw::read(&mut reader);
     if let Err(err) = raw_data {
         Err(err.into())
@@ -123,15 +142,27 @@ fn get_short_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<ShortTextData, 
         let text = String::from_utf8(raw_data.text);
         if let Err(err) = text {
             Err(err.into())
-        }
-        else {
+        } else {
             let text = text?;
             Ok(ShortTextData(text))
         }
     }
 }
 
-fn get_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<TextData, ParserError> {
+fn get_endpoint_data(
+    mut reader: &mut Cursor<&[u8]>,
+) -> Result<Endpoint, ParserError> {
+    let raw_data = Endpoint::read(&mut reader);
+    if let Ok(endpoint) = raw_data {
+        Ok(endpoint)
+    } else {
+        Err(raw_data.err().unwrap().into())
+    }
+}
+
+fn get_text_data(
+    mut reader: &mut Cursor<&[u8]>,
+) -> Result<TextData, ParserError> {
     let raw_data = TextDataRaw::read(&mut reader);
     if let Err(err) = raw_data {
         Err(err.into())
@@ -140,8 +171,7 @@ fn get_text_data(mut reader: &mut Cursor<&[u8]>) -> Result<TextData, ParserError
         let text = String::from_utf8(raw_data.text);
         if let Err(err) = text {
             Err(err.into())
-        }
-        else {
+        } else {
             let text = text?;
             Ok(TextData(text))
         }
@@ -155,7 +185,6 @@ pub fn iterate_instructions<'a>(
     std::iter::from_coroutine(
         #[coroutine]
         move || {
-
             // get reader for dxb_body
             let mut reader = Cursor::new(dxb_body);
             loop {
@@ -164,14 +193,15 @@ pub fn iterate_instructions<'a>(
                     info!("End of dxb_body reached.");
                     return;
                 }
-                
+
                 let instruction_code = u8::read(&mut reader);
                 if let Err(err) = instruction_code {
                     yield Err(err.into());
                     return;
                 }
 
-                let instruction_code = InstructionCode::try_from(instruction_code.unwrap());
+                let instruction_code =
+                    InstructionCode::try_from(instruction_code.unwrap());
                 if instruction_code.is_err() {
                     yield Err(ParserError::FailedToReadInstructionCode);
                     return;
@@ -182,72 +212,101 @@ pub fn iterate_instructions<'a>(
                 yield match instruction_code {
                     InstructionCode::INT_8 => {
                         let data = Int8Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::Int8(data.unwrap())) }
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Int8(data.unwrap()))
+                        }
                     }
-                    
+
                     InstructionCode::INT_16 => {
                         let data = Int16Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::Int16(data.unwrap())) }
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Int16(data.unwrap()))
+                        }
                     }
 
                     InstructionCode::INT_32 => {
                         let data = Int32Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::Int32(data.unwrap())) }
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Int32(data.unwrap()))
+                        }
                     }
-                    
+
                     InstructionCode::INT_64 => {
                         let data = Int64Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::Int64(data.unwrap())) }
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Int64(data.unwrap()))
+                        }
                     }
-                    
+
                     InstructionCode::INT_128 => {
                         let data = Int128Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::Int128(data.unwrap())) }
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Int128(data.unwrap()))
+                        }
                     }
-                    
+
                     InstructionCode::DECIMAL_F32 => {
                         let data = Float32Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::DecimalF32(data.unwrap())) }
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::DecimalF32(data.unwrap()))
+                        }
                     }
                     InstructionCode::DECIMAL_F64 => {
                         let data = Float64Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::DecimalF64(data.unwrap())) }
-                    }
-                    
-                    InstructionCode::DECIMAL_BIG => {
-                        let data = DecimalData::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::Decimal(data.unwrap())) }
-                    }
-                    
-                    InstructionCode::DECIMAL_AS_INT_16 => {
-                        let data = FloatAsInt16Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::DecimalAsInt16(data.unwrap())) }
-                    }
-                    
-                    InstructionCode::DECIMAL_AS_INT_32 => {
-                        let data = FloatAsInt32Data::read(&mut reader);
-                        if let Err(err) = data { Err(err.into()) }
-                        else { Ok(Instruction::DecimalAsInt32(data.unwrap())) }
-                    }
-                    
-                    InstructionCode::SHORT_TEXT => {
-                        let short_text_data = get_short_text_data(&mut reader);
-                        if let Err(err) = short_text_data {
-                            Err(err)
+                        if let Err(err) = data {
+                            Err(err.into())
                         } else {
-                            Ok(Instruction::ShortText(short_text_data.unwrap()))
+                            Ok(Instruction::DecimalF64(data.unwrap()))
                         }
                     }
-                    
+
+                    InstructionCode::DECIMAL_BIG => {
+                        let data = DecimalData::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Decimal(data.unwrap()))
+                        }
+                    }
+
+                    InstructionCode::DECIMAL_AS_INT_16 => {
+                        let data = FloatAsInt16Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::DecimalAsInt16(data.unwrap()))
+                        }
+                    }
+
+                    InstructionCode::DECIMAL_AS_INT_32 => {
+                        let data = FloatAsInt32Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::DecimalAsInt32(data.unwrap()))
+                        }
+                    }
+
+                    InstructionCode::SHORT_TEXT => {
+                        get_short_text_data(&mut reader)
+                            .map(Instruction::ShortText)
+                    }
+
+                    InstructionCode::ENDPOINT => get_endpoint_data(&mut reader)
+                        .map(Instruction::Endpoint),
+
                     InstructionCode::TEXT => {
                         let text_data = get_text_data(&mut reader);
                         if let Err(err) = text_data {
@@ -256,73 +315,53 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::Text(text_data.unwrap()))
                         }
                     }
-                    
-                    InstructionCode::TRUE => {
-                        Ok(Instruction::True)
-                    }
-                    InstructionCode::FALSE => {
-                        Ok(Instruction::False)
-                    }
-                    InstructionCode::NULL => {
-                        Ok(Instruction::Null)
-                    }
-                    
+
+                    InstructionCode::TRUE => Ok(Instruction::True),
+                    InstructionCode::FALSE => Ok(Instruction::False),
+                    InstructionCode::NULL => Ok(Instruction::Null),
+
                     // complex terms
-                    InstructionCode::ARRAY_START => {
-                        Ok(Instruction::ArrayStart)
-                    }
+                    InstructionCode::ARRAY_START => Ok(Instruction::ArrayStart),
                     InstructionCode::OBJECT_START => {
                         Ok(Instruction::ObjectStart)
                     }
-                    InstructionCode::TUPLE_START => {
-                        Ok(Instruction::TupleStart)
-                    }
-                    InstructionCode::SCOPE_START => {
-                        Ok(Instruction::ScopeStart)
-                    }
-                    InstructionCode::SCOPE_END => {
-                        Ok(Instruction::ScopeEnd)
-                    }
-                    
+                    InstructionCode::TUPLE_START => Ok(Instruction::TupleStart),
+                    InstructionCode::SCOPE_START => Ok(Instruction::ScopeStart),
+                    InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
+
                     InstructionCode::KEY_VALUE_SHORT_TEXT => {
                         let short_text_data = get_short_text_data(&mut reader);
                         if let Err(err) = short_text_data {
                             Err(err)
                         } else {
-                            Ok(Instruction::KeyValueShortText(short_text_data.unwrap()))
+                            Ok(Instruction::KeyValueShortText(
+                                short_text_data.unwrap(),
+                            ))
                         }
                     }
-                    
+
                     InstructionCode::KEY_VALUE_DYNAMIC => {
                         Ok(Instruction::KeyValueDynamic)
                     }
-                    
+
                     InstructionCode::CLOSE_AND_STORE => {
                         Ok(Instruction::CloseAndStore)
                     }
-                    
+
                     // operations
-                    InstructionCode::ADD => {
-                        Ok(Instruction::Add)
-                    }
-                    
-                    InstructionCode::SUBTRACT => {
-                        Ok(Instruction::Subtract)
-                    }
+                    InstructionCode::ADD => Ok(Instruction::Add),
 
-                    InstructionCode::MULTIPLY => {
-                        Ok(Instruction::Multiply)
-                    }
-                    
-                    InstructionCode::DIVIDE => {
-                        Ok(Instruction::Divide)
-                    }
+                    InstructionCode::SUBTRACT => Ok(Instruction::Subtract),
 
-                    _ => {
-                        Err(ParserError::InvalidBinaryCode(instruction_code as u8))
-                    }
+                    InstructionCode::MULTIPLY => Ok(Instruction::Multiply),
+
+                    InstructionCode::DIVIDE => Ok(Instruction::Divide),
+
+                    _ => Err(ParserError::InvalidBinaryCode(
+                        instruction_code as u8,
+                    )),
                 }
             }
-        }
+        },
     )
 }
