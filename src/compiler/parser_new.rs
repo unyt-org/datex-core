@@ -53,6 +53,12 @@ pub enum Apply {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum VariableType {
+    Value,
+    Reference,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
     Invalid,
@@ -77,6 +83,10 @@ pub enum DatexExpression {
     Statements(Vec<Statement>),
     /// Identifier, e.g. a variable name
     Variable(String),
+    /// Variable declaration, e.g. ref x = 1 or val y = 2
+    VariableDeclaration(VariableType, String, Box<DatexExpression>),
+    /// Variable assignment, e.g. x = 1
+    VariableAssignment(String, Box<DatexExpression>),
 
     BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
     UnaryOperation(UnaryOperator, Box<DatexExpression>),
@@ -382,7 +392,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         .boxed();
 
 
-    // two expressions following each other directly
+    // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let apply_or_property_access = scoped_expression
         .clone()
         .then(
@@ -411,9 +421,33 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         .map(|(val, args)| DatexExpression::ApplyChain(Box::new(val), args))
         .boxed();
 
+
+    // variable declarations or assignments
+    let variable_assignment = just("val")
+        .or(just("ref"))
+        .or_not()
+        .padded()
+        .then(text::ident())
+        .then_ignore(just('=').padded())
+        .then(scoped_expression.clone())
+        .map(|((var_type, var_name), expr)| {
+            if let Some(var_type) = var_type {
+                DatexExpression::VariableDeclaration(
+                    if var_type == "val" { VariableType::Value } else { VariableType::Reference },
+                    var_name.to_string(),
+                    Box::new(expr),
+                )
+            }
+            else {
+                DatexExpression::VariableAssignment(var_name.to_string(), Box::new(expr))
+            }
+        })
+        .boxed();
+
     // a full expression, containing a single value, array, object, or tuple
     // a datex script source consists of a sequence of expressions
     let full_expression = choice((
+        variable_assignment,
         apply_or_property_access,
         tuple.clone(),
         single_value_tuple.clone(),
@@ -1091,4 +1125,94 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn nested_apply_and_property_access() {
+        let src = "((x(1)).y).z";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::ApplyChain(
+                Box::new(DatexExpression::ApplyChain(
+                    Box::new(DatexExpression::Variable("x".to_string())),
+                    vec![Apply::FunctionCall(DatexExpression::Integer(Integer::from(1)))],
+                )),
+                vec![Apply::PropertyAccess(DatexExpression::Text("y".to_string()))],
+            )),
+            vec![Apply::PropertyAccess(DatexExpression::Text("z".to_string()))],
+        ));
+    }
+
+    #[test]
+    fn variable_declaration() {
+        let src = "val x = 42";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::VariableDeclaration(
+            VariableType::Value,
+            "x".to_string(),
+            Box::new(DatexExpression::Integer(Integer::from(42))),
+        ));
+    }
+
+    #[test]
+    fn variable_declaration_statement() {
+        let src = "val x = 42;";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Statements(vec![
+            Statement {
+                expression: DatexExpression::VariableDeclaration(
+                    VariableType::Value,
+                    "x".to_string(),
+                    Box::new(DatexExpression::Integer(Integer::from(42))),
+                ),
+                is_terminated: true,
+            },
+        ]));
+    }
+
+    #[test]
+    fn variable_declaration_with_expression() {
+        let src = "ref x = 1 + 2";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::VariableDeclaration(
+            VariableType::Reference,
+            "x".to_string(),
+            Box::new(DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )),
+        ));
+    }
+    
+    #[test]
+    fn variable_assignment() {
+        let src = "x = 42";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::VariableAssignment(
+            "x".to_string(),
+            Box::new(DatexExpression::Integer(Integer::from(42))),
+        ));
+    }
+    
+    #[test]
+    fn variable_declaration_and_assignment() {
+        let src = "val x = 42; x = 100;";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Statements(vec![
+            Statement {
+                expression: DatexExpression::VariableDeclaration(
+                    VariableType::Value,
+                    "x".to_string(),
+                    Box::new(DatexExpression::Integer(Integer::from(42))),
+                ),
+                is_terminated: true,
+            },
+            Statement {
+                expression: DatexExpression::VariableAssignment(
+                    "x".to_string(),
+                    Box::new(DatexExpression::Integer(Integer::from(100))),
+                ),
+                is_terminated: true,
+            },
+        ]));
+    }
 }
