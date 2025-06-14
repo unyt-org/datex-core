@@ -5,7 +5,7 @@ use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::integer::integer::Integer;
 
 #[derive(Clone, Debug, PartialEq)]
-enum TupleEntry {
+pub enum TupleEntry {
     KeyValue(DatexExpression, DatexExpression),
     ValueOnly(DatexExpression),
 }
@@ -40,6 +40,12 @@ pub enum UnaryOperator {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Statement {
+    pub expression: DatexExpression,
+    pub is_terminated: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
     Invalid,
@@ -60,8 +66,8 @@ pub enum DatexExpression {
     Object(Vec<(DatexExpression, DatexExpression)>),
     /// Tuple, e.g (1: 2, 3: 4, "xy") or without brackets: 1,2,a:3
     Tuple(Vec<TupleEntry>),
-    /// Expression block, e.g (1; 2; 3)
-    ExpressionBlock(Vec<DatexExpression>),
+    /// One or more statements, e.g (1; 2; 3)
+    Statements(Vec<Statement>),
     /// Identifier, e.g. a variable name
     Variable(String),
 
@@ -398,11 +404,56 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         ))
         .padded().boxed();
 
+    let x = operations(choice((
+        atomic_expression.clone(),
+    )).boxed());
+
+    // statement: expression with an optional semicolon at the end
+    let statement = x
+        .clone()
+        .map(|expr| Statement {
+            expression: expr,
+            is_terminated: false,
+        })
+        .or(x
+            .clone()
+            .then_ignore(just(';').padded())
+            .map(|expr| Statement {
+                expression: expr,
+                is_terminated: true,
+            }));
+
+    // expression with semicolon
+    let closed_statement = x.clone().then_ignore(just(';').padded())
+        .map(|expr| Statement {
+            expression: expr,
+            is_terminated: true,
+        });
+
+    // multiple statements separated by semicolons
+    // first statement must be closed, subsequent statements can be closed or not
+    let statements = closed_statement
+        .then(
+            statement
+                .repeated()
+                .collect::<Vec<_>>()
+        )
+        .map(|(first, rest)| {
+            let mut all_statements = vec![first];
+            all_statements.extend(rest);
+            DatexExpression::Statements(all_statements)
+        })
+        .boxed();
+
     // atomic expression wrapped with operations
     expression.define(
-        operations(atomic_expression.boxed())
+        choice((
+            statements,
+            x,
+        ))
     );
 
+    // TODO: make this better without duplicate definition and operations() call?!
     expression_without_tuple.define(
         operations(choice((
             atom,
@@ -763,4 +814,21 @@ mod tests {
             ),
         ]));
     }
+
+    #[test]
+    fn multi_statement_expression() {
+        let src = "1;2";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Statements(vec![
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(1)),
+                is_terminated: true,
+            },
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(2)),
+                is_terminated: false,
+            },
+        ]));
+    }
+
 }
