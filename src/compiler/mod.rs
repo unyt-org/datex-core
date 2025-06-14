@@ -10,6 +10,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 mod operations;
 pub mod parser;
 pub mod bytecode;
+mod parser_new;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::compile_script;

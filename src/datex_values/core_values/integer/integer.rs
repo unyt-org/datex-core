@@ -18,6 +18,16 @@ impl Integer {
     pub fn to_smallest_fitting(&self) -> TypedInteger {
         self.0.to_smallest_fitting()
     }
+    
+    pub fn from_string(s: &str) -> Result<Self, String> {
+        match s.parse::<i128>() {
+            Ok(value) => Ok(Integer(TypedInteger::I128(value))),
+            Err(_) => match s.parse::<u128>() {
+                Ok(value) => Ok(Integer(TypedInteger::U128(value))),
+                Err(_) => Err(format!("Failed to parse integer from string: {}", s)),
+            },
+        }
+    }
 }
 
 impl SoftEq for Integer {
