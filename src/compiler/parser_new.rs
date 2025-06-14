@@ -1,5 +1,6 @@
 use crate::compiler::parser_new::extra::Err;
 use chumsky::prelude::*;
+use chumsky::recursive::Indirect;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::integer::integer::Integer;
 
@@ -8,10 +9,41 @@ enum TupleEntry {
     KeyValue(DatexExpression, DatexExpression),
     ValueOnly(DatexExpression),
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum BinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Power,
+    And,
+    Or,
+    CompositeAnd,
+    CompositeOr,
+    Equal,
+    NotEqual,
+    StrictEqual,
+    StrictNotEqual,
+    Identical,
+    NotIdentical,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum UnaryOperator {
+    Negate,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
     Invalid,
+
     /// null
     Null,
     /// Boolean (true or false)
@@ -32,6 +64,9 @@ pub enum DatexExpression {
     ExpressionBlock(Vec<DatexExpression>),
     /// Identifier, e.g. a variable name
     Variable(String),
+
+    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
+    UnaryOperation(UnaryOperator, Box<DatexExpression>),
 }
 
 fn unicode_escape<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
@@ -175,11 +210,43 @@ fn variable<'a>() -> DatexExpressionParser<'a> {
 }
 
 
-fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a, char>>> {
+fn binary_op(op: BinaryOperator) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone {
+    move |lhs, rhs| DatexExpression::BinaryOperation(op.clone(), lhs, rhs)
+}
 
-    // a generic expression
-    // a datex script source consists of a sequence of expressions
+/// Apply operations in the correct order on the datex expression parser
+fn operations(expression: DatexExpressionParser) -> DatexExpressionParser {
+
+    let op = |c| just(c).padded();
+
+    let product = expression.clone().foldl(
+        choice((
+            op('*').to(binary_op(BinaryOperator::Multiply)),
+            op('/').to(binary_op(BinaryOperator::Divide)),
+        ))
+            .then(expression)
+            .repeated(),
+        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    );
+
+    let sum = product.clone().foldl(
+        choice((
+            op('+').to(binary_op(BinaryOperator::Add)),
+            op('-').to(binary_op(BinaryOperator::Subtract)),
+        ))
+            .then(product)
+            .repeated(),
+        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    );
+
+    sum.boxed()
+}
+
+fn parser<'a>() -> DatexExpressionParser<'a> {
+
+    // an expression
     let mut expression = Recursive::declare();
+
     // an expression without tuple entries - required to be used inside arrays and objects to prevent matching tuples
     let mut expression_without_tuple = Recursive::declare();
 
@@ -297,18 +364,15 @@ fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a,
         .map(DatexExpression::Tuple)
         .boxed();
 
-    expression_without_tuple.define(choice((
-        atom,
-        scoped_expression,
-        array,
-        object,
-    )));
-
-    // returns atom
-    expression.define(choice((
-        tuple,
-        single_value_tuple,
-        expression_without_tuple
+    // an atomic expression, containing a single value, array, object, or tuple
+    // a datex script source consists of a sequence of expressions
+    let atomic_expression = choice((
+        tuple.clone(),
+        single_value_tuple.clone(),
+        atom.clone(),
+        scoped_expression.clone(),
+        array.clone(),
+        object.clone(),
     ))
         .recover_with(via_parser(nested_delimiters(
             '{',
@@ -332,10 +396,23 @@ fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a,
             any().ignored(),
             one_of(",]}").ignored(),
         ))
-        .padded()
+        .padded().boxed();
+
+    // atomic expression wrapped with operations
+    expression.define(
+        operations(atomic_expression.boxed())
     );
 
-    expression
+    expression_without_tuple.define(
+        operations(choice((
+            atom,
+            scoped_expression,
+            array,
+            object,
+        )).boxed())
+    );
+
+    expression.boxed()
 }
 
 #[cfg(test)]
@@ -610,4 +687,80 @@ mod tests {
         ]));
     }
 
+    #[test]
+    fn test_add() {
+        // Test with escaped characters in text
+        let src = "1+2";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Add,
+            Box::new(DatexExpression::Integer(Integer::from(1))),
+            Box::new(DatexExpression::Integer(Integer::from(2))),
+        ));
+    }
+
+    #[test]
+    fn test_subtract() {
+        let src = "5 - 3";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Subtract,
+            Box::new(DatexExpression::Integer(Integer::from(5))),
+            Box::new(DatexExpression::Integer(Integer::from(3))),
+        ));
+    }
+
+    #[test]
+    fn test_multiply() {
+        let src = "4 * 2";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Multiply,
+            Box::new(DatexExpression::Integer(Integer::from(4))),
+            Box::new(DatexExpression::Integer(Integer::from(2))),
+        ));
+    }
+
+    #[test]
+    fn test_divide() {
+        let src = "8 / 2";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Divide,
+            Box::new(DatexExpression::Integer(Integer::from(8))),
+            Box::new(DatexExpression::Integer(Integer::from(2))),
+        ));
+    }
+
+    #[test]
+    fn test_complex_calculation() {
+        let src = "1 + 2 * 3 + 4";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Add,
+            Box::new(DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Multiply,
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    Box::new(DatexExpression::Integer(Integer::from(3))),
+                )),
+            )),
+            Box::new(DatexExpression::Integer(Integer::from(4))),
+        ));
+    }
+
+    #[test]
+    fn test_nested_expressions() {
+        let src = "[1 + 2]";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Array(vec![
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            ),
+        ]));
+    }
 }
