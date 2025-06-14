@@ -1,6 +1,5 @@
 use crate::compiler::parser_new::extra::Err;
 use chumsky::prelude::*;
-use chumsky::recursive::Indirect;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::integer::integer::Integer;
 
@@ -46,6 +45,14 @@ pub struct Statement {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum Apply {
+    /// Apply a function to an argument
+    FunctionCall(DatexExpression),
+    /// Apply a property access to an argument
+    PropertyAccess(DatexExpression),
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
     Invalid,
@@ -73,6 +80,9 @@ pub enum DatexExpression {
 
     BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
     UnaryOperation(UnaryOperator, Box<DatexExpression>),
+
+    // apply (e.g. x (1)) or property access
+    ApplyChain(Box<DatexExpression>, Vec<Apply>),
 }
 
 fn unicode_escape<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
@@ -251,10 +261,11 @@ fn operations(expression: DatexExpressionParser) -> DatexExpressionParser {
 fn parser<'a>() -> DatexExpressionParser<'a> {
 
     // an expression
-    let mut expression = Recursive::declare();
+    let mut expression_or_statements = Recursive::declare();
 
-    // an expression without tuple entries - required to be used inside arrays and objects to prevent matching tuples
-    let mut expression_without_tuple = Recursive::declare();
+    // scoped expression - can be used as a standalone value
+    // expression without tuple entries - required to be used inside arrays and objects to prevent matching tuples
+    let mut scoped_expression = Recursive::declare();
 
     // atomic values (e.g. 1, "text", true, null)
     let integer = integer();
@@ -274,7 +285,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
     )).boxed();
 
     // expression wrapped in parentheses
-    let scoped_expression = expression
+    let wrapped_expression = expression_or_statements
         .clone()
         .delimited_by(
             just('('),
@@ -294,11 +305,11 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         text::ident()
             .map(|s: &str| DatexExpression::Text(s.to_string()))
             .boxed(),
-        scoped_expression.clone(),
+        wrapped_expression.clone(),
     ));
 
     // array
-    let array = expression_without_tuple
+    let array = scoped_expression
         .clone()
         .separated_by(just(',').padded().recover_with(skip_then_retry_until(
             any().ignored(),
@@ -321,7 +332,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
     // object
     let object = key.clone()
         .then_ignore(just(':').padded())
-        .then(expression_without_tuple.clone())
+        .then(scoped_expression.clone())
         .separated_by(just(',').padded().recover_with(skip_then_retry_until(
             any().ignored(),
             one_of(",}").ignored(),
@@ -347,11 +358,11 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         key
             .clone()
             .then_ignore(just(':').padded())
-            .then(expression_without_tuple.clone())
+            .then(scoped_expression.clone())
             .map(|(key, value)| TupleEntry::KeyValue(key, value)),
 
         // Just a value with no key
-        expression_without_tuple
+        scoped_expression
             .clone()
             .map(TupleEntry::ValueOnly),
     )).boxed();
@@ -363,20 +374,51 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         .map(DatexExpression::Tuple)
         .boxed();
 
-    let single_value_tuple = expression_without_tuple
+    let single_value_tuple = scoped_expression
         .clone()
         .then_ignore(just(',').padded())
         .map(|value| vec![TupleEntry::ValueOnly(value)])
         .map(DatexExpression::Tuple)
         .boxed();
 
-    // an atomic expression, containing a single value, array, object, or tuple
+
+    // two expressions following each other directly
+    let apply_or_property_access = scoped_expression
+        .clone()
+        .then(
+            choice((
+                // apply #1: a wrapped expression, array, or object - no whitespace required before
+                choice((
+                    wrapped_expression.clone(),
+                    array.clone(),
+                    object.clone()
+                ))
+                    .clone()
+                    .padded()
+                    .map(Apply::FunctionCall),
+                // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
+                one_of(" \n")
+                    .ignore_then(atom.clone().padded())
+                    .map(Apply::FunctionCall),
+                // property access
+                just('.').padded().ignore_then(key.clone())
+                    .map(Apply::PropertyAccess),
+            ))
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>()
+        )
+        .map(|(val, args)| DatexExpression::ApplyChain(Box::new(val), args))
+        .boxed();
+
+    // a full expression, containing a single value, array, object, or tuple
     // a datex script source consists of a sequence of expressions
-    let atomic_expression = choice((
+    let full_expression = choice((
+        apply_or_property_access,
         tuple.clone(),
         single_value_tuple.clone(),
         atom.clone(),
-        scoped_expression.clone(),
+        wrapped_expression.clone(),
         array.clone(),
         object.clone(),
     ))
@@ -404,27 +446,27 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         ))
         .padded().boxed();
 
-    let x = operations(choice((
-        atomic_expression.clone(),
+    let expression_with_operations = operations(choice((
+        full_expression.clone(),
     )).boxed());
 
     // statement: expression with an optional semicolon at the end
-    let statement = x
+    let statement = expression_with_operations
         .clone()
+        .then_ignore(just(';').padded())
         .map(|expr| Statement {
             expression: expr,
-            is_terminated: false,
+            is_terminated: true,
         })
-        .or(x
+        .or(expression_with_operations
             .clone()
-            .then_ignore(just(';').padded())
             .map(|expr| Statement {
                 expression: expr,
-                is_terminated: true,
+                is_terminated: false,
             }));
 
     // expression with semicolon
-    let closed_statement = x.clone().then_ignore(just(';').padded())
+    let closed_statement = expression_with_operations.clone().then_ignore(just(';').padded())
         .map(|expr| Statement {
             expression: expr,
             is_terminated: true,
@@ -445,25 +487,25 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         })
         .boxed();
 
-    // atomic expression wrapped with operations
-    expression.define(
+    // single expression or multiple statements
+    expression_or_statements.define(
         choice((
             statements,
-            x,
+            expression_with_operations,
         ))
     );
 
     // TODO: make this better without duplicate definition and operations() call?!
-    expression_without_tuple.define(
+    scoped_expression.define(
         operations(choice((
             atom,
-            scoped_expression,
+            wrapped_expression,
             array,
             object,
         )).boxed())
     );
 
-    expression.boxed()
+    expression_or_statements.boxed()
 }
 
 #[cfg(test)]
@@ -829,6 +871,224 @@ mod tests {
                 is_terminated: false,
             },
         ]));
+    }
+
+    #[test]
+    fn nested_scope_statements() {
+        let src = "(1; 2; 3)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Statements(vec![
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(1)),
+                is_terminated: true,
+            },
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(2)),
+                is_terminated: true,
+            },
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(3)),
+                is_terminated: false,
+            },
+        ]));
+    }
+    #[test]
+    fn nested_scope_statements_closed() {
+        let src = "(1; 2; 3;)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Statements(vec![
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(1)),
+                is_terminated: true,
+            },
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(2)),
+                is_terminated: true,
+            },
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(3)),
+                is_terminated: true,
+            },
+        ]));
+    }
+
+    #[test]
+    fn nested_statements_in_object() {
+        let src = r#"{"key": (1; 2; 3)}"#;
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Object(vec![
+            (DatexExpression::Text("key".to_string()), DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(1)),
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(2)),
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(3)),
+                    is_terminated: false,
+                },
+            ])),
+        ]));
+    }
+
+    #[test]
+    fn test_single_statement() {
+        let src = "1;";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Statements(vec![
+            Statement {
+                expression: DatexExpression::Integer(Integer::from(1)),
+                is_terminated: true,
+            },
+        ]));
+    }
+
+    #[test]
+    fn test_variable_expression() {
+        let src = "myVar";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::Variable("myVar".to_string()));
+    }
+
+    #[test]
+    fn test_variable_expression_with_operations() {
+        let src = "myVar + 1";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Add,
+            Box::new(DatexExpression::Variable("myVar".to_string())),
+            Box::new(DatexExpression::Integer(Integer::from(1))),
+        ));
+    }
+
+    #[test]
+    fn test_apply_expression() {
+        let src = "myFunc(1, 2, 3)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myFunc".to_string())),
+            vec![
+                Apply::FunctionCall(
+                    DatexExpression::Tuple(vec![
+                        TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(1))),
+                        TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(2))),
+                        TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(3))),
+                    ]),
+                )
+            ],
+        ));
+    }
+
+    #[test]
+    fn test_apply_multiple() {
+        let src = "myFunc(1)(2, 3)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myFunc".to_string())),
+            vec![
+                Apply::FunctionCall(
+                    DatexExpression::Integer(Integer::from(1)),
+                ),
+                Apply::FunctionCall(
+                    DatexExpression::Tuple(vec![
+                        TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(2))),
+                        TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(3))),
+                    ])
+                )
+            ],
+        ));
+    }
+
+    #[test]
+    fn test_apply_atom() {
+        let src = "print 'test'";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("print".to_string())),
+            vec![
+                Apply::FunctionCall(DatexExpression::Text("test".to_string()))
+            ],
+        ));
+    }
+
+    #[test]
+    fn test_property_access() {
+        let src = "myObj.myProp";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myObj".to_string())),
+            vec![Apply::PropertyAccess(DatexExpression::Text("myProp".to_string()))],
+        ));
+    }
+
+    #[test]
+    fn test_property_access_scoped() {
+        let src = "myObj.(1)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myObj".to_string())),
+            vec![Apply::PropertyAccess(DatexExpression::Integer(Integer::from(1)))],
+        ));
+    }
+
+    #[test]
+    fn test_property_access_multiple() {
+        let src = "myObj.myProp.anotherProp.(1 + 2).(x;y)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myObj".to_string())),
+            vec![
+                Apply::PropertyAccess(DatexExpression::Text("myProp".to_string())),
+                Apply::PropertyAccess(DatexExpression::Text("anotherProp".to_string())),
+                Apply::PropertyAccess(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Integer(Integer::from(1))),
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                )),
+                Apply::PropertyAccess(DatexExpression::Statements(vec![
+                    Statement {
+                        expression: DatexExpression::Variable("x".to_string()),
+                        is_terminated: true,
+                    },
+                    Statement {
+                        expression: DatexExpression::Variable("y".to_string()),
+                        is_terminated: false,
+                    },
+                ])),
+            ],
+        ));
+    }
+
+    #[test]
+    fn test_property_access_and_apply() {
+        let src = "myObj.myProp(1, 2)";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myObj".to_string())),
+            vec![
+                Apply::PropertyAccess(DatexExpression::Text("myProp".to_string())),
+                Apply::FunctionCall(DatexExpression::Tuple(vec![
+                    TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(1))),
+                    TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(2))),
+                ])),
+            ],
+        ));
+    }
+
+    #[test]
+    fn test_apply_and_property_access() {
+        let src = "myFunc(1).myProp";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myFunc".to_string())),
+            vec![
+                Apply::FunctionCall(DatexExpression::Integer(Integer::from(1))),
+                Apply::PropertyAccess(DatexExpression::Text("myProp".to_string())),
+            ],
+        ));
     }
 
 }
