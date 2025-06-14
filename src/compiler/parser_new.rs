@@ -1,6 +1,5 @@
 use crate::compiler::parser_new::extra::Err;
 use chumsky::prelude::*;
-use chumsky::extra::ParserExtra;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::integer::integer::Integer;
 
@@ -31,6 +30,8 @@ pub enum DatexExpression {
     Tuple(Vec<TupleEntry>),
     /// Expression block, e.g (1; 2; 3)
     ExpressionBlock(Vec<DatexExpression>),
+    /// Identifier, e.g. a variable name
+    Variable(String),
 }
 
 fn unicode_escape<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
@@ -121,18 +122,22 @@ fn text<'a>() -> DatexExpressionParser<'a> {
     text
 }
 
-fn atom<'a>() -> DatexExpressionParser<'a> {
-    // primitive values
+fn integer<'a>() -> DatexExpressionParser<'a> {
+    let digits = text::digits(10).to_slice();
+    let integer = digits
+        .map(|s: &str| Integer::from_string(s).unwrap())
+        .map(DatexExpression::Integer)
+        .boxed();
+    integer
+}
+
+fn decimal<'a>() -> DatexExpressionParser<'a> {
     let digits = text::digits(10).to_slice();
     let frac = just('.').then(digits);
     let exp = just('e')
         .or(just('E'))
         .then(one_of("+-").or_not())
         .then(digits);
-
-    let integer = digits
-        .map(|s: &str| Integer::from_string(s).unwrap())
-        .boxed();
 
     let decimal = just('-')
         .or_not()
@@ -141,20 +146,32 @@ fn atom<'a>() -> DatexExpressionParser<'a> {
         .then(exp.or_not())
         .to_slice()
         .map(|s: &str| Decimal::from_string(s))
+        .map(DatexExpression::Decimal)
         .boxed();
 
-    let text = text();
+    decimal
+}
 
-    let atom = choice((
-        just("null").to(DatexExpression::Null),
-        just("true").to(DatexExpression::Bool(true)),
-        just("false").to(DatexExpression::Bool(false)),
-        decimal.map(DatexExpression::Decimal),
-        integer.map(DatexExpression::Integer),
-        text.clone(),
-    )).boxed();
+fn boolean<'a>() -> DatexExpressionParser<'a> {
+    let true_value = just("true").to(DatexExpression::Bool(true));
+    let false_value = just("false").to(DatexExpression::Bool(false));
 
-    atom
+    let boolean = choice((true_value, false_value)).boxed();
+
+    boolean
+}
+
+fn null<'a>() -> DatexExpressionParser<'a> {
+    let null_value = just("null").to(DatexExpression::Null);
+    null_value.boxed()
+}
+
+fn variable<'a>() -> DatexExpressionParser<'a> {
+    // valid identifiers start with _ or an ascii letter, followed by any combination of letters, digits, or underscores
+    let identifier = text::ident()
+        .map(|s: &str| DatexExpression::Variable(s.to_string()))
+        .boxed();
+    identifier
 }
 
 
@@ -166,10 +183,22 @@ fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a,
     // an expression without tuple entries - required to be used inside arrays and objects to prevent matching tuples
     let mut expression_without_tuple = Recursive::declare();
 
-    // an atomic value (e.g. 1, "text", true, null)
-    let atom = atom();
-
+    // atomic values (e.g. 1, "text", true, null)
+    let integer = integer();
+    let decimal = decimal();
     let text = text();
+    let boolean = boolean();
+    let null = null();
+    let variable = variable();
+
+    let atom = choice((
+        null,
+        boolean,
+        decimal.clone(),
+        integer.clone(),
+        text.clone(),
+        variable.clone(),
+    )).boxed();
 
     // expression wrapped in parentheses
     let scoped_expression = expression
@@ -182,6 +211,18 @@ fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a,
                 .recover_with(skip_then_retry_until(any().ignored(), end())),
         )
         .boxed();
+
+    // a valid object/tuple key
+    let key = choice((
+        text.clone(),
+        decimal.clone(),
+        integer.clone(),
+        // any valid identifiers (equivalent to variable names), mapped to a text
+        text::ident()
+            .map(|s: &str| DatexExpression::Text(s.to_string()))
+            .boxed(),
+        scoped_expression.clone(),
+    ));
 
     // array
     let array = expression_without_tuple
@@ -205,7 +246,7 @@ fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a,
         .map(DatexExpression::Array);
 
     // object
-    let object = text.clone()
+    let object = key.clone()
         .then_ignore(just(':').padded())
         .then(expression_without_tuple.clone())
         .separated_by(just(',').padded().recover_with(skip_then_retry_until(
@@ -230,10 +271,10 @@ fn parser<'a>() -> impl Parser<'a, &'a str, DatexExpression, extra::Err<Rich<'a,
     // tuple (either key:value entries or just values)
     let tuple_entry = choice((
         // Key-value pair
-        text
+        key
             .clone()
             .then_ignore(just(':').padded())
-            .then(expression.clone())
+            .then(expression_without_tuple.clone())
             .map(|(key, value)| TupleEntry::KeyValue(key, value)),
 
         // Just a value with no key
@@ -318,6 +359,16 @@ mod tests {
         });
     }
 
+    fn try_parse(src: &str) -> DatexExpression {
+        let (res, errs) = parser().parse(src).into_output_errors();
+        println!("{res:#?}");
+        if !errs.is_empty() {
+            print_report(errs, src);
+            panic!("Parsing errors found");
+        }
+        res.unwrap()
+    }
+
     #[test]
     fn test_json() {
         let src = r#"
@@ -332,14 +383,9 @@ mod tests {
             }
         "#;
 
-        let (json, errs) = parser().parse(src.trim()).into_output_errors();
-        println!("{json:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
+        let json = try_parse(src);
 
-        assert_eq!(json.unwrap(), DatexExpression::Object(
+        assert_eq!(json, DatexExpression::Object(
             vec![
                 (DatexExpression::Text("name".to_string()), DatexExpression::Text("Test".to_string())),
                 (DatexExpression::Text("value".to_string()), DatexExpression::Integer(Integer::from(42))),
@@ -361,140 +407,78 @@ mod tests {
     #[test]
     fn test_null() {
         let src = "null";
-        let (val, errs) = parser().parse(src).into_output_errors();
-        println!("{val:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(val.unwrap(), DatexExpression::Null);
+        let val = try_parse(src);
+        assert_eq!(val, DatexExpression::Null);
     }
 
     #[test]
     fn test_boolean() {
         let src_true = "true";
-        let (val_true, errs_true) = parser().parse(src_true).into_output_errors();
-        println!("{val_true:#?}");
-        if !errs_true.is_empty() {
-            print_report(errs_true, src_true);
-            panic!("Parsing errors found");
-        }
-        assert_eq!(val_true.unwrap(), DatexExpression::Bool(true));
+        let val_true = try_parse(src_true);
+        assert_eq!(val_true, DatexExpression::Bool(true));
 
         let src_false = "false";
-        let (val_false, errs_false) = parser().parse(src_false).into_output_errors();
-        println!("{val_false:#?}");
-        if !errs_false.is_empty() {
-            print_report(errs_false, src_false);
-            panic!("Parsing errors found");
-        }
-        assert_eq!(val_false.unwrap(), DatexExpression::Bool(false));
+        let val_false = try_parse(src_false);
+        assert_eq!(val_false, DatexExpression::Bool(false));
     }
 
     #[test]
     fn test_integer() {
         let src = "123456789123456789";
-        let (num, errs) = parser().parse(src).into_output_errors();
-        println!("{num:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(num.unwrap(), DatexExpression::Integer(Integer::from_string("123456789123456789").unwrap()));
+        let num = try_parse(src);
+        assert_eq!(num, DatexExpression::Integer(Integer::from_string("123456789123456789").unwrap()));
     }
 
     #[test]
     fn test_decimal() {
         let src = "123.456789123456";
-        let (num, errs) = parser().parse(src).into_output_errors();
-        println!("{num:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(num.unwrap(), DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
+        let num = try_parse(src);
+        assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
     }
 
     #[test]
     fn test_decimal_with_exponent() {
         let src = "1.23456789123456e2";
-        let (num, errs) = parser().parse(src).into_output_errors();
-        println!("{num:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(num.unwrap(), DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
+        let num = try_parse(src);
+        assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
     }
 
     #[test]
     fn test_text_double_quotes() {
         let src = r#""Hello, world!""#;
-        let (text, errs) = parser().parse(src).into_output_errors();
-        println!("{text:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(text.unwrap(), DatexExpression::Text("Hello, world!".to_string()));
+        let text = try_parse(src);
+        assert_eq!(text, DatexExpression::Text("Hello, world!".to_string()));
     }
 
     #[test]
     fn test_text_single_quotes() {
         let src = r#"'Hello, world!'"#;
-        let (text, errs) = parser().parse(src).into_output_errors();
-        println!("{text:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(text.unwrap(), DatexExpression::Text("Hello, world!".to_string()));
+        let text = try_parse(src);
+        assert_eq!(text, DatexExpression::Text("Hello, world!".to_string()));
     }
 
     #[test]
     fn test_text_escape_sequences() {
         let src = r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00""#;
-        let (text, errs) = parser().parse(src).into_output_errors();
-        println!("{text:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
+        let text = try_parse(src);
 
-        assert_eq!(text.unwrap(), DatexExpression::Text("Hello, \"world\"! \n New line \t tab 😀".to_string()));
+        assert_eq!(text, DatexExpression::Text("Hello, \"world\"! \n New line \t tab 😀".to_string()));
     }
 
 
     #[test]
     fn test_empty_array() {
         let src = "[]";
-        let (arr, errs) = parser().parse(src).into_output_errors();
-        println!("{arr:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-
-        assert_eq!(arr.unwrap(), DatexExpression::Array(vec![]));
+        let arr = try_parse(src);
+        assert_eq!(arr, DatexExpression::Array(vec![]));
     }
 
     #[test]
     fn test_array_with_values() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
-        let (arr, errs) = parser().parse(src).into_output_errors();
-        println!("{arr:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
+        let arr = try_parse(src);
 
-        assert_eq!(arr.unwrap(), DatexExpression::Array(vec![
+        assert_eq!(arr, DatexExpression::Array(vec![
             DatexExpression::Integer(Integer::from(1)),
             DatexExpression::Integer(Integer::from(2)),
             DatexExpression::Integer(Integer::from(3)),
@@ -506,40 +490,69 @@ mod tests {
     #[test]
     fn test_empty_object() {
         let src = "{}";
-        let (obj, errs) = parser().parse(src).into_output_errors();
-        println!("{obj:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
+        let obj = try_parse(src);
 
-        assert_eq!(obj.unwrap(), DatexExpression::Object(vec![]));
+        assert_eq!(obj, DatexExpression::Object(vec![]));
     }
 
     #[test]
     fn test_tuple() {
         let src = "1,2";
-        let (tuple, errs) = parser().parse(src).into_output_errors();
-        println!("{tuple:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-        }
-        assert_eq!(tuple.unwrap(), DatexExpression::Tuple(vec![
+        let tuple = try_parse(src);
+
+        assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(1))),
             TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(2))),
         ]));
     }
 
     #[test]
+    fn test_scoped_tuple() {
+        let src = "(1, 2)";
+        let tuple = try_parse(src);
+
+        assert_eq!(tuple, DatexExpression::Tuple(vec![
+            TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(1))),
+            TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(2))),
+        ]));
+    }
+
+    #[test]
+    fn test_keyed_tuple() {
+        let src = "1: 2, 3: 4, xy:2, 'a b c': 'd'";
+        let tuple = try_parse(src);
+
+        assert_eq!(tuple, DatexExpression::Tuple(vec![
+            TupleEntry::KeyValue(DatexExpression::Integer(Integer::from(1)), DatexExpression::Integer(Integer::from(2))),
+            TupleEntry::KeyValue(DatexExpression::Integer(Integer::from(3)), DatexExpression::Integer(Integer::from(4))),
+            TupleEntry::KeyValue(DatexExpression::Text("xy".to_string()), DatexExpression::Integer(Integer::from(2))),
+            TupleEntry::KeyValue(DatexExpression::Text("a b c".to_string()), DatexExpression::Text("d".to_string())),
+        ]));
+    }
+
+    #[test]
+    fn test_tuple_array() {
+        let src = "[(1,2),3,(4,)]";
+        let arr = try_parse(src);
+
+        assert_eq!(arr, DatexExpression::Array(vec![
+            DatexExpression::Tuple(vec![
+                TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(1))),
+                TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(2))),
+            ]),
+            DatexExpression::Integer(Integer::from(3)),
+            DatexExpression::Tuple(vec![
+                TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(4))),
+            ]),
+        ]));
+    }
+
+    #[test]
     fn test_single_value_tuple() {
         let src = "1,";
-        let (tuple, errs) = parser().parse(src).into_output_errors();
-        println!("{tuple:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-        assert_eq!(tuple.unwrap(), DatexExpression::Tuple(vec![
+        let tuple = try_parse(src);
+
+        assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::ValueOnly(DatexExpression::Integer(Integer::from(1))),
         ]));
     }
@@ -547,29 +560,53 @@ mod tests {
     #[test]
     fn test_scoped_atom() {
         let src = "(1)";
-        let (atom, errs) = parser().parse(src).into_output_errors();
-        println!("{atom:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
-        assert_eq!(atom.unwrap(), DatexExpression::Integer(Integer::from(1)));
+        let atom = try_parse(src);
+        assert_eq!(atom, DatexExpression::Integer(Integer::from(1)));
+    }
+
+    #[test]
+    fn test_scoped_array() {
+        let src = "(([1, 2, 3]))";
+        let arr = try_parse(src);
+
+        assert_eq!(arr, DatexExpression::Array(vec![
+            DatexExpression::Integer(Integer::from(1)),
+            DatexExpression::Integer(Integer::from(2)),
+            DatexExpression::Integer(Integer::from(3)),
+        ]));
     }
 
     #[test]
     fn test_object_with_key_value_pairs() {
         let src = r#"{"key1": "value1", "key2": 42, "key3": true}"#;
-        let (obj, errs) = parser().parse(src).into_output_errors();
-        println!("{obj:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
-            panic!("Parsing errors found");
-        }
+        let obj = try_parse(src);
 
-        assert_eq!(obj.unwrap(), DatexExpression::Object(vec![
+        assert_eq!(obj, DatexExpression::Object(vec![
             (DatexExpression::Text("key1".to_string()), DatexExpression::Text("value1".to_string())),
             (DatexExpression::Text("key2".to_string()), DatexExpression::Integer(Integer::from(42))),
             (DatexExpression::Text("key3".to_string()), DatexExpression::Bool(true)),
+        ]));
+    }
+
+    #[test]
+    fn test_dynamic_object_keys() {
+        let src = r#"{(1): "value1", (2): 42, (3): true}"#;
+        let obj = try_parse(src);
+        assert_eq!(obj, DatexExpression::Object(vec![
+            (DatexExpression::Integer(Integer::from(1)), DatexExpression::Text("value1".to_string())),
+            (DatexExpression::Integer(Integer::from(2)), DatexExpression::Integer(Integer::from(42))),
+            (DatexExpression::Integer(Integer::from(3)), DatexExpression::Bool(true)),
+        ]));
+    }
+
+    #[test]
+    fn test_dynamic_tuple_keys() {
+        let src = "(1): 1, ([]): 2";
+        let tuple = try_parse(src);
+
+        assert_eq!(tuple, DatexExpression::Tuple(vec![
+            TupleEntry::KeyValue(DatexExpression::Integer(Integer::from(1)), DatexExpression::Integer(Integer::from(1))),
+            TupleEntry::KeyValue(DatexExpression::Array(vec![]), DatexExpression::Integer(Integer::from(2))),
         ]));
     }
 
