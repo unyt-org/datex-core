@@ -1,7 +1,11 @@
+use std::cell::RefCell;
+use std::sync::Arc;
 use crate::compiler::parser_new::extra::Err;
 use chumsky::prelude::*;
+use lazy_static::lazy_static;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::integer::integer::Integer;
+use once_cell::sync::Lazy;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -142,9 +146,9 @@ fn unicode_surrogate_pair<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Ric
         })
 }
 
-type DatexExpressionParser<'a> = Boxed<'a, 'a, &'a str, DatexExpression, Err<Rich<'a, char>>>;
+type DatexScriptParser<'a> = Boxed<'a, 'a, &'a str, DatexExpression, Err<Rich<'a, char>>>;
 
-fn text<'a>() -> DatexExpressionParser<'a> {
+fn text<'a>() -> DatexScriptParser<'a> {
     let escape = just('\\')
         .ignore_then(choice((
             just('\\'),
@@ -157,33 +161,30 @@ fn text<'a>() -> DatexExpressionParser<'a> {
             just('t').to('\t'),
             unicode_surrogate_pair(),
             unicode_escape(),
-        )))
-        .boxed();
+        ))).boxed();
 
     let text_double_quotes = none_of("\\\"")
         .or(escape.clone())
         .repeated()
         .collect::<String>()
-        .delimited_by(just('"'), just('"'))
-        .boxed();
+        .delimited_by(just('"'), just('"'));
 
     let text_single_quotes = none_of("\\'")
         .or(escape)
         .repeated()
         .collect::<String>()
-        .delimited_by(just('\''), just('\''))
-        .boxed();
+        .delimited_by(just('\''), just('\''));
 
 
     let text = choice((
-        text_double_quotes.clone().map(DatexExpression::Text),
-        text_single_quotes.clone().map(DatexExpression::Text),
+        text_double_quotes.map(DatexExpression::Text),
+        text_single_quotes.map(DatexExpression::Text),
     )).boxed();
 
     text
 }
 
-fn integer<'a>() -> DatexExpressionParser<'a> {
+fn integer<'a>() -> DatexScriptParser<'a> {
     let digits = text::digits(10).to_slice();
     let integer = digits
         .map(|s: &str| Integer::from_string(s).unwrap())
@@ -192,7 +193,7 @@ fn integer<'a>() -> DatexExpressionParser<'a> {
     integer
 }
 
-fn decimal<'a>() -> DatexExpressionParser<'a> {
+fn decimal<'a>() -> DatexScriptParser<'a> {
     let digits = text::digits(10).to_slice();
     let frac = just('.').then(digits);
     let exp = just('e')
@@ -213,7 +214,7 @@ fn decimal<'a>() -> DatexExpressionParser<'a> {
     decimal
 }
 
-fn boolean<'a>() -> DatexExpressionParser<'a> {
+fn boolean<'a>() -> DatexScriptParser<'a> {
     let true_value = just("true").to(DatexExpression::Bool(true));
     let false_value = just("false").to(DatexExpression::Bool(false));
 
@@ -222,12 +223,12 @@ fn boolean<'a>() -> DatexExpressionParser<'a> {
     boolean
 }
 
-fn null<'a>() -> DatexExpressionParser<'a> {
+fn null<'a>() -> DatexScriptParser<'a> {
     let null_value = just("null").to(DatexExpression::Null);
     null_value.boxed()
 }
 
-fn variable<'a>() -> DatexExpressionParser<'a> {
+fn variable<'a>() -> DatexScriptParser<'a> {
     // valid identifiers start with _ or an ascii letter, followed by any combination of letters, digits, or underscores
     let identifier = text::ident()
         .map(|s: &str| DatexExpression::Variable(s.to_string()))
@@ -241,7 +242,7 @@ fn binary_op(op: BinaryOperator) -> impl Fn(Box<DatexExpression>, Box<DatexExpre
 }
 
 /// Apply operations in the correct order on the datex expression parser
-fn operations(expression: DatexExpressionParser) -> DatexExpressionParser {
+fn operations(expression: DatexScriptParser) -> DatexScriptParser {
 
     let op = |c| just(c).padded();
 
@@ -268,7 +269,12 @@ fn operations(expression: DatexExpressionParser) -> DatexExpressionParser {
     sum.boxed()
 }
 
-fn parser<'a>() -> DatexExpressionParser<'a> {
+pub struct DatexParseResult {
+    pub expression: DatexExpression,
+    pub is_static_value: bool
+}
+
+fn parser<'a>() -> DatexScriptParser<'a> {
 
     // an expression
     let mut expression_or_statements = Recursive::declare();
@@ -313,8 +319,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         integer.clone(),
         // any valid identifiers (equivalent to variable names), mapped to a text
         text::ident()
-            .map(|s: &str| DatexExpression::Text(s.to_string()))
-            .boxed(),
+            .map(|s: &str| DatexExpression::Text(s.to_string())),
         wrapped_expression.clone(),
     ));
 
@@ -336,7 +341,6 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
                 .recover_with(via_parser(end()))
                 .recover_with(skip_then_retry_until(any().ignored(), end())),
         )
-        .boxed()
         .map(DatexExpression::Array);
 
     // object
@@ -358,7 +362,6 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
                 .recover_with(via_parser(end()))
                 .recover_with(skip_then_retry_until(any().ignored(), end())),
         )
-        .boxed()
         .map(DatexExpression::Object);
 
 
@@ -381,15 +384,13 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
         .separated_by(just(',').padded())
         .at_least(2)
         .collect::<Vec<_>>()
-        .map(DatexExpression::Tuple)
-        .boxed();
+        .map(DatexExpression::Tuple);
 
     let single_value_tuple = scoped_expression
         .clone()
         .then_ignore(just(',').padded())
         .map(|value| vec![TupleEntry::ValueOnly(value)])
-        .map(DatexExpression::Tuple)
-        .boxed();
+        .map(DatexExpression::Tuple);
 
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
@@ -418,9 +419,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
                 .at_least(1)
                 .collect::<Vec<_>>()
         )
-        .map(|(val, args)| DatexExpression::ApplyChain(Box::new(val), args))
-        .boxed();
-
+        .map(|(val, args)| DatexExpression::ApplyChain(Box::new(val), args));
 
     // variable declarations or assignments
     let variable_assignment = just("val")
@@ -441,8 +440,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
             else {
                 DatexExpression::VariableAssignment(var_name.to_string(), Box::new(expr))
             }
-        })
-        .boxed();
+        });
 
     // a full expression, containing a single value, array, object, or tuple
     // a datex script source consists of a sequence of expressions
@@ -518,8 +516,7 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
             let mut all_statements = vec![first];
             all_statements.extend(rest);
             DatexExpression::Statements(all_statements)
-        })
-        .boxed();
+        });
 
     // single expression or multiple statements
     expression_or_statements.define(
@@ -541,6 +538,18 @@ fn parser<'a>() -> DatexExpressionParser<'a> {
 
     expression_or_statements.boxed()
 }
+
+
+// TODO: reuse parser?
+// thread_local! {
+//     pub static DATEX_SCRIPT_PARSER: RefCell<Option<DatexScriptParser >> = const { RefCell::new(None) };
+// }
+
+pub fn parse(src: &str) -> (Option<DatexExpression>, Vec<Rich<char>>) {
+    let (res, errs) = parser().parse(src).into_output_errors();
+    (res, errs)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -564,7 +573,7 @@ mod tests {
     }
 
     fn try_parse(src: &str) -> DatexExpression {
-        let (res, errs) = parser().parse(src).into_output_errors();
+        let (res, errs) = parse(src);
         println!("{res:#?}");
         if !errs.is_empty() {
             print_report(errs, src);
@@ -1182,7 +1191,7 @@ mod tests {
             )),
         ));
     }
-    
+
     #[test]
     fn variable_assignment() {
         let src = "x = 42";
@@ -1192,7 +1201,7 @@ mod tests {
             Box::new(DatexExpression::Integer(Integer::from(42))),
         ));
     }
-    
+
     #[test]
     fn variable_declaration_and_assignment() {
         let src = "val x = 42; x = 100;";
