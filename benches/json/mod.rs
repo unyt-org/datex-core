@@ -1,7 +1,7 @@
 use std::io::Read;
 use json_syntax::Parse;
 use serde_json::Value;
-use datex_core::compiler::bytecode::{compile_script, compile_value};
+use datex_core::compiler::bytecode::{compile_script, compile_script_or_return_static_value, compile_value, extract_static_value_from_script, StaticValueOrDXB};
 use datex_core::datex_values::datex_type::CoreValueType;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
@@ -20,18 +20,18 @@ pub fn get_json_test_string(file_path: &str) -> String {
     json_string
 }
 
-pub fn json_to_serde_value(json: &String) -> Value {
+pub fn json_to_serde_value(json: &str) -> Value {
     serde_json::from_str::<Value>(json)
         .expect("Failed to parse JSON string")
 }
 
-pub fn json_to_json_syntax_value(json: &String) -> json_syntax::Value {
+pub fn json_to_json_syntax_value(json: &str) -> json_syntax::Value {
     let (json_value, _) = json_syntax::Value::parse_str(json)
         .expect("Failed to parse JSON");
     json_value
 }
 
-pub fn json_to_datex_value(json: &String) -> ValueContainer {
+pub fn json_to_datex_value(json: &str) -> ValueContainer {
     let dxb = compile_script(json)
         .expect("Failed to parse JSON string");
     execute_dxb(&dxb, ExecutionOptions::default())
@@ -41,25 +41,40 @@ pub fn json_to_datex_value(json: &String) -> ValueContainer {
 
 
 // json -> value
-pub fn json_to_runtime_value_baseline_serde(json: &String) {
+pub fn json_to_runtime_value_baseline_serde(json: &str) {
     let json_value = serde_json::from_str::<Value>(json)
         .expect("Failed to parse JSON string");
     assert!(json_value.is_object(), "Expected JSON to be an object");
 }
 
-pub fn json_to_runtime_value_baseline_json_syntax(json: &String) {
+pub fn json_to_runtime_value_baseline_json_syntax(json: &str) {
     let (json_value, _) = json_syntax::Value::parse_str(json).expect("Failed to parse JSON");
     assert!(json_value.is_object(), "Expected JSON to be an object");
 }
 
-pub fn json_to_runtime_value_datex(json: &String) {
+pub fn json_to_runtime_value_datex(json: &str) {
     let dxb = compile_script(json)
         .expect("Failed to parse JSON string");
     let json_value = execute_dxb(&dxb, ExecutionOptions::default()).unwrap().unwrap();
     assert_eq!(json_value.actual_type, CoreValueType::Object);
 }
 
-pub fn json_to_dxb(json: &String) {
+pub fn json_to_runtime_value_datex_auto_static_detection(json: &str) -> ValueContainer {
+    let dxb = compile_script_or_return_static_value(json).unwrap();
+    if let StaticValueOrDXB::StaticValue(value) = dxb {
+        value.expect("Static Value should not be empty")
+    }
+    else {
+        panic!("Expected static value, but got DXB");
+    }
+}
+
+pub fn json_to_runtime_value_datex_force_static_value(json: &str) -> ValueContainer {
+    let dxb = extract_static_value_from_script(json).unwrap();
+    dxb.expect("Static Value should not be empty")
+}
+
+pub fn json_to_dxb(json: &str) {
     let dxb = compile_script(json).expect("Failed to parse JSON string");
     assert!(!dxb.is_empty(), "Expected DXB to be non-empty");
 }

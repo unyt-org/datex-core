@@ -39,6 +39,21 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
             black_box(());
         })
     });
+    // DATEX (automatic static value detection)
+    c.bench_with_input(BenchmarkId::new("json to runtime value datex auto static detection", file_path), &json, |b, json| {
+        b.iter(|| {
+            json::json_to_runtime_value_datex_auto_static_detection(black_box(json));
+            black_box(());
+        })
+    });
+    // DATEX (forced static value)
+    c.bench_with_input(BenchmarkId::new("json to runtime value datex forced static", file_path), &json, |b, json| {
+        b.iter(|| {
+            json::json_to_runtime_value_datex_force_static_value(black_box(json));
+            black_box(());
+        })
+    });
+    
     // JSON string to DXB
     c.bench_with_input(BenchmarkId::new("json to dxb", file_path), &json, |b, json| {
         b.iter(|| {

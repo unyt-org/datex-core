@@ -463,7 +463,7 @@ pub fn compile_template_with_refs<'a>(
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
-/// If the script does not contain any dynamic values or operations, the static result value is 
+/// If the script does not contain any dynamic values or operations, the static result value is
 /// directly returned instead of the DXB body.
 pub fn compile_script_or_return_static_value(
     datex_script: &str,
@@ -513,21 +513,26 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
 
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_scope = CompilationScope::new(buffer, inserted_values);
-    compile_ast(&compilation_scope, ast)?;
-    
-    // directly return static value if requested
-    if return_static_value && !*compilation_scope.has_non_static_value.borrow() {
-        if let Some(value) = compilation_scope
-            .inserted_values
-            .borrow().first()
-            .cloned()
-        {
-            return Ok(StaticValueOrDXB::StaticValue(Some(value.clone())));
+
+    if return_static_value {
+        compile_ast(&compilation_scope, ast.clone())?;
+
+        if !*compilation_scope.has_non_static_value.borrow() {
+            if let Ok(value) = ValueContainer::try_from(ast)
+            {
+                return Ok(StaticValueOrDXB::StaticValue(Some(value.clone())));
+            }
+            Ok(StaticValueOrDXB::StaticValue(None))
         }
-        Ok(StaticValueOrDXB::StaticValue(None))
+        else {
+            // return DXB body
+            Ok(StaticValueOrDXB::Dxb(compilation_scope.buffer.take()))
+        }
     }
     else {
-        Ok(compilation_scope.buffer.take().into())
+        compile_ast(&compilation_scope, ast)?;
+        // return DXB body
+        Ok(StaticValueOrDXB::Dxb(compilation_scope.buffer.take()))
     }
 }
 
@@ -798,13 +803,14 @@ fn insert_int_with_radix<'a>(
 pub mod tests {
     use std::cell::RefCell;
     use std::io::Read;
-    use super::{compile_ast, compile_script, compile_template, CompilationScope};
+    use super::{compile_ast, compile_script, compile_script_or_return_static_value, compile_template, CompilationScope, StaticValueOrDXB};
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
 
     use crate::compiler::parser::parse;
+    use crate::datex_values::core_values::integer::integer::Integer;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
@@ -1583,6 +1589,23 @@ pub mod tests {
         let script = "{a: 2}";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
+    }
 
+    #[test]
+    fn test_compile_auto_static_value_detection() {
+        let script = "1";
+        let res = compile_script_or_return_static_value(script).unwrap();
+        assert_eq!(res, StaticValueOrDXB::StaticValue(Some(Integer::from(1).into())));
+
+
+        let script = "1 + 2";
+        let res = compile_script_or_return_static_value(script).unwrap();
+        assert_eq!(res, StaticValueOrDXB::Dxb(vec![
+            InstructionCode::ADD.into(),
+            InstructionCode::INT_8.into(),
+            1,
+            InstructionCode::INT_8.into(),
+            2,
+        ]));
     }
 }
