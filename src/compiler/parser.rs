@@ -831,6 +831,20 @@ mod tests {
         assert_eq!(text, DatexExpression::Text("Hello, \"world\"! \n New line \t tab 😀".to_string()));
     }
 
+    #[test]
+    fn test_text_nested_escape_sequences() {
+        let src = r#""\\\\""#;
+        let text = try_parse(src);
+        assert_eq!(text, DatexExpression::Text("\\\\".to_string()));
+    }
+
+    #[test]
+    fn test_text_nested_escape_sequences_2() {
+        let src = r#""\\\"""#;
+        let text = try_parse(src);
+        assert_eq!(text, DatexExpression::Text("\\\"".to_string()));
+    }
+
 
     #[test]
     fn test_empty_array() {

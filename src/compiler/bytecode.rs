@@ -154,9 +154,7 @@ impl<'a> CompilationScope<'a> {
     }
 
     fn insert_text(&self, string: &str) {
-        let unescaped_string = self.unescape_string(string);
-
-        let bytes = unescaped_string.as_bytes();
+        let bytes = string.as_bytes();
         let len = bytes.len();
 
         if len < 256 {
@@ -194,9 +192,7 @@ impl<'a> CompilationScope<'a> {
     }
 
     fn insert_key_string(&self, key_string: &str) {
-        let unescaped_string = self.unescape_string(key_string);
-
-        let bytes = unescaped_string.as_bytes();
+        let bytes = key_string.as_bytes();
         let len = bytes.len();
 
         if len < 256 {
@@ -209,29 +205,6 @@ impl<'a> CompilationScope<'a> {
         }
     }
 
-    fn unescape_string(&self, string: &str) -> String {
-        let mut output = String::with_capacity(string.len());
-        let mut chars = string.chars();
-
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                match chars.next() {
-                    Some('b') => output.push('\u{0008}'),
-                    Some('f') => output.push('\u{000C}'),
-                    Some('r') => output.push('\r'),
-                    Some('t') => output.push('\t'),
-                    Some('v') => output.push('\u{000B}'),
-                    Some('n') => output.push('\n'),
-                    Some(escaped) => output.push(escaped), // keep the escaped char
-                    None => output.push('\\'), // lone backslash at end
-                }
-            } else {
-                output.push(c);
-            }
-        }
-
-        output
-    }
 
     fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
         fn insert_f32_or_f64(scope: &CompilationScope, decimal: &TypedDecimal) {
