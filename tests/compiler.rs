@@ -5,7 +5,7 @@ use datex_core::logger::init_logger;
 use log::info;
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
-    let dxb_body = compile_script(datex_script).unwrap();
+    let dxb_body = compile_script(datex_script, None).unwrap();
 
     let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
@@ -18,7 +18,7 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 }
 
 fn compare_compiled(datex_script: &str, expected: &str) {
-    let dxb_body = compile_script(datex_script).unwrap();
+    let dxb_body = compile_script(datex_script, None).unwrap();
 
     let decompiled_color = decompile_body(
         &dxb_body,

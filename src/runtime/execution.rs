@@ -457,7 +457,7 @@ mod tests {
     fn execute_datex_script_debug(
         datex_script: &str,
     ) -> Option<ValueContainer> {
-        let dxb = compile_script(datex_script).unwrap();
+        let dxb = compile_script(datex_script, None).unwrap();
         let options = ExecutionOptions { verbose: true };
         execute_dxb(&dxb, options).unwrap_or_else(|err| {
             panic!("Execution failed: {err}");

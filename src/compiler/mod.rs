@@ -8,7 +8,7 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 pub mod bytecode;
-mod parser;
+pub mod parser;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::compile_script;
@@ -60,7 +60,7 @@ impl<'a> Display for CompilerError<'a> {
 }
 
 pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
-    let body = compile_script(datex_script)?;
+    let body = compile_script(datex_script, None)?;
 
     let routing_header = RoutingHeader {
         version: 2,

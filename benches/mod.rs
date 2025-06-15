@@ -2,6 +2,7 @@
 #![test_runner(criterion::runner)]
 use criterion::{Criterion, black_box, criterion_group, criterion_main, BenchmarkId};
 use datex_core::compiler::bytecode::compile_script;
+use datex_core::compiler::parser::create_parser;
 use crate::json::{get_json_test_string, json_to_dxb, json_to_runtime_value_baseline_serde};
 use crate::runtime::runtime_init;
 
@@ -17,7 +18,10 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
     // JSON benchmarks
     // JSON string to runtime value
     let json = get_json_test_string(file_path);
-    let dxb  = compile_script(&json).expect("Failed to parse JSON string");
+    let dxb  = compile_script(&json, None).expect("Failed to parse JSON string");
+
+    let datex_parser = create_parser();
+
     // serde
     c.bench_with_input(BenchmarkId::new("json to runtime value serde_json", file_path), &json, |b, json| {
         b.iter(|| {
@@ -35,14 +39,21 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
     // DATEX
     c.bench_with_input(BenchmarkId::new("json to runtime value datex", file_path), &json, |b, json| {
         b.iter(|| {
-            json::json_to_runtime_value_datex(black_box(json));
+            json::json_to_runtime_value_datex(black_box(json), None);
+            black_box(());
+        })
+    });
+    // DATEX (with parser)
+    c.bench_with_input(BenchmarkId::new("json to runtime value datex with loaded parser", file_path), &(&json, &datex_parser), |b, (json, datex_parser)| {
+        b.iter(|| {
+            json::json_to_runtime_value_datex(black_box(json), black_box(Some(datex_parser)));
             black_box(());
         })
     });
     // DATEX (automatic static value detection)
     c.bench_with_input(BenchmarkId::new("json to runtime value datex auto static detection", file_path), &json, |b, json| {
         b.iter(|| {
-            json::json_to_runtime_value_datex_auto_static_detection(black_box(json));
+            json::json_to_runtime_value_datex_auto_static_detection(black_box(json), None);
             black_box(());
         })
     });
@@ -53,11 +64,11 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
             black_box(());
         })
     });
-    
+
     // JSON string to DXB
     c.bench_with_input(BenchmarkId::new("json to dxb", file_path), &json, |b, json| {
         b.iter(|| {
-            json_to_dxb(black_box(json));
+            json_to_dxb(black_box(json), None);
             black_box(());
         })
     });

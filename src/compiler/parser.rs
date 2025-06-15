@@ -209,7 +209,7 @@ fn unicode_surrogate_pair<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Ric
         })
 }
 
-type DatexScriptParser<'a> = Boxed<'a, 'a, &'a str, DatexExpression, Err<Rich<'a, char>>>;
+pub type DatexScriptParser<'a> = Boxed<'a, 'a, &'a str, DatexExpression, Err<Rich<'a, char>>>;
 
 fn text<'a>() -> DatexScriptParser<'a> {
     let escape = just('\\')
@@ -372,7 +372,7 @@ pub struct DatexParseResult {
     pub is_static_value: bool
 }
 
-fn parser<'a>() -> DatexScriptParser<'a> {
+pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     // an expression
     let mut expression_or_statements = Recursive::declare();
@@ -665,9 +665,16 @@ fn parser<'a>() -> DatexScriptParser<'a> {
 //     pub static DATEX_SCRIPT_PARSER: RefCell<Option<DatexScriptParser >> = const { RefCell::new(None) };
 // }
 
-pub fn parse(src: &str) -> (Option<DatexExpression>, Vec<Rich<char>>) {
-    let (res, errs) = parser().parse(src).into_output_errors();
-    (res, errs)
+pub fn parse<'a>(src: &'a str, opt_parser: Option<&DatexScriptParser<'a>>) -> (Option<DatexExpression>, Vec<Rich<'a, char>>) {
+    if let Some(parser) = opt_parser {
+        // Use the provided parser
+        let (res, errs) = parser.parse(src).into_output_errors();
+        (res, errs)
+    }
+    else {
+        let (res, errs) = create_parser().parse(src).into_output_errors();
+        (res, errs)
+    }
 }
 
 
@@ -693,7 +700,7 @@ mod tests {
     }
 
     fn try_parse(src: &str) -> DatexExpression {
-        let (res, errs) = parse(src);
+        let (res, errs) = parse(src, None);
         println!("{res:#?}");
         if !errs.is_empty() {
             print_report(errs, src);
@@ -1274,7 +1281,7 @@ mod tests {
             ],
         ));
     }
-    
+
     #[test]
     fn test_apply_empty() {
         let src = "myFunc()";

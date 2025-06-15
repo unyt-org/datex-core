@@ -16,7 +16,7 @@ use crate::utils::buffers::{
 use binrw::BinWrite;
 use std::cell::{Cell, RefCell};
 use std::io::Cursor;
-use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, TupleEntry};
+use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry};
 
 
 struct CompilationScope<'a> {
@@ -417,15 +417,15 @@ impl<'a> CompilationScope<'a> {
 }
 
 /// Compiles a DATEX script text into a DXB body
-pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
-    compile_template(datex_script, &[])
+pub fn compile_script<'a>(datex_script: &'a str, parser: Option<&DatexScriptParser<'a>>) -> Result<Vec<u8>, CompilerError<'a>> {
+    compile_template(datex_script, &[], parser)
 }
 
 /// Directly extracts a static value from a DATEX script as a `ValueContainer`.
 /// This only works if the script does not contain any dynamic values or operations.
 /// All JSON-files can be compiled to static values, but not all DATEX scripts.
 pub fn extract_static_value_from_script(datex_script: &str) -> Result<Option<ValueContainer>, CompilerError> {
-    let (ast, errors) = parse(datex_script);
+    let (ast, errors) = parse(datex_script, None);
     if !errors.is_empty() {
         return Err(CompilerError::SyntaxError(errors));
     }
@@ -451,11 +451,13 @@ fn extract_static_value_from_ast<'a>(
 pub fn compile_template_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
+    parser: Option<&DatexScriptParser<'a>>
 ) -> Result<Vec<u8>, CompilerError<'a>> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         inserted_values,
         false,
+        parser,
     ).map(|result| match result {
         StaticValueOrDXB::StaticValue(_) => unreachable!(),
         StaticValueOrDXB::Dxb(dxb) => dxb,
@@ -465,13 +467,15 @@ pub fn compile_template_with_refs<'a>(
 /// Compiles a DATEX script template text with inserted values into a DXB body
 /// If the script does not contain any dynamic values or operations, the static result value is
 /// directly returned instead of the DXB body.
-pub fn compile_script_or_return_static_value(
-    datex_script: &str,
-) -> Result<StaticValueOrDXB, CompilerError> {
+pub fn compile_script_or_return_static_value<'a>(
+    datex_script: &'a str,
+    parser: Option<&DatexScriptParser<'a>>
+) -> Result<StaticValueOrDXB, CompilerError<'a>> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         &[],
         true,
+        parser,
     )
 }
 
@@ -492,6 +496,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
     return_static_value: bool,
+    parser: Option<&DatexScriptParser<'a>>
 ) -> Result<StaticValueOrDXB, CompilerError<'a>> {
 
     // shortcut if datex_script is "?" - call compile_value directly
@@ -502,7 +507,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
         return compile_value(inserted_values[0]).map(StaticValueOrDXB::from);
     }
 
-    let (ast, errors) = parse(datex_script);
+    let (ast, errors) = parse(datex_script, parser);
     if !errors.is_empty() {
         return Err(CompilerError::SyntaxError(errors));
     }
@@ -540,10 +545,12 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
 pub fn compile_template<'a>(
     datex_script: &'a str,
     inserted_values: &[ValueContainer],
+    parser: Option<&DatexScriptParser<'a>>
 ) -> Result<Vec<u8>, CompilerError<'a>> {
     compile_template_with_refs(
         datex_script,
-        &inserted_values.iter().collect::<Vec<_>>()
+        &inserted_values.iter().collect::<Vec<_>>(),
+        parser
     )
 }
 
@@ -571,7 +578,7 @@ macro_rules! compile {
             let script: &str = $fmt.into();
             let values: &[$crate::datex_values::value_container::ValueContainer] = &[$($arg.into()),*];
 
-            $crate::compiler::bytecode::compile_template(&script, values)
+            $crate::compiler::bytecode::compile_template(&script, values, None)
         }
     }
 }
@@ -814,7 +821,7 @@ pub mod tests {
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
-        let result = compile_script(datex_script).unwrap();
+        let result = compile_script(datex_script, None).unwrap();
         info!(
             "{:?}",
             result
@@ -827,7 +834,7 @@ pub mod tests {
     }
 
     fn get_compilation_scope(script: &str) -> CompilationScope {
-        let (ast, ..) = parse(script);
+        let (ast, ..) = parse(script, None);
         let ast = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
         let compilation_scope = CompilationScope::new(buffer, &[]);
@@ -1490,7 +1497,7 @@ pub mod tests {
     #[test]
     fn test_compile() {
         init_logger();
-        let result = compile_template("? + ?", &vec![1.into(), 2.into()]);
+        let result = compile_template("? + ?", &vec![1.into(), 2.into()], None);
         assert_eq!(
             result.unwrap(),
             vec![
@@ -1544,7 +1551,7 @@ pub mod tests {
     fn test_json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
         println!("JSON file read");
-        let dxb = compile_script(&json).expect("Failed to parse JSON string");
+        let dxb = compile_script(&json, None).expect("Failed to parse JSON string");
         println!("DXB: {:?}", dxb.len());
     }
 
@@ -1594,12 +1601,12 @@ pub mod tests {
     #[test]
     fn test_compile_auto_static_value_detection() {
         let script = "1";
-        let res = compile_script_or_return_static_value(script).unwrap();
+        let res = compile_script_or_return_static_value(script, None).unwrap();
         assert_eq!(res, StaticValueOrDXB::StaticValue(Some(Integer::from(1).into())));
 
 
         let script = "1 + 2";
-        let res = compile_script_or_return_static_value(script).unwrap();
+        let res = compile_script_or_return_static_value(script, None).unwrap();
         assert_eq!(res, StaticValueOrDXB::Dxb(vec![
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
