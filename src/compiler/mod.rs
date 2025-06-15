@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use chumsky::error::Rich;
 use pest::error::Error;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
@@ -6,40 +7,37 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-
-mod operations;
-pub mod parser;
 pub mod bytecode;
-mod parser_new;
+mod parser;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::compile_script;
-use crate::compiler::parser::Rule;
+use crate::compiler::parser::DatexExpression;
 
 #[derive(Debug)]
-pub enum CompilerError {
-    UnexpectedTerm(Rule),
-    SyntaxError(Box<Error<Rule>>),
+pub enum CompilerError<'a> {
+    UnexpectedTerm(DatexExpression),
+    SyntaxError(Vec<Rich<'a, char>>),
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount
 }
 
-impl From<Error<Rule>> for CompilerError {
-    fn from(error: Error<Rule>) -> Self {
-        CompilerError::SyntaxError(Box::new(error))
+impl<'a> From<Vec<Rich<'a, char>>> for CompilerError<'a> {
+    fn from(error: Vec<Rich<'a, char>>) -> Self {
+        CompilerError::SyntaxError(error)
     }
 }
 
-impl Display for CompilerError {
+impl<'a> Display for CompilerError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CompilerError::UnexpectedTerm(rule) => {
                 write!(f, "Unexpected term: {rule:?}")
             }
             CompilerError::SyntaxError(error) => {
-                write!(f, "Syntax error: {error}")
+                write!(f, "Syntax error") // TODO
             }
             CompilerError::SerializationError(error) => {
                 write!(f, "Serialization error: {error}")

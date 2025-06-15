@@ -1,5 +1,3 @@
-use crate::compiler::operations::parse_operator;
-use crate::compiler::parser::{DatexParser, Rule};
 use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
@@ -16,12 +14,9 @@ use crate::utils::buffers::{
     append_i8, append_u128, append_u32, append_u8,
 };
 use binrw::BinWrite;
-use log::info;
-use num_traits::ToPrimitive;
-use pest::iterators::{Pair, Pairs};
-use pest::Parser;
 use std::cell::{Cell, RefCell};
 use std::io::Cursor;
+use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, TupleEntry};
 
 struct CompilationScope<'a> {
     index: Cell<usize>,
@@ -106,7 +101,7 @@ impl<'a> CompilationScope<'a> {
                     self.append_binary_code(InstructionCode::NULL)
                 }
                 CoreValue::Text(val) => {
-                    self.insert_string(&val.0.clone());
+                    self.insert_text(&val.0.clone());
                 }
                 CoreValue::Array(val) => {
                     self.append_binary_code(InstructionCode::ARRAY_START);
@@ -158,7 +153,7 @@ impl<'a> CompilationScope<'a> {
         }
     }
 
-    fn insert_string(&self, string: &str) {
+    fn insert_text(&self, string: &str) {
         let unescaped_string = self.unescape_string(string);
 
         let bytes = unescaped_string.as_bytes();
@@ -210,7 +205,7 @@ impl<'a> CompilationScope<'a> {
             self.append_buffer(bytes);
         } else {
             self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
-            self.insert_string(key_string);
+            self.insert_text(key_string);
         }
     }
 
@@ -446,10 +441,10 @@ pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
 /// The value containers are passed by reference
-pub fn compile_template_with_refs(
-    datex_script: &str,
+pub fn compile_template_with_refs<'a>(
+    datex_script: &'a str,
     inserted_values: &[&ValueContainer],
-) -> Result<Vec<u8>, CompilerError> {
+) -> Result<Vec<u8>, CompilerError<'a>> {
 
     // shortcut if datex_script is "?" - call compile_value directly
     if datex_script == "?" {
@@ -459,27 +454,34 @@ pub fn compile_template_with_refs(
         return compile_value(inserted_values[0]);
     }
 
-    let pairs = DatexParser::parse(Rule::datex, datex_script)?; //.next().unwrap();
+    let (ast, errors) = parse(datex_script);
+    if !errors.is_empty() {
+        return Err(CompilerError::SyntaxError(errors));
+    }
+    if ast.is_none() {
+        return Ok(vec![]);
+    }
+    let ast = ast.unwrap();
 
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_scope = CompilationScope::new(buffer, inserted_values);
-    parse_statements(&compilation_scope, pairs)?;
+    compile_ast(&compilation_scope, ast)?;
 
     Ok(compilation_scope.buffer.take())
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
-pub fn compile_template(
-    datex_script: &str,
+pub fn compile_template<'a>(
+    datex_script: &'a str,
     inserted_values: &[ValueContainer],
-) -> Result<Vec<u8>, CompilerError> {
+) -> Result<Vec<u8>, CompilerError<'a>> {
     compile_template_with_refs(
         datex_script,
         &inserted_values.iter().collect::<Vec<_>>()
     )
 }
 
-pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
+pub fn compile_value<'a>(value: &ValueContainer) -> Result<Vec<u8>, CompilerError<'a>> {
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_scope = CompilationScope::new(buffer, &[]);
 
@@ -500,7 +502,7 @@ pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
 macro_rules! compile {
     ($fmt:literal $(, $arg:expr )* $(,)?) => {
         {
-            let script: String = $fmt.into();
+            let script: &str = $fmt.into();
             let values: &[$crate::datex_values::value_container::ValueContainer] = &[$($arg.into()),*];
 
             $crate::compiler::bytecode::compile_template(&script, values)
@@ -508,125 +510,78 @@ macro_rules! compile {
     }
 }
 
-fn parse_statements(
-    compilation_scope: &CompilationScope,
-    pairs: Pairs<'_, Rule>,
-) -> Result<(), CompilerError> {
-    for statement in pairs {
-        match statement.as_rule() {
-            Rule::EOI => {}
-            _ => {
-                parse_atom(compilation_scope, statement, false)?;
-            }
-        }
-    }
-    Ok(())
-}
 
-fn rule_must_be_scoped(rule: Rule) -> bool {
-    matches!(rule, Rule::level_1_operation | Rule::level_2_operation)
-}
-
-// apply | term (statements or ident)
-fn parse_atom(
-    compilation_scope: &CompilationScope,
-    term: Pair<Rule>,
+#[derive(Debug, Clone, Default)]
+struct CompileContext {
     scope_required_for_complex_expressions: bool,
-) -> Result<(), CompilerError> {
-    let rule = term.as_rule();
-    info!(">> RULE {:?}", rule);
+    current_binary_operator: Option<BinaryOperator>,
+}
 
-    let scoped =
-        scope_required_for_complex_expressions && rule_must_be_scoped(rule);
+impl CompileContext {
 
-    if scoped {
-        compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
+    /// Create a CompileContext with `scope_required_for_complex_expressions` set to true.
+    fn with_scope_required() -> Self {
+        CompileContext {
+            scope_required_for_complex_expressions: true,
+            ..CompileContext::default()
+        }
+    }
+    /// Creates a CompileContext with the current binary operator set.
+    /// Also sets `scope_required_for_complex_expressions` to true.
+    fn with_current_binary_operator(
+        operator: BinaryOperator,
+    ) -> Self {
+        CompileContext {
+            scope_required_for_complex_expressions: true,
+            current_binary_operator: Some(operator),
+        }
     }
 
-    match rule {
-        Rule::level_1_operation | Rule::level_2_operation => {
-            let mut inner = term.into_inner();
-
-            let mut prev_operand = inner.next().unwrap();
-            let mut current_operator = None;
-
-            loop {
-                // every loop iteration: operator, operand
-                let operator = inner.next();
-                if let Some(operator) = operator {
-                    let operation_mode = parse_operator(operator);
-                    if current_operator != Some(operation_mode.clone()) {
-                        current_operator = Some(operation_mode.clone());
-                        compilation_scope
-                            .append_binary_code(operation_mode.into());
+    fn must_be_scoped(&self, ast: &DatexExpression) -> bool {
+        self.scope_required_for_complex_expressions &&
+            // matches a rule that must be scoped
+            match ast {
+                DatexExpression::BinaryOperation(operator,_,_) => {
+                    // only scope if different operator than current
+                    if let Some(current_operator) = &self.current_binary_operator {
+                        operator != current_operator
+                    } else {
+                        true
                     }
-                    parse_atom(compilation_scope, prev_operand, true)?;
-                    prev_operand = inner.next().unwrap();
+
                 }
-                // no more operator, add last remaining operand
-                else {
-                    parse_atom(compilation_scope, prev_operand, true)?;
-                    break;
-                }
+                _ => false
             }
-        }
-        Rule::end_of_statement => {
-            compilation_scope
-                .append_binary_code(InstructionCode::CLOSE_AND_STORE);
-        }
-
-        // is either a Rule::term or a rule that could be inside a term (e.g. literal, integer, array, ...)
-        _ => {
-            parse_term(
-                compilation_scope,
-                term,
-                scope_required_for_complex_expressions,
-            )?;
-        }
     }
+}
 
-    if scoped {
-        compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
-    }
-
+fn compile_ast<'a>(
+    compilation_scope: &CompilationScope,
+    ast: DatexExpression,
+) -> Result<(), CompilerError<'a>> {
+    compile_expression(compilation_scope, ast, CompileContext::default())?;
     Ok(())
 }
 
-/// A term can only contain a single value
-fn parse_term(
+fn compile_expression<'a>(
     compilation_scope: &CompilationScope,
-    pair: Pair<'_, Rule>,
-    scope_required_for_complex_terms: bool,
-) -> Result<(), CompilerError> {
-    // if Rule::term, get inner rule, else keep rule
-    let term = match pair.as_rule() {
-        Rule::term => pair.into_inner().next().unwrap(),
-        _ => pair,
-    };
+    ast: DatexExpression,
+    mut ctx: CompileContext,
+) -> Result<(), CompilerError<'a>> {
 
-    let rule = term.as_rule();
-    let scoped = scope_required_for_complex_terms && rule_must_be_scoped(rule);
+    let scoped = ctx.must_be_scoped(&ast);
 
     if scoped {
         compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
+        // immediately reset compile context
+        ctx = CompileContext::default();
     }
 
-    match term.as_rule() {
-        Rule::dec_integer => {
-            let int = term.as_str().parse::<i64>().unwrap();
-            compilation_scope.insert_int(int);
-        }
-        Rule::hex_integer => {
-            insert_int_with_radix(compilation_scope, term.as_str(), 16)?;
-        }
-        Rule::oct_integer => {
-            insert_int_with_radix(compilation_scope, term.as_str(), 8)?;
-        }
-        Rule::bin_integer => {
-            insert_int_with_radix(compilation_scope, term.as_str(), 2)?;
-        }
-        Rule::decimal => {
-            let decimal = Decimal::from_string(term.as_str());
+    match ast {
+        DatexExpression::Integer(int) => {
+            compilation_scope.insert_int(int.0.as_i64().unwrap());
+        },
+        DatexExpression::Decimal(decimal) => {
             match &decimal {
                 Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
                     if let Some(int) = big_decimal.to_i16() {
@@ -642,73 +597,46 @@ fn parse_term(
                 }
             }
         }
-        Rule::text => {
-            let string = term.as_str();
-            let inner_string = &string[1..string.len() - 1];
-            compilation_scope.insert_string(inner_string);
+        DatexExpression::Text(text) => {
+            compilation_scope.insert_text(&text);
         }
-        Rule::boolean => {
-            let boolean = term.as_str() == "true";
+        DatexExpression::Boolean(boolean) => {
             compilation_scope.insert_boolean(boolean);
         }
-        Rule::null => {
+        DatexExpression::Null => {
             compilation_scope.append_binary_code(InstructionCode::NULL);
         }
-        Rule::array => {
+        DatexExpression::Array(array) => {
             compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
-            let inner = term.into_inner();
-            for item in inner {
-                parse_atom(compilation_scope, item, true)?;
+            for item in array {
+                compile_expression(compilation_scope, item, CompileContext::with_scope_required())?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
-        Rule::tuple => {
+        DatexExpression::Tuple(tuple) => {
             compilation_scope.append_binary_code(InstructionCode::TUPLE_START);
-            let inner = term.into_inner();
-            for item in inner {
-                parse_atom(compilation_scope, item, true)?;
+            for entry in tuple {
+                match entry {
+                    TupleEntry::KeyValue(key, value) => {
+                        compile_key_value_entry(compilation_scope, key, value)?;
+                    }
+                    TupleEntry::Value(value) => {
+                        compile_expression(compilation_scope, value, CompileContext::with_scope_required())?;
+                    }
+                }
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
-        Rule::object => {
+        DatexExpression::Object(object) => {
             compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
-            let inner = term.into_inner();
-            for item in inner {
-                parse_atom(compilation_scope, item, true)?;
+            for (key, value) in object {
+                // compile key and value
+                compile_key_value_entry(compilation_scope, key, value)?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
-        Rule::key_value => {
-            let mut inner = term.into_inner();
-            let key = inner.next().unwrap();
-            let value = inner.next().unwrap();
 
-            // select key value type based on key
-            // text key: text | literal_key
-            // integer key: integer
-            // dynamic key: any other type
-            let key_rule = key.as_rule();
-            match key_rule {
-                Rule::text => {
-                    let string = key.as_str();
-                    let inner_string = &string[1..string.len() - 1];
-                    compilation_scope.insert_key_string(inner_string);
-                }
-                Rule::literal_key => {
-                    compilation_scope.insert_key_string(key.as_str());
-                }
-                _ => {
-                    compilation_scope
-                        .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
-                    // insert dynamic key
-                    parse_atom(compilation_scope, key, true)?;
-                }
-            }
-
-            // insert value
-            parse_atom(compilation_scope, value, true)?;
-        }
-        Rule::placeholder => {
+        DatexExpression::Placeholder => {
             compilation_scope.insert_value_container(
                 compilation_scope
                     .inserted_values
@@ -718,13 +646,34 @@ fn parse_term(
             );
             compilation_scope.inserted_value_index.update(|x| x + 1);
         }
-        _ => {
-            return Err(CompilerError::UnexpectedTerm(term.as_rule()));
-            // unreachable!(
-            //     "Unexpected term {:?}",
-            //     term.as_rule()
-            // );
+
+        // statements
+        DatexExpression::Statements(mut statements) => {
+            // if single statement and not terminated, just compile the expression
+            if statements.len() == 1 && !statements[0].is_terminated {
+                compile_expression(compilation_scope, statements.remove(0).expression, CompileContext::default())?;
+            } else {
+                for statement in statements {
+                    compile_expression(compilation_scope, statement.expression, CompileContext::default())?;
+                    // if statement is terminated, append close and store
+                    if statement.is_terminated {
+                        compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
+                    }
+                }
+            }
         }
+
+        // operations (add, subtract, multiply, divide, etc.)
+        DatexExpression::BinaryOperation(operator, a, b) => {
+            // append binary code for operation if not already current binary operator
+            if ctx.current_binary_operator != Some(operator.clone()) {
+                compilation_scope.append_binary_code(InstructionCode::from(&operator));
+            }
+            compile_expression(compilation_scope, *a, CompileContext::with_current_binary_operator(operator.clone()))?;
+            compile_expression(compilation_scope, *b, CompileContext::with_current_binary_operator(operator))?;
+        }
+
+        _ => return Err(CompilerError::UnexpectedTerm(ast))
     }
 
     if scoped {
@@ -734,11 +683,33 @@ fn parse_term(
     Ok(())
 }
 
-fn insert_int_with_radix(
+fn compile_key_value_entry<'a>(
+    compilation_scope: &CompilationScope,
+    key: DatexExpression,
+    value: DatexExpression,
+) -> Result<(), CompilerError<'a>> {
+    match key {
+        // text -> insert key string
+        DatexExpression::Text(text) => {
+            compilation_scope.insert_key_string(&text);
+        },
+        // other -> insert key as dynamic
+        _ => {
+            compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+            compile_expression(compilation_scope, key, CompileContext::with_scope_required())?;
+        }
+    }
+    // insert value
+    compile_expression(compilation_scope, value, CompileContext::with_scope_required())?;
+    Ok(())
+}
+
+
+fn insert_int_with_radix<'a>(
     compilation_scope: &CompilationScope,
     int_str: &str,
     radix: u32,
-) -> Result<(), CompilerError> {
+) -> Result<(), CompilerError<'a>> {
     let is_negative = int_str.starts_with('-');
     let is_positive = int_str.starts_with('+');
     let int = i64::from_str_radix(
@@ -765,7 +736,7 @@ pub mod tests {
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
-        let result = super::compile_script(datex_script).unwrap();
+        let result = compile_script(datex_script).unwrap();
         info!(
             "{:?}",
             result
@@ -780,10 +751,6 @@ pub mod tests {
     #[test]
     fn test_simple_multiplication() {
         init_logger();
-
-        // compile("", vec![Datex]);
-        //
-        // compile!("[{23}]");
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
@@ -926,6 +893,32 @@ pub mod tests {
         let datex_script = format!("{a} + ({b} + {c})"); // 1 + (2 + 3)
         let result = compile_and_log(&datex_script);
 
+        // note: scope is automatically collapsed by the parser since this is all the same operation
+        // TODO: we might need to change this to support nested additions, or maybe not if we only allow additions
+        // of values of the same type?...
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ADD.into(),
+                InstructionCode::INT_8.into(),
+                a,
+                InstructionCode::INT_8.into(),
+                b,
+                InstructionCode::INT_8.into(),
+                c,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_complex_addition_and_subtraction() {
+        init_logger();
+
+        let a: u8 = 1;
+        let b: u8 = 2;
+        let c: u8 = 3;
+        let datex_script = format!("{a} + ({b} - {c})"); // 1 + (2 - 3)
+        let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
@@ -933,7 +926,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 a,
                 InstructionCode::SCOPE_START.into(),
-                InstructionCode::ADD.into(),
+                InstructionCode::SUBTRACT.into(),
                 InstructionCode::INT_8.into(),
                 b,
                 InstructionCode::INT_8.into(),

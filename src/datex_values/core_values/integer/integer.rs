@@ -28,6 +28,16 @@ impl Integer {
             },
         }
     }
+    
+    pub fn from_string_radix(s: &str, radix: u32) -> Result<Self, String> {
+        match i128::from_str_radix(s, radix) {
+            Ok(value) => Ok(Integer(TypedInteger::I128(value))),
+            Err(_) => match s.parse::<u128>() {
+                Ok(value) => Ok(Integer(TypedInteger::U128(value))),
+                Err(_) => Err(format!("Failed to parse integer from string with radix {}: {}", radix, s)),
+            },
+        }
+    }
 }
 
 impl SoftEq for Integer {
