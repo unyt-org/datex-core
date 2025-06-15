@@ -18,6 +18,7 @@ use std::cell::{Cell, RefCell};
 use std::io::Cursor;
 use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, TupleEntry};
 
+
 struct CompilationScope<'a> {
     index: Cell<usize>,
     inserted_value_index: Cell<usize>,
@@ -420,19 +421,85 @@ pub fn compile_script(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
     compile_template(datex_script, &[])
 }
 
+/// Directly extracts a static value from a DATEX script as a `ValueContainer`.
+/// This only works if the script does not contain any dynamic values or operations.
+/// All JSON-files can be compiled to static values, but not all DATEX scripts.
+pub fn extract_static_value_from_script(datex_script: &str) -> Result<Option<ValueContainer>, CompilerError> {
+    let (ast, errors) = parse(datex_script);
+    if !errors.is_empty() {
+        return Err(CompilerError::SyntaxError(errors));
+    }
+    if ast.is_none() {
+        return Ok(None);
+    }
+
+    let ast = ast.unwrap();
+    extract_static_value_from_ast(ast).map(Some)
+}
+
+fn extract_static_value_from_ast<'a>(
+    ast: DatexExpression,
+) -> Result<ValueContainer, CompilerError<'a>> {
+    if let DatexExpression::Placeholder = ast {
+        return Err(CompilerError::NonStaticValue);
+    }
+    ValueContainer::try_from(ast).map_err(|_| CompilerError::NonStaticValue)
+}
+
 /// Compiles a DATEX script template text with inserted values into a DXB body
 /// The value containers are passed by reference
 pub fn compile_template_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
 ) -> Result<Vec<u8>, CompilerError<'a>> {
+    compile_template_or_return_static_value_with_refs(
+        datex_script,
+        inserted_values,
+        false,
+    ).map(|result| match result {
+        StaticValueOrDXB::StaticValue(_) => unreachable!(),
+        StaticValueOrDXB::Dxb(dxb) => dxb,
+    })
+}
+
+/// Compiles a DATEX script template text with inserted values into a DXB body
+/// If the script does not contain any dynamic values or operations, the static result value is 
+/// directly returned instead of the DXB body.
+pub fn compile_script_or_return_static_value(
+    datex_script: &str,
+) -> Result<StaticValueOrDXB, CompilerError> {
+    compile_template_or_return_static_value_with_refs(
+        datex_script,
+        &[],
+        true,
+    )
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StaticValueOrDXB {
+    StaticValue(Option<ValueContainer>),
+    Dxb(Vec<u8>),
+}
+
+impl From<Vec<u8>> for StaticValueOrDXB {
+    fn from(dxb: Vec<u8>) -> Self {
+        StaticValueOrDXB::Dxb(dxb)
+    }
+}
+
+pub fn compile_template_or_return_static_value_with_refs<'a>(
+    datex_script: &'a str,
+    inserted_values: &[&ValueContainer],
+    return_static_value: bool,
+) -> Result<StaticValueOrDXB, CompilerError<'a>> {
 
     // shortcut if datex_script is "?" - call compile_value directly
     if datex_script == "?" {
         if inserted_values.len() != 1 {
             return Err(CompilerError::InvalidPlaceholderCount);
         }
-        return compile_value(inserted_values[0]);
+        return compile_value(inserted_values[0]).map(StaticValueOrDXB::from);
     }
 
     let (ast, errors) = parse(datex_script);
@@ -440,15 +507,28 @@ pub fn compile_template_with_refs<'a>(
         return Err(CompilerError::SyntaxError(errors));
     }
     if ast.is_none() {
-        return Ok(vec![]);
+        return Ok(vec![].into())
     }
     let ast = ast.unwrap();
 
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_scope = CompilationScope::new(buffer, inserted_values);
     compile_ast(&compilation_scope, ast)?;
-
-    Ok(compilation_scope.buffer.take())
+    
+    // directly return static value if requested
+    if return_static_value && !*compilation_scope.has_non_static_value.borrow() {
+        if let Some(value) = compilation_scope
+            .inserted_values
+            .borrow().first()
+            .cloned()
+        {
+            return Ok(StaticValueOrDXB::StaticValue(Some(value.clone())));
+        }
+        Ok(StaticValueOrDXB::StaticValue(None))
+    }
+    else {
+        Ok(compilation_scope.buffer.take().into())
+    }
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -655,7 +735,7 @@ fn compile_expression<'a>(
             compile_expression(compilation_scope, *a, CompileContext::with_current_binary_operator(operator.clone()))?;
             compile_expression(compilation_scope, *b, CompileContext::with_current_binary_operator(operator))?;
         }
-        
+
         // apply
         DatexExpression::ApplyChain(val, operands) => {
             compilation_scope.mark_has_non_static_value();
@@ -1462,8 +1542,6 @@ pub mod tests {
         println!("DXB: {:?}", dxb.len());
     }
 
-
-
     #[test]
     fn test_static_value_detection() {
         init_logger();
@@ -1472,15 +1550,15 @@ pub mod tests {
         let script = "1 + 2";
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = "a b";
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = "1;2";
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = r#"{("x" + "y"): 1}"#;
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
@@ -1489,19 +1567,19 @@ pub mod tests {
         let script = "1";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = "[]";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = "{}";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = "[1,2,3]";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
-        
+
         let script = "{a: 2}";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());

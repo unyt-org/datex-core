@@ -21,7 +21,8 @@ pub enum CompilerError<'a> {
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
-    InvalidPlaceholderCount
+    InvalidPlaceholderCount,
+    NonStaticValue
 }
 
 impl<'a> From<Vec<Rich<'a, char>>> for CompilerError<'a> {
@@ -50,6 +51,9 @@ impl<'a> Display for CompilerError<'a> {
             }
             CompilerError::InvalidPlaceholderCount => {
                 write!(f, "Invalid placeholder count")
+            }
+            CompilerError::NonStaticValue => {
+                write!(f, "Encountered non-static value")
             }
         }
     }
