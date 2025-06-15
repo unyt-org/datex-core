@@ -1,8 +1,12 @@
+use std::collections::HashMap;
 use crate::compiler::parser::extra::Err;
 use chumsky::prelude::*;
-use futures_util::FutureExt;
+use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::integer::integer::Integer;
+use crate::datex_values::core_values::object::Object;
+use crate::datex_values::value::Value;
+use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -121,6 +125,42 @@ pub enum DatexExpression {
     // ?
     Placeholder,
 }
+
+// directly convert DatexExpression to a ValueContainer
+impl TryFrom<DatexExpression> for ValueContainer {
+    type Error = ();
+
+    fn try_from(expr: DatexExpression) -> Result<Self, Self::Error> {
+        Ok(match expr {
+            DatexExpression::Null => ValueContainer::Value(Value::null()),
+            DatexExpression::Boolean(b) => ValueContainer::from(b),
+            DatexExpression::Text(s) => ValueContainer::from(s),
+            DatexExpression::Decimal(d) => ValueContainer::from(d),
+            DatexExpression::Integer(i) => ValueContainer::from(i),
+            DatexExpression::Array(arr) => {
+                let entries = arr.into_iter()
+                    .map(ValueContainer::try_from)
+                    .collect::<Result<Vec<ValueContainer>, ()>>()?;
+                ValueContainer::from(Array::from(entries))
+            },
+            DatexExpression::Object(obj) => {
+                let entries = obj.into_iter()
+                    .map(|(k, v)| {
+                        let key = match k {
+                            DatexExpression::Text(s) => s,
+                            _ => Err(())?
+                        };
+                        let value = ValueContainer::try_from(v)?;
+                        Ok((key, value))
+                    })
+                    .collect::<Result<HashMap<String, ValueContainer>, ()>>()?;
+                ValueContainer::from(Object::from(entries))
+            },
+            _ => Err(())?
+        })
+    }
+}
+
 
 fn unicode_escape<'a>() -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
     just('u').ignore_then(text::digits(16).exactly(4).to_slice().validate(
@@ -660,6 +700,11 @@ mod tests {
             panic!("Parsing errors found");
         }
         res.unwrap()
+    }
+
+    fn try_parse_to_value_container(src: &str) -> ValueContainer {
+        let expr = try_parse(src);
+        ValueContainer::try_from(expr).unwrap_or_else(|_| panic!("Failed to convert expression to ValueContainer"))
     }
 
     #[test]
@@ -1229,6 +1274,16 @@ mod tests {
             ],
         ));
     }
+    
+    #[test]
+    fn test_apply_empty() {
+        let src = "myFunc()";
+        let expr = try_parse(src);
+        assert_eq!(expr, DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Variable("myFunc".to_string())),
+            vec![Apply::FunctionCall(DatexExpression::Statements(vec![]))],
+        ));
+    }
 
     #[test]
     fn test_apply_multiple() {
@@ -1435,5 +1490,96 @@ mod tests {
         let src = "?";
         let expr = try_parse(src);
         assert_eq!(expr, DatexExpression::Placeholder);
+    }
+
+
+
+    #[test]
+    fn test_integer_to_value_container() {
+        let src = "123456789123456789";
+        let val = try_parse_to_value_container(src);
+        assert_eq!(val, ValueContainer::from(Integer::from_string("123456789123456789").unwrap()));
+    }
+
+    #[test]
+    fn test_decimal_to_value_container() {
+        let src = "123.456789123456";
+        let val = try_parse_to_value_container(src);
+        assert_eq!(val, ValueContainer::from(Decimal::from_string("123.456789123456")));
+    }
+
+    #[test]
+    fn test_text_to_value_container() {
+        let src = r#""Hello, world!""#;
+        let val = try_parse_to_value_container(src);
+        assert_eq!(val, ValueContainer::from("Hello, world!".to_string()));
+    }
+
+    #[test]
+    fn test_array_to_value_container() {
+        let src = "[1, 2, 3, 4.5, \"text\"]";
+        let val = try_parse_to_value_container(src);
+        let value_container_array: Vec<ValueContainer> = vec![
+            Integer::from(1).into(),
+            Integer::from(2).into(),
+            Integer::from(3).into(),
+            Decimal::from_string("4.5").into(),
+            "text".to_string().into(),
+        ];
+        assert_eq!(val, ValueContainer::from(value_container_array));
+    }
+
+    #[test]
+    fn test_json_to_value_container() {
+        let src = r#"
+            {
+                "name": "Test",
+                "value": 42,
+                "active": true,
+                "items": [1, 2, 3, 0.5],
+                "nested": {
+                    "key": "value"
+                }
+            }
+        "#;
+
+        let val = try_parse_to_value_container(src);
+        let value_container_array: Vec<ValueContainer> = vec![
+            Integer::from(1).into(),
+            Integer::from(2).into(),
+            Integer::from(3).into(),
+            Decimal::from_string("0.5").into(),
+        ];
+        let value_container_inner_object: ValueContainer = ValueContainer::from(
+            Object::from(vec![
+                ("key".to_string(), "value".to_string().into()),
+            ].into_iter().collect::<HashMap<String, ValueContainer>>()
+            )
+        );
+        let value_container_object: ValueContainer = ValueContainer::from(
+            Object::from(vec![
+                ("name".to_string(), "Test".to_string().into()),
+                ("value".to_string(), Integer::from(42).into()),
+                ("active".to_string(), true.into()),
+                ("items".to_string(), value_container_array.into()),
+                ("nested".to_string(), value_container_inner_object),
+            ].into_iter().collect::<HashMap<String, ValueContainer>>())
+        );
+        assert_eq!(val, value_container_object);
+    }
+
+    #[test]
+    fn test_invalid_value_containers() {
+        let src = "1 + 2";
+        let expr = try_parse(src);
+        assert!(ValueContainer::try_from(expr).is_err(), "Expected error when converting expression to ValueContainer");
+
+        let src = "xy";
+        let expr = try_parse(src);
+        assert!(ValueContainer::try_from(expr).is_err(), "Expected error when converting expression to ValueContainer");
+
+        let src = "x()";
+        let expr = try_parse(src);
+        assert!(ValueContainer::try_from(expr).is_err(), "Expected error when converting expression to ValueContainer");
     }
 }

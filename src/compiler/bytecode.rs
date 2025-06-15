@@ -23,6 +23,8 @@ struct CompilationScope<'a> {
     inserted_value_index: Cell<usize>,
     buffer: RefCell<Vec<u8>>,
     inserted_values: RefCell<&'a [&'a ValueContainer]>,
+    /// this flag is set to true if any non-static value is encountered
+    has_non_static_value: RefCell<bool>,
 }
 
 impl<'a> CompilationScope<'a> {
@@ -52,10 +54,12 @@ impl<'a> CompilationScope<'a> {
             inserted_value_index: Cell::new(0),
             buffer,
             inserted_values: RefCell::new(inserted_values),
+            has_non_static_value: RefCell::new(false),
         }
     }
 
     fn insert_value_container(&self, value_container: &ValueContainer) {
+        self.mark_has_non_static_value();
         match value_container {
             ValueContainer::Value(val) => match &val.inner {
                 CoreValue::TypedInteger(val)
@@ -402,6 +406,10 @@ impl<'a> CompilationScope<'a> {
         self.index.update(|x| x + buffer.len());
     }
 
+    fn mark_has_non_static_value(&self) {
+        self.has_non_static_value.replace(true);
+    }
+
     fn append_binary_code(&self, binary_code: InstructionCode) {
         self.append_u8(binary_code as u8);
     }
@@ -622,6 +630,7 @@ fn compile_expression<'a>(
 
         // statements
         DatexExpression::Statements(mut statements) => {
+            compilation_scope.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !statements[0].is_terminated {
                 compile_expression(compilation_scope, statements.remove(0).expression, CompileContext::default())?;
@@ -638,12 +647,19 @@ fn compile_expression<'a>(
 
         // operations (add, subtract, multiply, divide, etc.)
         DatexExpression::BinaryOperation(operator, a, b) => {
+            compilation_scope.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             if ctx.current_binary_operator != Some(operator.clone()) {
                 compilation_scope.append_binary_code(InstructionCode::from(&operator));
             }
             compile_expression(compilation_scope, *a, CompileContext::with_current_binary_operator(operator.clone()))?;
             compile_expression(compilation_scope, *b, CompileContext::with_current_binary_operator(operator))?;
+        }
+        
+        // apply
+        DatexExpression::ApplyChain(val, operands) => {
+            compilation_scope.mark_has_non_static_value();
+            // TODO
         }
 
         _ => return Err(CompilerError::UnexpectedTerm(ast))
@@ -700,12 +716,15 @@ fn insert_int_with_radix<'a>(
 
 #[cfg(test)]
 pub mod tests {
+    use std::cell::RefCell;
     use std::io::Read;
-    use super::{compile_script, compile_template};
+    use super::{compile_ast, compile_script, compile_template, CompilationScope};
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
+
+    use crate::compiler::parser::parse;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
@@ -719,6 +738,15 @@ pub mod tests {
                 .collect::<Vec<_>>()
         );
         result
+    }
+
+    fn get_compilation_scope(script: &str) -> CompilationScope {
+        let (ast, ..) = parse(script);
+        let ast = ast.unwrap();
+        let buffer = RefCell::new(Vec::with_capacity(256));
+        let compilation_scope = CompilationScope::new(buffer, &[]);
+        compile_ast(&compilation_scope, ast).unwrap();
+        compilation_scope
     }
 
     #[test]
@@ -1432,5 +1460,51 @@ pub mod tests {
         println!("JSON file read");
         let dxb = compile_script(&json).expect("Failed to parse JSON string");
         println!("DXB: {:?}", dxb.len());
+    }
+
+
+
+    #[test]
+    fn test_static_value_detection() {
+        init_logger();
+
+        // non-static
+        let script = "1 + 2";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(*compilation_scope.has_non_static_value.borrow());
+        
+        let script = "a b";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(*compilation_scope.has_non_static_value.borrow());
+        
+        let script = "1;2";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(*compilation_scope.has_non_static_value.borrow());
+        
+        let script = r#"{("x" + "y"): 1}"#;
+        let compilation_scope = get_compilation_scope(script);
+        assert!(*compilation_scope.has_non_static_value.borrow());
+
+        // static
+        let script = "1";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
+        
+        let script = "[]";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
+        
+        let script = "{}";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
+        
+        let script = "[1,2,3]";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
+        
+        let script = "{a: 2}";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
+
     }
 }
