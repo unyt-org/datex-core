@@ -80,7 +80,7 @@ bigint = "4.4.3"
 json-syntax = "0.12.5"
 serde_json = "1.0.140"
 num = "0.4.3"
-chumsky = {  version = "0.10.1", features = ["std", "lexical-numbers"], default-features = false  }
+chumsky = {  version = "0.10.1", features = ["std"], default-features = false  }
 ariadne = "0.5.1"
 
 
