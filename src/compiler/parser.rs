@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::num::NonZeroU8;
+use chumsky::number::format::NumberFormatBuilder;
 use crate::compiler::parser::extra::Err;
 use chumsky::prelude::*;
 use crate::datex_values::core_values::array::Array;
@@ -102,7 +104,7 @@ pub enum DatexExpression {
     Decimal(Decimal),
     /// Integer, e.g 123456789123456789
     Integer(Integer),
-    /// Array, e.g [1, 2, 3, "text"]
+    /// Array, e.g  `[1, 2, 3, "text"]`
     Array(Vec<DatexExpression>),
     /// Object, e.g {"key": "value", key2: 2}
     Object(Vec<(DatexExpression, DatexExpression)>),
@@ -246,12 +248,15 @@ fn text<'a>() -> DatexScriptParser<'a> {
 
     text
 }
-
 fn integer<'a>() -> DatexScriptParser<'a> {
-    let dec_digits = text::digits(10).to_slice();
-    let hex_digits = text::digits(16).to_slice();
-    let octal_digits = text::digits(8).to_slice();
-    let binary_digits = text::digits(2).to_slice();
+    let dec_digits = text::digits(10)
+        .then(just('_').ignore_then(text::digits(10)).repeated()).to_slice();
+    let hex_digits = text::digits(16)
+        .then(just('_').ignore_then(text::digits(16)).repeated()).to_slice();
+    let octal_digits = text::digits(8)
+        .then(just('_').ignore_then(text::digits(8)).repeated()).to_slice();
+    let binary_digits = text::digits(2)
+        .then(just('_').ignore_then(text::digits(2)).repeated()).to_slice();
 
     let integer = choice((
         // Hexadecimal integer
@@ -339,15 +344,16 @@ fn binary_op(op: BinaryOperator) -> impl Fn(Box<DatexExpression>, Box<DatexExpre
     move |lhs, rhs| DatexExpression::BinaryOperation(op.clone(), lhs, rhs)
 }
 
-/// Apply operations in the correct order on the datex expression parser
+/// Operations (+ - * /) between expressions
 fn operations(expression: DatexScriptParser) -> DatexScriptParser {
 
-    let op = |c| just(c).padded();
+    // operand separated by whitespaces
+    let op = |c| just(c);
 
     let product = expression.clone().foldl(
         choice((
-            op('*').to(binary_op(BinaryOperator::Multiply)),
-            op('/').to(binary_op(BinaryOperator::Divide)),
+            op(" * ").to(binary_op(BinaryOperator::Multiply)),
+            op(" / ").to(binary_op(BinaryOperator::Divide)),
         ))
             .then(expression)
             .repeated(),
@@ -356,8 +362,8 @@ fn operations(expression: DatexScriptParser) -> DatexScriptParser {
 
     let sum = product.clone().foldl(
         choice((
-            op('+').to(binary_op(BinaryOperator::Add)),
-            op('-').to(binary_op(BinaryOperator::Subtract)),
+            op(" + ").to(binary_op(BinaryOperator::Add)),
+            op(" - ").to(binary_op(BinaryOperator::Subtract)),
         ))
             .then(product)
             .repeated(),
@@ -380,6 +386,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // scoped expression - can be used as a standalone value
     // expression without tuple entries - required to be used inside arrays and objects to prevent matching tuples
     let mut scoped_expression = Recursive::declare();
+
+    let mut expression_with_operations = Recursive::declare();
 
     // atomic values (e.g. 1, "text", true, null)
     let integer = integer();
@@ -413,6 +421,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         .boxed();
 
     // a valid object/tuple key
+    // (1: value), "key", 1, (("x"+"y"): 123)
     let key = choice((
         text.clone(),
         decimal.clone(),
@@ -420,10 +429,13 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         // any valid identifiers (equivalent to variable names), mapped to a text
         text::ident()
             .map(|s: &str| DatexExpression::Text(s.to_string())),
+        // dynamic key
         wrapped_expression.clone(),
     ));
 
     // array
+    // 1,2,3
+    // [1,2,3,4,13434,(1),4,5,7,8]
     let array = scoped_expression
         .clone()
         .separated_by(just(',').padded().recover_with(skip_then_retry_until(
@@ -504,30 +516,35 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         .map(DatexExpression::Tuple);
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
-    let apply_or_property_access = scoped_expression
-        .clone()
-        .then(
+    let apply_or_property_access = choice((
+        atom.clone(),
+        wrapped_expression.clone(),
+        array.clone(),
+        object.clone())
+    ).then(
+        choice((
+            // apply #1: a wrapped expression, array, or object - no whitespace required before
+            // x () x [] x {}
             choice((
-                // apply #1: a wrapped expression, array, or object - no whitespace required before
-                choice((
-                    wrapped_expression.clone(),
-                    array.clone(),
-                    object.clone()
-                ))
-                    .clone()
-                    .padded()
-                    .map(Apply::FunctionCall),
-                // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
-                one_of(" \n")
-                    .ignore_then(atom.clone().padded())
-                    .map(Apply::FunctionCall),
-                // property access
-                just('.').padded().ignore_then(key.clone())
-                    .map(Apply::PropertyAccess),
+                wrapped_expression.clone(),
+                array.clone(),
+                object.clone()
             ))
-                .repeated()
-                .at_least(1)
-                .collect::<Vec<_>>()
+                .clone()
+                .padded()
+                .map(Apply::FunctionCall),
+            // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
+            // print "sdf"
+            one_of(" \n")
+                .ignore_then(atom.clone().padded())
+                .map(Apply::FunctionCall),
+            // property access
+            just('.').padded().ignore_then(key.clone())
+                .map(Apply::PropertyAccess),
+        ))
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
         )
         .map(|(val, args)| DatexExpression::ApplyChain(Box::new(val), args));
 
@@ -536,9 +553,9 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         .or(just("ref"))
         .or_not()
         .padded()
-        .then(text::ident())
+        .then::<&str, _>(text::ident())
         .then_ignore(just('=').padded())
-        .then(scoped_expression.clone())
+        .then(expression_with_operations.clone())
         .map(|((var_type, var_name), expr)| {
             if let Some(var_type) = var_type {
                 DatexExpression::VariableDeclaration(
@@ -555,8 +572,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // a full expression, containing a single value, array, object, or tuple
     // a datex script source consists of a sequence of expressions
     let full_expression = choice((
-        variable_assignment,
-        apply_or_property_access,
+        variable_assignment.clone(),
+        apply_or_property_access.clone(),
         tuple.clone(),
         single_keyed_tuple_entry.clone(),
         single_value_tuple.clone(),
@@ -587,11 +604,11 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
             any().ignored(),
             one_of(",]}").ignored(),
         ))
-        .padded().boxed();
+        .boxed();
 
-    let expression_with_operations = operations(choice((
+    expression_with_operations.define(operations(choice((
         full_expression.clone(),
-    )).boxed());
+    )).boxed()).padded());
 
     // statement: expression with an optional semicolon at the end
     let statement = expression_with_operations
@@ -631,7 +648,6 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let empty_statement = just(';')
         .repeated()
-        .at_least(1)
         .padded()
         .map(|_| DatexExpression::Statements(vec![]));
 
@@ -641,14 +657,14 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
             statements,
             expression_with_operations,
             empty_statement,
-            // completely empty script
-            just("").to(DatexExpression::Statements(vec![])),
         ))
     );
 
     // TODO: make this better without duplicate definition and operations() call?!
     scoped_expression.define(
         operations(choice((
+            variable_assignment,
+            apply_or_property_access.clone(),
             atom,
             wrapped_expression,
             array,
@@ -658,12 +674,6 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     expression_or_statements.boxed()
 }
-
-
-// TODO: reuse parser?
-// thread_local! {
-//     pub static DATEX_SCRIPT_PARSER: RefCell<Option<DatexScriptParser >> = const { RefCell::new(None) };
-// }
 
 pub fn parse<'a>(src: &'a str, opt_parser: Option<&DatexScriptParser<'a>>) -> (Option<DatexExpression>, Vec<Rich<'a, char>>) {
     if let Some(parser) = opt_parser {
@@ -699,7 +709,7 @@ mod tests {
         });
     }
 
-    fn try_parse(src: &str) -> DatexExpression {
+    fn parse_unwrap(src: &str) -> DatexExpression {
         let (res, errs) = parse(src, None);
         println!("{res:#?}");
         if !errs.is_empty() {
@@ -710,7 +720,7 @@ mod tests {
     }
 
     fn try_parse_to_value_container(src: &str) -> ValueContainer {
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         ValueContainer::try_from(expr).unwrap_or_else(|_| panic!("Failed to convert expression to ValueContainer"))
     }
 
@@ -728,7 +738,7 @@ mod tests {
             }
         "#;
 
-        let json = try_parse(src);
+        let json = parse_unwrap(src);
 
         assert_eq!(json, DatexExpression::Object(
             vec![
@@ -752,95 +762,102 @@ mod tests {
     #[test]
     fn test_null() {
         let src = "null";
-        let val = try_parse(src);
+        let val = parse_unwrap(src);
         assert_eq!(val, DatexExpression::Null);
     }
 
     #[test]
     fn test_boolean() {
         let src_true = "true";
-        let val_true = try_parse(src_true);
+        let val_true = parse_unwrap(src_true);
         assert_eq!(val_true, DatexExpression::Boolean(true));
 
         let src_false = "false";
-        let val_false = try_parse(src_false);
+        let val_false = parse_unwrap(src_false);
         assert_eq!(val_false, DatexExpression::Boolean(false));
     }
 
     #[test]
     fn test_integer() {
         let src = "123456789123456789";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Integer(Integer::from_string("123456789123456789").unwrap()));
     }
 
     #[test]
     fn test_negative_integer() {
         let src = "-123456789123456789";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Integer(Integer::from_string("-123456789123456789").unwrap()));
+    }
+
+    #[test]
+    fn test_integer_with_underscores() {
+        let src = "123_456";
+        let num = parse_unwrap(src);
+        assert_eq!(num, DatexExpression::Integer(Integer::from_string("123456").unwrap()));
     }
 
     #[test]
     fn test_hex_integer() {
         let src = "0x1A2B3C4D5E6F";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Integer(Integer::from_string_radix("1A2B3C4D5E6F", 16).unwrap()));
     }
 
     #[test]
     fn test_octal_integer() {
         let src = "0o755";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Integer(Integer::from_string_radix("755", 8).unwrap()));
     }
 
     #[test]
     fn test_binary_integer() {
         let src = "0b101010";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Integer(Integer::from_string_radix("101010", 2).unwrap()));
     }
 
     #[test]
     fn test_integer_with_exponent() {
         let src = "2e10";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("20000000000")));
     }
 
     #[test]
     fn test_decimal() {
         let src = "123.456789123456";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
     }
 
     #[test]
     fn test_negative_decimal() {
         let src = "-123.4";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("-123.4")));
     }
 
     #[test]
     fn test_decimal_with_exponent() {
         let src = "1.23456789123456e2";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
     }
 
     #[test]
     fn test_decimal_with_negative_exponent() {
         let src = "1.23456789123456e-2";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("0.0123456789123456")));
     }
 
     #[test]
     fn test_decimal_with_positive_exponent() {
         let src = "1.23456789123456E+2";
-        let num = try_parse(src);
+        let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
     }
 
@@ -864,21 +881,21 @@ mod tests {
     #[test]
     fn test_text_double_quotes() {
         let src = r#""Hello, world!""#;
-        let text = try_parse(src);
+        let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("Hello, world!".to_string()));
     }
 
     #[test]
     fn test_text_single_quotes() {
         let src = r#"'Hello, world!'"#;
-        let text = try_parse(src);
+        let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("Hello, world!".to_string()));
     }
 
     #[test]
     fn test_text_escape_sequences() {
         let src = r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00""#;
-        let text = try_parse(src);
+        let text = parse_unwrap(src);
 
         assert_eq!(text, DatexExpression::Text("Hello, \"world\"! \n New line \t tab 😀".to_string()));
     }
@@ -886,14 +903,14 @@ mod tests {
     #[test]
     fn test_text_nested_escape_sequences() {
         let src = r#""\\\\""#;
-        let text = try_parse(src);
+        let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("\\\\".to_string()));
     }
 
     #[test]
     fn test_text_nested_escape_sequences_2() {
         let src = r#""\\\"""#;
-        let text = try_parse(src);
+        let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("\\\"".to_string()));
     }
 
@@ -901,14 +918,14 @@ mod tests {
     #[test]
     fn test_empty_array() {
         let src = "[]";
-        let arr = try_parse(src);
+        let arr = parse_unwrap(src);
         assert_eq!(arr, DatexExpression::Array(vec![]));
     }
 
     #[test]
     fn test_array_with_values() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
-        let arr = try_parse(src);
+        let arr = parse_unwrap(src);
 
         assert_eq!(arr, DatexExpression::Array(vec![
             DatexExpression::Integer(Integer::from(1)),
@@ -922,7 +939,7 @@ mod tests {
     #[test]
     fn test_empty_object() {
         let src = "{}";
-        let obj = try_parse(src);
+        let obj = parse_unwrap(src);
 
         assert_eq!(obj, DatexExpression::Object(vec![]));
     }
@@ -930,7 +947,7 @@ mod tests {
     #[test]
     fn test_tuple() {
         let src = "1,2";
-        let tuple = try_parse(src);
+        let tuple = parse_unwrap(src);
 
         assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::Value(DatexExpression::Integer(Integer::from(1))),
@@ -941,7 +958,7 @@ mod tests {
     #[test]
     fn test_scoped_tuple() {
         let src = "(1, 2)";
-        let tuple = try_parse(src);
+        let tuple = parse_unwrap(src);
 
         assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::Value(DatexExpression::Integer(Integer::from(1))),
@@ -952,7 +969,7 @@ mod tests {
     #[test]
     fn test_keyed_tuple() {
         let src = "1: 2, 3: 4, xy:2, 'a b c': 'd'";
-        let tuple = try_parse(src);
+        let tuple = parse_unwrap(src);
 
         assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::KeyValue(DatexExpression::Integer(Integer::from(1)), DatexExpression::Integer(Integer::from(2))),
@@ -965,7 +982,7 @@ mod tests {
     #[test]
     fn test_tuple_array() {
         let src = "[(1,2),3,(4,)]";
-        let arr = try_parse(src);
+        let arr = parse_unwrap(src);
 
         assert_eq!(arr, DatexExpression::Array(vec![
             DatexExpression::Tuple(vec![
@@ -982,7 +999,7 @@ mod tests {
     #[test]
     fn test_single_value_tuple() {
         let src = "1,";
-        let tuple = try_parse(src);
+        let tuple = parse_unwrap(src);
 
         assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::Value(DatexExpression::Integer(Integer::from(1))),
@@ -992,7 +1009,7 @@ mod tests {
     #[test]
     fn test_single_key_value_tuple() {
         let src = "x: 1";
-        let tuple = try_parse(src);
+        let tuple = parse_unwrap(src);
         assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::KeyValue(DatexExpression::Text("x".to_string()), DatexExpression::Integer(Integer::from(1))),
         ]));
@@ -1001,14 +1018,14 @@ mod tests {
     #[test]
     fn test_scoped_atom() {
         let src = "(1)";
-        let atom = try_parse(src);
+        let atom = parse_unwrap(src);
         assert_eq!(atom, DatexExpression::Integer(Integer::from(1)));
     }
 
     #[test]
     fn test_scoped_array() {
         let src = "(([1, 2, 3]))";
-        let arr = try_parse(src);
+        let arr = parse_unwrap(src);
 
         assert_eq!(arr, DatexExpression::Array(vec![
             DatexExpression::Integer(Integer::from(1)),
@@ -1020,7 +1037,7 @@ mod tests {
     #[test]
     fn test_object_with_key_value_pairs() {
         let src = r#"{"key1": "value1", "key2": 42, "key3": true}"#;
-        let obj = try_parse(src);
+        let obj = parse_unwrap(src);
 
         assert_eq!(obj, DatexExpression::Object(vec![
             (DatexExpression::Text("key1".to_string()), DatexExpression::Text("value1".to_string())),
@@ -1032,7 +1049,7 @@ mod tests {
     #[test]
     fn test_dynamic_object_keys() {
         let src = r#"{(1): "value1", (2): 42, (3): true}"#;
-        let obj = try_parse(src);
+        let obj = parse_unwrap(src);
         assert_eq!(obj, DatexExpression::Object(vec![
             (DatexExpression::Integer(Integer::from(1)), DatexExpression::Text("value1".to_string())),
             (DatexExpression::Integer(Integer::from(2)), DatexExpression::Integer(Integer::from(42))),
@@ -1043,7 +1060,7 @@ mod tests {
     #[test]
     fn test_dynamic_tuple_keys() {
         let src = "(1): 1, ([]): 2";
-        let tuple = try_parse(src);
+        let tuple = parse_unwrap(src);
 
         assert_eq!(tuple, DatexExpression::Tuple(vec![
             TupleEntry::KeyValue(DatexExpression::Integer(Integer::from(1)), DatexExpression::Integer(Integer::from(1))),
@@ -1054,8 +1071,8 @@ mod tests {
     #[test]
     fn test_add() {
         // Test with escaped characters in text
-        let src = "1+2";
-        let expr = try_parse(src);
+        let src = "1 + 2";
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Add,
             Box::new(DatexExpression::Integer(Integer::from(1))),
@@ -1064,9 +1081,29 @@ mod tests {
     }
 
     #[test]
+    fn test_add_complex_values() {
+        // Test with escaped characters in text
+        let src = "[] + x + (1 + 2)";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Add,
+            Box::new(DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Array(vec![])),
+                Box::new(DatexExpression::Variable("x".to_string())),
+            )),
+            Box::new(DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )),
+        ));
+    }
+
+    #[test]
     fn test_subtract() {
         let src = "5 - 3";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Subtract,
             Box::new(DatexExpression::Integer(Integer::from(5))),
@@ -1077,7 +1114,7 @@ mod tests {
     #[test]
     fn test_multiply() {
         let src = "4 * 2";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Multiply,
             Box::new(DatexExpression::Integer(Integer::from(4))),
@@ -1088,7 +1125,7 @@ mod tests {
     #[test]
     fn test_divide() {
         let src = "8 / 2";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Divide,
             Box::new(DatexExpression::Integer(Integer::from(8))),
@@ -1099,7 +1136,7 @@ mod tests {
     #[test]
     fn test_complex_calculation() {
         let src = "1 + 2 * 3 + 4";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Add,
             Box::new(DatexExpression::BinaryOperation(
@@ -1118,7 +1155,7 @@ mod tests {
     #[test]
     fn test_nested_addition() {
         let src = "1 + (2 + 3)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Add,
             Box::new(DatexExpression::Integer(Integer::from(1))),
@@ -1133,7 +1170,7 @@ mod tests {
     #[test]
     fn test_nested_expressions() {
         let src = "[1 + 2]";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Array(vec![
             DatexExpression::BinaryOperation(
                 BinaryOperator::Add,
@@ -1146,7 +1183,7 @@ mod tests {
     #[test]
     fn multi_statement_expression() {
         let src = "1;2";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![
             Statement {
                 expression: DatexExpression::Integer(Integer::from(1)),
@@ -1162,7 +1199,7 @@ mod tests {
     #[test]
     fn nested_scope_statements() {
         let src = "(1; 2; 3)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![
             Statement {
                 expression: DatexExpression::Integer(Integer::from(1)),
@@ -1181,7 +1218,7 @@ mod tests {
     #[test]
     fn nested_scope_statements_closed() {
         let src = "(1; 2; 3;)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![
             Statement {
                 expression: DatexExpression::Integer(Integer::from(1)),
@@ -1201,7 +1238,7 @@ mod tests {
     #[test]
     fn nested_statements_in_object() {
         let src = r#"{"key": (1; 2; 3)}"#;
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Object(vec![
             (DatexExpression::Text("key".to_string()), DatexExpression::Statements(vec![
                 Statement {
@@ -1223,7 +1260,7 @@ mod tests {
     #[test]
     fn test_single_statement() {
         let src = "1;";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![
             Statement {
                 expression: DatexExpression::Integer(Integer::from(1)),
@@ -1235,28 +1272,28 @@ mod tests {
     #[test]
     fn test_empty_statement() {
         let src = ";";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![]));
     }
 
     #[test]
     fn test_empty_statement_multiple() {
         let src = ";;;";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![]));
     }
 
     #[test]
     fn test_variable_expression() {
         let src = "myVar";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Variable("myVar".to_string()));
     }
 
     #[test]
     fn test_variable_expression_with_operations() {
         let src = "myVar + 1";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::BinaryOperation(
             BinaryOperator::Add,
             Box::new(DatexExpression::Variable("myVar".to_string())),
@@ -1267,7 +1304,7 @@ mod tests {
     #[test]
     fn test_apply_expression() {
         let src = "myFunc(1, 2, 3)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myFunc".to_string())),
             vec![
@@ -1285,7 +1322,7 @@ mod tests {
     #[test]
     fn test_apply_empty() {
         let src = "myFunc()";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myFunc".to_string())),
             vec![Apply::FunctionCall(DatexExpression::Statements(vec![]))],
@@ -1295,7 +1332,7 @@ mod tests {
     #[test]
     fn test_apply_multiple() {
         let src = "myFunc(1)(2, 3)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myFunc".to_string())),
             vec![
@@ -1315,7 +1352,7 @@ mod tests {
     #[test]
     fn test_apply_atom() {
         let src = "print 'test'";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("print".to_string())),
             vec![
@@ -1327,7 +1364,7 @@ mod tests {
     #[test]
     fn test_property_access() {
         let src = "myObj.myProp";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myObj".to_string())),
             vec![Apply::PropertyAccess(DatexExpression::Text("myProp".to_string()))],
@@ -1337,7 +1374,7 @@ mod tests {
     #[test]
     fn test_property_access_scoped() {
         let src = "myObj.(1)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myObj".to_string())),
             vec![Apply::PropertyAccess(DatexExpression::Integer(Integer::from(1)))],
@@ -1347,7 +1384,7 @@ mod tests {
     #[test]
     fn test_property_access_multiple() {
         let src = "myObj.myProp.anotherProp.(1 + 2).(x;y)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myObj".to_string())),
             vec![
@@ -1375,7 +1412,7 @@ mod tests {
     #[test]
     fn test_property_access_and_apply() {
         let src = "myObj.myProp(1, 2)";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myObj".to_string())),
             vec![
@@ -1391,7 +1428,7 @@ mod tests {
     #[test]
     fn test_apply_and_property_access() {
         let src = "myFunc(1).myProp";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::Variable("myFunc".to_string())),
             vec![
@@ -1404,7 +1441,7 @@ mod tests {
     #[test]
     fn nested_apply_and_property_access() {
         let src = "((x(1)).y).z";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::ApplyChain(
             Box::new(DatexExpression::ApplyChain(
                 Box::new(DatexExpression::ApplyChain(
@@ -1420,7 +1457,7 @@ mod tests {
     #[test]
     fn variable_declaration() {
         let src = "val x = 42";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::VariableDeclaration(
             VariableType::Value,
             "x".to_string(),
@@ -1431,7 +1468,7 @@ mod tests {
     #[test]
     fn variable_declaration_statement() {
         let src = "val x = 42;";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![
             Statement {
                 expression: DatexExpression::VariableDeclaration(
@@ -1447,7 +1484,7 @@ mod tests {
     #[test]
     fn variable_declaration_with_expression() {
         let src = "ref x = 1 + 2";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::VariableDeclaration(
             VariableType::Reference,
             "x".to_string(),
@@ -1462,7 +1499,7 @@ mod tests {
     #[test]
     fn variable_assignment() {
         let src = "x = 42";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::VariableAssignment(
             "x".to_string(),
             Box::new(DatexExpression::Integer(Integer::from(42))),
@@ -1470,9 +1507,59 @@ mod tests {
     }
 
     #[test]
+    fn variable_assignment_expression() {
+        let src = "x = (y = 1)";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::VariableAssignment(
+            "x".to_string(),
+            Box::new(DatexExpression::VariableAssignment(
+                "y".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+            )),
+        ));
+    }
+
+    #[test]
+    fn variable_assignment_expression_in_array() {
+        let src = "[x = 1]";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::Array(vec![
+            DatexExpression::VariableAssignment(
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+            ),
+        ]));
+    }
+
+    #[test]
+    fn apply_in_array() {
+        let src = "[myFunc(1)]";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::Array(vec![
+            DatexExpression::ApplyChain(
+                Box::new(DatexExpression::Variable("myFunc".to_string())),
+                vec![Apply::FunctionCall(DatexExpression::Integer(Integer::from(1)))]
+            ),
+        ]));
+    }
+
+    #[test]
+    fn variable_assignment_multiple() {
+        let src = "x = y = 42";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::VariableAssignment(
+            "x".to_string(),
+            Box::new(DatexExpression::VariableAssignment(
+                "y".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+            )),
+        ));
+    }
+
+    #[test]
     fn variable_declaration_and_assignment() {
         let src = "val x = 42; x = 100;";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![
             Statement {
                 expression: DatexExpression::VariableDeclaration(
@@ -1495,10 +1582,9 @@ mod tests {
     #[test]
     fn test_placeholder() {
         let src = "?";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Placeholder);
     }
-
 
 
     #[test]
@@ -1574,19 +1660,25 @@ mod tests {
         );
         assert_eq!(val, value_container_object);
     }
-
     #[test]
     fn test_invalid_value_containers() {
         let src = "1 + 2";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert!(ValueContainer::try_from(expr).is_err(), "Expected error when converting expression to ValueContainer");
 
         let src = "xy";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert!(ValueContainer::try_from(expr).is_err(), "Expected error when converting expression to ValueContainer");
 
         let src = "x()";
-        let expr = try_parse(src);
+        let expr = parse_unwrap(src);
         assert!(ValueContainer::try_from(expr).is_err(), "Expected error when converting expression to ValueContainer");
+    }
+
+    #[test]
+    fn test_invalid_add() {
+        let src = "1+2";
+        let (res, errs) = parse(src, None);
+        assert!(errs.len() == 1, "Expected error when parsing expression");
     }
 }

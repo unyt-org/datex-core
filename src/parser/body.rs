@@ -137,7 +137,6 @@ pub fn iterate_instructions<'a>(
             loop {
                 // if cursor is at the end, break
                 if reader.position() as usize >= dxb_body.len() {
-                    info!("End of dxb_body reached.");
                     return;
                 }
 
