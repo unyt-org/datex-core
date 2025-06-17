@@ -262,6 +262,27 @@ fn text<'a>() -> DatexScriptParser<'a> {
 
     text
 }
+
+/// Parses an integer, including support for:
+/// ### Supported formats:
+/// - Hexadecimal integers:
+///     - `0x1A2B3C4D5E6F`
+///     - `0X1A2B3C4D5E6F`
+/// - Octal integers:
+///     - `0o755`
+///     - `0O755`
+/// - Binary integers:
+///     - `0b101010`
+///     - `0B101010`
+/// - Decimal integers:
+///     - `123456789`
+///     - `-123456789`
+/// - Integers with underscores:
+///     - `1_234_567`
+///     - `-1_234_567`
+/// - Decimal integers with leading zeros:
+/// - `0123`
+/// - `-0123`
 fn integer<'a>() -> DatexScriptParser<'a> {
     let dec_digits = text::digits(10)
         .then(just('_').ignore_then(text::digits(10)).repeated())
@@ -311,36 +332,71 @@ fn integer<'a>() -> DatexScriptParser<'a> {
     integer
 }
 
+/// Parses a decimal number, including support for:
+/// ### Supported formats:
+/// - Standard decimals:
+///   - `123.456`
+///   - `0.001`
+///   - `.789`
+///   - `123.`
+///   - `3.e10`
+///   - `534.e-124`
+/// - Decimals with exponent:
+///   - `1.23e10`
+///   - `4.56E-3`
+///   - `789e+2`
+///   - `42e0`
+/// - Integer with exponent (no decimal point):
+///   - `123e5`
+///   - `42E-1`
+/// - Special values:
+///   - `NaN`, `nan`
+///   - `Infinity`, `infinity`
+/// - Optional leading sign is supported for all formats:
+///   - `-123.45`, `+123.45`
+///   - `-Infinity`, `+Infinity`
+///   - `-3.e10`, `+3.e10`
 fn decimal<'a>() -> DatexScriptParser<'a> {
-    let digits = text::digits(10).to_slice();
-    let frac = just('.').then(digits);
+    let digits = one_of("0123456789")
+        .repeated()
+        .at_least(1)
+        .separated_by(just('_'))
+        .to_slice();
+
+    // Fractional part: "." followed by optional digits (to allow `4343.` and `3.`)
+    let frac = just('.').then(digits.or_not());
+
+    // Exponent part: "e" or "E" followed by optional sign and digits
     let exp = just('e')
         .or(just('E'))
         .then(one_of("+-").or_not())
         .then(digits);
 
-    let decimal = just('-')
+    let decimal = one_of("+-")
         .or_not()
         .then(choice((
-            // decimal with optional exponent
-            text::int(10).then(frac).then(exp.or_not()).to_slice(),
-            // decimal without leading 0.
+            // full number: digits .digits? e?
+            digits.then(frac).then(exp.or_not()).to_slice(),
+            // leading .digits e?
             frac.then(exp.or_not()).to_slice(),
-            // no decimal point, but with exponent
+            // digits . e? — trailing dot allowed (e.g., 4343. or 3.)
+            digits.then(just('.')).then(exp.or_not()).to_slice(),
+            // digits e — no dot but has exponent
             digits.then(exp).to_slice(),
-            // nan
+            // special: NaN / nan
             choice((just("NaN"), just("nan"))).to_slice(),
-            // infinity
+            // special: Infinity / infinity
             choice((just("Infinity"), just("infinity"))).to_slice(),
         )))
         .to_slice()
-        .map(|s: &str| Decimal::from_string(s))
+        .map(|s: &str| Decimal::from_string(&s.replace('_', "")))
         .map(DatexExpression::Decimal)
         .boxed();
 
     decimal
 }
 
+/// Parses a boolean value, either `true` or `false`.
 fn boolean<'a>() -> DatexScriptParser<'a> {
     let true_value = just("true").to(DatexExpression::Boolean(true));
     let false_value = just("false").to(DatexExpression::Boolean(false));
@@ -350,11 +406,13 @@ fn boolean<'a>() -> DatexScriptParser<'a> {
     boolean
 }
 
+/// Parses a null value, represented by the keyword `null`.
 fn null<'a>() -> DatexScriptParser<'a> {
     let null_value = just("null").to(DatexExpression::Null);
     null_value.boxed()
 }
 
+/// Parses a variable name, which is a valid identifier.
 fn variable<'a>() -> DatexScriptParser<'a> {
     // valid identifiers start with _ or an ascii letter, followed by any combination of letters, digits, or underscores
     let identifier = text::ident()
@@ -855,6 +913,28 @@ mod tests {
     }
 
     #[test]
+    fn test_decimal_with_separator() {
+        let cases = [
+            ("123_45_6.789", "123456.789"),
+            ("123.443_3434", "123.4433434"),
+            ("1_000.000_001", "1000.000001"),
+            ("3.14_15e+1_0", "31415000000.0"),
+            ("0.0_0_1", "0.001"),
+            ("+1_000.0", "1000.0"),
+        ];
+
+        for (src, expected_str) in cases {
+            let num = parse_unwrap(src);
+            assert_eq!(
+                num,
+                DatexExpression::Decimal(Decimal::from_string(expected_str)),
+                "Failed to parse: {}",
+                src
+            );
+        }
+    }
+
+    #[test]
     fn test_negative_decimal() {
         let src = "-123.4";
         let num = parse_unwrap(src);
@@ -896,14 +976,16 @@ mod tests {
         );
     }
 
-    // TODO
-    // #[test]
-    // fn test_decimal_with_trailing_point() {
-    //     let src = "123.";
-    //     let num = try_parse(src);
-    //     assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
-    // }
-    //
+    #[test]
+    fn test_decimal_with_trailing_point() {
+        let src = "123.";
+        let num = parse_unwrap(src);
+        assert_eq!(
+            num,
+            DatexExpression::Decimal(Decimal::from_string("123.0"))
+        );
+    }
+
     #[test]
     fn test_decimal_with_leading_point() {
         let src = ".456789123456";
@@ -911,6 +993,13 @@ mod tests {
         assert_eq!(
             num,
             DatexExpression::Decimal(Decimal::from_string("0.456789123456"))
+        );
+
+        let src = ".423e-2";
+        let num = parse_unwrap(src);
+        assert_eq!(
+            num,
+            DatexExpression::Decimal(Decimal::from_string("0.00423"))
         );
     }
 
