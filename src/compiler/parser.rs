@@ -324,6 +324,8 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
         .then(choice((
             // decimal with optional exponent
             text::int(10).then(frac).then(exp.or_not()).to_slice(),
+            // decimal without leading 0.
+            frac.then(exp.or_not()).to_slice(),
             // no decimal point, but with exponent
             digits.then(exp).to_slice(),
             // nan
@@ -902,13 +904,15 @@ mod tests {
     //     assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("123.456789123456")));
     // }
     //
-    // #[test]
-    // fn test_decimal_with_leading_point() {
-    //     let src = ".456789123456";
-    //     let num = try_parse(src);
-    //     assert_eq!(num, DatexExpression::Decimal(Decimal::from_string("0.456789123456")));
-    // }
-    //
+    #[test]
+    fn test_decimal_with_leading_point() {
+        let src = ".456789123456";
+        let num = parse_unwrap(src);
+        assert_eq!(
+            num,
+            DatexExpression::Decimal(Decimal::from_string("0.456789123456"))
+        );
+    }
 
     #[test]
     fn test_text_double_quotes() {
