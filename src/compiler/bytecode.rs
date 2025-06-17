@@ -17,7 +17,6 @@ use binrw::BinWrite;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::rc::Rc;
 use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry, VariableType};
 
 
@@ -673,8 +672,8 @@ fn compile_ast<'a>(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
 ) -> Result<(), CompilerError<'a>> {
-    let mut scope = &mut CompileScope::default();
-    compile_expression(compilation_scope, ast, CompileMetadata::outer(), &mut scope)?;
+    let scope = &mut CompileScope::default();
+    compile_expression(compilation_scope, ast, CompileMetadata::outer(), scope)?;
     Ok(())
 }
 
@@ -862,8 +861,7 @@ fn compile_key_value_entry<'a>(
     value: DatexExpression,
     scope: &mut CompileScope
 ) -> Result<(), CompilerError<'a>> {
-    {
-        match key {
+    match key {
             // text -> insert key string
             DatexExpression::Text(text) => {
                 compilation_scope.insert_key_string(&text);
@@ -873,8 +871,7 @@ fn compile_key_value_entry<'a>(
                 compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
                 compile_expression(compilation_scope, key, CompileMetadata::with_scope_required(), scope)?;
             }
-        }
-    };
+        };
     // insert value
     compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
     Ok(())

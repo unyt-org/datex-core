@@ -1,6 +1,5 @@
 use std::fmt::Display;
 use chumsky::error::Rich;
-use pest::error::Error;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
