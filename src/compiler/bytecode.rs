@@ -727,6 +727,8 @@ fn compile_expression<'a>(
             if statements.len() == 1 && !statements[0].is_terminated {
                 compile_expression(compilation_scope, statements.remove(0).expression, CompileContext::default())?;
             } else {
+                // new scope
+                compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
                 for statement in statements {
                     compile_expression(compilation_scope, statement.expression, CompileContext::default())?;
                     // if statement is terminated, append close and store
@@ -734,6 +736,7 @@ fn compile_expression<'a>(
                         compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
                     }
                 }
+                compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
             }
         }
 
