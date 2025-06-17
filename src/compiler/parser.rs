@@ -501,7 +501,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     )).boxed();
 
     // operations on atoms
-    let op = |c| just(c);
+    let op = |c| just(c).padded();
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let apply_or_property_access = atom.clone().then(
@@ -540,8 +540,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let product = apply_or_property_access.clone().foldl(
         choice((
-            op(" * ").to(binary_op(BinaryOperator::Multiply)),
-            op(" / ").to(binary_op(BinaryOperator::Divide)),
+            op("*").to(binary_op(BinaryOperator::Multiply)),
+            op("/").to(binary_op(BinaryOperator::Divide)),
         ))
             .then(apply_or_property_access)
             .repeated(),
@@ -550,8 +550,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let sum = product.clone().foldl(
         choice((
-            op(" + ").to(binary_op(BinaryOperator::Add)),
-            op(" - ").to(binary_op(BinaryOperator::Subtract)),
+            op("+").to(binary_op(BinaryOperator::Add)),
+            op("-").to(binary_op(BinaryOperator::Subtract)),
         ))
             .then(product)
             .repeated(),
@@ -1087,6 +1087,48 @@ mod tests {
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
             )),
+        ));
+    }
+
+    #[test]
+    fn test_add_statements_1() {
+        // Test with escaped characters in text
+        let src = "1 + (2;3)";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Add,
+            Box::new(DatexExpression::Integer(Integer::from(1))),
+            Box::new(DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(2)),
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(3)),
+                    is_terminated: false,
+                },
+            ])),
+        ));
+    }
+
+    #[test]
+    fn test_add_statements_2() {
+        // Test with escaped characters in text
+        let src = "(1;2) + 3";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::BinaryOperation(
+            BinaryOperator::Add,
+            Box::new(DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(1)),
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(2)),
+                    is_terminated: false,
+                },
+            ])),
+            Box::new(DatexExpression::Integer(Integer::from(3))),
         ));
     }
 
