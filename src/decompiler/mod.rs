@@ -365,6 +365,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 }
             }
             Instruction::GetSlot(address) => {
+                handle_before_term(state, &mut output, false)?;
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO: get variable name for slot
@@ -373,6 +374,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                     // otherwise just write the slot address
                     write!(output, "#{}", address.0)?;
                 }
+                handle_after_term(state, &mut output, false)?;
             }
 
             _ => {
