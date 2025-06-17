@@ -399,8 +399,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // expression wrapped in parentheses
     let wrapped_expression = statements
         .clone()
-        .delimited_by(just('('), just(')'))
-        .padded();
+        .delimited_by(just('('), just(')'));
 
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
@@ -501,7 +500,10 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     )).boxed();
 
     // operations on atoms
-    let op = |c| just(c).padded();
+    let op = |c|
+        one_of(" \t\n").repeated().at_least(1)
+            .ignore_then(just(c))
+            .then_ignore(one_of(" \t\n").repeated().at_least(1));
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let apply_or_property_access = atom.clone().then(
