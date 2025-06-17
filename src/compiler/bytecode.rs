@@ -808,6 +808,7 @@ fn compile_expression<'a>(
         }
 
         // variables
+        // declaration
         DatexExpression::VariableDeclaration(var_type, name, expression) => {
             compilation_scope.mark_has_non_static_value();
             match var_type {
@@ -824,7 +825,17 @@ fn compile_expression<'a>(
             // compile expression
             compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
         },
+        
+        // assignment
+        DatexExpression::VariableAssignment(name, expression) => {
+            compilation_scope.mark_has_non_static_value();
+            // get variable slot address
+            let (var_slot, var_type) = scope.resolve_variable_slot(&name)
+                .ok_or_else(|| CompilerError::UndeclaredVariable(name.clone()))?;
+            todo!("Variable assignment not implemented yet");
+        },
 
+        // variable access
         DatexExpression::Variable(name) => {
             compilation_scope.mark_has_non_static_value();
             // get variable slot address

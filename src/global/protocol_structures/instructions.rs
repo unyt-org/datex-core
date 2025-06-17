@@ -38,6 +38,9 @@ pub enum Instruction {
     Subtract,
     Multiply,
     Divide,
+
+    AllocateSlot(SlotAddress),
+    GetSlot(SlotAddress),
 }
 
 impl Display for Instruction {
@@ -87,6 +90,12 @@ impl Display for Instruction {
             Instruction::Subtract => write!(f, "SUBTRACT"),
             Instruction::Multiply => write!(f, "MULTIPLY"),
             Instruction::Divide => write!(f, "DIVIDE"),
+            Instruction::AllocateSlot(address) => {
+                write!(f, "ALLOCATE_SLOT {}", address.0)
+            }
+            Instruction::GetSlot(address) => {
+                write!(f, "GET_SLOT {}", address.0)
+            }
         }
     }
 }
@@ -178,3 +187,8 @@ pub struct TextData(pub String);
 pub struct InstructionCloseAndStore {
     pub instruction: Int8Data,
 }
+
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct SlotAddress(pub u32);

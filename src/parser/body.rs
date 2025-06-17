@@ -1,17 +1,11 @@
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::stdlib::fmt;
 use binrw::BinRead;
-use log::info;
 use std::fmt::Display;
 use std::io::Cursor;
-
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data,
-    ShortTextData, ShortTextDataRaw, TextData, TextDataRaw,
-};
+use crate::global::protocol_structures::instructions::{DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw};
 use crate::utils::buffers;
 
 
@@ -302,6 +296,25 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::MULTIPLY => Ok(Instruction::Multiply),
 
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
+
+
+                    // slots
+                    InstructionCode::ALLOCATE_SLOT => {
+                        let address = SlotAddress::read(&mut reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::AllocateSlot(address.unwrap()))
+                        }
+                    }
+                    InstructionCode::GET_SLOT => {
+                        let address = SlotAddress::read(&mut reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::GetSlot(address.unwrap()))
+                        }
+                    }
 
                     _ => Err(ParserError::InvalidBinaryCode(
                         instruction_code as u8,

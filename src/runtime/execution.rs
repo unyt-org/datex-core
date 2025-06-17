@@ -1,4 +1,5 @@
-
+use std::cell::RefCell;
+use std::collections::HashMap;
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
@@ -9,10 +10,7 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, ShortTextData, TextData,
-};
+use crate::global::protocol_structures::instructions::{DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData, SlotAddress, TextData};
 use crate::parser::body;
 use crate::parser::body::ParserError;
 use std::fmt::Display;
@@ -28,18 +26,53 @@ pub struct ExecutionContext<'a> {
     options: ExecutionOptions,
     index: usize,
     scope_stack: ScopeStack,
+    slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
 }
+
+impl ExecutionContext<'_> {
+
+    /// Allocates a new slot with the given slot address.
+    fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
+        self.slots.borrow_mut().insert(address, value);
+    }
+
+    /// Sets the value of a slot, returning the previous value if it existed.
+    /// If the slot is not allocated, it returns an error.
+    fn set_slot_value(
+        &self,
+        address: u32,
+        value: ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        self.slots
+            .borrow_mut()
+            .insert(address, Some(value))
+            .ok_or(())
+            .map_err(|_| ExecutionError::SlotNotAllocated(address))
+    }
+
+    /// Retrieves the value of a slot by its address.
+    /// If the slot is not allocated, it returns an error.
+    fn get_slot_value(&self, address: u32) -> Result<Option<ValueContainer>, ExecutionError> {
+        self.slots
+            .borrow_mut()
+            .get(&address)
+            .cloned()
+            .ok_or(())
+            .map_err(|_| ExecutionError::SlotNotAllocated(address))
+    }
+}
+
 
 pub fn execute_dxb(
     dxb_body: &[u8],
     options: ExecutionOptions,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
-    let context = ExecutionContext {
+    let mut context = ExecutionContext {
         dxb_body,
         options,
         ..ExecutionContext::default()
     };
-    execute_loop(context)
+    execute_loop(&mut context)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,6 +101,7 @@ pub enum ExecutionError {
     InvalidProgram(InvalidProgramError),
     Unknown,
     NotImplemented(String),
+    SlotNotAllocated(u32),
 }
 
 impl From<ParserError> for ExecutionError {
@@ -102,15 +136,17 @@ impl Display for ExecutionError {
             ExecutionError::NotImplemented(msg) => {
                 write!(f, "Not implemented: {msg}")
             }
+            ExecutionError::SlotNotAllocated(address) => {
+                write!(f, "Tried to access unallocated slot at address {address}")
+            }
         }
     }
 }
 
 fn execute_loop(
-    context: ExecutionContext,
+    context: &mut ExecutionContext,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let dxb_body = context.dxb_body;
-    let mut scope_stack = context.scope_stack;
 
     let instruction_iterator = body::iterate_instructions(dxb_body);
 
@@ -168,66 +204,89 @@ fn execute_loop(
 
             // operations
             Instruction::Add => {
-                scope_stack.set_active_operation(Instruction::Add);
+                context.scope_stack.set_active_operation(Instruction::Add);
                 ActiveValue::None
             }
 
             Instruction::Subtract => {
-                scope_stack.set_active_operation(Instruction::Subtract);
+                context.scope_stack.set_active_operation(Instruction::Subtract);
                 ActiveValue::None
             }
 
             Instruction::Multiply => {
-                scope_stack.set_active_operation(Instruction::Multiply);
+                context.scope_stack.set_active_operation(Instruction::Multiply);
                 ActiveValue::None
             }
 
             Instruction::Divide => {
-                scope_stack.set_active_operation(Instruction::Divide);
+                context.scope_stack.set_active_operation(Instruction::Divide);
                 ActiveValue::None
             }
 
             Instruction::CloseAndStore => {
-                scope_stack.clear_active_value();
+                let active = context.scope_stack.clear_active_value();
+
+                // check if active slot exists
+                if let ActiveValue::ValueContainer(active) = active &&
+                    let Some(active_slot) = context.scope_stack.get_active_slot() {
+                    // write to slot
+                    context.set_slot_value(
+                        active_slot,
+                        active,
+                    )?;
+                }
+
                 ActiveValue::None
             }
 
             Instruction::ScopeStart => {
-                scope_stack.create_scope(ScopeType::Default);
+                context.scope_stack.create_scope(ScopeType::Default);
                 ActiveValue::None
             }
 
             Instruction::ArrayStart => {
-                scope_stack.create_scope(ScopeType::Array);
+                context.scope_stack.create_scope(ScopeType::Array);
                 is_scope_start = true;
                 Array::default().into()
             }
 
             Instruction::ObjectStart => {
-                scope_stack.create_scope(ScopeType::Object);
+                context.scope_stack.create_scope(ScopeType::Object);
                 is_scope_start = true;
                 Object::default().into()
             }
 
             Instruction::TupleStart => {
-                scope_stack.create_scope(ScopeType::Tuple);
+                context.scope_stack.create_scope(ScopeType::Tuple);
                 is_scope_start = true;
                 Tuple::default().into()
             }
 
             Instruction::KeyValueShortText(ShortTextData(key)) => {
-                scope_stack.set_active_key(key.into());
+                context.scope_stack.set_active_key(key.into());
                 ActiveValue::None
             }
 
             Instruction::KeyValueDynamic => {
-                scope_stack.set_active_key(ActiveValue::None);
+                context.scope_stack.set_active_key(ActiveValue::None);
                 ActiveValue::None
             }
 
             Instruction::ScopeEnd => {
                 // pop scope and return value
-                scope_stack.pop()?
+                context.scope_stack.pop()?
+            }
+
+            // slots
+            Instruction::AllocateSlot(SlotAddress(address)) => {
+                context.allocate_slot(address, None);
+                context.scope_stack.set_active_slot(address);
+                ActiveValue::None
+            }
+            Instruction::GetSlot(SlotAddress(address)) => {
+                // get value from slot
+                let slot_value = context.get_slot_value(address)?;
+                slot_value.into()
             }
 
             i => {
@@ -241,17 +300,17 @@ fn execute_loop(
             ActiveValue::ValueContainer(value_container) => {
                 // TODO: try to optimize and initialize variables only when needed, currently leeds to borrow errors
                 let active_operation =
-                    scope_stack.get_active_operation().cloned();
-                let scope_type = scope_stack.get_current_scope_type().clone();
-                let active_key = scope_stack.get_active_key();
-                let active_value = scope_stack.get_active_value_mut();
+                    context.scope_stack.get_active_operation().cloned();
+                let scope_type = context.scope_stack.get_current_scope_type().clone();
+                let active_key = context.scope_stack.get_active_key();
+                let active_value = context.scope_stack.get_active_value_mut();
 
                 // check if active_key_value_pair exists
                 if let Some(active_key) = active_key {
                     match active_key {
                         // set key for key-value pair (for dynamic keys)
                         ActiveValue::None => {
-                            scope_stack.set_active_key(value_container.into());
+                            context.scope_stack.set_active_key(value_container.into());
                         }
 
                         // set value for key-value pair
@@ -302,7 +361,7 @@ fn execute_loop(
                             // TODO: unary operations
 
                             // set active value to new value
-                            scope_stack
+                            context.scope_stack
                                 .set_active_value_container(value_container);
                         }
 
@@ -328,7 +387,7 @@ fn execute_loop(
                                 };
                                 if let Ok(val) = res {
                                     // set active value to operation result
-                                    scope_stack.set_active_value_container(val);
+                                    context.scope_stack.set_active_value_container(val);
                                 } else {
                                     // handle error
                                     return Err(ExecutionError::ValueError(
@@ -435,7 +494,7 @@ fn execute_loop(
         // }
     }
 
-    Ok(match scope_stack.pop_last()? {
+    Ok(match context.scope_stack.pop_last()? {
         ActiveValue::None => None,
         ActiveValue::ValueContainer(val) => Some(val),
     })

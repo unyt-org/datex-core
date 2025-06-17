@@ -13,6 +13,8 @@ pub enum ScopeType {
     Object,
 }
 
+// TODO: do we still need ActiveValue if it is just an alias for an Option<ValueContainer>?
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum ActiveValue {
     #[default]
@@ -21,11 +23,15 @@ pub enum ActiveValue {
     //KeyValuePair(Option<ValueContainer>, Option<ValueContainer>),
 }
 
-impl ActiveValue {
-    pub fn is_none(&self) -> bool {
-        self == &ActiveValue::None
+impl From<Option<ValueContainer>> for ActiveValue {
+    fn from(value: Option<ValueContainer>) -> Self {
+        match value {
+            Some(v) => ActiveValue::ValueContainer(v),
+            None => ActiveValue::None,
+        }
     }
 }
+
 
 impl<T: Into<ValueContainer>> From<T> for ActiveValue {
     fn from(value: T) -> Self {
@@ -48,6 +54,7 @@ pub struct Scope {
     active_value: ActiveValue,
     active_operation: Option<Instruction>,
     active_key: Option<ActiveValue>,
+    active_slot: Option<u32>,
 }
 
 impl Scope {
@@ -173,9 +180,12 @@ impl ScopeStack {
     }
 
     /// Clears the active value of the current scope.
-    pub fn clear_active_value(&mut self) {
+    pub fn clear_active_value(&mut self) -> ActiveValue {
         let scope = self.get_current_scope_mut();
+        // TODO: no clone here
+        let active = scope.active_value.clone();
         scope.active_value = ActiveValue::None;
+        active
     }
 
     /// Sets the active operation for the current scope.
@@ -186,5 +196,24 @@ impl ScopeStack {
     /// Returns the active operation for the current scope, if any.
     pub fn get_active_operation(&self) -> Option<&Instruction> {
         self.get_current_scope().active_operation.as_ref()
+    }
+
+
+    /// Sets the active slot that is currently been written to.
+    pub fn set_active_slot(&mut self, slot: u32) {
+        let scope = self.get_current_scope_mut();
+        scope.active_slot = Some(slot);
+    }
+
+    /// Returns the active slot that is currently been written to, if any.
+    pub fn get_active_slot(&self) -> Option<u32> {
+        self.get_current_scope().active_slot
+    }
+
+
+    /// Clears the active slot of the current scope.
+    pub fn clear_active_slot(&mut self) {
+        let scope = self.get_current_scope_mut();
+        scope.active_slot = None;
     }
 }

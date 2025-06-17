@@ -353,6 +353,28 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                     Some((Instruction::Divide, true));
             }
 
+            // slots
+            Instruction::AllocateSlot(address) => {
+                // if resolve_slots is enabled, write the slot as variable
+                if state.options.resolve_slots {
+                    // TODO: generate variable name for slot
+                    write!(output, "#{} := ", address.0)?;
+                } else {
+                    // otherwise just write the slot address
+                    write!(output, "#{} := ", address.0)?;
+                }
+            }
+            Instruction::GetSlot(address) => {
+                // if resolve_slots is enabled, write the slot as variable
+                if state.options.resolve_slots {
+                    // TODO: get variable name for slot
+                    write!(output, "#{}", address.0)?;
+                } else {
+                    // otherwise just write the slot address
+                    write!(output, "#{}", address.0)?;
+                }
+            }
+
             _ => {
                 write!(output, "{instruction:?}")?;
             }
