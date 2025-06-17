@@ -588,14 +588,23 @@ macro_rules! compile {
 struct CompileContext {
     scope_required_for_complex_expressions: bool,
     current_binary_operator: Option<BinaryOperator>,
+    is_outer_context: bool,
 }
 
 impl CompileContext {
+
+    fn outer() -> Self {
+        CompileContext {
+            is_outer_context: true,
+            ..CompileContext::default()
+        }
+    }
 
     /// Create a CompileContext with `scope_required_for_complex_expressions` set to true.
     fn with_scope_required() -> Self {
         CompileContext {
             scope_required_for_complex_expressions: true,
+            is_outer_context: false,
             ..CompileContext::default()
         }
     }
@@ -606,6 +615,7 @@ impl CompileContext {
     ) -> Self {
         CompileContext {
             scope_required_for_complex_expressions: true,
+            is_outer_context: false,
             current_binary_operator: Some(operator),
         }
     }
@@ -632,7 +642,7 @@ fn compile_ast<'a>(
     compilation_scope: &CompilationScope,
     ast: DatexExpression,
 ) -> Result<(), CompilerError<'a>> {
-    compile_expression(compilation_scope, ast, CompileContext::default())?;
+    compile_expression(compilation_scope, ast, CompileContext::outer())?;
     Ok(())
 }
 
@@ -727,8 +737,10 @@ fn compile_expression<'a>(
             if statements.len() == 1 && !statements[0].is_terminated {
                 compile_expression(compilation_scope, statements.remove(0).expression, CompileContext::default())?;
             } else {
-                // new scope
-                compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
+                // if not outer context, new scope
+                if !ctx.is_outer_context {
+                    compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
+                }
                 for statement in statements {
                     compile_expression(compilation_scope, statement.expression, CompileContext::default())?;
                     // if statement is terminated, append close and store
@@ -736,7 +748,9 @@ fn compile_expression<'a>(
                         compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
                     }
                 }
-                compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+                if !ctx.is_outer_context {
+                    compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+                }
             }
         }
 
