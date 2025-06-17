@@ -928,8 +928,7 @@ mod tests {
             assert_eq!(
                 num,
                 DatexExpression::Decimal(Decimal::from_string(expected_str)),
-                "Failed to parse: {}",
-                src
+                "Failed to parse: {src}"
             );
         }
     }
