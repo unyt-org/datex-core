@@ -15,11 +15,13 @@ use crate::utils::buffers::{
 };
 use binrw::BinWrite;
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::io::Cursor;
-use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry};
+use std::rc::Rc;
+use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry, VariableType};
 
 
-struct CompilationScope<'a> {
+struct CompilationContext<'a> {
     index: Cell<usize>,
     inserted_value_index: Cell<usize>,
     buffer: RefCell<Vec<u8>>,
@@ -28,7 +30,7 @@ struct CompilationScope<'a> {
     has_non_static_value: RefCell<bool>,
 }
 
-impl<'a> CompilationScope<'a> {
+impl<'a> CompilationContext<'a> {
     const MAX_INT_32: i64 = 2_147_483_647;
     const MIN_INT_32: i64 = -2_147_483_648;
 
@@ -50,7 +52,7 @@ impl<'a> CompilationScope<'a> {
     const FLOAT_64_BYTES: u8 = 8;
 
     fn new(buffer: RefCell<Vec<u8>>, inserted_values: &'a [&'a ValueContainer]) -> Self {
-        CompilationScope {
+        CompilationContext {
             index: Cell::new(0),
             inserted_value_index: Cell::new(0),
             buffer,
@@ -212,7 +214,7 @@ impl<'a> CompilationScope<'a> {
 
 
     fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
-        fn insert_f32_or_f64(scope: &CompilationScope, decimal: &TypedDecimal) {
+        fn insert_f32_or_f64(scope: &CompilationContext, decimal: &TypedDecimal) {
             match decimal {
                 TypedDecimal::F32(val) => {
                     scope.insert_float32(val.into_inner());
@@ -287,15 +289,15 @@ impl<'a> CompilationScope<'a> {
     }
 
     fn insert_int(&self, int: i64) {
-        if (CompilationScope::MIN_INT_8..=CompilationScope::MAX_INT_8)
+        if (CompilationContext::MIN_INT_8..=CompilationContext::MAX_INT_8)
             .contains(&int)
         {
             self.insert_i8(int as i8)
-        } else if (CompilationScope::MIN_INT_16..=CompilationScope::MAX_INT_16)
+        } else if (CompilationContext::MIN_INT_16..=CompilationContext::MAX_INT_16)
             .contains(&int)
         {
             self.insert_i16(int as i16)
-        } else if (CompilationScope::MIN_INT_32..=CompilationScope::MAX_INT_32)
+        } else if (CompilationContext::MIN_INT_32..=CompilationContext::MAX_INT_32)
             .contains(&int)
         {
             self.insert_i32(int as i32)
@@ -348,54 +350,54 @@ impl<'a> CompilationScope<'a> {
     fn append_u8(&self, u8: u8) {
         append_u8(self.buffer.borrow_mut().as_mut(), u8);
         self.index
-            .update(|x| x + CompilationScope::INT_8_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     fn append_u32(&self, u32: u32) {
         append_u32(self.buffer.borrow_mut().as_mut(), u32);
         self.index
-            .update(|x| x + CompilationScope::INT_32_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     fn append_i8(&self, i8: i8) {
         append_i8(self.buffer.borrow_mut().as_mut(), i8);
         self.index
-            .update(|x| x + CompilationScope::INT_8_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     fn append_i16(&self, i16: i16) {
         append_i16(self.buffer.borrow_mut().as_mut(), i16);
         self.index
-            .update(|x| x + CompilationScope::INT_16_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_16_BYTES as usize);
     }
     fn append_i32(&self, i32: i32) {
         append_i32(self.buffer.borrow_mut().as_mut(), i32);
         self.index
-            .update(|x| x + CompilationScope::INT_32_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     fn append_i64(&self, i64: i64) {
         append_i64(self.buffer.borrow_mut().as_mut(), i64);
         self.index
-            .update(|x| x + CompilationScope::INT_64_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_64_BYTES as usize);
     }
     fn append_i128(&self, i128: i128) {
         append_i128(self.buffer.borrow_mut().as_mut(), i128);
         self.index
-            .update(|x| x + CompilationScope::INT_128_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     fn append_u128(&self, u128: u128) {
         append_u128(self.buffer.borrow_mut().as_mut(), u128);
         self.index
-            .update(|x| x + CompilationScope::INT_128_BYTES as usize);
+            .update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     fn append_f32(&self, f32: f32) {
         append_f32(self.buffer.borrow_mut().as_mut(), f32);
         self.index
-            .update(|x| x + CompilationScope::FLOAT_32_BYTES as usize);
+            .update(|x| x + CompilationContext::FLOAT_32_BYTES as usize);
     }
     fn append_f64(&self, f64: f64) {
         append_f64(self.buffer.borrow_mut().as_mut(), f64);
         self.index
-            .update(|x| x + CompilationScope::FLOAT_64_BYTES as usize);
+            .update(|x| x + CompilationContext::FLOAT_64_BYTES as usize);
     }
     fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();
@@ -517,7 +519,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     let ast = ast.unwrap();
 
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_scope = CompilationScope::new(buffer, inserted_values);
+    let compilation_scope = CompilationContext::new(buffer, inserted_values);
 
     if return_static_value {
         compile_ast(&compilation_scope, ast.clone())?;
@@ -556,7 +558,7 @@ pub fn compile_template<'a>(
 
 pub fn compile_value<'a>(value: &ValueContainer) -> Result<Vec<u8>, CompilerError<'a>> {
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_scope = CompilationScope::new(buffer, &[]);
+    let compilation_scope = CompilationContext::new(buffer, &[]);
 
     compilation_scope.insert_value_container(value);
 
@@ -583,37 +585,66 @@ macro_rules! compile {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+struct CompileScope {
+    /// List of variables, mapped by name to their slot address and type.
+    variables: HashMap<String, (u32, VariableType)>,
+    // TODO: parent variables
+    next_slot_address: u32,
+}
+
+impl CompileScope {
+    fn register_variable_slot(&mut self, variable_type: VariableType, name: String) -> u32 {
+        let index = self.next_slot_address;
+        let slot_address = (self.variables.len() as u32) + index;
+        self.variables.insert(name, (slot_address, variable_type));
+        self.next_slot_address += 1;
+        slot_address
+    }
+
+    fn resolve_variable_slot(&self, name: &str) -> Option<(u32, VariableType)> {
+        self.variables.get(name).cloned()
+    }
+
+    fn create_child_scope(& self) -> CompileScope {
+        CompileScope {
+            next_slot_address: self.next_slot_address,
+            variables: HashMap::new(),
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, Default)]
-struct CompileContext {
+struct CompileMetadata {
     scope_required_for_complex_expressions: bool,
     current_binary_operator: Option<BinaryOperator>,
     is_outer_context: bool,
 }
 
-impl CompileContext {
+impl CompileMetadata {
 
     fn outer() -> Self {
-        CompileContext {
+        CompileMetadata {
             is_outer_context: true,
-            ..CompileContext::default()
+            ..CompileMetadata::default()
         }
     }
 
-    /// Create a CompileContext with `scope_required_for_complex_expressions` set to true.
+    /// Create CompileMetadata with `scope_required_for_complex_expressions` set to true.
     fn with_scope_required() -> Self {
-        CompileContext {
+        CompileMetadata {
             scope_required_for_complex_expressions: true,
             is_outer_context: false,
-            ..CompileContext::default()
+            ..CompileMetadata::default()
         }
     }
-    /// Creates a CompileContext with the current binary operator set.
+    /// Creates CompileMetadata with the current binary operator set.
     /// Also sets `scope_required_for_complex_expressions` to true.
     fn with_current_binary_operator(
         operator: BinaryOperator,
     ) -> Self {
-        CompileContext {
+        CompileMetadata {
             scope_required_for_complex_expressions: true,
             is_outer_context: false,
             current_binary_operator: Some(operator),
@@ -639,25 +670,27 @@ impl CompileContext {
 }
 
 fn compile_ast<'a>(
-    compilation_scope: &CompilationScope,
+    compilation_scope: &CompilationContext,
     ast: DatexExpression,
 ) -> Result<(), CompilerError<'a>> {
-    compile_expression(compilation_scope, ast, CompileContext::outer())?;
+    let mut scope = &mut CompileScope::default();
+    compile_expression(compilation_scope, ast, CompileMetadata::outer(), &mut scope)?;
     Ok(())
 }
 
 fn compile_expression<'a>(
-    compilation_scope: &CompilationScope,
+    compilation_scope: &CompilationContext,
     ast: DatexExpression,
-    mut ctx: CompileContext,
+    mut meta: CompileMetadata,
+    scope: &mut CompileScope
 ) -> Result<(), CompilerError<'a>> {
 
-    let scoped = ctx.must_be_scoped(&ast);
+    let scoped = meta.must_be_scoped(&ast);
 
     if scoped {
         compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
         // immediately reset compile context
-        ctx = CompileContext::default();
+        meta = CompileMetadata::default();
     }
 
     match ast {
@@ -692,7 +725,7 @@ fn compile_expression<'a>(
         DatexExpression::Array(array) => {
             compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
             for item in array {
-                compile_expression(compilation_scope, item, CompileContext::with_scope_required())?;
+                compile_expression(compilation_scope, item, CompileMetadata::with_scope_required(), scope)?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
@@ -701,10 +734,10 @@ fn compile_expression<'a>(
             for entry in tuple {
                 match entry {
                     TupleEntry::KeyValue(key, value) => {
-                        compile_key_value_entry(compilation_scope, key, value)?;
+                        compile_key_value_entry(compilation_scope, key, value, scope)?;
                     }
                     TupleEntry::Value(value) => {
-                        compile_expression(compilation_scope, value, CompileContext::with_scope_required())?;
+                        compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
                     }
                 }
             }
@@ -714,7 +747,7 @@ fn compile_expression<'a>(
             compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
             for (key, value) in object {
                 // compile key and value
-                compile_key_value_entry(compilation_scope, key, value)?;
+                compile_key_value_entry(compilation_scope, key, value, scope)?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
@@ -735,20 +768,23 @@ fn compile_expression<'a>(
             compilation_scope.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !statements[0].is_terminated {
-                compile_expression(compilation_scope, statements.remove(0).expression, CompileContext::default())?;
+                compile_expression(compilation_scope, statements.remove(0).expression, CompileMetadata::default(), scope)?;
             } else {
                 // if not outer context, new scope
-                if !ctx.is_outer_context {
+                let scope = if !meta.is_outer_context {
                     compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
-                }
+                    &mut scope.create_child_scope()
+                } else {
+                    scope
+                };
                 for statement in statements {
-                    compile_expression(compilation_scope, statement.expression, CompileContext::default())?;
+                    compile_expression(compilation_scope, statement.expression, CompileMetadata::default(), scope)?;
                     // if statement is terminated, append close and store
                     if statement.is_terminated {
                         compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
                     }
                 }
-                if !ctx.is_outer_context {
+                if !meta.is_outer_context {
                     compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
                 }
             }
@@ -758,11 +794,11 @@ fn compile_expression<'a>(
         DatexExpression::BinaryOperation(operator, a, b) => {
             compilation_scope.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
-            if ctx.current_binary_operator != Some(operator.clone()) {
+            if meta.current_binary_operator != Some(operator.clone()) {
                 compilation_scope.append_binary_code(InstructionCode::from(&operator));
             }
-            compile_expression(compilation_scope, *a, CompileContext::with_current_binary_operator(operator.clone()))?;
-            compile_expression(compilation_scope, *b, CompileContext::with_current_binary_operator(operator))?;
+            compile_expression(compilation_scope, *a, CompileMetadata::with_current_binary_operator(operator.clone()), scope)?;
+            compile_expression(compilation_scope, *b, CompileMetadata::with_current_binary_operator(operator), scope)?;
         }
 
         // apply
@@ -770,6 +806,34 @@ fn compile_expression<'a>(
             compilation_scope.mark_has_non_static_value();
             // TODO
         }
+
+        // variables
+        DatexExpression::VariableDeclaration(var_type, name, expression) => {
+            compilation_scope.mark_has_non_static_value();
+            match var_type {
+                VariableType::Value => {
+                    // allocate new slot for variable
+                    let address = scope.register_variable_slot(var_type, name);
+                    compilation_scope.append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                    compilation_scope.append_u32(address);
+                }
+                VariableType::Reference => {
+                    todo!();
+                }
+            }
+            // compile expression
+            compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
+        },
+
+        DatexExpression::Variable(name) => {
+            compilation_scope.mark_has_non_static_value();
+            // get variable slot address
+            let (var_slot, var_type) = scope.resolve_variable_slot(&name)
+                .ok_or_else(|| CompilerError::UndeclaredVariable(name.clone()))?;
+            // append binary code to load variable
+            compilation_scope.append_binary_code(InstructionCode::GET_SLOT);
+            compilation_scope.append_u32(var_slot);
+        },
 
         _ => return Err(CompilerError::UnexpectedTerm(ast))
     }
@@ -782,29 +846,32 @@ fn compile_expression<'a>(
 }
 
 fn compile_key_value_entry<'a>(
-    compilation_scope: &CompilationScope,
+    compilation_scope: &CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
+    scope: &mut CompileScope
 ) -> Result<(), CompilerError<'a>> {
-    match key {
-        // text -> insert key string
-        DatexExpression::Text(text) => {
-            compilation_scope.insert_key_string(&text);
-        },
-        // other -> insert key as dynamic
-        _ => {
-            compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
-            compile_expression(compilation_scope, key, CompileContext::with_scope_required())?;
+    {
+        match key {
+            // text -> insert key string
+            DatexExpression::Text(text) => {
+                compilation_scope.insert_key_string(&text);
+            },
+            // other -> insert key as dynamic
+            _ => {
+                compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                compile_expression(compilation_scope, key, CompileMetadata::with_scope_required(), scope)?;
+            }
         }
-    }
+    };
     // insert value
-    compile_expression(compilation_scope, value, CompileContext::with_scope_required())?;
+    compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
     Ok(())
 }
 
 
 fn insert_int_with_radix<'a>(
-    compilation_scope: &CompilationScope,
+    compilation_scope: &CompilationContext,
     int_str: &str,
     radix: u32,
 ) -> Result<(), CompilerError<'a>> {
@@ -827,7 +894,7 @@ fn insert_int_with_radix<'a>(
 pub mod tests {
     use std::cell::RefCell;
     use std::io::Read;
-    use super::{compile_ast, compile_script, compile_script_or_return_static_value, compile_template, CompilationScope, StaticValueOrDXB};
+    use super::{compile_ast, compile_script, compile_script_or_return_static_value, compile_template, CompilationContext, StaticValueOrDXB};
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
@@ -850,11 +917,11 @@ pub mod tests {
         result
     }
 
-    fn get_compilation_scope(script: &str) -> CompilationScope {
+    fn get_compilation_scope(script: &str) -> CompilationContext {
         let (ast, ..) = parse(script, None);
         let ast = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
-        let compilation_scope = CompilationScope::new(buffer, &[]);
+        let compilation_scope = CompilationContext::new(buffer, &[]);
         compile_ast(&compilation_scope, ast).unwrap();
         compilation_scope
     }
@@ -1509,6 +1576,47 @@ pub mod tests {
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_allocate_slot() {
+        init_logger();
+        let script = "val a = 42";
+        let result = compile_and_log(script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                42,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_allocate_slot_with_value() {
+        init_logger();
+        let script = "val a = 42; a + 1";
+        let result = compile_and_log(script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::ADD.into(),
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                1,
+            ]
+        );
     }
 
     #[test]

@@ -22,7 +22,8 @@ pub enum CompilerError<'a> {
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount,
-    NonStaticValue
+    NonStaticValue,
+    UndeclaredVariable(String),
 }
 
 impl<'a> From<Vec<Rich<'a, char>>> for CompilerError<'a> {
@@ -54,6 +55,9 @@ impl<'a> Display for CompilerError<'a> {
             }
             CompilerError::NonStaticValue => {
                 write!(f, "Encountered non-static value")
+            }
+            CompilerError::UndeclaredVariable(var) => {
+                write!(f, "Use of undeclared variable: {var}")
             }
         }
     }
