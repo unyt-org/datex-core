@@ -109,6 +109,7 @@ impl Decimal {
             "-Infinity" | "-infinity" => Decimal::NegInfinity,
             "nan" | "NaN" | "-nan" | "-NaN" => Decimal::NaN,
             _ => {
+                let s = &s.trim().replace('_', "");
                 if s.contains("/") {
                     // If the string contains a fraction, parse it as a fraction
                     let parts: Vec<&str> = s.split('/').collect();

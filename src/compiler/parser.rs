@@ -7,6 +7,7 @@ use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
+use json_syntax::print;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -358,21 +359,26 @@ fn integer<'a>() -> DatexScriptParser<'a> {
 ///   - `-3.e10`, `+3.e10`
 fn decimal<'a>() -> DatexScriptParser<'a> {
     let digits = one_of("0123456789")
+        .or(just('_'))
         .repeated()
         .at_least(1)
-        .separated_by(just('_'))
         .to_slice();
 
-    // Fractional part: "." followed by optional digits (to allow `4343.` and `3.`)
     let frac = just('.').then(digits.or_not());
-
-    // Exponent part: "e" or "E" followed by optional sign and digits
     let exp = just('e')
         .or(just('E'))
         .then(one_of("+-").or_not())
         .then(digits);
 
-    let decimal = one_of("+-")
+    let special =
+        choice((just("NaN"), just("nan"), just("Infinity"), just("infinity")))
+            .to_slice();
+
+    // Integer (with optional +/-)
+    let integer = one_of("+-").or_not().then(digits).to_slice();
+
+    // Decimal (anything with ., e, or both — but not plain integer)
+    let plain_decimal = one_of("+-")
         .or_not()
         .then(choice((
             // full number: digits .digits? e?
@@ -383,17 +389,28 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
             digits.then(just('.')).then(exp.or_not()).to_slice(),
             // digits e — no dot but has exponent
             digits.then(exp).to_slice(),
-            // special: NaN / nan
-            choice((just("NaN"), just("nan"))).to_slice(),
-            // special: Infinity / infinity
-            choice((just("Infinity"), just("infinity"))).to_slice(),
         )))
-        .to_slice()
-        .map(|s: &str| Decimal::from_string(&s.replace('_', "")))
-        .map(DatexExpression::Decimal)
-        .boxed();
+        .to_slice();
 
-    decimal
+    let special_decimal = one_of("+-").or_not().then(special).to_slice();
+
+    // Strict decimal: plain_decimal + special_decimal
+    let strict_decimal =
+        choice((plain_decimal, special_decimal)).map(|s: &str| {
+            return DatexExpression::Decimal(Decimal::from_string(&s));
+        });
+
+    // Rational: both numerator and denominator are integers
+    let rational =
+        integer
+            .then_ignore(just('/'))
+            .then(integer)
+            .map(|(lhs, rhs)| {
+                let joined = format!("{}/{}", lhs, rhs);
+                DatexExpression::Decimal(Decimal::from_string(&joined))
+            });
+
+    choice((rational, strict_decimal)).boxed()
 }
 
 /// Parses a boolean value, either `true` or `false`.
@@ -1911,18 +1928,35 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_fraction() {
+        let src = "1/3";
+        let val = try_parse_to_value_container(src);
+        assert_eq!(val, ValueContainer::from(Decimal::from_string("1/3")));
+
+        let (_, err) = parse("42.4/3", None);
+        assert!(err.len() > 0);
+        let (_, err) = parse("42 /3", None);
+        assert!(err.len() > 0);
+        let (_, err) = parse("42/ 3", None);
+        assert!(err.len() > 0);
+    }
+
     // TODO:
     // #[test]
     // fn variable_assignment_multiple() {
     //     let src = "x = y = 42";
     //     let expr = parse_unwrap(src);
-    //     assert_eq!(expr, DatexExpression::VariableAssignment(
-    //         "x".to_string(),
-    //         Box::new(DatexExpression::VariableAssignment(
-    //             "y".to_string(),
-    //             Box::new(DatexExpression::Integer(Integer::from(42))),
-    //         )),
-    //     ));
+    //     assert_eq!(
+    //         expr,
+    //         DatexExpression::VariableAssignment(
+    //             "x".to_string(),
+    //             Box::new(DatexExpression::VariableAssignment(
+    //                 "y".to_string(),
+    //                 Box::new(DatexExpression::Integer(Integer::from(42))),
+    //             )),
+    //         )
+    //     );
     // }
 
     #[test]
