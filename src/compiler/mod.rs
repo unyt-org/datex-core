@@ -8,6 +8,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 pub mod bytecode;
 pub mod parser;
+mod lexer;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::compile_script;

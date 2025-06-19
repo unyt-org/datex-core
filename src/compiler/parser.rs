@@ -8,6 +8,10 @@ use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
 use std::collections::HashMap;
+use std::iter::Map;
+use chumsky::input::Stream;
+use logos::{Logos, Span, SpannedIter};
+use crate::compiler::lexer::{Loc, Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -224,44 +228,44 @@ fn unicode_surrogate_pair<'a>(
 }
 
 pub type DatexScriptParser<'a> =
-    Boxed<'a, 'a, &'a str, DatexExpression, Err<Rich<'a, char>>>;
+    Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
 
-fn text<'a>() -> DatexScriptParser<'a> {
-    let escape = just('\\')
-        .ignore_then(choice((
-            just('\\'),
-            just('/'),
-            just('"'),
-            just('b').to('\x08'),
-            just('f').to('\x0C'),
-            just('n').to('\n'),
-            just('r').to('\r'),
-            just('t').to('\t'),
-            unicode_surrogate_pair(),
-            unicode_escape(),
-        )))
-        .boxed();
-
-    let text_double_quotes = none_of("\\\"")
-        .or(escape.clone())
-        .repeated()
-        .collect::<String>()
-        .delimited_by(just('"'), just('"'));
-
-    let text_single_quotes = none_of("\\'")
-        .or(escape)
-        .repeated()
-        .collect::<String>()
-        .delimited_by(just('\''), just('\''));
-
-    let text = choice((
-        text_double_quotes.map(DatexExpression::Text),
-        text_single_quotes.map(DatexExpression::Text),
-    ))
-    .boxed();
-
-    text
-}
+// fn text<'a>() -> DatexScriptParser<'a> {
+//     let escape = just('\\')
+//         .ignore_then(choice((
+//             just('\\'),
+//             just('/'),
+//             just('"'),
+//             just('b').to('\x08'),
+//             just('f').to('\x0C'),
+//             just('n').to('\n'),
+//             just('r').to('\r'),
+//             just('t').to('\t'),
+//             unicode_surrogate_pair(),
+//             unicode_escape(),
+//         )))
+//         .boxed();
+//
+//     let text_double_quotes = none_of("\\\"")
+//         .or(escape.clone())
+//         .repeated()
+//         .collect::<String>()
+//         .delimited_by(just('"'), just('"'));
+//
+//     let text_single_quotes = none_of("\\'")
+//         .or(escape)
+//         .repeated()
+//         .collect::<String>()
+//         .delimited_by(just('\''), just('\''));
+//
+//     let text = choice((
+//         text_double_quotes.map(DatexExpression::Text),
+//         text_single_quotes.map(DatexExpression::Text),
+//     ))
+//     .boxed();
+//
+//     text
+// }
 
 /// Parses an integer, including support for:
 /// ### Supported formats:
@@ -283,54 +287,58 @@ fn text<'a>() -> DatexScriptParser<'a> {
 /// - Decimal integers with leading zeros:
 /// - `0123`
 /// - `-0123`
-fn integer<'a>() -> DatexScriptParser<'a> {
-    let dec_digits = text::digits(10)
-        .then(just('_').ignore_then(text::digits(10)).repeated())
-        .to_slice();
-    let hex_digits = text::digits(16)
-        .then(just('_').ignore_then(text::digits(16)).repeated())
-        .to_slice();
-    let octal_digits = text::digits(8)
-        .then(just('_').ignore_then(text::digits(8)).repeated())
-        .to_slice();
-    let binary_digits = text::digits(2)
-        .then(just('_').ignore_then(text::digits(2)).repeated())
-        .to_slice();
-
-    let integer = choice((
-        // Hexadecimal integer
-        just("0x")
-            .or(just("0X"))
-            .ignore_then(hex_digits)
-            .map(|s: &str| Integer::from_string_radix(s, 16).unwrap())
-            .map(DatexExpression::Integer)
-            .boxed(),
-        // Octal integer
-        just("0o")
-            .or(just("0O"))
-            .ignore_then(octal_digits)
-            .map(|s: &str| Integer::from_string_radix(s, 8).unwrap())
-            .map(DatexExpression::Integer)
-            .boxed(),
-        // Binary integer
-        just("0b")
-            .or(just("0B"))
-            .ignore_then(binary_digits)
-            .map(|s: &str| Integer::from_string_radix(s, 2).unwrap())
-            .map(DatexExpression::Integer)
-            .boxed(),
-        // Decimal integer
-        just('-')
-            .or_not()
-            .then(dec_digits)
-            .to_slice()
-            .map(|s: &str| Integer::from_string(s).unwrap())
-            .map(DatexExpression::Integer)
-            .boxed(),
-    ))
-    .boxed();
-    integer
-}
+// fn integer<'a>() -> DatexScriptParser<'a> {
+//     // let dec_digits = text::digits(10)
+//     //     .then(just('_').ignore_then(text::digits(10)).repeated())
+//     //     .to_slice();
+//     // let hex_digits = text::digits(16)
+//     //     .then(just('_').ignore_then(text::digits(16)).repeated())
+//     //     .to_slice();
+//     // let octal_digits = text::digits(8)
+//     //     .then(just('_').ignore_then(text::digits(8)).repeated())
+//     //     .to_slice();
+//     // let binary_digits = text::digits(2)
+//     //     .then(just('_').ignore_then(text::digits(2)).repeated())
+//     //     .to_slice();
+//     //
+//     // let integer = choice((
+//     //     // Hexadecimal integer
+//     //     just("0x")
+//     //         .or(just("0X"))
+//     //         .ignore_then(hex_digits)
+//     //         .map(|s: &str| Integer::from_string_radix(s, 16).unwrap())
+//     //         .map(DatexExpression::Integer)
+//     //         .boxed(),
+//     //     // Octal integer
+//     //     just("0o")
+//     //         .or(just("0O"))
+//     //         .ignore_then(octal_digits)
+//     //         .map(|s: &str| Integer::from_string_radix(s, 8).unwrap())
+//     //         .map(DatexExpression::Integer)
+//     //         .boxed(),
+//     //     // Binary integer
+//     //     just("0b")
+//     //         .or(just("0B"))
+//     //         .ignore_then(binary_digits)
+//     //         .map(|s: &str| Integer::from_string_radix(s, 2).unwrap())
+//     //         .map(DatexExpression::Integer)
+//     //         .boxed(),
+//     //     // Decimal integer
+//     //     just('-')
+//     //         .or_not()
+//     //         .then(dec_digits)
+//     //         .to_slice()
+//     //         .map(|s: &str| Integer::from_string(s).unwrap())
+//     //         .map(DatexExpression::Integer)
+//     //         .boxed(),
+//     // ))
+//     // .boxed();
+//     // integer
+//         select! {
+//             Token::IntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s).unwrap())
+//         }
+//         .boxed()
+// }
 
 /// Parses a decimal number, including support for:
 /// ### Supported formats:
@@ -356,81 +364,81 @@ fn integer<'a>() -> DatexScriptParser<'a> {
 ///   - `-123.45`, `+123.45`
 ///   - `-Infinity`, `+Infinity`
 ///   - `-3.e10`, `+3.e10`
-fn decimal<'a>() -> DatexScriptParser<'a> {
-    // We should use separated_by('_') to allow underscores in numbers,
-    // but somehow this does stupid stuff regarding padding and allows 1 /2 to be
-    // taken into account as valid integer/integer. WTF!
-    let digits = one_of("0123456789_")
-        .repeated()
-        .at_least(1)
-        .to_slice();
-
-    let frac = just('.').then(digits.or_not());
-    let exp = just('e')
-        .or(just('E'))
-        .then(one_of("+-").or_not())
-        .then(digits);
-
-    let special_decimal =
-        choice((just("NaN"), just("nan"), just("Infinity"), just("infinity")));
-
-    // Integer (with optional +/-)
-    let integer = one_of("+-").or_not().then(digits);
-
-    // Decimal (anything with ., e, or both — but not plain integer)
-    let plain_decimal = choice((
-        // full number: digits .digits? e?
-        digits.then(frac).then(exp.or_not()).to_slice(),
-        // leading .digits e?
-        frac.then(exp.or_not()).to_slice(),
-        // digits . e? — trailing dot allowed (e.g., 4343. or 3.)
-        digits.then(just('.')).then(exp.or_not()).to_slice(),
-        // digits e — no dot but has exponent
-        digits.then(exp).to_slice(),
-    ));
-
-    // Strict decimal: plain_decimal + special_decimal
-    let strict_decimal = one_of("+-").or_not().then(choice((special_decimal, plain_decimal)))
-        .to_slice()
-        .map(|s: &str| DatexExpression::Decimal(Decimal::from_string(s)));
-
-    // Rational: both numerator and denominator are integers
-    let rational =
-        integer
-            .then(just('/'))
-            .then(integer)
-            .to_slice()
-            .map(|rational: &str| {
-                DatexExpression::Decimal(Decimal::from_string(rational))
-            });
-
-    choice((strict_decimal, rational)).boxed()
-}
-
-/// Parses a boolean value, either `true` or `false`.
-fn boolean<'a>() -> DatexScriptParser<'a> {
-    let true_value = just("true").to(DatexExpression::Boolean(true));
-    let false_value = just("false").to(DatexExpression::Boolean(false));
-
-    let boolean = choice((true_value, false_value)).boxed();
-
-    boolean
-}
-
-/// Parses a null value, represented by the keyword `null`.
-fn null<'a>() -> DatexScriptParser<'a> {
-    let null_value = just("null").to(DatexExpression::Null);
-    null_value.boxed()
-}
-
-/// Parses a variable name, which is a valid identifier.
-fn variable<'a>() -> DatexScriptParser<'a> {
-    // valid identifiers start with _ or an ascii letter, followed by any combination of letters, digits, or underscores
-    let identifier = text::ident()
-        .map(|s: &str| DatexExpression::Variable(s.to_string()))
-        .boxed();
-    identifier
-}
+// fn decimal<'a>() -> DatexScriptParser<'a> {
+//     // We should use separated_by('_') to allow underscores in numbers,
+//     // but somehow this does stupid stuff regarding padding and allows 1 /2 to be
+//     // taken into account as valid integer/integer. WTF!
+//     let digits = one_of("0123456789_")
+//         .repeated()
+//         .at_least(1)
+//         .to_slice();
+//
+//     let frac = just('.').then(digits.or_not());
+//     let exp = just('e')
+//         .or(just('E'))
+//         .then(one_of("+-").or_not())
+//         .then(digits);
+//
+//     let special_decimal =
+//         choice((just("NaN"), just("nan"), just("Infinity"), just("infinity")));
+//
+//     // Integer (with optional +/-)
+//     let integer = one_of("+-").or_not().then(digits);
+//
+//     // Decimal (anything with ., e, or both — but not plain integer)
+//     let plain_decimal = choice((
+//         // full number: digits .digits? e?
+//         digits.then(frac).then(exp.or_not()).to_slice(),
+//         // leading .digits e?
+//         frac.then(exp.or_not()).to_slice(),
+//         // digits . e? — trailing dot allowed (e.g., 4343. or 3.)
+//         digits.then(just('.')).then(exp.or_not()).to_slice(),
+//         // digits e — no dot but has exponent
+//         digits.then(exp).to_slice(),
+//     ));
+//
+//     // Strict decimal: plain_decimal + special_decimal
+//     let strict_decimal = one_of("+-").or_not().then(choice((special_decimal, plain_decimal)))
+//         .to_slice()
+//         .map(|s: &str| DatexExpression::Decimal(Decimal::from_string(s)));
+//
+//     // Rational: both numerator and denominator are integers
+//     let rational =
+//         integer
+//             .then(just('/'))
+//             .then(integer)
+//             .to_slice()
+//             .map(|rational: &str| {
+//                 DatexExpression::Decimal(Decimal::from_string(rational))
+//             });
+//
+//     choice((strict_decimal, rational)).boxed()
+// }
+//
+// /// Parses a boolean value, either `true` or `false`.
+// fn boolean<'a>() -> DatexScriptParser<'a> {
+//     let true_value = just("true").to(DatexExpression::Boolean(true));
+//     let false_value = just("false").to(DatexExpression::Boolean(false));
+//
+//     let boolean = choice((true_value, false_value)).boxed();
+//
+//     boolean
+// }
+//
+// /// Parses a null value, represented by the keyword `null`.
+// fn null<'a>() -> DatexScriptParser<'a> {
+//     let null_value = just("null").to(DatexExpression::Null);
+//     null_value.boxed()
+// }
+//
+// /// Parses a variable name, which is a valid identifier.
+// fn variable<'a>() -> DatexScriptParser<'a> {
+//     // valid identifiers start with _ or an ascii letter, followed by any combination of letters, digits, or underscores
+//     let identifier = text::ident()
+//         .map(|s: &str| DatexExpression::Variable(s.to_string()))
+//         .boxed();
+//     identifier
+// }
 
 fn binary_op(
     op: BinaryOperator,
@@ -451,13 +459,13 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // a sequence of expressions, separated by semicolons, optionally terminated with a semicolon
     let statements = expression
         .clone()
-        .then_ignore(just(';').padded().repeated().at_least(1))
+        .then_ignore(just(Token::Semicolon).repeated().at_least(1))
         .repeated()
         .collect::<Vec<_>>()
         .then(
             expression
                 .clone()
-                .then(just(';').padded().or_not())
+                .then(just(Token::Semicolon).or_not())
                 .or_not(), // Final expression with optional semicolon
         )
         .map(|(exprs, last)| {
@@ -487,17 +495,31 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         .boxed();
 
     // primitive values (e.g. 1, "text", true, null)
-    let integer = integer();
-    let decimal = decimal();
-    let text = text();
-    let boolean = boolean();
-    let null = null();
-    let variable = variable();
-    let placeholder = just('?').to(DatexExpression::Placeholder).boxed();
-
+    let integer = select! {
+        Token::IntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s).unwrap())
+    };
+    let decimal = select! {
+        Token::DecimalLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s))
+    };
+    let text = select! {
+        Token::StringLiteral(s) => DatexExpression::Text(s)
+    };
+    let boolean = select! {
+        Token::TrueKW => DatexExpression::Boolean(true),
+        Token::FalseKW => DatexExpression::Boolean(false),
+    };
+    let null = select! {
+        Token::NullKW => DatexExpression::Null
+    };
+    let variable = select! {
+        Token::Identifier(s) => DatexExpression::Variable(s)
+    };
+    let placeholder = select! {
+        Token::PlaceholderKW => DatexExpression::Placeholder
+    };
     // expression wrapped in parentheses
     let wrapped_expression =
-        statements.clone().delimited_by(just('('), just(')'));
+        statements.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
@@ -506,7 +528,9 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         decimal.clone(),
         integer.clone(),
         // any valid identifiers (equivalent to variable names), mapped to a text
-        text::ident().map(|s: &str| DatexExpression::Text(s.to_string())),
+        select! {
+            Token::Identifier(s) => DatexExpression::Text(s)
+        },
         // dynamic key
         wrapped_expression.clone(),
     ));
@@ -516,32 +540,30 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // [1,2,3,4,13434,(1),4,5,7,8]
     let array = expression_without_tuple
         .clone()
-        .separated_by(just(',').padded())
+        .separated_by(just(Token::Comma))
         .at_least(0)
         .allow_trailing()
         .collect()
-        .padded()
-        .delimited_by(just('['), just(']'))
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map(DatexExpression::Array);
 
     // object
     let object = key
         .clone()
-        .then_ignore(just(':').padded())
+        .then_ignore(just(Token::Colon))
         .then(expression_without_tuple.clone())
-        .separated_by(just(',').padded())
+        .separated_by(just(Token::Comma))
         .at_least(0)
         .allow_trailing()
         .collect()
-        .padded()
-        .delimited_by(just('{'), just('}'))
+        .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
         .map(DatexExpression::Object);
 
     // tuple
     // Key-value pair
     let tuple_key_value_pair = key
         .clone()
-        .then_ignore(just(':').padded())
+        .then_ignore(just(Token::Colon))
         .then(expression_without_tuple.clone())
         .map(|(key, value)| TupleEntry::KeyValue(key, value));
 
@@ -556,7 +578,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let tuple = tuple_entry
         .clone()
-        .separated_by(just(',').padded())
+        .separated_by(just(Token::Comma))
         .at_least(2)
         .collect::<Vec<_>>()
         .map(DatexExpression::Tuple);
@@ -564,7 +586,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // e.g. x,
     let single_value_tuple = tuple_entry
         .clone()
-        .then_ignore(just(',').padded())
+        .then_ignore(just(Token::Comma))
         .map(|value| vec![value])
         .map(DatexExpression::Tuple);
 
@@ -592,13 +614,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     .boxed();
 
     // operations on atoms
-    let op = |c| {
-        one_of(" \t\n")
-            .repeated()
-            .at_least(1)
-            .ignore_then(just(c))
-            .then_ignore(one_of(" \t\n").repeated().at_least(1))
-    };
+    let op = |c| just(c);
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let apply_or_property_access = atom
@@ -613,16 +629,13 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
                     object.clone(),
                 ))
                 .clone()
-                .padded()
                 .map(Apply::FunctionCall),
                 // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
                 // print "sdf"
-                one_of(" \n")
-                    .ignore_then(atom.clone().padded())
+                atom.clone()
                     .map(Apply::FunctionCall),
                 // property access
-                just('.')
-                    .padded()
+                just(Token::Dot)
                     .ignore_then(key.clone())
                     .map(Apply::PropertyAccess),
             ))
@@ -640,8 +653,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let product = apply_or_property_access.clone().foldl(
         choice((
-            op("*").to(binary_op(BinaryOperator::Multiply)),
-            op("/").to(binary_op(BinaryOperator::Divide)),
+            op(Token::Star).to(binary_op(BinaryOperator::Multiply)),
+            op(Token::Slash).to(binary_op(BinaryOperator::Divide)),
         ))
         .then(apply_or_property_access)
         .repeated(),
@@ -650,8 +663,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let sum = product.clone().foldl(
         choice((
-            op("+").to(binary_op(BinaryOperator::Add)),
-            op("-").to(binary_op(BinaryOperator::Subtract)),
+            op(Token::Plus).to(binary_op(BinaryOperator::Add)),
+            op(Token::Minus).to(binary_op(BinaryOperator::Subtract)),
         ))
         .then(product)
         .repeated(),
@@ -659,17 +672,18 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     );
 
     // variable declarations or assignments
-    let variable_assignment = just("val")
-        .or(just("ref"))
+    let variable_assignment = just(Token::ValKW)
+        .or(just(Token::RefKW))
         .or_not()
-        .padded()
-        .then::<&str, _>(text::ident())
-        .then_ignore(just('=').padded())
+        .then(select! {
+            Token::Identifier(s) => s
+        })
+        .then_ignore(just(Token::Assign))
         .then(sum.clone())
         .map(|((var_type, var_name), expr)| {
             if let Some(var_type) = var_type {
                 DatexExpression::VariableDeclaration(
-                    if var_type == "val" {
+                    if var_type == Token::ValKW {
                         VariableType::Value
                     } else {
                         VariableType::Reference
@@ -688,15 +702,14 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     expression_without_tuple.define(choice((variable_assignment, sum.clone())));
 
     expression.define(
-        choice((tuple.clone(), expression_without_tuple.clone())).padded(),
+        choice((tuple.clone(), expression_without_tuple.clone())),
     );
 
     choice((
         // empty script (0-n semicolons)
-        just(';')
+        just(Token::Semicolon)
             .repeated()
             .at_least(1)
-            .padded()
             .map(|_| DatexExpression::Statements(vec![])),
         // statements
         statements,
@@ -704,16 +717,26 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     .boxed()
 }
 
+type TokenInput<'a> = &'a[Token];
+
 pub fn parse<'a>(
     src: &'a str,
     opt_parser: Option<&DatexScriptParser<'a>>,
-) -> (Option<DatexExpression>, Vec<Rich<'a, char>>) {
+) -> (Option<DatexExpression>, Vec<Rich<'a, Token>>) {
+
+    let lexer = Token::lexer(src);
+    let tokens = lexer
+        .map(|a | a.map(|x| x))
+        .collect::<Result<Vec<_>, ()>>().unwrap(); // unwrap ok or error-handling
+
     if let Some(parser) = opt_parser {
         // Use the provided parser
-        let (res, errs) = parser.parse(src).into_output_errors();
+        let t = tokens.clone();
+        let (res, errs) = parser.parse(&t).into_output_errors();
         (res, errs)
     } else {
-        let (res, errs) = create_parser().parse(src).into_output_errors();
+        let t = tokens.clone();
+        let (res, errs) = create_parser().parse(&t).into_output_errors();
         (res, errs)
     }
 }
@@ -724,7 +747,7 @@ mod tests {
     use ariadne::{Color, Label, Report, ReportKind, Source};
     use std::assert_matches::assert_matches;
 
-    fn print_report(errs: Vec<Rich<char>>, src: &str) {
+    fn print_report(errs: Vec<Rich<Token>>, src: &str) {
         errs.into_iter().for_each(|e| {
             Report::build(ReportKind::Error, ((), e.span().into_range()))
                 .with_config(
