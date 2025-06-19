@@ -360,8 +360,7 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
     // We should use separated_by('_') to allow underscores in numbers,
     // but somehow this does stupid stuff regarding padding and allows 1 /2 to be
     // taken into account as valid integer/integer. WTF!
-    let digits = one_of("0123456789")
-        .or(just('_'))
+    let digits = one_of("0123456789_")
         .repeated()
         .at_least(1)
         .to_slice();
@@ -372,45 +371,40 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
         .then(one_of("+-").or_not())
         .then(digits);
 
-    let special =
-        choice((just("NaN"), just("nan"), just("Infinity"), just("infinity")))
-            .to_slice();
+    let special_decimal =
+        choice((just("NaN"), just("nan"), just("Infinity"), just("infinity")));
 
     // Integer (with optional +/-)
-    let integer = one_of("+-").or_not().then(digits).to_slice();
+    let integer = one_of("+-").or_not().then(digits);
 
     // Decimal (anything with ., e, or both — but not plain integer)
-    let plain_decimal = one_of("+-")
-        .or_not()
-        .then(choice((
-            // full number: digits .digits? e?
-            digits.then(frac).then(exp.or_not()).to_slice(),
-            // leading .digits e?
-            frac.then(exp.or_not()).to_slice(),
-            // digits . e? — trailing dot allowed (e.g., 4343. or 3.)
-            digits.then(just('.')).then(exp.or_not()).to_slice(),
-            // digits e — no dot but has exponent
-            digits.then(exp).to_slice(),
-        )))
-        .to_slice();
-
-    let special_decimal = one_of("+-").or_not().then(special).to_slice();
+    let plain_decimal = choice((
+        // full number: digits .digits? e?
+        digits.then(frac).then(exp.or_not()).to_slice(),
+        // leading .digits e?
+        frac.then(exp.or_not()).to_slice(),
+        // digits . e? — trailing dot allowed (e.g., 4343. or 3.)
+        digits.then(just('.')).then(exp.or_not()).to_slice(),
+        // digits e — no dot but has exponent
+        digits.then(exp).to_slice(),
+    ));
 
     // Strict decimal: plain_decimal + special_decimal
-    let strict_decimal = choice((plain_decimal, special_decimal))
+    let strict_decimal = one_of("+-").or_not().then(choice((special_decimal, plain_decimal)))
+        .to_slice()
         .map(|s: &str| DatexExpression::Decimal(Decimal::from_string(s)));
 
     // Rational: both numerator and denominator are integers
     let rational =
         integer
-            .then_ignore(just('/'))
+            .then(just('/'))
             .then(integer)
-            .map(|(lhs, rhs)| {
-                let joined = format!("{lhs}/{rhs}");
-                DatexExpression::Decimal(Decimal::from_string(&joined))
+            .to_slice()
+            .map(|rational: &str| {
+                DatexExpression::Decimal(Decimal::from_string(rational))
             });
 
-    choice((rational, strict_decimal)).boxed()
+    choice((strict_decimal, rational)).boxed()
 }
 
 /// Parses a boolean value, either `true` or `false`.
