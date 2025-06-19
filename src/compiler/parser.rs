@@ -7,7 +7,6 @@ use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
-use json_syntax::print;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -397,7 +396,7 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
     // Strict decimal: plain_decimal + special_decimal
     let strict_decimal =
         choice((plain_decimal, special_decimal)).map(|s: &str| {
-            return DatexExpression::Decimal(Decimal::from_string(&s));
+            DatexExpression::Decimal(Decimal::from_string(s))
         });
 
     // Rational: both numerator and denominator are integers
@@ -406,7 +405,7 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
             .then_ignore(just('/'))
             .then(integer)
             .map(|(lhs, rhs)| {
-                let joined = format!("{}/{}", lhs, rhs);
+                let joined = format!("{lhs}/{rhs}");
                 DatexExpression::Decimal(Decimal::from_string(&joined))
             });
 
@@ -1935,11 +1934,11 @@ mod tests {
         assert_eq!(val, ValueContainer::from(Decimal::from_string("1/3")));
 
         let (_, err) = parse("42.4/3", None);
-        assert!(err.len() > 0);
+        assert!(!err.is_empty());
         let (_, err) = parse("42 /3", None);
-        assert!(err.len() > 0);
+        assert!(!err.is_empty());
         let (_, err) = parse("42/ 3", None);
-        assert!(err.len() > 0);
+        assert!(!err.is_empty());
     }
 
     // TODO:
