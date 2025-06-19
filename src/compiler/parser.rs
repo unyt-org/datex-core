@@ -357,6 +357,9 @@ fn integer<'a>() -> DatexScriptParser<'a> {
 ///   - `-Infinity`, `+Infinity`
 ///   - `-3.e10`, `+3.e10`
 fn decimal<'a>() -> DatexScriptParser<'a> {
+    // We should use separated_by('_') to allow underscores in numbers,
+    // but somehow this does stupid stuff regarding padding and allows 1 /2 to be
+    // taken into account as valid integer/integer. WTF!
     let digits = one_of("0123456789")
         .or(just('_'))
         .repeated()
@@ -394,10 +397,8 @@ fn decimal<'a>() -> DatexScriptParser<'a> {
     let special_decimal = one_of("+-").or_not().then(special).to_slice();
 
     // Strict decimal: plain_decimal + special_decimal
-    let strict_decimal =
-        choice((plain_decimal, special_decimal)).map(|s: &str| {
-            DatexExpression::Decimal(Decimal::from_string(s))
-        });
+    let strict_decimal = choice((plain_decimal, special_decimal))
+        .map(|s: &str| DatexExpression::Decimal(Decimal::from_string(s)));
 
     // Rational: both numerator and denominator are integers
     let rational =
