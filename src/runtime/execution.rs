@@ -35,6 +35,19 @@ impl ExecutionContext<'_> {
     fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
         self.slots.borrow_mut().insert(address, value);
     }
+    
+    /// Drops a slot by its address, returning the value if it existed.
+    /// If the slot is not allocated, it returns an error.
+    fn drop_slot(
+        &self,
+        address: u32,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        self.slots
+            .borrow_mut()
+            .remove(&address)
+            .ok_or(())
+            .map_err(|_| ExecutionError::SlotNotAllocated(address))
+    }
 
     /// Sets the value of a slot, returning the previous value if it existed.
     /// If the slot is not allocated, it returns an error.
@@ -287,6 +300,11 @@ fn execute_loop(
                 // get value from slot
                 let slot_value = context.get_slot_value(address)?;
                 slot_value.into()
+            }
+            Instruction::DropSlot(SlotAddress(address)) => {
+                // remove slot from slots
+                context.drop_slot(address)?;
+                ActiveValue::None
             }
 
             i => {

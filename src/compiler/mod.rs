@@ -25,6 +25,7 @@ pub enum CompilerError<'a> {
     InvalidPlaceholderCount,
     NonStaticValue,
     UndeclaredVariable(String),
+    ScopePopError
 }
 
 impl<'a> From<Vec<Rich<'a, Token>>> for CompilerError<'a> {
@@ -59,6 +60,9 @@ impl<'a> Display for CompilerError<'a> {
             }
             CompilerError::UndeclaredVariable(var) => {
                 write!(f, "Use of undeclared variable: {var}")
+            }
+            CompilerError::ScopePopError => {
+                write!(f, "Could not pop scope, stack is empty")
             }
         }
     }

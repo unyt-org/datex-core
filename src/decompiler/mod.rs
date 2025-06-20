@@ -376,6 +376,16 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 }
                 handle_after_term(state, &mut output, false)?;
             }
+            Instruction::DropSlot(address) => {
+                // if resolve_slots is enabled, write the slot as variable
+                if state.options.resolve_slots {
+                    // TODO: generate variable name for slot
+                    write!(output, "#drop {}", address.0)?;
+                } else {
+                    // otherwise just write the slot address
+                    write!(output, "#drop {}", address.0)?;
+                }
+            }
 
             _ => {
                 write!(output, "{instruction:?}")?;

@@ -589,26 +589,50 @@ struct CompileScope {
     /// List of variables, mapped by name to their slot address and type.
     variables: HashMap<String, (u32, VariableType)>,
     // TODO: parent variables
+    parent_scope: Option<Box<CompileScope>>,
     next_slot_address: u32,
 }
 
 impl CompileScope {
     fn register_variable_slot(&mut self, variable_type: VariableType, name: String) -> u32 {
-        let index = self.next_slot_address;
-        let slot_address = (self.variables.len() as u32) + index;
-        self.variables.insert(name, (slot_address, variable_type));
+        let slot_address = self.next_slot_address;
+        self.variables.insert(name.clone(), (slot_address, variable_type));
         self.next_slot_address += 1;
         slot_address
     }
 
     fn resolve_variable_slot(&self, name: &str) -> Option<(u32, VariableType)> {
-        self.variables.get(name).cloned()
+        let mut variables = &self.variables;
+        loop {
+            if let Some(slot) = variables.get(name) {
+                return Some(slot.clone());
+            }
+            if let Some(parent) = &self.parent_scope {
+                variables = &parent.variables;
+            } else {
+                return None; // variable not found in this scope or any parent scope
+            }
+        }
     }
 
-    fn create_child_scope(& self) -> CompileScope {
+    /// Creates a new `CompileScope` that is a child of the current scope.
+    fn push(self) -> CompileScope {
         CompileScope {
             next_slot_address: self.next_slot_address,
+            parent_scope: Some(Box::new(self)),
             variables: HashMap::new(),
+        }
+    }
+
+    /// Drops the current scope and returns to the parent scope and a list
+    /// of all slot addresses that should be dropped.
+    fn pop(self) -> Option<(CompileScope, Vec<u32>)> {
+        if let Some(mut parent) = self.parent_scope {
+            // update next_slot_address for parent scope
+            parent.next_slot_address = self.next_slot_address;
+            Some((*parent, self.variables.keys().map(|k| self.variables[k].0).collect()))
+        } else {
+            None
         }
     }
 }
@@ -672,7 +696,7 @@ fn compile_ast<'a>(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
 ) -> Result<(), CompilerError<'a>> {
-    let scope = &mut CompileScope::default();
+    let scope = CompileScope::default();
     compile_expression(compilation_scope, ast, CompileMetadata::outer(), scope)?;
     Ok(())
 }
@@ -681,8 +705,8 @@ fn compile_expression<'a>(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
     mut meta: CompileMetadata,
-    scope: &mut CompileScope
-) -> Result<(), CompilerError<'a>> {
+    mut scope: CompileScope
+) -> Result<CompileScope, CompilerError<'a>> {
 
     let scoped = meta.must_be_scoped(&ast);
 
@@ -724,7 +748,7 @@ fn compile_expression<'a>(
         DatexExpression::Array(array) => {
             compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
             for item in array {
-                compile_expression(compilation_scope, item, CompileMetadata::with_scope_required(), scope)?;
+                scope = compile_expression(compilation_scope, item, CompileMetadata::with_scope_required(), scope)?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
@@ -733,10 +757,10 @@ fn compile_expression<'a>(
             for entry in tuple {
                 match entry {
                     TupleEntry::KeyValue(key, value) => {
-                        compile_key_value_entry(compilation_scope, key, value, scope)?;
+                        scope = compile_key_value_entry(compilation_scope, key, value, scope)?;
                     }
                     TupleEntry::Value(value) => {
-                        compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
+                        scope = compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
                     }
                 }
             }
@@ -746,7 +770,7 @@ fn compile_expression<'a>(
             compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
             for (key, value) in object {
                 // compile key and value
-                compile_key_value_entry(compilation_scope, key, value, scope)?;
+                scope = compile_key_value_entry(compilation_scope, key, value, scope)?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
@@ -767,24 +791,34 @@ fn compile_expression<'a>(
             compilation_scope.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !statements[0].is_terminated {
-                compile_expression(compilation_scope, statements.remove(0).expression, CompileMetadata::default(), scope)?;
+                scope = compile_expression(compilation_scope, statements.remove(0).expression, CompileMetadata::default(), scope)?;
             } else {
                 // if not outer context, new scope
-                let scope = if !meta.is_outer_context {
+                let mut child_scope = if !meta.is_outer_context {
                     compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
-                    &mut scope.create_child_scope()
+                    scope.push()
                 } else {
                     scope
                 };
                 for statement in statements {
-                    compile_expression(compilation_scope, statement.expression, CompileMetadata::default(), scope)?;
+                    child_scope = compile_expression(compilation_scope, statement.expression, CompileMetadata::default(), child_scope)?;
                     // if statement is terminated, append close and store
                     if statement.is_terminated {
                         compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
                     }
                 }
                 if !meta.is_outer_context {
+                    let scope_data = child_scope.pop().ok_or(CompilerError::ScopePopError)?;
+                    scope = scope_data.0; // set parent scope
+                    // drop all slot addresses that were allocated in this scope
+                    for slot_address in scope_data.1 {
+                        compilation_scope.append_binary_code(InstructionCode::DROP_SLOT);
+                        compilation_scope.append_u32(slot_address);
+                    }
                     compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+                }
+                else {
+                    scope = child_scope;
                 }
             }
         }
@@ -796,8 +830,8 @@ fn compile_expression<'a>(
             if meta.current_binary_operator != Some(operator.clone()) {
                 compilation_scope.append_binary_code(InstructionCode::from(&operator));
             }
-            compile_expression(compilation_scope, *a, CompileMetadata::with_current_binary_operator(operator.clone()), scope)?;
-            compile_expression(compilation_scope, *b, CompileMetadata::with_current_binary_operator(operator), scope)?;
+            scope = compile_expression(compilation_scope, *a, CompileMetadata::with_current_binary_operator(operator.clone()), scope)?;
+            scope = compile_expression(compilation_scope, *b, CompileMetadata::with_current_binary_operator(operator), scope)?;
         }
 
         // apply
@@ -822,7 +856,7 @@ fn compile_expression<'a>(
                 }
             }
             // compile expression
-            compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
+            scope = compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
         },
         
         // assignment
@@ -852,15 +886,15 @@ fn compile_expression<'a>(
         compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
     }
 
-    Ok(())
+    Ok(scope)
 }
 
 fn compile_key_value_entry<'a>(
     compilation_scope: &CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
-    scope: &mut CompileScope
-) -> Result<(), CompilerError<'a>> {
+    mut scope: CompileScope
+) -> Result<CompileScope, CompilerError<'a>> {
     match key {
             // text -> insert key string
             DatexExpression::Text(text) => {
@@ -869,12 +903,12 @@ fn compile_key_value_entry<'a>(
             // other -> insert key as dynamic
             _ => {
                 compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
-                compile_expression(compilation_scope, key, CompileMetadata::with_scope_required(), scope)?;
+                scope = compile_expression(compilation_scope, key, CompileMetadata::with_scope_required(), scope)?;
             }
         };
     // insert value
-    compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
-    Ok(())
+    scope = compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
+    Ok(scope)
 }
 
 
@@ -1623,6 +1657,78 @@ pub mod tests {
                 0, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 1,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_allocate_scoped_slots() {
+        init_logger();
+        let script = "val a = 42; (val a = 43; a); a";
+        let result = compile_and_log(script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                0, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::SCOPE_START.into(),
+                InstructionCode::ALLOCATE_SLOT.into(),
+                1, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                43,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::GET_SLOT.into(),
+                1, 0, 0, 0,
+                InstructionCode::DROP_SLOT.into(),
+                1, 0, 0, 0,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_allocate_scoped_slots_with_parent_variables() {
+        init_logger();
+        let script = "val a = 42; val b = 41; (val a = 43; a; b); a";
+        let result = compile_and_log(script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                0, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::ALLOCATE_SLOT.into(),
+                1, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                41,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::SCOPE_START.into(),
+                InstructionCode::ALLOCATE_SLOT.into(),
+                2, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                43,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::GET_SLOT.into(),
+                2, 0, 0, 0,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::GET_SLOT.into(),
+                1, 0, 0, 0,
+                InstructionCode::DROP_SLOT.into(),
+                2, 0, 0, 0,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
             ]
         );
     }

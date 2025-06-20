@@ -562,7 +562,12 @@ pub fn parse<'a, 'b>(
 
     let lexer = Token::lexer(src);
     let tokens = lexer
-        .collect::<Result<Vec<_>, ()>>().unwrap(); // unwrap ok or error-handling
+        .collect::<Result<Vec<_>, ()>>();
+    // invalid token (todo)
+    if let Err(err) = tokens {
+        return (None, vec![])
+    }
+    let tokens = tokens.unwrap();
 
     // TODO:
     if let Some(parser) = opt_parser {

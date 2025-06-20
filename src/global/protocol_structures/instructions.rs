@@ -41,6 +41,7 @@ pub enum Instruction {
 
     AllocateSlot(SlotAddress),
     GetSlot(SlotAddress),
+    DropSlot(SlotAddress),
 }
 
 impl Display for Instruction {
@@ -95,6 +96,9 @@ impl Display for Instruction {
             }
             Instruction::GetSlot(address) => {
                 write!(f, "GET_SLOT {}", address.0)
+            }
+            Instruction::DropSlot(address) => {
+                write!(f, "DROP_SLOT {}", address.0)
             }
         }
     }

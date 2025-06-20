@@ -9,11 +9,32 @@ contexts:
     - match: '"([^"\\]|\\.)*"'   # Match double-quoted strings, including escaped quotes
       scope: string.quoted.double.datex
 
+    - match: "'([^'\\\\.]|\\\\..)*'"   # Match single-quoted strings, including escaped quotes
+      scope: string.quoted.single.datex
+
     - match: '\b(true|false|null)\b'  # Booleans and null
       scope: constant.language.datex
 
-    - match: '\b\d+\b'            # Integers
+    - match: '\b(\d|_)+\b'            # Integers
       scope: constant.numeric.integer.datex
+
+    - match: '\b(\d|_)+\.(\d|_)+\b'       # Floating-point numbers
+      scope: constant.numeric.float.datex
 
     - match: '\s+'                # Whitespace (ignored)
       scope: text.whitespace.datex
+
+    - match: '\b(val|ref)\b'           # Keywords
+      scope: keyword.control.datex
+
+    - match: '//.*$'   # single-line comments
+      scope: comment.line.double-slash.datex
+
+    # multi-line comments
+    - match: '/\*'
+      scope: punctuation.definition.comment.begin.datex
+      push:
+        - meta_scope: comment.block.datex
+        - match: '\*/'
+          scope: punctuation.definition.comment.end.datex
+          pop: true
