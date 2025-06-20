@@ -195,13 +195,13 @@ fn decode_json_unicode_escapes(input: &str) -> String {
                             if let Some(c) = chars.next() {
                                 low_code.push(c);
                             } else {
-                                output.push_str(&format!("\\u{:04X}\\u{}", first_unit, low_code));
+                                output.push_str(&format!("\\u{first_unit:04X}\\u{low_code}"));
                                 break;
                             }
                         }
 
-                        if let Ok(second_unit) = u16::from_str_radix(&low_code, 16) {
-                            if (0xDC00..=0xDFFF).contains(&second_unit) {
+                        if let Ok(second_unit) = u16::from_str_radix(&low_code, 16)
+                            && (0xDC00..=0xDFFF).contains(&second_unit) {
                                 let combined = 0x10000
                                     + (((first_unit - 0xD800) as u32) << 10)
                                     + ((second_unit - 0xDC00) as u32);
@@ -210,24 +210,23 @@ fn decode_json_unicode_escapes(input: &str) -> String {
                                     continue;
                                 }
                             }
-                        }
 
                         // Invalid surrogate fallback
-                        output.push_str(&format!("\\u{:04X}\\u{}", first_unit, low_code));
+                        output.push_str(&format!("\\u{first_unit:04X}\\u{low_code}"));
                     } else {
                         // Unpaired high surrogate
-                        output.push_str(&format!("\\u{:04X}", first_unit));
+                        output.push_str(&format!("\\u{first_unit:04X}"));
                     }
                 } else {
                     // Normal scalar value
                     if let Some(c) = char::from_u32(first_unit as u32) {
                         output.push(c);
                     } else {
-                        output.push_str(&format!("\\u{:04X}", first_unit));
+                        output.push_str(&format!("\\u{first_unit:04X}"));
                     }
                 }
             } else {
-                output.push_str(&format!("\\u{}", code_unit));
+                output.push_str(&format!("\\u{code_unit}"));
             }
         } else {
             output.push(ch);
@@ -1980,7 +1979,7 @@ mod tests {
     fn test_invalid_add() {
         let src = "1+2";
         let (res, errs) = parse(src, None);
-        println!("res: {:?}", res);
+        println!("res: {res:?}");
         assert!(errs.len() == 1, "Expected error when parsing expression");
     }
 
