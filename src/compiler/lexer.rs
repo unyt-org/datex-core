@@ -18,7 +18,7 @@ impl Loc {
 
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(skip r"//[^\n]*")]
-#[logos(skip r"[ \n\t\r\f]+")] // Do not skip newline as it acts as semicolon
+#[logos(skip r"[ \n\t\r\f]+")]
 #[rustfmt::skip]
 pub enum Token {
     // ==< Operators & Separators >==
@@ -72,32 +72,9 @@ pub enum Token {
     #[token("==")] EqualEqual, // JS ===
 
     // ==< Keywords >==
-    #[token("async")] AsyncKW,
-    #[token("await")] AwaitKW,
-    #[token("gen")] GenKW,
-    #[token("fn")] FuncKW,
-    #[token("struct")] StructKW,
-    #[token("enum")] EnumKW,
-    #[token("import")] ImportKW,
-    #[token("export")] ExportKW,
-    #[token("as")] AsKW,
-    #[token("yield")] YieldKW,
-    #[token("return")] ReturnKW,
-    #[token("break")] BreakKW,
-    #[token("continue")] ContinueKW,
-    #[token("let")] LetKW,
-    #[token("loop")] LoopKW,
-    #[token("while")] WhileKW,
-    #[token("for")] ForKW,
-    #[token("if")] IfKW,
-    #[token("else")] ElseKW,
-    #[token("match")] MatchKW,
     #[token("true")] TrueKW,
     #[token("false")] FalseKW,
     #[token("null")] NullKW,
-    #[token("undef")] UndefinedKW,
-    #[token("self")] SelfKW,
-    #[token("module")] ModuleKW,
 
     #[token("?")] PlaceholderKW,
     #[token("val")] ValKW,
@@ -108,9 +85,51 @@ pub enum Token {
     #[regex(r"[+-]?(?:nan|NaN)")] NanLiteral,
 
     // ==< Value literals >==
-    // decimal
+    /// decimal
+    /// ### Supported formats:
+    /// - Standard decimals:
+    ///   - `123.456`
+    ///   - `0.001`
+    ///   - `.789`
+    ///   - `123.`
+    ///   - `3.e10`
+    ///   - `534.e-124`
+    /// - Decimals with exponent:
+    ///   - `1.23e10`
+    ///   - `4.56E-3`
+    ///   - `789e+2`
+    ///   - `42e0`
+    /// - Integer with exponent (no decimal point):
+    ///   - `123e5`
+    ///   - `42E-1`
+    /// - Special values:
+    ///   - `NaN`, `nan`
+    ///   - `Infinity`, `infinity`
+    /// - Optional leading sign is supported for all formats:
+    ///   - `-123.45`, `+123.45`
+    ///   - `-Infinity`, `+Infinity`
+    ///   - `-3.e10`, `+3.e10`
     #[regex(r"[+-]?(((0|[1-9])(\d|_)*)?\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)", allocated_string)] DecimalLiteral(String),
-    // integer
+    /// integer
+    /// ### Supported formats:
+    /// - Hexadecimal integers:
+    ///     - `0x1A2B3C4D5E6F`
+    ///     - `0X1A2B3C4D5E6F`
+    /// - Octal integers:
+    ///     - `0o755`
+    ///     - `0O755`
+    /// - Binary integers:
+    ///     - `0b101010`
+    ///     - `0B101010`
+    /// - Decimal integers:
+    ///     - `123456789`
+    ///     - `-123456789`
+    /// - Integers with underscores:
+    ///     - `1_234_567`
+    ///     - `-1_234_567`
+    /// - Decimal integers with leading zeros:
+    /// - `0123`
+    /// - `-0123`
     #[regex(r"[+-]?(0|[1-9])(\d|_)*", allocated_string)] IntegerLiteral(String),
     // binary integer
     #[regex(r"0[bB][01_]+", allocated_string)] BinaryIntegerLiteral(String),
