@@ -38,3 +38,6 @@ contexts:
         - match: '\*/'
           scope: punctuation.definition.comment.end.datex
           pop: true
+
+    - match: '#\d+'    # Slot
+      scope: variable.other.slot.datex

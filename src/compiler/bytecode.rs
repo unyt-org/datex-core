@@ -609,9 +609,12 @@ pub struct CompileScope {
 }
 
 impl CompileScope {
-    fn register_variable_slot(&mut self, variable_type: VariableType, name: String) -> u32 {
-        let slot_address = self.next_slot_address;
+    fn register_variable_slot(&mut self, slot_address: u32, variable_type: VariableType, name: String) {
         self.variables.insert(name.clone(), (slot_address, variable_type));
+    }
+
+    fn get_next_variable_slot(&mut self) -> u32 {
+        let slot_address = self.next_slot_address;
         self.next_slot_address += 1;
         slot_address
     }
@@ -859,19 +862,25 @@ fn compile_expression<'a>(
         // declaration
         DatexExpression::VariableDeclaration(var_type, name, expression) => {
             compilation_scope.mark_has_non_static_value();
-            match var_type {
+            let address = match var_type {
                 VariableType::Value => {
                     // allocate new slot for variable
-                    let address = scope.register_variable_slot(var_type, name);
+                    let address = scope.get_next_variable_slot();
                     compilation_scope.append_binary_code(InstructionCode::ALLOCATE_SLOT);
                     compilation_scope.append_u32(address);
+                    address
                 }
                 VariableType::Reference => {
                     todo!();
                 }
-            }
+            };
             // compile expression
             scope = compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
+            // close allocation scope
+            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+
+            // register new variable
+            scope.register_variable_slot(address, var_type, name);
         },
         
         // assignment
@@ -880,7 +889,14 @@ fn compile_expression<'a>(
             // get variable slot address
             let (var_slot, var_type) = scope.resolve_variable_slot(&name)
                 .ok_or_else(|| CompilerError::UndeclaredVariable(name.clone()))?;
-            todo!("Variable assignment not implemented yet");
+
+            // append binary code to load variable
+            compilation_scope.append_binary_code(InstructionCode::UPDATE_SLOT);
+            compilation_scope.append_u32(var_slot);
+            // compile expression
+            scope = compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
+            // close assignment scope
+            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         },
 
         // variable access
@@ -1648,6 +1664,7 @@ pub mod tests {
                 0, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1665,6 +1682,7 @@ pub mod tests {
                 0, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -1688,12 +1706,14 @@ pub mod tests {
                 0, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 43,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1, 0, 0, 0,
@@ -1720,17 +1740,20 @@ pub mod tests {
                 0, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 41,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 2, 0, 0, 0,
                 InstructionCode::INT_8.into(),
                 43,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 2, 0, 0, 0,

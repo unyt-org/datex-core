@@ -91,6 +91,7 @@ pub enum ScopeType {
     Tuple,
     Array,
     Object,
+    SlotAssignment
 }
 
 impl ScopeType {
@@ -100,6 +101,9 @@ impl ScopeType {
             ScopeType::Tuple => write!(output, "(")?,
             ScopeType::Array => write!(output, "[")?,
             ScopeType::Object => write!(output, "{{")?,
+            ScopeType::SlotAssignment => {
+                // do nothing, slot assignment does not have a start
+            }
         }
         Ok(())
     }
@@ -109,6 +113,9 @@ impl ScopeType {
             ScopeType::Tuple => write!(output, ")")?,
             ScopeType::Array => write!(output, "]")?,
             ScopeType::Object => write!(output, "}}")?,
+            ScopeType::SlotAssignment => {
+                // do nothing, slot assignment does not have an end
+            }
         }
         Ok(())
     }
@@ -355,6 +362,8 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
 
             // slots
             Instruction::AllocateSlot(address) => {
+                handle_before_term(state, &mut output, false)?;
+                state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO: generate variable name for slot
@@ -384,6 +393,18 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
                 } else {
                     // otherwise just write the slot address
                     write!(output, "#drop {}", address.0)?;
+                }
+            }
+            Instruction::UpdateSlot(address) => {
+                handle_before_term(state, &mut output, false)?;
+                state.new_scope(ScopeType::SlotAssignment);
+                // if resolve_slots is enabled, write the slot as variable
+                if state.options.resolve_slots {
+                    // TODO: generate variable name for slot
+                    write!(output, "#{} = ", address.0)?;
+                } else {
+                    // otherwise just write the slot address
+                    write!(output, "#{} = ", address.0)?;
                 }
             }
 

@@ -11,6 +11,7 @@ pub enum ScopeType {
     Tuple,
     Array,
     Object,
+    SlotAssignment,
 }
 
 // TODO: do we still need ActiveValue if it is just an alias for an Option<ValueContainer>?
@@ -32,6 +33,13 @@ impl ActiveValue {
                 None
             }
         }
+    }
+
+    pub fn is_some(&self) -> bool {
+        matches!(self, ActiveValue::ValueContainer(_))
+    }
+    pub fn is_none(&self) -> bool {
+        matches!(self, ActiveValue::None)
     }
 }
 
@@ -190,15 +198,6 @@ impl ScopeStack {
         &mut scope.active_value
     }
 
-    /// Clears the active value of the current scope.
-    pub fn clear_active_value(&mut self) -> ActiveValue {
-        let scope = self.get_current_scope_mut();
-        // TODO: no clone here
-        let active = scope.active_value.clone();
-        scope.active_value = ActiveValue::None;
-        active
-    }
-
     /// Sets the active operation for the current scope.
     pub fn set_active_operation(&mut self, operation: Instruction) {
         self.get_current_scope_mut().active_operation = Some(operation);
@@ -209,6 +208,11 @@ impl ScopeStack {
         self.get_current_scope().active_operation.as_ref()
     }
 
+    /// Clears the active operation of the current scope.
+    pub fn clear_active_operation(&mut self) -> Option<Instruction> {
+        let scope = self.get_current_scope_mut();
+        scope.active_operation.take()
+    }
 
     /// Sets the active slot that is currently been written to.
     pub fn set_active_slot(&mut self, slot: u32) {

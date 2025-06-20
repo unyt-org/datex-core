@@ -323,6 +323,14 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::DropSlot(address.unwrap()))
                         }
                     }
+                    InstructionCode::UPDATE_SLOT => {
+                        let address = SlotAddress::read(&mut reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::UpdateSlot(address.unwrap()))
+                        }
+                    }
 
                     _ => Err(ParserError::InvalidBinaryCode(
                         instruction_code as u8,
