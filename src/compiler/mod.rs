@@ -12,12 +12,13 @@ mod lexer;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::compile_script;
+use crate::compiler::lexer::Token;
 use crate::compiler::parser::DatexExpression;
 
 #[derive(Debug)]
 pub enum CompilerError<'a> {
     UnexpectedTerm(DatexExpression),
-    SyntaxError(Vec<Rich<'a, char>>),
+    SyntaxError(Vec<Rich<'a, Token>>),
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
@@ -26,8 +27,8 @@ pub enum CompilerError<'a> {
     UndeclaredVariable(String),
 }
 
-impl<'a> From<Vec<Rich<'a, char>>> for CompilerError<'a> {
-    fn from(error: Vec<Rich<'a, char>>) -> Self {
+impl<'a> From<Vec<Rich<'a, Token>>> for CompilerError<'a> {
+    fn from(error: Vec<Rich<'a, Token>>) -> Self {
         CompilerError::SyntaxError(error)
     }
 }

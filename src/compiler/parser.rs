@@ -267,6 +267,94 @@ pub type DatexScriptParser<'a> =
 //     text
 // }
 
+fn decode_json_unicode_escapes(input: &str) -> String {
+    let mut output = String::new();
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' && chars.peek() == Some(&'u') {
+            chars.next(); // skip 'u'
+
+            let mut code_unit = String::new();
+            for _ in 0..4 {
+                if let Some(c) = chars.next() {
+                    code_unit.push(c);
+                } else {
+                    output.push_str("\\u");
+                    output.push_str(&code_unit);
+                    break;
+                }
+            }
+
+            if let Ok(first_unit) = u16::from_str_radix(&code_unit, 16) {
+                if (0xD800..=0xDBFF).contains(&first_unit) {
+                    // High surrogate — look for low surrogate
+                    if chars.next() == Some('\\') && chars.next() == Some('u') {
+                        let mut low_code = String::new();
+                        for _ in 0..4 {
+                            if let Some(c) = chars.next() {
+                                low_code.push(c);
+                            } else {
+                                output.push_str(&format!("\\u{:04X}\\u{}", first_unit, low_code));
+                                break;
+                            }
+                        }
+
+                        if let Ok(second_unit) = u16::from_str_radix(&low_code, 16) {
+                            if (0xDC00..=0xDFFF).contains(&second_unit) {
+                                let combined = 0x10000
+                                    + (((first_unit - 0xD800) as u32) << 10)
+                                    + ((second_unit - 0xDC00) as u32);
+                                if let Some(c) = char::from_u32(combined) {
+                                    output.push(c);
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // Invalid surrogate fallback
+                        output.push_str(&format!("\\u{:04X}\\u{}", first_unit, low_code));
+                    } else {
+                        // Unpaired high surrogate
+                        output.push_str(&format!("\\u{:04X}", first_unit));
+                    }
+                } else {
+                    // Normal scalar value
+                    if let Some(c) = char::from_u32(first_unit as u32) {
+                        output.push(c);
+                    } else {
+                        output.push_str(&format!("\\u{:04X}", first_unit));
+                    }
+                }
+            } else {
+                output.push_str(&format!("\\u{}", code_unit));
+            }
+        } else {
+            output.push(ch);
+        }
+    }
+
+    output
+}
+
+/// Takes a literal text string input, e.g. ""Hello, world!"" or "'Hello, world!' or ""x\"""
+/// and returns the unescaped text, e.g. "Hello, world!" or 'Hello, world!' or "x\""
+fn unescape_text(text: &str) -> String {
+    // remove first and last quote (double or single)
+    let escaped = text[1..text.len() - 1]
+    // Replace escape sequences with actual characters
+        .replace(r#"\""#, "\"") // Replace \" with "
+        .replace(r#"\'"#, "'") // Replace \' with '
+        .replace(r#"\n"#, "\n") // Replace \n with newline
+        .replace(r#"\r"#, "\r") // Replace \r with carriage return
+        .replace(r#"\t"#, "\t") // Replace \t with tab
+        .replace(r#"\\"#, "\\") // Replace \\ with \
+        // TODO remove all other backslashes before any other character
+        .to_string();
+    // Decode unicode escapes, e.g. \u1234 or \uD800\uDC00
+    decode_json_unicode_escapes(&escaped)
+}
+
 /// Parses an integer, including support for:
 /// ### Supported formats:
 /// - Hexadecimal integers:
@@ -496,13 +584,25 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     // primitive values (e.g. 1, "text", true, null)
     let integer = select! {
-        Token::IntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s).unwrap())
+        Token::IntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s).unwrap()),
+        Token::BinaryIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s[2..], 2).unwrap()),
+        Token::HexadecimalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s[2..], 16).unwrap()),
+        Token::OctalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s[2..], 8).unwrap()),
     };
     let decimal = select! {
-        Token::DecimalLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s))
+        Token::DecimalLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s)),
+        Token::NanLiteral => DatexExpression::Decimal(Decimal::NaN),
+        Token::InfinityLiteral(s) => DatexExpression::Decimal(
+            if s.starts_with('-') {
+                Decimal::NegInfinity
+            } else {
+                Decimal::Infinity
+            }
+        ),
+        Token::FractionLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s)),
     };
     let text = select! {
-        Token::StringLiteral(s) => DatexExpression::Text(s)
+        Token::StringLiteral(s) => DatexExpression::Text(unescape_text(&s))
     };
     let boolean = select! {
         Token::TrueKW => DatexExpression::Boolean(true),
@@ -719,25 +819,27 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
 type TokenInput<'a> = &'a[Token];
 
-pub fn parse<'a>(
-    src: &'a str,
-    opt_parser: Option<&DatexScriptParser<'a>>,
+pub fn parse<'a, 'b>(
+    src: &str,
+    opt_parser: Option<&DatexScriptParser<'b>>,
 ) -> (Option<DatexExpression>, Vec<Rich<'a, Token>>) {
 
     let lexer = Token::lexer(src);
     let tokens = lexer
-        .map(|a | a.map(|x| x))
+        .map(|a | a)
         .collect::<Result<Vec<_>, ()>>().unwrap(); // unwrap ok or error-handling
 
+    // TODO:
     if let Some(parser) = opt_parser {
-        // Use the provided parser
-        let t = tokens.clone();
-        let (res, errs) = parser.parse(&t).into_output_errors();
-        (res, errs)
+        // TODO:
+        // // Use the provided parser
+        // let (res, errs) = parser.parse(&tokens).into_output_errors();
+        // (res, vec![])
+        let (res, errs) = create_parser().parse(&tokens).into_output_errors();
+        (res, vec![])
     } else {
-        let t = tokens.clone();
-        let (res, errs) = create_parser().parse(&t).into_output_errors();
-        (res, errs)
+        let (res, errs) = create_parser().parse(&tokens).into_output_errors();
+        (res, vec![])
     }
 }
 
@@ -1052,14 +1154,24 @@ mod tests {
 
     #[test]
     fn test_text_escape_sequences() {
-        let src = r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00""#;
+        let src = r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00 \u2764""#;
         let text = parse_unwrap(src);
 
         assert_eq!(
             text,
             DatexExpression::Text(
-                "Hello, \"world\"! \n New line \t tab 😀".to_string()
+                "Hello, \"world\"! \n New line \t tab 😀 ❤".to_string()
             )
+        );
+    }
+
+    #[test]
+    fn test_text_escape_sequences_2() {
+        let src = r#""\u0048\u0065\u006C\u006C\u006F, \u2764\uFE0F, \uD83D\uDE00""#;
+        let text = parse_unwrap(src);
+        assert_eq!(
+            text,
+            DatexExpression::Text("Hello, ❤️, 😀".to_string())
         );
     }
 
