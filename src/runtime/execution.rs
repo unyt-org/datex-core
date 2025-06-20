@@ -35,7 +35,7 @@ impl ExecutionContext<'_> {
     fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
         self.slots.borrow_mut().insert(address, value);
     }
-    
+
     /// Drops a slot by its address, returning the value if it existed.
     /// If the slot is not allocated, it returns an error.
     fn drop_slot(
@@ -156,7 +156,7 @@ impl Display for ExecutionError {
     }
 }
 
-fn execute_loop(
+pub fn execute_loop(
     context: &mut ExecutionContext,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let dxb_body = context.dxb_body;
@@ -525,7 +525,7 @@ mod tests {
     use log::debug;
 
     use super::*;
-    use crate::compiler::bytecode::compile_script;
+    use crate::compiler::bytecode::{compile_script, CompileOptions};
     use crate::datex_values::traits::soft_eq::SoftEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
@@ -534,7 +534,7 @@ mod tests {
     fn execute_datex_script_debug(
         datex_script: &str,
     ) -> Option<ValueContainer> {
-        let dxb = compile_script(datex_script, None).unwrap();
+        let (dxb, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
         let options = ExecutionOptions { verbose: true };
         execute_dxb(&dxb, options).unwrap_or_else(|err| {
             panic!("Execution failed: {err}");

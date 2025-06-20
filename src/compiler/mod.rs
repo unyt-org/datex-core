@@ -11,7 +11,7 @@ pub mod parser;
 mod lexer;
 
 use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::compiler::bytecode::compile_script;
+use crate::compiler::bytecode::{compile_script, CompileOptions};
 use crate::compiler::lexer::Token;
 use crate::compiler::parser::DatexExpression;
 
@@ -69,7 +69,7 @@ impl<'a> Display for CompilerError<'a> {
 }
 
 pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
-    let body = compile_script(datex_script, None)?;
+    let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
     let routing_header = RoutingHeader {
         version: 2,

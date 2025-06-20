@@ -557,7 +557,7 @@ type TokenInput<'a> = &'a[Token];
 
 pub fn parse<'a, 'b>(
     src: &str,
-    opt_parser: Option<&DatexScriptParser<'b>>,
+    opt_parser: Option<&'b DatexScriptParser<'b>>,
 ) -> (Option<DatexExpression>, Vec<Rich<'a, Token>>) {
 
     let lexer = Token::lexer(src);

@@ -670,7 +670,7 @@ impl ComHub {
             hops_datex.push(ValueContainer::from(data_obj));
         }
 
-        let dxb = compile!("?", hops_datex).unwrap();
+        let (dxb, _) = compile!("?", hops_datex).unwrap();
         info!(
             "Trace data: {}",
             decompile_body(&dxb, DecompileOptions::default()).unwrap()

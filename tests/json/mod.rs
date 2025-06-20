@@ -1,4 +1,4 @@
-use datex_core::compiler::bytecode::compile_script;
+use datex_core::compiler::bytecode::{compile_script, CompileOptions};
 use datex_core::datex_values::core_value::CoreValue;
 use datex_core::datex_values::core_values::decimal::decimal::Decimal;
 use datex_core::datex_values::core_values::integer::integer::Integer;
@@ -58,7 +58,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
 fn compare_datex_result_with_json(json_string: &str) {
     println!(" JSON String: {json_string}");
     let json_value = json_syntax::Value::parse_str(json_string).unwrap().0;
-    let dxb = compile_script(json_string, None).unwrap();
+    let (dxb, _) = compile_script(json_string, CompileOptions::default()).unwrap();
     let datex_value = execute_dxb(
         &dxb,
         ExecutionOptions {
@@ -78,7 +78,7 @@ fn compare_datex_result_with_json(json_string: &str) {
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
-    let dxb = compile_script(json_string, None).unwrap();
+    let (dxb, _) = compile_script(json_string, CompileOptions::default()).unwrap();
     let decompiled = decompile_body(
         &dxb,
         DecompileOptions {

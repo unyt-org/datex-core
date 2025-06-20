@@ -19,6 +19,11 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry, VariableType};
 
+#[derive(Clone, Default)]
+pub struct CompileOptions<'a> {
+    pub parser: Option<&'a DatexScriptParser<'a>>,
+    pub compile_scope: CompileScope,
+}
 
 struct CompilationContext<'a> {
     index: Cell<usize>,
@@ -418,8 +423,8 @@ impl<'a> CompilationContext<'a> {
 }
 
 /// Compiles a DATEX script text into a DXB body
-pub fn compile_script<'a>(datex_script: &'a str, parser: Option<&DatexScriptParser<'a>>) -> Result<Vec<u8>, CompilerError<'a>> {
-    compile_template(datex_script, &[], parser)
+pub fn compile_script<'a>(datex_script: &'a str, options: CompileOptions<'a>) -> Result<(Vec<u8>, CompileScope), CompilerError<'a>> {
+    compile_template(datex_script, &[], options)
 }
 
 /// Directly extracts a static value from a DATEX script as a `ValueContainer`.
@@ -452,16 +457,16 @@ fn extract_static_value_from_ast<'a>(
 pub fn compile_template_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
-    parser: Option<&DatexScriptParser<'a>>
-) -> Result<Vec<u8>, CompilerError<'a>> {
+    options: CompileOptions<'a>
+) -> Result<(Vec<u8>, CompileScope), CompilerError<'a>> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         inserted_values,
         false,
-        parser,
-    ).map(|result| match result {
+        options,
+    ).map(|result| match result.0 {
         StaticValueOrDXB::StaticValue(_) => unreachable!(),
-        StaticValueOrDXB::Dxb(dxb) => dxb,
+        StaticValueOrDXB::Dxb(dxb) => (dxb, result.1),
     })
 }
 
@@ -470,13 +475,13 @@ pub fn compile_template_with_refs<'a>(
 /// directly returned instead of the DXB body.
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
-    parser: Option<&DatexScriptParser<'a>>
-) -> Result<StaticValueOrDXB, CompilerError<'a>> {
+    options: CompileOptions<'a>
+) -> Result<(StaticValueOrDXB, CompileScope), CompilerError<'a>> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         &[],
         true,
-        parser,
+        options,
     )
 }
 
@@ -497,48 +502,49 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
     return_static_value: bool,
-    parser: Option<&DatexScriptParser<'a>>
-) -> Result<StaticValueOrDXB, CompilerError<'a>> {
+    options: CompileOptions<'a>
+) -> Result<(StaticValueOrDXB, CompileScope), CompilerError<'a>> {
 
     // shortcut if datex_script is "?" - call compile_value directly
     if datex_script == "?" {
         if inserted_values.len() != 1 {
             return Err(CompilerError::InvalidPlaceholderCount);
         }
-        return compile_value(inserted_values[0]).map(StaticValueOrDXB::from);
+        let result =  compile_value(inserted_values[0]).map(StaticValueOrDXB::from)?;
+        return Ok((result, options.compile_scope));
     }
 
-    let (ast, errors) = parse(datex_script, parser);
+    let (ast, errors) = parse(datex_script, options.parser);
     if !errors.is_empty() {
         return Err(CompilerError::SyntaxError(errors));
     }
     if ast.is_none() {
-        return Ok(vec![].into())
+        return Ok((vec![].into(), options.compile_scope));
     }
     let ast = ast.unwrap();
 
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_scope = CompilationContext::new(buffer, inserted_values);
+    let compilation_context = CompilationContext::new(buffer, inserted_values);
 
     if return_static_value {
-        compile_ast(&compilation_scope, ast.clone())?;
+        let scope = compile_ast(&compilation_context, ast.clone(), options.compile_scope)?;
 
-        if !*compilation_scope.has_non_static_value.borrow() {
+        if !*compilation_context.has_non_static_value.borrow() {
             if let Ok(value) = ValueContainer::try_from(ast)
             {
-                return Ok(StaticValueOrDXB::StaticValue(Some(value.clone())));
+                return Ok((StaticValueOrDXB::StaticValue(Some(value.clone())), scope));
             }
-            Ok(StaticValueOrDXB::StaticValue(None))
+            Ok((StaticValueOrDXB::StaticValue(None), scope))
         }
         else {
             // return DXB body
-            Ok(StaticValueOrDXB::Dxb(compilation_scope.buffer.take()))
+            Ok((StaticValueOrDXB::Dxb(compilation_context.buffer.take()), scope))
         }
     }
     else {
-        compile_ast(&compilation_scope, ast)?;
+        let scope = compile_ast(&compilation_context, ast, options.compile_scope)?;
         // return DXB body
-        Ok(StaticValueOrDXB::Dxb(compilation_scope.buffer.take()))
+        Ok((StaticValueOrDXB::Dxb(compilation_context.buffer.take()), scope))
     }
 }
 
@@ -546,12 +552,12 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
 pub fn compile_template<'a>(
     datex_script: &'a str,
     inserted_values: &[ValueContainer],
-    parser: Option<&DatexScriptParser<'a>>
-) -> Result<Vec<u8>, CompilerError<'a>> {
+    options: CompileOptions<'a>
+) -> Result<(Vec<u8>, CompileScope), CompilerError<'a>> {
     compile_template_with_refs(
         datex_script,
         &inserted_values.iter().collect::<Vec<_>>(),
-        parser
+        options
     )
 }
 
@@ -579,13 +585,13 @@ macro_rules! compile {
             let script: &str = $fmt.into();
             let values: &[$crate::datex_values::value_container::ValueContainer] = &[$($arg.into()),*];
 
-            $crate::compiler::bytecode::compile_template(&script, values, None)
+            $crate::compiler::bytecode::compile_template(&script, values, $crate::compiler::bytecode::CompileOptions::default())
         }
     }
 }
 
 #[derive(Debug, Clone, Default)]
-struct CompileScope {
+pub struct CompileScope {
     /// List of variables, mapped by name to their slot address and type.
     variables: HashMap<String, (u32, VariableType)>,
     // TODO: parent variables
@@ -695,10 +701,10 @@ impl CompileMetadata {
 fn compile_ast<'a>(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
-) -> Result<(), CompilerError<'a>> {
-    let scope = CompileScope::default();
-    compile_expression(compilation_scope, ast, CompileMetadata::outer(), scope)?;
-    Ok(())
+    scope: CompileScope
+) -> Result<CompileScope, CompilerError<'a>> {
+    let scope = compile_expression(compilation_scope, ast, CompileMetadata::outer(), scope)?;
+    Ok(scope)
 }
 
 fn compile_expression<'a>(
@@ -936,7 +942,7 @@ fn insert_int_with_radix<'a>(
 pub mod tests {
     use std::cell::RefCell;
     use std::io::Read;
-    use super::{compile_ast, compile_script, compile_script_or_return_static_value, compile_template, CompilationContext, StaticValueOrDXB};
+    use super::{compile_ast, compile_script, compile_script_or_return_static_value, compile_template, CompilationContext, CompileOptions, CompileScope, StaticValueOrDXB};
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
@@ -947,7 +953,7 @@ pub mod tests {
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
-        let result = compile_script(datex_script, None).unwrap();
+        let (result, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
         info!(
             "{:?}",
             result
@@ -964,7 +970,7 @@ pub mod tests {
         let ast = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
         let compilation_scope = CompilationContext::new(buffer, &[]);
-        compile_ast(&compilation_scope, ast).unwrap();
+        compile_ast(&compilation_scope, ast, CompileScope::default()).unwrap();
         compilation_scope
     }
 
@@ -1736,9 +1742,9 @@ pub mod tests {
     #[test]
     fn test_compile() {
         init_logger();
-        let result = compile_template("? + ?", &vec![1.into(), 2.into()], None);
+        let result = compile_template("? + ?", &vec![1.into(), 2.into()], CompileOptions::default());
         assert_eq!(
-            result.unwrap(),
+            result.unwrap().0,
             vec![
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
@@ -1754,15 +1760,15 @@ pub mod tests {
         init_logger();
         let a = 1;
         let result = compile!("?", a);
-        assert_eq!(result.unwrap(), vec![InstructionCode::INT_8.into(), 1,]);
+        assert_eq!(result.unwrap().0, vec![InstructionCode::INT_8.into(), 1,]);
     }
 
     #[test]
     fn test_compile_macro_multi() {
         init_logger();
-        let result = compile!("? + ?", 1, 2);
+        let (result) = compile!("? + ?", 1, 2);
         assert_eq!(
-            result.unwrap(),
+            result.unwrap().0,
             vec![
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
@@ -1790,7 +1796,7 @@ pub mod tests {
     fn test_json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
         println!("JSON file read");
-        let dxb = compile_script(&json, None).expect("Failed to parse JSON string");
+        let (dxb, _) = compile_script(&json, CompileOptions::default()).expect("Failed to parse JSON string");
         println!("DXB: {:?}", dxb.len());
     }
 
@@ -1840,12 +1846,12 @@ pub mod tests {
     #[test]
     fn test_compile_auto_static_value_detection() {
         let script = "1";
-        let res = compile_script_or_return_static_value(script, None).unwrap();
+        let (res, _) = compile_script_or_return_static_value(script, CompileOptions::default()).unwrap();
         assert_eq!(res, StaticValueOrDXB::StaticValue(Some(Integer::from(1).into())));
 
 
         let script = "1 + 2";
-        let res = compile_script_or_return_static_value(script, None).unwrap();
+        let (res, _) = compile_script_or_return_static_value(script, CompileOptions::default()).unwrap();
         assert_eq!(res, StaticValueOrDXB::Dxb(vec![
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
