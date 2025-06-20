@@ -23,6 +23,19 @@ pub enum ActiveValue {
     //KeyValuePair(Option<ValueContainer>, Option<ValueContainer>),
 }
 
+impl ActiveValue {
+    pub fn remove_value_container(&mut self) -> Option<ValueContainer> {
+        match std::mem::replace(self, ActiveValue::None) {
+            ActiveValue::ValueContainer(value) => Some(value),
+            other => {
+                *self = other; // put back the old value if it wasn't ValueContainer
+                None
+            }
+        }
+    }
+}
+
+
 impl From<Option<ValueContainer>> for ActiveValue {
     fn from(value: Option<ValueContainer>) -> Self {
         match value {
@@ -127,15 +140,13 @@ impl ScopeStack {
         Ok(self.stack.pop().unwrap().active_value)
     }
 
-    /// Pops the last scope from the stack and return its active value.
-    /// This should only be called at the end of an execution, when extracting the active value
-    /// from the outer scope, otherwise it will return an error.
-    pub fn pop_last(&mut self) -> Result<ActiveValue, InvalidProgramError> {
-        // this is only valid if there is exactly one scope in the stack
-        if self.stack.len() != 1 {
-            return Err(InvalidProgramError::InvalidScopeClose);
+    /// Pops the active value from the current scope, without popping the scope itself.
+    pub fn pop_active_value(&mut self) -> ActiveValue {
+        let scope = self.get_current_scope_mut();
+        match scope.active_value.remove_value_container() {
+            Some(value) => ActiveValue::ValueContainer(value),
+            None => ActiveValue::None
         }
-        Ok(self.stack.pop().unwrap().active_value)
     }
 
     /// Adds a new scope to the stack.

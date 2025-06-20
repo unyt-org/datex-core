@@ -15,7 +15,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::network::com_hub::{ComHub, Response, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::execution::{execute_dxb, ExecutionOptions};
+use crate::runtime::execution::{execute_dxb, ExecutionContext, ExecutionInput, ExecutionOptions};
 use itertools::Itertools;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
@@ -501,8 +501,13 @@ impl ComHub {
     ) -> Option<Vec<NetworkTraceHop>> {
         // convert DATEX to hops
         let dxb = block.body.clone();
-        let hops_datex = execute_dxb(&dxb, ExecutionOptions::default())
+        let exec_input = ExecutionInput::new_with_dxb_and_options(
+            &dxb,
+            ExecutionOptions::default()
+        );
+        let hops_datex = execute_dxb(exec_input)
             .unwrap()
+            .0
             .unwrap();
         info!("hops datex {}", hops_datex);
         if let ValueContainer::Value(Value {

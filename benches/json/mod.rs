@@ -6,7 +6,7 @@ use datex_core::compiler::parser::DatexScriptParser;
 use datex_core::datex_values::datex_type::CoreValueType;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
-use datex_core::runtime::execution::{execute_dxb, ExecutionOptions};
+use datex_core::runtime::execution::{execute_dxb, ExecutionContext, ExecutionInput, ExecutionOptions};
 
 pub fn get_json_test_string(file_path: &str) -> String {
     // read json from test file
@@ -35,8 +35,10 @@ pub fn json_to_json_syntax_value(json: &str) -> json_syntax::Value {
 pub fn json_to_datex_value(json: &str) -> ValueContainer {
     let (dxb, _) = compile_script(json, CompileOptions::default())
         .expect("Failed to parse JSON string");
-    execute_dxb(&dxb, ExecutionOptions::default())
+    let exec_input = ExecutionInput::new_with_dxb_and_options(&dxb, ExecutionOptions::default());
+    execute_dxb(exec_input)
         .unwrap()
+        .0
         .unwrap()
 }
 
@@ -56,7 +58,8 @@ pub fn json_to_runtime_value_baseline_json_syntax(json: &str) {
 pub fn json_to_runtime_value_datex<'a>(json: &'a str, parser: Option<&'a DatexScriptParser<'a>>) {
     let (dxb, _) = compile_script(json, CompileOptions { parser, ..CompileOptions::default() })
         .expect("Failed to parse JSON string");
-    let json_value = execute_dxb(&dxb, ExecutionOptions::default()).unwrap().unwrap();
+    let exec_input = ExecutionInput::new_with_dxb_and_options(&dxb, ExecutionOptions::default());
+    let json_value = execute_dxb(exec_input).unwrap().0.unwrap();
     assert_eq!(json_value.actual_type, CoreValueType::Object);
 }
 
@@ -82,7 +85,8 @@ pub fn json_to_dxb<'a>(json: &'a str, parser: Option<&'a DatexScriptParser<'a>>)
 
 // DXB -> value
 pub fn dxb_to_runtime_value(dxb: &[u8]) {
-    let json_value = execute_dxb(dxb, ExecutionOptions::default()).unwrap().unwrap();
+    let exec_input = ExecutionInput::new_with_dxb_and_options(dxb, ExecutionOptions::default());
+    let json_value = execute_dxb(exec_input).unwrap().0.unwrap();
     assert_eq!(json_value.actual_type, CoreValueType::Object);
 }
 

@@ -25,6 +25,15 @@ pub struct CompileOptions<'a> {
     pub compile_scope: CompileScope,
 }
 
+impl CompileOptions <'_> {
+    pub fn new_with_scope(compile_scope: CompileScope) -> Self {
+        CompileOptions {
+            parser: None,
+            compile_scope,
+        }
+    }
+}
+
 struct CompilationContext<'a> {
     index: Cell<usize>,
     inserted_value_index: Cell<usize>,

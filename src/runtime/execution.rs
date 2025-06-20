@@ -21,15 +21,37 @@ pub struct ExecutionOptions {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ExecutionContext<'a> {
-    dxb_body: &'a [u8],
-    options: ExecutionOptions,
+pub struct ExecutionInput<'a> {
+    pub options: ExecutionOptions,
+    pub dxb_body: &'a [u8],
+    pub context: ExecutionContext,
+}
+
+impl<'a> ExecutionInput<'a> {
+    pub fn new_with_dxb_and_options(
+        dxb_body: &'a [u8],
+        options: ExecutionOptions,
+    ) -> Self {
+        Self {
+            options,
+            dxb_body,
+            context: ExecutionContext::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ExecutionContext {
     index: usize,
     scope_stack: ScopeStack,
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
 }
 
-impl ExecutionContext<'_> {
+impl ExecutionContext {
+
+    pub fn reset_index(&mut self) {
+        self.index = 0;
+    }
 
     /// Allocates a new slot with the given slot address.
     fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
@@ -77,15 +99,9 @@ impl ExecutionContext<'_> {
 
 
 pub fn execute_dxb(
-    dxb_body: &[u8],
-    options: ExecutionOptions,
-) -> Result<Option<ValueContainer>, ExecutionError> {
-    let mut context = ExecutionContext {
-        dxb_body,
-        options,
-        ..ExecutionContext::default()
-    };
-    execute_loop(&mut context)
+    input: ExecutionInput,
+) -> Result<(Option<ValueContainer>, ExecutionContext), ExecutionError> {
+    execute_loop(input)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,15 +173,16 @@ impl Display for ExecutionError {
 }
 
 pub fn execute_loop(
-    context: &mut ExecutionContext,
-) -> Result<Option<ValueContainer>, ExecutionError> {
-    let dxb_body = context.dxb_body;
+    input: ExecutionInput,
+) -> Result<(Option<ValueContainer>, ExecutionContext), ExecutionError> {
+    let dxb_body = input.dxb_body;
+    let mut context = input.context;
 
     let instruction_iterator = body::iterate_instructions(dxb_body);
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
-        if context.options.verbose {
+        if input.options.verbose {
             println!("[Exec]: {instruction}");
         }
 
@@ -459,62 +476,12 @@ pub fn execute_loop(
 
             ActiveValue::None => {}
         }
-        // let _slot = instruction.slot.unwrap_or_default();
-        // let has_primitive_value = instruction.value.is_some();
-        // let has_value = instruction.value.is_some();
-        // //
-        // let error = match code {
-        //     // BinaryCode::ADD => binary_operation(code, &mut stack),
-        //     // BinaryCode::SUBTRACT => binary_operation(code, &mut stack),
-        //     // BinaryCode::MULTIPLY => binary_operation(code, &mut stack),
-        //     // BinaryCode::DIVIDE => binary_operation(code, &mut stack),
-        //     // BinaryCode::MODULO => binary_operation(code, &mut stack),
-        //     // BinaryCode::POWER => binary_operation(code, &mut stack),
-        //     // BinaryCode::AND => binary_operation(code, &mut stack),
-        //     // BinaryCode::OR => binary_operation(code, &mut stack),
-        //
-        //     // BinaryCode::CLOSE_AND_STORE => clear_stack(&mut stack),
-        //
-        //     _ => {
-        //         // add value to stack
-        //
-        //         // if has_value && let Some(value) = instruction.value{
-        //         //     stack.push(value)
-        //         // } else if has_primitive_value {
-        //         //     let primitive_value =
-        //         //         instruction.primitive_value.unwrap_or_default();
-        //         //     stack.push(Box::new(primitive_value));
-        //         // };
-        //         None
-        //     }
-        // };
-        //
-        // if error.is_some() {
-        //     let error_val = error.unwrap();
-        //     error!("error: {}", &error_val);
-        //     return Err(ExecutionError::Unknown); //TODO
-        // }
-
-        // enter new subscope - continue at index?
-        // if instruction.subscope_continue {
-        //     let sub_result = execute_loop(dxb_body, index, is_end_instruction);
-        //
-        //     // propagate error from subscope
-        //     if sub_result.is_err() {
-        //         return Err(sub_result.err().unwrap());
-        //     }
-        //     // push subscope result to stack
-        //     else {
-        //         let res = sub_result.ok().unwrap();
-        //         info!("sub result: {res:?}");
-        //         stack.push(res);
-        //     }
-        // }
     }
 
-    Ok(match context.scope_stack.pop_last()? {
-        ActiveValue::None => None,
-        ActiveValue::ValueContainer(val) => Some(val),
+    // removes the current active value from the scope stack
+    Ok(match context.scope_stack.pop_active_value() {
+        ActiveValue::None => (None, context),
+        ActiveValue::ValueContainer(val) => (Some(val), context),
     })
 }
 
@@ -535,10 +502,10 @@ mod tests {
         datex_script: &str,
     ) -> Option<ValueContainer> {
         let (dxb, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
-        let options = ExecutionOptions { verbose: true };
-        execute_dxb(&dxb, options).unwrap_or_else(|err| {
+        let context = ExecutionInput::new_with_dxb_and_options(&dxb, ExecutionOptions { verbose: true });
+        execute_dxb(context).unwrap_or_else(|err| {
             panic!("Execution failed: {err}");
-        })
+        }).0
     }
 
     fn execute_datex_script_debug_with_result(
@@ -550,8 +517,8 @@ mod tests {
     fn execute_dxb_debug(
         dxb_body: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        let options = ExecutionOptions { verbose: true };
-        execute_dxb(dxb_body, options)
+        let context = ExecutionInput::new_with_dxb_and_options(&dxb_body, ExecutionOptions { verbose: true });
+        execute_dxb(context).map(|(result, _)| result)
     }
 
     #[test]
