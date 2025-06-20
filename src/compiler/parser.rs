@@ -164,67 +164,6 @@ impl TryFrom<DatexExpression> for ValueContainer {
     }
 }
 
-fn unicode_escape<'a>(
-) -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
-    just('u').ignore_then(text::digits(16).exactly(4).to_slice().validate(
-        |digits, e, emitter| {
-            let high = u16::from_str_radix(digits, 16).unwrap();
-            // Check if it's a high surrogate
-            if (0xD800..=0xDBFF).contains(&high) {
-                // Expect a second \uXXXX
-                emitter.emit(Rich::custom(
-                    e.span(),
-                    "unexpected isolated high surrogate",
-                ));
-                '\u{FFFD}' // unicode replacement character
-            } else if (0xDC00..=0xDFFF).contains(&high) {
-                // Isolated low surrogate
-                emitter
-                    .emit(Rich::custom(e.span(), "unexpected low surrogate"));
-                '\u{FFFD}' // unicode replacement character
-            } else {
-                // Valid single unicode character
-                char::from_u32(high as u32).unwrap_or_else(|| {
-                    emitter.emit(Rich::custom(
-                        e.span(),
-                        "invalid unicode character",
-                    ));
-                    '\u{FFFD}' // unicode replacement character
-                })
-            }
-        },
-    ))
-}
-
-fn unicode_surrogate_pair<'a>(
-) -> impl Parser<'a, &'a str, char, extra::Err<Rich<'a, char>>> {
-    just('u')
-        .ignore_then(text::digits(16).exactly(4).to_slice())
-        .then_ignore(just('\\').then(just('u')))
-        .then(text::digits(16).exactly(4).to_slice())
-        .validate(|(high, low), e, emitter| {
-            let h = u16::from_str_radix(high, 16).unwrap();
-            let l = u16::from_str_radix(low, 16).unwrap();
-
-            if (0xD800..=0xDBFF).contains(&h) && (0xDC00..=0xDFFF).contains(&l)
-            {
-                let code_point = 0x10000
-                    + (((h - 0xD800) as u32) << 10)
-                    + ((l - 0xDC00) as u32);
-                char::from_u32(code_point).unwrap_or_else(|| {
-                    emitter.emit(Rich::custom(
-                        e.span(),
-                        "invalid unicode character",
-                    ));
-                    '\u{FFFD}' // unicode replacement character
-                })
-            } else {
-                emitter.emit(Rich::custom(e.span(), "invalid surrogate pair"));
-                '\u{FFFD}' // unicode replacement character
-            }
-        })
-}
-
 pub type DatexScriptParser<'a> =
     Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
 
@@ -334,16 +273,19 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // an expression
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
+
+    let whitespace = just(Token::Whitespace).repeated().ignored();
+
     // a sequence of expressions, separated by semicolons, optionally terminated with a semicolon
     let statements = expression
         .clone()
-        .then_ignore(just(Token::Semicolon).repeated().at_least(1))
+        .then_ignore(just(Token::Semicolon).padded_by(whitespace.clone()).repeated().at_least(1))
         .repeated()
         .collect::<Vec<_>>()
         .then(
             expression
                 .clone()
-                .then(just(Token::Semicolon).or_not())
+                .then(just(Token::Semicolon).padded_by(whitespace.clone()).or_not())
                 .or_not(), // Final expression with optional semicolon
         )
         .map(|(exprs, last)| {
@@ -394,18 +336,12 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     let text = select! {
         Token::StringLiteral(s) => DatexExpression::Text(unescape_text(&s))
     };
-    let boolean = select! {
+    let literal = select! {
         Token::TrueKW => DatexExpression::Boolean(true),
         Token::FalseKW => DatexExpression::Boolean(false),
-    };
-    let null = select! {
-        Token::NullKW => DatexExpression::Null
-    };
-    let variable = select! {
-        Token::Identifier(s) => DatexExpression::Variable(s)
-    };
-    let placeholder = select! {
-        Token::PlaceholderKW => DatexExpression::Placeholder
+        Token::NullKW => DatexExpression::Null,
+        Token::Identifier(s) => DatexExpression::Variable(s),
+        Token::PlaceholderKW => DatexExpression::Placeholder,
     };
     // expression wrapped in parentheses
     let wrapped_expression =
@@ -414,9 +350,9 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
     let key = choice((
-        text.clone(),
-        decimal.clone(),
-        integer.clone(),
+        text,
+        decimal,
+        integer,
         // any valid identifiers (equivalent to variable names), mapped to a text
         select! {
             Token::Identifier(s) => DatexExpression::Text(s)
@@ -430,22 +366,24 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // [1,2,3,4,13434,(1),4,5,7,8]
     let array = expression_without_tuple
         .clone()
-        .separated_by(just(Token::Comma))
+        .separated_by(just(Token::Comma).padded_by(whitespace.clone()))
         .at_least(0)
         .allow_trailing()
         .collect()
+        .padded_by(whitespace.clone())
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map(DatexExpression::Array);
 
     // object
     let object = key
         .clone()
-        .then_ignore(just(Token::Colon))
+        .then_ignore(just(Token::Colon).padded_by(whitespace.clone()))
         .then(expression_without_tuple.clone())
-        .separated_by(just(Token::Comma))
+        .separated_by(just(Token::Comma).padded_by(whitespace.clone()))
         .at_least(0)
         .allow_trailing()
         .collect()
+        .padded_by(whitespace.clone())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
         .map(DatexExpression::Object);
 
@@ -453,7 +391,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // Key-value pair
     let tuple_key_value_pair = key
         .clone()
-        .then_ignore(just(Token::Colon))
+        .then_ignore(just(Token::Colon).padded_by(whitespace.clone()))
         .then(expression_without_tuple.clone())
         .map(|(key, value)| TupleEntry::KeyValue(key, value));
 
@@ -468,7 +406,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
 
     let tuple = tuple_entry
         .clone()
-        .separated_by(just(Token::Comma))
+        .separated_by(just(Token::Comma).padded_by(whitespace.clone()))
         .at_least(2)
         .collect::<Vec<_>>()
         .map(DatexExpression::Tuple);
@@ -492,19 +430,21 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     let atom = choice((
         array.clone(),
         object.clone(),
-        placeholder,
-        null,
-        boolean,
-        decimal.clone(),
-        integer.clone(),
-        text.clone(),
-        variable.clone(),
+        literal,
+        decimal,
+        integer,
+        text,
         wrapped_expression.clone(),
     ))
     .boxed();
 
     // operations on atoms
-    let op = |c| just(c);
+    let op = |c|
+        just(Token::Whitespace)
+            .repeated()
+            .at_least(1)
+            .ignore_then(just(c))
+            .then_ignore(just(Token::Whitespace).repeated().at_least(1));
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let apply_or_property_access = atom
@@ -519,13 +459,18 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
                     object.clone(),
                 ))
                 .clone()
+                .padded_by(whitespace.clone())
                 .map(Apply::FunctionCall),
                 // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
                 // print "sdf"
-                atom.clone()
+                just(Token::Whitespace)
+                    .repeated()
+                    .at_least(1)
+                    .ignore_then(atom.clone().padded_by(whitespace.clone()))
                     .map(Apply::FunctionCall),
                 // property access
                 just(Token::Dot)
+                    .padded_by(whitespace.clone())
                     .ignore_then(key.clone())
                     .map(Apply::PropertyAccess),
             ))
@@ -565,10 +510,11 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     let variable_assignment = just(Token::ValKW)
         .or(just(Token::RefKW))
         .or_not()
+        .padded_by(whitespace.clone())
         .then(select! {
             Token::Identifier(s) => s
         })
-        .then_ignore(just(Token::Assign))
+        .then_ignore(just(Token::Assign).padded_by(whitespace.clone()))
         .then(sum.clone())
         .map(|((var_type, var_name), expr)| {
             if let Some(var_type) = var_type {
@@ -592,7 +538,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     expression_without_tuple.define(choice((variable_assignment, sum.clone())));
 
     expression.define(
-        choice((tuple.clone(), expression_without_tuple.clone())),
+        choice((tuple.clone(), expression_without_tuple.clone())).padded_by(whitespace.clone()),
     );
 
     choice((
@@ -600,6 +546,7 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         just(Token::Semicolon)
             .repeated()
             .at_least(1)
+            .padded_by(whitespace.clone())
             .map(|_| DatexExpression::Statements(vec![])),
         // statements
         statements,
@@ -616,7 +563,6 @@ pub fn parse<'a, 'b>(
 
     let lexer = Token::lexer(src);
     let tokens = lexer
-        .map(|a | a)
         .collect::<Result<Vec<_>, ()>>().unwrap(); // unwrap ok or error-handling
 
     // TODO:
@@ -626,10 +572,13 @@ pub fn parse<'a, 'b>(
         // let (res, errs) = parser.parse(&tokens).into_output_errors();
         // (res, vec![])
         let (res, errs) = create_parser().parse(&tokens).into_output_errors();
-        (res, vec![])
+        // FIXME: only fake errors to fix borrow checker issues
+        let errs = errs.iter().map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error)).collect();
+        (res, errs)
     } else {
         let (res, errs) = create_parser().parse(&tokens).into_output_errors();
-        (res, vec![])
+        let errs = errs.iter().map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error)).collect();
+        (res, errs)
     }
 }
 
@@ -1853,7 +1802,7 @@ mod tests {
         let val = try_parse_to_value_container(src);
         assert_eq!(val, ValueContainer::from(Decimal::from_string("1/3")));
 
-        let (_, err) = parse("42.4/3", None);
+        let (res, err) = parse("42.4/3", None);
         assert!(!err.is_empty());
         let (_, err) = parse("42 /3", None);
         assert!(!err.is_empty());
@@ -2030,7 +1979,8 @@ mod tests {
     #[test]
     fn test_invalid_add() {
         let src = "1+2";
-        let (_, errs) = parse(src, None);
+        let (res, errs) = parse(src, None);
+        println!("res: {:?}", res);
         assert!(errs.len() == 1, "Expected error when parsing expression");
     }
 
@@ -2065,7 +2015,52 @@ mod tests {
     }
 
     #[test]
-    fn test_comments() {
+    fn test_comment() {
+        let src = "// This is a comment\n1 + 2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
 
+        let src = "1 + //test\n2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
+    }
+
+    #[test]
+    fn test_multiline_comment() {
+        let src = "/* This is a\nmultiline comment */\n1 + 2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
+
+        let src = "1 + /*test*/ 2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
     }
 }

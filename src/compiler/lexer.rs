@@ -17,8 +17,11 @@ impl Loc {
 }
 
 #[derive(Logos, Debug, Clone, PartialEq)]
+// single line comments
 #[logos(skip r"//[^\n]*")]
-#[logos(skip r"[ \n\t\r\f]+")]
+// multiline comments
+#[logos(skip r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/")]
+// #[logos(skip r"[ \n\t\r\f]+")]
 #[rustfmt::skip]
 pub enum Token {
     // ==< Operators & Separators >==
@@ -31,11 +34,11 @@ pub enum Token {
     #[token("<")] LeftAngle,
     #[token(">")] RightAngle,
 
-    #[token("*")] Star,
-    #[token("/")] Slash,
     #[token("%")] Percent,
     #[token("+")] Plus,
     #[token("-")] Minus,
+    #[token("*")] Star,
+    #[token("/")] Slash,
     #[token(":")] Colon,
     #[token("::")] DoubleColon,
     #[token(";")] Semicolon,
@@ -145,6 +148,9 @@ pub enum Token {
 
     // ==< Other >==
     #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string)] Identifier(String),
+
+    #[regex(r"[ \t\n\f]")]
+    Whitespace,
 
     Error
 }
@@ -268,5 +274,31 @@ mod tests {
 
         let mut lexer = Token::lexer("1.234_567e-8");
         assert_eq!(lexer.next().unwrap(), Ok(Token::DecimalLiteral("1.234_567e-8".to_string())));
+    }
+
+    #[test]
+    fn test_add() {
+        let mut lexer = Token::lexer("1 + 2");
+        assert_eq!(lexer.next().unwrap(), Ok(Token::IntegerLiteral("1".to_string())));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Plus));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::IntegerLiteral("2".to_string())));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn test_invalid_add() {
+        let mut lexer = Token::lexer("1+2");
+        assert_eq!(lexer.next().unwrap(), Ok(Token::IntegerLiteral("1".to_string())));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::IntegerLiteral("+2".to_string())));
+    }
+
+    #[test]
+    fn test_invalid_fraction() {
+        let mut lexer = Token::lexer("42.4/3");
+        assert_eq!(lexer.next().unwrap(), Ok(Token::DecimalLiteral("42.4".to_string())));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Slash));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::IntegerLiteral("3".to_string())));
     }
 }
