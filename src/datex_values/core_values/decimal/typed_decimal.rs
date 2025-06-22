@@ -1,6 +1,6 @@
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::{
-    core_value_trait::CoreValueTrait, traits::soft_eq::SoftEq,
+    core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
 };
 use num::Signed;
 use num_traits::Zero;
@@ -34,8 +34,8 @@ impl Hash for TypedDecimal {
 
 impl CoreValueTrait for TypedDecimal {}
 
-impl SoftEq for TypedDecimal {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for TypedDecimal {
+    fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (TypedDecimal::F32(a), TypedDecimal::F32(b)) => {
                 a.into_inner() == b.into_inner()
@@ -48,15 +48,15 @@ impl SoftEq for TypedDecimal {
                 a.into_inner() as f64 == b.into_inner()
             }
             (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => {
-                a.soft_eq(b)
+                a.structural_eq(b)
             }
             (a, TypedDecimal::Decimal(b)) | (TypedDecimal::Decimal(b), a) => {
                 match a {
                     TypedDecimal::F32(value) => {
-                        b.soft_eq(&Decimal::from(value.into_inner()))
+                        b.structural_eq(&Decimal::from(value.into_inner()))
                     }
                     TypedDecimal::F64(value) => {
-                        b.soft_eq(&Decimal::from(value.into_inner()))
+                        b.structural_eq(&Decimal::from(value.into_inner()))
                     }
                     _ => false,
                 }

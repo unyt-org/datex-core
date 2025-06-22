@@ -1,5 +1,5 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;
@@ -67,13 +67,13 @@ impl Object {
     }
 }
 
-impl SoftEq for Object {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Object {
+    fn structural_eq(&self, other: &Self) -> bool {
         if self.size() != other.size() {
             return false;
         }
         for (key, value) in zip(self.0.iter(), other.0.iter()) {
-            if key.0 != value.0 || !key.1.soft_eq(value.1) {
+            if key.0 != value.0 || !key.1.structural_eq(value.1) {
                 return false;
             }
         }

@@ -1,6 +1,6 @@
 use super::rational::Rational;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 use bigdecimal::BigDecimal;
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::BigInt;
@@ -146,8 +146,8 @@ impl Decimal {
     }
 }
 
-impl SoftEq for Decimal {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Decimal {
+    fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
             (Decimal::Zero, Decimal::Zero) => true,
@@ -599,25 +599,25 @@ mod tests {
         let a = Decimal::from_string("nan");
         let b = Decimal::from_string("nan");
         assert_ne!(a, b);
-        assert!(!a.soft_eq(&b));
+        assert!(!a.structural_eq(&b));
 
         // explicit big decimal NaN
         let c = Decimal::NaN;
         let d = Decimal::NaN;
         assert_ne!(c, d);
-        assert!(!c.soft_eq(&d));
+        assert!(!c.structural_eq(&d));
 
         // f32 NaN
         let e = Decimal::from(f32::NAN);
         let f = Decimal::from(f32::NAN);
         assert_ne!(e, f);
-        assert!(!e.soft_eq(&f));
+        assert!(!e.structural_eq(&f));
 
         // f64 NaN
         let g = Decimal::from(f64::NAN);
         let h = Decimal::from(f64::NAN);
         assert_ne!(g, h);
-        assert!(!g.soft_eq(&h));
+        assert!(!g.structural_eq(&h));
 
         // eq
         assert_ne!(a, c);
@@ -640,26 +640,26 @@ mod tests {
         assert_ne!(f, h);
         assert_ne!(g, h);
 
-        // soft_eq
-        assert!(!a.soft_eq(&c));
-        assert!(!a.soft_eq(&e));
-        assert!(!a.soft_eq(&g));
-        assert!(!a.soft_eq(&h));
-        assert!(!b.soft_eq(&c));
-        assert!(!b.soft_eq(&e));
-        assert!(!b.soft_eq(&g));
-        assert!(!b.soft_eq(&h));
-        assert!(!c.soft_eq(&e));
-        assert!(!c.soft_eq(&g));
-        assert!(!c.soft_eq(&h));
-        assert!(!d.soft_eq(&e));
-        assert!(!d.soft_eq(&g));
-        assert!(!d.soft_eq(&h));
-        assert!(!e.soft_eq(&g));
-        assert!(!e.soft_eq(&h));
-        assert!(!f.soft_eq(&g));
-        assert!(!f.soft_eq(&h));
-        assert!(!g.soft_eq(&h));
+        // structural equality
+        assert!(!a.structural_eq(&c));
+        assert!(!a.structural_eq(&e));
+        assert!(!a.structural_eq(&g));
+        assert!(!a.structural_eq(&h));
+        assert!(!b.structural_eq(&c));
+        assert!(!b.structural_eq(&e));
+        assert!(!b.structural_eq(&g));
+        assert!(!b.structural_eq(&h));
+        assert!(!c.structural_eq(&e));
+        assert!(!c.structural_eq(&g));
+        assert!(!c.structural_eq(&h));
+        assert!(!d.structural_eq(&e));
+        assert!(!d.structural_eq(&g));
+        assert!(!d.structural_eq(&h));
+        assert!(!e.structural_eq(&g));
+        assert!(!e.structural_eq(&h));
+        assert!(!f.structural_eq(&g));
+        assert!(!f.structural_eq(&h));
+        assert!(!g.structural_eq(&h));
     }
 
     #[test]
@@ -677,14 +677,14 @@ mod tests {
         let a = Decimal::from_string("1.0");
         let b = Decimal::from_string("1.0");
         let c = Decimal::from_string("2.0");
-        assert!(a.soft_eq(&b));
-        assert!(!a.soft_eq(&c));
-        assert!(!b.soft_eq(&c));
+        assert!(a.structural_eq(&b));
+        assert!(!a.structural_eq(&c));
+        assert!(!b.structural_eq(&c));
 
         let d = Decimal::from_string("infinity");
         let e = Decimal::from_string("-infinity");
-        assert!(d.soft_eq(&Decimal::from_string("infinity")));
-        assert!(e.soft_eq(&Decimal::from_string("-infinity")));
+        assert!(d.structural_eq(&Decimal::from_string("infinity")));
+        assert!(e.structural_eq(&Decimal::from_string("-infinity")));
     }
 
     #[test]

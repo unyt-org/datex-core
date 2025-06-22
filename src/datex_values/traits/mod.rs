@@ -1,2 +1,3 @@
-pub mod identical;
-pub mod soft_eq;
+pub mod identity;
+pub mod structural_eq;
+pub mod value_eq;

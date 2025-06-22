@@ -1,7 +1,7 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
@@ -58,15 +58,15 @@ impl Tuple {
     }
 }
 
-impl SoftEq for Tuple {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Tuple {
+    fn structural_eq(&self, other: &Self) -> bool {
         if self.size() != other.size() {
             return false;
         }
         for ((key, value), (other_key, other_value)) in
             self.entries.iter().zip(other.entries.iter())
         {
-            if !key.soft_eq(other_key) || !value.soft_eq(other_value) {
+            if !key.structural_eq(other_key) || !value.structural_eq(other_value) {
                 return false;
             }
         }

@@ -11,10 +11,11 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::text::Text;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::datex_type::CoreValueType;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
+use crate::datex_values::traits::value_eq::ValueEq;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -30,51 +31,58 @@ pub enum CoreValue {
     Object(Object),
     Tuple(Tuple),
 }
-impl SoftEq for CoreValue {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for CoreValue {
+    fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (CoreValue::Bool(a), CoreValue::Bool(b)) => a.soft_eq(b),
+            (CoreValue::Bool(a), CoreValue::Bool(b)) => a.structural_eq(b),
 
             // Integers + TypedIntegers
             (
                 CoreValue::Integer(Integer(a)) | CoreValue::TypedInteger(a),
                 CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b),
-            ) => a.soft_eq(b),
+            ) => a.structural_eq(b),
             
             // Decimals
             (CoreValue::Decimal(a), CoreValue::Decimal(b)) => 
-                a.soft_eq(b),
+                a.structural_eq(b),
 
             // TypedDecimals
             (
                 CoreValue::TypedDecimal(a),
                 CoreValue::TypedDecimal(b),
-            ) => a.soft_eq(b),
+            ) => a.structural_eq(b),
             
             // Decimal + TypedDecimal
             (CoreValue::Decimal(a), CoreValue::TypedDecimal(b)) |
             (CoreValue::TypedDecimal(b), CoreValue::Decimal(a))
-                => TypedDecimal::Decimal(a.clone()).soft_eq(b),
+                => TypedDecimal::Decimal(a.clone()).structural_eq(b),
             
             // Decimal + Integer/TypedInteger
             (CoreValue::Decimal(a), CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)) |
             (CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b), CoreValue::Decimal(a))
-                => a.soft_eq(&Decimal::from_string(&b.to_string())), // TODO: user bigints once implemented
+                => a.structural_eq(&Decimal::from_string(&b.to_string())), // TODO: user bigints once implemented
             
             // TypedDecimal + Integer/TypedInteger
             (CoreValue::TypedDecimal(a), CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)) |
             (CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b), CoreValue::TypedDecimal(a))
-                => a.soft_eq(&TypedDecimal::Decimal(Decimal::from_string(&b.to_string()))),
+                => a.structural_eq(&TypedDecimal::Decimal(Decimal::from_string(&b.to_string()))),
 
-            (CoreValue::Text(a), CoreValue::Text(b)) => a.soft_eq(b),
+            (CoreValue::Text(a), CoreValue::Text(b)) => a.structural_eq(b),
             (CoreValue::Null, CoreValue::Null) => true,
-            (CoreValue::Endpoint(a), CoreValue::Endpoint(b)) => a.soft_eq(b),
-            (CoreValue::Array(a), CoreValue::Array(b)) => a.soft_eq(b),
-            (CoreValue::Object(a), CoreValue::Object(b)) => a.soft_eq(b),
-            (CoreValue::Tuple(a), CoreValue::Tuple(b)) => a.soft_eq(b),
+            (CoreValue::Endpoint(a), CoreValue::Endpoint(b)) => a.structural_eq(b),
+            (CoreValue::Array(a), CoreValue::Array(b)) => a.structural_eq(b),
+            (CoreValue::Object(a), CoreValue::Object(b)) => a.structural_eq(b),
+            (CoreValue::Tuple(a), CoreValue::Tuple(b)) => a.structural_eq(b),
             
             _ => false
         }
+    }
+}
+
+/// value equality corresponds to partial equality for values
+impl ValueEq for CoreValue {
+    fn value_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 

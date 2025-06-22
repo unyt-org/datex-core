@@ -547,10 +547,10 @@ mod tests {
 
     use super::*;
     use crate::compiler::bytecode::{compile_script, CompileOptions};
-    use crate::datex_values::traits::soft_eq::SoftEq;
+    use crate::datex_values::traits::structural_eq::StructuralEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
-    use crate::{assert_soft_eq, datex_array};
+    use crate::{assert_structural_eq, datex_array};
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -602,13 +602,13 @@ mod tests {
     fn test_single_value_scope() {
         let result = execute_datex_script_debug_with_result("(42)");
         assert_eq!(result, Integer::from(42).into());
-        assert_soft_eq!(result, ValueContainer::from(42_u128));
+        assert_structural_eq!(result, ValueContainer::from(42_u128));
     }
 
     #[test]
     fn test_add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
-        assert_soft_eq!(result, ValueContainer::from(3_u128));
+        assert_structural_eq!(result, ValueContainer::from(3_u128));
         assert_eq!(result, Integer::from(3).into());
     }
 
@@ -651,7 +651,7 @@ mod tests {
         assert_eq!(array.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
-        assert_soft_eq!(result, ValueContainer::from(vec![1, 2, 3]));
+        assert_structural_eq!(result, ValueContainer::from(vec![1, 2, 3]));
     }
 
     #[test]
@@ -663,32 +663,32 @@ mod tests {
 
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
-        assert_soft_eq!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
+        assert_structural_eq!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
     }
 
     #[test]
     fn test_boolean() {
         let result = execute_datex_script_debug_with_result("true");
         assert_eq!(result, true.into());
-        assert_soft_eq!(result, ValueContainer::from(true));
+        assert_structural_eq!(result, ValueContainer::from(true));
 
         let result = execute_datex_script_debug_with_result("false");
         assert_eq!(result, false.into());
-        assert_soft_eq!(result, ValueContainer::from(false));
+        assert_structural_eq!(result, ValueContainer::from(false));
     }
 
     #[test]
     fn test_decimal() {
         let result = execute_datex_script_debug_with_result("1.5");
         assert_eq!(result, Decimal::from_string("1.5").into());
-        assert_soft_eq!(result, ValueContainer::from(1.5));
+        assert_structural_eq!(result, ValueContainer::from(1.5));
     }
 
     #[test]
     fn test_decimal_and_integer() {
         let result = execute_datex_script_debug_with_result("-2341324.0");
         assert_eq!(result, Decimal::from_string("-2341324").into());
-        assert_soft_eq!(result, ValueContainer::from(-2341324));
+        assert_structural_eq!(result, ValueContainer::from(-2341324));
     }
 
     #[test]
@@ -697,7 +697,7 @@ mod tests {
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
         assert_ne!(result, 2_u8.into());
-        assert_soft_eq!(result, ValueContainer::from(2_u8));
+        assert_structural_eq!(result, ValueContainer::from(2_u8));
     }
 
     #[test]
@@ -705,7 +705,7 @@ mod tests {
         let result = execute_datex_script_debug_with_result("null");
         assert_eq!(result, ValueContainer::from(CoreValue::Null));
         assert_eq!(result, CoreValue::Null.into());
-        assert_soft_eq!(result, ValueContainer::from(CoreValue::Null));
+        assert_structural_eq!(result, ValueContainer::from(CoreValue::Null));
     }
 
     #[test]
@@ -730,13 +730,13 @@ mod tests {
             Some(&Integer::from(42).into())
         );
 
-        // soft equality checks
+        // structural equality checks
         let expected_se: Tuple = Tuple::from(vec![
             ("x".into(), 1.into()),
             (0.into(), 2.into()),
             (1.into(), 42.into()),
         ]);
-        assert_soft_eq!(tuple, expected_se);
+        assert_structural_eq!(tuple, expected_se);
 
         // strict equality checks
         let expected_strict: Tuple = Tuple::from(vec![

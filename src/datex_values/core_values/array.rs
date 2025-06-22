@@ -1,7 +1,7 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::datex_values::{
     core_value::CoreValue,
-    traits::soft_eq::SoftEq,
+    traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };
 use std::{fmt, ops::Index};
@@ -22,13 +22,13 @@ impl Array {
 }
 impl CoreValueTrait for Array {}
 
-impl SoftEq for Array {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Array {
+    fn structural_eq(&self, other: &Self) -> bool {
         if self.len() != other.len() {
             return false;
         }
         for (a, b) in self.0.iter().zip(other.0.iter()) {
-            if !a.soft_eq(b) {
+            if !a.structural_eq(b) {
                 return false;
             }
         }

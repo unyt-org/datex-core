@@ -1,7 +1,7 @@
 use std::{fmt::Display, ops::Not};
 
 use crate::datex_values::{
-    traits::soft_eq::SoftEq,
+    traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };
 
@@ -45,8 +45,8 @@ impl Display for Boolean {
 
 impl CoreValueTrait for Boolean {}
 
-impl SoftEq for Boolean {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Boolean {
+    fn structural_eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }

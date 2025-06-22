@@ -9,7 +9,7 @@ use crate::datex_values::{
     core_values::integer::utils::{
         smallest_fitting_signed, smallest_fitting_unsigned,
     },
-    traits::soft_eq::SoftEq,
+    traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };
 
@@ -172,8 +172,8 @@ impl Display for TypedInteger {
 
 impl CoreValueTrait for TypedInteger {}
 
-impl SoftEq for TypedInteger {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for TypedInteger {
+    fn structural_eq(&self, other: &Self) -> bool {
         if self.is_unsigned() && other.is_unsigned() {
             self.as_u128() == other.as_u128()
         } else {

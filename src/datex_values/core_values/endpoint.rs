@@ -1,7 +1,7 @@
 use crate::crypto::random;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_value_trait::CoreValueTrait;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
@@ -94,8 +94,8 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
 
 impl CoreValueTrait for Endpoint {}
 
-impl SoftEq for Endpoint {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Endpoint {
+    fn structural_eq(&self, other: &Self) -> bool {
         self == other
     }
 }

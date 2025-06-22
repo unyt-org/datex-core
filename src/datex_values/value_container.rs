@@ -1,12 +1,13 @@
 use std::cell::RefCell;
-use crate::datex_values::traits::identical::Identical;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::identity::Identity;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 
 use super::{reference::Reference, value::Value};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Deref, Sub};
 use std::rc::Rc;
+use crate::datex_values::traits::value_eq::ValueEq;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -48,46 +49,61 @@ impl Hash for ValueContainer {
     }
 }
 
+
+/// Partial equality for ValueContainer is identical to Hash behavior:
+/// Identical references are partially equal, value-equal values are also partially equal.
+/// A pointer and a value are never partially equal.
 impl PartialEq for ValueContainer {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (ValueContainer::Value(a), ValueContainer::Value(b)) => a == b,
-            (ValueContainer::Reference(a), ValueContainer::Reference(b)) => {
-                *a.borrow().current_resolved_value().borrow() ==
-                    *b.borrow().current_resolved_value().borrow()
-            }
-            (ValueContainer::Value(a), ValueContainer::Reference(b)) |
-            (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
-                *a == *b.borrow().current_resolved_value().borrow()
-            }
+            (ValueContainer::Reference(a), ValueContainer::Reference(b)) => a == b,
+            _ => false
         }
     }
 }
 
-impl SoftEq for ValueContainer {
-    fn soft_eq(&self, other: &Self) -> bool {
+/// Structural equality checks the structural equality of the underlying values, collapsing
+/// references to their current resolved values.
+impl StructuralEq for ValueContainer {
+    fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (ValueContainer::Value(a), ValueContainer::Value(b)) => a.soft_eq(b),
+            (ValueContainer::Value(a), ValueContainer::Value(b)) => a.structural_eq(b),
             (ValueContainer::Reference(a), ValueContainer::Reference(b)) => {
-                a.borrow().current_resolved_value().borrow().soft_eq(
-                    &b.borrow().current_resolved_value().borrow()
-                )
+                a.structural_eq(b)
             }
             (ValueContainer::Value(a), ValueContainer::Reference(b)) |
             (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
-                a.soft_eq(&b.borrow().current_resolved_value().borrow())
+                a.structural_eq(&b.borrow().current_resolved_value().borrow())
             }
         }
     }
 }
 
-impl Identical for ValueContainer {
+/// Value equality checks the value equality of the underlying values, collapsing
+/// references to their current resolved values.
+impl ValueEq for ValueContainer {
+    fn value_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ValueContainer::Value(a), ValueContainer::Value(b)) => a.value_eq(b),
+            (ValueContainer::Reference(a), ValueContainer::Reference(b)) => {
+                a.value_eq(b)
+            }
+            (ValueContainer::Value(a), ValueContainer::Reference(b)) |
+            (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
+                a.value_eq(&b.borrow().current_resolved_value().borrow())
+            }
+        }
+    }
+}
+
+/// Identity checks only returns true if two references are identical.
+/// Values are never identical to references or other values.
+impl Identity for ValueContainer {
     fn identical(&self, other: &Self) -> bool {
         match (self, other) {
             (ValueContainer::Value(_), ValueContainer::Value(_)) => false,
-            (ValueContainer::Reference(a), ValueContainer::Reference(b)) => {
-                a == b
-            }
+            (ValueContainer::Reference(a), ValueContainer::Reference(b)) => a.identical(b),
             _ => false,
         }
     }

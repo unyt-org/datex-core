@@ -9,7 +9,7 @@ use crate::datex_values::{
         typed_integer::TypedInteger,
         utils::{smallest_fitting_signed, smallest_fitting_unsigned},
     },
-    traits::soft_eq::SoftEq,
+    traits::structural_eq::StructuralEq,
 };
 
 #[derive(Debug, Clone, Eq, Copy)]
@@ -36,9 +36,9 @@ impl Integer {
     }
 }
 
-impl SoftEq for Integer {
-    fn soft_eq(&self, other: &Self) -> bool {
-        self.0.soft_eq(&other.0)
+impl StructuralEq for Integer {
+    fn structural_eq(&self, other: &Self) -> bool {
+        self.0.structural_eq(&other.0)
     }
 }
 
@@ -102,7 +102,7 @@ impl Sub for &Integer {
 
 impl PartialEq for Integer {
     fn eq(&self, other: &Self) -> bool {
-        self.soft_eq(other)
+        self.structural_eq(other)
     }
 }
 

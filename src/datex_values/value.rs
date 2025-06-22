@@ -1,11 +1,11 @@
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::reference::Reference;
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Deref, Not, Sub};
-
+use crate::datex_values::traits::value_eq::ValueEq;
 use super::datex_type::CoreValueType;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -13,9 +13,20 @@ pub struct Value {
     pub inner: CoreValue,
     pub actual_type: CoreValueType, // custom type for the value that can not be changed
 }
-impl SoftEq for Value {
-    fn soft_eq(&self, other: &Self) -> bool {
-        self.inner.soft_eq(&other.inner)
+
+/// Two values are structurally equal, if their inner values are structurally equal, regardless
+/// of the actual_type of the values
+impl StructuralEq for Value {
+    fn structural_eq(&self, other: &Self) -> bool {
+        self.inner.structural_eq(&other.inner)
+    }
+}
+
+/// Value equality corresponds to partial equality:
+/// Both type and inner value are the same
+impl ValueEq for Value {
+    fn value_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -129,12 +140,6 @@ impl Value {
     }
 }
 
-impl From<Reference> for Value {
-    fn from(pointer: Reference) -> Self {
-        pointer.borrow().current_resolved_value().borrow().clone()
-    }
-}
-
 impl Add for Value {
     type Output = Result<Value, ValueError>;
     fn add(self, rhs: Value) -> Self::Output {
@@ -212,7 +217,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        assert_soft_eq, datex_array,
+        assert_structural_eq, datex_array,
         datex_values::core_values::{
             array::Array,
             endpoint::Endpoint,
@@ -397,25 +402,25 @@ mod tests {
     }
 
     #[test]
-    fn test_soft_equals() {
+    fn test_structural_equality() {
         let a = Value::from(42_i8);
         let b = Value::from(42_i32);
 
         assert_eq!(a.get_type(), CoreValueType::I8);
         assert_eq!(b.get_type(), CoreValueType::I32);
 
-        assert_soft_eq!(a, b);
+        assert_structural_eq!(a, b);
 
         assert_eq!(
             Value::from(Integer(TypedInteger::I8(42))),
             Value::from(Integer(TypedInteger::U32(42))),
         );
 
-        assert_soft_eq!(
+        assert_structural_eq!(
             Value::from(Integer(TypedInteger::I8(42))),
             Value::from(Integer(TypedInteger::U32(42))),
         );
 
-        assert_soft_eq!(Value::from(42_i8), Value::from(Integer::from(42_i8)));
+        assert_structural_eq!(Value::from(42_i8), Value::from(Integer::from(42_i8)));
     }
 }

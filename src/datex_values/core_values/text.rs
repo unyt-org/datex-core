@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use crate::datex_values::traits::soft_eq::SoftEq;
+use crate::datex_values::traits::structural_eq::StructuralEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 
@@ -43,8 +43,8 @@ impl Text {
 
 impl CoreValueTrait for Text {}
 
-impl SoftEq for Text {
-    fn soft_eq(&self, other: &Self) -> bool {
+impl StructuralEq for Text {
+    fn structural_eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
