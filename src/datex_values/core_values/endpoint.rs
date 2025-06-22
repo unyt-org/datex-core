@@ -71,7 +71,7 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
     fn try_from(value: Option<T>) -> Result<Self, Self::Error> {
         if let Some(value) = value {
             let container: ValueContainer = value.into();
-            if let Some(endpoint) = container.cast_to_endpoint() {
+            if let Some(endpoint) = container.to_value().borrow().cast_to_endpoint() {
                 return Ok(endpoint);
             }
         }

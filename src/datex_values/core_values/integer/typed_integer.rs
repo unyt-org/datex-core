@@ -560,6 +560,8 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
             Some(v) => {
                 let integer: ValueContainer = v.into();
                 integer
+                    .to_value()
+                    .borrow()
                     .cast_to_integer()
                     .ok_or(ValueError::TypeConversionError)
             }

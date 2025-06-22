@@ -529,7 +529,7 @@ impl ComHub {
                     // let endpoint: Endpoint = obj.get("endpoint").cast_to_endpoint();
 
                     let endpoint: Endpoint =
-                        obj.get("endpoint").cast_to_endpoint().unwrap();
+                        obj.get("endpoint").to_value().borrow().cast_to_endpoint().unwrap();
                     let distance: TypedInteger =
                         obj.try_get("distance").cloned().try_into().unwrap();
 
@@ -543,6 +543,8 @@ impl ComHub {
                             let interface_type = socket_obj
                                 .try_get("interface_type")
                                 .unwrap()
+                                .to_value()
+                                .borrow()
                                 .cast_to_text()
                                 .0;
                             let interface_name =
@@ -558,11 +560,15 @@ impl ComHub {
                             let channel = socket_obj
                                 .try_get("channel")
                                 .unwrap()
+                                .to_value()
+                                .borrow()
                                 .cast_to_text()
                                 .0;
                             let socket_uuid = socket_obj
                                 .try_get("socket_uuid")
                                 .unwrap()
+                                .to_value()
+                                .borrow()
                                 .cast_to_text()
                                 .0;
                             (
@@ -576,9 +582,9 @@ impl ComHub {
                             continue;
                         };
                     let direction =
-                        obj.try_get("direction").unwrap().cast_to_text().0;
+                        obj.try_get("direction").unwrap().to_value().borrow().cast_to_text().0;
                     let fork_nr =
-                        obj.try_get("fork_nr").unwrap().cast_to_text().0;
+                        obj.try_get("fork_nr").unwrap().to_value().borrow().cast_to_text().0;
                     let bounce_back: Boolean =
                         obj.try_get("bounce_back").cloned().try_into().unwrap();
 

@@ -76,7 +76,7 @@ fn compare_datex_result_with_json(json_string: &str) {
     println!(" DATEX Value: {datex_value}");
     println!(" Converted JSON Value: {json_value_converted}");
 
-    assert_eq!(json_value_converted, datex_value.into_value());
+    assert_eq!(json_value_converted, *datex_value.to_value().borrow());
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {

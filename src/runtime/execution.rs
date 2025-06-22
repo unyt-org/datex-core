@@ -636,7 +636,7 @@ mod tests {
     #[test]
     fn test_empty_array() {
         let result = execute_datex_script_debug_with_result("[]");
-        let array: Array = result.cast_to_array().unwrap();
+        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
         assert_eq!(array.len(), 0);
         assert_eq!(result, Vec::<ValueContainer>::new().into());
         assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn test_array() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
-        let array: Array = result.cast_to_array().unwrap();
+        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
         let expected =
             datex_array![Integer::from(1), Integer::from(2), Integer::from(3)];
         assert_eq!(array.len(), 3);
@@ -712,7 +712,7 @@ mod tests {
     fn test_tuple() {
         init_logger();
         let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
-        let tuple: CoreValue = result.clone().into_value().inner;
+        let tuple: CoreValue = result.clone().to_value().borrow().clone().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
 
         // form and size

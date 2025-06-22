@@ -131,7 +131,7 @@ impl Value {
 
 impl From<Reference> for Value {
     fn from(pointer: Reference) -> Self {
-        pointer.value
+        pointer.borrow().current_resolved_value().borrow().clone()
     }
 }
 
