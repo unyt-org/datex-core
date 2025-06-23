@@ -60,7 +60,7 @@ pub fn json_to_runtime_value_datex<'a>(json: &'a str, parser: Option<&'a DatexSc
         .expect("Failed to parse JSON string");
     let exec_input = ExecutionInput::new_with_dxb_and_options(&dxb, ExecutionOptions::default());
     let json_value = execute_dxb(exec_input).unwrap().0.unwrap();
-    assert_eq!(json_value.actual_type, CoreValueType::Object);
+    assert_eq!(json_value.to_value().borrow().actual_type, CoreValueType::Object);
 }
 
 pub fn json_to_runtime_value_datex_auto_static_detection<'a>(json: &'a str, parser: Option<&'a DatexScriptParser<'a>>) -> ValueContainer {
@@ -87,7 +87,7 @@ pub fn json_to_dxb<'a>(json: &'a str, parser: Option<&'a DatexScriptParser<'a>>)
 pub fn dxb_to_runtime_value(dxb: &[u8]) {
     let exec_input = ExecutionInput::new_with_dxb_and_options(dxb, ExecutionOptions::default());
     let json_value = execute_dxb(exec_input).unwrap().0.unwrap();
-    assert_eq!(json_value.actual_type, CoreValueType::Object);
+    assert_eq!(json_value.to_value().borrow().actual_type, CoreValueType::Object);
 }
 
 // value -> JSON
