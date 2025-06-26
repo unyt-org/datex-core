@@ -1,3 +1,4 @@
+use crate::compiler::lexer::Token;
 use crate::compiler::parser::extra::Err;
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
@@ -7,9 +8,8 @@ use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
+use logos::Logos;
 use std::collections::HashMap;
-use logos::{Logos};
-use crate::compiler::lexer::{Token};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -52,6 +52,8 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Power => InstructionCode::POWER,
             BinaryOperator::And => InstructionCode::AND,
             BinaryOperator::Or => InstructionCode::OR,
+            BinaryOperator::Equal => InstructionCode::EQUAL_VALUE,
+            BinaryOperator::StrictEqual => InstructionCode::EQUAL,
             _ => todo!(),
         }
     }
@@ -195,24 +197,30 @@ fn decode_json_unicode_escapes(input: &str) -> String {
                             if let Some(c) = chars.next() {
                                 low_code.push(c);
                             } else {
-                                output.push_str(&format!("\\u{first_unit:04X}\\u{low_code}"));
+                                output.push_str(&format!(
+                                    "\\u{first_unit:04X}\\u{low_code}"
+                                ));
                                 break;
                             }
                         }
 
-                        if let Ok(second_unit) = u16::from_str_radix(&low_code, 16)
-                            && (0xDC00..=0xDFFF).contains(&second_unit) {
-                                let combined = 0x10000
-                                    + (((first_unit - 0xD800) as u32) << 10)
-                                    + ((second_unit - 0xDC00) as u32);
-                                if let Some(c) = char::from_u32(combined) {
-                                    output.push(c);
-                                    continue;
-                                }
+                        if let Ok(second_unit) =
+                            u16::from_str_radix(&low_code, 16)
+                            && (0xDC00..=0xDFFF).contains(&second_unit)
+                        {
+                            let combined = 0x10000
+                                + (((first_unit - 0xD800) as u32) << 10)
+                                + ((second_unit - 0xDC00) as u32);
+                            if let Some(c) = char::from_u32(combined) {
+                                output.push(c);
+                                continue;
                             }
+                        }
 
                         // Invalid surrogate fallback
-                        output.push_str(&format!("\\u{first_unit:04X}\\u{low_code}"));
+                        output.push_str(&format!(
+                            "\\u{first_unit:04X}\\u{low_code}"
+                        ));
                     } else {
                         // Unpaired high surrogate
                         output.push_str(&format!("\\u{first_unit:04X}"));
@@ -241,7 +249,7 @@ fn decode_json_unicode_escapes(input: &str) -> String {
 fn unescape_text(text: &str) -> String {
     // remove first and last quote (double or single)
     let escaped = text[1..text.len() - 1]
-    // Replace escape sequences with actual characters
+        // Replace escape sequences with actual characters
         .replace(r#"\""#, "\"") // Replace \" with "
         .replace(r#"\'"#, "'") // Replace \' with '
         .replace(r#"\n"#, "\n") // Replace \n with newline
@@ -278,13 +286,22 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     // a sequence of expressions, separated by semicolons, optionally terminated with a semicolon
     let statements = expression
         .clone()
-        .then_ignore(just(Token::Semicolon).padded_by(whitespace.clone()).repeated().at_least(1))
+        .then_ignore(
+            just(Token::Semicolon)
+                .padded_by(whitespace.clone())
+                .repeated()
+                .at_least(1),
+        )
         .repeated()
         .collect::<Vec<_>>()
         .then(
             expression
                 .clone()
-                .then(just(Token::Semicolon).padded_by(whitespace.clone()).or_not())
+                .then(
+                    just(Token::Semicolon)
+                        .padded_by(whitespace.clone())
+                        .or_not(),
+                )
                 .or_not(), // Final expression with optional semicolon
         )
         .map(|(exprs, last)| {
@@ -343,8 +360,9 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         Token::PlaceholderKW => DatexExpression::Placeholder,
     };
     // expression wrapped in parentheses
-    let wrapped_expression =
-        statements.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen));
+    let wrapped_expression = statements
+        .clone()
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
@@ -438,12 +456,13 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     .boxed();
 
     // operations on atoms
-    let op = |c|
+    let op = |c| {
         just(Token::Whitespace)
             .repeated()
             .at_least(1)
             .ignore_then(just(c))
-            .then_ignore(just(Token::Whitespace).repeated().at_least(1));
+            .then_ignore(just(Token::Whitespace).repeated().at_least(1))
+    };
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let apply_or_property_access = atom
@@ -537,7 +556,8 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     expression_without_tuple.define(choice((variable_assignment, sum.clone())));
 
     expression.define(
-        choice((tuple.clone(), expression_without_tuple.clone())).padded_by(whitespace.clone()),
+        choice((tuple.clone(), expression_without_tuple.clone()))
+            .padded_by(whitespace.clone()),
     );
 
     choice((
@@ -553,19 +573,17 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
     .boxed()
 }
 
-type TokenInput<'a> = &'a[Token];
+type TokenInput<'a> = &'a [Token];
 
 pub fn parse<'a, 'b>(
     src: &str,
     opt_parser: Option<&'b DatexScriptParser<'b>>,
 ) -> (Option<DatexExpression>, Vec<Rich<'a, Token>>) {
-
     let lexer = Token::lexer(src);
-    let tokens = lexer
-        .collect::<Result<Vec<_>, ()>>();
+    let tokens = lexer.collect::<Result<Vec<_>, ()>>();
     // invalid token (todo)
     if let Err(err) = tokens {
-        return (None, vec![])
+        return (None, vec![]);
     }
     let tokens = tokens.unwrap();
 
@@ -577,11 +595,17 @@ pub fn parse<'a, 'b>(
         // (res, vec![])
         let (res, errs) = create_parser().parse(&tokens).into_output_errors();
         // FIXME: only fake errors to fix borrow checker issues
-        let errs = errs.iter().map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error)).collect();
+        let errs = errs
+            .iter()
+            .map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error))
+            .collect();
         (res, errs)
     } else {
         let (res, errs) = create_parser().parse(&tokens).into_output_errors();
-        let errs = errs.iter().map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error)).collect();
+        let errs = errs
+            .iter()
+            .map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error))
+            .collect();
         (res, errs)
     }
 }
@@ -682,6 +706,13 @@ mod tests {
             ])
         );
     }
+
+    // #[test]
+    // fn test_equal_operator() {
+    //     let src = "1 == 1";
+    //     let val = parse_unwrap(src);
+    //     // assert_eq!(val, DatexExpression::Null);
+    // }
 
     #[test]
     fn test_null() {
@@ -897,7 +928,8 @@ mod tests {
 
     #[test]
     fn test_text_escape_sequences() {
-        let src = r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00 \u2764""#;
+        let src =
+            r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00 \u2764""#;
         let text = parse_unwrap(src);
 
         assert_eq!(
@@ -910,12 +942,10 @@ mod tests {
 
     #[test]
     fn test_text_escape_sequences_2() {
-        let src = r#""\u0048\u0065\u006C\u006C\u006F, \u2764\uFE0F, \uD83D\uDE00""#;
+        let src =
+            r#""\u0048\u0065\u006C\u006C\u006F, \u2764\uFE0F, \uD83D\uDE00""#;
         let text = parse_unwrap(src);
-        assert_eq!(
-            text,
-            DatexExpression::Text("Hello, ❤️, 😀".to_string())
-        );
+        assert_eq!(text, DatexExpression::Text("Hello, ❤️, 😀".to_string()));
     }
 
     #[test]
