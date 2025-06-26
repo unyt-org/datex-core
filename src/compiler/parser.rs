@@ -8,7 +8,7 @@ use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::{
-    input::{Stream, ValueInput},
+    input::{SliceInput, Stream, ValueInput},
     prelude::*,
 };
 use logos::Logos;
@@ -279,9 +279,10 @@ pub struct DatexParseResult {
     pub is_static_value: bool,
 }
 
-pub fn create_parser<'a, I>() -> impl Parser<'a, I, DatexExpression, Err<Cheap>>
-where
-    I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
+pub fn create_parser<'a, I>(
+) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>>
+// where
+//     I: SliceInput<'a, Token = Token, Span = SimpleSpan>,
 {
     // an expression
     let mut expression = Recursive::declare();
@@ -582,37 +583,45 @@ type TokenInput<'a> = &'a [Token];
 
 #[derive(Debug)]
 pub enum ParserError {
-    UnexpectedToken(Range<usize>), //(Rich<'a, Token>),
+    UnexpectedToken(Range<usize>),
     InvalidToken(Range<usize>),
 }
 
 pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
-    let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
-        Ok(tok) => (tok, span.into()),
-        Err(_) => (Token::Error, span.into()),
-    });
-    let token_stream = Stream::from_iter(token_iter)
-        .map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
+    let tokens = Token::lexer(src);
+    let tokens = tokens.into_iter().map(|f| f.unwrap()).collect::<Vec<_>>();
 
-    let result =
-        create_parser()
-            .parse(token_stream)
-            .into_result()
-            .map_err(|err| {
-                err.into_iter()
-                    .map(|e| {
-                        ParserError::UnexpectedToken(e.span().into_range())
-                    })
-                    .collect()
-            });
+    let parser = create_parser::<'_, TokenInput>();
+    let result = parser.parse(&tokens).into_result().map_err(|err| {
+        err.into_iter()
+            .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
+            .collect()
+    });
     result
 }
+
+// pub fn parse_with_context(src: &str) -> (DatexExpression, Vec<ParserError>) {
+//     let lexer = Token::lexer(src);
+//     let tokens = lexer.spanned().map(|(tok, span)| match tok {
+//         Ok(tok) => (tok, span.into()),
+//         Err(_) => (Token::Error, span.into()),
+//     });
+//     let tokens = Stream::from_iter(tokens)
+//         .map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
+
+//     let result = create_parser().parse(tokens).into_result().map_err(|err| {
+//         err.into_iter()
+//             .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
+//             .collect()
+//     });
+//     result
+// }
 
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    
+
     use std::assert_matches::assert_matches;
 
     fn print_report(errs: Vec<ParserError>, src: &str) {

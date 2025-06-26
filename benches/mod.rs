@@ -23,30 +23,6 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
     let (dxb, _) = compile_script(&json, CompileOptions::default())
         .expect("Failed to parse JSON string");
 
-    // serde
-    c.bench_with_input(
-        BenchmarkId::new("json to runtime value serde_json", file_path),
-        &json,
-        |b, json| {
-            b.iter(|| {
-                json_to_runtime_value_baseline_serde(black_box(json));
-                black_box(());
-            })
-        },
-    );
-    // json_syntax
-    c.bench_with_input(
-        BenchmarkId::new("json to runtime value json_syntax", file_path),
-        &json,
-        |b, json| {
-            b.iter(|| {
-                json::json_to_runtime_value_baseline_json_syntax(black_box(
-                    json,
-                ));
-                black_box(());
-            })
-        },
-    );
     // DATEX
     c.bench_with_input(
         BenchmarkId::new("json to runtime value datex", file_path),
@@ -174,6 +150,31 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
         |b, dxb| {
             b.iter(|| {
                 json::dxb_to_json(black_box(dxb));
+                black_box(());
+            })
+        },
+    );
+
+    // serde
+    c.bench_with_input(
+        BenchmarkId::new("json to runtime value serde_json", file_path),
+        &json,
+        |b, json| {
+            b.iter(|| {
+                json_to_runtime_value_baseline_serde(black_box(json));
+                black_box(());
+            })
+        },
+    );
+    // json_syntax
+    c.bench_with_input(
+        BenchmarkId::new("json to runtime value json_syntax", file_path),
+        &json,
+        |b, json| {
+            b.iter(|| {
+                json::json_to_runtime_value_baseline_json_syntax(black_box(
+                    json,
+                ));
                 black_box(());
             })
         },

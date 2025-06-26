@@ -219,7 +219,7 @@ pub enum InstructionCode {
     DECIMAL_BIG = 0xfb,
     DECIMAL_AS_INT_32 = 0xcd,
     DECIMAL_AS_INT_16 = 0xde,
-    
+
     TRUE = 0xc6,
     FALSE = 0xc7,
     NULL = 0xc8,
