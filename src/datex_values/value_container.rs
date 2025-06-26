@@ -5,7 +5,7 @@ use crate::datex_values::traits::structural_eq::StructuralEq;
 use super::{reference::Reference, value::Value};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::{Add, Deref, Sub};
+use std::ops::{Add, Sub};
 use std::rc::Rc;
 use crate::datex_values::traits::value_eq::ValueEq;
 

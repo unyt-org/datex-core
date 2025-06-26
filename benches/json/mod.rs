@@ -6,7 +6,7 @@ use datex_core::compiler::parser::DatexScriptParser;
 use datex_core::datex_values::datex_type::CoreValueType;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
-use datex_core::runtime::execution::{execute_dxb, ExecutionContext, ExecutionInput, ExecutionOptions};
+use datex_core::runtime::execution::{execute_dxb, ExecutionInput, ExecutionOptions};
 
 pub fn get_json_test_string(file_path: &str) -> String {
     // read json from test file

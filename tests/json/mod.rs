@@ -6,7 +6,7 @@ use datex_core::datex_values::core_values::object::Object;
 use datex_core::datex_values::value::Value;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
-use datex_core::runtime::execution::{execute_dxb, ExecutionContext, ExecutionInput, ExecutionOptions};
+use datex_core::runtime::execution::{execute_dxb, ExecutionInput, ExecutionOptions};
 use itertools::Itertools;
 use json_syntax::Parse;
 use std::path::PathBuf;

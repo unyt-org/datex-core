@@ -1774,7 +1774,7 @@ pub mod tests {
     #[test]
     fn test_compile() {
         init_logger();
-        let result = compile_template("? + ?", &vec![1.into(), 2.into()], CompileOptions::default());
+        let result = compile_template("? + ?", &[1.into(), 2.into()], CompileOptions::default());
         assert_eq!(
             result.unwrap().0,
             vec![
@@ -1798,7 +1798,7 @@ pub mod tests {
     #[test]
     fn test_compile_macro_multi() {
         init_logger();
-        let (result) = compile!("? + ?", 1, 2);
+        let result = compile!("? + ?", 1, 2);
         assert_eq!(
             result.unwrap().0,
             vec![

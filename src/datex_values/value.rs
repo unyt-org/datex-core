@@ -1,5 +1,4 @@
 use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::reference::Reference;
 use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::value_container::ValueError;
 use log::error;

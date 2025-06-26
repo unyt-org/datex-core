@@ -571,7 +571,7 @@ mod tests {
     fn execute_dxb_debug(
         dxb_body: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        let context = ExecutionInput::new_with_dxb_and_options(&dxb_body, ExecutionOptions { verbose: true });
+        let context = ExecutionInput::new_with_dxb_and_options(dxb_body, ExecutionOptions { verbose: true });
         execute_dxb(context).map(|(result, _)| result)
     }
 
