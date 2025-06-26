@@ -8,7 +8,7 @@ use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::{
-    input::{SliceInput, Stream, ValueInput},
+    input::ValueInput,
     prelude::*,
 };
 use logos::Logos;
