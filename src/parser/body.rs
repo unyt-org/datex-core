@@ -1,13 +1,16 @@
 use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::decompiler::ScopeType;
+use crate::global::binary_codes::InstructionCode;
+use crate::global::protocol_structures::instructions::{
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data,
+    ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw,
+};
 use crate::stdlib::fmt;
+use crate::utils::buffers;
 use binrw::BinRead;
 use std::fmt::Display;
 use std::io::Cursor;
-use crate::decompiler::ScopeType;
-use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw};
-use crate::utils::buffers;
-
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -15,7 +18,7 @@ fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
 }
 
 #[derive(Debug)]
-pub enum ParserError {
+pub enum DXBParserError {
     InvalidEndpoint(String),
     InvalidBinaryCode(u8),
     FailedToReadInstructionCode,
@@ -28,44 +31,46 @@ pub enum ParserError {
     },
 }
 
-impl From<fmt::Error> for ParserError {
+impl From<fmt::Error> for DXBParserError {
     fn from(error: fmt::Error) -> Self {
-        ParserError::FmtError(error)
+        DXBParserError::FmtError(error)
     }
 }
 
-impl From<binrw::Error> for ParserError {
+impl From<binrw::Error> for DXBParserError {
     fn from(error: binrw::Error) -> Self {
-        ParserError::BinRwError(error)
+        DXBParserError::BinRwError(error)
     }
 }
 
-impl From<std::string::FromUtf8Error> for ParserError {
+impl From<std::string::FromUtf8Error> for DXBParserError {
     fn from(error: std::string::FromUtf8Error) -> Self {
-        ParserError::FromUtf8Error(error)
+        DXBParserError::FromUtf8Error(error)
     }
 }
 
-impl Display for ParserError {
+impl Display for DXBParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParserError::InvalidBinaryCode(code) => {
+            DXBParserError::InvalidBinaryCode(code) => {
                 write!(f, "Invalid binary code: {code}")
             }
-            ParserError::InvalidEndpoint(endpoint) => {
+            DXBParserError::InvalidEndpoint(endpoint) => {
                 write!(f, "Invalid endpoint: {endpoint}")
             }
-            ParserError::FailedToReadInstructionCode => {
+            DXBParserError::FailedToReadInstructionCode => {
                 write!(f, "Failed to read instruction code")
             }
-            ParserError::FmtError(err) => write!(f, "Formatting error: {err}"),
-            ParserError::BinRwError(err) => {
+            DXBParserError::FmtError(err) => {
+                write!(f, "Formatting error: {err}")
+            }
+            DXBParserError::BinRwError(err) => {
                 write!(f, "Binary read/write error: {err}")
             }
-            ParserError::FromUtf8Error(err) => {
+            DXBParserError::FromUtf8Error(err) => {
                 write!(f, "UTF-8 conversion error: {err}")
             }
-            ParserError::InvalidScopeEndType { expected, found } => {
+            DXBParserError::InvalidScopeEndType { expected, found } => {
                 write!(f, "Invalid scope end type: expected {expected:?}, found {found:?}")
             }
         }
@@ -74,7 +79,7 @@ impl Display for ParserError {
 
 fn get_short_text_data(
     mut reader: &mut Cursor<&[u8]>,
-) -> Result<ShortTextData, ParserError> {
+) -> Result<ShortTextData, DXBParserError> {
     let raw_data = ShortTextDataRaw::read(&mut reader);
     if let Err(err) = raw_data {
         Err(err.into())
@@ -92,7 +97,7 @@ fn get_short_text_data(
 
 fn get_endpoint_data(
     mut reader: &mut Cursor<&[u8]>,
-) -> Result<Endpoint, ParserError> {
+) -> Result<Endpoint, DXBParserError> {
     let raw_data = Endpoint::read(&mut reader);
     if let Ok(endpoint) = raw_data {
         Ok(endpoint)
@@ -103,7 +108,7 @@ fn get_endpoint_data(
 
 fn get_text_data(
     mut reader: &mut Cursor<&[u8]>,
-) -> Result<TextData, ParserError> {
+) -> Result<TextData, DXBParserError> {
     let raw_data = TextDataRaw::read(&mut reader);
     if let Err(err) = raw_data {
         Err(err.into())
@@ -122,7 +127,7 @@ fn get_text_data(
 // TODO: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
-) -> impl Iterator<Item = Result<Instruction, ParserError>> + 'a {
+) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {
     std::iter::from_coroutine(
         #[coroutine]
         move || {
@@ -143,7 +148,7 @@ pub fn iterate_instructions<'a>(
                 let instruction_code =
                     InstructionCode::try_from(instruction_code.unwrap());
                 if instruction_code.is_err() {
-                    yield Err(ParserError::FailedToReadInstructionCode);
+                    yield Err(DXBParserError::FailedToReadInstructionCode);
                     return;
                 }
                 let instruction_code = instruction_code.unwrap();
@@ -297,7 +302,6 @@ pub fn iterate_instructions<'a>(
 
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
 
-
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {
                         let address = SlotAddress::read(&mut reader);
@@ -332,7 +336,7 @@ pub fn iterate_instructions<'a>(
                         }
                     }
 
-                    _ => Err(ParserError::InvalidBinaryCode(
+                    _ => Err(DXBParserError::InvalidBinaryCode(
                         instruction_code as u8,
                     )),
                 }

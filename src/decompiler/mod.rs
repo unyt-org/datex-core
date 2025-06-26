@@ -11,7 +11,7 @@ use crate::global::protocol_structures::instructions::{
     ShortTextData, TextData,
 };
 use crate::parser::body;
-use crate::parser::body::ParserError;
+use crate::parser::body::DXBParserError;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
@@ -20,7 +20,7 @@ use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 pub fn decompile_body(
     dxb_body: &[u8],
     options: DecompileOptions,
-) -> Result<String, ParserError> {
+) -> Result<String, DXBParserError> {
     let mut initial_state = DecompilerState {
         dxb_body,
         options,
@@ -95,7 +95,7 @@ pub enum ScopeType {
 }
 
 impl ScopeType {
-    pub fn write_start(&self, output: &mut String) -> Result<(), ParserError> {
+    pub fn write_start(&self, output: &mut String) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default => write!(output, "(")?,
             ScopeType::Tuple => write!(output, "(")?,
@@ -107,7 +107,7 @@ impl ScopeType {
         }
         Ok(())
     }
-    pub fn write_end(&self, output: &mut String) -> Result<(), ParserError> {
+    pub fn write_end(&self, output: &mut String) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default => write!(output, ")")?,
             ScopeType::Tuple => write!(output, ")")?,
@@ -134,10 +134,10 @@ struct ScopeState {
 }
 
 impl ScopeState {
-    fn write_start(&self, output: &mut String) -> Result<(), ParserError> {
+    fn write_start(&self, output: &mut String) -> Result<(), DXBParserError> {
         self.scope_type.0.write_start(output)
     }
-    fn write_end(&self, output: &mut String) -> Result<(), ParserError> {
+    fn write_end(&self, output: &mut String) -> Result<(), DXBParserError> {
         self.scope_type.0.write_end(output)
     }
 }
@@ -196,7 +196,7 @@ impl DecompilerState<'_> {
     }
 }
 
-fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
+fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError> {
     let mut output = String::new();
 
     let instruction_iterator = body::iterate_instructions(state.dxb_body);
@@ -424,7 +424,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, ParserError> {
 
 pub fn apply_syntax_highlighting(
     datex_script: String,
-) -> Result<String, ParserError> {
+) -> Result<String, DXBParserError> {
     let mut output = String::new();
 
     // load datex syntax + custom theme
@@ -472,7 +472,7 @@ fn write_text_key(
     text: &str,
     output: &mut String,
     formatted: bool,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
     let text = if !state.options.json_compat && is_alphanumeric_identifier(text)
     {
@@ -508,7 +508,7 @@ fn handle_before_term(
     state: &mut DecompilerState,
     output: &mut String,
     is_standalone_key: bool,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     handle_before_operand(state, output)?;
     handle_before_item(state, output, is_standalone_key)?;
     Ok(())
@@ -520,7 +520,7 @@ fn handle_after_term(
     state: &mut DecompilerState,
     output: &mut String,
     is_standalone_key: bool,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     // next_item_is_key
     if state.get_current_scope().next_item_is_key {
         if !is_standalone_key {
@@ -544,7 +544,7 @@ fn handle_after_term(
 fn handle_scope_close(
     state: &mut DecompilerState,
     output: &mut String,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     let scope = state.get_current_scope();
     // close only if not outer scope
     if !scope.is_outer_scope {
@@ -562,7 +562,7 @@ fn handle_before_item(
     state: &mut DecompilerState,
     output: &mut String,
     is_standalone_key: bool,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     let formatted = state.options.formatted;
     let scope = state.get_current_scope();
 
@@ -600,7 +600,7 @@ fn handle_before_item(
 fn handle_before_operand(
     state: &mut DecompilerState,
     output: &mut String,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     if let Some(operator) = &state.get_current_scope().active_operator {
         // handle the operator before the operand
         match operator {
@@ -633,7 +633,7 @@ fn write_operator(
     state: &mut DecompilerState,
     output: &mut String,
     operator: &str,
-) -> Result<(), ParserError> {
+) -> Result<(), DXBParserError> {
     write!(output, " {operator} ")?;
     Ok(())
 }

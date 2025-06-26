@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use super::stack::{ActiveValue, ScopeStack, ScopeType};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
@@ -10,9 +8,14 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, ShortTextData, SlotAddress, TextData};
+use crate::global::protocol_structures::instructions::{
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, ShortTextData, SlotAddress, TextData,
+};
 use crate::parser::body;
-use crate::parser::body::ParserError;
+use crate::parser::body::DXBParserError;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 #[derive(Debug, Clone, Default)]
@@ -48,7 +51,6 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
-
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
@@ -87,7 +89,10 @@ impl ExecutionContext {
 
     /// Retrieves the value of a slot by its address.
     /// If the slot is not allocated, it returns an error.
-    fn get_slot_value(&self, address: u32) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn get_slot_value(
+        &self,
+        address: u32,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         self.slots
             .borrow_mut()
             .get(&address)
@@ -96,7 +101,6 @@ impl ExecutionContext {
             .map_err(|_| ExecutionError::SlotNotAllocated(address))
     }
 }
-
 
 pub fn execute_dxb(
     input: ExecutionInput,
@@ -109,7 +113,7 @@ pub enum InvalidProgramError {
     InvalidScopeClose,
     InvalidKeyValuePair,
     // any unterminated sequence, e.g. missing key in key-value pair
-    UnterminatedSequence
+    UnterminatedSequence,
 }
 
 impl Display for InvalidProgramError {
@@ -130,7 +134,7 @@ impl Display for InvalidProgramError {
 
 #[derive(Debug)]
 pub enum ExecutionError {
-    ParserError(ParserError),
+    ParserError(DXBParserError),
     ValueError(ValueError),
     InvalidProgram(InvalidProgramError),
     Unknown,
@@ -139,8 +143,8 @@ pub enum ExecutionError {
     SlotNotInitialized(u32),
 }
 
-impl From<ParserError> for ExecutionError {
-    fn from(error: ParserError) -> Self {
+impl From<DXBParserError> for ExecutionError {
+    fn from(error: DXBParserError) -> Self {
         ExecutionError::ParserError(error)
     }
 }
@@ -172,10 +176,16 @@ impl Display for ExecutionError {
                 write!(f, "Not implemented: {msg}")
             }
             ExecutionError::SlotNotAllocated(address) => {
-                write!(f, "Tried to access unallocated slot at address {address}")
+                write!(
+                    f,
+                    "Tried to access unallocated slot at address {address}"
+                )
             }
             ExecutionError::SlotNotInitialized(address) => {
-                write!(f, "Tried to access uninitialized slot at address {address}")
+                write!(
+                    f,
+                    "Tried to access uninitialized slot at address {address}"
+                )
             }
         }
     }
@@ -248,17 +258,23 @@ pub fn execute_loop(
             }
 
             Instruction::Subtract => {
-                context.scope_stack.set_active_operation(Instruction::Subtract);
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::Subtract);
                 ActiveValue::None
             }
 
             Instruction::Multiply => {
-                context.scope_stack.set_active_operation(Instruction::Multiply);
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::Multiply);
                 ActiveValue::None
             }
 
             Instruction::Divide => {
-                context.scope_stack.set_active_operation(Instruction::Divide);
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::Divide);
                 ActiveValue::None
             }
 
@@ -303,13 +319,12 @@ pub fn execute_loop(
 
             Instruction::ScopeEnd => {
                 // if has active_slot, assign value
-                if let Some(active_slot) = context.scope_stack.get_active_slot() &&
-                    let ActiveValue::ValueContainer(active) = context.scope_stack.get_active_value() {
+                if let Some(active_slot) = context.scope_stack.get_active_slot()
+                    && let ActiveValue::ValueContainer(active) =
+                        context.scope_stack.get_active_value()
+                {
                     // write to slot
-                    context.set_slot_value(
-                        active_slot,
-                        active.clone(),
-                    )?;
+                    context.set_slot_value(active_slot, active.clone())?;
                 }
 
                 // pop scope and return value
@@ -350,11 +365,7 @@ pub fn execute_loop(
             }
         };
 
-        handle_value(
-            &mut context,
-            is_scope_start,
-            value
-        )?;
+        handle_value(&mut context, is_scope_start, value)?;
     }
 
     // final cleanup of the current scope:
@@ -380,7 +391,6 @@ pub fn execute_loop(
     // clear active operation if any
     context.scope_stack.clear_active_operation();
 
-
     // removes the current active value from the scope stack
     Ok(match context.scope_stack.pop_active_value() {
         ActiveValue::None => (None, context),
@@ -389,13 +399,18 @@ pub fn execute_loop(
 }
 
 /// Takes a produced value and handles it according to the current context, scope and active operation.
-fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: ActiveValue) -> Result<(), ExecutionError>{
+fn handle_value(
+    context: &mut ExecutionContext,
+    is_scope_start: bool,
+    value: ActiveValue,
+) -> Result<(), ExecutionError> {
     match value {
         ActiveValue::ValueContainer(value_container) => {
             // TODO: try to optimize and initialize variables only when needed, currently leeds to borrow errors
             let active_operation =
                 context.scope_stack.get_active_operation().cloned();
-            let scope_type = context.scope_stack.get_current_scope_type().clone();
+            let scope_type =
+                context.scope_stack.get_current_scope_type().clone();
             let active_key = context.scope_stack.get_active_key();
             let active_value = context.scope_stack.get_active_value_mut();
 
@@ -404,7 +419,9 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                 match active_key {
                     // set key for key-value pair (for dynamic keys)
                     ActiveValue::None => {
-                        context.scope_stack.set_active_key(value_container.into());
+                        context
+                            .scope_stack
+                            .set_active_key(value_container.into());
                     }
 
                     // set value for key-value pair
@@ -413,20 +430,17 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                         match active_value {
                             ActiveValue::ValueContainer(
                                 ValueContainer::Value(Value {
-                                                          inner: CoreValue::Object(object),
-                                                          ..
-                                                      }),
+                                    inner: CoreValue::Object(object),
+                                    ..
+                                }),
                             ) => {
                                 // make sure key is a string
                                 match key {
                                     ValueContainer::Value(Value {
-                                                              inner: CoreValue::Text(key_str),
-                                                              ..
-                                                          }) => {
-                                        object.set(
-                                            &key_str.0,
-                                            value_container,
-                                        );
+                                        inner: CoreValue::Text(key_str),
+                                        ..
+                                    }) => {
+                                        object.set(&key_str.0, value_container);
                                     }
                                     _ => {
                                         return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
@@ -436,9 +450,9 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                             // tuple
                             ActiveValue::ValueContainer(
                                 ValueContainer::Value(Value {
-                                                          inner: CoreValue::Tuple(tuple),
-                                                          ..
-                                                      }),
+                                    inner: CoreValue::Tuple(tuple),
+                                    ..
+                                }),
                             ) => {
                                 // set key-value pair in tuple
                                 tuple.set(key, value_container);
@@ -455,7 +469,8 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                         // TODO: unary operations
 
                         // set active value to new value
-                        context.scope_stack
+                        context
+                            .scope_stack
                             .set_active_value_container(value_container);
                     }
 
@@ -481,7 +496,9 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                             };
                             if let Ok(val) = res {
                                 // set active value to operation result
-                                context.scope_stack.set_active_value_container(val);
+                                context
+                                    .scope_stack
+                                    .set_active_value_container(val);
                             } else {
                                 // handle error
                                 return Err(ExecutionError::ValueError(
@@ -496,9 +513,9 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                             // add value to array scope
                             match active_value_container {
                                 ValueContainer::Value(Value {
-                                                          inner: CoreValue::Array(array),
-                                                          ..
-                                                      }) => {
+                                    inner: CoreValue::Array(array),
+                                    ..
+                                }) => {
                                     // append value to array
                                     array.push(value_container);
                                 }
@@ -514,9 +531,9 @@ fn handle_value(context: &mut ExecutionContext, is_scope_start: bool, value: Act
                             // add value to array scope
                             match active_value_container {
                                 ValueContainer::Value(Value {
-                                                          inner: CoreValue::Tuple(tuple),
-                                                          ..
-                                                      }) => {
+                                    inner: CoreValue::Tuple(tuple),
+                                    ..
+                                }) => {
                                     // automatic tuple keys are always default integer values
                                     let index = CoreValue::Integer(
                                         Integer::from(tuple.next_int_key()),
@@ -555,11 +572,17 @@ mod tests {
     fn execute_datex_script_debug(
         datex_script: &str,
     ) -> Option<ValueContainer> {
-        let (dxb, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
-        let context = ExecutionInput::new_with_dxb_and_options(&dxb, ExecutionOptions { verbose: true });
-        execute_dxb(context).unwrap_or_else(|err| {
-            panic!("Execution failed: {err}");
-        }).0
+        let (dxb, _) =
+            compile_script(datex_script, CompileOptions::default()).unwrap();
+        let context = ExecutionInput::new_with_dxb_and_options(
+            &dxb,
+            ExecutionOptions { verbose: true },
+        );
+        execute_dxb(context)
+            .unwrap_or_else(|err| {
+                panic!("Execution failed: {err}");
+            })
+            .0
     }
 
     fn execute_datex_script_debug_with_result(
@@ -571,7 +594,10 @@ mod tests {
     fn execute_dxb_debug(
         dxb_body: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        let context = ExecutionInput::new_with_dxb_and_options(dxb_body, ExecutionOptions { verbose: true });
+        let context = ExecutionInput::new_with_dxb_and_options(
+            dxb_body,
+            ExecutionOptions { verbose: true },
+        );
         execute_dxb(context).map(|(result, _)| result)
     }
 
@@ -663,7 +689,10 @@ mod tests {
 
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
-        assert_structural_eq!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
+        assert_structural_eq!(
+            result,
+            ValueContainer::from(vec![1_u8, 5_u8, 4_u8])
+        );
     }
 
     #[test]

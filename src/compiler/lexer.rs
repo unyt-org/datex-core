@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::Range};
 
 use logos::{Lexer, Logos};
 
@@ -17,12 +17,14 @@ impl Loc {
 }
 
 #[derive(Logos, Debug, Clone, PartialEq)]
+#[logos(error = Range<usize>)]
 // single line comments
 #[logos(skip r"//[^\n]*")]
 // multiline comments
 #[logos(skip r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/")]
 // #[logos(skip r"[ \n\t\r\f]+")]
 #[rustfmt::skip]
+
 pub enum Token {
     // ==< Operators & Separators >==
     #[token("(")] LeftParen,

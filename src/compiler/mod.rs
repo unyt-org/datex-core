@@ -1,46 +1,45 @@
-use std::fmt::Display;
-use chumsky::error::Rich;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
+use chumsky::error::Rich;
+use std::fmt::Display;
 
 pub mod bytecode;
-pub mod parser;
 mod lexer;
+pub mod parser;
 
-use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::compiler::bytecode::{compile_script, CompileOptions};
 use crate::compiler::lexer::Token;
-use crate::compiler::parser::DatexExpression;
+use crate::compiler::parser::{DatexExpression, ParserError};
+use crate::datex_values::core_values::endpoint::Endpoint;
 
 #[derive(Debug)]
-pub enum CompilerError<'a> {
+pub enum CompilerError {
     UnexpectedTerm(DatexExpression),
-    SyntaxError(Vec<Rich<'a, Token>>),
+    ParserErrors(Vec<ParserError>),
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount,
     NonStaticValue,
     UndeclaredVariable(String),
-    ScopePopError
+    ScopePopError,
 }
-
-impl<'a> From<Vec<Rich<'a, Token>>> for CompilerError<'a> {
-    fn from(error: Vec<Rich<'a, Token>>) -> Self {
-        CompilerError::SyntaxError(error)
+impl From<Vec<ParserError>> for CompilerError {
+    fn from(value: Vec<ParserError>) -> Self {
+        CompilerError::ParserErrors(value)
     }
 }
 
-impl<'a> Display for CompilerError<'a> {
+impl Display for CompilerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CompilerError::UnexpectedTerm(rule) => {
                 write!(f, "Unexpected term: {rule:?}")
             }
-            CompilerError::SyntaxError(error) => {
+            CompilerError::ParserErrors(error) => {
                 write!(f, "Syntax error") // TODO
             }
             CompilerError::SerializationError(error) => {

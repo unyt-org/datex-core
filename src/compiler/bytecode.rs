@@ -1,3 +1,7 @@
+use crate::compiler::parser::{
+    parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry,
+    VariableType,
+};
 use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
@@ -17,7 +21,6 @@ use binrw::BinWrite;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::Cursor;
-use crate::compiler::parser::{parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry, VariableType};
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -25,7 +28,7 @@ pub struct CompileOptions<'a> {
     pub compile_scope: CompileScope,
 }
 
-impl CompileOptions <'_> {
+impl CompileOptions<'_> {
     pub fn new_with_scope(compile_scope: CompileScope) -> Self {
         CompileOptions {
             parser: None,
@@ -64,7 +67,10 @@ impl<'a> CompilationContext<'a> {
     const FLOAT_32_BYTES: u8 = 4;
     const FLOAT_64_BYTES: u8 = 8;
 
-    fn new(buffer: RefCell<Vec<u8>>, inserted_values: &'a [&'a ValueContainer]) -> Self {
+    fn new(
+        buffer: RefCell<Vec<u8>>,
+        inserted_values: &'a [&'a ValueContainer],
+    ) -> Self {
         CompilationContext {
             index: Cell::new(0),
             inserted_value_index: Cell::new(0),
@@ -225,9 +231,11 @@ impl<'a> CompilationContext<'a> {
         }
     }
 
-
     fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
-        fn insert_f32_or_f64(scope: &CompilationContext, decimal: &TypedDecimal) {
+        fn insert_f32_or_f64(
+            scope: &CompilationContext,
+            decimal: &TypedDecimal,
+        ) {
             match decimal {
                 TypedDecimal::F32(val) => {
                     scope.insert_float32(val.into_inner());
@@ -306,11 +314,13 @@ impl<'a> CompilationContext<'a> {
             .contains(&int)
         {
             self.insert_i8(int as i8)
-        } else if (CompilationContext::MIN_INT_16..=CompilationContext::MAX_INT_16)
+        } else if (CompilationContext::MIN_INT_16
+            ..=CompilationContext::MAX_INT_16)
             .contains(&int)
         {
             self.insert_i16(int as i16)
-        } else if (CompilationContext::MIN_INT_32..=CompilationContext::MAX_INT_32)
+        } else if (CompilationContext::MIN_INT_32
+            ..=CompilationContext::MAX_INT_32)
             .contains(&int)
         {
             self.insert_i32(int as i32)
@@ -432,29 +442,26 @@ impl<'a> CompilationContext<'a> {
 }
 
 /// Compiles a DATEX script text into a DXB body
-pub fn compile_script<'a>(datex_script: &'a str, options: CompileOptions<'a>) -> Result<(Vec<u8>, CompileScope), CompilerError<'a>> {
+pub fn compile_script<'a>(
+    datex_script: &'a str,
+    options: CompileOptions<'a>,
+) -> Result<(Vec<u8>, CompileScope), CompilerError> {
     compile_template(datex_script, &[], options)
 }
 
 /// Directly extracts a static value from a DATEX script as a `ValueContainer`.
 /// This only works if the script does not contain any dynamic values or operations.
 /// All JSON-files can be compiled to static values, but not all DATEX scripts.
-pub fn extract_static_value_from_script(datex_script: &str) -> Result<Option<ValueContainer>, CompilerError> {
-    let (ast, errors) = parse(datex_script, None);
-    if !errors.is_empty() {
-        return Err(CompilerError::SyntaxError(errors));
-    }
-    if ast.is_none() {
-        return Ok(None);
-    }
-
-    let ast = ast.unwrap();
-    extract_static_value_from_ast(ast).map(Some)
+pub fn extract_static_value_from_script(
+    datex_script: &str,
+) -> Result<Option<ValueContainer>, CompilerError> {
+    let res = parse(datex_script)?;
+    extract_static_value_from_ast(res).map(Some)
 }
 
 fn extract_static_value_from_ast<'a>(
     ast: DatexExpression,
-) -> Result<ValueContainer, CompilerError<'a>> {
+) -> Result<ValueContainer, CompilerError> {
     if let DatexExpression::Placeholder = ast {
         return Err(CompilerError::NonStaticValue);
     }
@@ -466,14 +473,15 @@ fn extract_static_value_from_ast<'a>(
 pub fn compile_template_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
-    options: CompileOptions<'a>
-) -> Result<(Vec<u8>, CompileScope), CompilerError<'a>> {
+    options: CompileOptions<'a>,
+) -> Result<(Vec<u8>, CompileScope), CompilerError> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         inserted_values,
         false,
         options,
-    ).map(|result| match result.0 {
+    )
+    .map(|result| match result.0 {
         StaticValueOrDXB::StaticValue(_) => unreachable!(),
         StaticValueOrDXB::Dxb(dxb) => (dxb, result.1),
     })
@@ -484,8 +492,8 @@ pub fn compile_template_with_refs<'a>(
 /// directly returned instead of the DXB body.
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
-    options: CompileOptions<'a>
-) -> Result<(StaticValueOrDXB, CompileScope), CompilerError<'a>> {
+    options: CompileOptions<'a>,
+) -> Result<(StaticValueOrDXB, CompileScope), CompilerError> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         &[],
@@ -493,7 +501,6 @@ pub fn compile_script_or_return_static_value<'a>(
         options,
     )
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StaticValueOrDXB {
@@ -511,49 +518,53 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
     return_static_value: bool,
-    options: CompileOptions<'a>
-) -> Result<(StaticValueOrDXB, CompileScope), CompilerError<'a>> {
-
+    options: CompileOptions<'a>,
+) -> Result<(StaticValueOrDXB, CompileScope), CompilerError> {
     // shortcut if datex_script is "?" - call compile_value directly
     if datex_script == "?" {
         if inserted_values.len() != 1 {
             return Err(CompilerError::InvalidPlaceholderCount);
         }
-        let result =  compile_value(inserted_values[0]).map(StaticValueOrDXB::from)?;
+        let result =
+            compile_value(inserted_values[0]).map(StaticValueOrDXB::from)?;
         return Ok((result, options.compile_scope));
     }
 
-    let (ast, errors) = parse(datex_script, options.parser);
-    if !errors.is_empty() {
-        return Err(CompilerError::SyntaxError(errors));
-    }
-    if ast.is_none() {
-        return Ok((vec![].into(), options.compile_scope));
-    }
-    let ast = ast.unwrap();
+    let ast = parse(datex_script)?;
 
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_context = CompilationContext::new(buffer, inserted_values);
 
     if return_static_value {
-        let scope = compile_ast(&compilation_context, ast.clone(), options.compile_scope)?;
+        let scope = compile_ast(
+            &compilation_context,
+            ast.clone(),
+            options.compile_scope,
+        )?;
 
         if !*compilation_context.has_non_static_value.borrow() {
-            if let Ok(value) = ValueContainer::try_from(ast)
-            {
-                return Ok((StaticValueOrDXB::StaticValue(Some(value.clone())), scope));
+            if let Ok(value) = ValueContainer::try_from(ast) {
+                return Ok((
+                    StaticValueOrDXB::StaticValue(Some(value.clone())),
+                    scope,
+                ));
             }
             Ok((StaticValueOrDXB::StaticValue(None), scope))
-        }
-        else {
+        } else {
             // return DXB body
-            Ok((StaticValueOrDXB::Dxb(compilation_context.buffer.take()), scope))
+            Ok((
+                StaticValueOrDXB::Dxb(compilation_context.buffer.take()),
+                scope,
+            ))
         }
-    }
-    else {
-        let scope = compile_ast(&compilation_context, ast, options.compile_scope)?;
+    } else {
+        let scope =
+            compile_ast(&compilation_context, ast, options.compile_scope)?;
         // return DXB body
-        Ok((StaticValueOrDXB::Dxb(compilation_context.buffer.take()), scope))
+        Ok((
+            StaticValueOrDXB::Dxb(compilation_context.buffer.take()),
+            scope,
+        ))
     }
 }
 
@@ -561,16 +572,18 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
 pub fn compile_template<'a>(
     datex_script: &'a str,
     inserted_values: &[ValueContainer],
-    options: CompileOptions<'a>
-) -> Result<(Vec<u8>, CompileScope), CompilerError<'a>> {
+    options: CompileOptions<'a>,
+) -> Result<(Vec<u8>, CompileScope), CompilerError> {
     compile_template_with_refs(
         datex_script,
         &inserted_values.iter().collect::<Vec<_>>(),
-        options
+        options,
     )
 }
 
-pub fn compile_value<'a>(value: &ValueContainer) -> Result<Vec<u8>, CompilerError<'a>> {
+pub fn compile_value<'a>(
+    value: &ValueContainer,
+) -> Result<Vec<u8>, CompilerError> {
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_scope = CompilationContext::new(buffer, &[]);
 
@@ -578,7 +591,6 @@ pub fn compile_value<'a>(value: &ValueContainer) -> Result<Vec<u8>, CompilerErro
 
     Ok(compilation_scope.buffer.take())
 }
-
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
 /// behaves like the format! macro.
@@ -609,8 +621,14 @@ pub struct CompileScope {
 }
 
 impl CompileScope {
-    fn register_variable_slot(&mut self, slot_address: u32, variable_type: VariableType, name: String) {
-        self.variables.insert(name.clone(), (slot_address, variable_type));
+    fn register_variable_slot(
+        &mut self,
+        slot_address: u32,
+        variable_type: VariableType,
+        name: String,
+    ) {
+        self.variables
+            .insert(name.clone(), (slot_address, variable_type));
     }
 
     fn get_next_variable_slot(&mut self) -> u32 {
@@ -648,13 +666,15 @@ impl CompileScope {
         if let Some(mut parent) = self.parent_scope {
             // update next_slot_address for parent scope
             parent.next_slot_address = self.next_slot_address;
-            Some((*parent, self.variables.keys().map(|k| self.variables[k].0).collect()))
+            Some((
+                *parent,
+                self.variables.keys().map(|k| self.variables[k].0).collect(),
+            ))
         } else {
             None
         }
     }
 }
-
 
 #[derive(Debug, Clone, Default)]
 struct CompileMetadata {
@@ -664,7 +684,6 @@ struct CompileMetadata {
 }
 
 impl CompileMetadata {
-
     fn outer() -> Self {
         CompileMetadata {
             is_outer_context: true,
@@ -682,9 +701,7 @@ impl CompileMetadata {
     }
     /// Creates CompileMetadata with the current binary operator set.
     /// Also sets `scope_required_for_complex_expressions` to true.
-    fn with_current_binary_operator(
-        operator: BinaryOperator,
-    ) -> Self {
+    fn with_current_binary_operator(operator: BinaryOperator) -> Self {
         CompileMetadata {
             scope_required_for_complex_expressions: true,
             is_outer_context: false,
@@ -713,9 +730,14 @@ impl CompileMetadata {
 fn compile_ast<'a>(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
-    scope: CompileScope
-) -> Result<CompileScope, CompilerError<'a>> {
-    let scope = compile_expression(compilation_scope, ast, CompileMetadata::outer(), scope)?;
+    scope: CompileScope,
+) -> Result<CompileScope, CompilerError> {
+    let scope = compile_expression(
+        compilation_scope,
+        ast,
+        CompileMetadata::outer(),
+        scope,
+    )?;
     Ok(scope)
 }
 
@@ -723,9 +745,8 @@ fn compile_expression<'a>(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
     mut meta: CompileMetadata,
-    mut scope: CompileScope
-) -> Result<CompileScope, CompilerError<'a>> {
-
+    mut scope: CompileScope,
+) -> Result<CompileScope, CompilerError> {
     let scoped = meta.must_be_scoped(&ast);
 
     if scoped {
@@ -737,23 +758,21 @@ fn compile_expression<'a>(
     match ast {
         DatexExpression::Integer(int) => {
             compilation_scope.insert_int(int.0.as_i64().unwrap());
-        },
-        DatexExpression::Decimal(decimal) => {
-            match &decimal {
-                Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
-                    if let Some(int) = big_decimal.to_i16() {
-                        compilation_scope.insert_float_as_i16(int);
-                    } else if let Some(int) = big_decimal.to_i32() {
-                        compilation_scope.insert_float_as_i32(int);
-                    } else {
-                        compilation_scope.insert_decimal(&decimal);
-                    }
-                }
-                _ => {
+        }
+        DatexExpression::Decimal(decimal) => match &decimal {
+            Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
+                if let Some(int) = big_decimal.to_i16() {
+                    compilation_scope.insert_float_as_i16(int);
+                } else if let Some(int) = big_decimal.to_i32() {
+                    compilation_scope.insert_float_as_i32(int);
+                } else {
                     compilation_scope.insert_decimal(&decimal);
                 }
             }
-        }
+            _ => {
+                compilation_scope.insert_decimal(&decimal);
+            }
+        },
         DatexExpression::Text(text) => {
             compilation_scope.insert_text(&text);
         }
@@ -766,7 +785,12 @@ fn compile_expression<'a>(
         DatexExpression::Array(array) => {
             compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
             for item in array {
-                scope = compile_expression(compilation_scope, item, CompileMetadata::with_scope_required(), scope)?;
+                scope = compile_expression(
+                    compilation_scope,
+                    item,
+                    CompileMetadata::with_scope_required(),
+                    scope,
+                )?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
@@ -775,10 +799,20 @@ fn compile_expression<'a>(
             for entry in tuple {
                 match entry {
                     TupleEntry::KeyValue(key, value) => {
-                        scope = compile_key_value_entry(compilation_scope, key, value, scope)?;
+                        scope = compile_key_value_entry(
+                            compilation_scope,
+                            key,
+                            value,
+                            scope,
+                        )?;
                     }
                     TupleEntry::Value(value) => {
-                        scope = compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
+                        scope = compile_expression(
+                            compilation_scope,
+                            value,
+                            CompileMetadata::with_scope_required(),
+                            scope,
+                        )?;
                     }
                 }
             }
@@ -788,7 +822,12 @@ fn compile_expression<'a>(
             compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
             for (key, value) in object {
                 // compile key and value
-                scope = compile_key_value_entry(compilation_scope, key, value, scope)?;
+                scope = compile_key_value_entry(
+                    compilation_scope,
+                    key,
+                    value,
+                    scope,
+                )?;
             }
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
         }
@@ -809,33 +848,49 @@ fn compile_expression<'a>(
             compilation_scope.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !statements[0].is_terminated {
-                scope = compile_expression(compilation_scope, statements.remove(0).expression, CompileMetadata::default(), scope)?;
+                scope = compile_expression(
+                    compilation_scope,
+                    statements.remove(0).expression,
+                    CompileMetadata::default(),
+                    scope,
+                )?;
             } else {
                 // if not outer context, new scope
                 let mut child_scope = if !meta.is_outer_context {
-                    compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
+                    compilation_scope
+                        .append_binary_code(InstructionCode::SCOPE_START);
                     scope.push()
                 } else {
                     scope
                 };
                 for statement in statements {
-                    child_scope = compile_expression(compilation_scope, statement.expression, CompileMetadata::default(), child_scope)?;
+                    child_scope = compile_expression(
+                        compilation_scope,
+                        statement.expression,
+                        CompileMetadata::default(),
+                        child_scope,
+                    )?;
                     // if statement is terminated, append close and store
                     if statement.is_terminated {
-                        compilation_scope.append_binary_code(InstructionCode::CLOSE_AND_STORE);
+                        compilation_scope.append_binary_code(
+                            InstructionCode::CLOSE_AND_STORE,
+                        );
                     }
                 }
                 if !meta.is_outer_context {
-                    let scope_data = child_scope.pop().ok_or(CompilerError::ScopePopError)?;
+                    let scope_data = child_scope
+                        .pop()
+                        .ok_or(CompilerError::ScopePopError)?;
                     scope = scope_data.0; // set parent scope
-                    // drop all slot addresses that were allocated in this scope
+                                          // drop all slot addresses that were allocated in this scope
                     for slot_address in scope_data.1 {
-                        compilation_scope.append_binary_code(InstructionCode::DROP_SLOT);
+                        compilation_scope
+                            .append_binary_code(InstructionCode::DROP_SLOT);
                         compilation_scope.append_u32(slot_address);
                     }
-                    compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
-                }
-                else {
+                    compilation_scope
+                        .append_binary_code(InstructionCode::SCOPE_END);
+                } else {
                     scope = child_scope;
                 }
             }
@@ -846,10 +901,21 @@ fn compile_expression<'a>(
             compilation_scope.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             if meta.current_binary_operator != Some(operator.clone()) {
-                compilation_scope.append_binary_code(InstructionCode::from(&operator));
+                compilation_scope
+                    .append_binary_code(InstructionCode::from(&operator));
             }
-            scope = compile_expression(compilation_scope, *a, CompileMetadata::with_current_binary_operator(operator.clone()), scope)?;
-            scope = compile_expression(compilation_scope, *b, CompileMetadata::with_current_binary_operator(operator), scope)?;
+            scope = compile_expression(
+                compilation_scope,
+                *a,
+                CompileMetadata::with_current_binary_operator(operator.clone()),
+                scope,
+            )?;
+            scope = compile_expression(
+                compilation_scope,
+                *b,
+                CompileMetadata::with_current_binary_operator(operator),
+                scope,
+            )?;
         }
 
         // apply
@@ -866,7 +932,8 @@ fn compile_expression<'a>(
                 VariableType::Value => {
                     // allocate new slot for variable
                     let address = scope.get_next_variable_slot();
-                    compilation_scope.append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                    compilation_scope
+                        .append_binary_code(InstructionCode::ALLOCATE_SLOT);
                     compilation_scope.append_u32(address);
                     address
                 }
@@ -875,42 +942,56 @@ fn compile_expression<'a>(
                 }
             };
             // compile expression
-            scope = compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
+            scope = compile_expression(
+                compilation_scope,
+                *expression,
+                CompileMetadata::default(),
+                scope,
+            )?;
             // close allocation scope
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
 
             // register new variable
             scope.register_variable_slot(address, var_type, name);
-        },
-        
+        }
+
         // assignment
         DatexExpression::VariableAssignment(name, expression) => {
             compilation_scope.mark_has_non_static_value();
             // get variable slot address
-            let (var_slot, var_type) = scope.resolve_variable_slot(&name)
-                .ok_or_else(|| CompilerError::UndeclaredVariable(name.clone()))?;
+            let (var_slot, var_type) =
+                scope.resolve_variable_slot(&name).ok_or_else(|| {
+                    CompilerError::UndeclaredVariable(name.clone())
+                })?;
 
             // append binary code to load variable
             compilation_scope.append_binary_code(InstructionCode::UPDATE_SLOT);
             compilation_scope.append_u32(var_slot);
             // compile expression
-            scope = compile_expression(compilation_scope, *expression, CompileMetadata::default(), scope)?;
+            scope = compile_expression(
+                compilation_scope,
+                *expression,
+                CompileMetadata::default(),
+                scope,
+            )?;
             // close assignment scope
             compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
-        },
+        }
 
         // variable access
         DatexExpression::Variable(name) => {
             compilation_scope.mark_has_non_static_value();
             // get variable slot address
-            let (var_slot, var_type) = scope.resolve_variable_slot(&name)
-                .ok_or_else(|| CompilerError::UndeclaredVariable(name.clone()))?;
+            let (var_slot, var_type) =
+                scope.resolve_variable_slot(&name).ok_or_else(|| {
+                    CompilerError::UndeclaredVariable(name.clone())
+                })?;
             // append binary code to load variable
             compilation_scope.append_binary_code(InstructionCode::GET_SLOT);
             compilation_scope.append_u32(var_slot);
-        },
+        }
 
-        _ => return Err(CompilerError::UnexpectedTerm(ast))
+        _ => return Err(CompilerError::UnexpectedTerm(ast)),
     }
 
     if scoped {
@@ -924,30 +1005,40 @@ fn compile_key_value_entry<'a>(
     compilation_scope: &CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
-    mut scope: CompileScope
-) -> Result<CompileScope, CompilerError<'a>> {
+    mut scope: CompileScope,
+) -> Result<CompileScope, CompilerError> {
     match key {
-            // text -> insert key string
-            DatexExpression::Text(text) => {
-                compilation_scope.insert_key_string(&text);
-            },
-            // other -> insert key as dynamic
-            _ => {
-                compilation_scope.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
-                scope = compile_expression(compilation_scope, key, CompileMetadata::with_scope_required(), scope)?;
-            }
-        };
+        // text -> insert key string
+        DatexExpression::Text(text) => {
+            compilation_scope.insert_key_string(&text);
+        }
+        // other -> insert key as dynamic
+        _ => {
+            compilation_scope
+                .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+            scope = compile_expression(
+                compilation_scope,
+                key,
+                CompileMetadata::with_scope_required(),
+                scope,
+            )?;
+        }
+    };
     // insert value
-    scope = compile_expression(compilation_scope, value, CompileMetadata::with_scope_required(), scope)?;
+    scope = compile_expression(
+        compilation_scope,
+        value,
+        CompileMetadata::with_scope_required(),
+        scope,
+    )?;
     Ok(scope)
 }
-
 
 fn insert_int_with_radix<'a>(
     compilation_scope: &CompilationContext,
     int_str: &str,
     radix: u32,
-) -> Result<(), CompilerError<'a>> {
+) -> Result<(), CompilerError> {
     let is_negative = int_str.starts_with('-');
     let is_positive = int_str.starts_with('+');
     let int = i64::from_str_radix(
@@ -965,9 +1056,13 @@ fn insert_int_with_radix<'a>(
 
 #[cfg(test)]
 pub mod tests {
+    use super::{
+        compile_ast, compile_script, compile_script_or_return_static_value,
+        compile_template, CompilationContext, CompileOptions, CompileScope,
+        StaticValueOrDXB,
+    };
     use std::cell::RefCell;
     use std::io::Read;
-    use super::{compile_ast, compile_script, compile_script_or_return_static_value, compile_template, CompilationContext, CompileOptions, CompileScope, StaticValueOrDXB};
     use std::vec;
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
@@ -978,7 +1073,8 @@ pub mod tests {
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();
-        let (result, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
+        let (result, _) =
+            compile_script(datex_script, CompileOptions::default()).unwrap();
         info!(
             "{:?}",
             result
@@ -991,7 +1087,7 @@ pub mod tests {
     }
 
     fn get_compilation_scope(script: &str) -> CompilationContext {
-        let (ast, ..) = parse(script, None);
+        let ast = parse(script);
         let ast = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
         let compilation_scope = CompilationContext::new(buffer, &[]);
@@ -1661,7 +1757,10 @@ pub mod tests {
             vec![
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1679,7 +1778,10 @@ pub mod tests {
             vec![
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1687,7 +1789,10 @@ pub mod tests {
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 1,
             ]
@@ -1703,27 +1808,42 @@ pub mod tests {
             result,
             vec![
                 InstructionCode::ALLOCATE_SLOT.into(),
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
-                1, 0, 0, 0,
+                1,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 43,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
-                1, 0, 0, 0,
+                1,
+                0,
+                0,
+                0,
                 InstructionCode::DROP_SLOT.into(),
-                1, 0, 0, 0,
+                1,
+                0,
+                0,
+                0,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
             ]
         );
     }
@@ -1737,36 +1857,57 @@ pub mod tests {
             result,
             vec![
                 InstructionCode::ALLOCATE_SLOT.into(),
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
-                1, 0, 0, 0,
+                1,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 41,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
-                2, 0, 0, 0,
+                2,
+                0,
+                0,
+                0,
                 InstructionCode::INT_8.into(),
                 43,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
-                2, 0, 0, 0,
+                2,
+                0,
+                0,
+                0,
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
-                1, 0, 0, 0,
+                1,
+                0,
+                0,
+                0,
                 InstructionCode::DROP_SLOT.into(),
-                2, 0, 0, 0,
+                2,
+                0,
+                0,
+                0,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
-                0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
             ]
         );
     }
@@ -1774,7 +1915,11 @@ pub mod tests {
     #[test]
     fn test_compile() {
         init_logger();
-        let result = compile_template("? + ?", &[1.into(), 2.into()], CompileOptions::default());
+        let result = compile_template(
+            "? + ?",
+            &[1.into(), 2.into()],
+            CompileOptions::default(),
+        );
         assert_eq!(
             result.unwrap().0,
             vec![
@@ -1815,7 +1960,8 @@ pub mod tests {
         // read json from test file
         let file_path = format!("benches/json/{file_path}");
         let file_path = std::path::Path::new(&file_path);
-        let file = std::fs::File::open(file_path).expect("Failed to open test.json");
+        let file =
+            std::fs::File::open(file_path).expect("Failed to open test.json");
         let mut reader = std::io::BufReader::new(file);
         let mut json_string = String::new();
         reader
@@ -1828,7 +1974,8 @@ pub mod tests {
     fn test_json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
         println!("JSON file read");
-        let (dxb, _) = compile_script(&json, CompileOptions::default()).expect("Failed to parse JSON string");
+        let (dxb, _) = compile_script(&json, CompileOptions::default())
+            .expect("Failed to parse JSON string");
         println!("DXB: {:?}", dxb.len());
     }
 
@@ -1878,18 +2025,31 @@ pub mod tests {
     #[test]
     fn test_compile_auto_static_value_detection() {
         let script = "1";
-        let (res, _) = compile_script_or_return_static_value(script, CompileOptions::default()).unwrap();
-        assert_eq!(res, StaticValueOrDXB::StaticValue(Some(Integer::from(1).into())));
-
+        let (res, _) = compile_script_or_return_static_value(
+            script,
+            CompileOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            res,
+            StaticValueOrDXB::StaticValue(Some(Integer::from(1).into()))
+        );
 
         let script = "1 + 2";
-        let (res, _) = compile_script_or_return_static_value(script, CompileOptions::default()).unwrap();
-        assert_eq!(res, StaticValueOrDXB::Dxb(vec![
-            InstructionCode::ADD.into(),
-            InstructionCode::INT_8.into(),
-            1,
-            InstructionCode::INT_8.into(),
-            2,
-        ]));
+        let (res, _) = compile_script_or_return_static_value(
+            script,
+            CompileOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            res,
+            StaticValueOrDXB::Dxb(vec![
+                InstructionCode::ADD.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+            ])
+        );
     }
 }

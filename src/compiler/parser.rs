@@ -7,9 +7,13 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
-use chumsky::prelude::*;
-use logos::Logos;
-use std::collections::HashMap;
+use chumsky::{
+    error::RichReason,
+    input::{ExactSizeInput, MappedInput, Stream, ValueInput},
+    prelude::*,
+};
+use logos::{Logos, Span, SpannedIter};
+use std::{collections::HashMap, iter::Map, ops::Range};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -276,7 +280,10 @@ pub struct DatexParseResult {
     pub is_static_value: bool,
 }
 
-pub fn create_parser<'a>() -> DatexScriptParser<'a> {
+pub fn create_parser<'a, I>() -> impl Parser<'a, I, DatexExpression, Err<Cheap>>
+where
+    I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
+{
     // an expression
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
@@ -570,76 +577,69 @@ pub fn create_parser<'a>() -> DatexScriptParser<'a> {
         // statements
         statements,
     ))
-    .boxed()
 }
 
 type TokenInput<'a> = &'a [Token];
 
-pub fn parse<'a, 'b>(
-    src: &str,
-    opt_parser: Option<&'b DatexScriptParser<'b>>,
-) -> (Option<DatexExpression>, Vec<Rich<'a, Token>>) {
-    let lexer = Token::lexer(src);
-    let tokens = lexer.collect::<Result<Vec<_>, ()>>();
-    // invalid token (todo)
-    if let Err(err) = tokens {
-        return (None, vec![]);
-    }
-    let tokens = tokens.unwrap();
+#[derive(Debug)]
+pub enum ParserError {
+    UnexpectedToken(Range<usize>), //(Rich<'a, Token>),
+    InvalidToken(Range<usize>),
+}
 
-    // TODO:
-    if let Some(parser) = opt_parser {
-        // TODO:
-        // // Use the provided parser
-        // let (res, errs) = parser.parse(&tokens).into_output_errors();
-        // (res, vec![])
-        let (res, errs) = create_parser().parse(&tokens).into_output_errors();
-        // FIXME: only fake errors to fix borrow checker issues
-        let errs = errs
-            .iter()
-            .map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error))
-            .collect();
-        (res, errs)
-    } else {
-        let (res, errs) = create_parser().parse(&tokens).into_output_errors();
-        let errs = errs
-            .iter()
-            .map(|_| Rich::custom(SimpleSpan::from(0..0), Token::Error))
-            .collect();
-        (res, errs)
-    }
+pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
+    let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
+        Ok(tok) => (tok, span.into()),
+        Err(_) => (Token::Error, span.into()),
+    });
+    let token_stream = Stream::from_iter(token_iter)
+        .map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
+
+    let result =
+        create_parser()
+            .parse(token_stream)
+            .into_result()
+            .map_err(|err| {
+                err.into_iter()
+                    .map(|e| {
+                        ParserError::UnexpectedToken(e.span().into_range())
+                    })
+                    .collect()
+            });
+    result
 }
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use ariadne::{Color, Label, Report, ReportKind, Source};
     use std::assert_matches::assert_matches;
 
-    fn print_report(errs: Vec<Rich<Token>>, src: &str) {
-        errs.into_iter().for_each(|e| {
-            Report::build(ReportKind::Error, ((), e.span().into_range()))
-                .with_config(
-                    ariadne::Config::new()
-                        .with_index_type(ariadne::IndexType::Byte),
-                )
-                .with_message(e.to_string())
-                .with_label(
-                    Label::new(((), e.span().into_range()))
-                        .with_message(e.reason().to_string())
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .eprint(Source::from(&src))
-                .unwrap()
-        });
+    fn print_report(errs: Vec<ParserError>, src: &str) {
+        // FIXME
+        eprintln!("{:?}", errs);
+        // errs.into_iter().for_each(|e| {
+        //     Report::build(ReportKind::Error, ((), e.span().into_range()))
+        //         .with_config(
+        //             ariadne::Config::new()
+        //                 .with_index_type(ariadne::IndexType::Byte),
+        //         )
+        //         .with_message(e.to_string())
+        //         .with_label(
+        //             Label::new(((), e.span().into_range()))
+        //                 .with_color(Color::Red),
+        //         )
+        //         .finish()
+        //         .eprint(Source::from(&src))
+        //         .unwrap()
+        // });
     }
 
     fn parse_unwrap(src: &str) -> DatexExpression {
-        let (res, errs) = parse(src, None);
-        println!("{res:#?}");
-        if !errs.is_empty() {
-            print_report(errs, src);
+        let res = parse(src);
+        if !res.is_ok() {
+            print_report(res.unwrap_err(), src);
             panic!("Parsing errors found");
         }
         res.unwrap()
@@ -1836,12 +1836,12 @@ mod tests {
         let val = try_parse_to_value_container(src);
         assert_eq!(val, ValueContainer::from(Decimal::from_string("1/3")));
 
-        let (res, err) = parse("42.4/3", None);
-        assert!(!err.is_empty());
-        let (_, err) = parse("42 /3", None);
-        assert!(!err.is_empty());
-        let (_, err) = parse("42/ 3", None);
-        assert!(!err.is_empty());
+        let res = parse("42.4/3");
+        assert!(res.is_err());
+        let res = parse("42 /3");
+        assert!(res.is_err());
+        let res = parse("42/ 3");
+        assert!(res.is_err());
     }
 
     // TODO:
@@ -2013,9 +2013,12 @@ mod tests {
     #[test]
     fn test_invalid_add() {
         let src = "1+2";
-        let (res, errs) = parse(src, None);
+        let res = parse(src);
         println!("res: {res:?}");
-        assert!(errs.len() == 1, "Expected error when parsing expression");
+        assert!(
+            res.unwrap_err().len() == 1,
+            "Expected error when parsing expression"
+        );
     }
 
     #[test]
