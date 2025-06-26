@@ -8,12 +8,11 @@ use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::{
-    error::RichReason,
-    input::{ExactSizeInput, MappedInput, Stream, ValueInput},
+    input::{Stream, ValueInput},
     prelude::*,
 };
-use logos::{Logos, Span, SpannedIter};
-use std::{collections::HashMap, iter::Map, ops::Range};
+use logos::Logos;
+use std::{collections::HashMap, ops::Range};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -613,12 +612,12 @@ pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
 mod tests {
 
     use super::*;
-    use ariadne::{Color, Label, Report, ReportKind, Source};
+    
     use std::assert_matches::assert_matches;
 
     fn print_report(errs: Vec<ParserError>, src: &str) {
         // FIXME
-        eprintln!("{:?}", errs);
+        eprintln!("{errs:?}");
         // errs.into_iter().for_each(|e| {
         //     Report::build(ReportKind::Error, ((), e.span().into_range()))
         //         .with_config(
@@ -638,7 +637,7 @@ mod tests {
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let res = parse(src);
-        if !res.is_ok() {
+        if res.is_err() {
             print_report(res.unwrap_err(), src);
             panic!("Parsing errors found");
         }

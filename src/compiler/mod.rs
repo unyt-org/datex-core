@@ -3,7 +3,6 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
-use chumsky::error::Rich;
 use std::fmt::Display;
 
 pub mod bytecode;
@@ -11,7 +10,6 @@ mod lexer;
 pub mod parser;
 
 use crate::compiler::bytecode::{compile_script, CompileOptions};
-use crate::compiler::lexer::Token;
 use crate::compiler::parser::{DatexExpression, ParserError};
 use crate::datex_values::core_values::endpoint::Endpoint;
 
