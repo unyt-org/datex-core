@@ -88,6 +88,11 @@ pub enum DatexExpression {
     /// Custom syntax to represent variable declarations (e.g. `val x = 5`)
     ///                 val           x       DatexExpression<5>
     VariableDeclaration(VariableType, String, Box<DatexExpression>),
+
+    /// Binary operation OP LHS RHS
+    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
+
+    // other existing expressions...
 }
 ```
 
