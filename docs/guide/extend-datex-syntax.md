@@ -44,12 +44,35 @@ pub enum InstructionCode {
 }
 ```
 
+To allow for serialization of the new instruction and it's potential payload, it might be necessary to add a new entry to the `Instruction` enum in the [`datex-core/src/global/protocol_structures/instructions.rs`](../../src/global/protocol_structures/instructions.rs) file:
+
+```rust
+pub enum Instruction {
+    True, // implicitly true
+    Int8(Int8Data), // holds an 8-bit integer
+
+    Is, // New instruction for the `is` operator
+
+    // other instructions...
+```
+
+*Note that also the `Display for Instruction` must be updated to include the new instruction code.*
+
+To map `InstructionCode` to the `Instruction` holder, you need to add a new match arm in the `iterate_instruction` method in the [`datex-core/src/parser/body.rs`](../../src/parser/body.rs) file:
+
+```rust
+yield match instruction_code {
+    // existing instruction codes...
+    InstructionCode::IS => Ok(Instruction::Is),
+    // other instruction codes...
+}
+```
 
 ## Update the Parser
 Next, you need to update the parser to recognize your new token. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/parser.rs) module. The parser is responsible for converting the sequence of tokens recognized by the lexer into an Abstract Syntax Tree (AST).
 
 
-### Extend the expression grammar
+### Extend the Expression Grammar
 We have to extend the expression grammar to include our expression or operator. This is done by adding a new entry or modifying an existing one in the `DatexExpression` enum.
 
 ```rust
@@ -78,7 +101,7 @@ pub enum BinaryOperator {
 }
 ```
 
-### Extend the parser logic
+### Extend the Parser Logic
 When extending the parser with new operators (e.g. `is`), **it's essential to add them at the correct precedence level**. Operator precedence determines **the order in which expressions are grouped and evaluated**, especially when multiple operators appear in a row.
 
 Without correct precedence, expressions can be **parsed incorrectly**, leading to **wrong evaluation or misleading decompilation**.
@@ -180,7 +203,7 @@ let atom = choice((
 .boxed();
 ```
 
-### Add a test
+### Add a Test
 Finally, you should add a test to ensure that your new syntax element is parsed correctly. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/parser.rs) module.
 
 ```rust
@@ -220,7 +243,7 @@ fn test_equal_operators() {
 }
 ```
 
-## Extend the compiler
+## Extend the Compiler
 The next step is to extend the compiler to handle for the new syntax element. This is done in the [`datex-core/src/compiler/bytecode.rs`](../../src/compiler/bytecode.rs) module.
 
 First of all we have to design how we want to represent our new syntax element in the bytecode. For the `is` operator, we will do something similar as we do for addition and other binary operations. The operator will be the first instruction, followed by the (two) operands.
@@ -305,5 +328,63 @@ Since the `is` operator is a binary operation, we don't have to do any modificat
 
 Make sure that the test runs successfully and the bytecode is generated correctly.
 
-## Extend the runtime
-Finally, you need to extend the runtime to handle your new syntax element. This is done in the [`datex-core/src/runtime/execution.rs`](../../src/runtime/execution.rs) module.
+## Extend the Runtime
+Finally, you need to extend the runtime to handle the new syntax element. This is done in the [`datex-core/src/runtime/execution.rs`](../../src/runtime/execution.rs) module.
+We'll start by adding a new test that calls the `execute_datex_script_debug_with_result` helper method with a simple `is` expression:
+
+```rust
+#[test]
+fn test_is() {
+    let result = execute_datex_script_debug_with_result("1 is 1");
+    assert_eq!(result, true.into());
+    assert_structural_eq!(result, ValueContainer::from(true));
+
+    let result = execute_datex_script_debug_with_result("1 is 2");
+    assert_eq!(result, false.into());
+    assert_structural_eq!(result, ValueContainer::from(false));
+}
+```
+
+We have to add a new match arm for the `Instruction::Is` instruction holder in the `execute_loop` method. Since out Instruction::Is doesn't hold any payload, we can simply match it and set the active operation to `Instruction::Is` in the `context.scope_stack` as we did for addition and other binary operations. This will allow us to handle the `is` operation in the next iteration of the execution loop, where we will have two operands available.
+
+```rust
+let value: ActiveValue = match instruction {
+    // simple keywords to Rust / DATEX value
+    Instruction::True => true.into(),
+
+    // user defined values with payload to DATEX value
+    Instruction::Int8(integer) => Integer::from(integer.0).into(),
+
+    // operations
+    Instruction::Is => {
+        context.scope_stack.set_active_operation(Instruction::Is);
+        ActiveValue::None // we will handle the is operation in the next iteration since we need two operands
+    }
+
+    // other instructions...
+};
+```
+
+Since in this case we need two operands to perform the `is` operation, we will handle it in the next iteration of the execution loop. The `context.scope_stack` will hold the active operation and the operands will be available in the next iteration. So for operators we must also add a match arm for the `Instruction::Is` inside of the `handle_value` method, which will handle the actual operation:
+
+```rust
+let res = match operation {
+    // existing operations...
+    Instruction::Is => {
+        let val = active_value_container
+            .matches_identity(&value_container); // boolean
+        Ok(ValueContainer::from(val)) // return the boolean result as a ValueContainer
+    }
+    // other operations...
+}
+```
+
+## Conclusion
+You have now successfully extended the DATEX syntax by adding a new keyword or operator, updating the parser, compiler, and runtime to handle it. Please make sure to run all tests to ensure that everything works as expected.
+
+Please run `cargo bench` to ensure that the performance is still acceptable and that no performance regressions have been introduced.
+
+
+---
+
+<sub>&copy; unyt 2025 • [unyt.org](https://unyt.org)</sub>

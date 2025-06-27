@@ -38,6 +38,7 @@ pub enum Instruction {
     Subtract,
     Multiply,
     Divide,
+    Is,
     EqualValue,
     StrictEqual,
     NotEqualValue,
@@ -104,6 +105,7 @@ impl Display for Instruction {
             Instruction::StrictEqual => write!(f, "STRICT_EQUAL"),
             Instruction::NotEqualValue => write!(f, "NOT_EQUAL_VALUE"),
             Instruction::StrictNotEqual => write!(f, "STRICT_NOT_EQUAL"),
+            Instruction::Is => write!(f, "IS"),
 
             Instruction::AllocateSlot(address) => {
                 write!(f, "ALLOCATE_SLOT {}", address.0)

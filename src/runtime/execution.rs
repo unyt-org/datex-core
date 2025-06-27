@@ -10,6 +10,7 @@ use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::traits::value_eq::ValueEq;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
+use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
     Instruction, ShortTextData, SlotAddress, TextData,
@@ -279,7 +280,10 @@ pub fn execute_loop(
                     .set_active_operation(Instruction::Divide);
                 ActiveValue::None
             }
-
+            Instruction::Is => {
+                context.scope_stack.set_active_operation(Instruction::Is);
+                ActiveValue::None
+            }
             Instruction::EqualValue => {
                 context
                     .scope_stack
@@ -534,6 +538,14 @@ fn handle_value(
                                 }
                                 Instruction::StrictNotEqual => {
                                     let val = !active_value_container
+                                        .structural_eq(&value_container);
+                                    Ok(ValueContainer::from(val))
+                                }
+                                Instruction::Is => {
+                                    // TODO we should throw a runtime error when one of lhs or rhs is a value
+                                    // instead of a ref. Identity checks using the is operator shall be only allowed
+                                    // for references.
+                                    let val = active_value_container
                                         .structural_eq(&value_container);
                                     Ok(ValueContainer::from(val))
                                 }

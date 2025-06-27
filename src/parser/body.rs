@@ -313,6 +313,7 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::STRICT_NOT_EQUAL => {
                         Ok(Instruction::StrictNotEqual)
                     }
+                    InstructionCode::IS => Ok(Instruction::Is),
 
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {
