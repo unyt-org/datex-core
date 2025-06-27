@@ -68,9 +68,8 @@ Benchmarks are also run automatically in the GitHub CI on every push to the main
 
 ## Contributing
 
-We welcome every contribution!<br>
-Please take a look at the [development guidelines](./DEVELOP.md) and the
-unyt.org [contribution guidlines](https://github.com/unyt-org/.github/blob/main/CONTRIBUTING.md).
+**We welcome every contribution!**<br>
+Please take a look at the [development guidelines](./DEVELOP.md) and the unyt.org [contribution guidlines](https://github.com/unyt-org/.github/blob/main/CONTRIBUTING.md).
 
 
 [Twitter badge]: https://img.shields.io/twitter/follow/unytorg.svg?style=social&label=Follow
