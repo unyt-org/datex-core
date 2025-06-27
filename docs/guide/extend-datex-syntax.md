@@ -179,3 +179,131 @@ let atom = choice((
 ))
 .boxed();
 ```
+
+### Add a test
+Finally, you should add a test to ensure that your new syntax element is parsed correctly. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/parser.rs) module.
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_custom_expression() {
+        let input = "whatever";
+        let expected = DatexExpression::YourExpression("whatever");
+        let result = parse(input);
+        assert_eq!(result, expected);
+    }
+}
+```
+
+In the case of the `is` operator, you would add a test like this:
+
+```rust
+#[test]
+fn test_equal_operators() {
+    let src = "5 is 1 + 2";
+    let val = parse_unwrap(src);
+    assert_eq!(
+        val,
+        DatexExpression::BinaryOperation(
+            BinaryOperator::Is,
+            Box::new(DatexExpression::Integer(Integer::from(5))),
+            Box::new(DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2)))
+            ))
+        )
+    );
+}
+```
+
+## Extend the compiler
+The next step is to extend the compiler to handle for the new syntax element. This is done in the [`datex-core/src/compiler/bytecode.rs`](../../src/compiler/bytecode.rs) module.
+
+First of all we have to design how we want to represent our new syntax element in the bytecode. For the `is` operator, we will do something similar as we do for addition and other binary operations. The operator will be the first instruction, followed by the (two) operands.
+
+```rust
+/// 1 is 2
+vec![
+    InstructionCode::IS.into(),
+
+    // 1
+    InstructionCode::INT_8.into(),
+    1,
+
+    // 2
+    InstructionCode::INT_8.into(),
+    2
+];
+/// a is b
+vec![
+    InstructionCode::IS.into(),
+    // a
+    InstructionCode::GET_SLOT.into(),
+    0,
+    0,
+    0,
+    0, // slot address for a
+
+    // b
+    InstructionCode::GET_SLOT.into(),
+    1,
+    0,
+    0,
+    0, // slot address for b
+];
+```
+
+Let's start by creating a test case for our new `is` operator in the `tests` section of the bytecode compiler:
+
+```rust
+#[test]
+fn test_is_operator() {
+    init_logger();
+
+    let datex_script = format!("1 is 2");
+    let result = compile_and_log(&datex_script);
+    assert_eq!(
+        result,
+        vec![
+            InstructionCode::IS.into(),
+            InstructionCode::INT_8.into(),
+            1,
+            InstructionCode::INT_8.into(),
+            2
+        ]
+    );
+}
+```
+
+*Note that the syntax of the `compile_and_log` call must be valid DATEX syntax (except for now our new `is` operator, which is not yet implemented). Please also note that the `1 is 2` code snippet will most likely throw a compile error later, since the `is` operator will only be valid for reference identity checks and not for value equality, so the example of `1 is 2` is mainly to bring the point across with a not too complex example for this guide.*
+
+To allow the `compile_expression` method to handle our new syntax, we have to add a new match arm for the `BinaryOperation` variant in the `compile_expression` method:
+
+```rust
+match ast {
+    // existing match arms...
+    DatexExpression::Whatever(..whatever) => {
+        // Implement serialization logic for your new expression here
+        // and add to the compilation_scope buffer
+    }
+}
+```
+If your new syntax element requires special serialization, such as representation as multiple instruction codes you can implement it inside of the match by modifing the `compilation_scope` buffer using the utility methods provided by the `CompilationScope` struct:
+
+```rust
+compilation_scope.append_binary_code(InstructionCode::WHATEVER);
+compilation_scope.insert_value_container(...);
+compilation_scope.insert_decimal(...);
+// or similar
+```
+
+Since the `is` operator is a binary operation, we don't have to do any modification since the `DatexExpression::BinaryOperation` is already handled in the `compile_expression` method and we've already added the `BinaryOperator::Is` to the `BinaryOperator` enum.
+
+Make sure that the test runs successfully and the bytecode is generated correctly.
+
+## Extend the runtime
+Finally, you need to extend the runtime to handle your new syntax element. This is done in the [`datex-core/src/runtime/execution.rs`](../../src/runtime/execution.rs) module.

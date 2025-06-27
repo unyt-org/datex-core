@@ -1137,6 +1137,64 @@ pub mod tests {
     }
 
     #[test]
+    fn test_is_operator() {
+        init_logger();
+
+        let datex_script = format!("1 is 2");
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::IS.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2
+            ]
+        );
+
+        let datex_script = format!("val a = 42; val b = 69; a is b"); // a is b
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                // val a = 42;
+                InstructionCode::ALLOCATE_SLOT.into(),
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::CLOSE_AND_STORE.into(),
+                // val b = 69;
+                InstructionCode::ALLOCATE_SLOT.into(),
+                1,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                69,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::CLOSE_AND_STORE.into(),
+                // a is b
+                InstructionCode::IS.into(),
+                InstructionCode::GET_SLOT.into(),
+                0,
+                0,
+                0,
+                0, // slot address for a
+                InstructionCode::GET_SLOT.into(),
+                1,
+                0,
+                0,
+                0, // slot address for b
+            ]
+        );
+    }
+
+    #[test]
     fn test_equality_operator() {
         init_logger();
 
