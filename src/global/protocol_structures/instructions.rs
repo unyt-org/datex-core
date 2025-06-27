@@ -38,6 +38,10 @@ pub enum Instruction {
     Subtract,
     Multiply,
     Divide,
+    EqualValue,
+    StrictEqual,
+    NotEqualValue,
+    StrictNotEqual,
 
     AllocateSlot(SlotAddress),
     GetSlot(SlotAddress),
@@ -88,10 +92,19 @@ impl Display for Instruction {
                 write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
             }
             Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
+
+            // operations
             Instruction::Add => write!(f, "ADD"),
             Instruction::Subtract => write!(f, "SUBTRACT"),
             Instruction::Multiply => write!(f, "MULTIPLY"),
             Instruction::Divide => write!(f, "DIVIDE"),
+
+            // equality checks
+            Instruction::EqualValue => write!(f, "EQUAL_VALUE"),
+            Instruction::StrictEqual => write!(f, "STRICT_EQUAL"),
+            Instruction::NotEqualValue => write!(f, "NOT_EQUAL_VALUE"),
+            Instruction::StrictNotEqual => write!(f, "STRICT_NOT_EQUAL"),
+
             Instruction::AllocateSlot(address) => {
                 write!(f, "ALLOCATE_SLOT {}", address.0)
             }
@@ -195,7 +208,6 @@ pub struct TextData(pub String);
 pub struct InstructionCloseAndStore {
     pub instruction: Int8Data,
 }
-
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

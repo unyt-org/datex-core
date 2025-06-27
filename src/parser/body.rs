@@ -302,6 +302,18 @@ pub fn iterate_instructions<'a>(
 
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
 
+                    // equality
+                    InstructionCode::EQUAL_VALUE => Ok(Instruction::EqualValue),
+                    InstructionCode::STRICT_EQUAL => {
+                        Ok(Instruction::StrictEqual)
+                    }
+                    InstructionCode::NOT_EQUAL_VALUE => {
+                        Ok(Instruction::NotEqualValue)
+                    }
+                    InstructionCode::STRICT_NOT_EQUAL => {
+                        Ok(Instruction::StrictNotEqual)
+                    }
+
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {
                         let address = SlotAddress::read(&mut reader);

@@ -6,6 +6,8 @@ use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::core_values::integer::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
+use crate::datex_values::traits::structural_eq::StructuralEq;
+use crate::datex_values::traits::value_eq::ValueEq;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
@@ -278,6 +280,31 @@ pub fn execute_loop(
                 ActiveValue::None
             }
 
+            Instruction::EqualValue => {
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::EqualValue);
+                ActiveValue::None
+            }
+            Instruction::StrictEqual => {
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::StrictEqual);
+                ActiveValue::None
+            }
+            Instruction::NotEqualValue => {
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::NotEqualValue);
+                ActiveValue::None
+            }
+            Instruction::StrictNotEqual => {
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::StrictNotEqual);
+                ActiveValue::None
+            }
+
             Instruction::CloseAndStore => {
                 let active = context.scope_stack.pop_active_value();
                 ActiveValue::None
@@ -490,6 +517,26 @@ fn handle_value(
                                     active_value_container as &_
                                         - &value_container
                                 }
+                                Instruction::EqualValue => {
+                                    let val = active_value_container
+                                        .value_eq(&value_container);
+                                    Ok(ValueContainer::from(val))
+                                }
+                                Instruction::StrictEqual => {
+                                    let val = active_value_container
+                                        .structural_eq(&value_container);
+                                    Ok(ValueContainer::from(val))
+                                }
+                                Instruction::NotEqualValue => {
+                                    let val = !active_value_container
+                                        .value_eq(&value_container);
+                                    Ok(ValueContainer::from(val))
+                                }
+                                Instruction::StrictNotEqual => {
+                                    let val = !active_value_container
+                                        .structural_eq(&value_container);
+                                    Ok(ValueContainer::from(val))
+                                }
                                 _ => {
                                     unreachable!("Instruction {:?} is not a valid operation", operation);
                                 }
@@ -622,6 +669,36 @@ mod tests {
     #[test]
     fn test_single_value_semicolon() {
         assert_eq!(execute_datex_script_debug("42;"), None)
+    }
+
+    #[test]
+    fn test_equality() {
+        let result = execute_datex_script_debug_with_result("1 == 1");
+        assert_eq!(result, true.into());
+        assert_structural_eq!(result, ValueContainer::from(true));
+
+        let result = execute_datex_script_debug_with_result("1 == 2");
+        assert_eq!(result, false.into());
+        assert_structural_eq!(result, ValueContainer::from(false));
+
+        let result = execute_datex_script_debug_with_result("1 != 2");
+        assert_eq!(result, true.into());
+        assert_structural_eq!(result, ValueContainer::from(true));
+
+        let result = execute_datex_script_debug_with_result("1 != 1");
+        assert_eq!(result, false.into());
+        assert_structural_eq!(result, ValueContainer::from(false));
+        let result = execute_datex_script_debug_with_result("1 === 1");
+        assert_eq!(result, true.into());
+
+        assert_structural_eq!(result, ValueContainer::from(true));
+        let result = execute_datex_script_debug_with_result("1 !== 2");
+        assert_eq!(result, true.into());
+        assert_structural_eq!(result, ValueContainer::from(true));
+
+        let result = execute_datex_script_debug_with_result("1 !== 1");
+        assert_eq!(result, false.into());
+        assert_structural_eq!(result, ValueContainer::from(false));
     }
 
     #[test]
