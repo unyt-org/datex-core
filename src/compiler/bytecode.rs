@@ -1137,6 +1137,64 @@ pub mod tests {
     }
 
     #[test]
+    fn test_equality_operator() {
+        init_logger();
+
+        let lhs: u8 = 1;
+        let rhs: u8 = 2;
+        let datex_script = format!("{lhs} == {rhs}"); // 1 == 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::EQUAL_VALUE.into(),
+                InstructionCode::INT_8.into(),
+                lhs,
+                InstructionCode::INT_8.into(),
+                rhs,
+            ]
+        );
+
+        let datex_script = format!("{lhs} === {rhs}"); // 1 === 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::STRICT_EQUAL.into(),
+                InstructionCode::INT_8.into(),
+                lhs,
+                InstructionCode::INT_8.into(),
+                rhs,
+            ]
+        );
+
+        let datex_script = format!("{lhs} != {rhs}"); // 1 != 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::NOT_EQUAL_VALUE.into(),
+                InstructionCode::INT_8.into(),
+                lhs,
+                InstructionCode::INT_8.into(),
+                rhs,
+            ]
+        );
+        let datex_script = format!("{lhs} !== {rhs}"); // 1 !== 2
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::STRICT_NOT_EQUAL.into(),
+                InstructionCode::INT_8.into(),
+                lhs,
+                InstructionCode::INT_8.into(),
+                rhs,
+            ]
+        );
+    }
+
+    #[test]
     fn test_simple_addition() {
         init_logger();
 

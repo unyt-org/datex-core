@@ -153,14 +153,14 @@ pub enum InstructionCode {
     CLONE_COLLAPSE = 0x88,        // collapse
 
     // comparators 0x80 - 0x8f
-    EQUAL_VALUE = 0x80,     // ==
-    NOT_EQUAL_VALUE = 0x81, // ~=
-    EQUAL = 0x82,           // ===
-    NOT_EQUAL = 0x83,       // ~==
-    GREATER = 0x84,         // >
-    LESS = 0x85,            // <
-    GREATER_EQUAL = 0x86,   // >=
-    LESS_EQUAL = 0x87,      // <=
+    EQUAL_VALUE = 0x80,      // ==
+    NOT_EQUAL_VALUE = 0x81,  // ~=
+    STRICT_EQUAL = 0x82,     // ===
+    STRICT_NOT_EQUAL = 0x83, // ~==
+    GREATER = 0x84,          // >
+    LESS = 0x85,             // <
+    GREATER_EQUAL = 0x86,    // >=
+    LESS_EQUAL = 0x87,       // <=
 
     // logical + algebraic operators 0x90  - 0x9f
     AND = 0x90,       // &

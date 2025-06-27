@@ -53,8 +53,13 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::And => InstructionCode::AND,
             BinaryOperator::Or => InstructionCode::OR,
             BinaryOperator::Equal => InstructionCode::EQUAL_VALUE,
-            BinaryOperator::StrictEqual => InstructionCode::EQUAL,
-            _ => todo!(),
+            BinaryOperator::StrictEqual => InstructionCode::STRICT_EQUAL,
+            BinaryOperator::NotEqual => InstructionCode::NOT_EQUAL_VALUE,
+            BinaryOperator::StrictNotEqual => InstructionCode::STRICT_NOT_EQUAL,
+            operator => todo!(
+                "Binary operator {:?} not implemented for InstructionCode",
+                operator
+            ),
         }
     }
 }
