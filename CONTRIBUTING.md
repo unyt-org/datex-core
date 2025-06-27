@@ -29,7 +29,7 @@ This document describes the workflow, branch strategy, coding standards, and qua
 * **Formatting:**
 
   ```bash
-  cargo clippy-debug --fix
+  cargo clippy-debug
   ```
 
   CI will fail if any file is not properly formatted.
@@ -37,7 +37,7 @@ This document describes the workflow, branch strategy, coding standards, and qua
 * **Linting:**
 
   ```bash
-  cargo clippy-debug
+  cargo clippy --features debug
   ```
 
   *We plan to treat all Clippy warnings as errors in the future.* Suppress a lint only with a line-level `#[allow(lint_name)]` and an explanatory comment.
