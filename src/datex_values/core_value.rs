@@ -669,7 +669,7 @@ mod tests {
     #[test]
     fn test_endpoint() {
         let endpoint: Endpoint = CoreValue::from("@test").try_into().unwrap();
-        debug!("Endpoint: {}", endpoint);
+        debug!("Endpoint: {endpoint}");
         assert_eq!(endpoint.to_string(), "@test");
     }
 

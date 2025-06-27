@@ -872,8 +872,8 @@ mod tests {
             (0_u32.into(), Integer::from(2_u32).into()),
             (1_u32.into(), Integer::from(42_u32).into()),
         ]);
-        debug!("Expected tuple: {}", expected_strict);
-        debug!("Tuple result: {}", tuple);
+        debug!("Expected tuple: {expected_strict}");
+        debug!("Tuple result: {tuple}");
         // FIXME type information gets lost on compile
         // assert_eq!(result, expected.into());
     }

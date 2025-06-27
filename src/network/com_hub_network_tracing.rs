@@ -509,7 +509,7 @@ impl ComHub {
             .unwrap()
             .0
             .unwrap();
-        info!("hops datex {}", hops_datex);
+        info!("hops datex {hops_datex}");
         if let ValueContainer::Value(Value {
             inner: CoreValue::Array(array),
             ..
@@ -607,7 +607,7 @@ impl ComHub {
                     });
                 }
             }
-            info!("Parsed hops from trace block: {:?}", hops);
+            info!("Parsed hops from trace block: {hops:?}");
             Some(hops)
         } else {
             None
