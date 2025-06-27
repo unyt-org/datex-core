@@ -1140,7 +1140,7 @@ pub mod tests {
     fn test_is_operator() {
         init_logger();
 
-        let datex_script = format!("1 is 2");
+        let datex_script = "1 is 2".to_string();
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1153,7 +1153,7 @@ pub mod tests {
             ]
         );
 
-        let datex_script = format!("val a = 42; val b = 69; a is b"); // a is b
+        let datex_script = "val a = 42; val b = 69; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,

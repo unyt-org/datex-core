@@ -10,7 +10,6 @@ use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::traits::value_eq::ValueEq;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::{ValueContainer, ValueError};
-use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
     Instruction, ShortTextData, SlotAddress, TextData,
