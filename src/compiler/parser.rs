@@ -7,10 +7,7 @@ use crate::datex_values::core_values::object::Object;
 use crate::datex_values::value::Value;
 use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
-use chumsky::{
-    input::ValueInput,
-    prelude::*,
-};
+use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 
@@ -531,6 +528,23 @@ pub fn create_parser<'a, I>(
         |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
     );
 
+    // equality
+    let equality = sum.clone().foldl(
+        choice((
+            op(Token::StructuralEquality) //  ==
+                .to(binary_op(BinaryOperator::Equal)),
+            op(Token::StrictEquality) //  ===
+                .to(binary_op(BinaryOperator::StrictEqual)),
+            op(Token::NegStructuralEquality) //  !=
+                .to(binary_op(BinaryOperator::NotEqual)),
+            op(Token::NegStrictEquality) //  !==
+                .to(binary_op(BinaryOperator::StrictNotEqual)),
+        ))
+        .then(sum)
+        .repeated(), // allows chaining like a == b == c
+        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    );
+
     // variable declarations or assignments
     let variable_assignment = just(Token::ValKW)
         .or(just(Token::RefKW))
@@ -540,7 +554,7 @@ pub fn create_parser<'a, I>(
             Token::Identifier(s) => s
         })
         .then_ignore(just(Token::Assign).padded_by(whitespace.clone()))
-        .then(sum.clone())
+        .then(equality.clone())
         .map(|((var_type, var_name), expr)| {
             if let Some(var_type) = var_type {
                 DatexExpression::VariableDeclaration(
@@ -560,7 +574,8 @@ pub fn create_parser<'a, I>(
             }
         });
 
-    expression_without_tuple.define(choice((variable_assignment, sum.clone())));
+    expression_without_tuple
+        .define(choice((variable_assignment, equality.clone())));
 
     expression.define(
         choice((tuple.clone(), expression_without_tuple.clone()))
@@ -715,12 +730,67 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_equal_operator() {
-    //     let src = "1 == 1";
-    //     let val = parse_unwrap(src);
-    //     // assert_eq!(val, DatexExpression::Null);
-    // }
+    #[test]
+    fn test_equal_operator() {
+        let src = "3 == 1 + 2";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Equal,
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Integer(Integer::from(1))),
+                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                ))
+            )
+        );
+
+        let src = "3 === 1 + 2";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::StrictEqual,
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Integer(Integer::from(1))),
+                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                ))
+            )
+        );
+
+        let src = "5 != 1 + 2";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::NotEqual,
+                Box::new(DatexExpression::Integer(Integer::from(5))),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Integer(Integer::from(1))),
+                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                ))
+            )
+        );
+        let src = "5 !== 1 + 2";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::StrictNotEqual,
+                Box::new(DatexExpression::Integer(Integer::from(5))),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Integer(Integer::from(1))),
+                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                ))
+            )
+        );
+    }
 
     #[test]
     fn test_null() {
