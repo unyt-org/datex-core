@@ -33,8 +33,7 @@ pub enum BinaryOperator {
     NotEqual,
     StrictEqual,
     StrictNotEqual,
-    Identical,
-    NotIdentical,
+    Is,
     LessThan,
     GreaterThan,
     LessThanOrEqual,
@@ -56,6 +55,7 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::StrictEqual => InstructionCode::STRICT_EQUAL,
             BinaryOperator::NotEqual => InstructionCode::NOT_EQUAL_VALUE,
             BinaryOperator::StrictNotEqual => InstructionCode::STRICT_NOT_EQUAL,
+            BinaryOperator::Is => InstructionCode::IS,
             operator => todo!(
                 "Binary operator {:?} not implemented for InstructionCode",
                 operator
@@ -544,6 +544,16 @@ pub fn create_parser<'a, I>(
                 .to(binary_op(BinaryOperator::NotEqual)),
             op(Token::NegStrictEquality) //  !==
                 .to(binary_op(BinaryOperator::StrictNotEqual)),
+            op(Token::Is) //  is
+                .to(binary_op(BinaryOperator::Is)),
+            // op(Token::LessThan) //  <
+            //     .to(binary_op(BinaryOperator::LessThan)),
+            // op(Token::GreaterThan) //  >
+            //     .to(binary_op(BinaryOperator::GreaterThan)),
+            // op(Token::LessThanOrEqual) //  <=
+            //     .to(binary_op(BinaryOperator::LessThanOrEqual)),
+            // op(Token::GreaterThanOrEqual) //  >=
+            //     .to(binary_op(BinaryOperator::GreaterThanOrEqual)),
         ))
         .then(sum)
         .repeated(), // allows chaining like a == b == c
@@ -736,7 +746,7 @@ mod tests {
     }
 
     #[test]
-    fn test_equal_operator() {
+    fn test_equal_operators() {
         let src = "3 == 1 + 2";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -787,6 +797,21 @@ mod tests {
             val,
             DatexExpression::BinaryOperation(
                 BinaryOperator::StrictNotEqual,
+                Box::new(DatexExpression::Integer(Integer::from(5))),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Integer(Integer::from(1))),
+                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                ))
+            )
+        );
+
+        let src = "5 is 1 + 2";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Is,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
