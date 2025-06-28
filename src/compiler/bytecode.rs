@@ -1205,7 +1205,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::EQUAL_VALUE.into(),
+                InstructionCode::STRUCTURAL_EQUAL.into(),
                 InstructionCode::INT_8.into(),
                 lhs,
                 InstructionCode::INT_8.into(),
@@ -1218,7 +1218,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::STRICT_EQUAL.into(),
+                InstructionCode::EQUAL.into(),
                 InstructionCode::INT_8.into(),
                 lhs,
                 InstructionCode::INT_8.into(),
@@ -1231,7 +1231,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::NOT_EQUAL_VALUE.into(),
+                InstructionCode::NOT_STRUCTURAL_EQUAL.into(),
                 InstructionCode::INT_8.into(),
                 lhs,
                 InstructionCode::INT_8.into(),
@@ -1243,7 +1243,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::STRICT_NOT_EQUAL.into(),
+                InstructionCode::NOT_EQUAL.into(),
                 InstructionCode::INT_8.into(),
                 lhs,
                 InstructionCode::INT_8.into(),

@@ -303,15 +303,15 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
 
                     // equality
-                    InstructionCode::EQUAL_VALUE => Ok(Instruction::EqualValue),
-                    InstructionCode::STRICT_EQUAL => {
-                        Ok(Instruction::StrictEqual)
+                    InstructionCode::STRUCTURAL_EQUAL => Ok(Instruction::StructuralEqual),
+                    InstructionCode::EQUAL => {
+                        Ok(Instruction::Equal)
                     }
-                    InstructionCode::NOT_EQUAL_VALUE => {
-                        Ok(Instruction::NotEqualValue)
+                    InstructionCode::NOT_STRUCTURAL_EQUAL => {
+                        Ok(Instruction::NotStructuralEqual)
                     }
-                    InstructionCode::STRICT_NOT_EQUAL => {
-                        Ok(Instruction::StrictNotEqual)
+                    InstructionCode::NOT_EQUAL => {
+                        Ok(Instruction::NotEqual)
                     }
                     InstructionCode::IS => Ok(Instruction::Is),
 

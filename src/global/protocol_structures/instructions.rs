@@ -39,10 +39,10 @@ pub enum Instruction {
     Multiply,
     Divide,
     Is,
-    EqualValue,
-    StrictEqual,
-    NotEqualValue,
-    StrictNotEqual,
+    StructuralEqual,
+    Equal,
+    NotStructuralEqual,
+    NotEqual,
 
     AllocateSlot(SlotAddress),
     GetSlot(SlotAddress),
@@ -101,10 +101,10 @@ impl Display for Instruction {
             Instruction::Divide => write!(f, "DIVIDE"),
 
             // equality checks
-            Instruction::EqualValue => write!(f, "EQUAL_VALUE"),
-            Instruction::StrictEqual => write!(f, "STRICT_EQUAL"),
-            Instruction::NotEqualValue => write!(f, "NOT_EQUAL_VALUE"),
-            Instruction::StrictNotEqual => write!(f, "STRICT_NOT_EQUAL"),
+            Instruction::StructuralEqual => write!(f, "STRUCTURAL_EQUAL"),
+            Instruction::Equal => write!(f, "EQUAL"),
+            Instruction::NotStructuralEqual => write!(f, "NOT_STRUCTURAL_EQUAL"),
+            Instruction::NotEqual => write!(f, "NOT_EQUAL"),
             Instruction::Is => write!(f, "IS"),
 
             Instruction::AllocateSlot(address) => {

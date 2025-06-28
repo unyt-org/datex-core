@@ -72,10 +72,10 @@ pub enum Token {
 
     #[token("<=")] LessEqual,
     #[token(">=")] GreaterEqual,
-    #[token("!=")] NegStructuralEquality,
-    #[token("!==")] NegStrictEquality,
-    #[token("==")] StructuralEquality,
-    #[token("===")] StrictEquality,
+    #[token("!=")] NotStructuralEqual,
+    #[token("!==")] NotEqual,
+    #[token("==")] StructuralEqual,
+    #[token("===")] Equal,
     #[token("is")] Is,
 
     // ==< Keywords >==
@@ -395,7 +395,7 @@ mod tests {
             Ok(Token::Identifier("a".to_string()))
         );
         assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
-        assert_eq!(lexer.next().unwrap(), Ok(Token::StructuralEquality));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::StructuralEqual));
         assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(
             lexer.next().unwrap(),

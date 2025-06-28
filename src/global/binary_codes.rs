@@ -153,10 +153,10 @@ pub enum InstructionCode {
     CLONE_COLLAPSE,        // collapse
 
     // comparators 0x80 - 0x8f
-    EQUAL_VALUE,      // ==
-    NOT_EQUAL_VALUE,  // ~=
-    STRICT_EQUAL,     // ===
-    STRICT_NOT_EQUAL, // ~==
+    STRUCTURAL_EQUAL,      // ==
+    NOT_STRUCTURAL_EQUAL,  // !=
+    EQUAL,     // ===
+    NOT_EQUAL, // !==
     GREATER,          // >
     LESS,             // <
     GREATER_EQUAL,    // >=

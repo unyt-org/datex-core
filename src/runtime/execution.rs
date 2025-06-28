@@ -19,6 +19,7 @@ use crate::parser::body::DXBParserError;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use crate::datex_values::traits::identity::Identity;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -283,28 +284,28 @@ pub fn execute_loop(
                 context.scope_stack.set_active_operation(Instruction::Is);
                 ActiveValue::None
             }
-            Instruction::EqualValue => {
+            Instruction::StructuralEqual => {
                 context
                     .scope_stack
-                    .set_active_operation(Instruction::EqualValue);
+                    .set_active_operation(Instruction::StructuralEqual);
                 ActiveValue::None
             }
-            Instruction::StrictEqual => {
+            Instruction::Equal => {
                 context
                     .scope_stack
-                    .set_active_operation(Instruction::StrictEqual);
+                    .set_active_operation(Instruction::Equal);
                 ActiveValue::None
             }
-            Instruction::NotEqualValue => {
+            Instruction::NotStructuralEqual => {
                 context
                     .scope_stack
-                    .set_active_operation(Instruction::NotEqualValue);
+                    .set_active_operation(Instruction::NotStructuralEqual);
                 ActiveValue::None
             }
-            Instruction::StrictNotEqual => {
+            Instruction::NotEqual => {
                 context
                     .scope_stack
-                    .set_active_operation(Instruction::StrictNotEqual);
+                    .set_active_operation(Instruction::NotEqual);
                 ActiveValue::None
             }
 
@@ -520,32 +521,33 @@ fn handle_value(
                                     active_value_container as &_
                                         - &value_container
                                 }
-                                Instruction::EqualValue => {
-                                    let val = active_value_container
-                                        .value_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::StrictEqual => {
+                                Instruction::StructuralEqual => {
                                     let val = active_value_container
                                         .structural_eq(&value_container);
                                     Ok(ValueContainer::from(val))
                                 }
-                                Instruction::NotEqualValue => {
-                                    let val = !active_value_container
+                                Instruction::Equal => {
+                                    let val = active_value_container
                                         .value_eq(&value_container);
                                     Ok(ValueContainer::from(val))
                                 }
-                                Instruction::StrictNotEqual => {
+                                Instruction::NotStructuralEqual => {
                                     let val = !active_value_container
                                         .structural_eq(&value_container);
+                                    Ok(ValueContainer::from(val))
+                                }
+                                Instruction::NotEqual => {
+                                    let val = !active_value_container
+                                        .value_eq(&value_container);
                                     Ok(ValueContainer::from(val))
                                 }
                                 Instruction::Is => {
                                     // TODO we should throw a runtime error when one of lhs or rhs is a value
                                     // instead of a ref. Identity checks using the is operator shall be only allowed
                                     // for references.
+                                    // @benstre: or keep as always false ? - maybe a compiler check would be better
                                     let val = active_value_container
-                                        .structural_eq(&value_container);
+                                        .identical(&value_container);
                                     Ok(ValueContainer::from(val))
                                 }
                                 _ => {

@@ -29,10 +29,10 @@ pub enum BinaryOperator {
     Or,
     CompositeAnd,
     CompositeOr,
+    StructuralEqual,
+    NotStructuralEqual,
     Equal,
     NotEqual,
-    StrictEqual,
-    StrictNotEqual,
     Is,
     LessThan,
     GreaterThan,
@@ -51,10 +51,10 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Power => InstructionCode::POWER,
             BinaryOperator::And => InstructionCode::AND,
             BinaryOperator::Or => InstructionCode::OR,
-            BinaryOperator::Equal => InstructionCode::EQUAL_VALUE,
-            BinaryOperator::StrictEqual => InstructionCode::STRICT_EQUAL,
-            BinaryOperator::NotEqual => InstructionCode::NOT_EQUAL_VALUE,
-            BinaryOperator::StrictNotEqual => InstructionCode::STRICT_NOT_EQUAL,
+            BinaryOperator::StructuralEqual => InstructionCode::STRUCTURAL_EQUAL,
+            BinaryOperator::Equal => InstructionCode::EQUAL,
+            BinaryOperator::NotStructuralEqual => InstructionCode::NOT_STRUCTURAL_EQUAL,
+            BinaryOperator::NotEqual => InstructionCode::NOT_EQUAL,
             BinaryOperator::Is => InstructionCode::IS,
             operator => todo!(
                 "Binary operator {:?} not implemented for InstructionCode",
@@ -536,14 +536,14 @@ pub fn create_parser<'a, I>(
     // equality
     let equality = sum.clone().foldl(
         choice((
-            op(Token::StructuralEquality) //  ==
+            op(Token::StructuralEqual) //  ==
+                .to(binary_op(BinaryOperator::StructuralEqual)),
+            op(Token::Equal) //  ===
                 .to(binary_op(BinaryOperator::Equal)),
-            op(Token::StrictEquality) //  ===
-                .to(binary_op(BinaryOperator::StrictEqual)),
-            op(Token::NegStructuralEquality) //  !=
+            op(Token::NotStructuralEqual) //  !=
+                .to(binary_op(BinaryOperator::NotStructuralEqual)),
+            op(Token::NotEqual) //  !==
                 .to(binary_op(BinaryOperator::NotEqual)),
-            op(Token::NegStrictEquality) //  !==
-                .to(binary_op(BinaryOperator::StrictNotEqual)),
             op(Token::Is) //  is
                 .to(binary_op(BinaryOperator::Is)),
             // op(Token::LessThan) //  <
@@ -752,7 +752,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Equal,
+                BinaryOperator::StructuralEqual,
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -767,7 +767,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::StrictEqual,
+                BinaryOperator::Equal,
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -782,7 +782,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::NotEqual,
+                BinaryOperator::NotStructuralEqual,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::StrictNotEqual,
+                BinaryOperator::NotEqual,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
