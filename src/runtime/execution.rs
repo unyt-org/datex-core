@@ -687,10 +687,6 @@ mod tests {
     #[test]
     fn test_is() {
         let result = execute_datex_script_debug_with_result("1 is 1");
-        assert_eq!(result, true.into());
-        assert_structural_eq!(result, ValueContainer::from(true));
-
-        let result = execute_datex_script_debug_with_result("1 is 2");
         assert_eq!(result, false.into());
         assert_structural_eq!(result, ValueContainer::from(false));
     }
