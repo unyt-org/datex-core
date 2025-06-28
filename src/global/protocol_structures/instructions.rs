@@ -44,6 +44,8 @@ pub enum Instruction {
     NotStructuralEqual,
     NotEqual,
 
+    CreateRef,
+
     AllocateSlot(SlotAddress),
     GetSlot(SlotAddress),
     DropSlot(SlotAddress),
@@ -119,6 +121,7 @@ impl Display for Instruction {
             Instruction::UpdateSlot(address) => {
                 write!(f, "UPDATE_SLOT {}", address.0)
             }
+            Instruction::CreateRef => write!(f, "CREATE_REF"),
         }
     }
 }

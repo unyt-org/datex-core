@@ -372,6 +372,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
                     // otherwise just write the slot address
                     write!(output, "#{} := ", address.0)?;
                 }
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::GetSlot(address) => {
                 handle_before_term(state, &mut output, false)?;
@@ -407,9 +408,14 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
                     write!(output, "#{} = ", address.0)?;
                 }
             }
+            
+            Instruction::CreateRef => {
+                handle_before_term(state, &mut output, false)?;
+                write!(output, "$ ")?;
+            }
 
             _ => {
-                write!(output, "{instruction:?}")?;
+                write!(output, "[[{instruction}]]")?;
             }
         }
     }

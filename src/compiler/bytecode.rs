@@ -83,90 +83,98 @@ impl<'a> CompilationContext<'a> {
     fn insert_value_container(&self, value_container: &ValueContainer) {
         self.mark_has_non_static_value();
         match value_container {
-            ValueContainer::Value(val) => match &val.inner {
-                CoreValue::TypedInteger(val)
-                | CoreValue::Integer(Integer(val)) => {
-                    match val.to_smallest_fitting() {
-                        TypedInteger::I8(val) => {
-                            self.insert_i8(val);
-                        }
-                        TypedInteger::I16(val) => {
-                            self.insert_i16(val);
-                        }
-                        TypedInteger::I32(val) => {
-                            self.insert_i32(val);
-                        }
-                        TypedInteger::I64(val) => {
-                            self.insert_i64(val);
-                        }
-                        TypedInteger::I128(val) => {
-                            self.insert_i128(val);
-                        }
-                        TypedInteger::U8(val) => {
-                            self.insert_u8(val);
-                        }
-                        TypedInteger::U16(val) => {
-                            self.insert_u16(val);
-                        }
-                        TypedInteger::U32(val) => {
-                            self.insert_u32(val);
-                        }
-                        TypedInteger::U64(val) => {
-                            self.insert_u64(val);
-                        }
-                        TypedInteger::U128(val) => {
-                            self.insert_u128(val);
-                        }
+            ValueContainer::Value(value) => self.insert_value(value),
+            ValueContainer::Reference(reference) => {
+                // TODO: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
+                // add CREATE_REF instruction
+                self.append_binary_code(InstructionCode::CREATE_REF);
+                self.insert_value(&reference.borrow().current_resolved_value().borrow())
+            } 
+        }
+    }
+    
+    fn insert_value(&self, value: &Value) {
+        match &value.inner {
+            CoreValue::TypedInteger(val)
+            | CoreValue::Integer(Integer(val)) => {
+                match val.to_smallest_fitting() {
+                    TypedInteger::I8(val) => {
+                        self.insert_i8(val);
+                    }
+                    TypedInteger::I16(val) => {
+                        self.insert_i16(val);
+                    }
+                    TypedInteger::I32(val) => {
+                        self.insert_i32(val);
+                    }
+                    TypedInteger::I64(val) => {
+                        self.insert_i64(val);
+                    }
+                    TypedInteger::I128(val) => {
+                        self.insert_i128(val);
+                    }
+                    TypedInteger::U8(val) => {
+                        self.insert_u8(val);
+                    }
+                    TypedInteger::U16(val) => {
+                        self.insert_u16(val);
+                    }
+                    TypedInteger::U32(val) => {
+                        self.insert_u32(val);
+                    }
+                    TypedInteger::U64(val) => {
+                        self.insert_u64(val);
+                    }
+                    TypedInteger::U128(val) => {
+                        self.insert_u128(val);
                     }
                 }
-                CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
-                CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
-                CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
-                CoreValue::Bool(val) => self.insert_boolean(val.0),
-                CoreValue::Null => {
-                    self.append_binary_code(InstructionCode::NULL)
+            }
+            CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
+            CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
+            CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
+            CoreValue::Bool(val) => self.insert_boolean(val.0),
+            CoreValue::Null => {
+                self.append_binary_code(InstructionCode::NULL)
+            }
+            CoreValue::Text(val) => {
+                self.insert_text(&val.0.clone());
+            }
+            CoreValue::Array(val) => {
+                self.append_binary_code(InstructionCode::ARRAY_START);
+                for item in val {
+                    self.insert_value_container(item);
                 }
-                CoreValue::Text(val) => {
-                    self.insert_text(&val.0.clone());
+                self.append_binary_code(InstructionCode::SCOPE_END);
+            }
+            CoreValue::Object(val) => {
+                self.append_binary_code(InstructionCode::OBJECT_START);
+                // println!("Object: {val:?}");
+                for (key, value) in val {
+                    self.insert_key_string(key);
+                    self.insert_value_container(value);
                 }
-                CoreValue::Array(val) => {
-                    self.append_binary_code(InstructionCode::ARRAY_START);
-                    for item in val {
-                        self.insert_value_container(item);
-                    }
-                    self.append_binary_code(InstructionCode::SCOPE_END);
-                }
-                CoreValue::Object(val) => {
-                    self.append_binary_code(InstructionCode::OBJECT_START);
-                    // println!("Object: {val:?}");
-                    for (key, value) in val {
-                        self.insert_key_string(key);
+                self.append_binary_code(InstructionCode::SCOPE_END);
+            }
+            CoreValue::Tuple(val) => {
+                self.append_binary_code(InstructionCode::TUPLE_START);
+                let mut next_expected_integer_key: i128 = 0;
+                for (key, value) in val {
+                    // if next expected integer key, ignore and just insert value
+                    if let ValueContainer::Value(key) = key
+                        && let CoreValue::Integer(Integer(integer)) =
+                        key.inner
+                        && let Some(int) = integer.as_i128()
+                        && int == next_expected_integer_key
+                    {
+                        next_expected_integer_key += 1;
                         self.insert_value_container(value);
+                    } else {
+                        self.insert_key_value_pair(key, value);
                     }
-                    self.append_binary_code(InstructionCode::SCOPE_END);
                 }
-                CoreValue::Tuple(val) => {
-                    self.append_binary_code(InstructionCode::TUPLE_START);
-                    let mut next_expected_integer_key: i128 = 0;
-                    for (key, value) in val {
-                        // if next expected integer key, ignore and just insert value
-                        if let ValueContainer::Value(key) = key
-                            && let CoreValue::Integer(Integer(integer)) =
-                                key.inner
-                            && let Some(int) = integer.as_i128()
-                            && int == next_expected_integer_key
-                        {
-                            next_expected_integer_key += 1;
-                            self.insert_value_container(value);
-                        } else {
-                            self.insert_key_value_pair(key, value);
-                        }
-                    }
-                    self.append_binary_code(InstructionCode::SCOPE_END);
-                }
-                _ => todo!(),
-            },
-            _ => todo!(),
+                self.append_binary_code(InstructionCode::SCOPE_END);
+            }
         }
     }
 
@@ -727,7 +735,7 @@ impl CompileMetadata {
     }
 }
 
-fn compile_ast<'a>(
+fn compile_ast(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
     scope: CompileScope,
@@ -741,7 +749,7 @@ fn compile_ast<'a>(
     Ok(scope)
 }
 
-fn compile_expression<'a>(
+fn compile_expression(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
     mut meta: CompileMetadata,
@@ -928,19 +936,16 @@ fn compile_expression<'a>(
         // declaration
         DatexExpression::VariableDeclaration(var_type, name, expression) => {
             compilation_scope.mark_has_non_static_value();
-            let address = match var_type {
-                VariableType::Value => {
-                    // allocate new slot for variable
-                    let address = scope.get_next_variable_slot();
-                    compilation_scope
-                        .append_binary_code(InstructionCode::ALLOCATE_SLOT);
-                    compilation_scope.append_u32(address);
-                    address
-                }
-                VariableType::Reference => {
-                    todo!();
-                }
-            };
+            // allocate new slot for variable
+            let address = scope.get_next_variable_slot();
+            compilation_scope
+                .append_binary_code(InstructionCode::ALLOCATE_SLOT);
+            compilation_scope.append_u32(address);
+            // create reference
+            if var_type == VariableType::Reference {
+                compilation_scope
+                    .append_binary_code(InstructionCode::CREATE_REF);
+            }
             // compile expression
             scope = compile_expression(
                 compilation_scope,

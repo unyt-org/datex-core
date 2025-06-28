@@ -19,6 +19,7 @@ use crate::parser::body::DXBParserError;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use crate::datex_values::reference::Reference;
 use crate::datex_values::traits::identity::Identity;
 
 #[derive(Debug, Clone, Default)]
@@ -383,6 +384,14 @@ pub fn execute_loop(
                 ActiveValue::None
             }
 
+            // refs
+            Instruction::CreateRef => {
+                context
+                    .scope_stack
+                    .set_active_operation(Instruction::CreateRef);
+                ActiveValue::None
+            }
+
             Instruction::DropSlot(SlotAddress(address)) => {
                 // remove slot from slots
                 context.drop_slot(address)?;
@@ -497,12 +506,28 @@ fn handle_value(
             } else {
                 match active_value {
                     ActiveValue::None => {
-                        // TODO: unary operations
+                        // Unary operations:
+
+                        // CREATE_REF
+                        if active_operation
+                            == Some(Instruction::CreateRef)
+                        {
+                            // create a new value container for the ref
+                            let ref_value_container =
+                                ValueContainer::Reference(Reference::from(value_container));
+                            // set active value to ref value container
+                            context
+                                .scope_stack
+                                .set_active_value_container(ref_value_container);
+                        }
 
                         // set active value to new value
-                        context
-                            .scope_stack
-                            .set_active_value_container(value_container);
+                        else {
+                            context
+                                .scope_stack
+                                .set_active_value_container(value_container);
+                        }
+
                     }
 
                     // value and active value exists

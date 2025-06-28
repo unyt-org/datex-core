@@ -314,6 +314,7 @@ pub fn iterate_instructions<'a>(
                         Ok(Instruction::NotEqual)
                     }
                     InstructionCode::IS => Ok(Instruction::Is),
+                    InstructionCode::CREATE_REF => Ok(Instruction::CreateRef),
 
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {
