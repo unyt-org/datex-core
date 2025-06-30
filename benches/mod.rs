@@ -187,7 +187,7 @@ fn bench_json(c: &mut Criterion) {
     bench_json_file(c, "test3.json");
 }
 
-criterion_group! {name = json; config = Criterion::default().sample_size(10); targets = bench_json}
+criterion_group!(json, bench_json);
 criterion_group!(runtime, bench_runtime);
 
 criterion_main!(json);
