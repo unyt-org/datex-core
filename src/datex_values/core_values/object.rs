@@ -72,6 +72,7 @@ impl StructuralEq for Object {
         if self.size() != other.size() {
             return false;
         }
+        // fixme: key order should not matter
         for (key, value) in zip(self.0.iter(), other.0.iter()) {
             if key.0 != value.0 || !key.1.structural_eq(value.1) {
                 return false;
@@ -84,6 +85,7 @@ impl StructuralEq for Object {
 impl Hash for Object {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for (k, v) in &self.0 {
+            // fixme: sort keys to ensure consistent hashing
             k.hash(state);
             v.hash(state);
         }

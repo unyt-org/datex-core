@@ -265,12 +265,7 @@ impl CoreValue {
 
     pub fn cast_to_bool(&self) -> Option<Boolean> {
         match self {
-            CoreValue::Text(text) => match text.0.as_str() {
-                // FIXME can we combine thruthiness and casts??!
-                "true" | "1" | "yes" => Some(Boolean(true)),
-                "false" | "0" | "no" => Some(Boolean(false)),
-                _ => None,
-            },
+            CoreValue::Text(text) => Some(Boolean(!text.0.is_empty())),
             CoreValue::Bool(bool) => Some(bool.clone()),
             CoreValue::TypedInteger(int) => Some(Boolean(int.as_i128()? != 0)),
             CoreValue::Null => Some(Boolean(false)),
@@ -698,16 +693,6 @@ mod tests {
             CoreValue::from(false)
         );
 
-        let text_value = CoreValue::from("true");
-        assert_eq!(
-            text_value.cast_to(CoreValueType::Bool).unwrap(),
-            CoreValue::from(true)
-        );
-        let false_text_value = CoreValue::from("false");
-        assert_eq!(
-            false_text_value.cast_to(CoreValueType::Bool).unwrap(),
-            CoreValue::from(false)
-        );
         let invalid_text_value = CoreValue::from("invalid");
         assert_eq!(invalid_text_value.cast_to(CoreValueType::Bool), None);
     }
