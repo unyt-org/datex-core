@@ -839,7 +839,7 @@ mod tests {
     fn test_decimal_and_integer() {
         let result = execute_datex_script_debug_with_result("-2341324.0");
         assert_eq!(result, Decimal::from_string("-2341324").into());
-        assert_structural_eq!(result, ValueContainer::from(-2341324));
+        assert!(!result.structural_eq(&ValueContainer::from(-2341324)));
     }
 
     #[test]

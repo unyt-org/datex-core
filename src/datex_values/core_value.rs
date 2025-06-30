@@ -56,16 +56,6 @@ impl StructuralEq for CoreValue {
             (CoreValue::Decimal(a), CoreValue::TypedDecimal(b)) |
             (CoreValue::TypedDecimal(b), CoreValue::Decimal(a))
                 => TypedDecimal::Decimal(a.clone()).structural_eq(b),
-            
-            // Decimal + Integer/TypedInteger
-            (CoreValue::Decimal(a), CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)) |
-            (CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b), CoreValue::Decimal(a))
-                => a.structural_eq(&Decimal::from_string(&b.to_string())), // TODO: user bigints once implemented
-            
-            // TypedDecimal + Integer/TypedInteger
-            (CoreValue::TypedDecimal(a), CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b)) |
-            (CoreValue::Integer(Integer(b)) | CoreValue::TypedInteger(b), CoreValue::TypedDecimal(a))
-                => a.structural_eq(&TypedDecimal::Decimal(Decimal::from_string(&b.to_string()))),
 
             (CoreValue::Text(a), CoreValue::Text(b)) => a.structural_eq(b),
             (CoreValue::Null, CoreValue::Null) => true,

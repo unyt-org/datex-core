@@ -17,7 +17,7 @@ pub enum TupleEntry {
     Value(DatexExpression),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOperator {
     Add,
     Subtract,
@@ -273,7 +273,7 @@ fn binary_op(
     op: BinaryOperator,
 ) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
 {
-    move |lhs, rhs| DatexExpression::BinaryOperation(op.clone(), lhs, rhs)
+    move |lhs, rhs| DatexExpression::BinaryOperation(op, lhs, rhs)
 }
 
 pub struct DatexParseResult {
@@ -630,7 +630,9 @@ pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     result
 }
 
-// pub fn parse_with_context(src: &str) -> (DatexExpression, Vec<ParserError>) {
+// TODO: implement correctly - have fun with lifetimes :()
+// mainly relevant for IDE language support
+// pub fn parse_with_context(src: &str, parser) -> (DatexExpression, Vec<ParserError>) {
 //     let lexer = Token::lexer(src);
 //     let tokens = lexer.spanned().map(|(tok, span)| match tok {
 //         Ok(tok) => (tok, span.into()),
@@ -639,7 +641,7 @@ pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
 //     let tokens = Stream::from_iter(tokens)
 //         .map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
 
-//     let result = create_parser().parse(tokens).into_result().map_err(|err| {
+//     let result = parser.parse(tokens).into_result().map_err(|err| {
 //         err.into_iter()
 //             .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
 //             .collect()

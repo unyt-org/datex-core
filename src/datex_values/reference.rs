@@ -138,6 +138,6 @@ mod tests {
         // different references should not be equal a.k.a. identical
         assert_ne!(reference1, reference2);
         // but their current resolved values should be structurally equal
-        assert!(reference1.structural_eq(&reference2));
+        assert!(!reference1.structural_eq(&reference2));
     }
 }
