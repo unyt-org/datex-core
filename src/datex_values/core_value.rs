@@ -693,8 +693,8 @@ mod tests {
             CoreValue::from(false)
         );
 
-        let invalid_text_value = CoreValue::from("invalid");
-        assert_eq!(invalid_text_value.cast_to(CoreValueType::Bool), None);
+        let invalid_text_value = CoreValue::from("sometext");
+        assert_eq!(invalid_text_value.cast_to(CoreValueType::Bool), Some(CoreValue::from(true)));
     }
 
     #[test]
