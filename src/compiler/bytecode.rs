@@ -467,7 +467,7 @@ pub fn extract_static_value_from_script(
     extract_static_value_from_ast(res).map(Some)
 }
 
-fn extract_static_value_from_ast<'a>(
+fn extract_static_value_from_ast(
     ast: DatexExpression,
 ) -> Result<ValueContainer, CompilerError> {
     if let DatexExpression::Placeholder = ast {
@@ -589,7 +589,7 @@ pub fn compile_template<'a>(
     )
 }
 
-pub fn compile_value<'a>(
+pub fn compile_value(
     value: &ValueContainer,
 ) -> Result<Vec<u8>, CompilerError> {
     let buffer = RefCell::new(Vec::with_capacity(256));
@@ -623,7 +623,6 @@ macro_rules! compile {
 pub struct CompileScope {
     /// List of variables, mapped by name to their slot address and type.
     variables: HashMap<String, (u32, VariableType)>,
-    // TODO: parent variables
     parent_scope: Option<Box<CompileScope>>,
     next_slot_address: u32,
 }
@@ -1039,26 +1038,6 @@ fn compile_key_value_entry<'a>(
     Ok(scope)
 }
 
-fn insert_int_with_radix<'a>(
-    compilation_scope: &CompilationContext,
-    int_str: &str,
-    radix: u32,
-) -> Result<(), CompilerError> {
-    let is_negative = int_str.starts_with('-');
-    let is_positive = int_str.starts_with('+');
-    let int = i64::from_str_radix(
-        &int_str[if is_negative || is_positive { 3 } else { 2 }..],
-        radix,
-    )
-    .map_err(|_| CompilerError::IntegerOutOfBoundsError)?;
-    if is_negative {
-        compilation_scope.insert_int(-int);
-    } else {
-        compilation_scope.insert_int(int);
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::{
@@ -1145,6 +1124,7 @@ pub mod tests {
     fn test_is_operator() {
         init_logger();
 
+        // TODO: compare refs
         let datex_script = "1 is 2".to_string();
         let result = compile_and_log(&datex_script);
         assert_eq!(
@@ -1158,7 +1138,7 @@ pub mod tests {
             ]
         );
 
-        let datex_script = "val a = 42; val b = 69; a is b".to_string(); // a is b
+        let datex_script = "ref a = 42; ref b = 69; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1169,6 +1149,7 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1179,6 +1160,7 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 69,
                 InstructionCode::SCOPE_END.into(),
@@ -2021,6 +2003,57 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_allocate_ref() {
+        init_logger();
+        let script = "ref a = 42";
+        let result = compile_and_log(script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::CREATE_REF.into(),
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::SCOPE_END.into(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_read_ref() {
+        init_logger();
+        let script = "ref a = 42; a";
+        let result = compile_and_log(script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::CREATE_REF.into(),
+                InstructionCode::INT_8.into(),
+                42,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
