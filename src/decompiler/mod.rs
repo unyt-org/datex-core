@@ -408,10 +408,10 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
                     write!(output, "#{} = ", address.0)?;
                 }
             }
-            
+
             Instruction::CreateRef => {
                 handle_before_term(state, &mut output, false)?;
-                write!(output, "$ ")?;
+                write!(output, "$")?;
             }
 
             _ => {

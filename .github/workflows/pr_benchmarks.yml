@@ -12,6 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bencherdev/bencher@main
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install libudev-dev pkg-config
       - name: Track PR Benchmarks with Bencher
         run: |
           bencher run \
