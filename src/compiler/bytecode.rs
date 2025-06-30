@@ -907,14 +907,14 @@ fn compile_expression(
         DatexExpression::BinaryOperation(operator, a, b) => {
             compilation_scope.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
-            if meta.current_binary_operator != Some(operator.clone()) {
+            if meta.current_binary_operator != Some(operator) {
                 compilation_scope
                     .append_binary_code(InstructionCode::from(&operator));
             }
             scope = compile_expression(
                 compilation_scope,
                 *a,
-                CompileMetadata::with_current_binary_operator(operator.clone()),
+                CompileMetadata::with_current_binary_operator(operator),
                 scope,
             )?;
             scope = compile_expression(
