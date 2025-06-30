@@ -2,7 +2,7 @@ use std::io::Read;
 use json_syntax::Parse;
 use serde_json::Value;
 use datex_core::compiler::bytecode::{compile_script, compile_script_or_return_static_value, compile_value, extract_static_value_from_script, CompileOptions, StaticValueOrDXB};
-use datex_core::compiler::parser::DatexScriptParser;
+use datex_core::compiler::ast_parser::DatexScriptParser;
 use datex_core::datex_values::datex_type::CoreValueType;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};

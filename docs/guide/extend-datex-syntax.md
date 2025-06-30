@@ -69,7 +69,7 @@ yield match instruction_code {
 ```
 
 ## Update the Parser
-Next, you need to update the parser to recognize your new token. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/parser.rs) module. The parser is responsible for converting the sequence of tokens recognized by the lexer into an Abstract Syntax Tree (AST).
+Next, you need to update the parser to recognize your new token. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/ast_parser) module. The parser is responsible for converting the sequence of tokens recognized by the lexer into an Abstract Syntax Tree (AST).
 
 
 ### Extend the Expression Grammar
@@ -209,7 +209,7 @@ let atom = choice((
 ```
 
 ### Add a Test
-Finally, you should add a test to ensure that your new syntax element is parsed correctly. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/parser.rs) module.
+Finally, you should add a test to ensure that your new syntax element is parsed correctly. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/ast_parser) module.
 
 ```rust
 #[cfg(test)]

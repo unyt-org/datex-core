@@ -16,7 +16,7 @@ The [DATEX CLI](https://github.com/unyt-org/datex-cli) is also built on top of t
   * [datex_values/](./src/datex_values/) - Contains the value types and traits
   * [global/](./src/global/) - Contains global constants and structures
   * [network/](./src/network/) - Contains the network protocol implementation and interfaces
-  * [parser/](./src/parser/) - Contains the syntax parser
+  * [parser/](./src/parser/) - Contains the DXB parser
   * [runtime/](./src/runtime/) - Contains the runtime for executing scripts
   * [utils/](./src/utils/) - Contains utility functions and traits
 * [benches/](./benches/) - Contains benchmarks for the crate for performance testing

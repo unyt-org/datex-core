@@ -7,10 +7,10 @@ use std::fmt::Display;
 
 pub mod bytecode;
 mod lexer;
-pub mod parser;
+pub mod ast_parser;
 
 use crate::compiler::bytecode::{compile_script, CompileOptions};
-use crate::compiler::parser::{DatexExpression, ParserError};
+use crate::compiler::ast_parser::{DatexExpression, ParserError};
 use crate::datex_values::core_values::endpoint::Endpoint;
 
 #[derive(Debug)]

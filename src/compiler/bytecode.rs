@@ -1,4 +1,4 @@
-use crate::compiler::parser::{
+use crate::compiler::ast_parser::{
     parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry,
     VariableType,
 };
@@ -89,10 +89,10 @@ impl<'a> CompilationContext<'a> {
                 // add CREATE_REF instruction
                 self.append_binary_code(InstructionCode::CREATE_REF);
                 self.insert_value(&reference.borrow().current_resolved_value().borrow())
-            } 
+            }
         }
     }
-    
+
     fn insert_value(&self, value: &Value) {
         match &value.inner {
             CoreValue::TypedInteger(val)
@@ -1073,7 +1073,7 @@ pub mod tests {
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
 
-    use crate::compiler::parser::parse;
+    use crate::compiler::ast_parser::parse;
     use crate::datex_values::core_values::integer::integer::Integer;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {

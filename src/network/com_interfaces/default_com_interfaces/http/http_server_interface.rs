@@ -205,8 +205,8 @@ impl HTTPServerNativeInterface {
             channels: self.channels.clone(),
         };
         let app = Router::new()
-            .route("/:route/rx", get(server_to_client_handler))
-            .route("/:route/tx", post(client_to_server_handler))
+            .route("/{route}/rx", get(server_to_client_handler))
+            .route("/{route}/tx", post(client_to_server_handler))
             .with_state(state.clone());
 
         let addr: SocketAddr = self

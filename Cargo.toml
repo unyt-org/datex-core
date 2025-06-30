@@ -21,27 +21,25 @@ harness = false
 [dependencies]
 # core dependencies
 byteorder = "1"
-num_enum = "0.5.7"
+num_enum = "0.7.4"
 lazy_static = "1.4.0"
 strum_macros = { version = "0.27.1" }
-strum = { version = "0.24", features = ["derive"] }
+strum = { version = "0.27.1", features = ["derive"] }
 mopa = "0.2.2"
 num-bigint = "0.4"
 num-integer = "0.1"
 default-args = "1.0.0"
-itertools = "0.10.5"
-pest_derive = "2.6"
+itertools = "0.14.0"
 pad = "0.1"
-binrw = "0.14.1"
-modular-bitfield = "0.11.2"
+binrw = "0.15.0"
+modular-bitfield = "0.12.0"
 thiserror = "2.0.11"
 url = "2.5.4"
 num-traits = "0.2.19"
 async-trait = "0.1.87"
 hex = "0.4.3"
 log = { version = "0.4", features = ["std", "serde"] }
-cfg-if = "0.1"
-ansi_term = "0.12.1"
+cfg-if = "1.0.1"
 bytes = { version = "1" }
 futures-util = { version = "0.3" }
 tokio = { version = "1.43.0", optional = true, features = [
@@ -60,7 +58,7 @@ nostd = { version = "0.1.4", optional = true }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
 rsa = { version = "0.9.8", optional = true }
-flexi_logger = { version = "0.29.8", optional = true }
+flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
 matchbox_socket = { default-features = false, git = "https://github.com/unyt-org/matchbox", optional = true } #{ version = "0.11.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
@@ -70,13 +68,12 @@ serde = "1.0.219"
 serde_with = "3.12.0"
 ntest_timeout = "0.9.3"
 ringmap = "0.1.3"
-webrtc = { version = "0.12.0", optional = true }
+webrtc = { version = "0.13.0", optional = true }
 syntect = { version = "5.2.0", default-features = false, features = ["default-fancy"]}
 indexmap = "2.9.0"
 ordered-float = "5.0.0"
 bigdecimal = "0.4.8"
 bigint = "4.4.3"
-json-syntax = "0.12.5"
 serde_json = "1.0.140"
 num = "0.4.3"
 chumsky = {  version = "0.10.1", features = ["std"], default-features = false  }
@@ -85,17 +82,17 @@ logos = "0.15.0"
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-axum = { version = "0.7", optional = true }
+axum = { version = "0.8.4", optional = true }
 tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
 hyper = { version = "1", optional = true }
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
 serialport = { version = "4.7.1", optional = true }
-tokio-tungstenite = { version = "0.21", optional = true }
-tungstenite = { version = "0.21", optional = true }
+tokio-tungstenite = { version = "0.21.0", optional = true }
+tungstenite = { version = "0.21.0", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = { optional = true, version = "0.4.29" }
-gloo-timers = { version = "0.2", features = ["futures"] }
+gloo-timers = { version = "0.3.0", features = ["futures"] }
 
 [profile.release]
 opt-level = "z"
@@ -106,7 +103,7 @@ panic = "abort"
 
 # Development dependencies
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-matchbox_signaling = { version = "0.11.0" }
+matchbox_signaling = { version = "0.12.0" }
 tokio = { version = "1.43.0", features = [
     "sync",
     "macros",
@@ -120,8 +117,9 @@ tokio = { version = "1.43.0", features = [
 opt-level = 3
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.6.0", features = ["html_reports"] }
 criterion-macro = "0.4.0"
+json-syntax = "0.12.5"
 
 
 [features]
