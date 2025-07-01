@@ -91,7 +91,8 @@ pub enum ScopeType {
     Tuple,
     Array,
     Object,
-    SlotAssignment
+    SlotAssignment,
+    Transparent
 }
 
 impl ScopeType {
@@ -104,6 +105,7 @@ impl ScopeType {
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have a start
             }
+            ScopeType::Transparent => {}
         }
         Ok(())
     }
@@ -116,6 +118,7 @@ impl ScopeType {
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have an end
             }
+            ScopeType::Transparent => {}
         }
         Ok(())
     }
@@ -125,12 +128,15 @@ impl ScopeType {
 struct ScopeState {
     /// true if this is the outer scope (default scope)
     is_outer_scope: bool,
+    // TODO: use BinaryOperator instead of Instruction
     active_operator: Option<(Instruction, bool)>,
     scope_type: (ScopeType, bool),
     /// skip inserted comma for next item (already inserted before key)
     skip_comma_for_next_item: bool,
     /// set to true if next item is a key (e.g. in object)
     next_item_is_key: bool,
+    /// set to true if the current active scope should be closed after the next term
+    close_scope_after_term: bool,
 }
 
 impl ScopeState {
@@ -343,21 +349,11 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
             }
 
             // operations
-            Instruction::Add => {
+            Instruction::Add | Instruction::Subtract | Instruction::Multiply | Instruction::Divide => {
+                handle_before_term(state, &mut output, false)?;
+                state.new_scope(ScopeType::Transparent);
                 state.get_current_scope().active_operator =
-                    Some((Instruction::Add, true));
-            }
-            Instruction::Subtract => {
-                state.get_current_scope().active_operator =
-                    Some((Instruction::Subtract, true));
-            }
-            Instruction::Multiply => {
-                state.get_current_scope().active_operator =
-                    Some((Instruction::Multiply, true));
-            }
-            Instruction::Divide => {
-                state.get_current_scope().active_operator =
-                    Some((Instruction::Divide, true));
+                    Some((instruction, true));
             }
 
             // slots
@@ -527,9 +523,15 @@ fn handle_after_term(
     output: &mut String,
     is_standalone_key: bool,
 ) -> Result<(), DXBParserError> {
+    let close_scope = state.get_current_scope().close_scope_after_term;
+    if close_scope {
+        // close scope after term
+        state.close_scope();
+    }
+
     // next_item_is_key
     if state.get_current_scope().next_item_is_key {
-        if !is_standalone_key {
+        if !is_standalone_key || close_scope {
             write!(output, ")")?;
         }
         // set next_item_is_key to false
@@ -607,7 +609,7 @@ fn handle_before_operand(
     state: &mut DecompilerState,
     output: &mut String,
 ) -> Result<(), DXBParserError> {
-    if let Some(operator) = &state.get_current_scope().active_operator {
+    if let Some(operator) = state.get_current_scope().active_operator.take() {
         // handle the operator before the operand
         match operator {
             (_, true) => {
@@ -617,15 +619,19 @@ fn handle_before_operand(
             }
             (Instruction::Add, false) => {
                 write_operator(state, output, "+")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::Subtract, false) => {
                 write_operator(state, output, "-")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::Multiply, false) => {
                 write_operator(state, output, "*")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::Divide, false) => {
                 write_operator(state, output, "/")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             _ => {
                 panic!("Invalid operator: {operator:?}");

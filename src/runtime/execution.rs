@@ -1,4 +1,4 @@
-use super::stack::{ActiveValue, ScopeStack, ScopeType};
+use super::stack::{Scope, ScopeStack};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
@@ -19,6 +19,7 @@ use crate::parser::body::DXBParserError;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
 use crate::datex_values::reference::Reference;
 use crate::datex_values::traits::identity::Identity;
 
@@ -209,437 +210,415 @@ pub fn execute_loop(
             println!("[Exec]: {instruction}");
         }
 
-        let mut is_scope_start = false;
+        let value = get_active_value_from_instruction(&mut context, instruction)?;
 
-        let value: ActiveValue = match instruction {
-            // boolean
-            Instruction::True => true.into(),
-            Instruction::False => false.into(),
-
-            // integers
-            Instruction::Int8(integer) => Integer::from(integer.0).into(),
-            Instruction::Int16(integer) => Integer::from(integer.0).into(),
-            Instruction::Int32(integer) => Integer::from(integer.0).into(),
-            Instruction::Int64(integer) => Integer::from(integer.0).into(),
-            Instruction::Int128(integer) => Integer::from(integer.0).into(),
-
-            // unsigned integers
-            Instruction::UInt128(integer) => Integer::from(integer.0).into(),
-
-            // specific floats
-            Instruction::DecimalF32(Float32Data(f32)) => {
-                TypedDecimal::from(f32).into()
-            }
-            Instruction::DecimalF64(Float64Data(f64)) => {
-                TypedDecimal::from(f64).into()
-            }
-
-            // default decimals (big decimals)
-            Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
-                Decimal::from(i16 as f32).into()
-            }
-            Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
-                Decimal::from(i32 as f32).into()
-            }
-            Instruction::Decimal(DecimalData(big_decimal)) => {
-                big_decimal.into()
-            }
-
-            // endpoint
-            Instruction::Endpoint(endpoint) => endpoint.into(),
-
-            // null
-            Instruction::Null => Value::null().into(),
-
-            // text
-            Instruction::ShortText(ShortTextData(text)) => text.into(),
-            Instruction::Text(TextData(text)) => text.into(),
-
-            // operations
-            Instruction::Add => {
-                context.scope_stack.set_active_operation(Instruction::Add);
-                ActiveValue::None
-            }
-
-            Instruction::Subtract => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Subtract);
-                ActiveValue::None
-            }
-
-            Instruction::Multiply => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Multiply);
-                ActiveValue::None
-            }
-
-            Instruction::Divide => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Divide);
-                ActiveValue::None
-            }
-            Instruction::Is => {
-                context.scope_stack.set_active_operation(Instruction::Is);
-                ActiveValue::None
-            }
-            Instruction::StructuralEqual => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::StructuralEqual);
-                ActiveValue::None
-            }
-            Instruction::Equal => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Equal);
-                ActiveValue::None
-            }
-            Instruction::NotStructuralEqual => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::NotStructuralEqual);
-                ActiveValue::None
-            }
-            Instruction::NotEqual => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::NotEqual);
-                ActiveValue::None
-            }
-
-            Instruction::CloseAndStore => {
-                let active = context.scope_stack.pop_active_value();
-                ActiveValue::None
-                // try_assign_active_value_to_active_slot(&mut context)?
-            }
-
-            Instruction::ScopeStart => {
-                context.scope_stack.create_scope(ScopeType::Default);
-                ActiveValue::None
-            }
-
-            Instruction::ArrayStart => {
-                context.scope_stack.create_scope(ScopeType::Array);
-                is_scope_start = true;
-                Array::default().into()
-            }
-
-            Instruction::ObjectStart => {
-                context.scope_stack.create_scope(ScopeType::Object);
-                is_scope_start = true;
-                Object::default().into()
-            }
-
-            Instruction::TupleStart => {
-                context.scope_stack.create_scope(ScopeType::Tuple);
-                is_scope_start = true;
-                Tuple::default().into()
-            }
-
-            Instruction::KeyValueShortText(ShortTextData(key)) => {
-                context.scope_stack.set_active_key(key.into());
-                ActiveValue::None
-            }
-
-            Instruction::KeyValueDynamic => {
-                context.scope_stack.set_active_key(ActiveValue::None);
-                ActiveValue::None
-            }
-
-            Instruction::ScopeEnd => {
-                // if has active_slot, assign value
-                if let Some(active_slot) = context.scope_stack.get_active_slot()
-                    && let ActiveValue::ValueContainer(active) =
-                        context.scope_stack.get_active_value()
-                {
-                    // write to slot
-                    context.set_slot_value(active_slot, active.clone())?;
-                }
-
-                // pop scope and return value
-                context.scope_stack.pop()?
-            }
-
-            // slots
-            Instruction::AllocateSlot(SlotAddress(address)) => {
-                context.allocate_slot(address, None);
-                context.scope_stack.create_scope(ScopeType::SlotAssignment);
-                context.scope_stack.set_active_slot(address);
-                ActiveValue::None
-            }
-            Instruction::GetSlot(SlotAddress(address)) => {
-                // get value from slot
-                let slot_value = context.get_slot_value(address)?;
-                if slot_value.is_none() {
-                    return Err(ExecutionError::SlotNotInitialized(address));
-                }
-                slot_value.into()
-            }
-            Instruction::UpdateSlot(SlotAddress(address)) => {
-                context.scope_stack.create_scope(ScopeType::SlotAssignment);
-                context.scope_stack.set_active_slot(address);
-                ActiveValue::None
-            }
-
-            // refs
-            Instruction::CreateRef => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::CreateRef);
-                ActiveValue::None
-            }
-
-            Instruction::DropSlot(SlotAddress(address)) => {
-                // remove slot from slots
-                context.drop_slot(address)?;
-                ActiveValue::None
-            }
-
-            i => {
-                return Err(ExecutionError::NotImplemented(
-                    format!("Instruction {i}").to_string(),
-                ));
-            }
-        };
-
-        handle_value(&mut context, is_scope_start, value)?;
+        if let Some(value) = value {
+            handle_value(&mut context, value)?;
+        }
     }
 
-    // final cleanup of the current scope:
-
-    // // try to assign the remaining active value to the active slot
-    // if context.scope_stack.get_active_slot().is_some() {
-    //     let active_value = try_assign_active_value_to_active_slot(&mut context)?;
-    //     if active_value.is_some() {
-    //         handle_value(
-    //             &mut context,
-    //             false,
-    //             active_value,
-    //         )?;
-    //     }
-    // }
-
+    // TODO: also check for other unclosed stacks
     // if we have an active key here, this is invalid and leads to an error
-    if context.scope_stack.get_active_key().is_some() {
-        return Err(ExecutionError::InvalidProgram(
-            InvalidProgramError::UnterminatedSequence,
-        ));
-    }
-    // clear active operation if any
-    context.scope_stack.clear_active_operation();
+    // if context.scope_stack.get_active_key().is_some() {
+    //     return Err(ExecutionError::InvalidProgram(
+    //         InvalidProgramError::UnterminatedSequence,
+    //     ));
+    // }
 
     // removes the current active value from the scope stack
     Ok(match context.scope_stack.pop_active_value() {
-        ActiveValue::None => (None, context),
-        ActiveValue::ValueContainer(val) => (Some(val), context),
+        None => (None, context),
+        Some(val) => (Some(val), context),
     })
 }
+
+
+#[inline]
+fn get_active_value_from_instruction(context: &mut ExecutionContext, instruction: Instruction) -> Result<Option<ValueContainer>, ExecutionError> {
+
+    let scope = context.scope_stack.get_current_scope();
+
+    Ok(match instruction {
+        // boolean
+        Instruction::True => Some(true.into()),
+        Instruction::False => Some(false.into()),
+
+        // integers
+        Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
+        Instruction::Int16(integer) => Some(Integer::from(integer.0).into()),
+        Instruction::Int32(integer) => Some(Integer::from(integer.0).into()),
+        Instruction::Int64(integer) => Some(Integer::from(integer.0).into()),
+        Instruction::Int128(integer) => Some(Integer::from(integer.0).into()),
+
+        // unsigned integers
+        Instruction::UInt128(integer) => Some(Integer::from(integer.0).into()),
+
+        // specific floats
+        Instruction::DecimalF32(Float32Data(f32)) => {
+            Some(TypedDecimal::from(f32).into())
+        }
+        Instruction::DecimalF64(Float64Data(f64)) => {
+            Some(TypedDecimal::from(f64).into())
+        }
+
+        // default decimals (big decimals)
+        Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
+            Some(Decimal::from(i16 as f32).into())
+        }
+        Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
+            Some(Decimal::from(i32 as f32).into())
+        }
+        Instruction::Decimal(DecimalData(big_decimal)) => {
+            Some(big_decimal.into())
+        }
+
+        // endpoint
+        Instruction::Endpoint(endpoint) => Some(endpoint.into()),
+
+        // null
+        Instruction::Null => Some(Value::null().into()),
+
+        // text
+        Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
+        Instruction::Text(TextData(text)) => Some(text.into()),
+
+        // operations
+        Instruction::Add |
+        Instruction::Subtract |
+        Instruction::Multiply |
+        Instruction::Divide |
+        Instruction::Is |
+        Instruction::StructuralEqual |
+        Instruction::Equal |
+        Instruction::NotStructuralEqual |
+        Instruction::NotEqual
+        => {
+            context.scope_stack.create_scope(Scope::BinaryOperation { operator: BinaryOperator::from(instruction) });
+            None
+        }
+
+        Instruction::CloseAndStore => {
+            let _ = context.scope_stack.pop_active_value();
+            None
+        }
+
+        Instruction::ScopeStart => {
+            context.scope_stack.create_scope(Scope::Default);
+            None
+        }
+
+        Instruction::ArrayStart => {
+            context.scope_stack.create_scope_with_active_value(Scope::Collection, Array::default().into());
+            None
+        }
+
+        Instruction::ObjectStart => {
+            context.scope_stack.create_scope_with_active_value(Scope::Collection, Object::default().into());
+            None
+        }
+
+        Instruction::TupleStart => {
+            context.scope_stack.create_scope_with_active_value(Scope::Collection, Tuple::default().into());
+            None
+        }
+
+        Instruction::KeyValueShortText(ShortTextData(key)) => {
+            context.scope_stack.create_scope_with_active_value(Scope::KeyValuePair, key.into());
+            None
+        }
+
+        Instruction::KeyValueDynamic => {
+            context.scope_stack.create_scope(Scope::KeyValuePair);
+            None
+        }
+
+        Instruction::ScopeEnd => {
+            // // if has active_slot, assign value
+            // if let Some(active_slot) = context.scope_stack.get_active_slot()
+            //     && let Some(active) =
+            //     context.scope_stack.get_active_value()
+            // {
+            //     // write to slot
+            //     context.set_slot_value(active_slot, active.clone())?;
+            // }
+
+            // pop scope and return value
+            context.scope_stack.pop()?
+        }
+
+        // slots
+        Instruction::AllocateSlot(SlotAddress(address)) => {
+            context.allocate_slot(address, None);
+            context.scope_stack.create_scope(Scope::SlotAssignment { address });
+            None
+        }
+        Instruction::GetSlot(SlotAddress(address)) => {
+            // get value from slot
+            let slot_value = context.get_slot_value(address)?;
+            if slot_value.is_none() {
+                return Err(ExecutionError::SlotNotInitialized(address));
+            }
+            slot_value
+        }
+        Instruction::UpdateSlot(SlotAddress(address)) => {
+            context.scope_stack.create_scope(Scope::SlotAssignment { address });
+            None
+        }
+
+        // refs
+        Instruction::CreateRef => {
+            context.scope_stack.create_scope(Scope::UnaryOperation { operator: UnaryOperator::CreateRef });
+            None
+        }
+
+        Instruction::DropSlot(SlotAddress(address)) => {
+            // remove slot from slots
+            context.drop_slot(address)?;
+            None
+        }
+
+        i => {
+            return Err(ExecutionError::NotImplemented(
+                format!("Instruction {i}").to_string(),
+            ));
+        }
+    })
+}
+
 
 /// Takes a produced value and handles it according to the current context, scope and active operation.
 fn handle_value(
     context: &mut ExecutionContext,
-    is_scope_start: bool,
-    value: ActiveValue,
+    value_container: ValueContainer,
 ) -> Result<(), ExecutionError> {
-    match value {
-        ActiveValue::ValueContainer(value_container) => {
-            // TODO: try to optimize and initialize variables only when needed, currently leeds to borrow errors
-            let active_operation =
-                context.scope_stack.get_active_operation().cloned();
-            let scope_type =
-                context.scope_stack.get_current_scope_type().clone();
-            let active_key = context.scope_stack.get_active_key();
-            let active_value = context.scope_stack.get_active_value_mut();
+    let scope_container = context.scope_stack.get_current_scope_mut();
 
-            // check if active_key_value_pair exists
-            if let Some(active_key) = active_key {
-                match active_key {
-                    // set key for key-value pair (for dynamic keys)
-                    ActiveValue::None => {
-                        context
-                            .scope_stack
-                            .set_active_key(value_container.into());
-                    }
-
-                    // set value for key-value pair
-                    ActiveValue::ValueContainer(key) => {
-                        // insert key value pair into active object
-                        match active_value {
-                            ActiveValue::ValueContainer(
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Object(object),
-                                    ..
-                                }),
-                            ) => {
-                                // make sure key is a string
-                                match key {
-                                    ValueContainer::Value(Value {
-                                        inner: CoreValue::Text(key_str),
-                                        ..
-                                    }) => {
-                                        object.set(&key_str.0, value_container);
-                                    }
-                                    _ => {
-                                        return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
-                                    }
-                                }
-                            }
-                            // tuple
-                            ActiveValue::ValueContainer(
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Tuple(tuple),
-                                    ..
-                                }),
-                            ) => {
-                                // set key-value pair in tuple
-                                tuple.set(key, value_container);
-                            }
-                            _ => {
-                                unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_value);
-                            }
-                        }
-                    }
+    let result_value = match &scope_container.scope {
+        Scope::KeyValuePair => {
+            let key = &scope_container.active_value;
+            match key {
+                // set key as active_value for key-value pair (for dynamic keys)
+                None => {
+                    Some(value_container)
                 }
-            } else {
-                match active_value {
-                    ActiveValue::None => {
-                        // Unary operations:
 
-                        // CREATE_REF
-                        if active_operation
-                            == Some(Instruction::CreateRef)
-                        {
-                            // create a new value container for the ref
-                            let ref_value_container =
-                                ValueContainer::Reference(Reference::from(value_container));
-                            // set active value to ref value container
-                            context
-                                .scope_stack
-                                .set_active_value_container(ref_value_container);
+                // set value for key-value pair
+                Some(_) => {
+                    let key = context.scope_stack.pop()?.unwrap();
+                    match context.scope_stack.get_active_value_mut() {
+                        Some(collector) => {
+                            // handle active value collector
+                            handle_key_value_pair(
+                                collector,
+                                key,
+                                value_container,
+                            )?;
                         }
-
-                        // set active value to new value
-                        else {
-                            context
-                                .scope_stack
-                                .set_active_value_container(value_container);
-                        }
-
+                        None => unreachable!("Expected active value for key-value pair, but got None"),
                     }
-
-                    // value and active value exists
-                    ActiveValue::ValueContainer(
-                        ref mut active_value_container,
-                    ) => {
-                        // binary operation
-                        if let Some(operation) = active_operation {
-                            // apply operation to active value
-                            let res = match operation {
-                                Instruction::Add => {
-                                    active_value_container as &_
-                                        + &value_container
-                                }
-                                Instruction::Subtract => {
-                                    active_value_container as &_
-                                        - &value_container
-                                }
-                                Instruction::StructuralEqual => {
-                                    let val = active_value_container
-                                        .structural_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::Equal => {
-                                    let val = active_value_container
-                                        .value_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::NotStructuralEqual => {
-                                    let val = !active_value_container
-                                        .structural_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::NotEqual => {
-                                    let val = !active_value_container
-                                        .value_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::Is => {
-                                    // TODO we should throw a runtime error when one of lhs or rhs is a value
-                                    // instead of a ref. Identity checks using the is operator shall be only allowed
-                                    // for references.
-                                    // @benstre: or keep as always false ? - maybe a compiler check would be better
-                                    let val = active_value_container
-                                        .identical(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                _ => {
-                                    unreachable!("Instruction {:?} is not a valid operation", operation);
-                                }
-                            };
-                            if let Ok(val) = res {
-                                // set active value to operation result
-                                context
-                                    .scope_stack
-                                    .set_active_value_container(val);
-                            } else {
-                                // handle error
-                                return Err(ExecutionError::ValueError(
-                                    res.unwrap_err(),
-                                ));
-                            }
-                        }
-                        // special scope: Array
-                        else if !is_scope_start
-                            && scope_type == ScopeType::Array
-                        {
-                            // add value to array scope
-                            match active_value_container {
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Array(array),
-                                    ..
-                                }) => {
-                                    // append value to array
-                                    array.push(value_container);
-                                }
-                                _ => {
-                                    unreachable!("Expected active value in array scope to be an array, but got: {}", active_value_container);
-                                }
-                            }
-                        }
-                        // special scope: Tuple
-                        else if !is_scope_start
-                            && scope_type == ScopeType::Tuple
-                        {
-                            // add value to array scope
-                            match active_value_container {
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Tuple(tuple),
-                                    ..
-                                }) => {
-                                    // automatic tuple keys are always default integer values
-                                    let index = CoreValue::Integer(
-                                        Integer::from(tuple.next_int_key()),
-                                    );
-                                    tuple.set(index, value_container);
-                                }
-                                _ => {
-                                    unreachable!("Expected active value in tuple scope to be a tuple, but got: {}", active_value_container);
-                                }
-                            }
-                        }
-                    }
+                    None
                 }
             }
         }
 
-        ActiveValue::None => {}
+        Scope::SlotAssignment { address } => {
+            // set value for slot
+            let address = *address;
+            context.set_slot_value(address, value_container.clone())?;
+            Some(value_container)
+        }
+
+        Scope::UnaryOperation { operator } => {
+            Some(handle_unary_operation(*operator, value_container))
+        }
+
+        Scope::BinaryOperation { operator } => {
+            let active_value = &scope_container.active_value;
+            match active_value {
+                Some(active_value_container) => {
+                    let res = handle_binary_operation(
+                        active_value_container,
+                        value_container,
+                        *operator,
+                    );
+                    return if let Ok(val) = res {
+                        // set val as active value
+                        context.scope_stack.set_active_value_container(val);
+                        let val = context
+                            .scope_stack
+                            .pop()?;
+                        if let Some(val) = val {
+                            handle_value(context, val)?;
+                        }
+                        Ok(())
+                    } else {
+                        // handle error
+                        Err(res.unwrap_err())
+                    }
+                }
+                None => Some(value_container)
+            }
+        }
+
+        Scope::Collection => {
+            let active_value = &mut scope_container.active_value;
+            match active_value {
+                Some(active_value_container) => {
+                    // handle active value collector
+                    handle_collector(
+                        active_value_container,
+                        value_container,
+                    );
+                    None
+                }
+                None => {
+                    unreachable!("Expected active value for collection scope, but got None");
+                }
+            }
+        }
+
+        _ => Some(value_container)
+    };
+
+    if let Some(result_value) = result_value {
+        context.scope_stack.set_active_value_container(result_value);
     }
 
     Ok(())
 }
+
+fn handle_collector(
+    collector: &mut ValueContainer,
+    value: ValueContainer,
+) {
+    match collector {
+        ValueContainer::Value(Value {
+              inner: CoreValue::Array(array),
+              ..
+          }) => {
+            // append value to array
+            array.push(value);
+        },
+        ValueContainer::Value(Value {
+              inner: CoreValue::Tuple(tuple),
+              ..
+          }) => {
+            // automatic tuple keys are always default integer values
+            let index = CoreValue::Integer(
+                Integer::from(tuple.next_int_key()),
+            );
+            tuple.set(index, value);
+        }
+        _ => {
+            unreachable!("Expected active value in array scope to be an array, but got: {}", collector);
+        }
+    }
+}
+
+
+fn handle_key_value_pair(
+    active_container: &mut ValueContainer,
+    key: ValueContainer,
+    value: ValueContainer,
+) -> Result<(), ExecutionError> {
+    // insert key value pair into active object/tuple
+    match active_container {
+        // object
+        ValueContainer::Value(Value {
+               inner: CoreValue::Object(object),
+       .. }) => {
+            // make sure key is a string
+            match key {
+                ValueContainer::Value(Value {
+                      inner: CoreValue::Text(key_str),
+                      ..
+                  }) => {
+                    object.set(&key_str.0, value);
+                }
+                _ => {
+                    return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
+                }
+            }
+        }
+        // tuple
+        ValueContainer::Value(Value {
+           inner: CoreValue::Tuple(tuple),
+           ..
+        }) => {
+            // set key-value pair in tuple
+            tuple.set(key, value);
+        },
+        _ => {
+            unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_container);
+        }
+    }
+
+    Ok(())
+}
+
+
+fn handle_unary_operation(
+    operator: UnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    match operator{
+        UnaryOperator::CreateRef => {
+            ValueContainer::Reference(Reference::from(value_container))
+        }
+        _ => todo!("Unary instruction not implemented: {operator:?}")
+    }
+}
+
+fn handle_binary_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: BinaryOperator
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        BinaryOperator::Add => {
+            Ok((active_value_container
+                + &value_container)?)
+        }
+        BinaryOperator::Subtract => {
+            Ok((active_value_container
+                - &value_container)?)
+        }
+        BinaryOperator::StructuralEqual => {
+            let val = active_value_container
+                .structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::Equal => {
+            let val = active_value_container
+                .value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::NotStructuralEqual => {
+            let val = !active_value_container
+                .structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::NotEqual => {
+            let val = !active_value_container
+                .value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::Is => {
+            // TODO we should throw a runtime error when one of lhs or rhs is a value
+            // instead of a ref. Identity checks using the is operator shall be only allowed
+            // for references.
+            // @benstre: or keep as always false ? - maybe a compiler check would be better
+            let val = active_value_container
+                .identical(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        _ => {
+            unreachable!("Instruction {:?} is not a valid operation", operator);
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -768,10 +747,9 @@ mod tests {
 
     #[test]
     fn test_invalid_scope_close() {
-        let result = execute_dxb_debug(&vec![
-            InstructionCode::SCOPE_START.into(),
+        let result = execute_dxb_debug(&[InstructionCode::SCOPE_START.into(),
             InstructionCode::SCOPE_END.into(),
-            InstructionCode::SCOPE_END.into(), // Invalid close, no matching start
+            InstructionCode::SCOPE_END.into()
         ]);
         assert!(matches!(
             result,
@@ -899,5 +877,26 @@ mod tests {
         debug!("Tuple result: {tuple}");
         // FIXME type information gets lost on compile
         // assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn test_val_assignment() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("val x = 42; x");
+        assert_eq!(result, Integer::from(42).into());
+    }
+
+    #[test]
+    fn test_val_assignment_with_addition() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("val x = 1 + 2; x");
+        assert_eq!(result, Integer::from(3).into());
+    }
+
+    #[test]
+    fn test_val_assignment_inside_scope() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("[val x = 42, 2, x]");
+        let expected = datex_array![Integer::from(42), Integer::from(2), Integer::from(42)];
     }
 }

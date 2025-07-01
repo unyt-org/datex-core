@@ -685,8 +685,6 @@ impl CompileScope {
 
 #[derive(Debug, Clone, Default)]
 struct CompileMetadata {
-    scope_required_for_complex_expressions: bool,
-    current_binary_operator: Option<BinaryOperator>,
     is_outer_context: bool,
 }
 
@@ -698,40 +696,6 @@ impl CompileMetadata {
         }
     }
 
-    /// Create CompileMetadata with `scope_required_for_complex_expressions` set to true.
-    fn with_scope_required() -> Self {
-        CompileMetadata {
-            scope_required_for_complex_expressions: true,
-            is_outer_context: false,
-            ..CompileMetadata::default()
-        }
-    }
-    /// Creates CompileMetadata with the current binary operator set.
-    /// Also sets `scope_required_for_complex_expressions` to true.
-    fn with_current_binary_operator(operator: BinaryOperator) -> Self {
-        CompileMetadata {
-            scope_required_for_complex_expressions: true,
-            is_outer_context: false,
-            current_binary_operator: Some(operator),
-        }
-    }
-
-    fn must_be_scoped(&self, ast: &DatexExpression) -> bool {
-        self.scope_required_for_complex_expressions &&
-            // matches a rule that must be scoped
-            match ast {
-                DatexExpression::BinaryOperation(operator,_,_) => {
-                    // only scope if different operator than current
-                    if let Some(current_operator) = &self.current_binary_operator {
-                        operator != current_operator
-                    } else {
-                        true
-                    }
-
-                }
-                _ => false
-            }
-    }
 }
 
 fn compile_ast(
@@ -754,14 +718,6 @@ fn compile_expression(
     mut meta: CompileMetadata,
     mut scope: CompileScope,
 ) -> Result<CompileScope, CompilerError> {
-    let scoped = meta.must_be_scoped(&ast);
-
-    if scoped {
-        compilation_scope.append_binary_code(InstructionCode::SCOPE_START);
-        // immediately reset compile context
-        meta = CompileMetadata::default();
-    }
-
     match ast {
         DatexExpression::Integer(int) => {
             compilation_scope.insert_int(int.0.as_i64().unwrap());
@@ -795,7 +751,7 @@ fn compile_expression(
                 scope = compile_expression(
                     compilation_scope,
                     item,
-                    CompileMetadata::with_scope_required(),
+                    CompileMetadata::default(),
                     scope,
                 )?;
             }
@@ -817,7 +773,7 @@ fn compile_expression(
                         scope = compile_expression(
                             compilation_scope,
                             value,
-                            CompileMetadata::with_scope_required(),
+                            CompileMetadata::default(),
                             scope,
                         )?;
                     }
@@ -907,20 +863,18 @@ fn compile_expression(
         DatexExpression::BinaryOperation(operator, a, b) => {
             compilation_scope.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
-            if meta.current_binary_operator != Some(operator) {
-                compilation_scope
-                    .append_binary_code(InstructionCode::from(&operator));
-            }
+            compilation_scope
+                .append_binary_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_scope,
                 *a,
-                CompileMetadata::with_current_binary_operator(operator),
+                CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
                 compilation_scope,
                 *b,
-                CompileMetadata::with_current_binary_operator(operator),
+                CompileMetadata::default(),
                 scope,
             )?;
         }
@@ -998,10 +952,6 @@ fn compile_expression(
         _ => return Err(CompilerError::UnexpectedTerm(ast)),
     }
 
-    if scoped {
-        compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
-    }
-
     Ok(scope)
 }
 
@@ -1023,7 +973,7 @@ fn compile_key_value_entry<'a>(
             scope = compile_expression(
                 compilation_scope,
                 key,
-                CompileMetadata::with_scope_required(),
+                CompileMetadata::default(),
                 scope,
             )?;
         }
@@ -1032,7 +982,7 @@ fn compile_key_value_entry<'a>(
     scope = compile_expression(
         compilation_scope,
         value,
-        CompileMetadata::with_scope_required(),
+        CompileMetadata::default(),
         scope,
     )?;
     Ok(scope)
@@ -1288,6 +1238,8 @@ pub mod tests {
             result,
             vec![
                 InstructionCode::ADD.into(),
+                InstructionCode::ADD.into(),
+                InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 op1,
                 InstructionCode::INT_8.into(),
@@ -1315,20 +1267,16 @@ pub mod tests {
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::SCOPE_START.into(),
                 InstructionCode::MULTIPLY.into(),
                 InstructionCode::INT_8.into(),
                 op1,
                 InstructionCode::INT_8.into(),
                 op2,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::SCOPE_START.into(),
                 InstructionCode::MULTIPLY.into(),
                 InstructionCode::INT_8.into(),
                 op3,
                 InstructionCode::INT_8.into(),
                 op4,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1352,6 +1300,7 @@ pub mod tests {
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 a,
+                InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 b,
                 InstructionCode::INT_8.into(),
@@ -1375,13 +1324,11 @@ pub mod tests {
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 a,
-                InstructionCode::SCOPE_START.into(),
                 InstructionCode::SUBTRACT.into(),
                 InstructionCode::INT_8.into(),
                 b,
                 InstructionCode::INT_8.into(),
                 c,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1510,20 +1457,16 @@ pub mod tests {
             result,
             vec![
                 InstructionCode::ARRAY_START.into(),
-                InstructionCode::SCOPE_START.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
                 2,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::SCOPE_START.into(),
                 InstructionCode::MULTIPLY.into(),
                 InstructionCode::INT_8.into(),
                 3,
                 InstructionCode::INT_8.into(),
                 4,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::SCOPE_END.into(),
             ]
         );
@@ -1543,13 +1486,11 @@ pub mod tests {
                 1,
                 InstructionCode::INT_8.into(),
                 2,
-                InstructionCode::SCOPE_START.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 3,
                 InstructionCode::INT_8.into(),
                 4,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::SCOPE_END.into(),
             ]
         );
@@ -1639,7 +1580,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // key-value pair with string key
@@ -1659,7 +1600,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // key-value pair with integer key
@@ -1677,7 +1618,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // key-value pair with long text key (>255 bytes)
@@ -1699,7 +1640,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ]);
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // dynamic key-value pair
@@ -1711,18 +1652,16 @@ pub mod tests {
         let expected = [
             InstructionCode::TUPLE_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
-            InstructionCode::SCOPE_START.into(),
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
             1,
             InstructionCode::INT_8.into(),
             2,
-            InstructionCode::SCOPE_END.into(),
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // multiple key-value pairs
@@ -1746,18 +1685,16 @@ pub mod tests {
             InstructionCode::INT_8.into(),
             43,
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
-            InstructionCode::SCOPE_START.into(),
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
             1,
             InstructionCode::INT_8.into(),
             2,
-            InstructionCode::SCOPE_END.into(),
             InstructionCode::INT_8.into(),
             44,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // key value pair with parentheses
@@ -1777,7 +1714,7 @@ pub mod tests {
             42,
             InstructionCode::SCOPE_END.into(),
         ];
-        assert_eq!(result, expected,);
+        assert_eq!(result, expected);
     }
 
     // empty object

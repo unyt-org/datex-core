@@ -10,6 +10,7 @@ use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
+use crate::global::protocol_structures::instructions::Instruction;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -70,9 +71,62 @@ impl From<BinaryOperator> for InstructionCode {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl From<&InstructionCode> for BinaryOperator {
+    fn from(code: &InstructionCode) -> Self {
+        match code {
+            InstructionCode::ADD => BinaryOperator::Add,
+            InstructionCode::SUBTRACT => BinaryOperator::Subtract,
+            InstructionCode::MULTIPLY => BinaryOperator::Multiply,
+            InstructionCode::DIVIDE => BinaryOperator::Divide,
+            InstructionCode::MODULO => BinaryOperator::Modulo,
+            InstructionCode::POWER => BinaryOperator::Power,
+            InstructionCode::AND => BinaryOperator::And,
+            InstructionCode::OR => BinaryOperator::Or,
+            InstructionCode::STRUCTURAL_EQUAL => BinaryOperator::StructuralEqual,
+            InstructionCode::EQUAL => BinaryOperator::Equal,
+            InstructionCode::NOT_STRUCTURAL_EQUAL => BinaryOperator::NotStructuralEqual,
+            InstructionCode::NOT_EQUAL => BinaryOperator::NotEqual,
+            InstructionCode::IS => BinaryOperator::Is,
+            _ => todo!("Binary operator for {:?} not implemented", code),
+        }
+    }
+}
+
+impl From<InstructionCode> for BinaryOperator {
+    fn from(code: InstructionCode) -> Self {
+        BinaryOperator::from(&code)
+    }
+}
+
+impl From<&Instruction> for BinaryOperator {
+    fn from(instruction: &Instruction) -> Self {
+        match instruction {
+            Instruction::Add => BinaryOperator::Add,
+            Instruction::Subtract => BinaryOperator::Subtract,
+            Instruction::Multiply => BinaryOperator::Multiply,
+            Instruction::Divide => BinaryOperator::Divide,
+            Instruction::StructuralEqual => BinaryOperator::StructuralEqual,
+            Instruction::Equal => BinaryOperator::Equal,
+            Instruction::NotStructuralEqual => BinaryOperator::NotStructuralEqual,
+            Instruction::NotEqual => BinaryOperator::NotEqual,
+            Instruction::Is => BinaryOperator::Is,
+            _ => {
+                todo!("Binary operator for instruction {:?} not implemented", instruction);
+            }
+        }
+    }
+}
+
+impl From<Instruction> for BinaryOperator {
+    fn from(instruction: Instruction) -> Self {
+        BinaryOperator::from(&instruction)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
     Negate,
+    CreateRef,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2216,7 +2270,7 @@ mod tests {
             )
         );
     }
-    
+
     #[test]
     fn test_shebang() {
         let src = "#!/usr/bin/env datex\n1 + 2";
