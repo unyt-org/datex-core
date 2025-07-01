@@ -898,5 +898,6 @@ mod tests {
         init_logger();
         let result = execute_datex_script_debug_with_result("[val x = 42, 2, x]");
         let expected = datex_array![Integer::from(42), Integer::from(2), Integer::from(42)];
+        assert_eq!(result, expected.into());
     }
 }
