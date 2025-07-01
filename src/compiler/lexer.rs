@@ -26,10 +26,6 @@ impl Loc {
 #[rustfmt::skip]
 
 pub enum Token {
-    // ignored
-    #[regex(r"#![^\r\n]*(\r?\n)?", |_| Skip)]
-    Shebang,
-
     // Operators & Separators
     #[token("(")] LeftParen,
     #[token(")")] RightParen,
@@ -178,22 +174,7 @@ fn allocated_string(lex: &mut Lexer<Token>) -> String {
 mod tests {
     use super::*;
     use logos::Logos;
-
-    #[test]
-    fn test_shebang() {
-        let mut lexer = Token::lexer("#!datex");
-        assert_eq!(lexer.next(), None);
-
-        let mut lexer = Token::lexer("#!whatever");
-        assert_eq!(lexer.next(), None);
-
-        let mut lexer = Token::lexer("#!datex\n42");
-        assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral("42".to_string()))
-        );
-    }
-
+    
     #[test]
     fn test_integer() {
         let mut lexer = Token::lexer("42");

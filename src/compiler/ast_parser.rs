@@ -617,7 +617,13 @@ pub enum ParserError {
     InvalidToken(Range<usize>),
 }
 
-pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
+pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
+    // strip shebang at beginning of the source code
+    if src.starts_with("#!") {
+        let end_of_line = src.find('\n').unwrap_or(src.len());
+        src = &src[end_of_line + 1..];
+    }
+
     let tokens = Token::lexer(src);
     let tokens = tokens.into_iter().map(|f| f.unwrap()).collect::<Vec<_>>();
 
@@ -2209,5 +2215,24 @@ mod tests {
                 Box::new(DatexExpression::Integer(Integer::from(2))),
             )
         );
+    }
+    
+    #[test]
+    fn test_shebang() {
+        let src = "#!/usr/bin/env datex\n1 + 2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
+
+        let src = "1;\n#!/usr/bin/env datex\n2";
+        // syntax error
+        let res = parse(src);
+        assert!(res.is_err(), "Expected error when parsing expression with shebang");
     }
 }
