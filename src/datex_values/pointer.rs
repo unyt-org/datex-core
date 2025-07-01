@@ -1,44 +1,17 @@
-use super::{Value, ValueResult};
-use crate::stdlib::fmt;
-use crate::{
-    global::binary_codes::BinaryCode, utils::buffers::buffer_to_hex_advanced,
-};
-
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Pointer {
-    pub id_formatted: String,
+    pointer_id: u64,
 }
 
 impl Pointer {
-    pub const MAX_POINTER_ID_SIZE: usize = 26;
-    pub const STATIC_POINTER_SIZE: usize = 18;
-
-    pub fn from_id(id: Vec<u8>) -> Pointer {
-        Pointer {
-            id_formatted: buffer_to_hex_advanced(id, "", 0, true),
-        }
+    pub fn create() -> Self {
+        Self { pointer_id: 42 } // FIXME
     }
-}
-
-impl Value for Pointer {
-    fn to_string(&self) -> String {
-        format!("${}", self.id_formatted)
+    pub fn new(pointer_id: u64) -> Self {
+        Self { pointer_id }
     }
 
-    fn binary_operation(
-        &self,
-        _code: BinaryCode,
-        _other: Box<dyn Value>,
-    ) -> ValueResult {
-        todo!()
-    }
-
-    fn cast(&self, _dx_type: super::Type) -> ValueResult {
-        todo!()
-    }
-}
-
-impl fmt::Display for Pointer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", Value::to_string(self))
+    pub fn pointer_id(&self) -> u64 {
+        self.pointer_id
     }
 }

@@ -1,5 +1,5 @@
 use super::serializable::Serializable;
-use crate::datex_values::Endpoint;
+use crate::datex_values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{bitfield, BitfieldSpecifier};
 

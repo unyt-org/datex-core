@@ -1,23 +1,9 @@
-mod dx_type;
-pub use dx_type::*;
-
-mod primitive;
-pub use primitive::*;
-
-mod slot;
-pub use slot::*;
-
-mod value;
-pub use value::*;
-
-mod error;
-pub use error::*;
-
-mod primitives;
-pub use primitives::endpoint::*;
-pub use primitives::quantity::*;
-pub use primitives::time::*;
-pub use primitives::url::*;
-
-mod pointer;
-pub use pointer::*;
+pub mod core_value;
+pub mod core_value_trait;
+pub mod core_values;
+pub mod datex_type;
+pub mod pointer;
+pub mod reference;
+pub mod traits;
+pub mod value;
+pub mod value_container;

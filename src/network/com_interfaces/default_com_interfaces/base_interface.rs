@@ -1,6 +1,6 @@
 use log::error;
 
-use crate::datex_values::Endpoint;
+use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceInfo, ComInterfaceSockets,
 };

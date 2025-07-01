@@ -6,6 +6,8 @@ use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 
+use futures::channel::oneshot;
+use futures::channel::oneshot::Sender;
 use futures::FutureExt;
 use futures_util::StreamExt;
 use itertools::Itertools;
@@ -16,8 +18,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use futures::channel::oneshot;
-use futures::channel::oneshot::Sender;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -28,10 +28,10 @@ use super::com_interfaces::com_interface::{
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
-use crate::datex_values::{Endpoint, EndpointInstance};
+use crate::datex_values::core_values::endpoint::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData};
-use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket, NetworkTraceResult};
+use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, ReconnectionConfig,
@@ -428,14 +428,18 @@ impl ComHub {
                     match block_type {
                         BlockType::Trace | BlockType::TraceBack => {
                             self.redirect_trace_block(
-                                block.clone_with_new_receivers(remaining_receivers),
+                                block.clone_with_new_receivers(
+                                    remaining_receivers,
+                                ),
                                 socket_uuid.clone(),
                                 is_for_own,
                             );
                         }
                         _ => {
                             self.redirect_block(
-                                block.clone_with_new_receivers(remaining_receivers),
+                                block.clone_with_new_receivers(
+                                    remaining_receivers,
+                                ),
                                 socket_uuid.clone(),
                                 is_for_own,
                             );
@@ -555,19 +559,18 @@ impl ComHub {
         let res = {
             if block.routing_header.sender == self.endpoint {
                 // if not bounce back block, directly send back to incoming socket (prevent loop)
-                prefer_incoming_socket_for_bounce_back = !block.is_bounce_back();
+                prefer_incoming_socket_for_bounce_back =
+                    !block.is_bounce_back();
                 Err(receivers.to_vec())
-            }
-            else {
+            } else {
                 let mut excluded_sockets = vec![incoming_socket.clone()];
-                if let Some(BlockHistoryData {original_socket_uuid: Some(original_socket_uuid)}) = &history_block_data {
+                if let Some(BlockHistoryData {
+                    original_socket_uuid: Some(original_socket_uuid),
+                }) = &history_block_data
+                {
                     excluded_sockets.push(original_socket_uuid.clone())
                 }
-                self.send_block(
-                    block.clone(),
-                    excluded_sockets,
-                    forked
-                )
+                self.send_block(block.clone(), excluded_sockets, forked)
             }
         };
 
@@ -576,32 +579,35 @@ impl ComHub {
             // try to send back to original socket
             // if already in history, get original socket from history
             // otherwise, directly send back to the incoming socket
-            let send_back_socket =
-                if !prefer_incoming_socket_for_bounce_back && let Some(history_block_data) = history_block_data {
-                    history_block_data.original_socket_uuid
-                } else {
-                    Some(incoming_socket.clone())
-                };
-
+            let send_back_socket = if !prefer_incoming_socket_for_bounce_back
+                && let Some(history_block_data) = history_block_data
+            {
+                history_block_data.original_socket_uuid
+            } else {
+                Some(incoming_socket.clone())
+            };
 
             // If a send_back_socket is set, the original block is not from this endpoint,
             // so we can send it back to the original socket
-            if let Some(send_back_socket) = send_back_socket
-            {
+            if let Some(send_back_socket) = send_back_socket {
                 // never send a bounce back block back again to the incoming socket
-                if block.is_bounce_back() && send_back_socket == incoming_socket {
+                if block.is_bounce_back() && send_back_socket == incoming_socket
+                {
                     warn!("{}: Tried to send bounce back block back to incoming socket, but this is not allowed", self.endpoint);
-                }
-                else if self.get_socket_by_uuid(&send_back_socket).lock().unwrap().can_send() {
+                } else if self
+                    .get_socket_by_uuid(&send_back_socket)
+                    .lock()
+                    .unwrap()
+                    .can_send()
+                {
                     block.set_bounce_back(true);
                     self.send_block_to_endpoints_via_socket(
                         block,
                         &send_back_socket,
                         &unreachable_endpoints,
-                        if forked { Some(0) } else { None }
+                        if forked { Some(0) } else { None },
                     )
-                }
-                else {
+                } else {
                     error!("Tried to send bounce back block, but cannot send back to incoming socket")
                 }
             }
@@ -845,7 +851,12 @@ impl ComHub {
             let block = self.prepare_own_block(block);
 
             drop(socket_ref);
-            self.send_block_to_endpoints_via_socket(block, &socket_uuid, &[Endpoint::ANY], None);
+            self.send_block_to_endpoints_via_socket(
+                block,
+                &socket_uuid,
+                &[Endpoint::ANY],
+                None,
+            );
         }
     }
 
@@ -1214,16 +1225,18 @@ impl ComHub {
         if *self_rc.update_loop_running.borrow() {
             return;
         }
-        
+
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
-        
+
         spawn_with_panic_notify(async move {
             while *self_rc.update_loop_running.borrow() {
                 self_rc.update();
                 sleep(Duration::from_millis(1)).await;
             }
-            if let Some(sender) = self_rc.update_loop_stop_sender.borrow_mut().take() {
+            if let Some(sender) =
+                self_rc.update_loop_stop_sender.borrow_mut().take()
+            {
                 sender.send(()).expect("Failed to send stop signal");
             }
         });
@@ -1235,11 +1248,9 @@ impl ComHub {
         *self.update_loop_running.borrow_mut() = false;
 
         let (sender, receiver) = oneshot::channel::<()>();
-        
-        self.update_loop_stop_sender
-            .borrow_mut()
-            .replace(sender);
-        
+
+        self.update_loop_stop_sender.borrow_mut().replace(sender);
+
         receiver.await.unwrap();
     }
 
@@ -1300,7 +1311,7 @@ impl ComHub {
         block: DXBBlock,
         options: ResponseOptions,
     ) -> Vec<Result<Response, ResponseError>> {
-        let scope_id = block.block_header.scope_id;
+        let context_id = block.block_header.context_id;
         let section_index = block.block_header.section_index;
 
         let has_exact_receiver_count = block.has_exact_receiver_count();
@@ -1313,7 +1324,9 @@ impl ComHub {
         #[cfg(feature = "tokio_runtime")]
         yield_now().await;
 
-        let timeout = options.timeout.unwrap_or_default(self.options.default_receive_timeout);
+        let timeout = options
+            .timeout
+            .unwrap_or_default(self.options.default_receive_timeout);
 
         // return fixed number of responses
         if has_exact_receiver_count {
@@ -1346,7 +1359,10 @@ impl ComHub {
                     if failed_endpoints.contains(receiver) {
                         Err(ResponseError::NotReachable(receiver.clone()))
                     } else {
-                        Err(ResponseError::NoResponseAfterTimeout(receiver.clone(), timeout))
+                        Err(ResponseError::NoResponseAfterTimeout(
+                            receiver.clone(),
+                            timeout,
+                        ))
                     },
                 );
             }
@@ -1364,7 +1380,7 @@ impl ComHub {
 
             let mut rx = self
                 .block_handler
-                .register_incoming_block_observer(scope_id, section_index);
+                .register_incoming_block_observer(context_id, section_index);
 
             let res = task::timeout(timeout, async {
                 while let Some(section) = rx.next().await {
@@ -1438,7 +1454,7 @@ impl ComHub {
             let mut responses = vec![];
 
             let res = task::timeout(timeout, async {
-                let mut rx = self.block_handler.register_incoming_block_observer(scope_id, section_index);
+                let mut rx = self.block_handler.register_incoming_block_observer(context_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
                     let sender = section
@@ -1507,7 +1523,6 @@ impl ComHub {
                     &socket_uuid,
                     &endpoints,
                     fork_count,
-
                 );
             } else {
                 error!("{}: cannot send block, no receiver sockets found for endpoints {:?}", self.endpoint, endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
@@ -1533,7 +1548,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
         endpoints: &[Endpoint],
         // currently only used for trace debugging (TODO: put behind debug flag)
-        fork_count: Option<usize>
+        fork_count: Option<usize>,
     ) {
         block.set_receivers(endpoints);
 
@@ -1565,7 +1580,7 @@ impl ComHub {
                         ),
                         direction: NetworkTraceHopDirection::Outgoing,
                         fork_nr: new_fork_nr,
-                        bounce_back
+                        bounce_back,
                     },
                 );
             }
@@ -1835,9 +1850,7 @@ impl ResponseOptions {
         }
     }
 
-    pub fn new_with_timeout(
-        timeout: Duration,
-    ) -> Self {
+    pub fn new_with_timeout(timeout: Duration) -> Self {
         Self {
             timeout: ResponseTimeout::Custom(timeout),
             ..ResponseOptions::default()
@@ -1863,7 +1876,12 @@ impl Display for ResponseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ResponseError::NoResponseAfterTimeout(endpoint, duration) => {
-                write!(f, "No response after timeout ({}s) for endpoint {}", duration.as_secs(), endpoint)
+                write!(
+                    f,
+                    "No response after timeout ({}s) for endpoint {}",
+                    duration.as_secs(),
+                    endpoint
+                )
             }
             ResponseError::NotReachable(endpoint) => {
                 write!(f, "Endpoint {endpoint} is not reachable")

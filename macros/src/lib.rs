@@ -2,6 +2,7 @@ use com_interface_macros::create_opener_impl;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, ImplItemFn, ItemImpl};
 mod com_interface_macros;
+mod value_macros;
 
 /// This macro is used to create an opener for a interface.
 /// ```
@@ -33,4 +34,10 @@ pub fn create_opener(_attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn com_interface(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_impl = parse_macro_input!(input as ItemImpl);
     com_interface_macros::com_interface_impl(input_impl).into()
+}
+
+#[proc_macro_derive(FromCoreValue)]
+pub fn from_core_value_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    value_macros::from_core_value_derive_impl(input).into()
 }

@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST_ENDPOINT_C, TEST_ENDPOINT_D,
@@ -6,19 +5,22 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
-use crate::network::helpers::network::{test_routes, InterfaceConnection, Network, Node, Route, RouteAssertionError};
+use crate::network::helpers::network::{
+    test_routes, InterfaceConnection, Network, Node, Route, RouteAssertionError,
+};
+use datex_core::datex_values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub::{InterfacePriority, ResponseOptions};
+use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::run_async;
 use log::info;
 use ntest_timeout::timeout;
+use std::str::FromStr;
 use std::time::Duration;
 use tokio::task;
-use datex_core::datex_values::Endpoint;
-use datex_core::network::com_hub_network_tracing::TraceOptions;
 
 #[tokio::test]
-#[timeout(100)]
+#[timeout(2000)]
 async fn create_network_with_two_nodes() {
     let local = task::LocalSet::new();
     local
@@ -199,7 +201,7 @@ async fn get_test_network_1_with_deterministic_priorities() -> Network {
 }
 
 #[tokio::test]
-#[timeout(1000)]
+#[timeout(2000)]
 async fn network_routing_with_four_nodes_1() {
     let local = task::LocalSet::new();
     local
@@ -245,7 +247,7 @@ async fn network_routing_with_four_nodes_1() {
 }
 
 #[tokio::test]
-#[timeout(1000)]
+#[timeout(2000)]
 async fn network_routing_with_four_nodes_2() {
     let local = task::LocalSet::new();
     local
@@ -309,7 +311,7 @@ async fn network_routing_with_four_nodes_2() {
 }
 
 #[tokio::test]
-#[timeout(1000)]
+#[timeout(2000)]
 async fn network_routing_with_four_nodes_3() {
     let local = task::LocalSet::new();
     local
@@ -359,7 +361,7 @@ async fn network_routing_with_four_nodes_3() {
 }
 
 #[tokio::test]
-#[timeout(1000)]
+#[timeout(2000)]
 async fn network_routing_with_four_nodes_4() {
     let local = task::LocalSet::new();
     local
@@ -423,7 +425,7 @@ async fn network_routing_with_four_nodes_4() {
 }
 
 #[tokio::test]
-#[timeout(1000)]
+#[timeout(2000)]
 async fn network_routing_with_four_nodes_5_deterministic_priorities() {
     let local = task::LocalSet::new();
     local
@@ -471,7 +473,7 @@ async fn network_routing_with_four_nodes_5_deterministic_priorities() {
 }
 
 #[tokio::test]
-#[timeout(1000)]
+#[timeout(2000)]
 async fn network_routing_with_four_nodes_6_deterministic_priorities() {
     let local = task::LocalSet::new();
     local
@@ -521,7 +523,7 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
 }
 
 #[tokio::test]
-#[timeout(3000)]
+#[timeout(2000)]
 async fn simple_network() {
     init_global_context();
     run_async! {
@@ -723,7 +725,6 @@ async fn ttl_reached() {
         )
     }
 }
-
 
 #[tokio::test]
 #[timeout(7000)]

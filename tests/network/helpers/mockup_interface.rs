@@ -1,4 +1,4 @@
-use datex_core::datex_values::Endpoint;
+use datex_core::datex_values::core_values::endpoint::Endpoint;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };

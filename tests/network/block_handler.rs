@@ -23,12 +23,12 @@ async fn receive_single_block() {
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
         com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
 
-        let scope_id = com_hub.block_handler.get_new_scope_id();
+        let context_id = com_hub.block_handler.get_new_context_id();
 
         // Create a single DXB block
         let mut block = DXBBlock {
             block_header: BlockHeader {
-                scope_id,
+                context_id,
                 flags_and_timestamp: FlagsAndTimestamp::new()
                     .with_is_end_of_section(true)
                     .with_is_end_of_scope(true),
@@ -44,7 +44,7 @@ async fn receive_single_block() {
 
         let block_bytes = block.to_bytes().unwrap();
         let block_bytes_len = block_bytes.len();
-        let block_endpoint_scope_id = block.get_endpoint_scope_id();
+        let block_endpoint_context_id = block.get_endpoint_context_id();
 
         // Put into incoming queue of mock interface
         sender.send(block_bytes).unwrap();
@@ -65,7 +65,7 @@ async fn receive_single_block() {
         match section {
             IncomingSection::SingleBlock(block) => {
                 info!("section: {section:?}");
-                assert_eq!(block.get_endpoint_scope_id(), block_endpoint_scope_id);
+                assert_eq!(block.get_endpoint_context_id(), block_endpoint_context_id);
             }
             _ => panic!("Expected a SingleBlock section"),
         }
@@ -82,14 +82,14 @@ async fn receive_multiple_blocks() {
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
         com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
 
-        let scope_id = com_hub.block_handler.get_new_scope_id();
+        let context_id = com_hub.block_handler.get_new_context_id();
         let section_index = 42;
 
         // Create a single DXB block
         let mut blocks = vec![
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -105,7 +105,7 @@ async fn receive_multiple_blocks() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -186,14 +186,14 @@ async fn receive_multiple_blocks_wrong_order() {
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
         com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
 
-        let scope_id = com_hub.block_handler.get_new_scope_id();
+        let context_id = com_hub.block_handler.get_new_context_id();
         let section_index = 42;
 
         // Create a single DXB block
         let mut blocks = vec![
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -209,7 +209,7 @@ async fn receive_multiple_blocks_wrong_order() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index,
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -288,7 +288,7 @@ async fn receive_multiple_sections() {
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
         com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
 
-        let scope_id = com_hub.block_handler.get_new_scope_id();
+        let context_id = com_hub.block_handler.get_new_context_id();
         let section_index_1 = 42;
         let section_index_2 = 43;
 
@@ -296,7 +296,7 @@ async fn receive_multiple_sections() {
         let mut blocks = vec![
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_1,
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -312,7 +312,7 @@ async fn receive_multiple_sections() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_1,
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -328,7 +328,7 @@ async fn receive_multiple_sections() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_2,
                     block_number: 2,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -344,7 +344,7 @@ async fn receive_multiple_sections() {
             },
             DXBBlock {
                 block_header: BlockHeader {
-                    scope_id,
+                    context_id,
                     section_index: section_index_2,
                     block_number: 3,
                     flags_and_timestamp: FlagsAndTimestamp::new()
@@ -467,13 +467,13 @@ async fn await_response_block() {
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
         com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
 
-        let scope_id = com_hub.block_handler.get_new_scope_id();
+        let context_id = com_hub.block_handler.get_new_context_id();
         let section_index = 42;
 
         // Create a single DXB block
         let mut block = DXBBlock {
             block_header: BlockHeader {
-                scope_id,
+                context_id,
                 section_index,
                 flags_and_timestamp: FlagsAndTimestamp::new()
                     .with_block_type(BlockType::Response)
@@ -491,7 +491,7 @@ async fn await_response_block() {
 
         // set observer for the block
         let rx = com_hub.block_handler.register_incoming_block_observer(
-            scope_id,
+            context_id,
             section_index,
         );
 

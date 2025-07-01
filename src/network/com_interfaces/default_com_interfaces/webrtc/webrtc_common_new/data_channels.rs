@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
+    rc::Rc,
 };
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
@@ -11,8 +11,8 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 pub struct DataChannel<T> {
     pub label: String,
     pub data_channel: T,
-    pub on_message: Option<Arc<dyn Fn(Vec<u8>)>>,
-    pub open_channel: Option<Arc<dyn Fn()>>,
+    pub on_message: RefCell<Option<Box<dyn Fn(Vec<u8>)>>>,
+    pub open_channel: RefCell<Option<Box<dyn Fn()>>>,
     pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
 }
@@ -21,8 +21,8 @@ impl<T> DataChannel<T> {
         DataChannel {
             label,
             data_channel,
-            on_message: None,
-            open_channel: None,
+            on_message: RefCell::new(None),
+            open_channel: RefCell::new(None),
             on_close: None,
             socket_uuid: RefCell::new(None),
         }
@@ -39,11 +39,11 @@ impl<T> DataChannel<T> {
 }
 
 pub struct DataChannels<T> {
-    pub data_channels: HashMap<String, Arc<Mutex<DataChannel<T>>>>,
+    pub data_channels: HashMap<String, Rc<RefCell<DataChannel<T>>>>,
     pub on_add: Option<
         Box<
             dyn Fn(
-                Arc<Mutex<DataChannel<T>>>,
+                Rc<RefCell<DataChannel<T>>>,
             ) -> Pin<Box<dyn Future<Output = ()> + 'static>>,
         >,
     >,
@@ -68,19 +68,19 @@ impl<T> DataChannels<T> {
     pub fn get_data_channel(
         &self,
         label: &str,
-    ) -> Option<Arc<Mutex<DataChannel<T>>>> {
+    ) -> Option<Rc<RefCell<DataChannel<T>>>> {
         self.data_channels.get(label).cloned()
     }
     pub fn add_data_channel(
         &mut self,
-        data_channel: Arc<Mutex<DataChannel<T>>>,
+        data_channel: Rc<RefCell<DataChannel<T>>>,
     ) {
-        let label = data_channel.lock().unwrap().label.clone();
+        let label = data_channel.borrow().label.clone();
         self.data_channels.insert(label, data_channel);
     }
     pub async fn create_data_channel(&mut self, label: String, channel: T) {
         let data_channel =
-            Arc::new(Mutex::new(DataChannel::new(label.clone(), channel)));
+            Rc::new(RefCell::new(DataChannel::new(label.clone(), channel)));
         self.data_channels
             .insert(label.clone(), data_channel.clone());
         if let Some(fut) = self.on_add.take() {

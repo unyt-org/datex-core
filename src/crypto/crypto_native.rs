@@ -120,7 +120,7 @@ impl CryptoTrait for CryptoNative {
 
 // TODO: reenable
 /*#[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     static CRYPTO: CryptoNative = CryptoNative {};
 

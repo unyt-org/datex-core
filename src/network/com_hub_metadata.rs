@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::datex_values::Endpoint;
+use crate::datex_values::core_values::endpoint::Endpoint;
 use crate::network::com_hub::{ComHub, DynamicEndpointProperties};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{

@@ -1,6 +1,6 @@
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
-use datex_core::datex_values::Endpoint;
+use datex_core::datex_values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;

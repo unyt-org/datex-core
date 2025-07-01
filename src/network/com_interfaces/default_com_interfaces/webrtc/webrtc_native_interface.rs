@@ -1,12 +1,14 @@
 use std::{
+    cell::RefCell,
     future::Future,
     pin::Pin,
+    rc::Rc,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use crate::{
-    datex_values::Endpoint,
+    datex_values::core_values::endpoint::Endpoint,
     delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
@@ -23,7 +25,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use futures::{channel::mpsc, SinkExt, StreamExt, TryFutureExt};
+use futures::{channel::mpsc, StreamExt};
 
 use super::webrtc_common_new::{
     data_channels::{DataChannel, DataChannels},
@@ -35,14 +37,15 @@ use super::webrtc_common_new::{
     webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
 };
 use datex_macros::{com_interface, create_opener};
-use log::{error, info};
+use log::error;
 use webrtc::{
     api::{
         interceptor_registry::register_default_interceptors,
         media_engine::MediaEngine, APIBuilder,
     },
     data_channel::{
-        data_channel_init::RTCDataChannelInit, OnOpenHdlrFn, RTCDataChannel,
+        data_channel_init::RTCDataChannelInit, OnMessageHdlrFn, OnOpenHdlrFn,
+        RTCDataChannel,
     },
     ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
     interceptor::registry::Registry,
@@ -51,11 +54,16 @@ use webrtc::{
         sdp::session_description::RTCSessionDescription, RTCPeerConnection,
     },
 };
+
+enum DataChannelEvent {
+    Open,
+    Message(Vec<u8>),
+}
 pub struct WebRTCNativeInterface {
     info: ComInterfaceInfo,
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
-    data_channels: Arc<Mutex<DataChannels<Arc<RTCDataChannel>>>>,
+    data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
     rtc_configuration: RTCConfiguration,
 }
 impl SingleSocketProvider for WebRTCNativeInterface {
@@ -70,7 +78,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
             info: ComInterfaceInfo::default(),
             commons: Arc::new(Mutex::new(commons)),
             peer_connection: None,
-            data_channels: Arc::new(Mutex::new(DataChannels::new())),
+            data_channels: Rc::new(RefCell::new(DataChannels::default())),
             rtc_configuration: RTCConfiguration {
                 ..Default::default()
             },
@@ -90,7 +98,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     fn provide_data_channels(
         &self,
-    ) -> Arc<Mutex<DataChannels<Arc<RTCDataChannel>>>> {
+    ) -> Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>> {
         self.data_channels.clone()
     }
     fn provide_info(&self) -> &ComInterfaceInfo {
@@ -103,7 +111,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
         if let Some(peer_connection) = self.peer_connection.as_ref() {
             let channel_config = RTCDataChannelInit::default();
             let data_channel = peer_connection
-                .create_data_channel("datex", Some(channel_config))
+                .create_data_channel("DATEX", Some(channel_config))
                 .await
                 .unwrap();
             Ok(DataChannel::new(
@@ -117,22 +125,54 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     }
 
     async fn handle_setup_data_channel(
-        channel: Arc<Mutex<DataChannel<Arc<RTCDataChannel>>>>,
+        channel: Rc<RefCell<DataChannel<Arc<RTCDataChannel>>>>,
     ) -> Result<(), WebRTCError> {
+        let channel_clone = channel.clone();
+
+        let (tx, mut rx) = mpsc::unbounded::<DataChannelEvent>();
+        let tx_open = tx.clone();
         let on_open: OnOpenHdlrFn = Box::new(move || {
-            info!("Data channel opened");
-            // FIXME TODO handle open
+            let _ = tx_open.unbounded_send(DataChannelEvent::Open);
             Box::pin(async {})
         });
 
-        let data_channel = channel.clone();
-        let data_channel = data_channel.lock().unwrap();
-        data_channel.data_channel.on_open(on_open);
-        data_channel.data_channel.on_message(Box::new(move |msg| {
+        let tx_msg = tx.clone();
+        let on_message: OnMessageHdlrFn = Box::new(move |msg| {
             let data = msg.data.to_vec();
-            info!("Received data on data channel: {data:?}");
+            let _ = tx_msg.unbounded_send(DataChannelEvent::Message(data));
             Box::pin(async {})
-        }));
+        });
+
+        spawn_local(async move {
+            let channel_clone = channel_clone.clone();
+            while let Some(event) = rx.next().await {
+                match event {
+                    DataChannelEvent::Open => {
+                        if let Some(open_channel) = channel_clone
+                            .borrow()
+                            .open_channel
+                            .borrow()
+                            .as_ref()
+                        {
+                            open_channel();
+                        }
+                    }
+                    DataChannelEvent::Message(data) => {
+                        if let Some(on_message) =
+                            channel_clone.borrow().on_message.borrow().as_ref()
+                        {
+                            on_message(data);
+                        }
+                    }
+                }
+            }
+        });
+        let data_channel = channel.clone();
+        data_channel.borrow_mut().data_channel.on_open(on_open);
+        data_channel
+            .borrow_mut()
+            .data_channel
+            .on_message(on_message);
         Ok(())
     }
 
@@ -141,9 +181,6 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
     ) -> Result<RTCSessionDescriptionDX, WebRTCError> {
         if let Some(peer_connection) = self.peer_connection.as_ref() {
             let offer = peer_connection.create_offer(None).await.unwrap();
-            // let mut gather_complete =
-            //     peer_connection.gathering_complete_promise().await;
-            // let _ = gather_complete.recv().await;
             Ok(RTCSessionDescriptionDX {
                 sdp_type: RTCSdpTypeDX::Offer,
                 sdp: offer.sdp,
@@ -298,7 +335,6 @@ impl WebRTCNativeInterface {
                 })
                 .collect()
         }
-        info!("ICE servers: {:?}", self.rtc_configuration.ice_servers);
         let peer_connection = Arc::new(
             api.new_peer_connection(self.rtc_configuration.clone())
                 .await
@@ -321,8 +357,7 @@ impl WebRTCNativeInterface {
                 while let Some(channel) = rx_data_channel.next().await {
                     data_channels
                         .clone()
-                        .lock()
-                        .unwrap()
+                        .borrow_mut()
                         .create_data_channel(
                             channel.label().to_string(),
                             channel.clone(),
@@ -367,6 +402,7 @@ impl WebRTCNativeInterface {
         Ok(())
     }
 }
+
 impl ComInterface for WebRTCNativeInterface {
     fn send_block<'a>(
         &'a mut self,
@@ -374,17 +410,11 @@ impl ComInterface for WebRTCNativeInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         if let Some(channel) =
-            self.data_channels.lock().unwrap().get_data_channel("DATEX")
+            self.data_channels.borrow().get_data_channel("DATEX")
         {
             Box::pin(async move {
                 let bytes = Bytes::from(block.to_vec());
-                channel
-                    .lock()
-                    .unwrap()
-                    .data_channel
-                    .send(&bytes)
-                    .await
-                    .is_ok()
+                channel.borrow().data_channel.send(&bytes).await.is_ok()
             })
         } else {
             error!("Failed to send message, data channel not found");

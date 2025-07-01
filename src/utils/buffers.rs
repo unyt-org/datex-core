@@ -204,6 +204,12 @@ pub fn write_i64(buffer: &mut Vec<u8>, index: &mut usize, val: i64) {
 pub fn append_i64(buffer: &mut Vec<u8>, val: i64) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
+pub fn append_i128(buffer: &mut Vec<u8>, val: i128) {
+    buffer.extend_from_slice(&val.to_le_bytes());
+}
+pub fn append_u128(buffer: &mut Vec<u8>, val: u128) {
+    buffer.extend_from_slice(&val.to_le_bytes());
+}
 
 pub fn write_f64(buffer: &mut Vec<u8>, index: &mut usize, val: f64) {
     let bytes = val.to_le_bytes();
@@ -213,6 +219,10 @@ pub fn write_f64(buffer: &mut Vec<u8>, index: &mut usize, val: f64) {
     }
 }
 pub fn append_f64(buffer: &mut Vec<u8>, val: f64) {
+    buffer.extend_from_slice(&val.to_le_bytes());
+}
+
+pub fn append_f32(buffer: &mut Vec<u8>, val: f32) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
 
@@ -329,7 +339,7 @@ pub fn hex_to_buffer_advanced(hex: String, seperator: &str) -> Vec<u8> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{
         buffer_to_hex, buffer_to_hex_advanced, hex_to_buffer,
         hex_to_buffer_advanced,
