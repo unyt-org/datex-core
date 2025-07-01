@@ -407,6 +407,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
 
             Instruction::CreateRef => {
                 handle_before_term(state, &mut output, false)?;
+                state.get_current_scope().skip_comma_for_next_item = true;
                 write!(output, "$")?;
             }
 

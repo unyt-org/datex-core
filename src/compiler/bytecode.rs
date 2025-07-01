@@ -1,5 +1,5 @@
 use crate::compiler::ast_parser::{
-    parse, BinaryOperator, DatexExpression, DatexScriptParser, TupleEntry,
+    parse, DatexExpression, DatexScriptParser, TupleEntry,
     VariableType,
 };
 use crate::compiler::CompilerError;
@@ -715,7 +715,7 @@ fn compile_ast(
 fn compile_expression(
     compilation_scope: &CompilationContext,
     ast: DatexExpression,
-    mut meta: CompileMetadata,
+    meta: CompileMetadata,
     mut scope: CompileScope,
 ) -> Result<CompileScope, CompilerError> {
     match ast {
@@ -906,8 +906,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-            // close allocation scope
-            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
 
             // register new variable
             scope.register_variable_slot(address, var_type, name);
@@ -955,7 +953,7 @@ fn compile_expression(
     Ok(scope)
 }
 
-fn compile_key_value_entry<'a>(
+fn compile_key_value_entry(
     compilation_scope: &CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
@@ -1102,7 +1100,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 // val b = 69;
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -1113,7 +1110,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 // a is b
                 InstructionCode::IS.into(),
@@ -1803,7 +1799,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1824,7 +1819,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -1854,7 +1848,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -1864,7 +1857,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1,
@@ -1903,7 +1895,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
@@ -1912,7 +1903,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 41,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -1922,7 +1912,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 2,
@@ -1969,7 +1958,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1991,7 +1979,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32

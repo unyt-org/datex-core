@@ -416,11 +416,15 @@ fn handle_value(
             // set value for slot
             let address = *address;
             context.set_slot_value(address, value_container.clone())?;
-            Some(value_container)
+            // set value_container as active value
+            context.scope_stack.set_active_value_container(value_container);
+            return pop_scope(context)
         }
 
         Scope::UnaryOperation { operator } => {
-            Some(handle_unary_operation(*operator, value_container))
+            let operator = *operator;
+            context.scope_stack.set_active_value_container(handle_unary_operation(operator, value_container));
+            return pop_scope(context)
         }
 
         Scope::BinaryOperation { operator } => {
@@ -435,13 +439,7 @@ fn handle_value(
                     return if let Ok(val) = res {
                         // set val as active value
                         context.scope_stack.set_active_value_container(val);
-                        let val = context
-                            .scope_stack
-                            .pop()?;
-                        if let Some(val) = val {
-                            handle_value(context, val)?;
-                        }
-                        Ok(())
+                        pop_scope(context)
                     } else {
                         // handle error
                         Err(res.unwrap_err())
@@ -475,6 +473,19 @@ fn handle_value(
         context.scope_stack.set_active_value_container(result_value);
     }
 
+    Ok(())
+}
+
+/// Manually pops the current scope and recursively continue with handle_value.
+/// This is useful for scopes that were opened with an instruction, but have no explicit SCOPE_END instruction
+/// TODO: can we solve this better without recursion?
+fn pop_scope(context: &mut ExecutionContext) -> Result<(), ExecutionError> {
+    let val = context
+        .scope_stack
+        .pop()?;
+    if let Some(val) = val {
+        handle_value(context, val)?;
+    }
     Ok(())
 }
 
@@ -613,6 +624,7 @@ fn handle_binary_operation(
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use std::vec;
 
     use log::debug;
@@ -622,7 +634,7 @@ mod tests {
     use crate::datex_values::traits::structural_eq::StructuralEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
-    use crate::{assert_structural_eq, datex_array};
+    use crate::{assert_structural_eq, assert_value_eq, datex_array};
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -890,5 +902,13 @@ mod tests {
         let result = execute_datex_script_debug_with_result("[val x = 42, 2, x]");
         let expected = datex_array![Integer::from(42), Integer::from(2), Integer::from(42)];
         assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn test_ref_assignment() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("ref x = 42; x");
+        assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
     }
 }
