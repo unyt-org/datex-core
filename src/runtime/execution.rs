@@ -217,7 +217,7 @@ pub fn execute_loop(
         }
     }
 
-    // TODO: also check for other unclosed stacks
+    // TODO: check for other unclosed stacks
     // if we have an active key here, this is invalid and leads to an error
     // if context.scope_stack.get_active_key().is_some() {
     //     return Err(ExecutionError::InvalidProgram(
@@ -333,15 +333,6 @@ fn get_active_value_from_instruction(context: &mut ExecutionContext, instruction
         }
 
         Instruction::ScopeEnd => {
-            // // if has active_slot, assign value
-            // if let Some(active_slot) = context.scope_stack.get_active_slot()
-            //     && let Some(active) =
-            //     context.scope_stack.get_active_value()
-            // {
-            //     // write to slot
-            //     context.set_slot_value(active_slot, active.clone())?;
-            // }
-
             // pop scope and return value
             context.scope_stack.pop()?
         }
