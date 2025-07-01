@@ -40,7 +40,7 @@ jobs:
 
             - name: Generate test result and coverage report
               run: |
-                cargo install cargo2junit grcov;
+                cargo install cargo2junit;
                 cargo test-debug $CARGO_OPTIONS -- -Z unstable-options --format json | cargo2junit > results.xml;
             - name: Upload test results
               uses: EnricoMi/publish-unit-test-result-action@v2
