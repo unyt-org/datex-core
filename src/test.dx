@@ -1,0 +1,155 @@
+// object
+{'x':1 };
+
+// array
+[1,2,x];
+
+// nested array
+[1,2, [1,2,[3,4, (1,4)]]];
+
+// tuple
+(1,2);
+
+// standalone tuple
+1,2;
+
+// string
+"test";
+
+// decimal
+4.2;
+
+// integer
+42;
+
+// boolean
+true;
+false;
+
+// placeholder
+?;
+?10;
+
+// variable
+test;
+
+// basic apply
+test(42);
+// single apply
+test 4;
+// multiple apply
+test(42)(1,2) 3 (x + 1);
+test(1,2,3,(4,5));
+
+// apply tuple
+print 1,2,3;
+
+// property access
+x.y;
+x.y.z;
+x.(1+2);
+x."123";
+
+// property access with apply
+x.y();
+x.y.z(1,2)(3);
+x.y 4;
+x.y(1,2);
+x.y.z(1,2).a;
+
+
+// math operations
+1 + x;
+2+(1+2);
+3*4+5;
+3*(4+5);
+x.y + 5 * a.b();
+
+
+// assignments
+x = 42;
+x = 42 + 1;
+x = 42 + x();
+
+x = (
+ y + 1;
+ result()
+)
+
+
+// declarations
+val x = 42;
+ref y = 1 + 2;
+ref x: text = "test";
+
+// JSON
+{
+    "key": "value",
+    "array": [1, 2, 3],
+    "nested": {
+        "key": "value"
+    },
+    "number": 42,
+    "boolean": true,
+    "null_value": null
+}
+
+// JSON5
+{
+    key: 'value',
+    array: [1, 2, 3],
+    nested: {
+        key: 'value'
+    },
+    number: 42,
+    boolean: true,
+    null_value: null
+}
+
+// TODO: template strings:
+x = `adsf asdf $(1+2)`
+
+// TODO: eternal
+use eternal (x,y) from ./xy-eternal-data.dx;
+
+const CONST = 10;
+// @unyt.std
+// transferable function -> function + code
+export move function a(callback) (
+    CONST
+    callback()
+    #endpoint // @unyt.std
+)
+
+// datex-block
+move (
+    export function a() ()
+)
+
+// @me
+use a from @unyt.std;
+ref a = 10;
+const callback = function () (
+   a
+)
+a(move callback);
+
+
+#asdfasdf =  123;
+
+// special tuple cases
+1+2,3
+1,2+3
+1,
+[1+2,3]
+
+
+
+// TODO: think about linting rules to avoid crazy syntax like this
+if (true == 12 || false) (
+    42
+) else ()(2)()
+
+
+
+// --- invalid syntax ---

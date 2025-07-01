@@ -8,14 +8,22 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - uses: actions-rs/toolchain@v1
+            - name: Install libudev-dev and pkg-config
+              run: |
+                sudo apt update
+                sudo apt install -y libudev-dev pkg-config
+
+            - uses: dtolnay/rust-toolchain@stable
               with:
                 toolchain: nightly
-                override: true
+                components: clippy
+
+            - name: Check formatting
+              run: cargo clippy --features debug
 
             - name: Run tests
               run: |
-                cargo test  -- -Z unstable-options --format json --report-time | tee results.json
+                cargo test-debug  -- -Z unstable-options --format json --report-time | tee results.json
             
             - name: Prepare junit report
               id: cargo_reporter 

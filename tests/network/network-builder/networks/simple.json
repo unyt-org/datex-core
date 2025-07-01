@@ -1,0 +1,54 @@
+{
+	"nodes": [
+		{
+			"id": "yhr9",
+			"label": "@yhr9"
+		},
+		{
+			"id": "s5zw",
+			"label": "@s5zw"
+		},
+		{
+			"id": "4726",
+			"label": "@4726"
+		}
+	],
+	"edges": [
+		{
+			"id": "mockup-yhr9-4726",
+			"source": "yhr9",
+			"target": "4726",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-s5zw-4726",
+			"source": "s5zw",
+			"target": "4726",
+			"type": "mockup",
+			"priority": 0,
+			"endpoint": "@4726"
+		},
+		{
+			"id": "mockup-s5zw-yhr9",
+			"source": "s5zw",
+			"target": "yhr9",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-yhr9-s5zw",
+			"source": "yhr9",
+			"target": "s5zw",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-4726-yhr9",
+			"source": "4726",
+			"target": "yhr9",
+			"type": "mockup",
+			"priority": 0
+		}
+	]
+}
