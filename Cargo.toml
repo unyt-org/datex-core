@@ -16,7 +16,7 @@ regex = "1"
 byteorder = "1"
 num_enum = "0.5.7"
 lazy_static = "1.4.0"
-strum = { version = "0.24", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
 mopa = "0.2.2"
 num-bigint = "0.4"
 num-integer = "0.1"
