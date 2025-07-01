@@ -14,7 +14,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 regex = "1"
 byteorder = "1"
-num_enum = "0.5.7"
+num_enum = "0.7.0"
 lazy_static = "1.4.0"
 strum = { version = "0.24", features = ["derive"] }
 mopa = "0.2.2"
