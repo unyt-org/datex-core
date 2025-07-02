@@ -32,7 +32,7 @@ pub struct ExecutionOptions {
 pub struct ExecutionInput<'a> {
     pub options: ExecutionOptions,
     pub dxb_body: &'a [u8],
-    pub context: ExecutionContext,
+    pub context: LocalExecutionContext,
 }
 
 impl<'a> ExecutionInput<'a> {
@@ -43,13 +43,13 @@ impl<'a> ExecutionInput<'a> {
         Self {
             options,
             dxb_body,
-            context: ExecutionContext::default(),
+            context: LocalExecutionContext::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ExecutionContext {
+pub struct LocalExecutionContext {
     index: usize,
     scope_stack: ScopeStack,
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
@@ -57,7 +57,7 @@ pub struct ExecutionContext {
     pop_next_scope: bool,
 }
 
-impl ExecutionContext {
+impl LocalExecutionContext {
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
@@ -111,7 +111,7 @@ impl ExecutionContext {
 
 pub fn execute_dxb(
     input: ExecutionInput,
-) -> Result<(Option<ValueContainer>, ExecutionContext), ExecutionError> {
+) -> Result<(Option<ValueContainer>, LocalExecutionContext), ExecutionError> {
     execute_loop(input)
 }
 
@@ -200,7 +200,7 @@ impl Display for ExecutionError {
 
 pub fn execute_loop(
     input: ExecutionInput,
-) -> Result<(Option<ValueContainer>, ExecutionContext), ExecutionError> {
+) -> Result<(Option<ValueContainer>, LocalExecutionContext), ExecutionError> {
     let dxb_body = input.dxb_body;
     let mut context = input.context;
 
@@ -249,7 +249,7 @@ pub fn execute_loop(
 
 
 #[inline]
-fn get_result_value_from_instruction(context: &mut ExecutionContext, instruction: Instruction) -> Result<Option<ValueContainer>, ExecutionError> {
+fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instruction: Instruction) -> Result<Option<ValueContainer>, ExecutionError> {
 
     Ok(match instruction {
         // boolean
@@ -392,7 +392,7 @@ fn get_result_value_from_instruction(context: &mut ExecutionContext, instruction
 
 /// Takes a produced value and handles it according to the current scope
 fn handle_value(
-    context: &mut ExecutionContext,
+    context: &mut LocalExecutionContext,
     value_container: ValueContainer,
 ) -> Result<(), ExecutionError> {
     let scope_container = context.scope_stack.get_current_scope_mut();

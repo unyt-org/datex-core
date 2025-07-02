@@ -7,13 +7,15 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-
+use crate::datex_values::value_container::ValueContainer;
 use crate::network::com_hub::ComHub;
+use crate::runtime::execution_context::ExecutionContext;
 
 pub mod execution;
 pub mod global_context;
 pub mod memory;
 mod stack;
+pub mod execution_context;
 
 use self::memory::Memory;
 
@@ -71,6 +73,17 @@ impl Runtime {
             .await
             .expect("Failed to initialize ComHub");
         ComHub::start_update_loop(self.com_hub.clone());
+    }
+    
+    
+    
+    pub async fn execute(
+        &self,
+        script: &str,
+        inserted_values: &[ValueContainer],
+        execution_context: ExecutionContext,
+    ) -> Result<Option<ValueContainer>, ExecutionContext> {
+       todo!()
     }
 }
 
