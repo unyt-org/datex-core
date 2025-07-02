@@ -53,6 +53,8 @@ pub struct ExecutionContext {
     index: usize,
     scope_stack: ScopeStack,
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
+    // if set to true, the execution loop will pop the current scope before continuing with the next instruction
+    pop_next_scope: bool,
 }
 
 impl ExecutionContext {
@@ -210,10 +212,23 @@ pub fn execute_loop(
             println!("[Exec]: {instruction}");
         }
 
-        let value = get_active_value_from_instruction(&mut context, instruction)?;
+        // get initial value from instruction
+        let mut result_value = get_result_value_from_instruction(&mut context, instruction)?;
 
-        if let Some(value) = value {
-            handle_value(&mut context, value)?;
+        // 1. if value is Some, handle it
+        // 2. while pop_next_scope is true: pop current scope and repeat
+        loop {
+            context.pop_next_scope = false;
+            if let Some(value) = result_value {
+                handle_value(&mut context, value)?;
+            }
+
+            if context.pop_next_scope {
+                result_value = context.scope_stack.pop()?;
+            }
+            else {
+                break
+            }
         }
     }
 
@@ -234,9 +249,7 @@ pub fn execute_loop(
 
 
 #[inline]
-fn get_active_value_from_instruction(context: &mut ExecutionContext, instruction: Instruction) -> Result<Option<ValueContainer>, ExecutionError> {
-
-    let scope = context.scope_stack.get_current_scope();
+fn get_result_value_from_instruction(context: &mut ExecutionContext, instruction: Instruction) -> Result<Option<ValueContainer>, ExecutionError> {
 
     Ok(match instruction {
         // boolean
@@ -377,7 +390,7 @@ fn get_active_value_from_instruction(context: &mut ExecutionContext, instruction
 }
 
 
-/// Takes a produced value and handles it according to the current context, scope and active operation.
+/// Takes a produced value and handles it according to the current scope
 fn handle_value(
     context: &mut ExecutionContext,
     value_container: ValueContainer,
@@ -417,14 +430,14 @@ fn handle_value(
             let address = *address;
             context.set_slot_value(address, value_container.clone())?;
             // set value_container as active value
-            context.scope_stack.set_active_value_container(value_container);
-            return pop_scope(context)
+            context.pop_next_scope = true;
+            Some(value_container)
         }
 
         Scope::UnaryOperation { operator } => {
             let operator = *operator;
-            context.scope_stack.set_active_value_container(handle_unary_operation(operator, value_container));
-            return pop_scope(context)
+            context.pop_next_scope = true;
+            Some(handle_unary_operation(operator, value_container))
         }
 
         Scope::BinaryOperation { operator } => {
@@ -436,13 +449,13 @@ fn handle_value(
                         value_container,
                         *operator,
                     );
-                    return if let Ok(val) = res {
+                    if let Ok(val) = res {
                         // set val as active value
-                        context.scope_stack.set_active_value_container(val);
-                        pop_scope(context)
+                        context.pop_next_scope = true;
+                        Some(val)
                     } else {
                         // handle error
-                        Err(res.unwrap_err())
+                        return Err(res.unwrap_err())
                     }
                 }
                 None => Some(value_container)
@@ -473,19 +486,6 @@ fn handle_value(
         context.scope_stack.set_active_value_container(result_value);
     }
 
-    Ok(())
-}
-
-/// Manually pops the current scope and recursively continue with handle_value.
-/// This is useful for scopes that were opened with an instruction, but have no explicit SCOPE_END instruction
-/// TODO: can we solve this better without recursion?
-fn pop_scope(context: &mut ExecutionContext) -> Result<(), ExecutionError> {
-    let val = context
-        .scope_stack
-        .pop()?;
-    if let Some(val) = val {
-        handle_value(context, val)?;
-    }
     Ok(())
 }
 
