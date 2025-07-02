@@ -2,6 +2,7 @@ use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
+use rsa::signature::digest::typenum::op;
 // FIXME no-std
 
 use crate::datex_values::core_values::decimal::utils::decimal_to_string;
@@ -16,7 +17,10 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
+use crate::compiler::bytecode::{compile_template, compile_template_with_refs, CompileOptions};
+use crate::datex_values::value_container::ValueContainer;
 
+/// Decompiles a DXB bytecode body into a human-readable string representation.
 pub fn decompile_body(
     dxb_body: &[u8],
     options: DecompileOptions,
@@ -37,6 +41,15 @@ pub fn decompile_body(
     };
 
     decompile_loop(&mut initial_state)
+}
+
+/// Decompiles a single DATEX value into a human-readable string representation.
+pub fn decompile_value(
+    value: &ValueContainer,
+    options: DecompileOptions,
+) -> String {
+    let (compiled_value, _) = compile_template_with_refs("?", &[value], CompileOptions::default()).unwrap();
+    decompile_body(&compiled_value, options).unwrap()
 }
 
 fn int_to_label(n: i32) -> String {
@@ -79,6 +92,16 @@ impl DecompileOptions {
     pub fn json() -> Self {
         DecompileOptions {
             json_compat: true,
+            ..DecompileOptions::default()
+        }
+    }
+
+    /// Fomarts and colorizes the output
+    pub fn colorized() -> Self {
+        DecompileOptions {
+            colorized: true,
+            formatted: true,
+            resolve_slots: true,
             ..DecompileOptions::default()
         }
     }
