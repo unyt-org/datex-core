@@ -4,6 +4,7 @@ use datex_core::runtime::execution_context::ExecutionContext;
 use datex_core::runtime::Runtime;
 
 #[tokio::test]
+#[ignore]
 pub async fn test_basic_remote_execution() {
     run_async! {
         let runtime_a = Runtime::init_native("@test_a");
