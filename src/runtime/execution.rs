@@ -1,4 +1,5 @@
 use super::stack::{Scope, ScopeStack};
+use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::array::Array;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
@@ -6,6 +7,8 @@ use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::datex_values::core_values::integer::integer::Integer;
 use crate::datex_values::core_values::object::Object;
 use crate::datex_values::core_values::tuple::Tuple;
+use crate::datex_values::reference::Reference;
+use crate::datex_values::traits::identity::Identity;
 use crate::datex_values::traits::structural_eq::StructuralEq;
 use crate::datex_values::traits::value_eq::ValueEq;
 use crate::datex_values::value::Value;
@@ -19,9 +22,6 @@ use crate::parser::body::DXBParserError;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
-use crate::datex_values::reference::Reference;
-use crate::datex_values::traits::identity::Identity;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -213,7 +213,8 @@ pub fn execute_loop(
         }
 
         // get initial value from instruction
-        let mut result_value = get_result_value_from_instruction(&mut context, instruction)?;
+        let mut result_value =
+            get_result_value_from_instruction(&mut context, instruction)?;
 
         // 1. if value is Some, handle it
         // 2. while pop_next_scope is true: pop current scope and repeat
@@ -225,9 +226,8 @@ pub fn execute_loop(
 
             if context.pop_next_scope {
                 result_value = context.scope_stack.pop()?;
-            }
-            else {
-                break
+            } else {
+                break;
             }
         }
     }
@@ -247,10 +247,11 @@ pub fn execute_loop(
     })
 }
 
-
 #[inline]
-fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instruction: Instruction) -> Result<Option<ValueContainer>, ExecutionError> {
-
+fn get_result_value_from_instruction(
+    context: &mut LocalExecutionContext,
+    instruction: Instruction,
+) -> Result<Option<ValueContainer>, ExecutionError> {
     Ok(match instruction {
         // boolean
         Instruction::True => Some(true.into()),
@@ -296,17 +297,18 @@ fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instru
         Instruction::Text(TextData(text)) => Some(text.into()),
 
         // operations
-        Instruction::Add |
-        Instruction::Subtract |
-        Instruction::Multiply |
-        Instruction::Divide |
-        Instruction::Is |
-        Instruction::StructuralEqual |
-        Instruction::Equal |
-        Instruction::NotStructuralEqual |
-        Instruction::NotEqual
-        => {
-            context.scope_stack.create_scope(Scope::BinaryOperation { operator: BinaryOperator::from(instruction) });
+        Instruction::Add
+        | Instruction::Subtract
+        | Instruction::Multiply
+        | Instruction::Divide
+        | Instruction::Is
+        | Instruction::StructuralEqual
+        | Instruction::Equal
+        | Instruction::NotStructuralEqual
+        | Instruction::NotEqual => {
+            context.scope_stack.create_scope(Scope::BinaryOperation {
+                operator: BinaryOperator::from(instruction),
+            });
             None
         }
 
@@ -321,22 +323,34 @@ fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instru
         }
 
         Instruction::ArrayStart => {
-            context.scope_stack.create_scope_with_active_value(Scope::Collection, Array::default().into());
+            context.scope_stack.create_scope_with_active_value(
+                Scope::Collection,
+                Array::default().into(),
+            );
             None
         }
 
         Instruction::ObjectStart => {
-            context.scope_stack.create_scope_with_active_value(Scope::Collection, Object::default().into());
+            context.scope_stack.create_scope_with_active_value(
+                Scope::Collection,
+                Object::default().into(),
+            );
             None
         }
 
         Instruction::TupleStart => {
-            context.scope_stack.create_scope_with_active_value(Scope::Collection, Tuple::default().into());
+            context.scope_stack.create_scope_with_active_value(
+                Scope::Collection,
+                Tuple::default().into(),
+            );
             None
         }
 
         Instruction::KeyValueShortText(ShortTextData(key)) => {
-            context.scope_stack.create_scope_with_active_value(Scope::KeyValuePair, key.into());
+            context.scope_stack.create_scope_with_active_value(
+                Scope::KeyValuePair,
+                key.into(),
+            );
             None
         }
 
@@ -353,7 +367,9 @@ fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instru
         // slots
         Instruction::AllocateSlot(SlotAddress(address)) => {
             context.allocate_slot(address, None);
-            context.scope_stack.create_scope(Scope::SlotAssignment { address });
+            context
+                .scope_stack
+                .create_scope(Scope::SlotAssignment { address });
             None
         }
         Instruction::GetSlot(SlotAddress(address)) => {
@@ -365,13 +381,17 @@ fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instru
             slot_value
         }
         Instruction::UpdateSlot(SlotAddress(address)) => {
-            context.scope_stack.create_scope(Scope::SlotAssignment { address });
+            context
+                .scope_stack
+                .create_scope(Scope::SlotAssignment { address });
             None
         }
 
         // refs
         Instruction::CreateRef => {
-            context.scope_stack.create_scope(Scope::UnaryOperation { operator: UnaryOperator::CreateRef });
+            context.scope_stack.create_scope(Scope::UnaryOperation {
+                operator: UnaryOperator::CreateRef,
+            });
             None
         }
 
@@ -389,7 +409,6 @@ fn get_result_value_from_instruction(context: &mut LocalExecutionContext, instru
     })
 }
 
-
 /// Takes a produced value and handles it according to the current scope
 fn handle_value(
     context: &mut LocalExecutionContext,
@@ -402,9 +421,7 @@ fn handle_value(
             let key = &scope_container.active_value;
             match key {
                 // set key as active_value for key-value pair (for dynamic keys)
-                None => {
-                    Some(value_container)
-                }
+                None => Some(value_container),
 
                 // set value for key-value pair
                 Some(_) => {
@@ -455,10 +472,10 @@ fn handle_value(
                         Some(val)
                     } else {
                         // handle error
-                        return Err(res.unwrap_err())
+                        return Err(res.unwrap_err());
                     }
                 }
-                None => Some(value_container)
+                None => Some(value_container),
             }
         }
 
@@ -467,10 +484,7 @@ fn handle_value(
             match active_value {
                 Some(active_value_container) => {
                     // handle active value collector
-                    handle_collector(
-                        active_value_container,
-                        value_container,
-                    );
+                    handle_collector(active_value_container, value_container);
                     None
                 }
                 None => {
@@ -479,7 +493,7 @@ fn handle_value(
             }
         }
 
-        _ => Some(value_container)
+        _ => Some(value_container),
     };
 
     if let Some(result_value) = result_value {
@@ -489,26 +503,21 @@ fn handle_value(
     Ok(())
 }
 
-fn handle_collector(
-    collector: &mut ValueContainer,
-    value: ValueContainer,
-) {
+fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
     match collector {
         ValueContainer::Value(Value {
-              inner: CoreValue::Array(array),
-              ..
-          }) => {
+            inner: CoreValue::Array(array),
+            ..
+        }) => {
             // append value to array
             array.push(value);
-        },
+        }
         ValueContainer::Value(Value {
-              inner: CoreValue::Tuple(tuple),
-              ..
-          }) => {
+            inner: CoreValue::Tuple(tuple),
+            ..
+        }) => {
             // automatic tuple keys are always default integer values
-            let index = CoreValue::Integer(
-                Integer::from(tuple.next_int_key()),
-            );
+            let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
             tuple.set(index, value);
         }
         _ => {
@@ -516,7 +525,6 @@ fn handle_collector(
         }
     }
 }
-
 
 fn handle_key_value_pair(
     active_container: &mut ValueContainer,
@@ -527,29 +535,32 @@ fn handle_key_value_pair(
     match active_container {
         // object
         ValueContainer::Value(Value {
-               inner: CoreValue::Object(object),
-       .. }) => {
+            inner: CoreValue::Object(object),
+            ..
+        }) => {
             // make sure key is a string
             match key {
                 ValueContainer::Value(Value {
-                      inner: CoreValue::Text(key_str),
-                      ..
-                  }) => {
+                    inner: CoreValue::Text(key_str),
+                    ..
+                }) => {
                     object.set(&key_str.0, value);
                 }
                 _ => {
-                    return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
+                    return Err(ExecutionError::InvalidProgram(
+                        InvalidProgramError::InvalidKeyValuePair,
+                    ));
                 }
             }
         }
         // tuple
         ValueContainer::Value(Value {
-           inner: CoreValue::Tuple(tuple),
-           ..
+            inner: CoreValue::Tuple(tuple),
+            ..
         }) => {
             // set key-value pair in tuple
             tuple.set(key, value);
-        },
+        }
         _ => {
             unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_container);
         }
@@ -558,52 +569,43 @@ fn handle_key_value_pair(
     Ok(())
 }
 
-
 fn handle_unary_operation(
     operator: UnaryOperator,
     value_container: ValueContainer,
 ) -> ValueContainer {
-    match operator{
+    match operator {
         UnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
-        _ => todo!("Unary instruction not implemented: {operator:?}")
+        _ => todo!("Unary instruction not implemented: {operator:?}"),
     }
 }
 
 fn handle_binary_operation(
     active_value_container: &ValueContainer,
     value_container: ValueContainer,
-    operator: BinaryOperator
+    operator: BinaryOperator,
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     match operator {
-        BinaryOperator::Add => {
-            Ok((active_value_container
-                + &value_container)?)
-        }
+        BinaryOperator::Add => Ok((active_value_container + &value_container)?),
         BinaryOperator::Subtract => {
-            Ok((active_value_container
-                - &value_container)?)
+            Ok((active_value_container - &value_container)?)
         }
         BinaryOperator::StructuralEqual => {
-            let val = active_value_container
-                .structural_eq(&value_container);
+            let val = active_value_container.structural_eq(&value_container);
             Ok(ValueContainer::from(val))
         }
         BinaryOperator::Equal => {
-            let val = active_value_container
-                .value_eq(&value_container);
+            let val = active_value_container.value_eq(&value_container);
             Ok(ValueContainer::from(val))
         }
         BinaryOperator::NotStructuralEqual => {
-            let val = !active_value_container
-                .structural_eq(&value_container);
+            let val = !active_value_container.structural_eq(&value_container);
             Ok(ValueContainer::from(val))
         }
         BinaryOperator::NotEqual => {
-            let val = !active_value_container
-                .value_eq(&value_container);
+            let val = !active_value_container.value_eq(&value_container);
             Ok(ValueContainer::from(val))
         }
         BinaryOperator::Is => {
@@ -611,8 +613,7 @@ fn handle_binary_operation(
             // instead of a ref. Identity checks using the is operator shall be only allowed
             // for references.
             // @benstre: or keep as always false ? - maybe a compiler check would be better
-            let val = active_value_container
-                .identical(&value_container);
+            let val = active_value_container.identical(&value_container);
             Ok(ValueContainer::from(val))
         }
         _ => {
@@ -620,7 +621,6 @@ fn handle_binary_operation(
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -630,7 +630,7 @@ mod tests {
     use log::debug;
 
     use super::*;
-    use crate::compiler::bytecode::{compile_script, CompileOptions};
+    use crate::compiler::{compile_script, CompileOptions};
     use crate::datex_values::traits::structural_eq::StructuralEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
@@ -750,9 +750,10 @@ mod tests {
 
     #[test]
     fn test_invalid_scope_close() {
-        let result = execute_dxb_debug(&[InstructionCode::SCOPE_START.into(),
+        let result = execute_dxb_debug(&[
+            InstructionCode::SCOPE_START.into(),
             InstructionCode::SCOPE_END.into(),
-            InstructionCode::SCOPE_END.into()
+            InstructionCode::SCOPE_END.into(),
         ]);
         assert!(matches!(
             result,
@@ -899,8 +900,13 @@ mod tests {
     #[test]
     fn test_val_assignment_inside_scope() {
         init_logger();
-        let result = execute_datex_script_debug_with_result("[val x = 42, 2, x]");
-        let expected = datex_array![Integer::from(42), Integer::from(2), Integer::from(42)];
+        let result =
+            execute_datex_script_debug_with_result("[val x = 42, 2, x]");
+        let expected = datex_array![
+            Integer::from(42),
+            Integer::from(2),
+            Integer::from(42)
+        ];
         assert_eq!(result, expected.into());
     }
 

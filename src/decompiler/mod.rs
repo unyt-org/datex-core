@@ -1,15 +1,19 @@
+use rsa::signature::digest::typenum::op;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
-use rsa::signature::digest::typenum::op;
 // FIXME no-std
 
+use crate::compiler::{
+    compile_template, compile_template_with_refs, CompileOptions,
+};
 use crate::datex_values::core_values::decimal::utils::decimal_to_string;
+use crate::datex_values::value_container::ValueContainer;
 use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
-    FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data,
-    ShortTextData, TextData,
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData,
+    TextData,
 };
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
@@ -17,8 +21,6 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
-use crate::compiler::bytecode::{compile_template, compile_template_with_refs, CompileOptions};
-use crate::datex_values::value_container::ValueContainer;
 
 /// Decompiles a DXB bytecode body into a human-readable string representation.
 pub fn decompile_body(
@@ -48,7 +50,9 @@ pub fn decompile_value(
     value: &ValueContainer,
     options: DecompileOptions,
 ) -> String {
-    let (compiled_value, _) = compile_template_with_refs("?", &[value], CompileOptions::default()).unwrap();
+    let (compiled_value, _) =
+        compile_template_with_refs("?", &[value], CompileOptions::default())
+            .unwrap();
     decompile_body(&compiled_value, options).unwrap()
 }
 
@@ -115,11 +119,14 @@ pub enum ScopeType {
     Array,
     Object,
     SlotAssignment,
-    Transparent
+    Transparent,
 }
 
 impl ScopeType {
-    pub fn write_start(&self, output: &mut String) -> Result<(), DXBParserError> {
+    pub fn write_start(
+        &self,
+        output: &mut String,
+    ) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default => write!(output, "(")?,
             ScopeType::Tuple => write!(output, "(")?,
@@ -225,7 +232,9 @@ impl DecompilerState<'_> {
     }
 }
 
-fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError> {
+fn decompile_loop(
+    state: &mut DecompilerState,
+) -> Result<String, DXBParserError> {
     let mut output = String::new();
 
     let instruction_iterator = body::iterate_instructions(state.dxb_body);
@@ -372,7 +381,10 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
             }
 
             // operations
-            Instruction::Add | Instruction::Subtract | Instruction::Multiply | Instruction::Divide => {
+            Instruction::Add
+            | Instruction::Subtract
+            | Instruction::Multiply
+            | Instruction::Divide => {
                 handle_before_term(state, &mut output, false)?;
                 state.new_scope(ScopeType::Transparent);
                 state.get_current_scope().active_operator =
