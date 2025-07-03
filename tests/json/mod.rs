@@ -7,7 +7,7 @@ use datex_core::values::value::Value;
 use datex_core::values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
 use datex_core::runtime::execution::{
-    execute_dxb, ExecutionInput, ExecutionOptions,
+    execute_dxb_sync, ExecutionInput, ExecutionOptions,
 };
 use itertools::Itertools;
 use json_syntax::Parse;
@@ -69,7 +69,7 @@ fn compare_datex_result_with_json(json_string: &str) {
             ..ExecutionOptions::default()
         },
     );
-    let datex_value = execute_dxb(exec_input).unwrap().0.unwrap();
+    let datex_value = execute_dxb_sync(exec_input).unwrap().unwrap();
     let json_value_converted = json_value_to_datex_value(&json_value);
 
     println!(" JSON Value: {json_value}");

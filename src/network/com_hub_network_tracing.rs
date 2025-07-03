@@ -15,7 +15,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::network::com_hub::{ComHub, Response, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::execution::{execute_dxb, ExecutionInput, ExecutionOptions};
+use crate::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
 use itertools::Itertools;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
@@ -505,9 +505,8 @@ impl ComHub {
             &dxb,
             ExecutionOptions::default()
         );
-        let hops_datex = execute_dxb(exec_input)
+        let hops_datex = execute_dxb_sync(exec_input)
             .unwrap()
-            .0
             .unwrap();
         info!("hops datex {hops_datex}");
         if let ValueContainer::Value(Value {

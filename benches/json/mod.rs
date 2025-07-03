@@ -7,7 +7,7 @@ use datex_core::values::datex_type::CoreValueType;
 use datex_core::values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
 use datex_core::runtime::execution::{
-    execute_dxb, ExecutionInput, ExecutionOptions,
+    execute_dxb_sync, ExecutionInput, ExecutionOptions,
 };
 use json_syntax::Parse;
 use serde_json::Value;
@@ -44,7 +44,7 @@ pub fn json_to_datex_value(json: &str) -> ValueContainer {
         &dxb,
         ExecutionOptions::default(),
     );
-    execute_dxb(exec_input).unwrap().0.unwrap()
+    execute_dxb_sync(exec_input).unwrap().unwrap()
 }
 
 // json -> value
@@ -76,7 +76,7 @@ pub fn json_to_runtime_value_datex<'a>(
         &dxb,
         ExecutionOptions::default(),
     );
-    let json_value = execute_dxb(exec_input).unwrap().0.unwrap();
+    let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
     assert_eq!(
         json_value.to_value().borrow().actual_type,
         CoreValueType::Object
@@ -130,7 +130,7 @@ pub fn dxb_to_runtime_value(dxb: &[u8]) {
         dxb,
         ExecutionOptions::default(),
     );
-    let json_value = execute_dxb(exec_input).unwrap().0.unwrap();
+    let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
     assert_eq!(
         json_value.to_value().borrow().actual_type,
         CoreValueType::Object

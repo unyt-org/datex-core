@@ -22,6 +22,9 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::path::Iter;
+use std::rc::Rc;
+use crate::global::protocol_structures::routing_header::PointerId;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -32,7 +35,7 @@ pub struct ExecutionOptions {
 pub struct ExecutionInput<'a> {
     pub options: ExecutionOptions,
     pub dxb_body: &'a [u8],
-    pub context: LocalExecutionContext,
+    pub context: Rc<RefCell<LocalExecutionContext>>,
 }
 
 impl<'a> ExecutionInput<'a> {
@@ -43,7 +46,7 @@ impl<'a> ExecutionInput<'a> {
         Self {
             options,
             dxb_body,
-            context: LocalExecutionContext::default(),
+            context: Rc::new(RefCell::new(LocalExecutionContext::default())),
         }
     }
 }
@@ -109,10 +112,51 @@ impl LocalExecutionContext {
     }
 }
 
-pub fn execute_dxb(
+pub fn execute_dxb_sync(
     input: ExecutionInput,
-) -> Result<(Option<ValueContainer>, LocalExecutionContext), ExecutionError> {
-    execute_loop(input)
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    let interrupt_provider = Rc::new(RefCell::new(None));
+    for output in execute_loop(input, interrupt_provider.clone()) {
+        match output? {
+            ExecutionStep::Return(result) => {
+                return Ok(result)
+            }
+            ExecutionStep::ResolvePointer(pointer_id) => {
+                *interrupt_provider.borrow_mut() = Some(InterruptProvider::ResolvePointer(
+                    ValueContainer::from(42)
+                ));
+            }
+            _ => return Err(ExecutionError::RequiresAsyncExecution),
+        }
+    }
+
+    Err(ExecutionError::RequiresAsyncExecution)
+}
+
+pub async fn get_pointer() {
+
+}
+
+pub async fn execute_dxb(
+    input: ExecutionInput<'_>,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    let yield_input = Rc::new(RefCell::new(None));
+    for output in execute_loop(input, yield_input.clone()) {
+        match output? {
+            ExecutionStep::Return(result) => {
+                return Ok(result)
+            }
+            ExecutionStep::ResolvePointer(pointer_id) => {
+                get_pointer().await;
+                *yield_input.borrow_mut() = Some(InterruptProvider::ResolvePointer(
+                    ValueContainer::from(42)
+                ));
+            }
+            _ => return Err(ExecutionError::RequiresAsyncExecution),
+        }
+    }
+
+    Err(ExecutionError::RequiresAsyncExecution)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,219 +246,283 @@ impl Display for ExecutionError {
     }
 }
 
-pub fn execute_loop(
-    input: ExecutionInput,
-) -> Result<(Option<ValueContainer>, LocalExecutionContext), ExecutionError> {
-    let dxb_body = input.dxb_body;
-    let mut context = input.context;
+#[derive(Debug)]
+pub enum ExecutionStep {
+    Test,
+    InternalReturn(Option<ValueContainer>),
+    Return(Option<ValueContainer>),
+    ResolvePointer(u64)
+}
 
-    let instruction_iterator = body::iterate_instructions(dxb_body);
+#[derive(Debug)]
+pub enum InterruptProvider {
+    ResolvePointer(ValueContainer),
+}
 
-    // gen {
-    //     yield 1;
-    // }
-    //
-    for instruction in instruction_iterator {
-        let instruction = instruction?;
-        if input.options.verbose {
-            println!("[Exec]: {instruction}");
-        }
-
-        // get initial value from instruction
-        let mut result_value =
-            get_result_value_from_instruction(&mut context, instruction)?;
-
-        // 1. if value is Some, handle it
-        // 2. while pop_next_scope is true: pop current scope and repeat
-        loop {
-            context.pop_next_scope = false;
-            if let Some(value) = result_value {
-                handle_value(&mut context, value)?;
-            }
-
-            if context.pop_next_scope {
-                result_value = context.scope_stack.pop()?;
-            } else {
-                break;
-            }
+#[macro_export]
+macro_rules! interrupt {
+    ($input:expr, $arg:expr) => {
+        {
+            yield Ok($arg);
+            $input.take().unwrap()
         }
     }
+}
 
-    // TODO: check for other unclosed stacks
-    // if we have an active key here, this is invalid and leads to an error
-    // if context.scope_stack.get_active_key().is_some() {
-    //     return Err(ExecutionError::InvalidProgram(
-    //         InvalidProgramError::UnterminatedSequence,
-    //     ));
-    // }
+#[macro_export]
+macro_rules! yield_unwrap {
+    ($e:expr) => {
+        {
+            let res = $e;
+            if let Ok(res) = res { res }
+            else {
+                return yield Err(res.unwrap_err().into());
+            }
+        }
+    };
+}
 
-    // removes the current active value from the scope stack
-    Ok(match context.scope_stack.pop_active_value() {
-        None => (None, context),
-        Some(val) => (Some(val), context),
-    })
+
+pub fn execute_loop(
+    input: ExecutionInput,
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+    gen move {
+        let dxb_body = input.dxb_body;
+        let context = input.context;
+
+        let instruction_iterator = body::iterate_instructions(dxb_body);
+
+        for instruction in instruction_iterator {
+            // TODO: use ? operator instead of yield_unwrap once supported in gen blocks
+            let instruction = yield_unwrap!(instruction);
+            if input.options.verbose {
+                println!("[Exec]: {instruction}");
+            }
+
+            // get initial value from instruction
+            let mut result_value = None;
+
+            for output in get_result_value_from_instruction(context.clone(), instruction, interrupt_provider.clone()) {
+                match yield_unwrap!(output) {
+                    ExecutionStep::InternalReturn(result) => {
+                        result_value = result;
+                    }
+                    step => {
+                        *interrupt_provider.borrow_mut() = Some(interrupt!(interrupt_provider, step));
+                    }
+                }
+            };
+
+            // 1. if value is Some, handle it
+            // 2. while pop_next_scope is true: pop current scope and repeat
+            loop {
+                let mut context_mut = context.borrow_mut();
+                context_mut.pop_next_scope = false;
+                if let Some(value) = result_value {
+                    let res = handle_value(&mut context_mut, value);
+                    drop(context_mut);
+                    yield_unwrap!(res);
+                }
+                else {
+                    drop(context_mut);
+                }
+
+                let mut context_mut = context.borrow_mut();
+
+                if context_mut.pop_next_scope {
+                    let res = context_mut.scope_stack.pop();
+                    drop(context_mut);
+                    result_value = yield_unwrap!(res);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // TODO: check for other unclosed stacks
+        // if we have an active key here, this is invalid and leads to an error
+        // if context.scope_stack.get_active_key().is_some() {
+        //     return Err(ExecutionError::InvalidProgram(
+        //         InvalidProgramError::UnterminatedSequence,
+        //     ));
+        // }
+
+        // removes the current active value from the scope stack
+        let res = match context.borrow_mut().scope_stack.pop_active_value() {
+            None => ExecutionStep::Return(None),
+            Some(val) => ExecutionStep::Return(Some(val)),
+        };
+        yield Ok(res);
+    }
 }
 
 #[inline]
 fn get_result_value_from_instruction(
-    context: &mut LocalExecutionContext,
+    context: Rc<RefCell<LocalExecutionContext>>,
     instruction: Instruction,
-) -> Result<Option<ValueContainer>, ExecutionError> {
-    Ok(match instruction {
-        // boolean
-        Instruction::True => Some(true.into()),
-        Instruction::False => Some(false.into()),
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+    gen move {
+        yield Ok(ExecutionStep::InternalReturn(match instruction {
+            // boolean
+            Instruction::True => Some(true.into()),
+            Instruction::False => Some(false.into()),
 
-        // integers
-        Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
-        Instruction::Int16(integer) => Some(Integer::from(integer.0).into()),
-        Instruction::Int32(integer) => Some(Integer::from(integer.0).into()),
-        Instruction::Int64(integer) => Some(Integer::from(integer.0).into()),
-        Instruction::Int128(integer) => Some(Integer::from(integer.0).into()),
+            // integers
+            Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int16(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int32(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int64(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int128(integer) => Some(Integer::from(integer.0).into()),
 
-        // unsigned integers
-        Instruction::UInt128(integer) => Some(Integer::from(integer.0).into()),
+            // unsigned integers
+            Instruction::UInt128(integer) => Some(Integer::from(integer.0).into()),
 
-        // specific floats
-        Instruction::DecimalF32(Float32Data(f32)) => {
-            Some(TypedDecimal::from(f32).into())
-        }
-        Instruction::DecimalF64(Float64Data(f64)) => {
-            Some(TypedDecimal::from(f64).into())
-        }
-
-        // default decimals (big decimals)
-        Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
-            Some(Decimal::from(i16 as f32).into())
-        }
-        Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
-            Some(Decimal::from(i32 as f32).into())
-        }
-        Instruction::Decimal(DecimalData(big_decimal)) => {
-            Some(big_decimal.into())
-        }
-
-        // endpoint
-        Instruction::Endpoint(endpoint) => Some(endpoint.into()),
-
-        // null
-        Instruction::Null => Some(Value::null().into()),
-
-        // text
-        Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
-        Instruction::Text(TextData(text)) => Some(text.into()),
-
-        // operations
-        Instruction::Add
-        | Instruction::Subtract
-        | Instruction::Multiply
-        | Instruction::Divide
-        | Instruction::Is
-        | Instruction::StructuralEqual
-        | Instruction::Equal
-        | Instruction::NotStructuralEqual
-        | Instruction::NotEqual => {
-            context.scope_stack.create_scope(Scope::BinaryOperation {
-                operator: BinaryOperator::from(instruction),
-            });
-            None
-        }
-
-        Instruction::CloseAndStore => {
-            let _ = context.scope_stack.pop_active_value();
-            None
-        }
-
-        Instruction::ScopeStart => {
-            context.scope_stack.create_scope(Scope::Default);
-            None
-        }
-
-        Instruction::ArrayStart => {
-            context.scope_stack.create_scope_with_active_value(
-                Scope::Collection,
-                Array::default().into(),
-            );
-            None
-        }
-
-        Instruction::ObjectStart => {
-            context.scope_stack.create_scope_with_active_value(
-                Scope::Collection,
-                Object::default().into(),
-            );
-            None
-        }
-
-        Instruction::TupleStart => {
-            context.scope_stack.create_scope_with_active_value(
-                Scope::Collection,
-                Tuple::default().into(),
-            );
-            None
-        }
-
-        Instruction::KeyValueShortText(ShortTextData(key)) => {
-            context.scope_stack.create_scope_with_active_value(
-                Scope::KeyValuePair,
-                key.into(),
-            );
-            None
-        }
-
-        Instruction::KeyValueDynamic => {
-            context.scope_stack.create_scope(Scope::KeyValuePair);
-            None
-        }
-
-        Instruction::ScopeEnd => {
-            // pop scope and return value
-            context.scope_stack.pop()?
-        }
-
-        // slots
-        Instruction::AllocateSlot(SlotAddress(address)) => {
-            context.allocate_slot(address, None);
-            context
-                .scope_stack
-                .create_scope(Scope::SlotAssignment { address });
-            None
-        }
-        Instruction::GetSlot(SlotAddress(address)) => {
-            // get value from slot
-            let slot_value = context.get_slot_value(address)?;
-            if slot_value.is_none() {
-                return Err(ExecutionError::SlotNotInitialized(address));
+            // specific floats
+            Instruction::DecimalF32(Float32Data(f32)) => {
+                Some(TypedDecimal::from(f32).into())
             }
-            slot_value
-        }
-        Instruction::UpdateSlot(SlotAddress(address)) => {
-            context
-                .scope_stack
-                .create_scope(Scope::SlotAssignment { address });
-            None
-        }
+            Instruction::DecimalF64(Float64Data(f64)) => {
+                Some(TypedDecimal::from(f64).into())
+            }
 
-        // refs
-        Instruction::CreateRef => {
-            context.scope_stack.create_scope(Scope::UnaryOperation {
-                operator: UnaryOperator::CreateRef,
-            });
-            None
-        }
+            // default decimals (big decimals)
+            Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
+                Some(Decimal::from(i16 as f32).into())
+            }
+            Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
+                Some(Decimal::from(i32 as f32).into())
+            }
+            Instruction::Decimal(DecimalData(big_decimal)) => {
+                Some(big_decimal.into())
+            }
 
-        Instruction::DropSlot(SlotAddress(address)) => {
-            // remove slot from slots
-            context.drop_slot(address)?;
-            None
-        }
+            // endpoint
+            Instruction::Endpoint(endpoint) => Some(endpoint.into()),
 
-        i => {
-            return Err(ExecutionError::NotImplemented(
-                format!("Instruction {i}").to_string(),
-            ));
-        }
-    })
+            // null
+            Instruction::Null => Some(Value::null().into()),
+
+            // text
+            Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
+            Instruction::Text(TextData(text)) => Some(text.into()),
+
+            // operations
+            Instruction::Add
+            | Instruction::Subtract
+            | Instruction::Multiply
+            | Instruction::Divide
+            | Instruction::Is
+            | Instruction::StructuralEqual
+            | Instruction::Equal
+            | Instruction::NotStructuralEqual
+            | Instruction::NotEqual => {
+                context.borrow_mut().scope_stack.create_scope(Scope::BinaryOperation {
+                    operator: BinaryOperator::from(instruction),
+                });
+                None
+            }
+
+            Instruction::CloseAndStore => {
+                let _ = context.borrow_mut().scope_stack.pop_active_value();
+                None
+            }
+
+            Instruction::ScopeStart => {
+                context.borrow_mut().scope_stack.create_scope(Scope::Default);
+                None
+            }
+
+            Instruction::ArrayStart => {
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::Collection,
+                    Array::default().into(),
+                );
+                None
+            }
+
+            Instruction::ObjectStart => {
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::Collection,
+                    Object::default().into(),
+                );
+                None
+            }
+
+            Instruction::TupleStart => {
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::Collection,
+                    Tuple::default().into(),
+                );
+                None
+            }
+
+            Instruction::KeyValueShortText(ShortTextData(key)) => {
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::KeyValuePair,
+                    key.into(),
+                );
+                None
+            }
+
+            Instruction::KeyValueDynamic => {
+                context.borrow_mut().scope_stack.create_scope(Scope::KeyValuePair);
+                None
+            }
+
+            Instruction::ScopeEnd => {
+                // pop scope and return value
+                yield_unwrap!(context.borrow_mut().scope_stack.pop())
+            }
+
+            // slots
+            Instruction::AllocateSlot(SlotAddress(address)) => {
+                let mut context = context.borrow_mut();
+                context.allocate_slot(address, None);
+                context
+                    .scope_stack
+                    .create_scope(Scope::SlotAssignment { address });
+                None
+            }
+            Instruction::GetSlot(SlotAddress(address)) => {
+                let res = context.borrow_mut().get_slot_value(address);
+                // get value from slot
+                let slot_value = yield_unwrap!(res);
+                if slot_value.is_none() {
+                    return yield Err(ExecutionError::SlotNotInitialized(address));
+                }
+                slot_value
+            }
+            Instruction::UpdateSlot(SlotAddress(address)) => {
+                context.borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::SlotAssignment { address });
+                None
+            }
+
+            // refs
+            Instruction::CreateRef => {
+                context.borrow_mut().scope_stack.create_scope(Scope::UnaryOperation {
+                    operator: UnaryOperator::CreateRef,
+                });
+                None
+            }
+
+            Instruction::DropSlot(SlotAddress(address)) => {
+                // remove slot from slots
+                let res = context.borrow_mut().drop_slot(address);
+                yield_unwrap!(res);
+                None
+            }
+
+            i => {
+                return yield Err(ExecutionError::NotImplemented(
+                    format!("Instruction {i}").to_string(),
+                ));
+            }
+        }))
+    }
 }
 
 /// Takes a produced value and handles it according to the current scope
@@ -663,11 +771,10 @@ mod tests {
             &dxb,
             ExecutionOptions { verbose: true },
         );
-        execute_dxb(context)
+        execute_dxb_sync(context)
             .unwrap_or_else(|err| {
                 panic!("Execution failed: {err}");
             })
-            .0
     }
 
     fn execute_datex_script_debug_with_result(
@@ -683,7 +790,7 @@ mod tests {
             dxb_body,
             ExecutionOptions { verbose: true },
         );
-        execute_dxb(context).map(|(result, _)| result)
+        execute_dxb_sync(context)
     }
 
     #[test]

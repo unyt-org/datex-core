@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::Scope;
 use crate::compiler::{compile_template, CompileOptions};
@@ -5,7 +7,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
 use crate::runtime::execution::{
-    execute_dxb, ExecutionError, ExecutionInput, ExecutionOptions,
+    execute_dxb_sync, ExecutionError, ExecutionInput, ExecutionOptions,
     LocalExecutionContext,
 };
 
@@ -34,7 +36,7 @@ impl From<ExecutionError> for ScriptExecutionError {
 pub enum ExecutionContext {
     Local {
         compile_scope: Scope,
-        local_execution_context: LocalExecutionContext,
+        local_execution_context: Rc<RefCell<LocalExecutionContext>>,
         execution_options: ExecutionOptions,
         verbose: bool,
     },
@@ -50,7 +52,7 @@ impl ExecutionContext {
     pub fn local() -> Self {
         ExecutionContext::Local {
             compile_scope: Scope::default(),
-            local_execution_context: LocalExecutionContext::default(),
+            local_execution_context: Rc::new(RefCell::new(LocalExecutionContext::default())),
             execution_options: ExecutionOptions::default(),
             verbose: false,
         }
@@ -61,7 +63,7 @@ impl ExecutionContext {
     pub fn local_debug() -> Self {
         ExecutionContext::Local {
             compile_scope: Scope::default(),
-            local_execution_context: LocalExecutionContext::default(),
+            local_execution_context: Rc::new(RefCell::new(LocalExecutionContext::default())),
             execution_options: ExecutionOptions {
                 verbose: true,
                 ..ExecutionOptions::default()
@@ -155,21 +157,14 @@ impl ExecutionContext {
             }
         }
 
-        local_execution_context.reset_index();
+        local_execution_context.borrow_mut().reset_index();
         let execution_input = ExecutionInput {
             // FIXME: no clone here
             context: local_execution_context.clone(),
             options: execution_options.clone(),
             dxb_body: dxb,
         };
-        let res = execute_dxb(execution_input);
-        match res {
-            Ok((result, new_context)) => {
-                *local_execution_context = new_context;
-                Ok(result)
-            }
-            Err(err) => Err(err),
-        }
+        execute_dxb_sync(execution_input)
     }
 
     /// Executes a script in a local execution context.
