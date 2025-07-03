@@ -1,6 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::value_container::ValueContainer;
 use indexmap::map::{IntoIter, Iter};
 use indexmap::IndexMap;
 use std::collections::HashMap;

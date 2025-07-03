@@ -11,10 +11,10 @@ use crate::compiler::ast_parser::{
 use crate::compiler::context::Context;
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::scope::Scope;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 pub mod ast_parser;
 pub mod context;
@@ -23,6 +23,35 @@ mod lexer;
 pub mod metadata;
 pub mod scope;
 
+#[derive(Clone, Default)]
+pub struct CompileOptions<'a> {
+    pub parser: Option<&'a DatexScriptParser<'a>>,
+    pub compile_scope: Scope,
+}
+
+impl CompileOptions<'_> {
+    pub fn new_with_scope(compile_scope: Scope) -> Self {
+        CompileOptions {
+            parser: None,
+            compile_scope,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StaticValueOrDXB {
+    StaticValue(Option<ValueContainer>),
+    Dxb(Vec<u8>),
+}
+
+impl From<Vec<u8>> for StaticValueOrDXB {
+    fn from(dxb: Vec<u8>) -> Self {
+        StaticValueOrDXB::Dxb(dxb)
+    }
+}
+
+/// Compiles a DATEX script text into a single DXB block including routing and block headers.
+/// This function is used to create a block that can be sent over the network.
 pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
     let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
@@ -56,21 +85,6 @@ pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
     Ok(bytes)
 }
 
-#[derive(Clone, Default)]
-pub struct CompileOptions<'a> {
-    pub parser: Option<&'a DatexScriptParser<'a>>,
-    pub compile_scope: Scope,
-}
-
-impl CompileOptions<'_> {
-    pub fn new_with_scope(compile_scope: Scope) -> Self {
-        CompileOptions {
-            parser: None,
-            compile_scope,
-        }
-    }
-}
-
 /// Compiles a DATEX script text into a DXB body
 pub fn compile_script<'a>(
     datex_script: &'a str,
@@ -87,15 +101,6 @@ pub fn extract_static_value_from_script(
 ) -> Result<Option<ValueContainer>, CompilerError> {
     let res = parse(datex_script)?;
     extract_static_value_from_ast(res).map(Some)
-}
-
-fn extract_static_value_from_ast(
-    ast: DatexExpression,
-) -> Result<ValueContainer, CompilerError> {
-    if let DatexExpression::Placeholder = ast {
-        return Err(CompilerError::NonStaticValue);
-    }
-    ValueContainer::try_from(ast).map_err(|_| CompilerError::NonStaticValue)
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -131,19 +136,7 @@ pub fn compile_script_or_return_static_value<'a>(
         options,
     )
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StaticValueOrDXB {
-    StaticValue(Option<ValueContainer>),
-    Dxb(Vec<u8>),
-}
-
-impl From<Vec<u8>> for StaticValueOrDXB {
-    fn from(dxb: Vec<u8>) -> Self {
-        StaticValueOrDXB::Dxb(dxb)
-    }
-}
-
+/// Compiles a DATEX script template text with inserted values into a DXB body
 pub fn compile_template_or_return_static_value_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
@@ -220,6 +213,18 @@ pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
     Ok(compilation_scope.buffer.take())
 }
 
+/// Tries to extract a static value from a DATEX expression AST.
+/// If the expression is not a static value (e.g., contains a placeholder or dynamic operation),
+/// it returns an error.
+fn extract_static_value_from_ast(
+    ast: DatexExpression,
+) -> Result<ValueContainer, CompilerError> {
+    if let DatexExpression::Placeholder = ast {
+        return Err(CompilerError::NonStaticValue);
+    }
+    ValueContainer::try_from(ast).map_err(|_| CompilerError::NonStaticValue)
+}
+
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
 /// behaves like the format! macro.
 /// Example:
@@ -232,7 +237,7 @@ macro_rules! compile {
     ($fmt:literal $(, $arg:expr )* $(,)?) => {
         {
             let script: &str = $fmt.into();
-            let values: &[$crate::datex_values::value_container::ValueContainer] = &[$($arg.into()),*];
+            let values: &[$crate::values::value_container::ValueContainer] = &[$($arg.into()),*];
 
             $crate::compiler::compile_template(&script, values, $crate::compiler::CompileOptions::default())
         }
@@ -541,7 +546,7 @@ pub mod tests {
     use log::*;
 
     use crate::compiler::ast_parser::parse;
-    use crate::datex_values::core_values::integer::integer::Integer;
+    use crate::values::core_values::integer::integer::Integer;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger();

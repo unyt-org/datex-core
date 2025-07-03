@@ -3,8 +3,8 @@ use datex_core::compiler::{
     compile_script, compile_script_or_return_static_value, compile_value,
     extract_static_value_from_script, CompileOptions, StaticValueOrDXB,
 };
-use datex_core::datex_values::datex_type::CoreValueType;
-use datex_core::datex_values::value_container::ValueContainer;
+use datex_core::values::datex_type::CoreValueType;
+use datex_core::values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
 use datex_core::runtime::execution::{
     execute_dxb, ExecutionInput, ExecutionOptions,

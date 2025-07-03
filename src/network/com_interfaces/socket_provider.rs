@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 
 use super::{
     com_interface::ComInterfaceSockets,

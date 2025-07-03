@@ -1,9 +1,9 @@
-use crate::datex_values::traits::identity::Identity;
-use crate::datex_values::traits::structural_eq::StructuralEq;
+use crate::values::traits::identity::Identity;
+use crate::values::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;
 
 use super::{reference::Reference, value::Value};
-use crate::datex_values::traits::value_eq::ValueEq;
+use crate::values::traits::value_eq::ValueEq;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};

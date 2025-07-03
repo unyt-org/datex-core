@@ -7,8 +7,8 @@ use std::io::Cursor;
 use crate::compiler::{
     compile_template_with_refs, CompileOptions,
 };
-use crate::datex_values::core_values::decimal::utils::decimal_to_string;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_values::decimal::utils::decimal_to_string;
+use crate::values::value_container::ValueContainer;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
     Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData,

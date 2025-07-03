@@ -1,5 +1,5 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::{
+use crate::values::{
     core_value::CoreValue,
     traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
@@ -97,7 +97,7 @@ impl<'a> IntoIterator for &'a Array {
 macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
-            let arr = vec![$( $crate::datex_values::value_container::ValueContainer::from($x) ),*];
+            let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
             Array(arr)
         }
     };

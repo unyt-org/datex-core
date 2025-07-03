@@ -1,6 +1,6 @@
 use super::rational::Rational;
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::traits::structural_eq::StructuralEq;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::traits::structural_eq::StructuralEq;
 use bigdecimal::BigDecimal;
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::BigInt;

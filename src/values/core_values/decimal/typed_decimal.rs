@@ -1,5 +1,5 @@
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::{
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::{
     core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
 };
 use num::Signed;
@@ -306,7 +306,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use super::*;
-    use crate::datex_values::core_values::decimal::decimal::Decimal;
+    use crate::values::core_values::decimal::decimal::Decimal;
     use ordered_float::OrderedFloat;
 
     #[test]

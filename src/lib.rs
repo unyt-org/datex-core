@@ -10,7 +10,7 @@ extern crate num_integer;
 
 pub mod compiler;
 pub mod crypto;
-pub mod datex_values;
+pub mod values;
 pub mod decompiler;
 pub mod generator;
 pub mod global;

@@ -1,8 +1,8 @@
 use crate::crypto::random;
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_value_trait::CoreValueTrait;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::value_container::{ValueContainer, ValueError};
+use crate::values::core_value::CoreValue;
+use crate::values::core_value_trait::CoreValueTrait;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::value_container::{ValueContainer, ValueError};
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;

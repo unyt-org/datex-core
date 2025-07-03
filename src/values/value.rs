@@ -1,11 +1,11 @@
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::value_container::ValueError;
+use super::datex_type::CoreValueType;
+use crate::values::core_value::CoreValue;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::traits::value_eq::ValueEq;
+use crate::values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Deref, Not, Sub};
-use crate::datex_values::traits::value_eq::ValueEq;
-use super::datex_type::CoreValueType;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -72,8 +72,8 @@ impl Value {
     ////
     /// # Example
     /// ```
-    /// # use datex_core::datex_values::datex_type::CoreValueType;
-    /// # use datex_core::datex_values::value::Value;
+    /// # use datex_core::values::datex_type::CoreValueType;
+    /// # use datex_core::values::value::Value;
     /// let value = Value::from(42);
     /// let casted_value = value.try_cast_to(CoreValueType::Text);
     /// assert!(casted_value.is_some());
@@ -97,8 +97,8 @@ impl Value {
     /// * If the cast fails, it panics with an error message.
     /// # Example
     /// ```
-    /// # use datex_core::datex_values::datex_type::CoreValueType;
-    /// # use datex_core::datex_values::value::Value;
+    /// # use datex_core::values::datex_type::CoreValueType;
+    /// # use datex_core::values::value::Value;
     /// let value = Value::from(42);
     /// let casted_value = value.cast_to(CoreValueType::Text);
     /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
@@ -119,8 +119,8 @@ impl Value {
     /// * `Value` - The casted value, or a Value::null() if the cast fails.
     /// # Example
     /// ```
-    /// # use datex_core::datex_values::datex_type::CoreValueType;
-    /// # use datex_core::datex_values::value::Value;
+    /// # use datex_core::values::datex_type::CoreValueType;
+    /// # use datex_core::values::value::Value;
     /// let value = Value::from(42);
     /// let casted_value = value.cast_or_null(CoreValueType::Text);
     /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
@@ -217,12 +217,12 @@ mod tests {
     use super::*;
     use crate::{
         assert_structural_eq, datex_array,
-        datex_values::core_values::{
+        logger::init_logger,
+        values::core_values::{
             array::Array,
             endpoint::Endpoint,
             integer::{integer::Integer, typed_integer::TypedInteger},
         },
-        logger::init_logger,
     };
     use log::{debug, info};
     use std::str::FromStr;
@@ -420,6 +420,9 @@ mod tests {
             Value::from(Integer(TypedInteger::U32(42))),
         );
 
-        assert_structural_eq!(Value::from(42_i8), Value::from(Integer::from(42_i8)));
+        assert_structural_eq!(
+            Value::from(42_i8),
+            Value::from(Integer::from(42_i8))
+        );
     }
 }

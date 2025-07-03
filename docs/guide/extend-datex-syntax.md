@@ -1,4 +1,6 @@
 # Extend the DATEX syntax
+> *Attention: This guide is outdated due to heavy refactoring on the module structure and will be updated soon!*
+
 > This guide explains how to extend the DATEX syntax by giving a step-by-step approach to adding new syntax elements (such as keywords, operators or expressions) and their corresponding functionality.
 
 ## Define the Token

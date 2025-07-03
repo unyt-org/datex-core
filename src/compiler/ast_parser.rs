@@ -1,11 +1,11 @@
 use crate::compiler::lexer::Token;
 use crate::compiler::ast_parser::extra::Err;
-use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_values::array::Array;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::object::Object;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
 use logos::Logos;

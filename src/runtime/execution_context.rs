@@ -1,8 +1,8 @@
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::Scope;
 use crate::compiler::{compile_template, CompileOptions};
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
 use crate::runtime::execution::{
     execute_dxb, ExecutionError, ExecutionInput, ExecutionOptions,

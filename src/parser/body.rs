@@ -1,4 +1,4 @@
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{

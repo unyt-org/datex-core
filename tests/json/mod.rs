@@ -1,10 +1,10 @@
 use datex_core::compiler::{compile_script, CompileOptions};
-use datex_core::datex_values::core_value::CoreValue;
-use datex_core::datex_values::core_values::decimal::decimal::Decimal;
-use datex_core::datex_values::core_values::integer::integer::Integer;
-use datex_core::datex_values::core_values::object::Object;
-use datex_core::datex_values::value::Value;
-use datex_core::datex_values::value_container::ValueContainer;
+use datex_core::values::core_value::CoreValue;
+use datex_core::values::core_values::decimal::decimal::Decimal;
+use datex_core::values::core_values::integer::integer::Integer;
+use datex_core::values::core_values::object::Object;
+use datex_core::values::value::Value;
+use datex_core::values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
 use datex_core::runtime::execution::{
     execute_dxb, ExecutionInput, ExecutionOptions,

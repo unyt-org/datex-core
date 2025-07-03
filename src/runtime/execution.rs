@@ -1,18 +1,18 @@
 use super::stack::{Scope, ScopeStack};
 use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::core_values::tuple::Tuple;
-use crate::datex_values::reference::Reference;
-use crate::datex_values::traits::identity::Identity;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::traits::value_eq::ValueEq;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::{ValueContainer, ValueError};
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::array::Array;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::object::Object;
+use crate::values::core_values::tuple::Tuple;
+use crate::values::reference::Reference;
+use crate::values::traits::identity::Identity;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::traits::value_eq::ValueEq;
+use crate::values::value::Value;
+use crate::values::value_container::{ValueContainer, ValueError};
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
     Instruction, ShortTextData, SlotAddress, TextData,
@@ -631,7 +631,7 @@ mod tests {
 
     use super::*;
     use crate::compiler::{compile_script, CompileOptions};
-    use crate::datex_values::traits::structural_eq::StructuralEq;
+    use crate::values::traits::structural_eq::StructuralEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
     use crate::{assert_structural_eq, assert_value_eq, datex_array};

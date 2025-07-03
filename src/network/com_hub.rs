@@ -28,7 +28,7 @@ use super::com_interfaces::com_interface::{
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
-use crate::datex_values::core_values::endpoint::{Endpoint, EndpointInstance};
+use crate::values::core_values::endpoint::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};

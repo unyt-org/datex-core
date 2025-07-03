@@ -1,12 +1,12 @@
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::core_values::integer::utils::smallest_fitting_signed;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::integer::utils::smallest_fitting_signed;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i128, append_i16, append_i32, append_i64,

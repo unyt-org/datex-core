@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    datex_values::core_values::endpoint::Endpoint,
+    values::core_values::endpoint::Endpoint,
     delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::datex_values::reference::Reference;
+use crate::values::reference::Reference;
 // FIXME no-std
 
 pub struct Memory {

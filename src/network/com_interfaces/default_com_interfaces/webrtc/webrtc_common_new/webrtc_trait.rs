@@ -9,7 +9,7 @@ use futures::channel::oneshot;
 use log::{error, info};
 
 use crate::{
-    datex_values::core_values::endpoint::Endpoint,
+    values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::{
             ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,

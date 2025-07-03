@@ -2,12 +2,12 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "native_crypto")]
 use crate::crypto::crypto_native::CryptoNative;
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::ComHub;
 use crate::runtime::execution_context::ExecutionContext;
 

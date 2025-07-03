@@ -1,4 +1,4 @@
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
 
 pub fn smallest_fitting_unsigned(val: u128) -> TypedInteger {
     if val <= u8::MAX as u128 {

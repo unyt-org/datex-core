@@ -1,11 +1,11 @@
 use crate::compile;
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::boolean::Boolean;
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::object::Object;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{

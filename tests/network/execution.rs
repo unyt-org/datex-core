@@ -1,4 +1,4 @@
-use datex_core::datex_values::value_container::ValueContainer;
+use datex_core::values::value_container::ValueContainer;
 use datex_core::run_async;
 use datex_core::runtime::execution_context::ExecutionContext;
 use datex_core::runtime::Runtime;

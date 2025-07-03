@@ -1,6 +1,6 @@
 use std::{fmt::Display, ops::Not};
 
-use crate::datex_values::{
+use crate::values::{
     traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };

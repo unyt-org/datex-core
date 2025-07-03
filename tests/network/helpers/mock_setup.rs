@@ -1,4 +1,4 @@
-use datex_core::datex_values::core_values::endpoint::Endpoint;
+use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
 use datex_core::stdlib::cell::RefCell;
