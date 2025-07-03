@@ -234,7 +234,7 @@ fn extract_static_value_from_ast(
 /// compile!("? + ?", 1, 2);
 #[macro_export]
 macro_rules! compile {
-    ($fmt:literal $(, $arg:expr )* $(,)?) => {
+    ($fmt:literal $(, $arg:expr_2021 )* $(,)?) => {
         {
             let script: &str = $fmt.into();
             let values: &[$crate::values::value_container::ValueContainer] = &[$($arg.into()),*];

@@ -5,7 +5,7 @@ pub trait ValueEq {
 
 #[macro_export]
 macro_rules! assert_value_eq {
-    ($left_val:expr, $right_val:expr $(,)?) => {
+    ($left_val:expr_2021, $right_val:expr_2021 $(,)?) => {
         if !$left_val.value_eq(&$right_val) {
             panic!(
                 "value equality assertion failed: `(left === right)`\n  left: `{:?}`,\n right: `{:?}`",

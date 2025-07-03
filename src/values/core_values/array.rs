@@ -95,7 +95,7 @@ impl<'a> IntoIterator for &'a Array {
 
 #[macro_export]
 macro_rules! datex_array {
-    ( $( $x:expr ),* ) => {
+    ( $( $x:expr_2021 ),* ) => {
         {
             let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
             Array(arr)

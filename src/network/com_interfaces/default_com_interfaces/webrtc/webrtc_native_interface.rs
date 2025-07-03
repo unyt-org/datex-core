@@ -409,17 +409,16 @@ impl ComInterface for WebRTCNativeInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        if let Some(channel) =
-            self.data_channels.borrow().get_data_channel("DATEX")
-        {
+        match self.data_channels.borrow().get_data_channel("DATEX")
+        { Some(channel) => {
             Box::pin(async move {
                 let bytes = Bytes::from(block.to_vec());
                 channel.borrow().data_channel.send(&bytes).await.is_ok()
             })
-        } else {
+        } _ => {
             error!("Failed to send message, data channel not found");
             Box::pin(async move { false })
-        }
+        }}
     }
 
     fn init_properties(&self) -> InterfaceProperties {

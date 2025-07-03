@@ -125,15 +125,15 @@ impl BaseInterface {
         receiver_socket_uuid: ComInterfaceSocketUUID,
         data: Vec<u8>,
     ) -> Result<(), BaseInterfaceError> {
-        if let Some(socket) = self.get_socket_with_uuid(receiver_socket_uuid) {
+        match self.get_socket_with_uuid(receiver_socket_uuid) { Some(socket) => {
             let socket = socket.lock().unwrap();
             let receive_queue = socket.get_receive_queue();
             receive_queue.lock().unwrap().extend(data);
             Ok(())
-        } else {
+        } _ => {
             error!("Socket not found");
             Err(BaseInterfaceError::SocketNotFound)
-        }
+        }}
     }
 }
 
