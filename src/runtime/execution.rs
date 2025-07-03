@@ -22,9 +22,7 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::path::Iter;
 use std::rc::Rc;
-use crate::global::protocol_structures::routing_header::PointerId;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -133,30 +131,28 @@ pub fn execute_dxb_sync(
     Err(ExecutionError::RequiresAsyncExecution)
 }
 
-pub async fn get_pointer() {
-
-}
+pub async fn get_pointer_test() {}
 
 pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
-    let yield_input = Rc::new(RefCell::new(None));
-    for output in execute_loop(input, yield_input.clone()) {
+    let interrupt_provider = Rc::new(RefCell::new(None));
+    for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => {
                 return Ok(result)
             }
             ExecutionStep::ResolvePointer(pointer_id) => {
-                get_pointer().await;
-                *yield_input.borrow_mut() = Some(InterruptProvider::ResolvePointer(
+                get_pointer_test().await;
+                *interrupt_provider.borrow_mut() = Some(InterruptProvider::ResolvePointer(
                     ValueContainer::from(42)
                 ));
             }
-            _ => return Err(ExecutionError::RequiresAsyncExecution),
+            _ => todo!(),
         }
     }
-
-    Err(ExecutionError::RequiresAsyncExecution)
+    
+    unreachable!("Execution loop should always return a result");
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
