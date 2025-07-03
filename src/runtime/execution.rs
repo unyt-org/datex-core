@@ -1,5 +1,11 @@
 use super::stack::{Scope, ScopeStack};
 use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
+use crate::global::protocol_structures::instructions::{
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, ShortTextData, SlotAddress, TextData,
+};
+use crate::parser::body;
+use crate::parser::body::DXBParserError;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -13,12 +19,6 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
-use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, ShortTextData, SlotAddress, TextData,
-};
-use crate::parser::body;
-use crate::parser::body::DXBParserError;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -631,9 +631,9 @@ mod tests {
 
     use super::*;
     use crate::compiler::{compile_script, CompileOptions};
-    use crate::values::traits::structural_eq::StructuralEq;
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
+    use crate::values::traits::structural_eq::StructuralEq;
     use crate::{assert_structural_eq, assert_value_eq, datex_array};
 
     fn execute_datex_script_debug(
@@ -916,5 +916,43 @@ mod tests {
         let result = execute_datex_script_debug_with_result("ref x = 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
+    }
+
+    #[test]
+    fn test_shebang() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("#!datex\n42");
+        assert_eq!(result, Integer::from(42).into());
+    }
+
+    #[test]
+    fn test_single_line_comment() {
+        init_logger();
+        let result =
+            execute_datex_script_debug_with_result("// this is a comment\n42");
+        assert_eq!(result, Integer::from(42).into());
+
+        let result = execute_datex_script_debug_with_result(
+            "// this is a comment\n// another comment\n42",
+        );
+        assert_eq!(result, Integer::from(42).into());
+    }
+
+    #[test]
+    fn test_multi_line_comment() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result(
+            "/* this is a comment */\n42",
+        );
+        assert_eq!(result, Integer::from(42).into());
+
+        let result = execute_datex_script_debug_with_result(
+            "/* this is a comment\n   with multiple lines */\n42",
+        );
+        assert_eq!(result, Integer::from(42).into());
+
+        let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
+        let expected = datex_array![Integer::from(1), Integer::from(3)];
+        assert_eq!(result, expected.into());
     }
 }
