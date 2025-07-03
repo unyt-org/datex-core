@@ -54,8 +54,7 @@ impl Display for ScopeStack {
         for scope in self.stack.iter() {
             writeln!(
                 f,
-                "{:?}",
-                scope
+                "{scope:?}"
             )?;
         }
         write!(f, "]")

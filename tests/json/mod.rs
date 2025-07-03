@@ -1,4 +1,4 @@
-use datex_core::compiler::bytecode::{compile_script, CompileOptions};
+use datex_core::compiler::{compile_script, CompileOptions};
 use datex_core::datex_values::core_value::CoreValue;
 use datex_core::datex_values::core_values::decimal::decimal::Decimal;
 use datex_core::datex_values::core_values::integer::integer::Integer;
@@ -6,7 +6,9 @@ use datex_core::datex_values::core_values::object::Object;
 use datex_core::datex_values::value::Value;
 use datex_core::datex_values::value_container::ValueContainer;
 use datex_core::decompiler::{decompile_body, DecompileOptions};
-use datex_core::runtime::execution::{execute_dxb, ExecutionInput, ExecutionOptions};
+use datex_core::runtime::execution::{
+    execute_dxb, ExecutionInput, ExecutionOptions,
+};
 use itertools::Itertools;
 use json_syntax::Parse;
 use std::path::PathBuf;
@@ -58,7 +60,8 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
 fn compare_datex_result_with_json(json_string: &str) {
     println!(" JSON String: {json_string}");
     let json_value = json_syntax::Value::parse_str(json_string).unwrap().0;
-    let (dxb, _) = compile_script(json_string, CompileOptions::default()).unwrap();
+    let (dxb, _) =
+        compile_script(json_string, CompileOptions::default()).unwrap();
     let exec_input = ExecutionInput::new_with_dxb_and_options(
         &dxb,
         ExecutionOptions {
@@ -66,10 +69,7 @@ fn compare_datex_result_with_json(json_string: &str) {
             ..ExecutionOptions::default()
         },
     );
-    let datex_value = execute_dxb(exec_input)
-        .unwrap()
-        .0
-        .unwrap();
+    let datex_value = execute_dxb(exec_input).unwrap().0.unwrap();
     let json_value_converted = json_value_to_datex_value(&json_value);
 
     println!(" JSON Value: {json_value}");
@@ -80,7 +80,8 @@ fn compare_datex_result_with_json(json_string: &str) {
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
-    let (dxb, _) = compile_script(json_string, CompileOptions::default()).unwrap();
+    let (dxb, _) =
+        compile_script(json_string, CompileOptions::default()).unwrap();
     let decompiled = decompile_body(
         &dxb,
         DecompileOptions {

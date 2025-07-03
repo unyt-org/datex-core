@@ -1,4 +1,3 @@
-use rsa::signature::digest::typenum::op;
 use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
 use std::fmt::Write;
@@ -6,7 +5,7 @@ use std::io::Cursor;
 // FIXME no-std
 
 use crate::compiler::{
-    compile_template, compile_template_with_refs, CompileOptions,
+    compile_template_with_refs, CompileOptions,
 };
 use crate::datex_values::core_values::decimal::utils::decimal_to_string;
 use crate::datex_values::value_container::ValueContainer;

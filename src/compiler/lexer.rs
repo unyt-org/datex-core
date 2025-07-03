@@ -1,6 +1,6 @@
 use std::{fmt, ops::Range};
 
-use logos::{Lexer, Logos, Skip};
+use logos::{Lexer, Logos};
 
 pub type SourceId = usize;
 

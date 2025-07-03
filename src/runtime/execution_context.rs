@@ -139,18 +139,18 @@ impl ExecutionContext {
             println!(
                 "\x1b[32m[Compiled Bytecode] {}",
                 dxb.iter()
-                    .map(|b| format!("{:02x}", b))
+                    .map(|b| format!("{b:02x}"))
                     .collect::<Vec<_>>()
                     .join(", ")
             );
 
             let decompiled =
-                decompile_body(&dxb, DecompileOptions::colorized());
+                decompile_body(dxb, DecompileOptions::colorized());
             if let Err(e) = decompiled {
                 println!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
             } else {
                 let decompiled = decompiled.unwrap();
-                println!("[Decompiled]: {}", decompiled);
+                println!("[Decompiled]: {decompiled}");
             }
         }
 

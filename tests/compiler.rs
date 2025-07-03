@@ -1,11 +1,12 @@
-use datex_core::compiler::bytecode::{compile_script, CompileOptions};
+use datex_core::compiler::{compile_script, CompileOptions};
 use datex_core::decompiler::decompile_body;
 use datex_core::decompiler::DecompileOptions;
 use datex_core::logger::init_logger;
 use log::info;
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
-    let (dxb_body, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
+    let (dxb_body, _) =
+        compile_script(datex_script, CompileOptions::default()).unwrap();
 
     let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
@@ -18,7 +19,8 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 }
 
 fn compare_compiled(datex_script: &str, expected: &str) {
-    let (dxb_body, _) = compile_script(datex_script, CompileOptions::default()).unwrap();
+    let (dxb_body, _) =
+        compile_script(datex_script, CompileOptions::default()).unwrap();
 
     let decompiled_color = decompile_body(
         &dxb_body,

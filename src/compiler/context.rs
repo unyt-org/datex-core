@@ -1,7 +1,3 @@
-use crate::compiler::ast_parser::{
-    parse, DatexExpression, DatexScriptParser, TupleEntry, VariableType,
-};
-use crate::compiler::CompilerError;
 use crate::datex_values::core_value::CoreValue;
 use crate::datex_values::core_values::decimal::decimal::Decimal;
 use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -18,7 +14,6 @@ use crate::utils::buffers::{
 };
 use binrw::BinWrite;
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
 use std::io::Cursor;
 
 pub struct Context<'a> {

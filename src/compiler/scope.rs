@@ -1,25 +1,5 @@
-use crate::compiler::ast_parser::{
-    parse, DatexExpression, DatexScriptParser, TupleEntry, VariableType,
-};
-use crate::compiler::CompilerError;
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::core_values::integer::utils::smallest_fitting_signed;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
-use crate::global::binary_codes::InstructionCode;
-use crate::utils::buffers::{
-    append_f32, append_f64, append_i128, append_i16, append_i32, append_i64,
-    append_i8, append_u128, append_u32, append_u8,
-};
-use binrw::BinWrite;
-use std::cell::{Cell, RefCell};
+use crate::compiler::ast_parser::VariableType;
 use std::collections::HashMap;
-use std::io::Cursor;
 
 #[derive(Debug, Clone, Default)]
 pub struct Scope {
