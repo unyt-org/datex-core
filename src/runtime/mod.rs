@@ -85,6 +85,19 @@ impl Runtime {
     ) -> Result<Option<ValueContainer>, ExecutionContext> {
        todo!()
     }
+
+    pub async fn execute_sync(
+        &self,
+        script: &str,
+        inserted_values: &[ValueContainer],
+        execution_context: ExecutionContext,
+    ) -> Result<Option<ValueContainer>, ExecutionContext> {
+        // assert that it is a local execution context
+        // if !execution_context.is_local() {
+        //     return Err(execution_context);
+        // }
+        todo!()
+    }
 }
 
 impl Default for Runtime {

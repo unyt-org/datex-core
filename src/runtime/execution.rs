@@ -148,6 +148,7 @@ pub enum ExecutionError {
     NotImplemented(String),
     SlotNotAllocated(u32),
     SlotNotInitialized(u32),
+    RequiresAsyncExecution,
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -194,6 +195,9 @@ impl Display for ExecutionError {
                     "Tried to access uninitialized slot at address {address}"
                 )
             }
+            ExecutionError::RequiresAsyncExecution => {
+                write!(f, "Program must be executed asynchronously")
+            }
         }
     }
 }
@@ -206,6 +210,10 @@ pub fn execute_loop(
 
     let instruction_iterator = body::iterate_instructions(dxb_body);
 
+    // gen {
+    //     yield 1;
+    // }
+    //
     for instruction in instruction_iterator {
         let instruction = instruction?;
         if input.options.verbose {

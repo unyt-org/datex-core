@@ -3,6 +3,7 @@
 #![feature(let_chains)]
 #![feature(assert_matches)]
 #![feature(type_alias_impl_trait)]
+#![feature(gen_blocks)]
 #[macro_use]
 extern crate mopa;
 

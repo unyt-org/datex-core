@@ -8,7 +8,7 @@ authors = [
     "Benedikt Strehle <benedikt@unyt.org>",
     "Jonas Strehle <jonas@unyt.org>",
 ]
-edition = "2021"
+edition = "2024"
 license-file = "LICENSE"
 
 [lib]

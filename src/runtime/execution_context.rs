@@ -118,7 +118,7 @@ impl ExecutionContext {
     }
 
     /// Executes DXB in a local execution context.
-    pub fn execute_dxb_local(
+    pub fn execute_dxb_sync(
         &mut self,
         dxb: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
@@ -129,8 +129,9 @@ impl ExecutionContext {
                 verbose,
                 ..
             } => (local_execution_context, execution_options, *verbose),
+            // remote execution is always async
             ExecutionContext::Remote { .. } => {
-                panic!("Cannot run execute_dxb_local on a remote execution context. Use execute_dxb_remote instead.");
+                return Err(ExecutionError::RequiresAsyncExecution);
             }
         };
 
@@ -149,7 +150,7 @@ impl ExecutionContext {
             if let Err(e) = decompiled {
                 println!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
             } else {
-                let decompiled = decompiled.unwrap();
+                let decompiled = decompiled?;
                 println!("[Decompiled]: {decompiled}");
             }
         }
@@ -167,7 +168,7 @@ impl ExecutionContext {
                 *local_execution_context = new_context;
                 Ok(result)
             }
-            Err(err) => Err(err),
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -178,7 +179,7 @@ impl ExecutionContext {
         inserted_values: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let dxb = self.compile(script, inserted_values)?;
-        self.execute_dxb_local(&dxb)
+        self.execute_dxb_sync(&dxb)
             .map_err(ScriptExecutionError::ExecutionError)
     }
 }
