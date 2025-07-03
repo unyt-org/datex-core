@@ -973,20 +973,4 @@ mod tests {
         let expected = datex_array![Integer::from(1), Integer::from(3)];
         assert_eq!(result, expected.into());
     }
-
-    // FIXME remove
-    #[test]
-    fn test_gen() {
-        let x = gen {
-            yield 1;
-            yield 1;
-        };
-        for i in x {
-            assert_eq!(i, 1);
-        }
-        let x = std::iter::from_fn(|| Some(2));
-        for i in x {
-            assert_eq!(i, 2);
-        }
-    }
 }

@@ -5,7 +5,7 @@ pub trait StructuralEq {
 
 #[macro_export]
 macro_rules! assert_structural_eq {
-    ($left_val:expr_2021, $right_val:expr_2021 $(,)?) => {
+    ($left_val:expr, $right_val:expr $(,)?) => {
         if !$left_val.structural_eq(&$right_val) {
             panic!(
                 "structural equality assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",

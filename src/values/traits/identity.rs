@@ -5,7 +5,7 @@ pub trait Identity {
 
 #[macro_export]
 macro_rules! assert_identical {
-    ($left_val:expr_2021, $right_val:expr_2021 $(,)?) => {
+    ($left_val:expr, $right_val:expr $(,)?) => {
         if !$left_val.identical(&$right_val) {
             panic!(
                 "identity assertion failed: `(left is right)`\n  left: `{:?}`,\n right: `{:?}`",
