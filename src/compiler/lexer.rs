@@ -15,7 +15,9 @@ impl Loc {
         Self { source, span }
     }
 }
-
+fn extract_line_doc(lex: &mut Lexer<Token>) -> String {
+    lex.slice()[3..].to_owned()
+}
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(error = Range<usize>)]
 // single line comments
@@ -26,6 +28,9 @@ impl Loc {
 #[rustfmt::skip]
 
 pub enum Token {
+    #[regex(r"///[^\n]*", extract_line_doc)]
+    LineDoc(String),
+    
     // Operators & Separators
     #[token("(")] LeftParen,
     #[token(")")] RightParen,
@@ -174,7 +179,7 @@ fn allocated_string(lex: &mut Lexer<Token>) -> String {
 mod tests {
     use super::*;
     use logos::Logos;
-    
+
     #[test]
     fn test_integer() {
         let mut lexer = Token::lexer("42");
@@ -417,6 +422,21 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::Identifier("b".to_string()))
+        );
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn test_line_doc() {
+        let mut lexer = Token::lexer("/// This is a line doc\n42");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::LineDoc(" This is a line doc".to_string()))
+        );
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::IntegerLiteral("42".to_string()))
         );
         assert_eq!(lexer.next(), None);
     }
