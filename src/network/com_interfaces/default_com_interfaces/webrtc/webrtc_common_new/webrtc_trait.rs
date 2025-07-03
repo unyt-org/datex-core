@@ -121,8 +121,8 @@ pub trait WebRTCTraitInternal<T: 'static> {
         let candidates = {
             let commons = self.get_commons();
             let mut commons = commons.lock().unwrap();
-            let candidates = commons.candidates.drain(..).collect::<Vec<_>>();
-            candidates
+            
+            commons.candidates.drain(..).collect::<Vec<_>>()
         };
         for candidate in candidates {
             if let Ok(candidate) =

@@ -225,11 +225,11 @@ impl ComHub {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
             drop(interface_factories);
-            let res = self
+            
+            self
                 .open_and_add_interface(interface.clone(), priority)
                 .await
-                .map(|_| interface);
-            res
+                .map(|_| interface)
         } else {
             Err(ComHubError::InterfaceTypeDoesNotExist)
         }

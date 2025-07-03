@@ -682,12 +682,12 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     let tokens = tokens.into_iter().map(|f| f.unwrap()).collect::<Vec<_>>();
 
     let parser = create_parser::<'_, TokenInput>();
-    let result = parser.parse(&tokens).into_result().map_err(|err| {
+    
+    parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
             .collect()
-    });
-    result
+    })
 }
 
 // TODO: implement correctly - have fun with lifetimes :()

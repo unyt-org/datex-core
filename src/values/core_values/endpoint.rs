@@ -283,7 +283,8 @@ impl Endpoint {
             }
         }
 
-        let endpoint = match name_part {
+        
+        match name_part {
             s if s.starts_with(&format!(
                 "{}{}",
                 Endpoint::PREFIX_ANONYMOUS,
@@ -326,9 +327,8 @@ impl Endpoint {
             s if s.starts_with(Endpoint::PREFIX_PERSON) => {
                 Endpoint::named(&s[1..], instance, EndpointType::Person)
             }
-            _ => return Err(InvalidEndpointError::InvalidCharacters),
-        };
-        endpoint
+            _ => Err(InvalidEndpointError::InvalidCharacters),
+        }
     }
 
     // parse endpoint from binary

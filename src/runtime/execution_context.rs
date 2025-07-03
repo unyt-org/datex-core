@@ -168,7 +168,7 @@ impl ExecutionContext {
                 *local_execution_context = new_context;
                 Ok(result)
             }
-            Err(err) => Err(err.into()),
+            Err(err) => Err(err),
         }
     }
 
