@@ -1,9 +1,10 @@
 #![feature(coroutines)]
 #![feature(iter_from_coroutine)]
-#![feature(let_chains)]
 #![feature(assert_matches)]
-#![feature(type_alias_impl_trait)]
 #![feature(gen_blocks)]
+// FIXME unused? Can be removed in the future.
+// #![feature(type_alias_impl_trait)]
+// #![feature(gen_blocks)]
 #[macro_use]
 extern crate mopa;
 
@@ -11,7 +12,6 @@ extern crate num_integer;
 
 pub mod compiler;
 pub mod crypto;
-pub mod values;
 pub mod decompiler;
 pub mod generator;
 pub mod global;
@@ -21,6 +21,7 @@ pub mod parser;
 pub mod runtime;
 pub mod task;
 pub mod utils;
+pub mod values;
 
 #[cfg(feature = "std")]
 include!("./with_std.rs");

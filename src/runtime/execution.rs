@@ -443,7 +443,9 @@ fn handle_value(
                                 value_container,
                             )?;
                         }
-                        None => unreachable!("Expected active value for key-value pair, but got None"),
+                        None => unreachable!(
+                            "Expected active value for key-value pair, but got None"
+                        ),
                     }
                     None
                 }
@@ -496,7 +498,9 @@ fn handle_value(
                     None
                 }
                 None => {
-                    unreachable!("Expected active value for collection scope, but got None");
+                    unreachable!(
+                        "Expected active value for collection scope, but got None"
+                    );
                 }
             }
         }
@@ -529,7 +533,10 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             tuple.set(index, value);
         }
         _ => {
-            unreachable!("Expected active value in array scope to be an array, but got: {}", collector);
+            unreachable!(
+                "Expected active value in array scope to be an array, but got: {}",
+                collector
+            );
         }
     }
 }
@@ -570,7 +577,10 @@ fn handle_key_value_pair(
             tuple.set(key, value);
         }
         _ => {
-            unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_container);
+            unreachable!(
+                "Expected active value object or tuple to collect key value pairs, but got: {}",
+                active_container
+            );
         }
     }
 
@@ -638,7 +648,7 @@ mod tests {
     use log::debug;
 
     use super::*;
-    use crate::compiler::{compile_script, CompileOptions};
+    use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
     use crate::values::traits::structural_eq::StructuralEq;
@@ -962,5 +972,21 @@ mod tests {
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
         let expected = datex_array![Integer::from(1), Integer::from(3)];
         assert_eq!(result, expected.into());
+    }
+
+    // FIXME remove
+    #[test]
+    fn test_gen() {
+        let x = gen {
+            yield 1;
+            yield 1;
+        };
+        for i in x {
+            assert_eq!(i, 1);
+        }
+        let x = std::iter::from_fn(|| Some(2));
+        for i in x {
+            assert_eq!(i, 2);
+        }
     }
 }
