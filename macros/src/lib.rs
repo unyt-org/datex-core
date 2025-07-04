@@ -42,8 +42,8 @@ pub fn from_core_value_derive(input: TokenStream) -> TokenStream {
     value_macros::from_core_value_derive_impl(input).into()
 }
 
-#[proc_macro_derive(DXSerialize)]
-pub fn dx_serialize_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(DatexStruct)]
+pub fn derive_datex_struct(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
-    value_macros::derive_dx_serialize(input).into()
+    value_macros::derive_datex_struct(input).into()
 }
