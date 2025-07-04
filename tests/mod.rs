@@ -1,3 +1,4 @@
+#![feature(assert_matches)]
 #![feature(iter_from_coroutine)]
 #![feature(coroutines)]
 
