@@ -32,3 +32,37 @@ pub fn from_core_value_derive_impl(input: DeriveInput) -> TokenStream {
         #(#from_impls)*
     }
 }
+
+/// Derives the `DxSerialize` trait for a struct.
+/// This macro generates a method `value_container` that converts the struct
+/// into a `ValueContainer` by creating an `Object` and setting its fields.
+pub fn derive_dx_serialize(input: DeriveInput) -> TokenStream {
+    let ident = input.ident;
+
+    let body = match input.data {
+        Data::Struct(data) => match data.fields {
+            Fields::Named(ref fields) => {
+                let setters = fields.named.iter().map(|f| {
+                    let fname_ident = f.ident.as_ref().unwrap();
+                    let fname_string = fname_ident.to_string();
+                    quote! { obj.set(#fname_string, datex_core::values::value_container::ValueContainer::from(self.#fname_ident.clone())); }
+                });
+                quote! {
+                    let mut obj = datex_core::values::core_values::object::Object::new();
+                    #(#setters)*
+                    datex_core::values::value_container::ValueContainer::from(obj)
+                }
+            }
+            _ => panic!("DxSerialize only supports structs with named fields"),
+        },
+        _ => panic!("DxSerialize can only be derived for structs"),
+    };
+
+    TokenStream::from(quote! {
+        impl #ident {
+            pub fn value_container(&self) -> datex_core::values::value_container::ValueContainer {
+                #body
+            }
+        }
+    })
+}

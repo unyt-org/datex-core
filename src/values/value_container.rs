@@ -1,3 +1,4 @@
+use crate::values::core_values::boolean::Boolean;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;
@@ -140,7 +141,7 @@ impl ValueContainer {
             }
             ValueContainer::Reference(pointer) => {
                 let reference = pointer.0.clone();
-                
+
                 reference.borrow().value_container.to_value()
             }
         }
