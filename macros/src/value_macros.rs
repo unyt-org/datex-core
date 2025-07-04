@@ -58,7 +58,7 @@ pub fn derive_datex_struct(input: DeriveInput) -> TokenStream {
         _ => panic!("DxSerialize can only be derived for structs"),
     };
 
-    TokenStream::from(quote! {
+    quote! {
         impl #ident {
             pub fn value_container(&self) -> datex_core::values::value_container::ValueContainer {
                 #body
@@ -75,5 +75,5 @@ pub fn derive_datex_struct(input: DeriveInput) -> TokenStream {
         //         value.value_container()
         //     }
         // }
-    })
+    }
 }
