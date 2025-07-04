@@ -1,7 +1,5 @@
 use serde::ser::Error as SerError;
-use serde::ser::{self, Serialize, Serializer};
 
-use crate::compiler::error::CompilerError;
 #[derive(Default)]
 pub struct ByteSerializer {
     out: Vec<u8>,
