@@ -140,7 +140,7 @@ impl ValueContainer {
             }
             ValueContainer::Reference(pointer) => {
                 let reference = pointer.0.clone();
-                
+
                 reference.borrow().value_container.to_value()
             }
         }
