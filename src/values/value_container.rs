@@ -1,4 +1,3 @@
-use crate::values::core_values::boolean::Boolean;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;

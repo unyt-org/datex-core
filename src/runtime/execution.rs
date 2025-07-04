@@ -22,9 +22,7 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::path::Iter;
 use std::rc::Rc;
-use crate::global::protocol_structures::routing_header::PointerId;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
