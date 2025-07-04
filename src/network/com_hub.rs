@@ -1865,6 +1865,16 @@ pub enum Response {
     UnspecifiedResponse(IncomingSection),
 }
 
+impl Response {
+    pub fn take_incoming_section(self) -> IncomingSection {
+        match self {
+            Response::ExactResponse(_, section) => section,
+            Response::ResolvedResponse(_, section) => section,
+            Response::UnspecifiedResponse(section) => section,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ResponseError {
     NoResponseAfterTimeout(Endpoint, Duration),

@@ -23,17 +23,30 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use crate::network::com_hub::ResponseError;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
     pub verbose: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExecutionInput<'a> {
     pub options: ExecutionOptions,
     pub dxb_body: &'a [u8],
-    pub context: Rc<RefCell<LocalExecutionContext>>,
+    pub end_execution: bool,
+    pub context: Rc<RefCell<RuntimeExecutionContext>>,
+}
+
+impl Default for ExecutionInput<'_> {
+    fn default() -> Self {
+        Self {
+            options: ExecutionOptions::default(),
+            dxb_body: &[],
+            context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
+            end_execution: true,
+        }
+    }
 }
 
 impl<'a> ExecutionInput<'a> {
@@ -44,13 +57,14 @@ impl<'a> ExecutionInput<'a> {
         Self {
             options,
             dxb_body,
-            context: Rc::new(RefCell::new(LocalExecutionContext::default())),
+            context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
+            end_execution: true,
         }
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct LocalExecutionContext {
+pub struct RuntimeExecutionContext {
     index: usize,
     scope_stack: ScopeStack,
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
@@ -58,7 +72,7 @@ pub struct LocalExecutionContext {
     pop_next_scope: bool,
 }
 
-impl LocalExecutionContext {
+impl RuntimeExecutionContext {
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
@@ -189,6 +203,7 @@ pub enum ExecutionError {
     SlotNotAllocated(u32),
     SlotNotInitialized(u32),
     RequiresAsyncExecution,
+    ResponseError(ResponseError),
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -206,6 +221,12 @@ impl From<ValueError> for ExecutionError {
 impl From<InvalidProgramError> for ExecutionError {
     fn from(error: InvalidProgramError) -> Self {
         ExecutionError::InvalidProgram(error)
+    }
+}
+
+impl From<ResponseError> for ExecutionError {
+    fn from(error: ResponseError) -> Self {
+        ExecutionError::ResponseError(error)
     }
 }
 
@@ -238,16 +259,19 @@ impl Display for ExecutionError {
             ExecutionError::RequiresAsyncExecution => {
                 write!(f, "Program must be executed asynchronously")
             }
+            ExecutionError::ResponseError(err) => {
+                write!(f, "Response error: {err}")
+            }
         }
     }
 }
 
 #[derive(Debug)]
 pub enum ExecutionStep {
-    Test,
     InternalReturn(Option<ValueContainer>),
     Return(Option<ValueContainer>),
-    ResolvePointer(u64)
+    ResolvePointer(u64),
+    Pause,
 }
 
 #[derive(Debug)]
@@ -285,6 +309,7 @@ pub fn execute_loop(
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
     gen move {
         let dxb_body = input.dxb_body;
+        let end_execution = input.end_execution;
         let context = input.context;
 
         let instruction_iterator = body::iterate_instructions(dxb_body);
@@ -336,26 +361,34 @@ pub fn execute_loop(
             }
         }
 
-        // TODO: check for other unclosed stacks
-        // if we have an active key here, this is invalid and leads to an error
-        // if context.scope_stack.get_active_key().is_some() {
-        //     return Err(ExecutionError::InvalidProgram(
-        //         InvalidProgramError::UnterminatedSequence,
-        //     ));
-        // }
+        if end_execution {
+            // cleanup...
+            // TODO: check for other unclosed stacks
+            // if we have an active key here, this is invalid and leads to an error
+            // if context.scope_stack.get_active_key().is_some() {
+            //     return Err(ExecutionError::InvalidProgram(
+            //         InvalidProgramError::UnterminatedSequence,
+            //     ));
+            // }
 
-        // removes the current active value from the scope stack
-        let res = match context.borrow_mut().scope_stack.pop_active_value() {
-            None => ExecutionStep::Return(None),
-            Some(val) => ExecutionStep::Return(Some(val)),
-        };
-        yield Ok(res);
+            // removes the current active value from the scope stack
+            let res = match context.borrow_mut().scope_stack.pop_active_value() {
+                None => ExecutionStep::Return(None),
+                Some(val) => ExecutionStep::Return(Some(val)),
+            };
+            yield Ok(res);
+        }
+
+        else {
+            yield Ok(ExecutionStep::Pause);
+        }
+
     }
 }
 
 #[inline]
 fn get_result_value_from_instruction(
-    context: Rc<RefCell<LocalExecutionContext>>,
+    context: Rc<RefCell<RuntimeExecutionContext>>,
     instruction: Instruction,
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
@@ -523,7 +556,7 @@ fn get_result_value_from_instruction(
 
 /// Takes a produced value and handles it according to the current scope
 fn handle_value(
-    context: &mut LocalExecutionContext,
+    context: &mut RuntimeExecutionContext,
     value_container: ValueContainer,
 ) -> Result<(), ExecutionError> {
     let scope_container = context.scope_stack.get_current_scope_mut();

@@ -1,3 +1,4 @@
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "native_crypto")]
@@ -7,9 +8,15 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
+use crate::global::dxb_block::DXBBlock;
+use crate::global::protocol_structures::block_header::BlockHeader;
+use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
+use crate::global::protocol_structures::routing_header;
+use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::values::value_container::ValueContainer;
-use crate::network::com_hub::ComHub;
-use crate::runtime::execution_context::ExecutionContext;
+use crate::network::com_hub::{ComHub, ResponseOptions};
+use crate::runtime::execution::ExecutionError;
+use crate::runtime::execution_context::{ExecutionContext, LocalExecutionContext, RemoteExecutionContext, ScriptExecutionError};
 
 pub mod execution;
 pub mod global_context;
@@ -81,22 +88,112 @@ impl Runtime {
         &self,
         script: &str,
         inserted_values: &[ValueContainer],
-        execution_context: ExecutionContext,
-    ) -> Result<Option<ValueContainer>, ExecutionContext> {
-       todo!()
+        execution_context: &mut ExecutionContext,
+    ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
+        let dxb = execution_context.compile(script, inserted_values)?;
+        self.execute_dxb(dxb, execution_context, true)
+            .await
+            .map_err(ScriptExecutionError::from)
     }
 
-    pub async fn execute_sync(
+    pub fn execute_dxb<'a>(
+        &'a self,
+        dxb: Vec<u8>,
+        execution_context: &'a mut ExecutionContext,
+        end_execution: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<ValueContainer>, ExecutionError>> + 'a>> {
+        Box::pin(async move {
+            match execution_context {
+                ExecutionContext::Remote(context) => {
+                    self.execute_remote(context, dxb).await
+                },
+                ExecutionContext::Local(_) => {
+                    execution_context.execute_dxb(&dxb, end_execution).await
+                }
+            }
+        })
+    }
+
+    pub fn execute_sync(
         &self,
         script: &str,
         inserted_values: &[ValueContainer],
-        execution_context: ExecutionContext,
-    ) -> Result<Option<ValueContainer>, ExecutionContext> {
-        // assert that it is a local execution context
-        // if !execution_context.is_local() {
-        //     return Err(execution_context);
-        // }
-        todo!()
+        execution_context: &mut ExecutionContext,
+    ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
+        let dxb = execution_context.compile(script, inserted_values)?;
+        self.execute_dxb_sync(&dxb, execution_context, true)
+            .map_err(ScriptExecutionError::from)
+    }
+
+    pub fn execute_dxb_sync(
+        &self,
+        dxb: &[u8],
+        execution_context: &mut ExecutionContext,
+        end_execution: bool,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        match execution_context {
+            ExecutionContext::Remote(_) => {
+                Err(ExecutionError::RequiresAsyncExecution)
+            }
+            ExecutionContext::Local(_)  => {
+                execution_context.execute_dxb_sync(dxb, end_execution)
+            }
+        }
+    }
+
+    async fn execute_remote(&self, remote_execution_context: &mut RemoteExecutionContext, dxb: Vec<u8>) -> Result<Option<ValueContainer>, ExecutionError> {
+        let routing_header: RoutingHeader = RoutingHeader {
+            version: 2,
+            flags: routing_header::Flags::new(),
+            block_size_u16: Some(0),
+            block_size_u32: None,
+            sender: self.endpoint.clone(),
+            receivers: routing_header::Receivers {
+                flags: routing_header::ReceiverFlags::new()
+                    .with_has_endpoints(false)
+                    .with_has_pointer_id(false)
+                    .with_has_endpoint_keys(false),
+                pointer_id: None,
+                endpoints: None,
+                endpoints_with_keys: None,
+            },
+            ..RoutingHeader::default()
+        };
+
+
+        let block_header = BlockHeader::default();
+        let encrypted_header = EncryptedHeader::default();
+
+        let mut block =
+            DXBBlock::new(routing_header, block_header, encrypted_header, dxb);
+
+        block.set_receivers(&[remote_execution_context.endpoint.clone()]);
+
+        let response = self.com_hub.send_own_block_await_response(block, ResponseOptions::default()).await.remove(0)?;
+        let incoming_section = response.take_incoming_section();
+
+        let mut context = ExecutionContext::local();
+
+        let mut result = None;
+        for block in incoming_section.into_iter() {
+            result = self.execute_dxb_block_local(block, &mut context).await?;
+        }
+
+        Ok(result)
+    }
+
+    async fn execute_dxb_block_local(
+        &self,
+        block: DXBBlock,
+        context: &mut ExecutionContext,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        // assert that the execution context is local
+        if !matches!(context, ExecutionContext::Local(_)) {
+            unreachable!("Execution context must be local for executing a DXB block");
+        }
+        let dxb = block.body;
+        let end_execution = block.block_header.flags_and_timestamp.is_end_of_section();
+        self.execute_dxb(dxb, context, end_execution).await
     }
 }
 
