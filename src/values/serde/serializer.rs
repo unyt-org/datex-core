@@ -4,7 +4,7 @@ use std::fmt::Display;
 use crate::compiler::compile_value;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::object::Object;
-use crate::values::datex_struct::error::SerializationError;
+use crate::values::serde::error::SerializationError;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 pub struct DatexSerializer {
@@ -316,9 +316,7 @@ mod tests {
 
     use crate::values::{
         core_value::CoreValue,
-        datex_struct::serializer::{
-            DatexSerializer, to_bytes, to_value_container,
-        },
+        serde::serializer::{DatexSerializer, to_bytes, to_value_container},
         value::Value,
         value_container::ValueContainer,
     };

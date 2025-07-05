@@ -1,15 +1,12 @@
-use serde::{
-    Deserialize, Deserializer,
-    de::{IntoDeserializer, Visitor},
-    forward_to_deserialize_any,
-};
+use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 
 use crate::{
+    compiler::{CompileOptions, compile_script},
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
     values::{
         core_value::CoreValue,
         core_values::integer::{integer::Integer, typed_integer::TypedInteger},
-        datex_struct::error::SerializationError,
+        serde::error::SerializationError,
         value,
         value_container::ValueContainer,
     },
@@ -33,6 +30,23 @@ impl<'de> DatexDeserializer {
         Ok(Self { value })
     }
 
+    pub fn from_dx_file(path: &str) -> Result<Self, SerializationError> {
+        let input = std::fs::read_to_string(path)
+            .map_err(|err| SerializationError(err.to_string()))?;
+        DatexDeserializer::from_script(&input)
+    }
+    pub fn from_dxb_file(path: &str) -> Result<Self, SerializationError> {
+        let input = std::fs::read(path)
+            .map_err(|err| SerializationError(err.to_string()))?;
+        DatexDeserializer::from_bytes(&input)
+    }
+
+    pub fn from_script(script: &'de str) -> Result<Self, SerializationError> {
+        let (dxb, _) = compile_script(script, CompileOptions::default())
+            .map_err(|err| SerializationError(err.to_string()))?;
+        DatexDeserializer::from_bytes(&dxb)
+    }
+
     fn from_value(value: ValueContainer) -> Self {
         Self { value }
     }
@@ -52,9 +66,21 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         V: serde::de::Visitor<'de>,
     {
         match self.value {
+            // TODO implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
                 CoreValue::Null => visitor.visit_unit(),
                 CoreValue::Bool(b) => visitor.visit_bool(b.0),
+                CoreValue::TypedInteger(i) => match i {
+                    TypedInteger::I64(i) => visitor.visit_i64(i),
+                    TypedInteger::U64(u) => visitor.visit_u64(u),
+                    TypedInteger::I32(i) => visitor.visit_i32(i),
+                    TypedInteger::U32(u) => visitor.visit_u32(u),
+                    TypedInteger::I16(i) => visitor.visit_i16(i),
+                    TypedInteger::U16(u) => visitor.visit_u16(u),
+                    TypedInteger::I8(i) => visitor.visit_i8(i),
+                    TypedInteger::U8(u) => visitor.visit_u8(u),
+                    _ => unreachable!(),
+                },
                 CoreValue::Integer(Integer {
                     0: TypedInteger::I64(i),
                 }) => visitor.visit_i64(i),
@@ -112,13 +138,21 @@ where
     T::deserialize(deserializer)
 }
 
+pub fn from_value_container<'de, T>(
+    value: ValueContainer,
+) -> Result<T, SerializationError>
+where
+    T: serde::Deserialize<'de>,
+{
+    let deserializer = DatexDeserializer::from_value(value);
+    T::deserialize(deserializer)
+}
+
 #[cfg(test)]
 mod tests {
-    use serde::Serialize;
-
-    use crate::values::datex_struct::serializer::to_bytes;
-
     use super::*;
+    use crate::values::serde::serializer::to_bytes;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize, Debug)]
     struct TestStruct {
@@ -136,5 +170,20 @@ mod tests {
         let result: TestStruct = from_bytes(&data).unwrap();
         assert!(!result.field1.is_empty());
         println!("Deserialized: {result:?}");
+    }
+
+    #[test]
+    fn test_from_script() {
+        let script = r#"
+            {
+                field1: "Hello",
+                field2: 42
+            }
+        "#;
+        let deserializer = DatexDeserializer::from_script(script).unwrap();
+        let result: TestStruct =
+            Deserialize::deserialize(deserializer).unwrap();
+        assert!(!result.field1.is_empty());
+        println!("Deserialized from script: {result:?}");
     }
 }

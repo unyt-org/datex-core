@@ -5,6 +5,8 @@ use serde::ser::{self};
 use std::fmt::Display;
 use std::io;
 
+// TODO: Add deserialization error and wrap compiler error and execution error into it
+
 #[derive(Debug)]
 pub struct SerializationError(pub String);
 impl ser::Error for SerializationError {
