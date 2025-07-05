@@ -4,28 +4,43 @@ use serde::{
     forward_to_deserialize_any,
 };
 
-use crate::values::{
-    datex_struct::error::SerializationError, value::Value,
-    value_container::ValueContainer,
+use crate::{
+    runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
+    values::{
+        core_value::CoreValue,
+        core_values::integer::{integer::Integer, typed_integer::TypedInteger},
+        datex_struct::error::SerializationError,
+        value,
+        value_container::ValueContainer,
+    },
 };
 
 pub struct DatexDeserializer {
-    object: ValueContainer,
-    input: Vec<u8>,
+    value: ValueContainer,
 }
 
-impl Default for DatexDeserializer {
-    fn default() -> Self {
-        Self::new(&[])
+// impl Default for DatexDeserializer {
+//     fn default() -> Self {
+//         Self::new(&[])
+//     }
+// }
+
+impl<'de> DatexDeserializer {
+    pub fn from_bytes(input: &'de [u8]) -> Result<Self, SerializationError> {
+        let context = ExecutionInput::new_with_dxb_and_options(
+            &input,
+            ExecutionOptions { verbose: true },
+        );
+        let value = execute_dxb_sync(context)
+            .unwrap_or_else(|err| {
+                panic!("Execution failed: {err}");
+            })
+            .unwrap();
+        Ok(Self { value })
     }
-}
 
-impl DatexDeserializer {
-    pub fn new(input: &[u8]) -> Self {
-        DatexDeserializer {
-            object: Value::null().into(),
-            input: input.to_vec(),
-        }
+    fn from_value(value: ValueContainer) -> Self {
+        Self { value }
     }
 }
 
@@ -36,30 +51,28 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
-        // use ValueContainer::*;
-
-        // match self {
-        //     Null => visitor.visit_unit(),
-        //     Bool(b) => visitor.visit_bool(b),
-        //     I64(i) => visitor.visit_i64(i),
-        //     U64(u) => visitor.visit_u64(u),
-        //     F64(f) => visitor.visit_f64(f),
-        //     String(s) => visitor.visit_string(s),
-
-        //     Array(vec) => {
-        //         // Re‑wrap every element in its own DatexDeserializer
-        //         let seq = vec.into_iter().map(DatexDeserializer::from_value);
-        //         visitor.visit_seq(de::value::SeqDeserializer::new(seq))
-        //     }
-
-        //     Object(map) => {
-        //         let entries = map
-        //             .into_iter()
-        //             .map(|(k, v)| (k, DatexDeserializer::from_value(v)));
-        //         visitor.visit_map(de::value::MapDeserializer::new(entries))
-        //     }
-        // }
+        match self.value {
+            ValueContainer::Value(value::Value { inner, .. }) => match inner {
+                CoreValue::Null => visitor.visit_unit(),
+                CoreValue::Bool(b) => visitor.visit_bool(b.0),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::I64(i),
+                }) => visitor.visit_i64(i),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::U64(u),
+                }) => visitor.visit_u64(u),
+                CoreValue::Text(s) => visitor.visit_string(s.0),
+                CoreValue::Object(obj) => {
+                    let map = obj
+                        .into_iter()
+                        .map(|(k, v)| (k, DatexDeserializer::from_value(v)));
+                    visitor
+                        .visit_map(serde::de::value::MapDeserializer::new(map))
+                }
+                e => unreachable!("Unsupported core value: {:?}", e),
+            },
+            _ => unreachable!("Refs are not supported in deserialization"),
+        }
     }
 
     // Hand the rest to `deserialize_any`
@@ -78,7 +91,7 @@ pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
 where
     T: serde::Deserialize<'de>,
 {
-    let deserializer = DatexDeserializer::new(input);
+    let deserializer = DatexDeserializer::from_bytes(input)?;
     T::deserialize(deserializer)
 }
 
