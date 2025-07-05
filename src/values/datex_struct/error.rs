@@ -1,6 +1,8 @@
 use core::fmt;
+use serde::de::Error;
 use serde::ser::StdError;
 use serde::ser::{self};
+use serde_json::de;
 use std::fmt::Display;
 use std::io;
 
@@ -11,6 +13,12 @@ impl ser::Error for SerializationError {
         SerializationError(msg.to_string())
     }
 }
+impl Error for SerializationError {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        SerializationError(msg.to_string())
+    }
+}
+
 impl From<io::Error> for SerializationError {
     fn from(e: io::Error) -> Self {
         SerializationError(e.to_string())
