@@ -3,6 +3,9 @@ use serde::ser::StdError;
 use serde::ser::{self, Serialize, SerializeStruct, Serializer};
 use std::fmt::Display;
 use std::{error::Error, io};
+
+use crate::values::core_values::object::Object;
+use crate::values::value_container::ValueContainer;
 #[derive(Debug)]
 pub struct SerializationError(String);
 impl ser::Error for SerializationError {
@@ -22,13 +25,17 @@ impl Display for SerializationError {
     }
 }
 
-struct DatexSerializer {
+pub struct DatexSerializer {
+    object: Object,
     output: Vec<u8>,
 }
 
 impl DatexSerializer {
     pub fn new() -> Self {
-        DatexSerializer { output: Vec::new() }
+        DatexSerializer {
+            output: Vec::new(),
+            object: Object::new(),
+        }
     }
 
     pub fn into_inner(self) -> Vec<u8> {
@@ -46,25 +53,30 @@ where
 }
 
 impl<'a> Serializer for &'a mut DatexSerializer {
-    type Ok = &'a [u8];
+    type Ok = ();
     type Error = SerializationError;
 
-    type SerializeSeq = serde::ser::Impossible<Self::Ok, SerializationError>;
+    type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    type SerializeTuple = serde::ser::Impossible<Self::Ok, SerializationError>;
+    type SerializeTuple = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    type SerializeTupleStruct =
-        serde::ser::Impossible<Self::Ok, SerializationError>;
+    type SerializeTupleStruct = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    type SerializeTupleVariant =
-        serde::ser::Impossible<Self::Ok, SerializationError>;
+    type SerializeTupleVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    type SerializeMap = serde::ser::Impossible<Self::Ok, SerializationError>;
+    type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    type SerializeStruct = serde::ser::Impossible<Self::Ok, SerializationError>;
+    type SerializeStructVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    type SerializeStructVariant =
-        serde::ser::Impossible<Self::Ok, SerializationError>;
+    // Should be Self
+    type SerializeStruct = Self;
+    fn serialize_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> SerializeStruct {
+        Ok(self)
+    }
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         todo!()
@@ -216,14 +228,6 @@ impl<'a> Serializer for &'a mut DatexSerializer {
         todo!()
     }
 
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
-        todo!()
-    }
-
     fn serialize_struct_variant(
         self,
         name: &'static str,
@@ -233,16 +237,68 @@ impl<'a> Serializer for &'a mut DatexSerializer {
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         todo!()
     }
+
+    fn serialize_i128(self, v: i128) -> Result<Self::Ok, Self::Error> {
+        let _ = v;
+        Err(ser::Error::custom("i128 is not supported"))
+    }
+
+    fn serialize_u128(self, v: u128) -> Result<Self::Ok, Self::Error> {
+        let _ = v;
+        Err(ser::Error::custom("u128 is not supported"))
+    }
+
+    fn collect_seq<I>(self, iter: I) -> Result<Self::Ok, Self::Error>
+    where
+        I: IntoIterator,
+        <I as IntoIterator>::Item: Serialize,
+    {
+        todo!()
+    }
+
+    fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok, Self::Error>
+    where
+        K: Serialize,
+        V: Serialize,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        todo!()
+    }
+
+    fn collect_str<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    where
+        T: ?Sized + Display,
+    {
+        self.serialize_str(&value.to_string())
+    }
+
+    fn is_human_readable(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{macros::DatexStruct, values::datex_struct::DatexSerializer};
+    use crate::{
+        macros::DatexStruct,
+        values::datex_struct::{DatexSerializer, to_bytes},
+    };
     use serde::Serialize;
     #[derive(Serialize, DatexStruct)]
     struct TestStruct {
         field1: String,
         field2: i32,
+    }
+
+    #[test]
+    fn test_to_bytes() {
+        let test_struct = TestStruct {
+            field1: "Hello".to_string(),
+            field2: 42,
+        };
+        let result = to_bytes(&test_struct);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().is_empty());
     }
 
     #[test]
