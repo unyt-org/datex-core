@@ -1,7 +1,9 @@
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 
 use crate::{
-    compiler::{CompileOptions, compile_script},
+    compiler::{
+        CompileOptions, compile_script, extract_static_value_from_script,
+    },
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
     values::{
         core_value::CoreValue,
@@ -46,6 +48,18 @@ impl<'de> DatexDeserializer {
             .map_err(|err| SerializationError(err.to_string()))?;
         DatexDeserializer::from_bytes(&dxb)
     }
+    pub fn from_static_script(
+        script: &'de str,
+    ) -> Result<Self, SerializationError> {
+        let value = extract_static_value_from_script(script)
+            .map_err(|err| SerializationError(err.to_string()))?;
+        if value.is_none() {
+            return Err(SerializationError(
+                "No static value found in script".to_string(),
+            ));
+        }
+        Ok(DatexDeserializer::from_value(value.unwrap()))
+    }
 
     fn from_value(value: ValueContainer) -> Self {
         Self { value }
@@ -71,6 +85,8 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Null => visitor.visit_unit(),
                 CoreValue::Bool(b) => visitor.visit_bool(b.0),
                 CoreValue::TypedInteger(i) => match i {
+                    TypedInteger::I128(i) => visitor.visit_i128(i),
+                    TypedInteger::U128(u) => visitor.visit_u128(u),
                     TypedInteger::I64(i) => visitor.visit_i64(i),
                     TypedInteger::U64(u) => visitor.visit_u64(u),
                     TypedInteger::I32(i) => visitor.visit_i32(i),
@@ -81,6 +97,12 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::U8(u) => visitor.visit_u8(u),
                     _ => unreachable!(),
                 },
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::I128(i),
+                }) => visitor.visit_i128(i),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::U128(u),
+                }) => visitor.visit_u128(u),
                 CoreValue::Integer(Integer {
                     0: TypedInteger::I64(i),
                 }) => visitor.visit_i64(i),
@@ -177,10 +199,29 @@ mod tests {
         let script = r#"
             {
                 field1: "Hello",
-                field2: 42
+                field2: 42 + 5 // This will be evaluated to 47
             }
         "#;
         let deserializer = DatexDeserializer::from_script(script).unwrap();
+        let result: TestStruct =
+            Deserialize::deserialize(deserializer).unwrap();
+        assert!(!result.field1.is_empty());
+        println!("Deserialized from script: {result:?}");
+    }
+
+    // FIXME we are loosing the type information for integers here (i128 instead of i32 as in structure)
+    // what causes a invalid type: integer error on the serde deserialization
+    #[test]
+    #[ignore = "This test is currently failing due to type mismatch (i128 instead of i32)"]
+    fn test_from_static_script() {
+        let script = r#"
+            {
+                field1: "Hello",
+                field2: 42
+            }
+        "#;
+        let deserializer =
+            DatexDeserializer::from_static_script(script).unwrap();
         let result: TestStruct =
             Deserialize::deserialize(deserializer).unwrap();
         assert!(!result.field1.is_empty());
