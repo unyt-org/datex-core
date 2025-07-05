@@ -5,9 +5,10 @@ use crate::compiler::compile_value;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::object::Object;
 use crate::values::datex_struct::error::SerializationError;
+use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 pub struct DatexSerializer {
-    object: Object,
+    container: ValueContainer,
 }
 
 impl Default for DatexSerializer {
@@ -19,15 +20,12 @@ impl Default for DatexSerializer {
 impl DatexSerializer {
     pub fn new() -> Self {
         DatexSerializer {
-            object: Object::new(),
+            container: CoreValue::Null.into(),
         }
     }
 
-    pub fn into_inner(self) -> Object {
-        self.object
-    }
-    pub fn into_value_container(self) -> ValueContainer {
-        ValueContainer::from(self.object)
+    pub fn into_inner(self) -> ValueContainer {
+        self.container
     }
 }
 
@@ -48,7 +46,7 @@ where
 {
     let mut serializer = DatexSerializer::new();
     value.serialize(&mut serializer)?;
-    Ok(serializer.into_value_container())
+    Ok(serializer.into_inner())
 }
 
 impl SerializeStruct for &mut DatexSerializer {
@@ -64,12 +62,25 @@ impl SerializeStruct for &mut DatexSerializer {
         T: Serialize,
     {
         let value_container = value.serialize(&mut **self)?;
-        self.object.set(key, value_container);
+        match self.container {
+            ValueContainer::Value(Value {
+                inner: CoreValue::Object(ref mut obj),
+                ..
+            }) => {
+                obj.set(key, value_container);
+            }
+            _ => {
+                return Err(SerializationError(
+                    "Cannot serialize field into non-object container"
+                        .to_string(),
+                ));
+            }
+        }
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(self.object.clone()))
+        Ok(ValueContainer::from(self.container.clone()))
     }
 }
 
@@ -96,6 +107,7 @@ impl Serializer for &mut DatexSerializer {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
+        self.container = Object::new().into();
         Ok(self)
     }
 
@@ -300,8 +312,15 @@ impl Serializer for &mut DatexSerializer {
 
 #[cfg(test)]
 mod tests {
-    use crate::values::datex_struct::serializer::{
-        DatexSerializer, to_bytes, to_value_container,
+    use std::assert_matches::assert_matches;
+
+    use crate::values::{
+        core_value::CoreValue,
+        datex_struct::serializer::{
+            DatexSerializer, to_bytes, to_value_container,
+        },
+        value::Value,
+        value_container::ValueContainer,
     };
     use serde::Serialize;
     #[derive(Serialize)]
@@ -341,6 +360,12 @@ mod tests {
         };
         let _ = test_struct.serialize(&mut serializer);
         let result = serializer.into_inner();
-        assert!(!result.is_empty());
+        assert_matches!(
+            result,
+            ValueContainer::Value(Value {
+                inner: CoreValue::Object(_),
+                ..
+            })
+        );
     }
 }
