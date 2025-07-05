@@ -8,7 +8,7 @@ use std::sync::{mpsc, Arc, Mutex};
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-
+use datex_core::runtime::Runtime;
 use super::mockup_interface::MockupInterface;
 
 lazy_static::lazy_static! {
@@ -58,6 +58,29 @@ pub async fn get_mock_setup_with_endpoint(
         });
 
     (Rc::new(com_hub), mockup_interface_ref.clone())
+}
+
+pub async fn get_runtime_with_mock_interface(
+    endpoint: Endpoint,
+    priority: InterfacePriority,
+) -> (Runtime, Rc<RefCell<MockupInterface>>) {
+    // init com hub
+    let runtime = Runtime::init_native(endpoint);
+
+    // init mockup interface
+    let mockup_interface_ref =
+        Rc::new(RefCell::new(MockupInterface::default()));
+
+    // add mockup interface to com_hub
+    runtime
+        .com_hub
+        .open_and_add_interface(mockup_interface_ref.clone(), priority)
+        .await
+        .unwrap_or_else(|e| {
+            panic!("Error adding interface: {e:?}");
+        });
+
+    (runtime, mockup_interface_ref.clone())
 }
 
 pub fn add_socket(
@@ -178,6 +201,51 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
 
     (com_hub.clone(), mockup_interface_ref, socket)
 }
+
+
+pub async fn get_mock_setup_runtime(
+    local_endpoint: Endpoint,
+    sender: Option<mpsc::Sender<Vec<u8>>>,
+    receiver: Option<mpsc::Receiver<Vec<u8>>>,
+) -> Runtime {
+    let (runtime, mockup_interface_ref) =
+        get_runtime_with_mock_interface(local_endpoint, InterfacePriority::default()).await;
+
+    mockup_interface_ref.borrow_mut().sender = sender;
+    mockup_interface_ref.borrow_mut().receiver =
+        Rc::new(RefCell::new(receiver));
+
+    // start mockup interface update loop
+    mockup_interface_ref.borrow_mut().start_update_loop();
+
+    add_socket(mockup_interface_ref.clone());
+
+    runtime.start().await;
+    runtime
+}
+
+pub async fn get_mock_setup_with_two_runtimes(
+    endpoint_a: Endpoint,
+    endpoint_b: Endpoint,
+) -> (Runtime, Runtime) {
+    let (sender_a, receiver_a) = mpsc::channel::<Vec<u8>>();
+    let (sender_b, receiver_b) = mpsc::channel::<Vec<u8>>();
+
+    let runtime_a = get_mock_setup_runtime(
+        endpoint_a.clone(),
+        Some(sender_a),
+        Some(receiver_b),
+    ).await;
+
+    let runtime_b = get_mock_setup_runtime(
+        endpoint_b.clone(),
+        Some(sender_b),
+        Some(receiver_a),
+    ).await;
+
+    (runtime_a, runtime_b)
+}
+
 
 pub async fn send_block_with_body(
     to: &[Endpoint],

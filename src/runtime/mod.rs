@@ -167,7 +167,7 @@ impl Runtime {
         let mut block =
             DXBBlock::new(routing_header, block_header, encrypted_header, dxb);
 
-        block.set_receivers(&[remote_execution_context.endpoint.clone()]);
+        block.set_receivers(std::slice::from_ref(&remote_execution_context.endpoint));
 
         let response = self.com_hub.send_own_block_await_response(block, ResponseOptions::default()).await.remove(0)?;
         let incoming_section = response.take_incoming_section();
