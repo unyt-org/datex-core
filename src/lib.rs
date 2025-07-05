@@ -23,6 +23,10 @@ pub mod task;
 pub mod utils;
 pub mod values;
 
+// reexport macros
+pub use datex_macros as macros;
+extern crate self as datex_core;
+
 #[cfg(feature = "std")]
 include!("./with_std.rs");
 
