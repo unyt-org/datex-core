@@ -24,7 +24,7 @@ This document describes the workflow, branch strategy, coding standards, and qua
 
 ## Coding Style
 
-* **Edition:** Rust 2021.
+* **Edition:** Rust 2024.
 
 * **Formatting:**
 

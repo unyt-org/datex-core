@@ -1,8 +1,8 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::value_container::ValueContainer;
-use indexmap::map::{IntoIter, Iter};
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
+use indexmap::map::{IntoIter, Iter};
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -11,6 +11,9 @@ use std::iter::zip;
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Object(pub IndexMap<String, ValueContainer>);
 impl Object {
+    pub fn new() -> Self {
+        Object(IndexMap::new())
+    }
     pub fn size(&self) -> usize {
         self.0.len()
     }

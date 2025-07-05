@@ -7,7 +7,7 @@ use crate::runtime::runtime_init;
 use criterion::{
     black_box, criterion_group, criterion_main, BenchmarkId, Criterion,
 };
-use datex_core::compiler::bytecode::{compile_script, CompileOptions};
+use datex_core::compiler::{compile_script, CompileOptions};
 
 mod json;
 mod runtime;

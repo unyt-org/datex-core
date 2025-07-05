@@ -31,7 +31,7 @@ async fn receive_single_block() {
                 context_id,
                 flags_and_timestamp: FlagsAndTimestamp::new()
                     .with_is_end_of_section(true)
-                    .with_is_end_of_scope(true),
+                    .with_is_end_of_context(true),
                 ..BlockHeader::default()
             },
             routing_header: RoutingHeader {
@@ -94,7 +94,7 @@ async fn receive_multiple_blocks() {
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(false)
-                        .with_is_end_of_scope(false),
+                        .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -110,7 +110,7 @@ async fn receive_multiple_blocks() {
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(true)
-                        .with_is_end_of_scope(true),
+                        .with_is_end_of_context(true),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -198,7 +198,7 @@ async fn receive_multiple_blocks_wrong_order() {
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(true)
-                        .with_is_end_of_scope(true),
+                        .with_is_end_of_context(true),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -214,7 +214,7 @@ async fn receive_multiple_blocks_wrong_order() {
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(false)
-                        .with_is_end_of_scope(false),
+                        .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -301,7 +301,7 @@ async fn receive_multiple_sections() {
                     block_number: 0,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(false)
-                        .with_is_end_of_scope(false),
+                        .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -317,7 +317,7 @@ async fn receive_multiple_sections() {
                     block_number: 1,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(true)
-                        .with_is_end_of_scope(false),
+                        .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -333,7 +333,7 @@ async fn receive_multiple_sections() {
                     block_number: 2,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(false)
-                        .with_is_end_of_scope(false),
+                        .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -349,7 +349,7 @@ async fn receive_multiple_sections() {
                     block_number: 3,
                     flags_and_timestamp: FlagsAndTimestamp::new()
                         .with_is_end_of_section(true)
-                        .with_is_end_of_scope(true),
+                        .with_is_end_of_context(true),
                     ..BlockHeader::default()
                 },
                 routing_header: RoutingHeader {
@@ -478,7 +478,7 @@ async fn await_response_block() {
                 flags_and_timestamp: FlagsAndTimestamp::new()
                     .with_block_type(BlockType::Response)
                     .with_is_end_of_section(true)
-                    .with_is_end_of_scope(true),
+                    .with_is_end_of_context(true),
                 ..BlockHeader::default()
             },
             routing_header: RoutingHeader {

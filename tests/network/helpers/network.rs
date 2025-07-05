@@ -1,6 +1,6 @@
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
-use datex_core::datex_values::core_values::endpoint::Endpoint;
+use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
@@ -556,13 +556,12 @@ impl Network {
                 sender: sender_a,
                 receiver: receiver_b,
             }
-        } else if let Some(channel) =
-            mockup_interface_channels.get_mut(&name).unwrap().take()
-        {
+        } else { match mockup_interface_channels.get_mut(&name).unwrap().take()
+        { Some(channel) => {
             channel
-        } else {
+        } _ => {
             panic!("Channel {name} is already used");
-        }
+        }}}
     }
 
     pub fn register_interface(

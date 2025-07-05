@@ -1,14 +1,14 @@
+use super::datex_type::CoreValueType;
+use crate::values::pointer::Pointer;
+use crate::values::traits::identity::Identity;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::traits::value_eq::ValueEq;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-use std::ops::{Deref};
+use std::ops::Deref;
 use std::rc::Rc;
-use crate::datex_values::pointer::Pointer;
-use crate::datex_values::traits::identity::Identity;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::traits::value_eq::ValueEq;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
-use super::{datex_type::CoreValueType};
 
 #[derive(Clone, Debug, Eq)]
 pub struct Reference(pub Rc<RefCell<ReferenceData>>);
@@ -30,14 +30,20 @@ impl PartialEq for Reference {
 impl StructuralEq for Reference {
     fn structural_eq(&self, other: &Self) -> bool {
         // Two references are structurally equal if their current resolved values are equal
-        self.borrow().current_resolved_value().borrow().structural_eq(&other.borrow().current_resolved_value().borrow())
+        self.borrow()
+            .current_resolved_value()
+            .borrow()
+            .structural_eq(&other.borrow().current_resolved_value().borrow())
     }
 }
 
 impl ValueEq for Reference {
     fn value_eq(&self, other: &Self) -> bool {
         // Two references are value-equal if their current resolved values are equal
-        self.borrow().current_resolved_value().borrow().value_eq(&other.borrow().current_resolved_value().borrow())
+        self.borrow()
+            .current_resolved_value()
+            .borrow()
+            .value_eq(&other.borrow().current_resolved_value().borrow())
     }
 }
 
@@ -51,7 +57,8 @@ impl Hash for Reference {
 impl<T: Into<ValueContainer>> From<T> for Reference {
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
-        let allowed_type = value_container.to_value().borrow().actual_type.clone();
+        let allowed_type =
+            value_container.to_value().borrow().actual_type.clone();
         Reference(Rc::new(RefCell::new(ReferenceData {
             value_container,
             pointer: None,
@@ -59,7 +66,6 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
         })))
     }
 }
-
 
 // Implement Deref to allow access to ReferenceData directly
 impl Deref for Reference {
@@ -81,7 +87,6 @@ pub struct ReferenceData {
     pub allowed_type: CoreValueType,
 }
 
-
 impl ReferenceData {
     pub fn pointer_id(&self) -> Option<u64> {
         self.pointer.as_ref().map(|p| p.pointer_id())
@@ -98,9 +103,9 @@ impl ReferenceData {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_identical, assert_value_eq};
-    use crate::datex_values::traits::value_eq::ValueEq;
     use super::*;
+    use crate::values::traits::value_eq::ValueEq;
+    use crate::{assert_identical, assert_value_eq};
 
     #[test]
     fn test_reference_identity() {
@@ -111,7 +116,10 @@ mod tests {
         // cloned reference should be equal (identical)
         assert_eq!(reference1, reference2);
         // value containers containing the references should also be equal
-        assert_eq!(ValueContainer::Reference(reference1.clone()), ValueContainer::Reference(reference2.clone()));
+        assert_eq!(
+            ValueContainer::Reference(reference1.clone()),
+            ValueContainer::Reference(reference2.clone())
+        );
         // assert_identical! should also confirm identity
         assert_identical!(reference1.clone(), reference2);
         // separate reference containing the same value should not be equal

@@ -6,7 +6,7 @@ use super::{
 };
 use crate::utils::uuid::UUID;
 use crate::{
-    datex_values::core_values::endpoint::Endpoint, stdlib::fmt::Display,
+    values::core_values::endpoint::Endpoint, stdlib::fmt::Display,
 };
 use crate::{
     network::com_hub::ComHub, runtime::global_context::get_global_context,

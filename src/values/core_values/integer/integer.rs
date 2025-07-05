@@ -4,7 +4,7 @@ use std::{
     ops::{Add, Sub},
 };
 
-use crate::datex_values::{
+use crate::values::{
     core_values::integer::{
         typed_integer::TypedInteger,
         utils::{smallest_fitting_signed, smallest_fitting_unsigned},

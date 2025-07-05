@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    datex_values::core_values::endpoint::Endpoint,
+    values::core_values::endpoint::Endpoint,
     delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
@@ -409,17 +409,16 @@ impl ComInterface for WebRTCNativeInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        if let Some(channel) =
-            self.data_channels.borrow().get_data_channel("DATEX")
-        {
+        match self.data_channels.borrow().get_data_channel("DATEX")
+        { Some(channel) => {
             Box::pin(async move {
                 let bytes = Bytes::from(block.to_vec());
                 channel.borrow().data_channel.send(&bytes).await.is_ok()
             })
-        } else {
+        } _ => {
             error!("Failed to send message, data channel not found");
             Box::pin(async move { false })
-        }
+        }}
     }
 
     fn init_properties(&self) -> InterfaceProperties {

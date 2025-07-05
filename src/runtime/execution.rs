@@ -1,37 +1,52 @@
-use super::stack::{ActiveValue, ScopeStack, ScopeType};
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::core_values::tuple::Tuple;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::traits::value_eq::ValueEq;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::{ValueContainer, ValueError};
+use super::stack::{Scope, ScopeStack};
+use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
     Instruction, ShortTextData, SlotAddress, TextData,
 };
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::array::Array;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::object::Object;
+use crate::values::core_values::tuple::Tuple;
+use crate::values::reference::Reference;
+use crate::values::traits::identity::Identity;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::traits::value_eq::ValueEq;
+use crate::values::value::Value;
+use crate::values::value_container::{ValueContainer, ValueError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use crate::datex_values::reference::Reference;
-use crate::datex_values::traits::identity::Identity;
+use std::rc::Rc;
+use crate::network::com_hub::ResponseError;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
     pub verbose: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExecutionInput<'a> {
     pub options: ExecutionOptions,
     pub dxb_body: &'a [u8],
-    pub context: ExecutionContext,
+    pub end_execution: bool,
+    pub context: Rc<RefCell<RuntimeExecutionContext>>,
+}
+
+impl Default for ExecutionInput<'_> {
+    fn default() -> Self {
+        Self {
+            options: ExecutionOptions::default(),
+            dxb_body: &[],
+            context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
+            end_execution: true,
+        }
+    }
 }
 
 impl<'a> ExecutionInput<'a> {
@@ -42,19 +57,22 @@ impl<'a> ExecutionInput<'a> {
         Self {
             options,
             dxb_body,
-            context: ExecutionContext::default(),
+            context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
+            end_execution: true,
         }
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ExecutionContext {
+pub struct RuntimeExecutionContext {
     index: usize,
     scope_stack: ScopeStack,
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
+    // if set to true, the execution loop will pop the current scope before continuing with the next instruction
+    pop_next_scope: bool,
 }
 
-impl ExecutionContext {
+impl RuntimeExecutionContext {
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
@@ -106,10 +124,49 @@ impl ExecutionContext {
     }
 }
 
-pub fn execute_dxb(
+pub fn execute_dxb_sync(
     input: ExecutionInput,
-) -> Result<(Option<ValueContainer>, ExecutionContext), ExecutionError> {
-    execute_loop(input)
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    let interrupt_provider = Rc::new(RefCell::new(None));
+    for output in execute_loop(input, interrupt_provider.clone()) {
+        match output? {
+            ExecutionStep::Return(result) => {
+                return Ok(result)
+            }
+            ExecutionStep::ResolvePointer(pointer_id) => {
+                *interrupt_provider.borrow_mut() = Some(InterruptProvider::ResolvePointer(
+                    ValueContainer::from(42)
+                ));
+            }
+            _ => return Err(ExecutionError::RequiresAsyncExecution),
+        }
+    }
+
+    Err(ExecutionError::RequiresAsyncExecution)
+}
+
+pub async fn get_pointer_test() {}
+
+pub async fn execute_dxb(
+    input: ExecutionInput<'_>,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    let interrupt_provider = Rc::new(RefCell::new(None));
+    for output in execute_loop(input, interrupt_provider.clone()) {
+        match output? {
+            ExecutionStep::Return(result) => {
+                return Ok(result)
+            }
+            ExecutionStep::ResolvePointer(pointer_id) => {
+                get_pointer_test().await;
+                *interrupt_provider.borrow_mut() = Some(InterruptProvider::ResolvePointer(
+                    ValueContainer::from(42)
+                ));
+            }
+            _ => todo!(),
+        }
+    }
+    
+    unreachable!("Execution loop should always return a result");
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -145,6 +202,8 @@ pub enum ExecutionError {
     NotImplemented(String),
     SlotNotAllocated(u32),
     SlotNotInitialized(u32),
+    RequiresAsyncExecution,
+    ResponseError(ResponseError),
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -162,6 +221,12 @@ impl From<ValueError> for ExecutionError {
 impl From<InvalidProgramError> for ExecutionError {
     fn from(error: InvalidProgramError) -> Self {
         ExecutionError::InvalidProgram(error)
+    }
+}
+
+impl From<ResponseError> for ExecutionError {
+    fn from(error: ResponseError) -> Self {
+        ExecutionError::ResponseError(error)
     }
 }
 
@@ -191,468 +256,540 @@ impl Display for ExecutionError {
                     "Tried to access uninitialized slot at address {address}"
                 )
             }
+            ExecutionError::RequiresAsyncExecution => {
+                write!(f, "Program must be executed asynchronously")
+            }
+            ExecutionError::ResponseError(err) => {
+                write!(f, "Response error: {err}")
+            }
         }
     }
 }
 
+#[derive(Debug)]
+pub enum ExecutionStep {
+    InternalReturn(Option<ValueContainer>),
+    Return(Option<ValueContainer>),
+    ResolvePointer(u64),
+    Pause,
+}
+
+#[derive(Debug)]
+pub enum InterruptProvider {
+    ResolvePointer(ValueContainer),
+}
+
+#[macro_export]
+macro_rules! interrupt {
+    ($input:expr, $arg:expr) => {
+        {
+            yield Ok($arg);
+            $input.take().unwrap()
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! yield_unwrap {
+    ($e:expr) => {
+        {
+            let res = $e;
+            if let Ok(res) = res { res }
+            else {
+                return yield Err(res.unwrap_err().into());
+            }
+        }
+    };
+}
+
+
 pub fn execute_loop(
     input: ExecutionInput,
-) -> Result<(Option<ValueContainer>, ExecutionContext), ExecutionError> {
-    let dxb_body = input.dxb_body;
-    let mut context = input.context;
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+    gen move {
+        let dxb_body = input.dxb_body;
+        let end_execution = input.end_execution;
+        let context = input.context;
 
-    let instruction_iterator = body::iterate_instructions(dxb_body);
+        let instruction_iterator = body::iterate_instructions(dxb_body);
 
-    for instruction in instruction_iterator {
-        let instruction = instruction?;
-        if input.options.verbose {
-            println!("[Exec]: {instruction}");
+        for instruction in instruction_iterator {
+            // TODO: use ? operator instead of yield_unwrap once supported in gen blocks
+            let instruction = yield_unwrap!(instruction);
+            if input.options.verbose {
+                println!("[Exec]: {instruction}");
+            }
+
+            // get initial value from instruction
+            let mut result_value = None;
+
+            for output in get_result_value_from_instruction(context.clone(), instruction, interrupt_provider.clone()) {
+                match yield_unwrap!(output) {
+                    ExecutionStep::InternalReturn(result) => {
+                        result_value = result;
+                    }
+                    step => {
+                        *interrupt_provider.borrow_mut() = Some(interrupt!(interrupt_provider, step));
+                    }
+                }
+            };
+
+            // 1. if value is Some, handle it
+            // 2. while pop_next_scope is true: pop current scope and repeat
+            loop {
+                let mut context_mut = context.borrow_mut();
+                context_mut.pop_next_scope = false;
+                if let Some(value) = result_value {
+                    let res = handle_value(&mut context_mut, value);
+                    drop(context_mut);
+                    yield_unwrap!(res);
+                }
+                else {
+                    drop(context_mut);
+                }
+
+                let mut context_mut = context.borrow_mut();
+
+                if context_mut.pop_next_scope {
+                    let res = context_mut.scope_stack.pop();
+                    drop(context_mut);
+                    result_value = yield_unwrap!(res);
+                } else {
+                    break;
+                }
+            }
         }
 
-        let mut is_scope_start = false;
+        if end_execution {
+            // cleanup...
+            // TODO: check for other unclosed stacks
+            // if we have an active key here, this is invalid and leads to an error
+            // if context.scope_stack.get_active_key().is_some() {
+            //     return Err(ExecutionError::InvalidProgram(
+            //         InvalidProgramError::UnterminatedSequence,
+            //     ));
+            // }
 
-        let value: ActiveValue = match instruction {
+            // removes the current active value from the scope stack
+            let res = match context.borrow_mut().scope_stack.pop_active_value() {
+                None => ExecutionStep::Return(None),
+                Some(val) => ExecutionStep::Return(Some(val)),
+            };
+            yield Ok(res);
+        }
+
+        else {
+            yield Ok(ExecutionStep::Pause);
+        }
+
+    }
+}
+
+#[inline]
+fn get_result_value_from_instruction(
+    context: Rc<RefCell<RuntimeExecutionContext>>,
+    instruction: Instruction,
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+    gen move {
+        yield Ok(ExecutionStep::InternalReturn(match instruction {
             // boolean
-            Instruction::True => true.into(),
-            Instruction::False => false.into(),
+            Instruction::True => Some(true.into()),
+            Instruction::False => Some(false.into()),
 
             // integers
-            Instruction::Int8(integer) => Integer::from(integer.0).into(),
-            Instruction::Int16(integer) => Integer::from(integer.0).into(),
-            Instruction::Int32(integer) => Integer::from(integer.0).into(),
-            Instruction::Int64(integer) => Integer::from(integer.0).into(),
-            Instruction::Int128(integer) => Integer::from(integer.0).into(),
+            Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int16(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int32(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int64(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int128(integer) => Some(Integer::from(integer.0).into()),
 
             // unsigned integers
-            Instruction::UInt128(integer) => Integer::from(integer.0).into(),
+            Instruction::UInt128(integer) => Some(Integer::from(integer.0).into()),
 
             // specific floats
             Instruction::DecimalF32(Float32Data(f32)) => {
-                TypedDecimal::from(f32).into()
+                Some(TypedDecimal::from(f32).into())
             }
             Instruction::DecimalF64(Float64Data(f64)) => {
-                TypedDecimal::from(f64).into()
+                Some(TypedDecimal::from(f64).into())
             }
 
             // default decimals (big decimals)
             Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
-                Decimal::from(i16 as f32).into()
+                Some(Decimal::from(i16 as f32).into())
             }
             Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
-                Decimal::from(i32 as f32).into()
+                Some(Decimal::from(i32 as f32).into())
             }
             Instruction::Decimal(DecimalData(big_decimal)) => {
-                big_decimal.into()
+                Some(big_decimal.into())
             }
 
             // endpoint
-            Instruction::Endpoint(endpoint) => endpoint.into(),
+            Instruction::Endpoint(endpoint) => Some(endpoint.into()),
 
             // null
-            Instruction::Null => Value::null().into(),
+            Instruction::Null => Some(Value::null().into()),
 
             // text
-            Instruction::ShortText(ShortTextData(text)) => text.into(),
-            Instruction::Text(TextData(text)) => text.into(),
+            Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
+            Instruction::Text(TextData(text)) => Some(text.into()),
 
             // operations
-            Instruction::Add => {
-                context.scope_stack.set_active_operation(Instruction::Add);
-                ActiveValue::None
-            }
-
-            Instruction::Subtract => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Subtract);
-                ActiveValue::None
-            }
-
-            Instruction::Multiply => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Multiply);
-                ActiveValue::None
-            }
-
-            Instruction::Divide => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Divide);
-                ActiveValue::None
-            }
-            Instruction::Is => {
-                context.scope_stack.set_active_operation(Instruction::Is);
-                ActiveValue::None
-            }
-            Instruction::StructuralEqual => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::StructuralEqual);
-                ActiveValue::None
-            }
-            Instruction::Equal => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::Equal);
-                ActiveValue::None
-            }
-            Instruction::NotStructuralEqual => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::NotStructuralEqual);
-                ActiveValue::None
-            }
-            Instruction::NotEqual => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::NotEqual);
-                ActiveValue::None
+            Instruction::Add
+            | Instruction::Subtract
+            | Instruction::Multiply
+            | Instruction::Divide
+            | Instruction::Is
+            | Instruction::StructuralEqual
+            | Instruction::Equal
+            | Instruction::NotStructuralEqual
+            | Instruction::NotEqual => {
+                context.borrow_mut().scope_stack.create_scope(Scope::BinaryOperation {
+                    operator: BinaryOperator::from(instruction),
+                });
+                None
             }
 
             Instruction::CloseAndStore => {
-                let active = context.scope_stack.pop_active_value();
-                ActiveValue::None
-                // try_assign_active_value_to_active_slot(&mut context)?
+                let _ = context.borrow_mut().scope_stack.pop_active_value();
+                None
             }
 
             Instruction::ScopeStart => {
-                context.scope_stack.create_scope(ScopeType::Default);
-                ActiveValue::None
+                context.borrow_mut().scope_stack.create_scope(Scope::Default);
+                None
             }
 
             Instruction::ArrayStart => {
-                context.scope_stack.create_scope(ScopeType::Array);
-                is_scope_start = true;
-                Array::default().into()
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::Collection,
+                    Array::default().into(),
+                );
+                None
             }
 
             Instruction::ObjectStart => {
-                context.scope_stack.create_scope(ScopeType::Object);
-                is_scope_start = true;
-                Object::default().into()
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::Collection,
+                    Object::default().into(),
+                );
+                None
             }
 
             Instruction::TupleStart => {
-                context.scope_stack.create_scope(ScopeType::Tuple);
-                is_scope_start = true;
-                Tuple::default().into()
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::Collection,
+                    Tuple::default().into(),
+                );
+                None
             }
 
             Instruction::KeyValueShortText(ShortTextData(key)) => {
-                context.scope_stack.set_active_key(key.into());
-                ActiveValue::None
+                context.borrow_mut().scope_stack.create_scope_with_active_value(
+                    Scope::KeyValuePair,
+                    key.into(),
+                );
+                None
             }
 
             Instruction::KeyValueDynamic => {
-                context.scope_stack.set_active_key(ActiveValue::None);
-                ActiveValue::None
+                context.borrow_mut().scope_stack.create_scope(Scope::KeyValuePair);
+                None
             }
 
             Instruction::ScopeEnd => {
-                // if has active_slot, assign value
-                if let Some(active_slot) = context.scope_stack.get_active_slot()
-                    && let ActiveValue::ValueContainer(active) =
-                        context.scope_stack.get_active_value()
-                {
-                    // write to slot
-                    context.set_slot_value(active_slot, active.clone())?;
-                }
-
                 // pop scope and return value
-                context.scope_stack.pop()?
+                yield_unwrap!(context.borrow_mut().scope_stack.pop())
             }
 
             // slots
             Instruction::AllocateSlot(SlotAddress(address)) => {
+                let mut context = context.borrow_mut();
                 context.allocate_slot(address, None);
-                context.scope_stack.create_scope(ScopeType::SlotAssignment);
-                context.scope_stack.set_active_slot(address);
-                ActiveValue::None
+                context
+                    .scope_stack
+                    .create_scope(Scope::SlotAssignment { address });
+                None
             }
             Instruction::GetSlot(SlotAddress(address)) => {
+                let res = context.borrow_mut().get_slot_value(address);
                 // get value from slot
-                let slot_value = context.get_slot_value(address)?;
+                let slot_value = yield_unwrap!(res);
                 if slot_value.is_none() {
-                    return Err(ExecutionError::SlotNotInitialized(address));
+                    return yield Err(ExecutionError::SlotNotInitialized(address));
                 }
-                slot_value.into()
+                slot_value
             }
             Instruction::UpdateSlot(SlotAddress(address)) => {
-                context.scope_stack.create_scope(ScopeType::SlotAssignment);
-                context.scope_stack.set_active_slot(address);
-                ActiveValue::None
+                context.borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::SlotAssignment { address });
+                None
             }
 
             // refs
             Instruction::CreateRef => {
-                context
-                    .scope_stack
-                    .set_active_operation(Instruction::CreateRef);
-                ActiveValue::None
+                context.borrow_mut().scope_stack.create_scope(Scope::UnaryOperation {
+                    operator: UnaryOperator::CreateRef,
+                });
+                None
             }
 
             Instruction::DropSlot(SlotAddress(address)) => {
                 // remove slot from slots
-                context.drop_slot(address)?;
-                ActiveValue::None
+                let res = context.borrow_mut().drop_slot(address);
+                yield_unwrap!(res);
+                None
             }
 
             i => {
-                return Err(ExecutionError::NotImplemented(
+                return yield Err(ExecutionError::NotImplemented(
                     format!("Instruction {i}").to_string(),
                 ));
             }
-        };
-
-        handle_value(&mut context, is_scope_start, value)?;
+        }))
     }
-
-    // final cleanup of the current scope:
-
-    // // try to assign the remaining active value to the active slot
-    // if context.scope_stack.get_active_slot().is_some() {
-    //     let active_value = try_assign_active_value_to_active_slot(&mut context)?;
-    //     if active_value.is_some() {
-    //         handle_value(
-    //             &mut context,
-    //             false,
-    //             active_value,
-    //         )?;
-    //     }
-    // }
-
-    // if we have an active key here, this is invalid and leads to an error
-    if context.scope_stack.get_active_key().is_some() {
-        return Err(ExecutionError::InvalidProgram(
-            InvalidProgramError::UnterminatedSequence,
-        ));
-    }
-    // clear active operation if any
-    context.scope_stack.clear_active_operation();
-
-    // removes the current active value from the scope stack
-    Ok(match context.scope_stack.pop_active_value() {
-        ActiveValue::None => (None, context),
-        ActiveValue::ValueContainer(val) => (Some(val), context),
-    })
 }
 
-/// Takes a produced value and handles it according to the current context, scope and active operation.
+/// Takes a produced value and handles it according to the current scope
 fn handle_value(
-    context: &mut ExecutionContext,
-    is_scope_start: bool,
-    value: ActiveValue,
+    context: &mut RuntimeExecutionContext,
+    value_container: ValueContainer,
 ) -> Result<(), ExecutionError> {
-    match value {
-        ActiveValue::ValueContainer(value_container) => {
-            // TODO: try to optimize and initialize variables only when needed, currently leeds to borrow errors
-            let active_operation =
-                context.scope_stack.get_active_operation().cloned();
-            let scope_type =
-                context.scope_stack.get_current_scope_type().clone();
-            let active_key = context.scope_stack.get_active_key();
-            let active_value = context.scope_stack.get_active_value_mut();
+    let scope_container = context.scope_stack.get_current_scope_mut();
 
-            // check if active_key_value_pair exists
-            if let Some(active_key) = active_key {
-                match active_key {
-                    // set key for key-value pair (for dynamic keys)
-                    ActiveValue::None => {
-                        context
-                            .scope_stack
-                            .set_active_key(value_container.into());
+    let result_value = match &scope_container.scope {
+        Scope::KeyValuePair => {
+            let key = &scope_container.active_value;
+            match key {
+                // set key as active_value for key-value pair (for dynamic keys)
+                None => Some(value_container),
+
+                // set value for key-value pair
+                Some(_) => {
+                    let key = context.scope_stack.pop()?.unwrap();
+                    match context.scope_stack.get_active_value_mut() {
+                        Some(collector) => {
+                            // handle active value collector
+                            handle_key_value_pair(
+                                collector,
+                                key,
+                                value_container,
+                            )?;
+                        }
+                        None => unreachable!(
+                            "Expected active value for key-value pair, but got None"
+                        ),
                     }
-
-                    // set value for key-value pair
-                    ActiveValue::ValueContainer(key) => {
-                        // insert key value pair into active object
-                        match active_value {
-                            ActiveValue::ValueContainer(
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Object(object),
-                                    ..
-                                }),
-                            ) => {
-                                // make sure key is a string
-                                match key {
-                                    ValueContainer::Value(Value {
-                                        inner: CoreValue::Text(key_str),
-                                        ..
-                                    }) => {
-                                        object.set(&key_str.0, value_container);
-                                    }
-                                    _ => {
-                                        return Err(ExecutionError::InvalidProgram(InvalidProgramError::InvalidKeyValuePair));
-                                    }
-                                }
-                            }
-                            // tuple
-                            ActiveValue::ValueContainer(
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Tuple(tuple),
-                                    ..
-                                }),
-                            ) => {
-                                // set key-value pair in tuple
-                                tuple.set(key, value_container);
-                            }
-                            _ => {
-                                unreachable!("Expected active value object or tuple to collect key value pairs, but got: {}", active_value);
-                            }
-                        }
-                    }
-                }
-            } else {
-                match active_value {
-                    ActiveValue::None => {
-                        // Unary operations:
-
-                        // CREATE_REF
-                        if active_operation
-                            == Some(Instruction::CreateRef)
-                        {
-                            // create a new value container for the ref
-                            let ref_value_container =
-                                ValueContainer::Reference(Reference::from(value_container));
-                            // set active value to ref value container
-                            context
-                                .scope_stack
-                                .set_active_value_container(ref_value_container);
-                        }
-
-                        // set active value to new value
-                        else {
-                            context
-                                .scope_stack
-                                .set_active_value_container(value_container);
-                        }
-
-                    }
-
-                    // value and active value exists
-                    ActiveValue::ValueContainer(
-                        ref mut active_value_container,
-                    ) => {
-                        // binary operation
-                        if let Some(operation) = active_operation {
-                            // apply operation to active value
-                            let res = match operation {
-                                Instruction::Add => {
-                                    active_value_container as &_
-                                        + &value_container
-                                }
-                                Instruction::Subtract => {
-                                    active_value_container as &_
-                                        - &value_container
-                                }
-                                Instruction::StructuralEqual => {
-                                    let val = active_value_container
-                                        .structural_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::Equal => {
-                                    let val = active_value_container
-                                        .value_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::NotStructuralEqual => {
-                                    let val = !active_value_container
-                                        .structural_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::NotEqual => {
-                                    let val = !active_value_container
-                                        .value_eq(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                Instruction::Is => {
-                                    // TODO we should throw a runtime error when one of lhs or rhs is a value
-                                    // instead of a ref. Identity checks using the is operator shall be only allowed
-                                    // for references.
-                                    // @benstre: or keep as always false ? - maybe a compiler check would be better
-                                    let val = active_value_container
-                                        .identical(&value_container);
-                                    Ok(ValueContainer::from(val))
-                                }
-                                _ => {
-                                    unreachable!("Instruction {:?} is not a valid operation", operation);
-                                }
-                            };
-                            if let Ok(val) = res {
-                                // set active value to operation result
-                                context
-                                    .scope_stack
-                                    .set_active_value_container(val);
-                            } else {
-                                // handle error
-                                return Err(ExecutionError::ValueError(
-                                    res.unwrap_err(),
-                                ));
-                            }
-                        }
-                        // special scope: Array
-                        else if !is_scope_start
-                            && scope_type == ScopeType::Array
-                        {
-                            // add value to array scope
-                            match active_value_container {
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Array(array),
-                                    ..
-                                }) => {
-                                    // append value to array
-                                    array.push(value_container);
-                                }
-                                _ => {
-                                    unreachable!("Expected active value in array scope to be an array, but got: {}", active_value_container);
-                                }
-                            }
-                        }
-                        // special scope: Tuple
-                        else if !is_scope_start
-                            && scope_type == ScopeType::Tuple
-                        {
-                            // add value to array scope
-                            match active_value_container {
-                                ValueContainer::Value(Value {
-                                    inner: CoreValue::Tuple(tuple),
-                                    ..
-                                }) => {
-                                    // automatic tuple keys are always default integer values
-                                    let index = CoreValue::Integer(
-                                        Integer::from(tuple.next_int_key()),
-                                    );
-                                    tuple.set(index, value_container);
-                                }
-                                _ => {
-                                    unreachable!("Expected active value in tuple scope to be a tuple, but got: {}", active_value_container);
-                                }
-                            }
-                        }
-                    }
+                    None
                 }
             }
         }
 
-        ActiveValue::None => {}
+        Scope::SlotAssignment { address } => {
+            // set value for slot
+            let address = *address;
+            context.set_slot_value(address, value_container.clone())?;
+            // set value_container as active value
+            context.pop_next_scope = true;
+            Some(value_container)
+        }
+
+        Scope::UnaryOperation { operator } => {
+            let operator = *operator;
+            context.pop_next_scope = true;
+            Some(handle_unary_operation(operator, value_container))
+        }
+
+        Scope::BinaryOperation { operator } => {
+            let active_value = &scope_container.active_value;
+            match active_value {
+                Some(active_value_container) => {
+                    let res = handle_binary_operation(
+                        active_value_container,
+                        value_container,
+                        *operator,
+                    );
+                    if let Ok(val) = res {
+                        // set val as active value
+                        context.pop_next_scope = true;
+                        Some(val)
+                    } else {
+                        // handle error
+                        return Err(res.unwrap_err());
+                    }
+                }
+                None => Some(value_container),
+            }
+        }
+
+        Scope::Collection => {
+            let active_value = &mut scope_container.active_value;
+            match active_value {
+                Some(active_value_container) => {
+                    // handle active value collector
+                    handle_collector(active_value_container, value_container);
+                    None
+                }
+                None => {
+                    unreachable!(
+                        "Expected active value for collection scope, but got None"
+                    );
+                }
+            }
+        }
+
+        _ => Some(value_container),
+    };
+
+    if let Some(result_value) = result_value {
+        context.scope_stack.set_active_value_container(result_value);
     }
 
     Ok(())
 }
 
+fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
+    match collector {
+        ValueContainer::Value(Value {
+            inner: CoreValue::Array(array),
+            ..
+        }) => {
+            // append value to array
+            array.push(value);
+        }
+        ValueContainer::Value(Value {
+            inner: CoreValue::Tuple(tuple),
+            ..
+        }) => {
+            // automatic tuple keys are always default integer values
+            let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
+            tuple.set(index, value);
+        }
+        _ => {
+            unreachable!(
+                "Expected active value in array scope to be an array, but got: {}",
+                collector
+            );
+        }
+    }
+}
+
+fn handle_key_value_pair(
+    active_container: &mut ValueContainer,
+    key: ValueContainer,
+    value: ValueContainer,
+) -> Result<(), ExecutionError> {
+    // insert key value pair into active object/tuple
+    match active_container {
+        // object
+        ValueContainer::Value(Value {
+            inner: CoreValue::Object(object),
+            ..
+        }) => {
+            // make sure key is a string
+            match key {
+                ValueContainer::Value(Value {
+                    inner: CoreValue::Text(key_str),
+                    ..
+                }) => {
+                    object.set(&key_str.0, value);
+                }
+                _ => {
+                    return Err(ExecutionError::InvalidProgram(
+                        InvalidProgramError::InvalidKeyValuePair,
+                    ));
+                }
+            }
+        }
+        // tuple
+        ValueContainer::Value(Value {
+            inner: CoreValue::Tuple(tuple),
+            ..
+        }) => {
+            // set key-value pair in tuple
+            tuple.set(key, value);
+        }
+        _ => {
+            unreachable!(
+                "Expected active value object or tuple to collect key value pairs, but got: {}",
+                active_container
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn handle_unary_operation(
+    operator: UnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    match operator {
+        UnaryOperator::CreateRef => {
+            ValueContainer::Reference(Reference::from(value_container))
+        }
+        _ => todo!("Unary instruction not implemented: {operator:?}"),
+    }
+}
+
+fn handle_binary_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: BinaryOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        BinaryOperator::Add => Ok((active_value_container + &value_container)?),
+        BinaryOperator::Subtract => {
+            Ok((active_value_container - &value_container)?)
+        }
+        BinaryOperator::StructuralEqual => {
+            let val = active_value_container.structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::Equal => {
+            let val = active_value_container.value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::NotStructuralEqual => {
+            let val = !active_value_container.structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::NotEqual => {
+            let val = !active_value_container.value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        BinaryOperator::Is => {
+            // TODO we should throw a runtime error when one of lhs or rhs is a value
+            // instead of a ref. Identity checks using the is operator shall be only allowed
+            // for references.
+            // @benstre: or keep as always false ? - maybe a compiler check would be better
+            let val = active_value_container.identical(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        _ => {
+            unreachable!("Instruction {:?} is not a valid operation", operator);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use std::vec;
 
     use log::debug;
 
     use super::*;
-    use crate::compiler::bytecode::{compile_script, CompileOptions};
-    use crate::datex_values::traits::structural_eq::StructuralEq;
+    use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger;
-    use crate::{assert_structural_eq, datex_array};
+    use crate::values::traits::structural_eq::StructuralEq;
+    use crate::{assert_structural_eq, assert_value_eq, datex_array};
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -663,11 +800,10 @@ mod tests {
             &dxb,
             ExecutionOptions { verbose: true },
         );
-        execute_dxb(context)
+        execute_dxb_sync(context)
             .unwrap_or_else(|err| {
                 panic!("Execution failed: {err}");
             })
-            .0
     }
 
     fn execute_datex_script_debug_with_result(
@@ -683,7 +819,7 @@ mod tests {
             dxb_body,
             ExecutionOptions { verbose: true },
         );
-        execute_dxb(context).map(|(result, _)| result)
+        execute_dxb_sync(context)
     }
 
     #[test]
@@ -768,10 +904,10 @@ mod tests {
 
     #[test]
     fn test_invalid_scope_close() {
-        let result = execute_dxb_debug(&vec![
+        let result = execute_dxb_debug(&[
             InstructionCode::SCOPE_START.into(),
             InstructionCode::SCOPE_END.into(),
-            InstructionCode::SCOPE_END.into(), // Invalid close, no matching start
+            InstructionCode::SCOPE_END.into(),
         ]);
         assert!(matches!(
             result,
@@ -899,5 +1035,78 @@ mod tests {
         debug!("Tuple result: {tuple}");
         // FIXME type information gets lost on compile
         // assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn test_val_assignment() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("val x = 42; x");
+        assert_eq!(result, Integer::from(42).into());
+    }
+
+    #[test]
+    fn test_val_assignment_with_addition() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("val x = 1 + 2; x");
+        assert_eq!(result, Integer::from(3).into());
+    }
+
+    #[test]
+    fn test_val_assignment_inside_scope() {
+        init_logger();
+        let result =
+            execute_datex_script_debug_with_result("[val x = 42, 2, x]");
+        let expected = datex_array![
+            Integer::from(42),
+            Integer::from(2),
+            Integer::from(42)
+        ];
+        assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn test_ref_assignment() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("ref x = 42; x");
+        assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
+    }
+
+    #[test]
+    fn test_shebang() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result("#!datex\n42");
+        assert_eq!(result, Integer::from(42).into());
+    }
+
+    #[test]
+    fn test_single_line_comment() {
+        init_logger();
+        let result =
+            execute_datex_script_debug_with_result("// this is a comment\n42");
+        assert_eq!(result, Integer::from(42).into());
+
+        let result = execute_datex_script_debug_with_result(
+            "// this is a comment\n// another comment\n42",
+        );
+        assert_eq!(result, Integer::from(42).into());
+    }
+
+    #[test]
+    fn test_multi_line_comment() {
+        init_logger();
+        let result = execute_datex_script_debug_with_result(
+            "/* this is a comment */\n42",
+        );
+        assert_eq!(result, Integer::from(42).into());
+
+        let result = execute_datex_script_debug_with_result(
+            "/* this is a comment\n   with multiple lines */\n42",
+        );
+        assert_eq!(result, Integer::from(42).into());
+
+        let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
+        let expected = datex_array![Integer::from(1), Integer::from(3)];
+        assert_eq!(result, expected.into());
     }
 }

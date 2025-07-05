@@ -1,4 +1,4 @@
-use datex_core::datex_values::core_values::endpoint::Endpoint;
+use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };
@@ -250,12 +250,12 @@ impl ComInterface for MockupInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // FIXME this should be inside the async body, why is it not working?
         let is_hello = {
-            if let Ok(block) = DXBBlock::from_bytes(block) {
+            match DXBBlock::from_bytes(block) { Ok(block) => {
                 block.block_header.flags_and_timestamp.block_type()
                     == BlockType::Hello
-            } else {
+            } _ => {
                 false
-            }
+            }}
         };
         if !is_hello {
             self.outgoing_queue.push((socket_uuid, block.to_vec()));

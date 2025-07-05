@@ -81,7 +81,7 @@ impl CryptoTrait for CryptoNative {
 
     fn random_bytes(&self, length: usize) -> Vec<u8> {
         let mut rng = rand::thread_rng();
-        (0..length).map(|_| rng.gen()).collect()
+        (0..length).map(|_| rng.r#gen()).collect()
     }
 
     fn new_encryption_key_pair(

@@ -28,7 +28,7 @@ use super::com_interfaces::com_interface::{
 use super::com_interfaces::{
     com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
 };
-use crate::datex_values::core_values::endpoint::{Endpoint, EndpointInstance};
+use crate::values::core_values::endpoint::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
@@ -225,11 +225,11 @@ impl ComHub {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
             drop(interface_factories);
-            let res = self
+            
+            self
                 .open_and_add_interface(interface.clone(), priority)
                 .await
-                .map(|_| interface);
-            res
+                .map(|_| interface)
         } else {
             Err(ComHubError::InterfaceTypeDoesNotExist)
         }
@@ -1863,6 +1863,16 @@ pub enum Response {
     ExactResponse(Endpoint, IncomingSection),
     ResolvedResponse(Endpoint, IncomingSection),
     UnspecifiedResponse(IncomingSection),
+}
+
+impl Response {
+    pub fn take_incoming_section(self) -> IncomingSection {
+        match self {
+            Response::ExactResponse(_, section) => section,
+            Response::ResolvedResponse(_, section) => section,
+            Response::UnspecifiedResponse(section) => section,
+        }
+    }
 }
 
 #[derive(Debug)]

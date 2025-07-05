@@ -197,8 +197,8 @@ impl BlockHandler {
         let block_number = block.block_header.block_number;
         let is_end_of_section =
             block.block_header.flags_and_timestamp.is_end_of_section();
-        let is_end_of_scope =
-            block.block_header.flags_and_timestamp.is_end_of_scope();
+        let is_end_of_context =
+            block.block_header.flags_and_timestamp.is_end_of_context();
         let endpoint_context_id = IncomingEndpointContextId {
             sender: block.routing_header.sender.clone(),
             context_id: block.block_header.context_id,
@@ -211,7 +211,7 @@ impl BlockHandler {
         // Case 1: shortcut if no scope context exists and the block is a single block
         if !has_scope_context
             && block_number == 0
-            && (is_end_of_section || is_end_of_scope)
+            && (is_end_of_section || is_end_of_context)
         {
             return vec![IncomingSection::SingleBlock(block)];
         }
@@ -232,7 +232,7 @@ impl BlockHandler {
             let mut new_blocks = vec![];
 
             // initial values for loop variables from input block
-            let mut is_end_of_scope = is_end_of_scope;
+            let mut is_end_of_context = is_end_of_context;
             let mut is_end_of_section = is_end_of_section;
             let mut next_block = block;
 
@@ -264,7 +264,7 @@ impl BlockHandler {
                 scope_context.next_block_number += 1;
 
                 // if end of scope, remove the scope context
-                if is_end_of_scope {
+                if is_end_of_context {
                     request_scopes.remove(&endpoint_context_id);
                     break;
                 }
@@ -288,10 +288,10 @@ impl BlockHandler {
                         .flags_and_timestamp
                         .is_end_of_section();
                     // check if block is end of scope
-                    is_end_of_scope = next_cached_block
+                    is_end_of_context = next_cached_block
                         .block_header
                         .flags_and_timestamp
-                        .is_end_of_scope();
+                        .is_end_of_context();
                     // set next block
                     next_block = next_cached_block;
                 }

@@ -1,11 +1,11 @@
 use crate::compile;
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::boolean::Boolean;
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::object::Object;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
@@ -15,7 +15,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::network::com_hub::{ComHub, Response, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::execution::{execute_dxb, ExecutionInput, ExecutionOptions};
+use crate::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
 use itertools::Itertools;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
@@ -505,9 +505,8 @@ impl ComHub {
             &dxb,
             ExecutionOptions::default()
         );
-        let hops_datex = execute_dxb(exec_input)
+        let hops_datex = execute_dxb_sync(exec_input)
             .unwrap()
-            .0
             .unwrap();
         info!("hops datex {hops_datex}");
         if let ValueContainer::Value(Value {

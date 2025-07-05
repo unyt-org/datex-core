@@ -5,7 +5,7 @@ use std::io::{Cursor, Read};
 use std::rc::Rc;
 // FIXME no-std
 
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use binrw::{BinRead, BinWrite};
@@ -66,6 +66,46 @@ pub enum IncomingSection {
     BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
 }
 
+#[derive(Debug)]
+pub enum IncomingSectionIter {
+    /// a single block
+    SingleBlock(Option<DXBBlock>),
+    /// a stream of blocks
+    /// the stream is finished when a block has the end_of_block flag set
+    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
+}
+
+impl IntoIterator for IncomingSection {
+    type Item = DXBBlock;
+    type IntoIter = IncomingSectionIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            IncomingSection::SingleBlock(block) => IncomingSectionIter::SingleBlock(Some(block)),
+            IncomingSection::BlockStream(stream) => {
+                IncomingSectionIter::BlockStream(stream)
+            },
+        }
+    }
+}
+
+impl Iterator for IncomingSectionIter {
+    type Item = DXBBlock;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            IncomingSectionIter::SingleBlock(block) => {
+                block.take()
+            }
+            IncomingSectionIter::BlockStream((blocks, section_index)) => {
+                let mut blocks = blocks.borrow_mut();
+                blocks.pop_front()
+            }
+        }
+    }
+}
+
+
 impl IncomingSection {
     pub fn get_section_index(&self) -> IncomingSectionIndex {
         match self {
@@ -118,7 +158,7 @@ impl DXBBlock {
             raw_bytes: None,
         }
     }
-
+    
     pub fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error> {
         let mut writer = Cursor::new(Vec::new());
         self.routing_header.write(&mut writer)?;

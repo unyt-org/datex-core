@@ -7,7 +7,7 @@ use crate::stdlib::fmt::Display;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::utils::uuid::UUID;
 use crate::{
-    datex_values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
+    values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
 };
 use std::sync::Mutex;
 // FIXME no-std

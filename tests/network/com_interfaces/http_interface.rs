@@ -1,5 +1,5 @@
 use datex_core::{
-    datex_values::core_values::endpoint::Endpoint,
+    values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::ComInterface,
         default_com_interfaces::http::http_server_interface::HTTPServerNativeInterface,

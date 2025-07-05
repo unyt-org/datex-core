@@ -1,5 +1,5 @@
 use super::serializable::Serializable;
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{bitfield, prelude::B43, BitfieldSpecifier};
 use strum_macros::Display;
@@ -57,7 +57,7 @@ pub struct FlagsAndTimestamp {
     pub block_type: BlockType,
     pub allow_execution: bool,
     pub is_end_of_section: bool,
-    pub is_end_of_scope: bool,
+    pub is_end_of_context: bool,
     pub has_lifetime: bool,
     pub has_represented_by: bool,
     pub has_iv: bool,
@@ -92,7 +92,7 @@ impl Default for FlagsAndTimestamp {
             .with_block_type(BlockType::Request)
             .with_allow_execution(false)
             .with_is_end_of_section(true)
-            .with_is_end_of_scope(true)
+            .with_is_end_of_context(true)
             .with_has_lifetime(false)
             .with_has_represented_by(false)
             .with_has_iv(false)

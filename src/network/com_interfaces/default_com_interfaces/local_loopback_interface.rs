@@ -1,4 +1,4 @@
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::network::com_interfaces::com_interface::ComInterfaceInfo;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,

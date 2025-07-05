@@ -8,7 +8,7 @@ use crate::network::helpers::mockup_interface::{
 use crate::network::helpers::network::{
     test_routes, InterfaceConnection, Network, Node, Route, RouteAssertionError,
 };
-use datex_core::datex_values::core_values::endpoint::Endpoint;
+use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub::{InterfacePriority, ResponseOptions};
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;

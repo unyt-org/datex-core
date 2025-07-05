@@ -3,7 +3,7 @@ use std::fmt::Display;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 
 // TODO: currently not required
 pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
