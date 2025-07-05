@@ -1,6 +1,6 @@
 use serde::{
     Deserialize, Deserializer,
-    de::{self, IntoDeserializer, Visitor},
+    de::{IntoDeserializer, Visitor},
     forward_to_deserialize_any,
 };
 
@@ -22,7 +22,7 @@ pub struct DatexDeserializer {
 impl<'de> DatexDeserializer {
     pub fn from_bytes(input: &'de [u8]) -> Result<Self, SerializationError> {
         let context = ExecutionInput::new_with_dxb_and_options(
-            &input,
+            input,
             ExecutionOptions { verbose: true },
         );
         let value = execute_dxb_sync(context)
@@ -93,7 +93,6 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
-    // Hand the rest to `deserialize_any`
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
         option unit unit_struct newtype_struct seq tuple tuple_struct
@@ -101,7 +100,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     }
 
     fn is_human_readable(&self) -> bool {
-        false // binary format
+        false
     }
 }
 
@@ -136,6 +135,6 @@ mod tests {
         .unwrap();
         let result: TestStruct = from_bytes(&data).unwrap();
         assert!(!result.field1.is_empty());
-        println!("Deserialized: {:?}", result);
+        println!("Deserialized: {result:?}");
     }
 }

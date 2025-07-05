@@ -80,7 +80,7 @@ impl SerializeStruct for &mut DatexSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(self.container.clone()))
+        Ok(self.container.clone())
     }
 }
 
