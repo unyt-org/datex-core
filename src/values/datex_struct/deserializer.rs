@@ -1,6 +1,6 @@
 use serde::{
     Deserialize, Deserializer,
-    de::{self, Visitor},
+    de::{self, IntoDeserializer, Visitor},
     forward_to_deserialize_any,
 };
 
@@ -18,12 +18,6 @@ use crate::{
 pub struct DatexDeserializer {
     value: ValueContainer,
 }
-
-// impl Default for DatexDeserializer {
-//     fn default() -> Self {
-//         Self::new(&[])
-//     }
-// }
 
 impl<'de> DatexDeserializer {
     pub fn from_bytes(input: &'de [u8]) -> Result<Self, SerializationError> {
@@ -43,7 +37,13 @@ impl<'de> DatexDeserializer {
         Self { value }
     }
 }
+impl<'de> IntoDeserializer<'de, SerializationError> for DatexDeserializer {
+    type Deserializer = Self;
 
+    fn into_deserializer(self) -> Self::Deserializer {
+        self
+    }
+}
 impl<'de> Deserializer<'de> for DatexDeserializer {
     type Error = SerializationError;
 
@@ -61,6 +61,24 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Integer(Integer {
                     0: TypedInteger::U64(u),
                 }) => visitor.visit_u64(u),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::I32(i),
+                }) => visitor.visit_i32(i),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::U32(u),
+                }) => visitor.visit_u32(u),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::I16(i),
+                }) => visitor.visit_i16(i),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::U16(u),
+                }) => visitor.visit_u16(u),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::I8(i),
+                }) => visitor.visit_i8(i),
+                CoreValue::Integer(Integer {
+                    0: TypedInteger::U8(u),
+                }) => visitor.visit_u8(u),
                 CoreValue::Text(s) => visitor.visit_string(s.0),
                 CoreValue::Object(obj) => {
                     let map = obj
@@ -103,7 +121,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Deserialize, Serialize)]
+    #[derive(Deserialize, Serialize, Debug)]
     struct TestStruct {
         field1: String,
         field2: i32,
@@ -118,5 +136,6 @@ mod tests {
         .unwrap();
         let result: TestStruct = from_bytes(&data).unwrap();
         assert!(!result.field1.is_empty());
+        println!("Deserialized: {:?}", result);
     }
 }
