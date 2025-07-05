@@ -1,6 +1,6 @@
 use core::fmt;
 use serde::ser::StdError;
-use serde::ser::{self, Serialize, SerializeStruct, Serializer};
+use serde::ser::{self};
 use std::fmt::Display;
 use std::io;
 

@@ -1,17 +1,19 @@
-use core::fmt;
-use serde::ser::StdError;
 use serde::ser::{self, Serialize, SerializeStruct, Serializer};
 use std::fmt::Display;
-use std::{error::Error, io};
 
 use crate::compiler::compile_value;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::object::Object;
 use crate::values::datex_struct::error::SerializationError;
-use crate::values::value;
 use crate::values::value_container::ValueContainer;
 pub struct DatexSerializer {
     object: Object,
+}
+
+impl Default for DatexSerializer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DatexSerializer {
@@ -34,9 +36,9 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
-    Ok(compile_value(&value_container).map_err(|e| {
-        SerializationError(format!("Failed to compile value: {}", e))
-    })?)
+    compile_value(&value_container).map_err(|e| {
+        SerializationError(format!("Failed to compile value: {e}"))
+    })
 }
 pub fn to_value_container<T>(
     value: &T,
@@ -49,7 +51,7 @@ where
     Ok(serializer.into_value_container())
 }
 
-impl<'a> SerializeStruct for &'a mut DatexSerializer {
+impl SerializeStruct for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
@@ -71,7 +73,7 @@ impl<'a> SerializeStruct for &'a mut DatexSerializer {
     }
 }
 
-impl<'a> Serializer for &'a mut DatexSerializer {
+impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
