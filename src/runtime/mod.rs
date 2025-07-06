@@ -16,7 +16,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::{ComHub, ResponseOptions};
 use crate::runtime::execution::ExecutionError;
-use crate::runtime::execution_context::{ExecutionContext, LocalExecutionContext, RemoteExecutionContext, ScriptExecutionError};
+use crate::runtime::execution_context::{ExecutionContext, RemoteExecutionContext, ScriptExecutionError};
 
 pub mod execution;
 pub mod global_context;
