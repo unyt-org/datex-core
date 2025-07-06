@@ -1,5 +1,6 @@
 use serde::ser::{
-    self, Serialize, SerializeStruct, SerializeTuple, Serializer,
+    self, Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
+    Serializer,
 };
 use std::fmt::Display;
 
@@ -122,23 +123,54 @@ impl SerializeTuple for &mut DatexSerializer {
     }
 }
 
+impl SerializeTupleStruct for &mut DatexSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_field<T: ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: Serialize,
+    {
+        let value_container = value.serialize(&mut **self)?;
+        match self.container {
+            ValueContainer::Value(Value {
+                inner: CoreValue::Tuple(ref mut tuple),
+                ..
+            }) => {
+                tuple.insert(value_container);
+            }
+            _ => {
+                return Err(SerializationError(
+                    "Cannot serialize element into non-tuple container"
+                        .to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(self.container.clone())
+    }
+}
+
 impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
+    // Non implemented types
     type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
-
-    type SerializeTupleStruct = serde::ser::Impossible<Self::Ok, Self::Error>;
-
     type SerializeTupleVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
-
     type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
-
     type SerializeStructVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
 
-    // Should be Self
+    // Implemented types
     type SerializeStruct = Self;
     type SerializeTuple = Self;
+    type SerializeTupleStruct = Self;
 
     fn serialize_struct(
         self,
@@ -281,7 +313,8 @@ impl Serializer for &mut DatexSerializer {
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        todo!()
+        self.container = Tuple::default().into();
+        Ok(self)
     }
 
     fn serialize_tuple_variant(
