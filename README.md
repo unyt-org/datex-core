@@ -2,7 +2,7 @@
 
 [![Twitter badge][]][Twitter link] [![Discord badge][]][Discord link]
 
-<img align="right" src="./.github/assets/datex-logo-light.svg" height="150px">
+<img align="right" src="./.github/assets/datex-logo-light.svg" width="150px" alt="The DATEX logo">
 
 This repository contains the full DATEX Runtime including networking, compiler and decompiler, written in Rust.
 The DATEX Core crate is used in [DATEX Core JS](https://github.com/unyt-org/datex-core-js), 
