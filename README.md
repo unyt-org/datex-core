@@ -2,7 +2,7 @@
 
 [![Twitter badge][]][Twitter link] [![Discord badge][]][Discord link]
 
-<img align="right" src="./.github/assets/datex-logo-light.svg" width="150px" alt="The DATEX logo">
+<img align="right" src="assets/datex-logo-light.svg" width="150px" alt="The DATEX logo">
 
 This repository contains the full DATEX Runtime including networking, compiler and decompiler, written in Rust.
 The DATEX Core crate is used in [DATEX Core JS](https://github.com/unyt-org/datex-core-js), 
@@ -10,20 +10,20 @@ which provides a JavaScript interface to the DATEX Runtime.
 The [DATEX CLI](https://github.com/unyt-org/datex-cli) is also built on top of this crate and provides a command line interface for the DATEX Runtime.
 
 ## Project Structure
-* [src/](./src/) - Contains the source code of the crate
-  * [compiler/](./src/compiler/) - Contains the compiler for the DATEX language
-  * [crypto/](./src/crypto/) - Contains the cryptographic trait and a native implementation
-  * [datex_values/](./src/datex_values/) - Contains the value types and traits
-  * [global/](./src/global/) - Contains global constants and structures
-  * [network/](./src/network/) - Contains the network protocol implementation and interfaces
-  * [parser/](./src/parser/) - Contains the DXB parser
-  * [runtime/](./src/runtime/) - Contains the runtime for executing scripts
-  * [utils/](./src/utils/) - Contains utility functions and traits
-* [benches/](./benches/) - Contains benchmarks for the crate for performance testing
-* [tests/](./tests/) - Contains integration tests for the crate
-* [macros/](./macros/) - Contains procedural macros for the crate
-* [docs/](./docs/) - Contains the documentation for the crate
-  * [guide/](./docs/guide/) - Contains a collection of guides for contributing to the crate
+* [src/](./src) - Contains the source code of the crate
+  * [compiler/](./src/compiler) - Contains the compiler for the DATEX language
+  * [crypto/](./src/crypto) - Contains the cryptographic trait and a native implementation
+  * [values/](./src/values) - Contains the value types and traits
+  * [global/](./src/global) - Contains global constants and structures
+  * [network/](./src/network) - Contains the network protocol implementation and interfaces
+  * [parser/](./src/parser) - Contains the DXB parser
+  * [runtime/](./src/runtime) - Contains the runtime for executing scripts
+  * [utils/](./src/utils) - Contains utility functions and traits
+* [benches/](./benches) - Contains benchmarks for the crate for performance testing
+* [tests/](./tests) - Contains integration tests for the crate
+* [macros/](./macros) - Contains procedural macros for the crate
+* [docs/](./docs) - Contains the documentation for the crate
+  * [guide/](./docs/guide) - Contains a collection of guides for contributing to the crate
 
 
 ## Environment
