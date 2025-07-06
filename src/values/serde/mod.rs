@@ -45,4 +45,50 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_core_value() {
+        // string
+        let val = "test string";
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: String = from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+
+        // integer
+        let val = 42;
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: i32 = from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+
+        // boolean
+        let val = true;
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: bool = from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+
+        // null
+        let val: Option<()> = None;
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: Option<()> = from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+
+        // array
+        let val = vec![1, 2, 3];
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: Vec<i32> = from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+
+        // tuple
+        let val = (1, "test".to_string(), true);
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: (i32, String, bool) =
+            from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+    }
 }

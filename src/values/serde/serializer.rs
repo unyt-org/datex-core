@@ -1,9 +1,12 @@
-use serde::ser::{self, Serialize, SerializeStruct, Serializer};
+use serde::ser::{
+    self, Serialize, SerializeStruct, SerializeTuple, Serializer,
+};
 use std::fmt::Display;
 
 use crate::compiler::compile_value;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::object::Object;
+use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -34,6 +37,7 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
+    println!("Value container: {value_container:?}");
     compile_value(&value_container).map_err(|e| {
         SerializationError(format!("Failed to compile value: {e}"))
     })
@@ -45,8 +49,8 @@ where
     T: Serialize,
 {
     let mut serializer = DatexSerializer::new();
-    value.serialize(&mut serializer)?;
-    Ok(serializer.into_inner())
+    let container = value.serialize(&mut serializer)?;
+    Ok(container)
 }
 
 impl SerializeStruct for &mut DatexSerializer {
@@ -84,13 +88,45 @@ impl SerializeStruct for &mut DatexSerializer {
     }
 }
 
+impl SerializeTuple for &mut DatexSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_element<T: ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: Serialize,
+    {
+        let value_container = value.serialize(&mut **self)?;
+        match self.container {
+            ValueContainer::Value(Value {
+                inner: CoreValue::Tuple(ref mut tuple),
+                ..
+            }) => {
+                tuple.insert(value_container);
+            }
+            _ => {
+                return Err(SerializationError(
+                    "Cannot serialize element into non-tuple container"
+                        .to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(self.container.clone())
+    }
+}
+
 impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
     type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
-
-    type SerializeTuple = serde::ser::Impossible<Self::Ok, Self::Error>;
 
     type SerializeTupleStruct = serde::ser::Impossible<Self::Ok, Self::Error>;
 
@@ -102,6 +138,8 @@ impl Serializer for &mut DatexSerializer {
 
     // Should be Self
     type SerializeStruct = Self;
+    type SerializeTuple = Self;
+
     fn serialize_struct(
         self,
         _name: &'static str,
@@ -160,6 +198,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
+        println!("Serializing str: {} {}", v, ValueContainer::from(v));
         Ok(ValueContainer::from(v))
     }
 
@@ -233,7 +272,8 @@ impl Serializer for &mut DatexSerializer {
         self,
         len: usize,
     ) -> Result<Self::SerializeTuple, Self::Error> {
-        todo!()
+        self.container = Tuple::default().into();
+        Ok(self)
     }
 
     fn serialize_tuple_struct(
@@ -272,13 +312,11 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_i128(self, v: i128) -> Result<Self::Ok, Self::Error> {
-        let _ = v;
-        Err(ser::Error::custom("i128 is not supported"))
+        Ok(ValueContainer::from(v))
     }
 
     fn serialize_u128(self, v: u128) -> Result<Self::Ok, Self::Error> {
-        let _ = v;
-        Err(ser::Error::custom("u128 is not supported"))
+        Ok(ValueContainer::from(v))
     }
 
     fn collect_seq<I>(self, iter: I) -> Result<Self::Ok, Self::Error>
@@ -286,7 +324,12 @@ impl Serializer for &mut DatexSerializer {
         I: IntoIterator,
         <I as IntoIterator>::Item: Serialize,
     {
-        todo!()
+        let mut seq = Vec::new();
+        for item in iter {
+            let value_container = item.serialize(&mut *self)?;
+            seq.push(value_container);
+        }
+        Ok(ValueContainer::from(seq))
     }
 
     fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok, Self::Error>
@@ -302,6 +345,7 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + Display,
     {
+        println!("Collecting str: {}", value);
         self.serialize_str(&value.to_string())
     }
 

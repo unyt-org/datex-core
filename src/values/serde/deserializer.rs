@@ -135,6 +135,19 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     visitor
                         .visit_map(serde::de::value::MapDeserializer::new(map))
                 }
+                CoreValue::Array(arr) => {
+                    let vec =
+                        arr.into_iter().map(DatexDeserializer::from_value);
+                    visitor
+                        .visit_seq(serde::de::value::SeqDeserializer::new(vec))
+                }
+                CoreValue::Tuple(tuple) => {
+                    let vec = tuple
+                        .into_iter()
+                        .map(|(_, v)| DatexDeserializer::from_value(v));
+                    visitor
+                        .visit_seq(serde::de::value::SeqDeserializer::new(vec))
+                }
                 e => unreachable!("Unsupported core value: {:?}", e),
             },
             _ => unreachable!("Refs are not supported in deserialization"),
