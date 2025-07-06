@@ -77,7 +77,7 @@ mod tests {
 
     // FIXME
     #[test]
-    #[ignore = "This test is currently failing "]
+    #[ignore = "This test is currently failing"]
     fn test_nested_struct_serde_value_container() {
         let original = NestedStruct {
             nested_field: "Nested".to_string(),
