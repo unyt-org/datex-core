@@ -87,7 +87,7 @@ mod tests {
             },
         };
         let serialized = to_value_container(&original).unwrap();
-        println!("Serialized: {}", serialized);
+        println!("Serialized: {serialized}");
 
         let deserialized: NestedStruct =
             from_value_container(serialized).unwrap();
