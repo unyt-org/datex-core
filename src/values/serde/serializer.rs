@@ -1,5 +1,5 @@
 use serde::ser::{
-    self, Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
+    Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
     Serializer,
 };
 use std::fmt::Display;
@@ -378,7 +378,7 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + Display,
     {
-        println!("Collecting str: {}", value);
+        println!("Collecting str: {value}");
         self.serialize_str(&value.to_string())
     }
 
