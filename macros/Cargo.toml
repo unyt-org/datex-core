@@ -2,6 +2,12 @@
 name = "datex_macros"
 version = "0.1.0"
 edition = "2024"
+description = "The macros for the DATEX Core Rust implementation"
+authors = [
+    "Benedikt Strehle <benedikt@unyt.org>",
+    "Jonas Strehle <jonas@unyt.org>",
+]
+license = "MIT"
 
 [lib]
 proc-macro = true
