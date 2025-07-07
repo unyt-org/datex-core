@@ -1,6 +1,6 @@
 use com_interface_macros::create_opener_impl;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, ImplItemFn, ItemImpl};
+use syn::{ImplItemFn, ItemImpl, parse_macro_input};
 mod com_interface_macros;
 mod value_macros;
 
@@ -40,4 +40,10 @@ pub fn com_interface(_attr: TokenStream, input: TokenStream) -> TokenStream {
 pub fn from_core_value_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
     value_macros::from_core_value_derive_impl(input).into()
+}
+
+#[proc_macro_derive(DatexStruct)]
+pub fn derive_datex_struct(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    value_macros::derive_datex_struct(input).into()
 }

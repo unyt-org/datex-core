@@ -4,11 +4,15 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME no-std
 
-use crate::datex_values::core_values::decimal::utils::decimal_to_string;
+use crate::compiler::{
+    compile_template_with_refs, CompileOptions,
+};
+use crate::values::core_values::decimal::utils::decimal_to_string;
+use crate::values::value_container::ValueContainer;
 use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
-    FloatAsInt32Data, Instruction, Int16Data, Int32Data, Int64Data, Int8Data,
-    ShortTextData, TextData,
+    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
+    Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData,
+    TextData,
 };
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
@@ -17,6 +21,7 @@ use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
+/// Decompiles a DXB bytecode body into a human-readable string representation.
 pub fn decompile_body(
     dxb_body: &[u8],
     options: DecompileOptions,
@@ -37,6 +42,17 @@ pub fn decompile_body(
     };
 
     decompile_loop(&mut initial_state)
+}
+
+/// Decompiles a single DATEX value into a human-readable string representation.
+pub fn decompile_value(
+    value: &ValueContainer,
+    options: DecompileOptions,
+) -> String {
+    let (compiled_value, _) =
+        compile_template_with_refs("?", &[value], CompileOptions::default())
+            .unwrap();
+    decompile_body(&compiled_value, options).unwrap()
 }
 
 fn int_to_label(n: i32) -> String {
@@ -82,6 +98,16 @@ impl DecompileOptions {
             ..DecompileOptions::default()
         }
     }
+
+    /// Fomarts and colorizes the output
+    pub fn colorized() -> Self {
+        DecompileOptions {
+            colorized: true,
+            formatted: true,
+            resolve_slots: true,
+            ..DecompileOptions::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -91,11 +117,15 @@ pub enum ScopeType {
     Tuple,
     Array,
     Object,
-    SlotAssignment
+    SlotAssignment,
+    Transparent,
 }
 
 impl ScopeType {
-    pub fn write_start(&self, output: &mut String) -> Result<(), DXBParserError> {
+    pub fn write_start(
+        &self,
+        output: &mut String,
+    ) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default => write!(output, "(")?,
             ScopeType::Tuple => write!(output, "(")?,
@@ -104,6 +134,7 @@ impl ScopeType {
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have a start
             }
+            ScopeType::Transparent => {}
         }
         Ok(())
     }
@@ -116,6 +147,7 @@ impl ScopeType {
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have an end
             }
+            ScopeType::Transparent => {}
         }
         Ok(())
     }
@@ -125,12 +157,15 @@ impl ScopeType {
 struct ScopeState {
     /// true if this is the outer scope (default scope)
     is_outer_scope: bool,
+    // TODO: use BinaryOperator instead of Instruction
     active_operator: Option<(Instruction, bool)>,
     scope_type: (ScopeType, bool),
     /// skip inserted comma for next item (already inserted before key)
     skip_comma_for_next_item: bool,
     /// set to true if next item is a key (e.g. in object)
     next_item_is_key: bool,
+    /// set to true if the current active scope should be closed after the next term
+    close_scope_after_term: bool,
 }
 
 impl ScopeState {
@@ -196,7 +231,9 @@ impl DecompilerState<'_> {
     }
 }
 
-fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError> {
+fn decompile_loop(
+    state: &mut DecompilerState,
+) -> Result<String, DXBParserError> {
     let mut output = String::new();
 
     let instruction_iterator = body::iterate_instructions(state.dxb_body);
@@ -343,21 +380,14 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
             }
 
             // operations
-            Instruction::Add => {
+            Instruction::Add
+            | Instruction::Subtract
+            | Instruction::Multiply
+            | Instruction::Divide => {
+                handle_before_term(state, &mut output, false)?;
+                state.new_scope(ScopeType::Transparent);
                 state.get_current_scope().active_operator =
-                    Some((Instruction::Add, true));
-            }
-            Instruction::Subtract => {
-                state.get_current_scope().active_operator =
-                    Some((Instruction::Subtract, true));
-            }
-            Instruction::Multiply => {
-                state.get_current_scope().active_operator =
-                    Some((Instruction::Multiply, true));
-            }
-            Instruction::Divide => {
-                state.get_current_scope().active_operator =
-                    Some((Instruction::Divide, true));
+                    Some((instruction, true));
             }
 
             // slots
@@ -411,6 +441,7 @@ fn decompile_loop(state: &mut DecompilerState) -> Result<String, DXBParserError>
 
             Instruction::CreateRef => {
                 handle_before_term(state, &mut output, false)?;
+                state.get_current_scope().skip_comma_for_next_item = true;
                 write!(output, "$")?;
             }
 
@@ -527,9 +558,15 @@ fn handle_after_term(
     output: &mut String,
     is_standalone_key: bool,
 ) -> Result<(), DXBParserError> {
+    let close_scope = state.get_current_scope().close_scope_after_term;
+    if close_scope {
+        // close scope after term
+        state.close_scope();
+    }
+
     // next_item_is_key
     if state.get_current_scope().next_item_is_key {
-        if !is_standalone_key {
+        if !is_standalone_key || close_scope {
             write!(output, ")")?;
         }
         // set next_item_is_key to false
@@ -607,7 +644,7 @@ fn handle_before_operand(
     state: &mut DecompilerState,
     output: &mut String,
 ) -> Result<(), DXBParserError> {
-    if let Some(operator) = &state.get_current_scope().active_operator {
+    if let Some(operator) = state.get_current_scope().active_operator.take() {
         // handle the operator before the operand
         match operator {
             (_, true) => {
@@ -617,15 +654,19 @@ fn handle_before_operand(
             }
             (Instruction::Add, false) => {
                 write_operator(state, output, "+")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::Subtract, false) => {
                 write_operator(state, output, "-")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::Multiply, false) => {
                 write_operator(state, output, "*")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::Divide, false) => {
                 write_operator(state, output, "/")?;
+                state.get_current_scope().close_scope_after_term = true;
             }
             _ => {
                 panic!("Invalid operator: {operator:?}");

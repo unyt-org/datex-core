@@ -1,5 +1,5 @@
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::{
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::{
     decimal::utils::decimal_to_string, endpoint::Endpoint,
 };
 use binrw::{BinRead, BinWrite};

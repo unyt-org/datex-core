@@ -1,101 +1,49 @@
 use std::fmt::Display;
-use crate::datex_values::value_container::{ValueContainer};
-use crate::global::protocol_structures::instructions::Instruction;
+use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
+use crate::values::value_container::{ValueContainer};
 use crate::runtime::execution::InvalidProgramError;
 
-// TODO: use same struct as in decompiler?
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub enum ScopeType {
-    #[default]
-    Default,
-    Tuple,
-    Array,
-    Object,
-    SlotAssignment,
-}
-
-// TODO: do we still need ActiveValue if it is just an alias for an Option<ValueContainer>?
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub enum ActiveValue {
-    #[default]
-    None,
-    ValueContainer(ValueContainer),
-    //KeyValuePair(Option<ValueContainer>, Option<ValueContainer>),
-}
-
-impl ActiveValue {
-    pub fn remove_value_container(&mut self) -> Option<ValueContainer> {
-        match std::mem::replace(self, ActiveValue::None) {
-            ActiveValue::ValueContainer(value) => Some(value),
-            other => {
-                *self = other; // put back the old value if it wasn't ValueContainer
-                None
-            }
-        }
-    }
-
-    pub fn is_some(&self) -> bool {
-        matches!(self, ActiveValue::ValueContainer(_))
-    }
-    pub fn is_none(&self) -> bool {
-        matches!(self, ActiveValue::None)
-    }
-}
-
-
-impl From<Option<ValueContainer>> for ActiveValue {
-    fn from(value: Option<ValueContainer>) -> Self {
-        match value {
-            Some(v) => ActiveValue::ValueContainer(v),
-            None => ActiveValue::None,
-        }
-    }
-}
-
-
-impl<T: Into<ValueContainer>> From<T> for ActiveValue {
-    fn from(value: T) -> Self {
-        ActiveValue::ValueContainer(value.into())
-    }
-}
-
-impl Display for ActiveValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ActiveValue::None => write!(f, "None"),
-            ActiveValue::ValueContainer(value) => write!(f, "{value}"),
-        }
-    }
+#[derive(Debug, Clone, Default)]
+pub struct ScopeContainer {
+    pub active_value: Option<ValueContainer>,
+    pub scope: Scope,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Scope {
-    scope_type: ScopeType,
-    active_value: ActiveValue,
-    active_operation: Option<Instruction>,
-    active_key: Option<ActiveValue>,
-    active_slot: Option<u32>,
+pub enum Scope {
+    #[default]
+    Default,
+    Collection,
+    BinaryOperation {
+        operator: BinaryOperator,
+    },
+    UnaryOperation {
+        operator: UnaryOperator,
+    },
+    KeyValuePair,
+    SlotAssignment {
+        address: u32,
+    },
 }
 
-impl Scope {
-    pub fn new(scope_type: ScopeType) -> Self {
-        Scope {
-            scope_type,
-            ..Self::default()
+impl ScopeContainer {
+    pub fn new(scope: Scope) -> Self {
+        ScopeContainer {
+            active_value: None,
+            scope
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ScopeStack {
-    stack: Vec<Scope>,
+    stack: Vec<ScopeContainer>,
 }
 
 impl Default for ScopeStack {
     fn default() -> Self {
         ScopeStack {
-            stack: vec![Scope::default()],
+            stack: vec![ScopeContainer::default()],
         }
     }
 }
@@ -106,10 +54,7 @@ impl Display for ScopeStack {
         for scope in self.stack.iter() {
             writeln!(
                 f,
-                "  [TYPE: {:?}, ACTIVE_VALUE: {}, ACTIVE_OPERATION: {}]",
-                scope.scope_type,
-                scope.active_value,
-                scope.active_operation.clone().map(|op| op.to_string()).unwrap_or("None".to_string())
+                "{scope:?}"
             )?;
         }
         write!(f, "]")
@@ -120,115 +65,62 @@ impl ScopeStack {
 
     /// Returns a reference to the currently active scope.
     #[inline]
-    pub fn get_current_scope(&self) -> &Scope {
+    pub fn get_current_scope(&self) -> &ScopeContainer {
         // assumes that the stack always has at least one scope
         self.stack.last().unwrap()
     }
 
     /// Returns a mutable reference to the currently active scope.
     #[inline]
-    pub fn get_current_scope_mut(&mut self) -> &mut Scope {
+    pub fn get_current_scope_mut(&mut self) -> &mut ScopeContainer {
         // assumes that the stack always has at least one scope
         self.stack.last_mut().unwrap()
     }
-
-    /// Returns the type of the currently active scope.
-    pub fn get_current_scope_type(&self) -> ScopeType {
-        self.get_current_scope().scope_type.clone()
-    }
+    
 
     /// Pops the currently active scope from the stack and return its active value
     /// If there is no active value, it returns None
     /// If there are not at least two scopes in the stack, it returns an error
-    pub fn pop(&mut self) -> Result<ActiveValue, InvalidProgramError> {
+    pub fn pop(&mut self) -> Result<Option<ValueContainer>, InvalidProgramError> {
         // make sure there are at least two scopes in the stack, otherwise the byte code was invalid
         if self.stack.len() < 2 {
             return Err(InvalidProgramError::InvalidScopeClose);
         }
-        Ok(self.stack.pop().unwrap().active_value)
+        // pop the current scope
+        let mut scope = self.stack.pop().unwrap();
+        // return active_value if exists
+        Ok(scope.active_value.take())
     }
 
     /// Pops the active value from the current scope, without popping the scope itself.
-    pub fn pop_active_value(&mut self) -> ActiveValue {
+    pub fn pop_active_value(&mut self) -> Option<ValueContainer> {
         let scope = self.get_current_scope_mut();
-        match scope.active_value.remove_value_container() {
-            Some(value) => ActiveValue::ValueContainer(value),
-            None => ActiveValue::None
-        }
+        scope.active_value.take()
     }
 
     /// Adds a new scope to the stack.
-    pub fn create_scope(&mut self, scope_type: ScopeType) {
-        self.stack.push(Scope::new(scope_type));
+    pub fn create_scope(&mut self, scope: Scope) {
+        self.stack.push(ScopeContainer::new(scope));
     }
 
-    /// Sets the active value of the current scope.
-    pub fn set_active_value(&mut self, value: ActiveValue) {
-        let scope = self.get_current_scope_mut();
-        scope.active_value = value;
+    /// Adds a new scope to the stack with an active container.
+    pub fn create_scope_with_active_value(&mut self, scope: Scope, active_value: ValueContainer) {
+        self.stack.push(ScopeContainer {
+            active_value: Some(active_value),
+            scope
+        });
     }
     
-    /// Sets the active value of the current scope to a key-value pair.
-    pub fn set_active_key(&mut self, key: ActiveValue) {
-        let scope = self.get_current_scope_mut();
-        scope.active_key = Some(key);
-    }
-    
-    /// Returns the active key-value pair of the current scope, if any.
-    pub fn get_active_key(&mut self) -> Option<ActiveValue> {
-        let scope = self.get_current_scope_mut();
-        scope.active_key.take()
-    }
     
     /// Sets the active value container of the current scope.
     pub fn set_active_value_container(&mut self, value: ValueContainer) {
         let scope = self.get_current_scope_mut();
         scope.active_value = value.into();
     }
-
-    /// Sets the active value of the current scope to None.
-    pub fn get_active_value(&self) -> &ActiveValue {
-        let scope = self.get_current_scope();
-        &scope.active_value
-    }
-
+    
     /// Returns a mutable reference to the active value of the current scope.
-    pub fn get_active_value_mut(&mut self) -> &mut ActiveValue {
+    pub fn get_active_value_mut(&mut self) -> &mut Option<ValueContainer> {
         let scope = self.get_current_scope_mut();
         &mut scope.active_value
-    }
-
-    /// Sets the active operation for the current scope.
-    pub fn set_active_operation(&mut self, operation: Instruction) {
-        self.get_current_scope_mut().active_operation = Some(operation);
-    }
-
-    /// Returns the active operation for the current scope, if any.
-    pub fn get_active_operation(&self) -> Option<&Instruction> {
-        self.get_current_scope().active_operation.as_ref()
-    }
-
-    /// Clears the active operation of the current scope.
-    pub fn clear_active_operation(&mut self) -> Option<Instruction> {
-        let scope = self.get_current_scope_mut();
-        scope.active_operation.take()
-    }
-
-    /// Sets the active slot that is currently been written to.
-    pub fn set_active_slot(&mut self, slot: u32) {
-        let scope = self.get_current_scope_mut();
-        scope.active_slot = Some(slot);
-    }
-
-    /// Returns the active slot that is currently been written to, if any.
-    pub fn get_active_slot(&self) -> Option<u32> {
-        self.get_current_scope().active_slot
-    }
-
-
-    /// Clears the active slot of the current scope.
-    pub fn clear_active_slot(&mut self) {
-        let scope = self.get_current_scope_mut();
-        scope.active_slot = None;
     }
 }

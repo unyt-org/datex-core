@@ -1,11 +1,11 @@
 use super::super::core_value_trait::CoreValueTrait;
-use crate::datex_values::core_value::CoreValue;
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
-use indexmap::map::{IntoIter, Iter};
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
+use indexmap::map::{IntoIter, Iter};
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
@@ -16,10 +16,16 @@ pub struct Tuple {
     next_int_key: u32,
 }
 impl Tuple {
+    pub fn default() -> Self {
+        Tuple {
+            entries: IndexMap::new(),
+            next_int_key: 0,
+        }
+    }
     pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
         Tuple {
             entries,
-            next_int_key: 0,
+            ..Tuple::default()
         }
     }
 
@@ -56,6 +62,11 @@ impl Tuple {
         }
         self.entries.insert(key, value.into());
     }
+    pub fn insert<V: Into<ValueContainer>>(&mut self, value: V) {
+        self.entries
+            .insert(self.next_int_key().into(), value.into());
+        self.next_int_key += 1;
+    }
 }
 
 impl StructuralEq for Tuple {
@@ -66,7 +77,9 @@ impl StructuralEq for Tuple {
         for ((key, value), (other_key, other_value)) in
             self.entries.iter().zip(other.entries.iter())
         {
-            if !key.structural_eq(other_key) || !value.structural_eq(other_value) {
+            if !key.structural_eq(other_key)
+                || !value.structural_eq(other_value)
+            {
                 return false;
             }
         }

@@ -1,21 +1,21 @@
 use datex_macros::FromCoreValue;
 
-use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::boolean::Boolean;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::datex_values::core_values::endpoint::Endpoint;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::integer::typed_integer::TypedInteger;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::core_values::text::Text;
-use crate::datex_values::core_values::tuple::Tuple;
-use crate::datex_values::datex_type::CoreValueType;
-use crate::datex_values::traits::structural_eq::StructuralEq;
-use crate::datex_values::value_container::{ValueContainer, ValueError};
+use crate::values::core_values::array::Array;
+use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::object::Object;
+use crate::values::core_values::text::Text;
+use crate::values::core_values::tuple::Tuple;
+use crate::values::datex_type::CoreValueType;
+use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
-use crate::datex_values::traits::value_eq::ValueEq;
+use crate::values::traits::value_eq::ValueEq;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {

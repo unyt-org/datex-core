@@ -1,15 +1,16 @@
 use crate::compiler::lexer::Token;
 use crate::compiler::ast_parser::extra::Err;
-use crate::datex_values::core_values::array::Array;
-use crate::datex_values::core_values::decimal::decimal::Decimal;
-use crate::datex_values::core_values::integer::integer::Integer;
-use crate::datex_values::core_values::object::Object;
-use crate::datex_values::value::Value;
-use crate::datex_values::value_container::ValueContainer;
+use crate::values::core_values::array::Array;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::object::Object;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
+use crate::global::protocol_structures::instructions::Instruction;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -70,9 +71,62 @@ impl From<BinaryOperator> for InstructionCode {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl From<&InstructionCode> for BinaryOperator {
+    fn from(code: &InstructionCode) -> Self {
+        match code {
+            InstructionCode::ADD => BinaryOperator::Add,
+            InstructionCode::SUBTRACT => BinaryOperator::Subtract,
+            InstructionCode::MULTIPLY => BinaryOperator::Multiply,
+            InstructionCode::DIVIDE => BinaryOperator::Divide,
+            InstructionCode::MODULO => BinaryOperator::Modulo,
+            InstructionCode::POWER => BinaryOperator::Power,
+            InstructionCode::AND => BinaryOperator::And,
+            InstructionCode::OR => BinaryOperator::Or,
+            InstructionCode::STRUCTURAL_EQUAL => BinaryOperator::StructuralEqual,
+            InstructionCode::EQUAL => BinaryOperator::Equal,
+            InstructionCode::NOT_STRUCTURAL_EQUAL => BinaryOperator::NotStructuralEqual,
+            InstructionCode::NOT_EQUAL => BinaryOperator::NotEqual,
+            InstructionCode::IS => BinaryOperator::Is,
+            _ => todo!("Binary operator for {:?} not implemented", code),
+        }
+    }
+}
+
+impl From<InstructionCode> for BinaryOperator {
+    fn from(code: InstructionCode) -> Self {
+        BinaryOperator::from(&code)
+    }
+}
+
+impl From<&Instruction> for BinaryOperator {
+    fn from(instruction: &Instruction) -> Self {
+        match instruction {
+            Instruction::Add => BinaryOperator::Add,
+            Instruction::Subtract => BinaryOperator::Subtract,
+            Instruction::Multiply => BinaryOperator::Multiply,
+            Instruction::Divide => BinaryOperator::Divide,
+            Instruction::StructuralEqual => BinaryOperator::StructuralEqual,
+            Instruction::Equal => BinaryOperator::Equal,
+            Instruction::NotStructuralEqual => BinaryOperator::NotStructuralEqual,
+            Instruction::NotEqual => BinaryOperator::NotEqual,
+            Instruction::Is => BinaryOperator::Is,
+            _ => {
+                todo!("Binary operator for instruction {:?} not implemented", instruction);
+            }
+        }
+    }
+}
+
+impl From<Instruction> for BinaryOperator {
+    fn from(instruction: Instruction) -> Self {
+        BinaryOperator::from(&instruction)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
     Negate,
+    CreateRef,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -617,17 +671,23 @@ pub enum ParserError {
     InvalidToken(Range<usize>),
 }
 
-pub fn parse(src: &str) -> Result<DatexExpression, Vec<ParserError>> {
+pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
+    // strip shebang at beginning of the source code
+    if src.starts_with("#!") {
+        let end_of_line = src.find('\n').unwrap_or(src.len());
+        src = &src[end_of_line + 1..];
+    }
+
     let tokens = Token::lexer(src);
     let tokens = tokens.into_iter().map(|f| f.unwrap()).collect::<Vec<_>>();
 
     let parser = create_parser::<'_, TokenInput>();
-    let result = parser.parse(&tokens).into_result().map_err(|err| {
+    
+    parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
             .collect()
-    });
-    result
+    })
 }
 
 // TODO: implement correctly - have fun with lifetimes :()
@@ -2209,5 +2269,24 @@ mod tests {
                 Box::new(DatexExpression::Integer(Integer::from(2))),
             )
         );
+    }
+
+    #[test]
+    fn test_shebang() {
+        let src = "#!/usr/bin/env datex\n1 + 2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Add,
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
+
+        let src = "1;\n#!/usr/bin/env datex\n2";
+        // syntax error
+        let res = parse(src);
+        assert!(res.is_err(), "Expected error when parsing expression with shebang");
     }
 }

@@ -9,7 +9,7 @@ use futures::channel::oneshot;
 use log::{error, info};
 
 use crate::{
-    datex_values::core_values::endpoint::Endpoint,
+    values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::{
             ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
@@ -121,8 +121,8 @@ pub trait WebRTCTraitInternal<T: 'static> {
         let candidates = {
             let commons = self.get_commons();
             let mut commons = commons.lock().unwrap();
-            let candidates = commons.candidates.drain(..).collect::<Vec<_>>();
-            candidates
+            
+            commons.candidates.drain(..).collect::<Vec<_>>()
         };
         for candidate in candidates {
             if let Ok(candidate) =

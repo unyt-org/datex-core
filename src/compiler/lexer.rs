@@ -15,7 +15,9 @@ impl Loc {
         Self { source, span }
     }
 }
-
+fn extract_line_doc(lex: &mut Lexer<Token>) -> String {
+    lex.slice()[3..].to_owned()
+}
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(error = Range<usize>)]
 // single line comments
@@ -26,7 +28,10 @@ impl Loc {
 #[rustfmt::skip]
 
 pub enum Token {
-    // ==< Operators & Separators >==
+    #[regex(r"///[^\n]*", extract_line_doc)]
+    LineDoc(String),
+    
+    // Operators & Separators
     #[token("(")] LeftParen,
     #[token(")")] RightParen,
     #[token("[")] LeftBracket,
@@ -78,7 +83,7 @@ pub enum Token {
     #[token("===")] Equal,
     #[token("is")] Is,
 
-    // ==< Keywords >==
+    // Keywords
     #[token("true")] TrueKW,
     #[token("false")] FalseKW,
     #[token("null")] NullKW,
@@ -91,52 +96,52 @@ pub enum Token {
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] InfinityLiteral(String),
     #[regex(r"[+-]?(?:nan|NaN)")] NanLiteral,
 
-    // ==< Value literals >==
-    /// decimal
-    /// ### Supported formats:
-    /// - Standard decimals:
-    ///   - `123.456`
-    ///   - `0.001`
-    ///   - `.789`
-    ///   - `123.`
-    ///   - `3.e10`
-    ///   - `534.e-124`
-    /// - Decimals with exponent:
-    ///   - `1.23e10`
-    ///   - `4.56E-3`
-    ///   - `789e+2`
-    ///   - `42e0`
-    /// - Integer with exponent (no decimal point):
-    ///   - `123e5`
-    ///   - `42E-1`
-    /// - Special values:
-    ///   - `NaN`, `nan`
-    ///   - `Infinity`, `infinity`
-    /// - Optional leading sign is supported for all formats:
-    ///   - `-123.45`, `+123.45`
-    ///   - `-Infinity`, `+Infinity`
-    ///   - `-3.e10`, `+3.e10`
+    // Value literals
+    // decimal
+    // ### Supported formats:
+    // - Standard decimals:
+    //   - `123.456`
+    //   - `0.001`
+    //   - `.789`
+    //   - `123.`
+    //   - `3.e10`
+    //   - `534.e-124`
+    // - Decimals with exponent:
+    //   - `1.23e10`
+    //   - `4.56E-3`
+    //   - `789e+2`
+    //   - `42e0`
+    // - Integer with exponent (no decimal point):
+    //   - `123e5`
+    //   - `42E-1`
+    // - Special values:
+    //   - `NaN`, `nan`
+    //   - `Infinity`, `infinity`
+    // - Optional leading sign is supported for all formats:
+    //   - `-123.45`, `+123.45`
+    //   - `-Infinity`, `+Infinity`
+    //   - `-3.e10`, `+3.e10`
     #[regex(r"[+-]?(((0|[1-9])(\d|_)*)?\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)", allocated_string)] DecimalLiteral(String),
-    /// integer
-    /// ### Supported formats:
-    /// - Hexadecimal integers:
-    ///     - `0x1A2B3C4D5E6F`
-    ///     - `0X1A2B3C4D5E6F`
-    /// - Octal integers:
-    ///     - `0o755`
-    ///     - `0O755`
-    /// - Binary integers:
-    ///     - `0b101010`
-    ///     - `0B101010`
-    /// - Decimal integers:
-    ///     - `123456789`
-    ///     - `-123456789`
-    /// - Integers with underscores:
-    ///     - `1_234_567`
-    ///     - `-1_234_567`
-    /// - Decimal integers with leading zeros:
-    /// - `0123`
-    /// - `-0123`
+    // integer
+    // ### Supported formats:
+    // - Hexadecimal integers:
+    //     - `0x1A2B3C4D5E6F`
+    //     - `0X1A2B3C4D5E6F`
+    // - Octal integers:
+    //     - `0o755`
+    //     - `0O755`
+    // - Binary integers:
+    //     - `0b101010`
+    //     - `0B101010`
+    // - Decimal integers:
+    //     - `123456789`
+    //     - `-123456789`
+    // - Integers with underscores:
+    //     - `1_234_567`
+    //     - `-1_234_567`
+    // - Decimal integers with leading zeros:
+    // - `0123`
+    // - `-0123`
     #[regex(r"[+-]?(0|[1-9])(\d|_)*", allocated_string)] IntegerLiteral(String),
     // binary integer
     #[regex(r"0[bB][01_]+", allocated_string)] BinaryIntegerLiteral(String),
@@ -150,7 +155,7 @@ pub enum Token {
 
     #[regex(r#"[a-z0-9]*("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*')"#, allocated_string)] StringLiteral(String),
 
-    // ==< Other >==
+    // Other
     #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string)] Identifier(String),
 
     #[regex(r"[ \t\n\f]")]
@@ -417,6 +422,21 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::Identifier("b".to_string()))
+        );
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn test_line_doc() {
+        let mut lexer = Token::lexer("/// This is a line doc\n42");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::LineDoc(" This is a line doc".to_string()))
+        );
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::IntegerLiteral("42".to_string()))
         );
         assert_eq!(lexer.next(), None);
     }

@@ -6,7 +6,7 @@ use super::{
 };
 use crate::utils::uuid::UUID;
 use crate::{
-    datex_values::core_values::endpoint::Endpoint, stdlib::fmt::Display,
+    values::core_values::endpoint::Endpoint, stdlib::fmt::Display,
 };
 use crate::{
     network::com_hub::ComHub, runtime::global_context::get_global_context,
@@ -370,6 +370,7 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
                 .outgoing_blocks_count
                 .update(|x| x + 1);
             spawn_with_panic_notify(async move {
+                // FIXME borrow_mut across await point!
                 let has_been_send =
                     interface.borrow_mut().send_block(&block, uuid).await;
                 interface

@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use crate::datex_values::traits::structural_eq::StructuralEq;
+use crate::values::traits::structural_eq::StructuralEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 

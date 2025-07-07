@@ -25,7 +25,7 @@ use log::{debug, error, info};
 use tokio::sync::{broadcast, mpsc, RwLock};
 use url::Url;
 
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
 };

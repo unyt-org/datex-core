@@ -5,9 +5,9 @@ use crate::json::{
 };
 use crate::runtime::runtime_init;
 use criterion::{
-    black_box, criterion_group, criterion_main, BenchmarkId, Criterion,
+    BenchmarkId, Criterion, black_box, criterion_group, criterion_main,
 };
-use datex_core::compiler::bytecode::{compile_script, CompileOptions};
+use datex_core::compiler::{CompileOptions, compile_script};
 
 mod json;
 mod runtime;
@@ -187,7 +187,15 @@ fn bench_json(c: &mut Criterion) {
     bench_json_file(c, "test3.json");
 }
 
-criterion_group!(json, bench_json);
-criterion_group!(runtime, bench_runtime);
+criterion_group! {
+    name = json;
+    config = Criterion::default().sample_size(10);
+    targets = bench_json
+}
+criterion_group! {
+    name = runtime;
+    config = Criterion::default().sample_size(10);
+    targets = bench_runtime
+}
 
-criterion_main!(json);
+criterion_main!(json, runtime);

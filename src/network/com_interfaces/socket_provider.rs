@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::datex_values::core_values::endpoint::Endpoint;
+use crate::values::core_values::endpoint::Endpoint;
 
 use super::{
     com_interface::ComInterfaceSockets,
@@ -31,14 +31,14 @@ pub trait MultipleSocketProvider {
     ) -> Option<ComInterfaceSocketUUID> {
         let sockets = self.provide_sockets();
         let sockets = sockets.lock().unwrap();
-        let socket = sockets
+        
+        sockets
             .sockets
             .values()
             .find(|s| {
                 s.lock().unwrap().direct_endpoint == Some(endpoint.clone())
             })
-            .map(|s| s.lock().unwrap().uuid.clone());
-        socket
+            .map(|s| s.lock().unwrap().uuid.clone())
     }
     fn get_socket_uuid_at(
         &self,
@@ -46,12 +46,12 @@ pub trait MultipleSocketProvider {
     ) -> Option<ComInterfaceSocketUUID> {
         let sockets = self.provide_sockets();
         let sockets = sockets.lock().unwrap();
-        let socket = sockets
+        
+        sockets
             .sockets
             .values()
             .nth(index)
-            .map(|s| s.lock().unwrap().uuid.clone());
-        socket
+            .map(|s| s.lock().unwrap().uuid.clone())
     }
     fn get_socket_at(
         &self,
@@ -59,8 +59,8 @@ pub trait MultipleSocketProvider {
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         let sockets = self.provide_sockets();
         let sockets = sockets.lock().unwrap();
-        let socket = sockets.sockets.values().nth(index).cloned();
-        socket
+        
+        sockets.sockets.values().nth(index).cloned()
     }
 
     fn has_socket_with_uuid(
@@ -78,8 +78,8 @@ pub trait MultipleSocketProvider {
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         let sockets = self.provide_sockets();
         let sockets = sockets.lock().unwrap();
-        let socket = sockets.sockets.get(&socket_uuid).cloned();
-        socket
+        
+        sockets.sockets.get(&socket_uuid).cloned()
     }
 }
 

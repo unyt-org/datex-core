@@ -1,5 +1,5 @@
 use crate::context::init_global_context;
-use datex_core::datex_values::core_values::endpoint::{
+use datex_core::values::core_values::endpoint::{
     Endpoint, EndpointInstance, EndpointType,
 };
 
