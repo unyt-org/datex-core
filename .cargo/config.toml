@@ -1,0 +1,3 @@
+[alias]
+test-debug = "test --features debug"
+clippy-debug = "clippy --fix --features debug"

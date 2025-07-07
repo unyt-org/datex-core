@@ -1,0 +1,72 @@
+{
+	"nodes": [
+		{
+			"id": "1tba",
+			"label": "@1tba"
+		},
+		{
+			"id": "ypc7",
+			"label": "@ypc7"
+		},
+		{
+			"id": "cmt7",
+			"label": "@cmt7"
+		},
+		{
+			"id": "vlas",
+			"label": "@vlas"
+		},
+		{
+			"id": "wo1s",
+			"label": "@wo1s"
+		},
+		{
+			"id": "pac1",
+			"label": "@pac1"
+		}
+	],
+	"edges": [
+		{
+			"id": "mockup-1tba-cmt7",
+			"source": "1tba",
+			"target": "cmt7",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-cmt7-vlas",
+			"source": "cmt7",
+			"target": "vlas",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-vlas-pac1",
+			"source": "vlas",
+			"target": "pac1",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-pac1-wo1s",
+			"source": "pac1",
+			"target": "wo1s",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-wo1s-ypc7",
+			"source": "wo1s",
+			"target": "ypc7",
+			"type": "mockup",
+			"priority": 0
+		},
+		{
+			"id": "mockup-ypc7-1tba",
+			"source": "ypc7",
+			"target": "1tba",
+			"type": "mockup",
+			"priority": 0
+		}
+	]
+}

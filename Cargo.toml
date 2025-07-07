@@ -1,34 +1,169 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "datex-core"
-version = "0.0.3"
+version = "0.0.4"
 description = "The DATEX Core Rust implementation"
-authors = ["Benedikt Strehle <benedikt@unyt.org>"]
-edition = "2021"
+authors = [
+    "Benedikt Strehle <benedikt@unyt.org>",
+    "Jonas Strehle <jonas@unyt.org>",
+]
+edition = "2024"
 license-file = "LICENSE"
-
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bench]]
+name = "mod"
+harness = false
+
 [dependencies]
-regex = "1"
+# core dependencies
 byteorder = "1"
-num_enum = "0.5.7"
+num_enum = "0.7.4"
 lazy_static = "1.4.0"
-strum = { version = "0.24", features = ["derive"] }
+strum_macros = { version = "0.27.1" }
+strum = { version = "0.27.1", features = ["derive"] }
 mopa = "0.2.2"
 num-bigint = "0.4"
 num-integer = "0.1"
 default-args = "1.0.0"
-wasm-bindgen = "0.2.81"
-itertools = "0.10.5"
-pest = "2.6"
-pest_derive = "2.6"
+itertools = "0.14.0"
 pad = "0.1"
+binrw = "0.15.0"
+modular-bitfield = "0.12.0"
+thiserror = "2.0.11"
+url = "2.5.4"
+num-traits = "0.2.19"
+async-trait = "0.1.87"
+hex = "0.4.3"
+log = { version = "0.4", features = ["std", "serde"] }
+cfg-if = "1.0.1"
+bytes = { version = "1" }
+futures-util = { version = "0.3" }
+tokio = { version = "1.43.0", optional = true, features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+], default-features = false }
+
+datex_macros = { path = "./macros" }
+
+# optional dependencies
+futures = { version = "0.3" }
+nostd = { version = "0.1.4", optional = true }
+rand = { version = "0.8.5", optional = true }
+uuid = { version = "1.15.1", features = ["v4"], optional = true }
+rsa = { version = "0.9.8", optional = true }
+flexi_logger = { version = "0.31.2", optional = true }
+console_log = { version = "1.0.0", optional = true }
+matchbox_socket = { default-features = false, git = "https://github.com/unyt-org/matchbox", optional = true } #{ version = "0.11.0", optional = true }
+esp-idf-svc = { version = "0.51.0", optional = true }
+futures-timer = { version = "3" }
+console_error_panic_hook = { version = "0.1.7", optional = true }
+serde = "1.0.219"
+serde_with = "3.12.0"
+ntest_timeout = "0.9.3"
+ringmap = "0.1.3"
+webrtc = { version = "0.13.0", optional = true }
+syntect = { version = "5.2.0", default-features = false, features = [
+    "default-fancy",
+] }
+indexmap = "2.9.0"
+ordered-float = "5.0.0"
+bigdecimal = "0.4.8"
+bigint = "4.4.3"
+serde_json = "1.0.140"
+num = "0.4.3"
+chumsky = { version = "0.10.1", features = ["std"], default-features = false }
+ariadne = "0.5.1"
+logos = "0.15.0"
+
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-websocket = "0.24.0"
+axum = { version = "0.8.4", optional = true }
+tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
+hyper = { version = "1", optional = true }
+futures-timer = { version = "3", features = ["wasm-bindgen"] }
+serialport = { version = "4.7.1", optional = true }
+tokio-tungstenite = { version = "0.21.0", optional = true }
+tungstenite = { version = "0.21.0", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = { optional = true, version = "0.4.29" }
+gloo-timers = { version = "0.3.0", features = ["futures"] }
 
 [profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# Development dependencies
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+matchbox_signaling = { version = "0.12.0" }
+tokio = { version = "1.43.0", features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+], default-features = false }
+
+# see https://docs.rs/rsa/latest/rsa/
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+
+[dev-dependencies]
+criterion = { version = "0.6.0", features = ["html_reports"] }
+criterion-macro = "0.4.0"
+json-syntax = "0.12.5"
+
+
+[features]
+default = [
+    "nostd",
+    "native_websocket",
+    "native_tcp",
+    "native_rand",
+    "native_uuid",
+    "native_crypto",
+    "native_time",
+    "native_http",
+    "native_serial",
+    "native_webrtc",
+    "wasm_webrtc",
+    "flexi_logger",
+    "tokio_runtime",
+    # "debug", # temporary to fix linting and allow tests to run
+] # default to nostd
+
+# com interfaces
+native_http = ["axum", "hyper", "tokio-stream"]
+native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket
+native_tcp = []                                         # use native tcp
+native_time = []                                        # use native time
+native_rand = ["rand"]                                  # use native websocket
+native_uuid = ["uuid"]                                  # use native uuid
+native_crypto = ["rsa"]                                 # use native crypto
+native_serial = ["serialport"]                          # use native serial
+native_webrtc = ["webrtc"]                              # use webrtc
+
+wasm_webrtc = ["matchbox_socket"] # use webrtc
+
+# logger
+wasm_logger = ["console_log", "console_error_panic_hook"]
+esp_logger = ["esp-idf-svc"]
+env_logger = []
+
+# runtime
+tokio_runtime = ["dep:tokio"]
+wasm_runtime = ["dep:wasm-bindgen-futures"]
+
+# utils
+std = []   # use std
+debug = []

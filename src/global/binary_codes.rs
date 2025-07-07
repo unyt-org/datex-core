@@ -2,259 +2,276 @@ use num_enum::TryFromPrimitive;
 use strum::Display;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Copy, Clone, Display)]
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    TryFromPrimitive,
+    Copy,
+    Clone,
+    Display,
+    num_enum::IntoPrimitive,
+)]
 #[repr(u8)]
-pub enum BinaryCode {
-	// flow instructions 0x00 - 0x0f
-	EXIT                = 0x00,
-	CLOSE_AND_STORE     = 0x01, // ;
-	SUBSCOPE_START      = 0x02, // (
-	SUBSCOPE_END        = 0x03, // )
-	CACHE_POINT         = 0x04, // cache dxb from this point on
-	CACHE_RESET         = 0x05, // reset dxb scope cache
 
-	// primitive / fundamental types 0x10 - 0x2f
-	STD_TYPE_TEXT       = 0x10,
-	STD_TYPE_INT        = 0x11,
-	STD_TYPE_FLOAT      = 0x12,
-	STD_TYPE_BOOLEAN    = 0x13,
-	STD_TYPE_NULL       = 0x14,
-	STD_TYPE_VOID       = 0x15,
-	STD_TYPE_BUFFER     = 0x16,
-	STD_TYPE_CODE_BLOCK = 0x17,
-	STD_TYPE_QUANTITY       = 0x18,
-	STD_TYPE_TIME       = 0x19,
-	STD_TYPE_URL        = 0x1a,
+// x = a * 2;
+// b();
 
-	STD_TYPE_ARRAY      = 0x1b,
-	STD_TYPE_OBJECT     = 0x1c,
-	STD_TYPE_SET        = 0x1d,
-	STD_TYPE_MAP        = 0x1e,
-	STD_TYPE_TUPLE      = 0x1f,
+// x;
+// y;
 
-	STD_TYPE_FUNCTION   = 0x20,
-	STD_TYPE_STREAM     = 0x21,
-	STD_TYPE_ANY        = 0x22,
-	STD_TYPE_ASSERTION  = 0x23,
-	STD_TYPE_TASK       = 0x24,
-	STD_TYPE_ITERATOR   = 0x25,
+// SETCURRENTVAR #x;
 
+// ADD;
+// VAR a
+// INT 2 -> active
 
-	// internal variables and other shorthands 0x30 - 0x4f
-	VAR_RESULT          = 0x30,
-	SET_VAR_RESULT      = 0x31,
-	SET_VAR_RESULT_REFERENCE = 
-						0x32,
-	VAR_RESULT_ACTION   = 0x33,
+// CLOSE_AND_STORE
+// APPLY
+// VAR b
+// TUPLE <-- apply
+// SCOPE_START
+// asdfasdf
+// SCOPE_END <- <actu
 
-	VAR_SUB_RESULT      = 0x34,
-	SET_VAR_SUB_RESULT  = 0x35,
-	SET_VAR_SUB_RESULT_REFERENCE = 
-						0x36,
-	VAR_SUB_RESULT_ACTION = 
-						0x37,
+pub enum InstructionCode {
+    // flow instructions 0x00 - 0x0f
+    EXIT = 0x00,
+    CLOSE_AND_STORE, // ;
+    SCOPE_START,     // (
+    SCOPE_END,       // )
+    CACHE_POINT,     // cache dxb from this point on
+    CACHE_RESET,     // reset dxb scope cache
 
-	VAR_VOID            = 0x38,
-	SET_VAR_VOID        = 0x39,
-	SET_VAR_VOID_REFERENCE =
-						0x3a,
-	VAR_VOID_ACTION     = 0x3b,
+    // primitive / fundamental types 0x10 - 0x2f
+    STD_TYPE_TEXT,
+    STD_TYPE_INT,
+    STD_TYPE_FLOAT,
+    STD_TYPE_BOOLEAN,
+    STD_TYPE_NULL,
+    STD_TYPE_VOID,
+    STD_TYPE_BUFFER,
+    STD_TYPE_CODE_BLOCK,
+    STD_TYPE_QUANTITY,
+    STD_TYPE_TIME,
+    STD_TYPE_URL,
 
-	_VAR_ORIGIN          = 0x3c,
-	_SET_VAR_ORIGIN      = 0x3d,
-	_SET_VAR_ORIGIN_REFERENCE = 
-						0x3e,
-	_VAR_ORIGIN_ACTION   = 0x3f,
+    STD_TYPE_ARRAY,
+    STD_TYPE_OBJECT,
+    STD_TYPE_SET,
+    STD_TYPE_MAP,
+    STD_TYPE_TUPLE,
 
-	VAR_IT              = 0x40,
-	SET_VAR_IT          = 0x41,
-	SET_VAR_IT_REFERENCE= 0x42,
-	VAR_IT_ACTION       = 0x43,
-	
-	VAR_REMOTE          = 0x44,
+    STD_TYPE_FUNCTION,
+    STD_TYPE_STREAM,
+    STD_TYPE_ANY,
+    STD_TYPE_ASSERTION,
+    STD_TYPE_TASK,
+    STD_TYPE_ITERATOR,
 
-	VAR_REMOTE_ACTION   = 0x45,
-	VAR_ORIGIN          = 0x46,
-	VAR_ENDPOINT        = 0x47,
-	VAR_ENTRYPOINT      = 0x48,
-	VAR_STD             = 0x49,
-	// VAR_TIMESTAMP       = 0x4a,
-	VAR_META            = 0x4b,
-	VAR_PUBLIC          = 0x4c,
-	VAR_THIS            = 0x4d,
-	VAR_LOCATION        = 0x4e,
-	VAR_ENV             = 0x4f,
+    // internal variables and other shorthands 0x30 - 0x4f
+    VAR_RESULT,
+    SET_VAR_RESULT,
+    SET_VAR_RESULT_REFERENCE,
+    VAR_RESULT_ACTION,
 
-	// runtime commands 0x50 - 0x7f
+    VAR_SUB_RESULT,
+    SET_VAR_SUB_RESULT,
+    SET_VAR_SUB_RESULT_REFERENCE,
+    VAR_SUB_RESULT_ACTION,
 
-	RETURN              = 0x50, // return
-	TEMPLATE            = 0x51, // template
-	EXTENDS             = 0x52, // extends
-	IMPLEMENTS          = 0x53, // implements
-	MATCHES             = 0x54, // matches
-	DEBUGGER            = 0x55, // debugger
-	JMP                 = 0x56, // jmp labelname
-	JTR                 = 0x57, // jtr labelname
-	JFA                 = 0x58, // jfa labelname (TODO replace with 0xa)
-	COUNT               = 0x59, // count x
-	ABOUT               = 0x5a, // about x
-	NEW                 = 0x5b, // new <x> ()
-	DELETE_POINTER      = 0x5c, // delete $aa
-	COPY                = 0x5f, // copy $aa
-	CLONE               = 0x60, // clone $aa
-	ORIGIN              = 0x61, // origin $aa
-	SUBSCRIBERS         = 0x62, // subscribers $aa
-	PLAIN_SCOPE         = 0x63, // scope xy;
-	// don't use 0x64 (magic number) 
-	TRANSFORM           = 0x65, // transform x <Int>
-	OBSERVE             = 0x66, // observe x ()=>()
-	RUN                 = 0x67, // run xy;
-	AWAIT               = 0x68, // await xy;
-	DEFER               = 0x69, // maybe xy;
-	FUNCTION            = 0x6a, // function ()
-	ASSERT              = 0x6b, // assert
-	ITERATOR            = 0x6c, // iterator ()
-	NEXT                = 0x6d, // next it
-	FREEZE              = 0x6e, // freeze
-	SEAL                = 0x6f, // seal
-	HAS                 = 0x70, // x has y
-	KEYS                = 0x71, // keys x
-	GET_TYPE            = 0x72, // type $aa
-	GET                 = 0x73, // get file://..., get @user::34
-	RANGE               = 0x74, // ..
-	RESOLVE_RELATIVE_PATH =
-						0x75, // ./abc
-	DO                  = 0x76, // do xy;
-	DEFAULT             = 0x77, // x default y
-	COLLAPSE            = 0x78, // collapse x
-    RESPONSE            = 0x79, // response x
-    CLONE_COLLAPSE      = 0x88, // collapse
+    VAR_VOID,
+    SET_VAR_VOID,
+    SET_VAR_VOID_REFERENCE,
+    VAR_VOID_ACTION,
 
-	// comparators 0x80 - 0x8f
-	EQUAL_VALUE         = 0x80, // ==
-	NOT_EQUAL_VALUE     = 0x81, // ~=
-	EQUAL               = 0x82, // ===
-	NOT_EQUAL           = 0x83, // ~==
-	GREATER             = 0x84, // >
-	LESS                = 0x85, // <
-	GREATER_EQUAL       = 0x86, // >=
-	LESS_EQUAL          = 0x87, // <=
+    _VAR_ORIGIN,
+    _SET_VAR_ORIGIN,
+    _SET_VAR_ORIGIN_REFERENCE,
+    _VAR_ORIGIN_ACTION,
 
-	// logical + algebraic operators 0x90  - 0x9f
-	AND                 = 0x90,  // &
-	OR                  = 0x91,  // |
-	ADD                 = 0x92,  // +
-	SUBTRACT            = 0x93,  // -
-	MULTIPLY            = 0x94,  // *
-	DIVIDE              = 0x95,  // /
-	NOT                 = 0x96,  // !
-	MODULO              = 0x97,  // %
-	POWER               = 0x98,  // ^
-	INCREMENT           = 0x99,  // ++
-	DECREMENT           = 0x9a,  // --
+    VAR_IT,
+    SET_VAR_IT,
+    SET_VAR_IT_REFERENCE,
+    VAR_IT_ACTION,
 
-	// pointers & variables 0xa0 - 0xbf
+    VAR_REMOTE,
 
+    VAR_REMOTE_ACTION,
+    VAR_ORIGIN,
+    VAR_ENDPOINT,
+    VAR_ENTRYPOINT,
+    VAR_STD,
+    // VAR_TIMESTAMP      ,
+    VAR_META,
+    VAR_PUBLIC,
+    VAR_THIS,
+    VAR_LOCATION,
+    VAR_ENV,
 
-	INTERNAL_VAR        = 0xa4, // #xyz   0x0000-0x00ff = variables passed on between scopes, 0x0100-0xfdff = normal variables, 0xfe00-0xffff = it variables (#it.0, #it.1, ...) for function arguments
-	SET_INTERNAL_VAR    = 0xa5, // #aa = ...
-	INIT_INTERNAL_VAR   = 0xa6, // #aa := ...
-	INTERNAL_VAR_ACTION = 0xa7, // #x += ...
-	SET_INTERNAL_VAR_REFERENCE =
-						0xa8, // #x $= ...
+    // runtime commands 0x50 - 0x7f
+    RETURN,         // return
+    TEMPLATE,       // template
+    EXTENDS,        // extends
+    IMPLEMENTS,     // implements
+    MATCHES,        // matches
+    DEBUGGER,       // debugger
+    JMP,            // jmp labelname
+    JTR,            // jtr labelname
+    JFA,            // jfa labelname (TODO replace with 0xa)
+    COUNT,          // count x
+    ABOUT,          // about x
+    NEW,            // new <x> ()
+    DELETE_POINTER, // delete $aa
+    COPY,           // copy $aa
+    CLONE,          // clone $aa
+    ORIGIN,         // origin $aa
+    SUBSCRIBERS,    // subscribers $aa
+    PLAIN_SCOPE,    // scope xy;
+    // don't use 0x64 (magic number)
+    TRANSFORM,             // transform x <Int>
+    OBSERVE,               // observe x ()=>()
+    RUN,                   // run xy;
+    AWAIT,                 // await xy;
+    DEFER,                 // maybe xy;
+    FUNCTION,              // function ()
+    ASSERT,                // assert
+    ITERATOR,              // iterator ()
+    NEXT,                  // next it
+    FREEZE,                // freeze
+    SEAL,                  // seal
+    HAS,                   // x has y
+    KEYS,                  // keys x
+    GET_TYPE,              // type $aa
+    GET,                   // get file://..., get @user::34
+    RANGE,                 // ..
+    RESOLVE_RELATIVE_PATH, // ./abc
+    DO,                    // do xy;
+    DEFAULT,               // x default y
+    COLLAPSE,              // collapse x
+    RESPONSE,              // response x
+    CLONE_COLLAPSE,        // collapse
 
-	LABEL               = 0xa9, // $x
-	SET_LABEL           = 0xaa, // $x = ...,
-	INIT_LABEL          = 0xab, // $x := ...
-	LABEL_ACTION        = 0xac, // $x += ...
+    // comparators 0x80 - 0x8f
+    STRUCTURAL_EQUAL,      // ==
+    NOT_STRUCTURAL_EQUAL,  // !=
+    EQUAL,     // ===
+    NOT_EQUAL, // !==
+    GREATER,          // >
+    LESS,             // <
+    GREATER_EQUAL,    // >=
+    LESS_EQUAL,       // <=
+    IS,               // is
 
-	POINTER             = 0xad, // $x
-	SET_POINTER         = 0xae, // $aa = ...
-	INIT_POINTER        = 0xaf, // $aa := ...
-	POINTER_ACTION      = 0xb0, // $aa += ...
-	CREATE_POINTER      = 0xb1, // $$ ()
+    // logical + algebraic operators 0x90  - 0x9f
+    AND,       // &
+    OR,        // |
+    ADD,       // +
+    SUBTRACT,  // -
+    MULTIPLY,  // *
+    DIVIDE,    // /
+    NOT,       // !
+    MODULO,    // %
+    POWER,     // ^
+    INCREMENT, // ++
+    DECREMENT, // --
 
-	CHILD_GET           = 0xb2,  // .y
-	CHILD_SET           = 0xb3,  // .y = a
-	CHILD_SET_REFERENCE = 0xb4,  // .y $= a
-	CHILD_ACTION        = 0xb5,  // .y += a, ...
-	CHILD_GET_REF       = 0xb6,  // ->y
+    // pointers & variables 0xa0 - 0xbf
 
-	WILDCARD            = 0xb7, // *
+    // slots
+    GET_SLOT, // #xyz   0x0000-0x00ff = variables passed on between scopes, 0x0100-0xfdff = normal variables, 0xfe00-0xffff = it variables (#it.0, #it.1, ...) for function arguments
+    UPDATE_SLOT, // #aa = ...
+    ALLOCATE_SLOT, // #aa = ...
+    SLOT_ACTION, // #x += ...
+    DROP_SLOT, // drop #aa
 
-	// values 0xc0 - 0xdf
+    LABEL,        // $x
+    SET_LABEL,    // $x = ...,
+    INIT_LABEL,   // $x := ...
+    LABEL_ACTION, // $x += ...
 
-	TEXT                = 0xc0,
-	INT_8               = 0xc1, // byte
-	INT_16              = 0xc2, 
-	INT_32              = 0xc3,
-	INT_64              = 0xc4,
-	FLOAT_64            = 0xc5,
-	TRUE                = 0xc6,
-	FALSE               = 0xc7,
-	NULL                = 0xc8,
-	VOID                = 0xc9,
-	BUFFER              = 0xca,
-	SCOPE_BLOCK_START   = 0xcb,
-	QUANTITY            = 0xcc,
-	FLOAT_AS_INT_32     = 0xcd,
-	FLOAT_AS_INT_8      = 0xde,
-	BIG_INT             = 0xdf,
+    POINTER,        // $x
+    SET_POINTER,    // $aa = ...
+    INIT_POINTER,   // $aa := ...
+    POINTER_ACTION, // $aa += ...
+    CREATE_REF, // $$ ()
 
-	SHORT_TEXT          = 0xce, // string with max. 255 characters
+    CHILD_GET,           // .y
+    CHILD_SET,           // .y = a
+    CHILD_SET_REFERENCE, // .y $= a
+    CHILD_ACTION,        // .y += a, ...
+    CHILD_GET_REF,       // ->y
 
-	PERSON_ALIAS        = 0xcf,
-	PERSON_ALIAS_WILDCARD = 
-						0xd0,
-	INSTITUTION_ALIAS   = 0xd1,
-	INSTITUTION_ALIAS_WILDCARD = 
-						0xd2,
-	BOT                 = 0xd3,
-	BOT_WILDCARD        = 0xd4,
+    WILDCARD, // *
 
-	ENDPOINT            = 0xd5,
-	ENDPOINT_WILDCARD   = 0xd6,
+    // values 0xc0 - 0xdf
+    TEXT,
+    INT_8, // byte
+    INT_16,
+    INT_32,
+    INT_64,
+    INT_128,
+    INT_BIG,
 
-	URL                 = 0xd8, //file://... , https://...
+    UINT_128,
 
-	TYPE                = 0xd9, // <type>
-	EXTENDED_TYPE       = 0xda, // <type/xy()>
+    DECIMAL_F32,
+    DECIMAL_F64,
+    DECIMAL_BIG,
+    DECIMAL_AS_INT_32,
+    DECIMAL_AS_INT_16,
 
-	CONJUNCTION         = 0xdb,  // x&y&z
-	DISJUNCTION         = 0xdc,  // x|y|z
+    TRUE,
+    FALSE,
+    NULL,
+    VOID,
+    BUFFER,
+    SCOPE_BLOCK_START,
+    QUANTITY,
 
-	TIME                = 0xdd,  // ~2022-10-10~
+    SHORT_TEXT, // string with max. 255 characters
 
-	// arrays, objects and tuples 0xe0 - 0xef
+    PERSON_ALIAS,
+    PERSON_ALIAS_WILDCARD,
+    INSTITUTION_ALIAS,
+    INSTITUTION_ALIAS_WILDCARD,
+    BOT,
+    BOT_WILDCARD,
 
-	ARRAY_START         = 0xe0,  // array / or array
-	ARRAY_END           = 0xe1,
-	OBJECT_START        = 0xe2,  // {}
-	OBJECT_END          = 0xe3,
-	TUPLE_START         = 0xe4,  // (a,b,c)
-	TUPLE_END           = 0xe5,
-	ELEMENT_WITH_KEY    = 0xe6,  // for object elements
-	ELEMENT_WITH_INT_KEY= 0xe7,  // for array elements
-	ELEMENT_WITH_DYNAMIC_KEY = 
-						0xe8,  // for object elements with dynamic key
-	KEY_PERMISSION      = 0xe9,  // for object elements with permission prefix
-	ELEMENT             = 0xea,  // for array elements
-    INTERNAL_OBJECT_SLOT= 0xef,  // for object internal slots
+    ENDPOINT,
+    ENDPOINT_WILDCARD,
 
-	// special instructions 0xf0 - 0xff
+    URL, //file://... , https://...
 
-	SYNC                = 0xf0, // <==
-	STOP_SYNC           = 0xf1, // </=
+    TYPE,          // <type>
+    EXTENDED_TYPE, // <type/xy()>
 
-	STREAM              = 0xf2,  // << stream
-	STOP_STREAM         = 0xf3,  // </ stream
+    CONJUNCTION, // x&y&z
+    DISJUNCTION, // x|y|z
 
-	EXTEND              = 0xf4, // ...
+    TIME, // ~2022-10-10~
 
-	YEET         		= 0xf5,  // !
+    // arrays, objects and tuples 0xe0 - 0xef
+    ARRAY_START,  // array / or array
+    OBJECT_START, // {}
+    TUPLE_START,  // (a,b,c)
+    KEY_VALUE_SHORT_TEXT,
+    KEY_VALUE_DYNAMIC, // for object elements with dynamic key
+    KEY_PERMISSION,    // for object elements with permission prefix
+    INTERNAL_OBJECT_SLOT, // for object internal slots
 
-	REMOTE              = 0xf6, // ::
+    // special instructions 0xf0 - 0xff
+    SYNC,      // <==
+    STOP_SYNC, // </=
 
-	_SYNC_SILENT        = 0xf7, // <==:
+    STREAM,      // << stream
+    STOP_STREAM, // </ stream
 
+    EXTEND, // ...
+
+    YEET, // !
+
+    REMOTE, // ::
+
+    _SYNC_SILENT, // <==:
 }
