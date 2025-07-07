@@ -14,6 +14,9 @@ license-file = "LICENSE"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[workspace]
+members = ["macros"]
+
 [[bench]]
 name = "mod"
 harness = false
