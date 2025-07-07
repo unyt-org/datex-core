@@ -60,7 +60,6 @@ uuid = { version = "1.15.1", features = ["v4"], optional = true }
 rsa = { version = "0.9.8", optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
-matchbox_socket = { default-features = false, git = "https://github.com/unyt-org/matchbox", optional = true } #{ version = "0.11.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
 futures-timer = { version = "3" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
@@ -153,7 +152,7 @@ native_crypto = ["rsa"]                                 # use native crypto
 native_serial = ["serialport"]                          # use native serial
 native_webrtc = ["webrtc"]                              # use webrtc
 
-wasm_webrtc = ["matchbox_socket"] # use webrtc
+wasm_webrtc = [] # use webrtc
 
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
