@@ -28,7 +28,7 @@ pest_derive = "2.6"
 pad = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-websocket = "0.24.0"
+websocket = "0.27.0"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
