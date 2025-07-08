@@ -53,7 +53,7 @@ tokio = { version = "1.43.0", optional = true, features = [
     "time",
 ], default-features = false }
 
-datex_macros = { path = "./macros" }
+datex_macros = { path = "./macros", version = "0.0.1" }
 
 # optional dependencies
 futures = { version = "0.3" }
