@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "datex-core"
-version = "0.0.4"
+version = "0.0.5"
 description = "The DATEX Core Rust implementation"
 authors = [
     "Benedikt Strehle <benedikt@unyt.org>",
@@ -14,8 +14,8 @@ license-file = "LICENSE"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[workspace]
-members = ["macros"]
+# [workspace]
+# members = ["macros"]
 
 [[bench]]
 name = "mod"
