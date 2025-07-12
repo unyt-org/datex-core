@@ -14,7 +14,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
-use itertools::Itertools;
+use std::rc::Rc;
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use super::mockup_interface::MockupInterface;
 
@@ -48,7 +48,7 @@ impl InterfaceConnection {
 pub struct Node {
     pub endpoint: Endpoint,
     pub connections: Vec<InterfaceConnection>,
-    pub runtime: Option<Runtime>,
+    pub runtime: Option<Rc<Runtime>>,
 }
 
 impl Node {
@@ -581,7 +581,7 @@ impl Network {
 
         // create new runtimes for each endpoint
         for endpoint in self.endpoints.iter_mut() {
-            let runtime = Runtime::new(endpoint.endpoint.clone());
+            let runtime = Rc::new(Runtime::new(endpoint.endpoint.clone()));
 
             // register factories
             for (interface_type, factory) in self.com_interface_factories.iter()
@@ -604,7 +604,8 @@ impl Network {
                     .await
                     .expect("failed to create interface");
             }
-            runtime.start().await;
+
+            Runtime::start(runtime.clone()).await;
             endpoint.runtime = Some(runtime);
         }
     }

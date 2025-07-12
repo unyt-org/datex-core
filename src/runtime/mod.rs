@@ -1,6 +1,6 @@
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-
+use futures::channel::oneshot::Sender;
 #[cfg(feature = "native_crypto")]
 use crate::crypto::crypto_native::CryptoNative;
 use crate::values::core_values::endpoint::Endpoint;
@@ -8,7 +8,7 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-use crate::global::dxb_block::DXBBlock;
+use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -23,6 +23,7 @@ pub mod global_context;
 pub mod memory;
 mod stack;
 pub mod execution_context;
+mod update_loop;
 
 use self::memory::Memory;
 
@@ -33,6 +34,10 @@ pub struct Runtime {
     pub memory: Rc<RefCell<Memory>>,
     pub com_hub: Rc<ComHub>,
     pub endpoint: Endpoint,
+    /// set to true if the update loop should be running
+    /// when set to false, the update loop will stop
+    update_loop_running: RefCell<bool>,
+    update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 }
 
 impl Runtime {
@@ -73,16 +78,16 @@ impl Runtime {
 
     /// Starts the common update loop:
     ///  - ComHub
-    pub async fn start(&self) {
+    ///  - Runtime
+    pub async fn start(self_rc: Rc<Runtime>) {
         info!("starting runtime...");
-        self.com_hub
+        self_rc.com_hub
             .init()
             .await
             .expect("Failed to initialize ComHub");
-        ComHub::start_update_loop(self.com_hub.clone());
-    }
-    
-    
+        ComHub::start_update_loop(self_rc.com_hub.clone());
+        Runtime::start_update_loop(self_rc.clone());
+    }    
     
     pub async fn execute(
         &self,
@@ -159,8 +164,7 @@ impl Runtime {
             },
             ..RoutingHeader::default()
         };
-
-
+        
         let block_header = BlockHeader::default();
         let encrypted_header = EncryptedHeader::default();
 
@@ -174,11 +178,18 @@ impl Runtime {
 
         let mut context = ExecutionContext::local();
 
+        self.execute_incoming_section(incoming_section, &mut context).await
+    }
+
+    async fn execute_incoming_section(
+        &self,
+        incoming_section: IncomingSection,
+        context: &mut ExecutionContext,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         let mut result = None;
         for block in incoming_section.into_iter() {
-            result = self.execute_dxb_block_local(block, &mut context).await?;
+            result = self.execute_dxb_block_local(block, context).await?;
         }
-
         Ok(result)
     }
 
@@ -204,6 +215,8 @@ impl Default for Runtime {
             version: VERSION.to_string(),
             memory: Rc::new(RefCell::new(Memory::new())),
             com_hub: Rc::new(ComHub::default()),
+            update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
         }
     }
 }
