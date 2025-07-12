@@ -211,7 +211,7 @@ pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOpti
     
     let network_traces = network
         .get_runtime(start)
-        .com_hub
+        .com_hub()
         .record_trace_multiple_with_options(
             TraceOptions {
                 endpoints: routes.iter().map(|r| r.receiver.clone()).collect(),
@@ -586,7 +586,7 @@ impl Network {
             // register factories
             for (interface_type, factory) in self.com_interface_factories.iter()
             {
-                runtime.com_hub.register_interface_factory(
+                runtime.com_hub().register_interface_factory(
                     interface_type.clone(),
                     *factory,
                 )
@@ -595,7 +595,7 @@ impl Network {
             // add com interfaces
             for connection in endpoint.connections.iter_mut() {
                 runtime
-                    .com_hub
+                    .com_hub()
                     .create_interface(
                         &connection.interface_type,
                         connection.setup_data.take().unwrap(),
@@ -605,7 +605,7 @@ impl Network {
                     .expect("failed to create interface");
             }
 
-            Runtime::start(runtime.clone()).await;
+            runtime.start().await;
             endpoint.runtime = Some(runtime);
         }
     }

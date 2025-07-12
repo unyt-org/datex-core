@@ -1220,7 +1220,9 @@ impl ComHub {
     /// Runs the update loop for the ComHub.
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
-    pub fn start_update_loop(self_rc: Rc<Self>) {
+    /// This is only used for internal tests - in a full runtime setup, the main runtime update loop triggers
+    /// ComHub updates.
+    pub fn _start_update_loop(self_rc: Rc<Self>) {
         // if already running, do nothing
         if *self_rc.update_loop_running.borrow() {
             return;
@@ -1242,23 +1244,11 @@ impl ComHub {
         });
     }
 
-    /// Stops the update loop for the ComHub, if it is running.
-    pub async fn stop_update_loop(&self) {
-        info!("Stopping ComHub update loop for {}", self.endpoint);
-        *self.update_loop_running.borrow_mut() = false;
-
-        let (sender, receiver) = oneshot::channel::<()>();
-
-        self.update_loop_stop_sender.borrow_mut().replace(sender);
-
-        receiver.await.unwrap();
-    }
-
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     /// Updates are scheduled in local tasks and are not immediately visible.
     /// To wait for the block update to finish, use `wait_for_update_async()`.
-    fn update(&self) {
+    pub fn update(&self) {
         // update all interfaces
         self.update_interfaces();
 

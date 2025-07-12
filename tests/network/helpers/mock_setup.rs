@@ -63,7 +63,7 @@ pub async fn get_mock_setup_with_endpoint(
 pub async fn get_runtime_with_mock_interface(
     endpoint: Endpoint,
     priority: InterfacePriority,
-) -> (Rc<Runtime>, Rc<RefCell<MockupInterface>>) {
+) -> (Runtime, Rc<RefCell<MockupInterface>>) {
     // init com hub
     let runtime = Runtime::init_native(endpoint);
 
@@ -73,14 +73,14 @@ pub async fn get_runtime_with_mock_interface(
 
     // add mockup interface to com_hub
     runtime
-        .com_hub
+        .com_hub()
         .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
             panic!("Error adding interface: {e:?}");
         });
 
-    (Rc::new(runtime), mockup_interface_ref.clone())
+    (runtime, mockup_interface_ref.clone())
 }
 
 pub fn add_socket(
@@ -176,7 +176,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
         Rc::new(RefCell::new(receiver));
 
     if enable_update_loop {
-        ComHub::start_update_loop(com_hub.clone());
+        ComHub::_start_update_loop(com_hub.clone());
 
         // start mockup interface update loop
         mockup_interface_ref.borrow_mut().start_update_loop();
@@ -207,7 +207,7 @@ pub async fn get_mock_setup_runtime(
     local_endpoint: Endpoint,
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
-) -> Rc<Runtime> {
+) -> Runtime {
     let (runtime, mockup_interface_ref) =
         get_runtime_with_mock_interface(local_endpoint, InterfacePriority::default()).await;
 
@@ -220,14 +220,14 @@ pub async fn get_mock_setup_runtime(
 
     add_socket(mockup_interface_ref.clone());
 
-    Runtime::start(runtime.clone()).await;
+    runtime.start().await;
     runtime
 }
 
 pub async fn get_mock_setup_with_two_runtimes(
     endpoint_a: Endpoint,
     endpoint_b: Endpoint,
-) -> (Rc<Runtime>, Rc<Runtime>) {
+) -> (Runtime, Runtime) {
     let (sender_a, receiver_a) = mpsc::channel::<Vec<u8>>();
     let (sender_b, receiver_b) = mpsc::channel::<Vec<u8>>();
 
