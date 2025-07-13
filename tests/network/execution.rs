@@ -21,10 +21,12 @@ pub async fn test_basic_remote_execution() {
         
         // create an execution context for @test_b
         let mut remote_execution_context = ExecutionContext::remote(endpoint_b);
-
+      
         // execute script remotely on @test_b
         let result = runtime_a.execute("1 + 2", &[], &mut remote_execution_context).await;
-        
         assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(3)));
+        
+        let result = runtime_a.execute("2 + 3", &[], &mut remote_execution_context).await;
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(5)));
     };
 }
