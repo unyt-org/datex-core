@@ -186,6 +186,8 @@ pub enum DatexExpression {
     ApplyChain(Box<DatexExpression>, Vec<Apply>),
     // ?
     Placeholder,
+    // @xy :: z
+    RemoteCall(Box<DatexExpression>, Box<DatexExpression>)
 }
 
 // directly convert DatexExpression to a ValueContainer

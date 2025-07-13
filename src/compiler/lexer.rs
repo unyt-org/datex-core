@@ -48,6 +48,7 @@ pub enum Token {
     #[token("/")] Slash,
     #[token(":")] Colon,
     #[token("::")] DoubleColon,
+    #[token(":::")] TripleColon,
     #[token(";")] Semicolon,
     #[token(".")] Dot,
     #[token(",")] Comma,
