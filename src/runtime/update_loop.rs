@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::channel::oneshot;
 use log::info;
 use crate::compiler::compile_value;
-use crate::global::dxb_block::{DXBBlock, IncomingSectionIndex};
+use crate::global::dxb_block::{DXBBlock, IncomingSectionIndex, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{BlockHeader, BlockType};
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -73,15 +73,14 @@ impl RuntimeInternal {
             let self_rc = self_rc.clone();
             spawn_with_panic_notify(async move {
                 info!("Handling incoming section: {section:?}");
-                let mut context = ExecutionContext::local(); // TODO: keep persistent context between sections
-                let (result, endpoint, section_index) = RuntimeInternal::execute_incoming_section(self_rc.clone(), section, &mut context).await;
+                let (result, endpoint, context_id) = RuntimeInternal::execute_incoming_section(self_rc.clone(), section).await;
                 info!("Execution result (on {} from {}): {result:?}", self_rc.endpoint, endpoint);
                 // send response back to the sender
                 let res = RuntimeInternal::send_response_block(
                     self_rc.clone(),
                     result,
                     endpoint,
-                    section_index,
+                    context_id,
                 );
                 // TODO: handle errors in sending response
             })
@@ -92,7 +91,7 @@ impl RuntimeInternal {
         self_rc: Rc<RuntimeInternal>,
         result: Result<Option<ValueContainer>, ExecutionError>,
         receiver_endpoint: Endpoint,
-        section_index: IncomingSectionIndex,
+        context_id: OutgoingContextId,
     ) -> Result<(), Vec<Endpoint>> {
         let routing_header: RoutingHeader = RoutingHeader {
             version: 2,
@@ -113,7 +112,7 @@ impl RuntimeInternal {
         };
 
         let block_header = BlockHeader {
-            section_index,
+            context_id,
             flags_and_timestamp: FlagsAndTimestamp::new()
                 .with_block_type(BlockType::Response)
                 .with_is_end_of_section(true)
@@ -121,6 +120,8 @@ impl RuntimeInternal {
             ..BlockHeader::default()
         };
         let encrypted_header = EncryptedHeader::default();
+
+        info!("send response, context_id: {context_id:?}, receiver: {receiver_endpoint}");
 
         if let Ok(value) = result {
 

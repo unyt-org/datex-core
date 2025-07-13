@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use futures::channel::oneshot::Sender;
@@ -8,7 +9,7 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-use crate::global::dxb_block::{DXBBlock, IncomingSection, IncomingSectionIndex};
+use crate::global::dxb_block::{DXBBlock, IncomingSection, IncomingSectionIndex, OutgoingContextId};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -42,6 +43,9 @@ pub struct RuntimeInternal {
     /// when set to false, the update loop will stop
     update_loop_running: RefCell<bool>,
     update_loop_stop_sender: RefCell<Option<Sender<()>>>,
+
+    /// active execution contexts, stored by context_id
+    pub execution_contexts: RefCell<HashMap<u32, ExecutionContext>>,
 }
 
 impl Default for RuntimeInternal {
@@ -52,6 +56,7 @@ impl Default for RuntimeInternal {
             com_hub: ComHub::default(),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
+            execution_contexts: RefCell::new(HashMap::new()),
         }
     }
 }
@@ -69,7 +74,7 @@ impl RuntimeInternal {
             .await
             .map_err(ScriptExecutionError::from)
     }
-    
+
     pub fn execute_sync(
         self_rc: Rc<RuntimeInternal>,
         script: &str,
@@ -80,7 +85,7 @@ impl RuntimeInternal {
         RuntimeInternal::execute_dxb_sync(self_rc, &dxb, execution_context, true)
             .map_err(ScriptExecutionError::from)
     }
-    
+
     pub fn execute_dxb<'a>(
         self_rc: Rc<RuntimeInternal>,
         dxb: Vec<u8>,
@@ -98,7 +103,7 @@ impl RuntimeInternal {
             }
         })
     }
-    
+
     pub fn execute_dxb_sync(
         self_rc: Rc<RuntimeInternal>,
         dxb: &[u8],
@@ -112,6 +117,25 @@ impl RuntimeInternal {
             ExecutionContext::Local(_)  => {
                 execution_context.execute_dxb_sync(dxb, end_execution)
             }
+        }
+    }
+
+    /// Returns the existing execution context for the given context_id,
+    /// or creates a new one if it doesn't exist.
+    fn get_execution_context(
+        &self,
+        context_id: IncomingSectionIndex,
+    ) -> ExecutionContext {
+        let mut execution_contexts = self.execution_contexts.borrow_mut();
+        // get execution context by context_id or create a new one if it doesn't exist
+        let execution_context = execution_contexts.get(&(context_id as u32)).cloned();
+        if let Some(context) = execution_context {
+            context
+        } else {
+            let new_context = ExecutionContext::local();
+            // insert the new context into the map
+            execution_contexts.insert(context_id as u32, new_context.clone());
+            new_context
         }
     }
 
@@ -138,7 +162,17 @@ impl RuntimeInternal {
             ..RoutingHeader::default()
         };
 
-        let block_header = BlockHeader::default();
+        // get existing context_id for context, or create a new one
+        let context_id = remote_execution_context.context_id.unwrap_or_else(|| {
+            // if the context_id is not set, we create a new one
+            remote_execution_context.context_id = Some(self_rc.com_hub.block_handler.get_new_context_id());
+            remote_execution_context.context_id.unwrap()
+        });
+
+        let block_header = BlockHeader {
+            context_id,
+            ..BlockHeader::default()
+        };
         let encrypted_header = EncryptedHeader::default();
 
         let mut block =
@@ -148,23 +182,23 @@ impl RuntimeInternal {
 
         let response = self_rc.com_hub.send_own_block_await_response(block, ResponseOptions::default()).await.remove(0)?;
         let incoming_section = response.take_incoming_section();
-
-        let mut context = ExecutionContext::local();
-
-        RuntimeInternal::execute_incoming_section(self_rc, incoming_section, &mut context).await.0
+        RuntimeInternal::execute_incoming_section(self_rc, incoming_section).await.0
     }
 
     async fn execute_incoming_section(
         self_rc: Rc<RuntimeInternal>,
         incoming_section: IncomingSection,
-        context: &mut ExecutionContext,
-    ) -> (Result<Option<ValueContainer>, ExecutionError>, Endpoint, IncomingSectionIndex) {
+    ) -> (Result<Option<ValueContainer>, ExecutionError>, Endpoint, OutgoingContextId) {
+
+        let mut context = self_rc.get_execution_context(incoming_section.get_section_index());
+        info!("Executing incoming section with index: {}", incoming_section.get_section_index());
+
         let mut result = None;
         let mut last_block = None;
         for block in incoming_section.into_iter() {
-            let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), context).await;
+            let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), &mut context).await;
             if let Err(err) = res {
-                return (Err(err), block.get_sender().clone(), block.block_header.section_index);
+                return (Err(err), block.get_sender().clone(), block.block_header.context_id);
             }
             result = res.unwrap();
             last_block = Some(block);
@@ -174,8 +208,8 @@ impl RuntimeInternal {
         }
         let last_block = last_block.unwrap();
         let sender_endpoint = last_block.get_sender().clone();
-        let section_index = last_block.block_header.section_index;
-        (Ok(result), sender_endpoint, section_index)
+        let context_id = last_block.block_header.context_id;
+        (Ok(result), sender_endpoint, context_id)
     }
 
     async fn execute_dxb_block_local(
@@ -221,14 +255,14 @@ impl Runtime {
         );
         Self::new(endpoint)
     }
-    
+
     pub fn com_hub(&self) -> &ComHub {
        &self.data.com_hub
     }
     pub fn endpoint(&self) -> Endpoint {
         self.data.endpoint.clone()
     }
-    
+
     pub fn internal(&self) -> Rc<RuntimeInternal> {
         Rc::clone(&self.data)
     }
@@ -257,7 +291,7 @@ impl Runtime {
             .expect("Failed to initialize ComHub");
         // ComHub::start_update_loop(self.com_hub());
         RuntimeInternal::start_update_loop(self.internal());
-    }    
+    }
     
     pub async fn execute(
         &self,
@@ -276,7 +310,7 @@ impl Runtime {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         RuntimeInternal::execute_sync(self.internal(), script, inserted_values, execution_context)
     }
-    
+
     pub async fn execute_dxb<'a>(
         &'a self,
         dxb: Vec<u8>,
@@ -285,7 +319,7 @@ impl Runtime {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         RuntimeInternal::execute_dxb(self.internal(), dxb, execution_context, end_execution).await
     }
-    
+
     pub fn execute_dxb_sync(
         &self,
         dxb: &[u8],
@@ -297,7 +331,7 @@ impl Runtime {
 
     async fn execute_remote(
         &self,
-        remote_execution_context: &mut RemoteExecutionContext, 
+        remote_execution_context: &mut RemoteExecutionContext,
         dxb: Vec<u8>
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         RuntimeInternal::execute_remote(self.internal(), remote_execution_context, dxb).await

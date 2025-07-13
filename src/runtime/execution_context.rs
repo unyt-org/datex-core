@@ -6,6 +6,7 @@ use crate::compiler::{compile_template, CompileOptions};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
+use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::execution::{execute_dxb, execute_dxb_sync, ExecutionError, ExecutionInput, ExecutionOptions, RuntimeExecutionContext};
 
 #[derive(Debug)]
@@ -30,6 +31,7 @@ impl From<ExecutionError> for ScriptExecutionError {
 pub struct RemoteExecutionContext {
     pub compile_scope: Scope,
     pub endpoint: Endpoint,
+    pub context_id: Option<OutgoingContextId>
 }
 
 impl RemoteExecutionContext {
@@ -38,6 +40,7 @@ impl RemoteExecutionContext {
         RemoteExecutionContext {
             compile_scope: Scope::default(),
             endpoint: endpoint.into(),
+            context_id: None,
         }
     }
 }

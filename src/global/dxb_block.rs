@@ -342,7 +342,7 @@ impl DXBBlock {
             unreachable!("No receivers set in the routing header")
         }
     }
-    
+
     pub fn get_sender(&self) -> &Endpoint {
         &self.routing_header.sender
     }
