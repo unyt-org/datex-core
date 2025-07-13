@@ -7,3 +7,4 @@ bin/
 wasm-pack.log
 .DS_Store
 Cargo.lock
+.idea
