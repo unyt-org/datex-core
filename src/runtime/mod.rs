@@ -8,7 +8,7 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-use crate::global::dxb_block::{DXBBlock, IncomingSection};
+use crate::global::dxb_block::{DXBBlock, IncomingSection, IncomingSectionIndex};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -151,19 +151,31 @@ impl RuntimeInternal {
 
         let mut context = ExecutionContext::local();
 
-        RuntimeInternal::execute_incoming_section(self_rc, incoming_section, &mut context).await
+        RuntimeInternal::execute_incoming_section(self_rc, incoming_section, &mut context).await.0
     }
 
     async fn execute_incoming_section(
         self_rc: Rc<RuntimeInternal>,
         incoming_section: IncomingSection,
         context: &mut ExecutionContext,
-    ) -> Result<Option<ValueContainer>, ExecutionError> {
+    ) -> (Result<Option<ValueContainer>, ExecutionError>, Endpoint, IncomingSectionIndex) {
         let mut result = None;
+        let mut last_block = None;
         for block in incoming_section.into_iter() {
-            result = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block, context).await?;
+            let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), context).await;
+            if let Err(err) = res {
+                return (Err(err), block.get_sender().clone(), block.block_header.section_index);
+            }
+            result = res.unwrap();
+            last_block = Some(block);
         }
-        Ok(result)
+        if last_block.is_none() {
+            unreachable!("Incoming section must contain at least one block");
+        }
+        let last_block = last_block.unwrap();
+        let sender_endpoint = last_block.get_sender().clone();
+        let section_index = last_block.block_header.section_index;
+        (Ok(result), sender_endpoint, section_index)
     }
 
     async fn execute_dxb_block_local(
