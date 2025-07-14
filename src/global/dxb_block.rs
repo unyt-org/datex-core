@@ -86,7 +86,8 @@ impl IncomingSection {
             }
             IncomingSection::BlockStream((blocks, _)) => {
                 Box::pin(stream! {
-                    for block in blocks.borrow_mut().drain(..).into_iter() {
+                    // FIXME: no borrow across await point
+                    for block in blocks.borrow_mut().drain(..) {
                         yield block;
                     }
                 })
