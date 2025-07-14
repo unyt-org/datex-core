@@ -1,8 +1,14 @@
+use std::async_iter::{AsyncIterator, IntoAsyncIterator};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::{Cursor, Read};
+use std::pin::Pin;
 use std::rc::Rc;
+use std::task::{Context, Poll};
+use futures_core::stream::Stream;
+use async_stream::stream;
+
 // FIXME no-std
 
 use crate::values::core_values::endpoint::Endpoint;
@@ -66,40 +72,24 @@ pub enum IncomingSection {
     BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingEndpointContextSectionId)),
 }
 
-#[derive(Debug)]
-pub enum IncomingSectionIter {
-    /// a single block
-    SingleBlock(Option<DXBBlock>),
-    /// a stream of blocks
-    /// the stream is finished when a block has the end_of_block flag set
-    BlockStream(Rc<RefCell<VecDeque<DXBBlock>>>),
-}
 
-impl IntoIterator for IncomingSection {
-    type Item = DXBBlock;
-    type IntoIter = IncomingSectionIter;
-
-    fn into_iter(self) -> Self::IntoIter {
+impl IncomingSection {
+    // return an async Stream
+    pub fn stream(
+        self,
+    ) -> Pin<Box<dyn Stream<Item = DXBBlock>>> {
         match self {
-            IncomingSection::SingleBlock((block, ..)) => IncomingSectionIter::SingleBlock(Some(block)),
-            IncomingSection::BlockStream((stream, ..)) => {
-                IncomingSectionIter::BlockStream(stream)
-            },
-        }
-    }
-}
-
-impl Iterator for IncomingSectionIter {
-    type Item = DXBBlock;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            IncomingSectionIter::SingleBlock(block) => {
-                block.take()
+            IncomingSection::SingleBlock((block, _)) => {
+                Box::pin(stream! {
+                    yield block;
+                })
             }
-            IncomingSectionIter::BlockStream(blocks) => {
-                let mut blocks = blocks.borrow_mut();
-                blocks.pop_front()
+            IncomingSection::BlockStream((blocks, _)) => {
+                Box::pin(stream! {
+                    for block in blocks.borrow_mut().drain(..).into_iter() {
+                        yield block;
+                    }
+                })
             }
         }
     }
@@ -114,7 +104,7 @@ impl IncomingSection {
     pub fn get_sender(&self) -> Endpoint {
         self.get_section_context_id().endpoint_context_id.sender.clone()
     }
-    
+
     pub fn get_section_context_id(&self) -> &IncomingEndpointContextSectionId {
         match self {
             IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id)) => {

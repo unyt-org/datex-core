@@ -2,7 +2,9 @@
 #![feature(iter_from_coroutine)]
 #![feature(assert_matches)]
 #![feature(gen_blocks)]
-#![feature(let_chains)] // FIXME: remove in the future, not required in edition 2024, but RustRover complains
+#![feature(let_chains)]
+#![feature(async_iterator)]
+// FIXME: remove in the future, not required in edition 2024, but RustRover complains
 #[macro_use]
 extern crate mopa;
 

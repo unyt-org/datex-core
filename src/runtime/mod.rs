@@ -1,7 +1,10 @@
+use std::async_iter::{AsyncIterator, IntoAsyncIterator};
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use futures::channel::oneshot::Sender;
+use futures::pin_mut;
+use futures_util::StreamExt;
 #[cfg(feature = "native_crypto")]
 use crate::crypto::crypto_native::CryptoNative;
 use crate::values::core_values::endpoint::Endpoint;
@@ -204,14 +207,25 @@ impl RuntimeInternal {
 
         let mut result = None;
         let mut last_block = None;
-        for block in incoming_section.into_iter() {
-            let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), &mut context).await;
-            if let Err(err) = res {
-                return (Err(err), block.get_sender().clone(), block.block_header.context_id);
+        let iter = incoming_section.stream();
+        pin_mut!(iter);
+        
+        // iterate over the blocks in the incoming section
+        loop {
+            let block = iter.next().await;
+            if let Some(block) = block {
+                let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), &mut context).await;
+                if let Err(err) = res {
+                    return (Err(err), block.get_sender().clone(), block.block_header.context_id);
+                }
+                result = res.unwrap();
+                last_block = Some(block);
             }
-            result = res.unwrap();
-            last_block = Some(block);
+            else {
+                break;
+            }
         }
+
         if last_block.is_none() {
             unreachable!("Incoming section must contain at least one block");
         }
