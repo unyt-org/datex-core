@@ -35,6 +35,15 @@ pub struct Runtime {
     pub data: Rc<RuntimeInternal>,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Runtime {
+            version: VERSION.to_string(),
+            data: Rc::new(RuntimeInternal::default()),
+        }
+    }
+}
+
 pub struct RuntimeInternal {
     pub memory: RefCell<Memory>,
     pub com_hub: ComHub,
