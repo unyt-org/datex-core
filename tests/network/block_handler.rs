@@ -63,7 +63,7 @@ async fn receive_single_block() {
 
         // block must be a single block
         match section {
-            IncomingSection::SingleBlock(block) => {
+            IncomingSection::SingleBlock((block, ..)) => {
                 info!("section: {section:?}");
                 assert_eq!(block.get_endpoint_context_id(), block_endpoint_context_id);
             }
@@ -140,10 +140,10 @@ async fn receive_multiple_blocks() {
         let section = sections.first().unwrap();
         // block must be a block stream
         match section {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {section:?}");
                 // section must match
-                assert_eq!(incoming_section_index, &section_index);
+                assert_eq!(incoming_context_section_id.section_index, section_index);
                 // blocks queue length must be 1
                 assert_eq!(blocks.borrow().len(), 1);
             }
@@ -164,10 +164,10 @@ async fn receive_multiple_blocks() {
         assert_eq!(sections.len(), 0);
         // block must be a block stream
         match section {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {section:?}");
                 // section must match
-                assert_eq!(incoming_section_index, &section_index);
+                assert_eq!(incoming_context_section_id.section_index, section_index);
                 // blocks queue length must be 2 (was not yet drained)
                 assert_eq!(blocks.borrow().len(), 2);
             }
@@ -256,12 +256,12 @@ async fn receive_multiple_blocks_wrong_order() {
 
         // block must be a block stream
         match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {sections:?}");
 
                 let blocks = blocks.borrow();
                 // section must match
-                assert_eq!(incoming_section_index, &section_index);
+                assert_eq!(incoming_context_section_id.section_index, section_index);
                 // blocks queue length must be 2
                 assert_eq!(blocks.len(), 2);
 
@@ -378,10 +378,10 @@ async fn receive_multiple_sections() {
         assert_eq!(sections.len(), 1);
         // block must be a block stream
         match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {sections:?}");
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_1);
+                assert_eq!(incoming_context_section_id.section_index, section_index_1);
                 // blocks queue length must be 1
                 assert_eq!(blocks.borrow().len(), 1);
             }
@@ -401,10 +401,10 @@ async fn receive_multiple_sections() {
         assert_eq!(new_sections.len(), 0);
         // block must be a block stream
         match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {sections:?}");
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_1);
+                assert_eq!(incoming_context_section_id.section_index, section_index_1);
                 // blocks queue length must be 2
                 assert_eq!(blocks.borrow().len(), 2);
             }
@@ -423,10 +423,10 @@ async fn receive_multiple_sections() {
         assert_eq!(sections.len(), 1);
         // block must be a block stream
         match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {sections:?}");
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_2);
+                assert_eq!(incoming_context_section_id.section_index, section_index_2);
                 // blocks queue length must be 1
                 assert_eq!(blocks.borrow().len(), 1);
             }
@@ -445,10 +445,10 @@ async fn receive_multiple_sections() {
         assert_eq!(new_sections.len(), 0);
         // block must be a block stream
         match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
+            IncomingSection::BlockStream((blocks, incoming_context_section_id)) => {
                 info!("section: {sections:?}");
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_2);
+                assert_eq!(incoming_context_section_id.section_index, section_index_2);
                 // blocks queue length must be 2
                 assert_eq!(blocks.borrow().len(), 2);
             }

@@ -1376,10 +1376,7 @@ impl ComHub {
                 while let Some(section) = rx.next().await {
                     let mut received_response = false;
                     // get sender
-                    let mut sender = section
-                        .try_get_sender()
-                        // this is a new section containing at least one block, which has not been drained yet
-                        .expect("No sender found for incoming section - this should never happen");
+                    let mut sender = section.get_sender();
                     // add to response for exactly matching endpoint instance
                     if let Some(response) = responses.get_mut(&sender) {
                         // check if the receiver is already set (= current set response is Err)
@@ -1447,10 +1444,7 @@ impl ComHub {
                 let mut rx = self.block_handler.register_incoming_block_observer(context_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
-                    let sender = section
-                        .try_get_sender()
-                        // this is a new section containing at least one block, which has not been drained yet
-                        .expect("No sender found for incoming section - this should never happen");
+                    let sender = section.get_sender();
                     info!("Received response from {sender}");
                     // add to response for exactly matching endpoint instance
                     responses.push(Ok(Response::UnspecifiedResponse(section)));

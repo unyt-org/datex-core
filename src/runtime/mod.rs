@@ -9,7 +9,7 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-use crate::global::dxb_block::{DXBBlock, IncomingSection, IncomingSectionIndex, OutgoingContextId};
+use crate::global::dxb_block::{DXBBlock, IncomingEndpointContextId, IncomingEndpointContextSectionId, IncomingSection, IncomingSectionIndex, OutgoingContextId};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -54,7 +54,7 @@ pub struct RuntimeInternal {
     update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     /// active execution contexts, stored by context_id
-    pub execution_contexts: RefCell<HashMap<u32, ExecutionContext>>,
+    pub execution_contexts: RefCell<HashMap<IncomingEndpointContextSectionId, ExecutionContext>>,
 }
 
 impl Default for RuntimeInternal {
@@ -133,17 +133,17 @@ impl RuntimeInternal {
     /// or creates a new one if it doesn't exist.
     fn get_execution_context(
         &self,
-        context_id: IncomingSectionIndex,
+        context_id: &IncomingEndpointContextSectionId,
     ) -> ExecutionContext {
         let mut execution_contexts = self.execution_contexts.borrow_mut();
         // get execution context by context_id or create a new one if it doesn't exist
-        let execution_context = execution_contexts.get(&(context_id as u32)).cloned();
+        let execution_context = execution_contexts.get(&(context_id)).cloned();
         if let Some(context) = execution_context {
             context
         } else {
             let new_context = ExecutionContext::local();
             // insert the new context into the map
-            execution_contexts.insert(context_id as u32, new_context.clone());
+            execution_contexts.insert(context_id.clone(), new_context.clone());
             new_context
         }
     }
@@ -199,7 +199,7 @@ impl RuntimeInternal {
         incoming_section: IncomingSection,
     ) -> (Result<Option<ValueContainer>, ExecutionError>, Endpoint, OutgoingContextId) {
 
-        let mut context = self_rc.get_execution_context(incoming_section.get_section_index());
+        let mut context = self_rc.get_execution_context(incoming_section.get_section_context_id());
         info!("Executing incoming section with index: {}", incoming_section.get_section_index());
 
         let mut result = None;

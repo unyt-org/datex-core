@@ -1,8 +1,4 @@
-use crate::global::dxb_block::{
-    BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
-    IncomingEndpointContextId, IncomingSection, IncomingSectionIndex,
-    OutgoingContextId, OutgoingSectionIndex,
-};
+use crate::global::dxb_block::{BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId, IncomingEndpointContextId, IncomingEndpointContextSectionId, IncomingSection, IncomingSectionIndex, OutgoingContextId, OutgoingSectionIndex};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::global_context::get_global_context;
 use futures::channel::mpsc;
@@ -203,17 +199,19 @@ impl BlockHandler {
             sender: block.routing_header.sender.clone(),
             context_id: block.block_header.context_id,
         };
+        let section_context_id = IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index);
 
         // get scope context if it already exists
         let has_scope_context =
             self.block_cache.borrow().contains_key(&endpoint_context_id);
+
 
         // Case 1: shortcut if no scope context exists and the block is a single block
         if !has_scope_context
             && block_number == 0
             && (is_end_of_section || is_end_of_context)
         {
-            return vec![IncomingSection::SingleBlock(block)];
+            return vec![IncomingSection::SingleBlock((block, section_context_id.clone()))];
         }
 
         // make sure a scope context exists from here on
@@ -235,6 +233,7 @@ impl BlockHandler {
             let mut is_end_of_context = is_end_of_context;
             let mut is_end_of_section = is_end_of_section;
             let mut next_block = block;
+            let mut section_index = section_index;
 
             // loop over the input block and potential blocks from the cache until the next block cannot be found
             // or the end of the scope is reached
@@ -255,7 +254,7 @@ impl BlockHandler {
                 if is_first_block_of_section {
                     new_blocks.push(IncomingSection::BlockStream((
                         current_block_queue.clone(),
-                        section_index,
+                        IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index)
                     )));
                 }
 
@@ -294,6 +293,9 @@ impl BlockHandler {
                         .is_end_of_context();
                     // set next block
                     next_block = next_cached_block;
+                    
+                    // update section index from next block
+                    section_index = next_block.block_header.section_index;
                 }
                 // no more blocks in cache, break
                 else {

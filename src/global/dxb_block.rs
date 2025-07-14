@@ -60,10 +60,10 @@ pub type OutgoingBlockNumber = u16;
 #[derive(Debug, Clone)]
 pub enum IncomingSection {
     /// a single block
-    SingleBlock(DXBBlock),
+    SingleBlock((DXBBlock, IncomingEndpointContextSectionId)),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
+    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingEndpointContextSectionId)),
 }
 
 #[derive(Debug)]
@@ -72,7 +72,7 @@ pub enum IncomingSectionIter {
     SingleBlock(Option<DXBBlock>),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
+    BlockStream(Rc<RefCell<VecDeque<DXBBlock>>>),
 }
 
 impl IntoIterator for IncomingSection {
@@ -81,8 +81,8 @@ impl IntoIterator for IncomingSection {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            IncomingSection::SingleBlock(block) => IncomingSectionIter::SingleBlock(Some(block)),
-            IncomingSection::BlockStream(stream) => {
+            IncomingSection::SingleBlock((block, ..)) => IncomingSectionIter::SingleBlock(Some(block)),
+            IncomingSection::BlockStream((stream, ..)) => {
                 IncomingSectionIter::BlockStream(stream)
             },
         }
@@ -97,7 +97,7 @@ impl Iterator for IncomingSectionIter {
             IncomingSectionIter::SingleBlock(block) => {
                 block.take()
             }
-            IncomingSectionIter::BlockStream((blocks, section_index)) => {
+            IncomingSectionIter::BlockStream(blocks) => {
                 let mut blocks = blocks.borrow_mut();
                 blocks.pop_front()
             }
@@ -108,23 +108,18 @@ impl Iterator for IncomingSectionIter {
 
 impl IncomingSection {
     pub fn get_section_index(&self) -> IncomingSectionIndex {
-        match self {
-            IncomingSection::SingleBlock(block) => {
-                block.block_header.section_index
-            }
-            IncomingSection::BlockStream((_, section_index)) => *section_index,
-        }
+        self.get_section_context_id().section_index
     }
 
-    pub fn try_get_sender(&self) -> Option<Endpoint> {
+    pub fn get_sender(&self) -> Endpoint {
+        self.get_section_context_id().endpoint_context_id.sender.clone()
+    }
+    
+    pub fn get_section_context_id(&self) -> &IncomingEndpointContextSectionId {
         match self {
-            IncomingSection::SingleBlock(block) => {
-                Some(block.routing_header.sender.clone())
+            IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id)) => {
+                section_context_id
             }
-            IncomingSection::BlockStream((blocks, _)) => blocks
-                .borrow()
-                .front()
-                .map(|block| block.routing_header.sender.clone()),
         }
     }
 }
@@ -133,6 +128,24 @@ impl IncomingSection {
 pub struct IncomingEndpointContextId {
     pub sender: Endpoint,
     pub context_id: IncomingContextId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IncomingEndpointContextSectionId {
+    pub endpoint_context_id: IncomingEndpointContextId,
+    pub section_index: IncomingSectionIndex,
+}
+
+impl IncomingEndpointContextSectionId {
+    pub fn new(
+        endpoint_context_id: IncomingEndpointContextId,
+        section_index: IncomingSectionIndex,
+    ) -> Self {
+        IncomingEndpointContextSectionId {
+            endpoint_context_id,
+            section_index,
+        }
+    }
 }
 
 /// An identifier that defines a globally unique block

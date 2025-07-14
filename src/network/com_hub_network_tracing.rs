@@ -289,11 +289,11 @@ impl ComHub {
             match response {
                 Ok(Response::ExactResponse(
                     sender,
-                    IncomingSection::SingleBlock(block),
+                    IncomingSection::SingleBlock((block, ..)),
                 ))
                 | Ok(Response::ResolvedResponse(
                     sender,
-                    IncomingSection::SingleBlock(block),
+                    IncomingSection::SingleBlock((block, ..)),
                 )) => {
                     info!(
                         "Received trace block response from {}",
