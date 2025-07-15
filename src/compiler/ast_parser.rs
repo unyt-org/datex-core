@@ -187,7 +187,7 @@ pub enum DatexExpression {
     // ?
     Placeholder,
     // @xy :: z
-    RemoteCall(Box<DatexExpression>, Box<DatexExpression>)
+    RemoteExecution(Box<DatexExpression>, Box<DatexExpression>)
 }
 
 // directly convert DatexExpression to a ValueContainer
@@ -648,8 +648,19 @@ pub fn create_parser<'a, I>(
     expression_without_tuple
         .define(choice((variable_assignment, equality.clone())));
 
+
+    // expression :: expression
+    let remote_execution = expression_without_tuple
+        .clone()
+        .then_ignore(just(Token::DoubleColon).padded_by(whitespace.clone()))
+        .then(expression_without_tuple.clone())
+        .map(|(endpoint, expr)| {
+            DatexExpression::RemoteExecution(Box::new(endpoint), Box::new(expr))
+        });
+
+
     expression.define(
-        choice((tuple.clone(), expression_without_tuple.clone()))
+        choice((remote_execution, tuple.clone(), expression_without_tuple.clone()))
             .padded_by(whitespace.clone()),
     );
 
@@ -2290,5 +2301,99 @@ mod tests {
         // syntax error
         let res = parse(src);
         assert!(res.is_err(), "Expected error when parsing expression with shebang");
+    }
+
+    #[test]
+    fn test_remote_execution() {
+        let src = "a :: b";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::RemoteExecution(
+                Box::new(DatexExpression::Variable("a".to_string())),
+                Box::new(DatexExpression::Variable("b".to_string()))
+            )
+        );
+    }
+    #[test]
+    fn test_remote_execution_no_space() {
+        let src = "a::b";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::RemoteExecution(
+                Box::new(DatexExpression::Variable("a".to_string())),
+                Box::new(DatexExpression::Variable("b".to_string()))
+            )
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_complex() {
+        let src = "a :: b + c * 2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::RemoteExecution(
+                Box::new(DatexExpression::Variable("a".to_string())),
+                Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Add,
+                    Box::new(DatexExpression::Variable("b".to_string())),
+                    Box::new(DatexExpression::BinaryOperation(
+                        BinaryOperator::Multiply,
+                        Box::new(DatexExpression::Variable("c".to_string())),
+                        Box::new(DatexExpression::Integer(Integer::from(2))),
+                    )),
+                )),
+            )
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_statements() {
+        let src = "a :: b; 1";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::RemoteExecution(
+                        Box::new(DatexExpression::Variable("a".to_string())),
+                        Box::new(DatexExpression::Variable("b".to_string()))
+                    ),
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Integer(Integer::from(1)),
+                    is_terminated: false,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_inline_statements() {
+        let src = "a :: (1; 2 + 3)";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::RemoteExecution(
+                Box::new(DatexExpression::Variable("a".to_string())),
+                Box::new(DatexExpression::Statements(vec![
+                    Statement {
+                        expression: DatexExpression::Integer(Integer::from(1)),
+                        is_terminated: true,
+                    },
+                    Statement {
+                        expression: DatexExpression::BinaryOperation(
+                            BinaryOperator::Add,
+                            Box::new(DatexExpression::Integer(Integer::from(2))),
+                            Box::new(DatexExpression::Integer(Integer::from(3))),
+                        ),
+                        is_terminated: false,
+                    },
+                ])),
+            )
+        );
     }
 }
