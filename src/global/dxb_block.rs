@@ -18,7 +18,7 @@ use binrw::{BinRead, BinWrite};
 use log::error;
 use strum::Display;
 use thiserror::Error;
-
+use tokio::sync::Notify;
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
@@ -69,7 +69,7 @@ pub enum IncomingSection {
     SingleBlock((DXBBlock, IncomingEndpointContextSectionId)),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingEndpointContextSectionId)),
+    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingEndpointContextSectionId, Rc<Notify>)),
 }
 
 
@@ -84,10 +84,19 @@ impl IncomingSection {
                     yield block;
                 })
             }
-            IncomingSection::BlockStream((blocks, _)) => {
+            IncomingSection::BlockStream((blocks, _, notify)) => {
                 Box::pin(stream! {
-                    // FIXME: no borrow across await point
-                    for block in blocks.borrow_mut().drain(..) {
+                    loop {
+                        // wait for a new block to be available
+                        notify.notified().await;
+                        let block = {
+                            let mut blocks_borrowed = blocks.borrow_mut();
+                            if let Some(block) = blocks_borrowed.pop_front() {
+                                block
+                            } else {
+                                break; // end of stream
+                            }
+                        };
                         yield block;
                     }
                 })
@@ -108,7 +117,7 @@ impl IncomingSection {
 
     pub fn get_section_context_id(&self) -> &IncomingEndpointContextSectionId {
         match self {
-            IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id)) => {
+            IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id, _)) => {
                 section_context_id
             }
         }

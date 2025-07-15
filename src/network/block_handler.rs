@@ -8,6 +8,7 @@ use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
+use tokio::sync::Notify;
 // use tokio_stream::StreamExt;
 
 // TODO: store scope memory
@@ -20,6 +21,8 @@ pub struct ScopeContext {
     pub keep_alive_timestamp: u64,
     // a reference to the block queue for the current section
     pub current_block_queue: Option<Rc<RefCell<VecDeque<DXBBlock>>>>,
+    // a reference to the notify signal that is triggered when a new block is added to the current section
+    pub notify: Option<Rc<Notify>>,
     // a cache for all blocks indexed by their block number
     pub cached_blocks: BTreeMap<IncomingBlockNumber, DXBBlock>,
 }
@@ -36,6 +39,7 @@ impl Default for ScopeContext {
                 .unwrap()
                 .now(),
             current_block_queue: None,
+            notify: None,
             cached_blocks: BTreeMap::new(),
         }
     }
@@ -247,14 +251,20 @@ impl BlockHandler {
                         Rc::new(RefCell::new(VecDeque::new()))
                     });
 
+                let notify = scope_context
+                    .notify
+                    .get_or_insert_with(|| Rc::new(Notify::new()));
+                
                 // push block to current block queue
                 current_block_queue.borrow_mut().push_back(next_block);
 
                 // add a new incoming section if this is the first block of the section
-                if is_first_block_of_section {
+                if is_first_block_of_section { 
+                    notify.notify_one(); // signal that a new section is available
                     new_blocks.push(IncomingSection::BlockStream((
                         current_block_queue.clone(),
-                        IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index)
+                        IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index),
+                        notify.clone()
                     )));
                 }
 
@@ -293,7 +303,7 @@ impl BlockHandler {
                         .is_end_of_context();
                     // set next block
                     next_block = next_cached_block;
-                    
+
                     // update section index from next block
                     section_index = next_block.block_header.section_index;
                 }
