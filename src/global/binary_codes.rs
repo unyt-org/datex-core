@@ -226,7 +226,7 @@ pub enum InstructionCode {
     NULL,
     VOID,
     BUFFER,
-    SCOPE_BLOCK_START,
+    BLOCK,
     QUANTITY,
 
     SHORT_TEXT, // string with max. 255 characters
@@ -271,7 +271,7 @@ pub enum InstructionCode {
 
     YEET, // !
 
-    REMOTE, // ::
+    REMOTE_EXECUTION, // ::
 
     _SYNC_SILENT, // <==:
 }

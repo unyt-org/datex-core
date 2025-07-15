@@ -493,6 +493,45 @@ fn compile_expression(
             compilation_scope.append_u32(var_slot);
         }
 
+        // remote execution
+        DatexExpression::RemoteExecution(caller, script) => {
+            compilation_scope.mark_has_non_static_value();
+
+            // insert remote execution code
+            compilation_scope.append_binary_code(InstructionCode::REMOTE_EXECUTION);
+            // insert compiled caller expression
+            scope = compile_expression(
+                compilation_scope,
+                *caller,
+                CompileMetadata::default(),
+                scope,
+            )?;
+
+            // compile remote execution block
+            let compilation_context = Context::new(
+                RefCell::new(Vec::with_capacity(256)),
+                &[],
+            );
+            // TODO: extract injected slots
+            compile_ast(&compilation_context, *script, Scope::default())?;
+
+            let injected_slot_count = 0;
+            // start block
+            compilation_scope.append_binary_code(InstructionCode::BLOCK);
+            // set block size (len of compilation_context.buffer)
+            compilation_scope.append_u32(
+                compilation_context.buffer.borrow().len() as u32,
+            );
+            // set injected slot count
+            compilation_scope.append_u32(injected_slot_count);
+            // TODO: insert injected slots
+            // insert block body (compilation_context.buffer
+            compilation_scope.buffer.borrow_mut().extend_from_slice(
+                &compilation_context.buffer.borrow(),
+            );
+
+        }
+
         _ => return Err(CompilerError::UnexpectedTerm(ast)),
     }
 
@@ -1673,6 +1712,30 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 2,
             ])
+        );
+    }
+
+    #[test]
+    fn test_remote_execution() {
+        let script = "42 :: 43";
+        let (res, _) = compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 42 for test)
+                InstructionCode::INT_8.into(),
+                42,
+                // start of block
+                InstructionCode::BLOCK.into(),
+                // block size (2 bytes)
+                2, 0, 0, 0,
+                // injected slots (0)
+                0, 0, 0, 0,
+                // literal value 43
+                InstructionCode::INT_8.into(),
+                43,
+            ]
         );
     }
 }
