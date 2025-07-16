@@ -3,14 +3,11 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::runtime::global_context::get_global_context;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use futures::channel::mpsc::Sender;
 use log::info;
 use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::rc::Rc;
-use futures_util::SinkExt;
-use tokio::sync::Notify;
 // use tokio_stream::StreamExt;
 
 // TODO: store scope memory

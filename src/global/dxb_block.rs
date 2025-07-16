@@ -1,12 +1,5 @@
-use std::async_iter::{AsyncIterator, IntoAsyncIterator};
-use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::{Cursor, Read};
-use std::pin::Pin;
-use std::rc::Rc;
-use std::task::{Context, Poll};
-use futures::channel::mpsc;
 // FIXME no-std
 
 use crate::values::core_values::endpoint::Endpoint;
@@ -18,7 +11,6 @@ use futures_util::StreamExt;
 use log::error;
 use strum::Display;
 use thiserror::Error;
-use tokio::sync::Notify;
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,

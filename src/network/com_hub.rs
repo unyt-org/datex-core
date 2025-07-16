@@ -6,7 +6,6 @@ use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 
-use futures::channel::oneshot;
 use futures::channel::oneshot::Sender;
 use futures::FutureExt;
 use futures_util::StreamExt;

@@ -1,9 +1,7 @@
-use std::async_iter::{AsyncIterator, IntoAsyncIterator};
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use futures::channel::oneshot::Sender;
-use futures::pin_mut;
 use futures_util::StreamExt;
 #[cfg(feature = "native_crypto")]
 use crate::crypto::crypto_native::CryptoNative;
@@ -12,7 +10,7 @@ use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::info;
-use crate::global::dxb_block::{DXBBlock, IncomingEndpointContextId, IncomingEndpointContextSectionId, IncomingSection, IncomingSectionIndex, OutgoingContextId};
+use crate::global::dxb_block::{DXBBlock, IncomingEndpointContextSectionId, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
@@ -140,7 +138,7 @@ impl RuntimeInternal {
     ) -> ExecutionContext {
         let mut execution_contexts = self.execution_contexts.borrow_mut();
         // get execution context by context_id or create a new one if it doesn't exist
-        let execution_context = execution_contexts.get(&(context_id)).cloned();
+        let execution_context = execution_contexts.get(context_id).cloned();
         if let Some(context) = execution_context {
             context
         } else {
