@@ -31,6 +31,7 @@ use self::memory::Memory;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Clone)]
 pub struct Runtime {
     pub version: String,
     pub data: Rc<RuntimeInternal>,
@@ -284,6 +285,10 @@ impl Runtime {
 
     pub fn internal(&self) -> Rc<RuntimeInternal> {
         Rc::clone(&self.data)
+    }
+
+    pub fn memory(&self) -> &RefCell<Memory> {
+        &self.data.memory
     }
 
     #[cfg(feature = "native_crypto")]
