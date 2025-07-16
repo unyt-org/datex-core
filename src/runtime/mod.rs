@@ -199,7 +199,7 @@ impl RuntimeInternal {
 
     async fn execute_incoming_section(
         self_rc: Rc<RuntimeInternal>,
-        incoming_section: IncomingSection,
+        mut incoming_section: IncomingSection,
     ) -> (Result<Option<ValueContainer>, ExecutionError>, Endpoint, OutgoingContextId) {
 
         let mut context = self_rc.get_execution_context(incoming_section.get_section_context_id());
@@ -207,12 +207,10 @@ impl RuntimeInternal {
 
         let mut result = None;
         let mut last_block = None;
-        let iter = incoming_section.stream();
-        pin_mut!(iter);
-        
+
         // iterate over the blocks in the incoming section
         loop {
-            let block = iter.next().await;
+            let block = incoming_section.next().await;
             if let Some(block) = block {
                 let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), &mut context).await;
                 if let Err(err) = res {

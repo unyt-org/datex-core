@@ -299,7 +299,11 @@ impl ComHub {
                         "Received trace block response from {}",
                         sender.clone()
                     );
-                    let hops = self.get_trace_data_from_block(&block);
+                    let block = block
+                        .as_ref()
+                        .expect("Expected a block in incoming section");
+                    
+                    let hops = self.get_trace_data_from_block(block);
                     if let Some(hops) = hops {
                         let result = NetworkTraceResult {
                             sender: self.endpoint.clone(),
@@ -313,6 +317,7 @@ impl ComHub {
                         continue;
                     }
                 }
+
                 Ok(Response::UnspecifiedResponse(
                     IncomingSection::SingleBlock(_),
                 )) => {

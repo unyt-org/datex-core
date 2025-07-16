@@ -287,7 +287,7 @@ pub fn get_last_received_single_block_from_com_hub(
     assert_eq!(sections.len(), 1);
 
     match &sections[0] {
-        IncomingSection::SingleBlock((block, ..)) => block.clone(),
+        IncomingSection::SingleBlock((Some(block), ..)) => block.clone(),
         _ => {
             panic!("Expected single block, but got block stream");
         }
@@ -304,7 +304,7 @@ pub fn get_all_received_single_blocks_from_com_hub(
 
     for section in sections {
         match section {
-            IncomingSection::SingleBlock((block, ..)) => {
+            IncomingSection::SingleBlock((Some(block), ..)) => {
                 blocks.push(block.clone());
             }
             _ => {

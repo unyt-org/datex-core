@@ -6,15 +6,15 @@ use std::io::{Cursor, Read};
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
-use futures_core::stream::Stream;
-use async_stream::stream;
-
+use futures::channel::mpsc;
 // FIXME no-std
 
 use crate::values::core_values::endpoint::Endpoint;
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use binrw::{BinRead, BinWrite};
+use futures::channel::mpsc::UnboundedReceiver;
+use futures_util::StreamExt;
 use log::error;
 use strum::Display;
 use thiserror::Error;
@@ -63,45 +63,42 @@ pub type OutgoingContextId = u32;
 pub type OutgoingSectionIndex = u16;
 pub type OutgoingBlockNumber = u16;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum IncomingSection {
     /// a single block
-    SingleBlock((DXBBlock, IncomingEndpointContextSectionId)),
+    SingleBlock((Option<DXBBlock>, IncomingEndpointContextSectionId)),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingEndpointContextSectionId, Rc<Notify>)),
+    BlockStream((Option<UnboundedReceiver<DXBBlock>>, IncomingEndpointContextSectionId)),
 }
 
 
 impl IncomingSection {
-    // return an async Stream
-    pub fn stream(
-        self,
-    ) -> Pin<Box<dyn Stream<Item = DXBBlock>>> {
+    pub async fn next(
+        &mut self,
+    ) -> Option<DXBBlock> {
         match self {
             IncomingSection::SingleBlock((block, _)) => {
-                Box::pin(stream! {
-                    yield block;
-                })
+                block.take()
             }
-            IncomingSection::BlockStream((blocks, _, notify)) => {
-                Box::pin(stream! {
-                    loop {
-                        // wait for a new block to be available
-                        notify.notified().await;
-                        let block = {
-                            let mut blocks_borrowed = blocks.borrow_mut();
-                            if let Some(block) = blocks_borrowed.pop_front() {
-                                block
-                            } else {
-                                break; // end of stream
-                            }
-                        };
-                        yield block;
-                    }
-                })
+            IncomingSection::BlockStream((blocks, _)) => {
+                if let Some(receiver) = blocks {
+                    receiver.next().await
+                } else {
+                    None // No blocks to receive
+                }
             }
         }
+    }
+
+    pub async fn drain(
+        &mut self,
+    ) -> Vec<DXBBlock> {
+        let mut blocks = Vec::new();
+        while let Some(block) = self.next().await {
+            blocks.push(block);
+        }
+        blocks
     }
 }
 
@@ -117,7 +114,7 @@ impl IncomingSection {
 
     pub fn get_section_context_id(&self) -> &IncomingEndpointContextSectionId {
         match self {
-            IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id, _)) => {
+            IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id)) => {
                 section_context_id
             }
         }
