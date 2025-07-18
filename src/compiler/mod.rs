@@ -259,57 +259,57 @@ fn compile_ast(
 }
 
 fn compile_expression(
-    compilation_scope: &Context,
+    compilation_context: &Context,
     ast: DatexExpression,
     meta: CompileMetadata,
     mut scope: Scope,
 ) -> Result<Scope, CompilerError> {
     match ast {
         DatexExpression::Integer(int) => {
-            compilation_scope.insert_int(int.0.as_i64().unwrap());
+            compilation_context.insert_int(int.0.as_i64().unwrap());
         }
         DatexExpression::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
                 if let Some(int) = big_decimal.to_i16() {
-                    compilation_scope.insert_float_as_i16(int);
+                    compilation_context.insert_float_as_i16(int);
                 } else if let Some(int) = big_decimal.to_i32() {
-                    compilation_scope.insert_float_as_i32(int);
+                    compilation_context.insert_float_as_i32(int);
                 } else {
-                    compilation_scope.insert_decimal(&decimal);
+                    compilation_context.insert_decimal(&decimal);
                 }
             }
             _ => {
-                compilation_scope.insert_decimal(&decimal);
+                compilation_context.insert_decimal(&decimal);
             }
         },
         DatexExpression::Text(text) => {
-            compilation_scope.insert_text(&text);
+            compilation_context.insert_text(&text);
         }
         DatexExpression::Boolean(boolean) => {
-            compilation_scope.insert_boolean(boolean);
+            compilation_context.insert_boolean(boolean);
         }
         DatexExpression::Null => {
-            compilation_scope.append_binary_code(InstructionCode::NULL);
+            compilation_context.append_binary_code(InstructionCode::NULL);
         }
         DatexExpression::Array(array) => {
-            compilation_scope.append_binary_code(InstructionCode::ARRAY_START);
+            compilation_context.append_binary_code(InstructionCode::ARRAY_START);
             for item in array {
                 scope = compile_expression(
-                    compilation_scope,
+                    compilation_context,
                     item,
                     CompileMetadata::default(),
                     scope,
                 )?;
             }
-            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Tuple(tuple) => {
-            compilation_scope.append_binary_code(InstructionCode::TUPLE_START);
+            compilation_context.append_binary_code(InstructionCode::TUPLE_START);
             for entry in tuple {
                 match entry {
                     TupleEntry::KeyValue(key, value) => {
                         scope = compile_key_value_entry(
-                            compilation_scope,
+                            compilation_context,
                             key,
                             value,
                             scope,
@@ -317,7 +317,7 @@ fn compile_expression(
                     }
                     TupleEntry::Value(value) => {
                         scope = compile_expression(
-                            compilation_scope,
+                            compilation_context,
                             value,
                             CompileMetadata::default(),
                             scope,
@@ -325,40 +325,40 @@ fn compile_expression(
                     }
                 }
             }
-            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Object(object) => {
-            compilation_scope.append_binary_code(InstructionCode::OBJECT_START);
+            compilation_context.append_binary_code(InstructionCode::OBJECT_START);
             for (key, value) in object {
                 // compile key and value
                 scope = compile_key_value_entry(
-                    compilation_scope,
+                    compilation_context,
                     key,
                     value,
                     scope,
                 )?;
             }
-            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpression::Placeholder => {
-            compilation_scope.insert_value_container(
-                compilation_scope
+            compilation_context.insert_value_container(
+                compilation_context
                     .inserted_values
                     .borrow()
-                    .get(compilation_scope.inserted_value_index.get())
+                    .get(compilation_context.inserted_value_index.get())
                     .unwrap(),
             );
-            compilation_scope.inserted_value_index.update(|x| x + 1);
+            compilation_context.inserted_value_index.update(|x| x + 1);
         }
 
         // statements
         DatexExpression::Statements(mut statements) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !statements[0].is_terminated {
                 scope = compile_expression(
-                    compilation_scope,
+                    compilation_context,
                     statements.remove(0).expression,
                     CompileMetadata::default(),
                     scope,
@@ -366,7 +366,7 @@ fn compile_expression(
             } else {
                 // if not outer context, new scope
                 let mut child_scope = if !meta.is_outer_context() {
-                    compilation_scope
+                    compilation_context
                         .append_binary_code(InstructionCode::SCOPE_START);
                     scope.push()
                 } else {
@@ -374,14 +374,14 @@ fn compile_expression(
                 };
                 for statement in statements {
                     child_scope = compile_expression(
-                        compilation_scope,
+                        compilation_context,
                         statement.expression,
                         CompileMetadata::default(),
                         child_scope,
                     )?;
                     // if statement is terminated, append close and store
                     if statement.is_terminated {
-                        compilation_scope.append_binary_code(
+                        compilation_context.append_binary_code(
                             InstructionCode::CLOSE_AND_STORE,
                         );
                     }
@@ -393,11 +393,11 @@ fn compile_expression(
                     scope = scope_data.0; // set parent scope
                                           // drop all slot addresses that were allocated in this scope
                     for slot_address in scope_data.1 {
-                        compilation_scope
+                        compilation_context
                             .append_binary_code(InstructionCode::DROP_SLOT);
-                        compilation_scope.append_u32(slot_address);
+                        compilation_context.append_u32(slot_address);
                     }
-                    compilation_scope
+                    compilation_context
                         .append_binary_code(InstructionCode::SCOPE_END);
                 } else {
                     scope = child_scope;
@@ -407,18 +407,18 @@ fn compile_expression(
 
         // operations (add, subtract, multiply, divide, etc.)
         DatexExpression::BinaryOperation(operator, a, b) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
-            compilation_scope
+            compilation_context
                 .append_binary_code(InstructionCode::from(&operator));
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 *a,
                 CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 *b,
                 CompileMetadata::default(),
                 scope,
@@ -427,27 +427,27 @@ fn compile_expression(
 
         // apply
         DatexExpression::ApplyChain(val, operands) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
             // TODO
         }
 
         // variables
         // declaration
         DatexExpression::VariableDeclaration(var_type, name, expression) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
             // allocate new slot for variable
             let address = scope.get_next_variable_slot();
-            compilation_scope
+            compilation_context
                 .append_binary_code(InstructionCode::ALLOCATE_SLOT);
-            compilation_scope.append_u32(address);
+            compilation_context.append_u32(address);
             // create reference
             if var_type == VariableType::Reference {
-                compilation_scope
+                compilation_context
                     .append_binary_code(InstructionCode::CREATE_REF);
             }
             // compile expression
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 *expression,
                 CompileMetadata::default(),
                 scope,
@@ -459,7 +459,7 @@ fn compile_expression(
 
         // assignment
         DatexExpression::VariableAssignment(name, expression) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (var_slot, var_type) =
                 scope.resolve_variable_slot(&name).ok_or_else(|| {
@@ -467,41 +467,41 @@ fn compile_expression(
                 })?;
 
             // append binary code to load variable
-            compilation_scope.append_binary_code(InstructionCode::UPDATE_SLOT);
-            compilation_scope.append_u32(var_slot);
+            compilation_context.append_binary_code(InstructionCode::UPDATE_SLOT);
+            compilation_context.append_u32(var_slot);
             // compile expression
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 *expression,
                 CompileMetadata::default(),
                 scope,
             )?;
             // close assignment scope
-            compilation_scope.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
         DatexExpression::Variable(name) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (var_slot, var_type) =
                 scope.resolve_variable_slot(&name).ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
             // append binary code to load variable
-            compilation_scope.append_binary_code(InstructionCode::GET_SLOT);
-            compilation_scope.append_u32(var_slot);
+            compilation_context.append_binary_code(InstructionCode::GET_SLOT);
+            compilation_context.append_u32(var_slot);
         }
 
         // remote execution
         DatexExpression::RemoteExecution(caller, script) => {
-            compilation_scope.mark_has_non_static_value();
+            compilation_context.mark_has_non_static_value();
 
             // insert remote execution code
-            compilation_scope.append_binary_code(InstructionCode::REMOTE_EXECUTION);
+            compilation_context.append_binary_code(InstructionCode::REMOTE_EXECUTION);
             // insert compiled caller expression
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 *caller,
                 CompileMetadata::default(),
                 scope,
@@ -513,20 +513,20 @@ fn compile_expression(
                 &[],
             );
             // TODO: extract injected slots
-            compile_ast(&compilation_context, *script, Scope::default())?;
+            scope = compile_ast(&compilation_context, *script, Scope::new_with_parent_context(scope))?;
 
             let injected_slot_count = 0;
             // start block
-            compilation_scope.append_binary_code(InstructionCode::BLOCK);
+            compilation_context.append_binary_code(InstructionCode::BLOCK);
             // set block size (len of compilation_context.buffer)
-            compilation_scope.append_u32(
+            compilation_context.append_u32(
                 compilation_context.buffer.borrow().len() as u32,
             );
             // set injected slot count
-            compilation_scope.append_u32(injected_slot_count);
+            compilation_context.append_u32(injected_slot_count);
             // TODO: insert injected slots
             // insert block body (compilation_context.buffer
-            compilation_scope.buffer.borrow_mut().extend_from_slice(
+            compilation_context.buffer.borrow_mut().extend_from_slice(
                 &compilation_context.buffer.borrow(),
             );
 
@@ -1735,6 +1735,66 @@ pub mod tests {
                 // literal value 43
                 InstructionCode::INT_8.into(),
                 43,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_expression() {
+        let script = "42 :: 1 + 2";
+        let (res, _) = compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 42 for test)
+                InstructionCode::INT_8.into(),
+                42,
+                // start of block
+                InstructionCode::BLOCK.into(),
+                // block size (5 bytes)
+                5, 0, 0, 0,
+                // injected slots (0)
+                0, 0, 0, 0,
+                // expression: 1 + 2
+                InstructionCode::ADD.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_injected_variable() {
+        let script = "val x = 42; 1 :: x";
+        let (res, _) = compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
+                // start of block
+                InstructionCode::BLOCK.into(),
+                // block size (4 bytes)
+                4, 0, 0, 0,
+                // injected slots (1)
+                1, 0, 0, 0,
+                // slot 0
+                0, 0, 0, 0,
+                // slot 0 (mapped from slot 0)
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0, 0, 0, 0,
             ]
         );
     }

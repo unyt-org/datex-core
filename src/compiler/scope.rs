@@ -5,11 +5,22 @@ use std::collections::HashMap;
 pub struct Scope {
     /// List of variables, mapped by name to their slot address and type.
     variables: HashMap<String, (u32, VariableType)>,
+    /// parent scope, accessible from a child scope
     parent_scope: Option<Box<Scope>>,
+    /// scope of a parent context, e.g. when inside a block scope for remote execution calls or function bodies
+    parent_context_scope: Option<Box<Scope>>,
     next_slot_address: u32,
 }
 
 impl Scope {
+
+    pub fn new_with_parent_context(parent_context: Scope) -> Scope {
+        Scope {
+            parent_context_scope: Some(Box::new(parent_context)),
+            ..Scope::default()
+        }
+    }
+
     pub fn register_variable_slot(
         &mut self,
         slot_address: u32,
@@ -48,6 +59,7 @@ impl Scope {
         Scope {
             next_slot_address: self.next_slot_address,
             parent_scope: Some(Box::new(self)),
+            parent_context_scope: None,
             variables: HashMap::new(),
         }
     }
