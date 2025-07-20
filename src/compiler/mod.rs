@@ -1992,4 +1992,149 @@ pub mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_remote_execution_nested() {
+        let script = "val x = 42; (1 :: (2 :: x))";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (21 bytes)
+                21,
+                0,
+                0,
+                0,
+                // injected slots (1)
+                1,
+                0,
+                0,
+                0,
+                // slot 0
+                0,
+                0,
+                0,
+                0,
+                // nested remote execution
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 2 for test)
+                InstructionCode::INT_8.into(),
+                2,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (5 bytes)
+                5,
+                0,
+                0,
+                0,
+                // injected slots (1)
+                1,
+                0,
+                0,
+                0,
+                // slot 0
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_nested2() {
+        let script = "val x = 42; (1 :: (x :: x))";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (21 bytes)
+                24,
+                0,
+                0,
+                0,
+                // injected slots (1)
+                1,
+                0,
+                0,
+                0,
+                // slot 0
+                0,
+                0,
+                0,
+                0,
+                // nested remote execution
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 2 for test)
+                InstructionCode::GET_SLOT.into(),
+                0,
+                0,
+                0,
+                0,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (5 bytes)
+                5,
+                0,
+                0,
+                0,
+                // injected slots (1)
+                1,
+                0,
+                0,
+                0,
+                // slot 0
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
+    }
 }
