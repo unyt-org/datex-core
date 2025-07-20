@@ -508,26 +508,26 @@ fn compile_expression(
             )?;
 
             // compile remote execution block
-            let compilation_context = Context::new(
+            let execution_block_ctx = Context::new(
                 RefCell::new(Vec::with_capacity(256)),
                 &[],
             );
             // TODO: extract injected slots
-            scope = compile_ast(&compilation_context, *script, Scope::new_with_parent_context(scope))?;
+            scope = compile_ast(&execution_block_ctx, *script, Scope::new_with_parent_context(scope))?;
 
             let injected_slot_count = 0;
             // start block
-            compilation_context.append_binary_code(InstructionCode::BLOCK);
+            compilation_context.append_binary_code(InstructionCode::EXECUTION_BLOCK);
             // set block size (len of compilation_context.buffer)
             compilation_context.append_u32(
-                compilation_context.buffer.borrow().len() as u32,
+                execution_block_ctx.buffer.borrow().len() as u32,
             );
             // set injected slot count
             compilation_context.append_u32(injected_slot_count);
             // TODO: insert injected slots
             // insert block body (compilation_context.buffer
             compilation_context.buffer.borrow_mut().extend_from_slice(
-                &compilation_context.buffer.borrow(),
+                &execution_block_ctx.buffer.borrow(),
             );
 
         }
@@ -1727,7 +1727,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 42,
                 // start of block
-                InstructionCode::BLOCK.into(),
+                InstructionCode::EXECUTION_BLOCK.into(),
                 // block size (2 bytes)
                 2, 0, 0, 0,
                 // injected slots (0)
@@ -1751,7 +1751,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 42,
                 // start of block
-                InstructionCode::BLOCK.into(),
+                InstructionCode::EXECUTION_BLOCK.into(),
                 // block size (5 bytes)
                 5, 0, 0, 0,
                 // injected slots (0)
@@ -1784,7 +1784,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 1,
                 // start of block
-                InstructionCode::BLOCK.into(),
+                InstructionCode::EXECUTION_BLOCK.into(),
                 // block size (4 bytes)
                 4, 0, 0, 0,
                 // injected slots (1)

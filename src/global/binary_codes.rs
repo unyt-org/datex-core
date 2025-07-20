@@ -226,7 +226,7 @@ pub enum InstructionCode {
     NULL,
     VOID,
     BUFFER,
-    BLOCK,
+    EXECUTION_BLOCK,
     QUANTITY,
 
     SHORT_TEXT, // string with max. 255 characters
