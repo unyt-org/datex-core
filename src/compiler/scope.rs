@@ -1,4 +1,4 @@
-use crate::compiler::ast_parser::VariableType;
+use crate::compiler::{ast_parser::VariableType, context::VirtualSlot};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
@@ -8,17 +8,20 @@ pub struct Scope {
     /// parent scope, accessible from a child scope
     parent_scope: Option<Box<Scope>>,
     /// scope of a parent context, e.g. when inside a block scope for remote execution calls or function bodies
-    parent_context_scope: Option<Box<Scope>>,
+    external_parent_scope: Option<Box<Scope>>,
     next_slot_address: u32,
 }
 
 impl Scope {
-
-    pub fn new_with_parent_context(parent_context: Scope) -> Scope {
+    pub fn new_with_external_parent_scope(parent_context: Scope) -> Scope {
         Scope {
-            parent_context_scope: Some(Box::new(parent_context)),
+            external_parent_scope: Some(Box::new(parent_context)),
             ..Scope::default()
         }
+    }
+
+    pub fn has_external_parent_scope(&self) -> bool {
+        self.external_parent_scope.is_some()
     }
 
     pub fn register_variable_slot(
@@ -31,26 +34,39 @@ impl Scope {
             .insert(name.clone(), (slot_address, variable_type));
     }
 
-    pub fn get_next_variable_slot(&mut self) -> u32 {
+    pub fn get_next_virtual_slot(&mut self) -> u32 {
         let slot_address = self.next_slot_address;
         self.next_slot_address += 1;
         slot_address
     }
 
-    pub fn resolve_variable_slot(
+    // Returns the virtual slot address for a variable in this scope or potentially in the parent scope.
+    // The returned tuple contains the slot address, variable type, and a boolean indicating if it
+    // is a local variable (false) or from a parent scope (true).
+    pub fn resolve_variable_name_to_virtual_slot(
         &self,
         name: &str,
-    ) -> Option<(u32, VariableType)> {
-        let mut variables = &self.variables;
-        loop {
-            if let Some(slot) = variables.get(name) {
-                return Some(slot.clone());
-            }
-            if let Some(parent) = &self.parent_scope {
-                variables = &parent.variables;
-            } else {
-                return None; // variable not found in this scope or any parent scope
-            }
+    ) -> Option<(VirtualSlot, VariableType)> {
+        if let Some(slot) = self.variables.get(name) {
+            Some((VirtualSlot::local(slot.0), slot.1))
+        } else if let Some(external_parent) = &self.external_parent_scope {
+            external_parent
+                .resolve_variable_name_to_virtual_slot(name)
+                .map(|(virt_slot, var_type)| {
+                    (
+                        VirtualSlot::external(
+                            virt_slot.level.unwrap_or_default() + 1,
+                            virt_slot.virtual_address,
+                        ),
+                        var_type,
+                    )
+                })
+        } else if let Some(parent) = &self.parent_scope {
+            parent
+                .resolve_variable_name_to_virtual_slot(name)
+                .map(|(virt_slot, var_type)| (virt_slot, var_type))
+        } else {
+            None
         }
     }
 
@@ -59,7 +75,7 @@ impl Scope {
         Scope {
             next_slot_address: self.next_slot_address,
             parent_scope: Some(Box::new(self)),
-            parent_context_scope: None,
+            external_parent_scope: None,
             variables: HashMap::new(),
         }
     }

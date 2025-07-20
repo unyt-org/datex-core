@@ -13,8 +13,33 @@ use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
+use itertools::Itertools;
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::io::Cursor;
+
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
+pub struct VirtualSlot {
+    pub level: Option<u8>, // parent scope level if exists
+    // local slot address of scope with level
+    pub virtual_address: u32,
+}
+
+impl VirtualSlot {
+    pub fn local(virtual_address: u32) -> Self {
+        VirtualSlot {
+            level: None,
+            virtual_address,
+        }
+    }
+
+    pub fn external(level: u8, virtual_address: u32) -> Self {
+        VirtualSlot {
+            level: Some(level),
+            virtual_address,
+        }
+    }
+}
 
 pub struct Context<'a> {
     pub index: Cell<usize>,
@@ -23,6 +48,9 @@ pub struct Context<'a> {
     pub inserted_values: RefCell<&'a [&'a ValueContainer]>,
     /// this flag is set to true if any non-static value is encountered
     pub has_non_static_value: RefCell<bool>,
+
+    // mapping for temporary scope slot resolution
+    slot_indices: RefCell<HashMap<VirtualSlot, Vec<u32>>>,
 }
 
 impl<'a> Context<'a> {
@@ -56,7 +84,55 @@ impl<'a> Context<'a> {
             buffer,
             inserted_values: RefCell::new(inserted_values),
             has_non_static_value: RefCell::new(false),
+            slot_indices: RefCell::new(HashMap::new()),
         }
+    }
+
+    pub fn get_slot_byte_indices(
+        &self,
+        from_parent_scope: bool,
+    ) -> Vec<Vec<u32>> {
+        self.slot_indices
+            .borrow()
+            .iter()
+            .filter(|(VirtualSlot { level, .. }, _)| {
+                level.is_some() == from_parent_scope
+            })
+            .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
+            .map(|(_, indices)| indices.clone())
+            .collect()
+    }
+
+    pub fn remap_virtual_slots(&self) {
+        let mut slot_address = 0;
+
+        // parent slots
+        for byte_indices in self.get_slot_byte_indices(true) {
+            for byte_index in byte_indices {
+                self.set_u32_at_index(slot_address, byte_index as usize);
+            }
+            slot_address += 1;
+        }
+
+        // local slots
+        for byte_indices in self.get_slot_byte_indices(false) {
+            for byte_index in byte_indices {
+                self.set_u32_at_index(slot_address, byte_index as usize);
+            }
+            slot_address += 1;
+        }
+    }
+
+    // This method writes a placeholder value for the slot
+    // since the slot address is not known yet and just temporary.
+    pub fn insert_virtual_slot_address(&self, virtual_slot: VirtualSlot) {
+        let mut slot_indices = self.slot_indices.borrow_mut();
+        if let Some(indices) = slot_indices.get_mut(&virtual_slot) {
+            indices.push(self.index.get() as u32);
+        } else {
+            slot_indices.insert(virtual_slot, vec![self.index.get() as u32]);
+        }
+        self.append_u32(0); // placeholder for the slot address
     }
 
     pub fn insert_value_container(&self, value_container: &ValueContainer) {
@@ -351,6 +427,11 @@ impl<'a> Context<'a> {
     pub fn append_u32(&self, u32: u32) {
         append_u32(self.buffer.borrow_mut().as_mut(), u32);
         self.index.update(|x| x + Context::INT_32_BYTES as usize);
+    }
+    pub fn set_u32_at_index(&self, u32: u32, index: usize) {
+        let mut buffer = self.buffer.borrow_mut();
+        buffer[index..index + Context::INT_32_BYTES as usize]
+            .copy_from_slice(&u32.to_le_bytes());
     }
     pub fn append_i8(&self, i8: i8) {
         append_i8(self.buffer.borrow_mut().as_mut(), i8);

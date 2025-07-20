@@ -143,7 +143,7 @@ pub enum Apply {
     PropertyAccess(DatexExpression),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VariableType {
     Value,
     Reference,
