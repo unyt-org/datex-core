@@ -529,8 +529,7 @@ fn compile_expression(
                 Scope::new_with_external_parent_scope(scope),
             )?;
 
-            let external_slot_byte_indices =
-                execution_block_ctx.get_slot_byte_indices(true);
+            let external_slots = execution_block_ctx.external_slots();
             // start block
             compilation_context
                 .append_binary_code(InstructionCode::EXECUTION_BLOCK);
@@ -538,9 +537,10 @@ fn compile_expression(
             compilation_context
                 .append_u32(execution_block_ctx.buffer.borrow().len() as u32);
             // set injected slot count
-            compilation_context
-                .append_u32(external_slot_byte_indices.len() as u32);
-            // TODO: insert injected slots
+            compilation_context.append_u32(external_slots.len() as u32);
+            for slot in external_slots {
+                compilation_context.insert_virtual_slot_address(slot.upgrade());
+            }
 
             // insert block body (compilation_context.buffer
             compilation_context
@@ -599,6 +599,7 @@ pub mod tests {
     use std::io::Read;
     use std::vec;
 
+    use crate::compiler::scope;
     use crate::{global::binary_codes::InstructionCode, logger::init_logger};
     use log::*;
 
@@ -1837,6 +1838,151 @@ pub mod tests {
                 0,
                 0,
                 // slot 0 (mapped from slot 0)
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_injected_variables() {
+        let script = "val x = 42; val y = 69; 1 :: x + y";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                1,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                69,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (11 bytes)
+                11,
+                0,
+                0,
+                0,
+                // injected slots (2)
+                2,
+                0,
+                0,
+                0,
+                // slot 0
+                0,
+                0,
+                0,
+                0,
+                // slot 1
+                1,
+                0,
+                0,
+                0,
+                // expression: x + y
+                InstructionCode::ADD.into(),
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                1,
+                0,
+                0,
+                0,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_shadow_variable() {
+        let script = "val x = 42; val y = 69; 1 :: (val x = 5; x + y)";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                1,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                69,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (19 bytes)
+                19,
+                0,
+                0,
+                0,
+                // injected slots (1)
+                1,
+                0,
+                0,
+                0,
+                // slot 1 (y)
+                1,
+                0,
+                0,
+                0,
+                // allocate slot for x
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                1,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                5,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                // expression: x + y
+                InstructionCode::ADD.into(),
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                1,
+                0,
+                0,
+                0,
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,

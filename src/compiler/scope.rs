@@ -52,15 +52,7 @@ impl Scope {
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
-                .map(|(virt_slot, var_type)| {
-                    (
-                        VirtualSlot::external(
-                            virt_slot.level.unwrap_or_default() + 1,
-                            virt_slot.virtual_address,
-                        ),
-                        var_type,
-                    )
-                })
+                .map(|(virt_slot, var_type)| (virt_slot.downgrade(), var_type))
         } else if let Some(parent) = &self.parent_scope {
             parent
                 .resolve_variable_name_to_virtual_slot(name)

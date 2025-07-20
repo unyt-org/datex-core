@@ -14,13 +14,14 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
 use itertools::Itertools;
+use rsa::rand_core::le;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::Cursor;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
-    pub level: Option<u8>, // parent scope level if exists
+    pub level: u8, // parent scope level if exists, otherwise 0
     // local slot address of scope with level
     pub virtual_address: u32,
 }
@@ -28,15 +29,36 @@ pub struct VirtualSlot {
 impl VirtualSlot {
     pub fn local(virtual_address: u32) -> Self {
         VirtualSlot {
-            level: None,
+            level: 0,
             virtual_address,
         }
+    }
+    pub fn is_external(&self) -> bool {
+        self.level > 0
     }
 
     pub fn external(level: u8, virtual_address: u32) -> Self {
         VirtualSlot {
-            level: Some(level),
+            level,
             virtual_address,
+        }
+    }
+
+    pub fn downgrade(&self) -> Self {
+        VirtualSlot {
+            level: self.level + 1,
+            virtual_address: self.virtual_address,
+        }
+    }
+
+    pub fn upgrade(&self) -> Self {
+        if self.level > 0 {
+            VirtualSlot {
+                level: self.level - 1,
+                virtual_address: self.virtual_address,
+            }
+        } else {
+            panic!("Cannot upgrade a local slot");
         }
     }
 }
@@ -88,16 +110,25 @@ impl<'a> Context<'a> {
         }
     }
 
+    pub fn external_slots(&self) -> Vec<VirtualSlot> {
+        self.slot_indices
+            .borrow()
+            .iter()
+            .filter(|(slot, _)| slot.is_external())
+            .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
+            .map(|(slot, _)| slot.clone())
+            .collect()
+    }
+
+    /// Gets all slots for either local or external slots depending on the value of external
     pub fn get_slot_byte_indices(
         &self,
-        from_parent_scope: bool,
+        match_externals: bool,
     ) -> Vec<Vec<u32>> {
         self.slot_indices
             .borrow()
             .iter()
-            .filter(|(VirtualSlot { level, .. }, _)| {
-                level.is_some() == from_parent_scope
-            })
+            .filter(|(slot, _)| slot.is_external() == match_externals)
             .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
             .map(|(_, indices)| indices.clone())
             .collect()
