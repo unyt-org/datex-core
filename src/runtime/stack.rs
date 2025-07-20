@@ -1,7 +1,7 @@
-use std::fmt::Display;
 use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
-use crate::values::value_container::{ValueContainer};
 use crate::runtime::execution::InvalidProgramError;
+use crate::values::value_container::ValueContainer;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
@@ -14,6 +14,7 @@ pub enum Scope {
     #[default]
     Default,
     Collection,
+    RemoteExecution,
     BinaryOperation {
         operator: BinaryOperator,
     },
@@ -30,7 +31,7 @@ impl ScopeContainer {
     pub fn new(scope: Scope) -> Self {
         ScopeContainer {
             active_value: None,
-            scope
+            scope,
         }
     }
 }
@@ -52,17 +53,13 @@ impl Display for ScopeStack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ScopeStack: [")?;
         for scope in self.stack.iter() {
-            writeln!(
-                f,
-                "{scope:?}"
-            )?;
+            writeln!(f, "{scope:?}")?;
         }
         write!(f, "]")
     }
 }
 
 impl ScopeStack {
-
     /// Returns a reference to the currently active scope.
     #[inline]
     pub fn get_current_scope(&self) -> &ScopeContainer {
@@ -76,12 +73,13 @@ impl ScopeStack {
         // assumes that the stack always has at least one scope
         self.stack.last_mut().unwrap()
     }
-    
 
     /// Pops the currently active scope from the stack and return its active value
     /// If there is no active value, it returns None
     /// If there are not at least two scopes in the stack, it returns an error
-    pub fn pop(&mut self) -> Result<Option<ValueContainer>, InvalidProgramError> {
+    pub fn pop(
+        &mut self,
+    ) -> Result<Option<ValueContainer>, InvalidProgramError> {
         // make sure there are at least two scopes in the stack, otherwise the byte code was invalid
         if self.stack.len() < 2 {
             return Err(InvalidProgramError::InvalidScopeClose);
@@ -104,20 +102,23 @@ impl ScopeStack {
     }
 
     /// Adds a new scope to the stack with an active container.
-    pub fn create_scope_with_active_value(&mut self, scope: Scope, active_value: ValueContainer) {
+    pub fn create_scope_with_active_value(
+        &mut self,
+        scope: Scope,
+        active_value: ValueContainer,
+    ) {
         self.stack.push(ScopeContainer {
             active_value: Some(active_value),
-            scope
+            scope,
         });
     }
-    
-    
+
     /// Sets the active value container of the current scope.
     pub fn set_active_value_container(&mut self, value: ValueContainer) {
         let scope = self.get_current_scope_mut();
         scope.active_value = value.into();
     }
-    
+
     /// Returns a mutable reference to the active value of the current scope.
     pub fn get_active_value_mut(&mut self) -> &mut Option<ValueContainer> {
         let scope = self.get_current_scope_mut();

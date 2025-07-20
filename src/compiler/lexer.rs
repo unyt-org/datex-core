@@ -156,11 +156,15 @@ pub enum Token {
 
     #[regex(r#"[a-z0-9]*("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*')"#, allocated_string)] StringLiteral(String),
 
+
+    #[regex(r"@[+@]?\w+", allocated_string)] Endpoint(String),
+
     // Other
     #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string)] Identifier(String),
 
     #[regex(r"[ \t\n\f]")]
     Whitespace,
+
 
     Error
 }

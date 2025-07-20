@@ -1,16 +1,19 @@
 use crate::compiler::lexer::Token;
-use crate::compiler::ast_parser::extra::Err;
+use crate::global::binary_codes::InstructionCode;
+use crate::global::protocol_structures::instructions::Instruction;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::object::Object;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::global::binary_codes::InstructionCode;
+use crate::{
+    compiler::ast_parser::extra::Err, values::core_values::endpoint::Endpoint,
+};
 use chumsky::prelude::*;
 use logos::Logos;
+use std::str::FromStr;
 use std::{collections::HashMap, ops::Range};
-use crate::global::protocol_structures::instructions::Instruction;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -52,9 +55,13 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Power => InstructionCode::POWER,
             BinaryOperator::And => InstructionCode::AND,
             BinaryOperator::Or => InstructionCode::OR,
-            BinaryOperator::StructuralEqual => InstructionCode::STRUCTURAL_EQUAL,
+            BinaryOperator::StructuralEqual => {
+                InstructionCode::STRUCTURAL_EQUAL
+            }
             BinaryOperator::Equal => InstructionCode::EQUAL,
-            BinaryOperator::NotStructuralEqual => InstructionCode::NOT_STRUCTURAL_EQUAL,
+            BinaryOperator::NotStructuralEqual => {
+                InstructionCode::NOT_STRUCTURAL_EQUAL
+            }
             BinaryOperator::NotEqual => InstructionCode::NOT_EQUAL,
             BinaryOperator::Is => InstructionCode::IS,
             operator => todo!(
@@ -82,9 +89,13 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::POWER => BinaryOperator::Power,
             InstructionCode::AND => BinaryOperator::And,
             InstructionCode::OR => BinaryOperator::Or,
-            InstructionCode::STRUCTURAL_EQUAL => BinaryOperator::StructuralEqual,
+            InstructionCode::STRUCTURAL_EQUAL => {
+                BinaryOperator::StructuralEqual
+            }
             InstructionCode::EQUAL => BinaryOperator::Equal,
-            InstructionCode::NOT_STRUCTURAL_EQUAL => BinaryOperator::NotStructuralEqual,
+            InstructionCode::NOT_STRUCTURAL_EQUAL => {
+                BinaryOperator::NotStructuralEqual
+            }
             InstructionCode::NOT_EQUAL => BinaryOperator::NotEqual,
             InstructionCode::IS => BinaryOperator::Is,
             _ => todo!("Binary operator for {:?} not implemented", code),
@@ -107,11 +118,16 @@ impl From<&Instruction> for BinaryOperator {
             Instruction::Divide => BinaryOperator::Divide,
             Instruction::StructuralEqual => BinaryOperator::StructuralEqual,
             Instruction::Equal => BinaryOperator::Equal,
-            Instruction::NotStructuralEqual => BinaryOperator::NotStructuralEqual,
+            Instruction::NotStructuralEqual => {
+                BinaryOperator::NotStructuralEqual
+            }
             Instruction::NotEqual => BinaryOperator::NotEqual,
             Instruction::Is => BinaryOperator::Is,
             _ => {
-                todo!("Binary operator for instruction {:?} not implemented", instruction);
+                todo!(
+                    "Binary operator for instruction {:?} not implemented",
+                    instruction
+                );
             }
         }
     }
@@ -164,6 +180,8 @@ pub enum DatexExpression {
     Decimal(Decimal),
     /// Integer, e.g 123456789123456789
     Integer(Integer),
+    /// Endpoint, e.g. @test_a or @test_b
+    Endpoint(Endpoint),
     /// Array, e.g  `[1, 2, 3, "text"]`
     Array(Vec<DatexExpression>),
     /// Object, e.g {"key": "value", key2: 2}
@@ -187,7 +205,7 @@ pub enum DatexExpression {
     // ?
     Placeholder,
     // @xy :: z
-    RemoteExecution(Box<DatexExpression>, Box<DatexExpression>)
+    RemoteExecution(Box<DatexExpression>, Box<DatexExpression>),
 }
 
 // directly convert DatexExpression to a ValueContainer
@@ -201,6 +219,7 @@ impl TryFrom<DatexExpression> for ValueContainer {
             DatexExpression::Text(s) => ValueContainer::from(s),
             DatexExpression::Decimal(d) => ValueContainer::from(d),
             DatexExpression::Integer(i) => ValueContainer::from(i),
+            DatexExpression::Endpoint(e) => ValueContainer::from(e),
             DatexExpression::Array(arr) => {
                 let entries = arr
                     .into_iter()
@@ -337,8 +356,8 @@ pub struct DatexParseResult {
     pub is_static_value: bool,
 }
 
-pub fn create_parser<'a, I>(
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>>
+pub fn create_parser<'a, I>()
+-> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>>
 // where
 //     I: SliceInput<'a, Token = Token, Span = SimpleSpan>,
 {
@@ -417,6 +436,13 @@ pub fn create_parser<'a, I>(
     let text = select! {
         Token::StringLiteral(s) => DatexExpression::Text(unescape_text(&s))
     };
+    let endpoint = select! {
+        Token::Endpoint(s) =>
+            match Endpoint::from_str(&s.as_str()) {
+                Err(_) => DatexExpression::Invalid,
+                Ok(endpoint) => DatexExpression::Endpoint(endpoint)
+        }
+    };
     let literal = select! {
         Token::TrueKW => DatexExpression::Boolean(true),
         Token::FalseKW => DatexExpression::Boolean(false),
@@ -435,6 +461,7 @@ pub fn create_parser<'a, I>(
         text,
         decimal,
         integer,
+        endpoint,
         // any valid identifiers (equivalent to variable names), mapped to a text
         select! {
             Token::Identifier(s) => DatexExpression::Text(s)
@@ -516,6 +543,7 @@ pub fn create_parser<'a, I>(
         decimal,
         integer,
         text,
+        endpoint,
         wrapped_expression.clone(),
     ))
     .boxed();
@@ -648,7 +676,6 @@ pub fn create_parser<'a, I>(
     expression_without_tuple
         .define(choice((variable_assignment, equality.clone())));
 
-
     // expression :: expression
     let remote_execution = expression_without_tuple
         .clone()
@@ -658,10 +685,13 @@ pub fn create_parser<'a, I>(
             DatexExpression::RemoteExecution(Box::new(endpoint), Box::new(expr))
         });
 
-
     expression.define(
-        choice((remote_execution, tuple.clone(), expression_without_tuple.clone()))
-            .padded_by(whitespace.clone()),
+        choice((
+            remote_execution,
+            tuple.clone(),
+            expression_without_tuple.clone(),
+        ))
+        .padded_by(whitespace.clone()),
     );
 
     choice((
@@ -695,7 +725,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     let tokens = tokens.into_iter().map(|f| f.unwrap()).collect::<Vec<_>>();
 
     let parser = create_parser::<'_, TokenInput>();
-    
+
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
@@ -2027,6 +2057,15 @@ mod tests {
         assert!(res.is_err());
     }
 
+    #[test]
+    fn test_endpoint() {
+        let src = "@jonas";
+        let val = try_parse_to_value_container(src);
+        assert_eq!(
+            val,
+            ValueContainer::from(Endpoint::from_str("@jonas").unwrap())
+        );
+    }
     // TODO:
     // #[test]
     // fn variable_assignment_multiple() {
@@ -2300,7 +2339,10 @@ mod tests {
         let src = "1;\n#!/usr/bin/env datex\n2";
         // syntax error
         let res = parse(src);
-        assert!(res.is_err(), "Expected error when parsing expression with shebang");
+        assert!(
+            res.is_err(),
+            "Expected error when parsing expression with shebang"
+        );
     }
 
     #[test]
@@ -2387,8 +2429,12 @@ mod tests {
                     Statement {
                         expression: DatexExpression::BinaryOperation(
                             BinaryOperator::Add,
-                            Box::new(DatexExpression::Integer(Integer::from(2))),
-                            Box::new(DatexExpression::Integer(Integer::from(3))),
+                            Box::new(DatexExpression::Integer(Integer::from(
+                                2
+                            ))),
+                            Box::new(DatexExpression::Integer(Integer::from(
+                                3
+                            ))),
                         ),
                         is_terminated: false,
                     },

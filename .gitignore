@@ -1,7 +1,6 @@
 /target
 **/*.rs.bk
 bin/
-.vscode
 # check out compiled code
 # pkg/
 wasm-pack.log

@@ -244,7 +244,7 @@ macro_rules! compile {
     }
 }
 
-fn compile_ast(
+pub fn compile_ast(
     compilation_context: &Context,
     ast: DatexExpression,
     scope: Scope,
@@ -290,6 +290,9 @@ fn compile_expression(
         }
         DatexExpression::Boolean(boolean) => {
             compilation_context.insert_boolean(boolean);
+        }
+        DatexExpression::Endpoint(endpoint) => {
+            compilation_context.insert_endpoint(&endpoint);
         }
         DatexExpression::Null => {
             compilation_context.append_binary_code(InstructionCode::NULL);

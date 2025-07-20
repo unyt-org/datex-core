@@ -54,7 +54,6 @@ pub async fn test_remote_execution_persistent_context() {
 }
 
 #[tokio::test]
-#[ignore]
 pub async fn test_remote_inline() {
     run_async! {
         let endpoint_a = Endpoint::from("@test_a");
