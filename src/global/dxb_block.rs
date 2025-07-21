@@ -2,20 +2,20 @@ use std::fmt::Display;
 use std::io::{Cursor, Read};
 // FIXME no-std
 
-use crate::values::core_values::endpoint::Endpoint;
+use super::protocol_structures::{
+    block_header::BlockHeader,
+    encrypted_header::EncryptedHeader,
+    routing_header::{BlockSize, EncryptionType, RoutingHeader, SignatureType},
+};
 use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
+use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use futures::channel::mpsc::UnboundedReceiver;
 use futures_util::StreamExt;
 use log::error;
 use strum::Display;
 use thiserror::Error;
-use super::protocol_structures::{
-    block_header::BlockHeader,
-    encrypted_header::EncryptedHeader,
-    routing_header::{BlockSize, EncryptionType, RoutingHeader, SignatureType},
-};
 
 #[derive(Debug, Display, Error)]
 pub enum HeaderParsingError {
@@ -55,24 +55,25 @@ pub type OutgoingContextId = u32;
 pub type OutgoingSectionIndex = u16;
 pub type OutgoingBlockNumber = u16;
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum IncomingSection {
     /// a single block
     SingleBlock((Option<DXBBlock>, IncomingEndpointContextSectionId)),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Option<UnboundedReceiver<DXBBlock>>, IncomingEndpointContextSectionId)),
+    BlockStream(
+        (
+            Option<UnboundedReceiver<DXBBlock>>,
+            IncomingEndpointContextSectionId,
+        ),
+    ),
 }
 
-
 impl IncomingSection {
-    pub async fn next(
-        &mut self,
-    ) -> Option<DXBBlock> {
+    pub async fn next(&mut self) -> Option<DXBBlock> {
         match self {
-            IncomingSection::SingleBlock((block, _)) => {
-                block.take()
-            }
+            IncomingSection::SingleBlock((block, _)) => block.take(),
             IncomingSection::BlockStream((blocks, _)) => {
                 if let Some(receiver) = blocks {
                     receiver.next().await
@@ -83,9 +84,7 @@ impl IncomingSection {
         }
     }
 
-    pub async fn drain(
-        &mut self,
-    ) -> Vec<DXBBlock> {
+    pub async fn drain(&mut self) -> Vec<DXBBlock> {
         let mut blocks = Vec::new();
         while let Some(block) = self.next().await {
             blocks.push(block);
@@ -94,19 +93,22 @@ impl IncomingSection {
     }
 }
 
-
 impl IncomingSection {
     pub fn get_section_index(&self) -> IncomingSectionIndex {
         self.get_section_context_id().section_index
     }
 
     pub fn get_sender(&self) -> Endpoint {
-        self.get_section_context_id().endpoint_context_id.sender.clone()
+        self.get_section_context_id()
+            .endpoint_context_id
+            .sender
+            .clone()
     }
 
     pub fn get_section_context_id(&self) -> &IncomingEndpointContextSectionId {
         match self {
-            IncomingSection::SingleBlock((_, section_context_id)) | IncomingSection::BlockStream((_, section_context_id)) => {
+            IncomingSection::SingleBlock((_, section_context_id))
+            | IncomingSection::BlockStream((_, section_context_id)) => {
                 section_context_id
             }
         }
@@ -160,7 +162,7 @@ impl DXBBlock {
             raw_bytes: None,
         }
     }
-    
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error> {
         let mut writer = Cursor::new(Vec::new());
         self.routing_header.write(&mut writer)?;

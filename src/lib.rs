@@ -3,6 +3,7 @@
 #![feature(assert_matches)]
 #![feature(gen_blocks)]
 #![feature(let_chains)]
+// #![allow(unused_parens)]
 #![feature(async_iterator)]
 // FIXME: remove in the future, not required in edition 2024, but RustRover complains
 #[macro_use]

@@ -1,5 +1,15 @@
 {
 	"deno.enable": true,
 	"editor.formatOnSave": true,
-	"rust-analyzer.cargo.features": ["debug"]
+	"rust-analyzer.cargo.features": ["debug"],
+	"rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.check.command": "clippy",
+    /*
+	"rust-analyzer.check.extraArgs": [
+        "--quiet",
+        "--",
+        "-D",
+        "warnings"
+    ],
+	*/
 }

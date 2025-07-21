@@ -438,7 +438,7 @@ pub fn create_parser<'a, I>()
     };
     let endpoint = select! {
         Token::Endpoint(s) =>
-            match Endpoint::from_str(&s.as_str()) {
+            match Endpoint::from_str(s.as_str()) {
                 Err(_) => DatexExpression::Invalid,
                 Ok(endpoint) => DatexExpression::Endpoint(endpoint)
         }

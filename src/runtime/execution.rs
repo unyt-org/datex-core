@@ -1,13 +1,9 @@
 use super::stack::{Scope, ScopeStack};
 use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
-use crate::compiler::context::Context;
+use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
-use crate::compiler::{compile_ast, compile_value};
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, ShortTextData, SlotAddress, TextData,
-};
+use crate::global::protocol_structures::instructions::*;
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
@@ -136,7 +132,7 @@ pub fn execute_dxb_sync(
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(pointer_id) => {
+            ExecutionStep::ResolvePointer(_pointer_id) => {
                 *interrupt_provider.borrow_mut() = Some(
                     InterruptProvider::ResolvePointer(ValueContainer::from(42)),
                 );
@@ -157,7 +153,7 @@ pub async fn execute_dxb(
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(pointer_id) => {
+            ExecutionStep::ResolvePointer(_pointer_id) => {
                 get_pointer_test().await;
                 *interrupt_provider.borrow_mut() = Some(
                     InterruptProvider::ResolvePointer(ValueContainer::from(42)),
@@ -400,7 +396,7 @@ pub fn execute_loop(
 fn get_result_value_from_instruction(
     context: Rc<RefCell<RuntimeExecutionContext>>,
     instruction: Instruction,
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    _interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
     gen move {
         yield Ok(ExecutionStep::InternalReturn(match instruction {
@@ -501,15 +497,17 @@ fn get_result_value_from_instruction(
                 }
                 buffer.extend_from_slice(&block.body);
 
-                let scope_container =
-                    context.borrow().scope_stack.get_current_scope_mut();
+                let _scope_container =
+                    context.borrow_mut().scope_stack.get_current_scope_mut();
+                /*
                 return interrupt!(
                     interrupt_provider,
                     ExecutionStep::RemoteExecution(
                         scope_container.active_value.clone(),
                         buffer
                     )
-                );
+                );*/
+                None
             }
 
             Instruction::CloseAndStore => {
