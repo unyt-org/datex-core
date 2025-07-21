@@ -162,6 +162,17 @@ pub async fn execute_dxb(
                 *interrupt_provider.borrow_mut() = Some(
                     InterruptProvider::Result(ValueContainer::from(42)),
                 );
+            },
+            ExecutionStep::RemoteExecution(
+                receivers,
+                buffer,
+            ) => {
+                
+                // TODO: handle actual remote execution here
+                
+                *interrupt_provider.borrow_mut() = Some(
+                    InterruptProvider::Result(ValueContainer::from(42)),
+                );
             }
             _ => todo!(),
         }
