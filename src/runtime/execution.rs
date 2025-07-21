@@ -133,9 +133,8 @@ pub fn execute_dxb_sync(
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(_pointer_id) => {
-                *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::ResolvePointer(ValueContainer::from(42)),
-                );
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(ValueContainer::from(42)));
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -155,9 +154,14 @@ pub async fn execute_dxb(
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(_pointer_id) => {
                 get_pointer_test().await;
-                *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::ResolvePointer(ValueContainer::from(42)),
-                );
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(ValueContainer::from(42)));
+            }
+            ExecutionStep::RemoteExecution(receivers, buffer) => {
+                // TODO: handle actual remote execution here
+
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(ValueContainer::from(42)));
             }
             _ => todo!(),
         }
@@ -172,6 +176,7 @@ pub enum InvalidProgramError {
     InvalidKeyValuePair,
     // any unterminated sequence, e.g. missing key in key-value pair
     UnterminatedSequence,
+    MissingRemoteExecutionReceiver,
 }
 
 impl Display for InvalidProgramError {
@@ -185,6 +190,9 @@ impl Display for InvalidProgramError {
             }
             InvalidProgramError::UnterminatedSequence => {
                 write!(f, "Unterminated sequence")
+            }
+            InvalidProgramError::MissingRemoteExecutionReceiver => {
+                write!(f, "Missing remote execution receiver")
             }
         }
     }
@@ -284,7 +292,7 @@ pub enum ExecutionStep {
 
 #[derive(Debug)]
 pub enum InterruptProvider {
-    ResolvePointer(ValueContainer),
+    Result(ValueContainer),
 }
 
 #[macro_export]
@@ -473,13 +481,13 @@ fn get_result_value_from_instruction(
 
             Instruction::ExecutionBlock(block) => {
                 // build dxb
-                let mut addr = 0;
 
                 let mut buffer = Vec::with_capacity(256);
-                for local_slot in block.injected_slots {
+                for (addr, local_slot) in
+                    block.injected_slots.into_iter().enumerate()
+                {
                     buffer.push(InstructionCode::ALLOCATE_SLOT as u8);
-                    append_u32(&mut buffer, addr);
-                    addr += 1;
+                    append_u32(&mut buffer, addr as u32);
 
                     if let Some(vc) = yield_unwrap!(
                         context.borrow().get_slot_value(local_slot).map_err(
@@ -497,17 +505,25 @@ fn get_result_value_from_instruction(
                 }
                 buffer.extend_from_slice(&block.body);
 
-                let _scope_container =
-                    context.borrow_mut().scope_stack.get_current_scope_mut();
-                /*
-                return interrupt!(
-                    interrupt_provider,
-                    ExecutionStep::RemoteExecution(
-                        scope_container.active_value.clone(),
-                        buffer
-                    )
-                );*/
-                None
+                let maybe_receivers =
+                    context.borrow_mut().scope_stack.pop_active_value();
+
+                if let Some(receivers) = maybe_receivers {
+                    let res = interrupt!(
+                        interrupt_provider,
+                        ExecutionStep::RemoteExecution(receivers, buffer)
+                    );
+                    match res {
+                        InterruptProvider::Result(value) => Some(value),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // should not happen, receivers must be set
+                    yield Err(ExecutionError::InvalidProgram(
+                        InvalidProgramError::MissingRemoteExecutionReceiver,
+                    ));
+                    None
+                }
             }
 
             Instruction::CloseAndStore => {
