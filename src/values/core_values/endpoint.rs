@@ -1,11 +1,11 @@
 use crate::crypto::random;
+use crate::stdlib::fmt::{Debug, Display, Formatter};
+use crate::stdlib::hash::Hash;
+use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::{ValueContainer, ValueError};
-use crate::stdlib::fmt::{Debug, Display, Formatter};
-use crate::stdlib::hash::Hash;
-use crate::utils::buffers::buffer_to_hex;
 use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME no-std
@@ -71,7 +71,9 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
     fn try_from(value: Option<T>) -> Result<Self, Self::Error> {
         if let Some(value) = value {
             let container: ValueContainer = value.into();
-            if let Some(endpoint) = container.to_value().borrow().cast_to_endpoint() {
+            if let Some(endpoint) =
+                container.to_value().borrow().cast_to_endpoint()
+            {
                 return Ok(endpoint);
             }
         }
@@ -106,20 +108,18 @@ impl Default for Endpoint {
     }
 }
 
-impl From<&str> for Endpoint {
-    fn from(name: &str) -> Self {
-        if let Ok(endpoint) = Endpoint::from_string(name) {
-            return endpoint;
-        }
-        panic!("Failed to parse endpoint from string: {name}");
+impl TryFrom<&str> for Endpoint {
+    type Error = InvalidEndpointError;
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        Endpoint::from_string(name)
     }
 }
-
-// impl From<CoreValue> for Endpoint {
-//     fn from(value: CoreValue) -> Self {
-//         return value.cast_to_endpoint().unwrap();
-//     }
-// }
+impl TryFrom<String> for Endpoint {
+    type Error = InvalidEndpointError;
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        Endpoint::from_string(&name)
+    }
+}
 
 impl TryFrom<CoreValue> for Endpoint {
     type Error = ValueError;
@@ -230,6 +230,13 @@ impl Endpoint {
         })
     }
 
+    #[cfg(feature = "debug")]
+    pub fn from(name: &str) -> Endpoint {
+        Endpoint::from_string(name).unwrap_or_else(|_| {
+            panic!("Failed to convert str {name} to Endpoint")
+        })
+    }
+
     // create alias endpoint (@person)
     pub fn person(
         name: &str,
@@ -283,7 +290,6 @@ impl Endpoint {
             }
         }
 
-        
         match name_part {
             s if s.starts_with(&format!(
                 "{}{}",
@@ -600,7 +606,9 @@ mod tests {
         assert_eq!(endpoint.to_string(), "@jonas");
         assert_eq!(
             endpoint.identifier,
-            [106, 111, 110, 97, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            [
+                106, 111, 110, 97, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ]
         );
 
         // valid institution endpoint

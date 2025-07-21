@@ -1,22 +1,22 @@
+use super::mockup_interface::MockupInterface;
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
-use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
+use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::Runtime;
+use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
 use std::path::Path;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
-use std::rc::Rc;
-use datex_core::network::com_hub_network_tracing::TraceOptions;
-use super::mockup_interface::MockupInterface;
 
 pub struct InterfaceConnection {
     interface_type: String,
@@ -107,19 +107,28 @@ impl Display for Route {
 }
 
 impl Route {
-    pub fn between(
-        source: impl Into<Endpoint>,
-        receiver: impl Into<Endpoint>,
-    ) -> Self {
+    pub fn between<R>(source: R, receiver: R) -> Self
+    where
+        R: TryInto<Endpoint>,
+        R::Error: Debug,
+    {
         Route {
-            receiver: receiver.into(),
-            hops: vec![(source.into(), None, None)],
+            receiver: receiver.try_into().expect("Invalid receiver endpoint"),
+            hops: vec![(
+                source.try_into().expect("Invalid source endpoint"),
+                None,
+                None,
+            )],
             next_fork: None,
         }
     }
 
-    pub fn hop(mut self, target: impl Into<Endpoint>) -> Self {
-        self.add_hop(target);
+    pub fn hop<R>(mut self, target: R) -> Self
+    where
+        R: TryInto<Endpoint>,
+        R::Error: Debug,
+    {
+        self.add_hop(target.try_into().expect("Invalid target endpoint"));
         self
     }
 
@@ -128,16 +137,16 @@ impl Route {
         self
     }
 
-    pub fn to_via(
-        mut self,
-        target: impl Into<Endpoint>,
-        channel: &str,
-    ) -> Self {
+    pub fn to_via<R>(mut self, target: R, channel: &str) -> Self
+    where
+        R: TryInto<Endpoint>,
+        R::Error: Debug,
+    {
         let len = self.hops.len();
         if len > 0 {
             self.hops[len - 1].1 = Some(channel.to_string());
         }
-        self.add_hop(target);
+        self.add_hop(target.try_into().expect("Invalid target endpoint"));
         self
     }
 
@@ -177,16 +186,28 @@ impl Route {
         segments
     }
 
-    pub async fn test(&self, network: &Network) -> Result<(), RouteAssertionError> {
-        self.test_with_options(network, TraceOptions::default()).await
+    pub async fn test(
+        &self,
+        network: &Network,
+    ) -> Result<(), RouteAssertionError> {
+        self.test_with_options(network, TraceOptions::default())
+            .await
     }
 
-    pub async fn test_with_options(&self, network: &Network, options: TraceOptions) -> Result<(), RouteAssertionError> {
+    pub async fn test_with_options(
+        &self,
+        network: &Network,
+        options: TraceOptions,
+    ) -> Result<(), RouteAssertionError> {
         test_routes(&[self.clone()], network, options).await
     }
 }
 
-pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOptions) -> Result<(), RouteAssertionError> {
+pub async fn test_routes(
+    routes: &[Route],
+    network: &Network,
+    options: TraceOptions,
+) -> Result<(), RouteAssertionError> {
     let start = routes[0].hops[0].0.clone();
     let ends = routes
         .iter()
@@ -208,16 +229,14 @@ pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOpti
             panic!("Route start {} does not match receiver {}", start, end);
         }
     }
-    
+
     let network_traces = network
         .get_runtime(start)
         .com_hub()
-        .record_trace_multiple_with_options(
-            TraceOptions {
-                endpoints: routes.iter().map(|r| r.receiver.clone()).collect(),
-                ..options
-            }
-        )
+        .record_trace_multiple_with_options(TraceOptions {
+            endpoints: routes.iter().map(|r| r.receiver.clone()).collect(),
+            ..options
+        })
         .await;
 
     // combine received traces with original routes
@@ -248,11 +267,7 @@ pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOpti
             .enumerate()
             .filter_map(
                 |(i, h)| {
-                    if i % 2 == 1 || i == 0 {
-                        Some(h)
-                    } else {
-                        None
-                    }
+                    if i % 2 == 1 || i == 0 { Some(h) } else { None }
                 },
             )
             .zip(route.hops.iter());
@@ -304,19 +319,27 @@ pub enum RouteAssertionError {
     InvalidEndpointOnHop(i32, Endpoint, Endpoint),
     InvalidChannelOnHop(i32, String, String),
     InvalidForkOnHop(i32, String, String),
-    MissingResponse(Endpoint)
+    MissingResponse(Endpoint),
 }
 
 impl Display for RouteAssertionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RouteAssertionError::InvalidEndpointOnHop(index, expected, actual) => {
+            RouteAssertionError::InvalidEndpointOnHop(
+                index,
+                expected,
+                actual,
+            ) => {
                 write!(
                     f,
                     "Expected hop #{index} to be {expected} but was {actual}"
                 )
             }
-            RouteAssertionError::InvalidChannelOnHop(index, expected, actual) => {
+            RouteAssertionError::InvalidChannelOnHop(
+                index,
+                expected,
+                actual,
+            ) => {
                 write!(
                     f,
                     "Expected hop #{index} to be channel {expected} but was {actual}"
@@ -334,7 +357,6 @@ impl Display for RouteAssertionError {
         }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 struct NetworkNode {
@@ -556,12 +578,14 @@ impl Network {
                 sender: sender_a,
                 receiver: receiver_b,
             }
-        } else { match mockup_interface_channels.get_mut(&name).unwrap().take()
-        { Some(channel) => {
-            channel
-        } _ => {
-            panic!("Channel {name} is already used");
-        }}}
+        } else {
+            match mockup_interface_channels.get_mut(&name).unwrap().take() {
+                Some(channel) => channel,
+                _ => {
+                    panic!("Channel {name} is already used");
+                }
+            }
+        }
     }
 
     pub fn register_interface(
