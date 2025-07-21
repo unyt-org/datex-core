@@ -481,13 +481,11 @@ fn get_result_value_from_instruction(
 
             Instruction::ExecutionBlock(block) => {
                 // build dxb
-                let mut addr = 0;
 
                 let mut buffer = Vec::with_capacity(256);
-                for local_slot in block.injected_slots {
+                for (addr, local_slot) in block.injected_slots.into_iter().enumerate() {
                     buffer.push(InstructionCode::ALLOCATE_SLOT as u8);
-                    append_u32(&mut buffer, addr);
-                    addr += 1;
+                    append_u32(&mut buffer, addr as u32);
 
                     if let Some(vc) = yield_unwrap!(
                         context.borrow().get_slot_value(local_slot).map_err(
