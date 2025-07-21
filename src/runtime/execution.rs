@@ -138,7 +138,7 @@ pub fn execute_dxb_sync(
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(pointer_id) => {
                 *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::ResolvePointer(ValueContainer::from(42)),
+                    InterruptProvider::Result(ValueContainer::from(42)),
                 );
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
@@ -160,7 +160,7 @@ pub async fn execute_dxb(
             ExecutionStep::ResolvePointer(pointer_id) => {
                 get_pointer_test().await;
                 *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::ResolvePointer(ValueContainer::from(42)),
+                    InterruptProvider::Result(ValueContainer::from(42)),
                 );
             }
             _ => todo!(),
@@ -176,6 +176,7 @@ pub enum InvalidProgramError {
     InvalidKeyValuePair,
     // any unterminated sequence, e.g. missing key in key-value pair
     UnterminatedSequence,
+    MissingRemoteExecutionReceiver,
 }
 
 impl Display for InvalidProgramError {
@@ -189,6 +190,9 @@ impl Display for InvalidProgramError {
             }
             InvalidProgramError::UnterminatedSequence => {
                 write!(f, "Unterminated sequence")
+            }
+            InvalidProgramError::MissingRemoteExecutionReceiver => {
+                write!(f, "Missing remote execution receiver")
             }
         }
     }
@@ -288,7 +292,7 @@ pub enum ExecutionStep {
 
 #[derive(Debug)]
 pub enum InterruptProvider {
-    ResolvePointer(ValueContainer),
+    Result(ValueContainer),
 }
 
 #[macro_export]
@@ -501,15 +505,30 @@ fn get_result_value_from_instruction(
                 }
                 buffer.extend_from_slice(&block.body);
 
-                let scope_container =
-                    context.borrow().scope_stack.get_current_scope_mut();
-                return interrupt!(
-                    interrupt_provider,
-                    ExecutionStep::RemoteExecution(
-                        scope_container.active_value.clone(),
-                        buffer
-                    )
-                );
+                let maybe_receivers =
+                    context.borrow_mut().scope_stack.pop_active_value();
+
+                if let Some(receivers) = maybe_receivers {
+                    let res = interrupt!(
+                        interrupt_provider,
+                        ExecutionStep::RemoteExecution(
+                            receivers,
+                            buffer
+                        )
+                    );
+                    match res {
+                        InterruptProvider::Result(value) => {
+                            Some(value)
+                        }
+                        _ => unreachable!()
+                    }
+                } else {
+                    // should not happen, receivers must be set
+                    yield Err(ExecutionError::InvalidProgram(
+                        InvalidProgramError::MissingRemoteExecutionReceiver,
+                    ));
+                    None
+                }
             }
 
             Instruction::CloseAndStore => {
