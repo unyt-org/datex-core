@@ -404,7 +404,7 @@ pub fn execute_loop(
 fn get_result_value_from_instruction(
     context: Rc<RefCell<RuntimeExecutionContext>>,
     instruction: Instruction,
-    _interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
     gen move {
         yield Ok(ExecutionStep::InternalReturn(match instruction {
