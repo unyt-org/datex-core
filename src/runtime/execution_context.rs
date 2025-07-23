@@ -8,6 +8,7 @@ use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::execution::{execute_dxb, execute_dxb_sync, ExecutionError, ExecutionInput, ExecutionOptions, RuntimeExecutionContext};
+use crate::runtime::{Runtime, RuntimeInternal};
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
@@ -57,13 +58,31 @@ impl LocalExecutionContext {
     /// Creates a new local execution context with the given compile scope.
     pub fn debug() -> Self {
         LocalExecutionContext{
-            compile_scope: Scope::default(),
-            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
             execution_options: ExecutionOptions {
                 verbose: true,
                 ..ExecutionOptions::default()
             },
             verbose: true,
+            ..Default::default()
+        }
+    }
+
+    pub fn debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        LocalExecutionContext {
+            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
+            execution_options: ExecutionOptions {
+                verbose: true,
+                ..ExecutionOptions::default()
+            },
+            verbose: true,
+            ..Default::default()
+        }
+    }
+
+    pub fn new(runtime: Rc<RuntimeInternal>) -> Self {
+        LocalExecutionContext {
+            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime))),
+            ..Default::default()
         }
     }
 }
@@ -83,10 +102,20 @@ impl ExecutionContext {
         ExecutionContext::Local(LocalExecutionContext::default())
     }
 
+    /// Creates a new local execution context with a runtime.
+    pub fn local_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::new(runtime_internal))
+    }
+
     /// Creates a new local execution context with verbose mode enabled,
     /// providing more log outputs for debugging purposes.
     pub fn local_debug() -> Self {
         ExecutionContext::Local(LocalExecutionContext::debug())
+    }
+
+    /// Creates a new local execution context with verbose mode enabled and a runtime.
+    pub fn local_debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::debug_with_runtime_internal(runtime_internal))
     }
 
     pub fn remote(endpoint: impl Into<Endpoint>) -> Self {

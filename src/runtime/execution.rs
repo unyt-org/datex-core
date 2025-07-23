@@ -25,6 +25,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use datex_core::runtime::Runtime;
+use crate::runtime::RuntimeInternal;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -71,13 +73,26 @@ pub struct RuntimeExecutionContext {
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
     // if set to true, the execution loop will pop the current scope before continuing with the next instruction
     pop_next_scope: bool,
+    runtime_internal: Option<Rc<RuntimeInternal>>,
 }
 
 impl RuntimeExecutionContext {
+    
+    pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        Self {
+            runtime_internal: Some(runtime_internal),
+            ..Default::default()
+        }
+    }
+    
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
 
+    pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
+        &self.runtime_internal
+    }
+    
     /// Allocates a new slot with the given slot address.
     fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
         self.slots.borrow_mut().insert(address, value);

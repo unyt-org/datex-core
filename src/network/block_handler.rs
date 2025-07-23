@@ -7,10 +7,12 @@ use log::info;
 use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::fmt::Debug;
 use std::rc::Rc;
 // use tokio_stream::StreamExt;
 
 // TODO: store scope memory
+#[derive(Debug)]
 pub struct ScopeContext {
     pub next_section_index: IncomingSectionIndex,
     pub next_block_number: IncomingBlockNumber,
@@ -69,6 +71,17 @@ pub struct BlockHandler {
 
     /// history of all incoming blocks
     pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData>>,
+}
+
+impl Debug for BlockHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BlockHandler")
+            .field("current_context_id", &self.current_context_id)
+            .field("block_cache", &self.block_cache)
+            .field("incoming_sections_queue", &self.incoming_sections_queue)
+            .field("incoming_blocks_history", &self.incoming_blocks_history)
+            .finish()
+    }
 }
 
 impl Default for BlockHandler {

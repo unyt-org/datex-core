@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use futures::channel::oneshot::Sender;
@@ -37,6 +38,14 @@ pub struct Runtime {
     pub data: Rc<RuntimeInternal>,
 }
 
+impl Debug for Runtime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Runtime")
+            .field("version", &self.version)
+            .finish()
+    }
+}
+
 impl Default for Runtime {
     fn default() -> Self {
         Runtime {
@@ -46,6 +55,8 @@ impl Default for Runtime {
     }
 }
 
+
+#[derive(Debug)]
 pub struct RuntimeInternal {
     pub memory: RefCell<Memory>,
     pub com_hub: ComHub,
@@ -134,16 +145,16 @@ impl RuntimeInternal {
     /// Returns the existing execution context for the given context_id,
     /// or creates a new one if it doesn't exist.
     fn get_execution_context(
-        &self,
+        self_rc: Rc<RuntimeInternal>,
         context_id: &IncomingEndpointContextSectionId,
     ) -> ExecutionContext {
-        let mut execution_contexts = self.execution_contexts.borrow_mut();
+        let mut execution_contexts = self_rc.execution_contexts.borrow_mut();
         // get execution context by context_id or create a new one if it doesn't exist
         let execution_context = execution_contexts.get(context_id).cloned();
         if let Some(context) = execution_context {
             context
         } else {
-            let new_context = ExecutionContext::local();
+            let new_context = ExecutionContext::local_with_runtime_internal(self_rc.clone());
             // insert the new context into the map
             execution_contexts.insert(context_id.clone(), new_context.clone());
             new_context
@@ -201,7 +212,7 @@ impl RuntimeInternal {
         mut incoming_section: IncomingSection,
     ) -> (Result<Option<ValueContainer>, ExecutionError>, Endpoint, OutgoingContextId) {
 
-        let mut context = self_rc.get_execution_context(incoming_section.get_section_context_id());
+        let mut context = Self::get_execution_context(self_rc.clone(), incoming_section.get_section_context_id());
         info!("Executing incoming section with index: {}", incoming_section.get_section_index());
 
         let mut result = None;

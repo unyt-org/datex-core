@@ -14,7 +14,7 @@ use log::{debug, error, info, warn};
 use std::any::Any;
 use std::cmp::{Ordering, PartialEq};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
@@ -52,6 +52,7 @@ pub type ComInterfaceFactoryFn =
         setup_data: Box<dyn Any>,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
+#[derive(Debug)]
 pub struct ComHubOptions {
     default_receive_timeout: Duration,
 }
@@ -115,6 +116,19 @@ pub struct ComHub {
     update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     pub block_handler: BlockHandler,
+}
+
+impl Debug for ComHub {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComHub")
+            .field("endpoint", &self.endpoint)
+            .field("options", &self.options)
+            .field("sockets", &self.sockets)
+            .field("endpoint_sockets_blacklist", &self.endpoint_sockets_blacklist)
+            .field("fallback_sockets", &self.fallback_sockets)
+            .field("endpoint_sockets", &self.endpoint_sockets)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Default)]
