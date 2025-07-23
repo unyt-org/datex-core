@@ -1,9 +1,7 @@
 use log::error;
 
 use crate::values::core_values::endpoint::Endpoint;
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceInfo, ComInterfaceSockets,
-};
+use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory, ComInterfaceInfo, ComInterfaceSockets};
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
@@ -16,7 +14,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
+use serde::{Deserialize, Serialize};
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
 
@@ -169,4 +167,20 @@ impl ComInterface for BaseInterface {
     }
     delegate_com_interface_info!();
     set_sync_opener!(open);
+}
+
+
+#[derive(Serialize, Deserialize)]
+pub struct BaseInterfaceSetupData(InterfaceProperties);
+
+impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
+    fn create(
+        setup_data: BaseInterfaceSetupData,
+    ) -> Result<BaseInterface, ComInterfaceError> {
+        Ok(BaseInterface::new_with_properties(setup_data.0))
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties::default()
+    }
 }

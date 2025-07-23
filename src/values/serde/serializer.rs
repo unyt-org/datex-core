@@ -266,7 +266,8 @@ impl Serializer for &mut DatexSerializer {
         variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        // convert enum variant name to text
+        Ok(ValueContainer::from(variant))
     }
 
     fn serialize_newtype_struct<T>(

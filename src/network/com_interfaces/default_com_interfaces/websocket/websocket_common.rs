@@ -1,11 +1,14 @@
+use serde::{Deserialize, Serialize};
 use strum::Display;
 use thiserror::Error;
 use url::Url;
 
+#[derive(Serialize, Deserialize)]
 pub struct WebSocketClientInterfaceSetupData {
     pub address: String,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct WebSocketServerInterfaceSetupData {
     pub port: u16,
 }

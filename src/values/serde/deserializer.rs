@@ -1,5 +1,7 @@
+use chumsky::prelude::todo;
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
-
+use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
+use serde::de::value::Error;
 use crate::{
     compiler::{
         CompileOptions, compile_script, extract_static_value_from_script,
@@ -157,13 +159,27 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
         option unit unit_struct newtype_struct seq tuple tuple_struct
-        map struct enum identifier ignored_any
+        map struct identifier ignored_any
     }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        todo!()
+    }
+
 
     fn is_human_readable(&self) -> bool {
         false
     }
 }
+
 
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
 where

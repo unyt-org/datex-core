@@ -12,6 +12,7 @@ use hex::decode;
 use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
+use serde::{Deserialize, Serialize};
 use strum::Display;
 
 #[derive(
@@ -575,6 +576,25 @@ impl FromStr for Endpoint {
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         Endpoint::from_string(name)
+    }
+}
+
+impl Serialize for Endpoint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'a> Deserialize<'a> for Endpoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        let name = String::deserialize(deserializer)?;
+        Endpoint::from_string(&name).map_err(serde::de::Error::custom)
     }
 }
 

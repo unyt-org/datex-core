@@ -17,6 +17,8 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use axum::Json;
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -37,6 +39,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
@@ -49,7 +52,7 @@ pub struct DynamicEndpointProperties {
 
 pub type ComInterfaceFactoryFn =
     fn(
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
 #[derive(Debug)]
@@ -226,10 +229,10 @@ impl ComHub {
     /// Creates a new interface instance using the registered factory
     /// for the specified interface type if it exists.
     /// The interface is opened and added to the ComHub.
-    pub async fn create_interface(
+    pub async fn create_interface<'a>(
         &self,
         interface_type: &str,
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");

@@ -1,4 +1,4 @@
-use super::mockup_interface::MockupInterface;
+use super::mockup_interface::{store_sender_and_receiver, MockupInterface};
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
@@ -8,7 +8,7 @@ use datex_core::network::com_interfaces::com_interface_properties::InterfaceDire
 use datex_core::runtime::Runtime;
 use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Display};
@@ -17,16 +17,19 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
+use datex_core::values::serde::deserializer::from_value_container;
+use datex_core::values::serde::serializer::to_value_container;
+use datex_core::values::value_container::ValueContainer;
 
 pub struct InterfaceConnection {
     interface_type: String,
     priority: InterfacePriority,
-    pub setup_data: Option<Box<dyn Any>>,
+    pub setup_data: Option<ValueContainer>,
     pub endpoint: Option<Endpoint>,
 }
 
 impl InterfaceConnection {
-    pub fn new<T: Any>(
+    pub fn new<T: Serialize>(
         interface_type: &str,
         priority: InterfacePriority,
         setup_data: T,
@@ -34,7 +37,7 @@ impl InterfaceConnection {
         InterfaceConnection {
             interface_type: interface_type.to_string(),
             priority,
-            setup_data: Some(Box::new(setup_data)),
+            setup_data: Some(to_value_container(&setup_data).unwrap()),
             endpoint: None,
         }
     }
@@ -533,8 +536,7 @@ impl Network {
     ) {
         // get setup data as MockupInterfaceSetupData
         if let Some(setup_data) = &mut connection.setup_data {
-            let setup_data = setup_data
-                .downcast_mut::<MockupInterfaceSetupData>()
+            let mut setup_data: MockupInterfaceSetupData = from_value_container(setup_data.clone())
                 .expect("MockupInterfaceSetupData is required for interface of type mockup");
             let channel = Network::get_mockup_interface_channel(
                 mockup_interface_channels,
@@ -545,14 +547,14 @@ impl Network {
 
             match setup_data.direction {
                 InterfaceDirection::In => {
-                    setup_data.receiver = Some(channel.receiver);
+                    setup_data.channel_index = Some(store_sender_and_receiver(None, Some(channel.receiver)));
                 }
                 InterfaceDirection::Out => {
-                    setup_data.sender = Some(channel.sender);
+                    setup_data.channel_index = Some(store_sender_and_receiver(Some(channel.sender), None));
                 }
                 InterfaceDirection::InOut => {
-                    setup_data.receiver = Some(channel.receiver);
-                    setup_data.sender = Some(channel.sender);
+                    setup_data.channel_index =
+                        Some(store_sender_and_receiver(Some(channel.sender), Some(channel.receiver)));
                 }
             }
         }

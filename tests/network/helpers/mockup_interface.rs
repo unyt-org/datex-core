@@ -31,6 +31,7 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
 pub struct MockupInterface {
@@ -52,10 +53,10 @@ impl MockupInterface {
             interface_properties.name = Some(setup_data.name.clone());
         }
 
-        if let Some(sender) = setup_data.sender {
+        if let Some(sender) = setup_data.sender() {
             mockup_interface.sender = Some(sender);
         }
-        if let Some(receiver) = setup_data.receiver {
+        if let Some(receiver) = setup_data.receiver() {
             mockup_interface.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
 
@@ -80,9 +81,21 @@ impl SingleSocketProvider for MockupInterface {
     }
 }
 
+thread_local! {
+    pub static CHANNELS: RefCell<Vec<(Option<mpsc::Sender<Vec<u8>>>,Option<mpsc::Receiver<Vec<u8>>>)>> = const {  RefCell::new(Vec::new()) };
+}
+pub fn store_sender_and_receiver(sender: Option<mpsc::Sender<Vec<u8>>>, receiver: Option<mpsc::Receiver<Vec<u8>>>) -> usize {
+    CHANNELS.with(|channels| {
+        let mut channels = channels.borrow_mut();
+        channels.push((sender, receiver));
+        channels.len() - 1
+    })
+}
+
+
+#[derive(Serialize, Deserialize)]
 pub struct MockupInterfaceSetupData {
-    pub sender: Option<mpsc::Sender<Vec<u8>>>,
-    pub receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    pub channel_index: Option<usize>,
     pub name: String,
     pub endpoint: Option<Endpoint>,
     pub direction: InterfaceDirection,
@@ -92,8 +105,7 @@ impl MockupInterfaceSetupData {
     pub fn new(name: &str) -> MockupInterfaceSetupData {
         MockupInterfaceSetupData {
             name: name.to_string(),
-            receiver: None,
-            sender: None,
+            channel_index: None,
             endpoint: None,
             direction: InterfaceDirection::InOut,
         }
@@ -104,8 +116,7 @@ impl MockupInterfaceSetupData {
     ) -> MockupInterfaceSetupData {
         MockupInterfaceSetupData {
             name: name.to_string(),
-            receiver: None,
-            sender: None,
+            channel_index: None,
             endpoint: None,
             direction,
         }
@@ -113,8 +124,7 @@ impl MockupInterfaceSetupData {
     pub fn new_with_endpoint(name: &str, endpoint: Endpoint) -> Self {
         MockupInterfaceSetupData {
             name: name.to_string(),
-            receiver: None,
-            sender: None,
+            channel_index: None,
             endpoint: Some(endpoint),
             direction: InterfaceDirection::InOut,
         }
@@ -127,6 +137,32 @@ impl MockupInterfaceSetupData {
         let mut setup_data = Self::new_with_endpoint(name, endpoint);
         setup_data.direction = direction;
         setup_data
+    }
+
+    pub fn sender(
+        &self,
+    ) -> Option<mpsc::Sender<Vec<u8>>> {
+        CHANNELS.with(|channels| {
+            let mut channels = channels.borrow_mut();
+            if let Some(index) = self.channel_index {
+                channels.get_mut(index).unwrap().0.take()
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn receiver(
+        &self,
+    ) -> Option<mpsc::Receiver<Vec<u8>>> {
+        CHANNELS.with(|channels| {
+            let mut channels = channels.borrow_mut();
+            if let Some(index) = self.channel_index {
+                channels.get_mut(index).unwrap().1.take()
+            } else {
+                None
+            }
+        })
     }
 }
 
