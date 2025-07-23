@@ -35,7 +35,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Clone)]
 pub struct Runtime {
     pub version: String,
-    pub data: Rc<RuntimeInternal>,
+    pub internal: Rc<RuntimeInternal>,
 }
 
 impl Debug for Runtime {
@@ -50,7 +50,7 @@ impl Default for Runtime {
     fn default() -> Self {
         Runtime {
             version: VERSION.to_string(),
-            data: Rc::new(RuntimeInternal::default()),
+            internal: Rc::new(RuntimeInternal::default()),
         }
     }
 }
@@ -83,16 +83,30 @@ impl Default for RuntimeInternal {
     }
 }
 
+macro_rules! get_execution_context {
+    // take context and self_rc as parameters
+    ($self_rc:expr, $execution_context:expr) => {
+        match $execution_context {
+            Some(context) => context,
+            None => {
+               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone())
+            }
+        }
+    };
+}
+
 
 impl RuntimeInternal {
+
     pub async fn execute(
         self_rc: Rc<RuntimeInternal>,
         script: &str,
         inserted_values: &[ValueContainer],
-        execution_context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
+        let execution_context = get_execution_context!(self_rc, execution_context);
         let dxb = execution_context.compile(script, inserted_values)?;
-        RuntimeInternal::execute_dxb(self_rc, dxb, execution_context, true)
+        RuntimeInternal::execute_dxb(self_rc, dxb, Some(execution_context), true)
             .await
             .map_err(ScriptExecutionError::from)
     }
@@ -101,23 +115,25 @@ impl RuntimeInternal {
         self_rc: Rc<RuntimeInternal>,
         script: &str,
         inserted_values: &[ValueContainer],
-        execution_context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
+        let execution_context = get_execution_context!(self_rc, execution_context);
         let dxb = execution_context.compile(script, inserted_values)?;
-        RuntimeInternal::execute_dxb_sync(self_rc, &dxb, execution_context, true)
+        RuntimeInternal::execute_dxb_sync(self_rc, &dxb, Some(execution_context), true)
             .map_err(ScriptExecutionError::from)
     }
 
     pub fn execute_dxb<'a>(
         self_rc: Rc<RuntimeInternal>,
         dxb: Vec<u8>,
-        execution_context: &'a mut ExecutionContext,
+        execution_context: Option<&'a mut ExecutionContext>,
         end_execution: bool,
     ) -> Pin<Box<dyn Future<Output = Result<Option<ValueContainer>, ExecutionError>> + 'a>> {
         Box::pin(async move {
+            let execution_context = get_execution_context!(self_rc, execution_context);
             match execution_context {
                 ExecutionContext::Remote(context) => {
-                    RuntimeInternal::execute_remote(self_rc,context, dxb).await
+                    RuntimeInternal::execute_remote(self_rc ,context, dxb).await
                 },
                 ExecutionContext::Local(_) => {
                     execution_context.execute_dxb(&dxb, end_execution).await
@@ -129,9 +145,10 @@ impl RuntimeInternal {
     pub fn execute_dxb_sync(
         self_rc: Rc<RuntimeInternal>,
         dxb: &[u8],
-        execution_context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
         end_execution: bool,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
+        let execution_context = get_execution_context!(self_rc, execution_context);
         match execution_context {
             ExecutionContext::Remote(_) => {
                 Err(ExecutionError::RequiresAsyncExecution)
@@ -161,7 +178,7 @@ impl RuntimeInternal {
         }
     }
 
-    async fn execute_remote(
+    pub async fn execute_remote(
         self_rc: Rc<RuntimeInternal>,
         remote_execution_context: &mut RemoteExecutionContext,
         dxb: Vec<u8>
@@ -222,7 +239,7 @@ impl RuntimeInternal {
         loop {
             let block = incoming_section.next().await;
             if let Some(block) = block {
-                let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), &mut context).await;
+                let res = RuntimeInternal::execute_dxb_block_local(self_rc.clone(), block.clone(), Some(&mut context)).await;
                 if let Err(err) = res {
                     return (Err(err), block.get_sender().clone(), block.block_header.context_id);
                 }
@@ -246,15 +263,16 @@ impl RuntimeInternal {
     async fn execute_dxb_block_local(
         self_rc: Rc<RuntimeInternal>,
         block: DXBBlock,
-        context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
+        let execution_context = get_execution_context!(self_rc, execution_context);
         // assert that the execution context is local
-        if !matches!(context, ExecutionContext::Local(_)) {
+        if !matches!(execution_context, ExecutionContext::Local(_)) {
             unreachable!("Execution context must be local for executing a DXB block");
         }
         let dxb = block.body;
         let end_execution = block.block_header.flags_and_timestamp.is_end_of_section();
-        RuntimeInternal::execute_dxb(self_rc, dxb, context, end_execution).await
+        RuntimeInternal::execute_dxb(self_rc, dxb, Some(execution_context), end_execution).await
     }
 }
 
@@ -267,7 +285,7 @@ impl Runtime {
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             version: VERSION.to_string(),
-            data: Rc::new(RuntimeInternal {
+            internal: Rc::new(RuntimeInternal {
                 endpoint,
                 com_hub,
                 ..RuntimeInternal::default()
@@ -288,18 +306,18 @@ impl Runtime {
     }
 
     pub fn com_hub(&self) -> &ComHub {
-       &self.data.com_hub
+       &self.internal.com_hub
     }
     pub fn endpoint(&self) -> Endpoint {
-        self.data.endpoint.clone()
+        self.internal.endpoint.clone()
     }
 
     pub fn internal(&self) -> Rc<RuntimeInternal> {
-        Rc::clone(&self.data)
+        Rc::clone(&self.internal)
     }
 
     pub fn memory(&self) -> &RefCell<Memory> {
-        &self.data.memory
+        &self.internal.memory
     }
 
     #[cfg(feature = "native_crypto")]
@@ -332,7 +350,7 @@ impl Runtime {
         &self,
         script: &str,
         inserted_values: &[ValueContainer],
-        execution_context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         RuntimeInternal::execute(self.internal(), script, inserted_values, execution_context).await
     }
@@ -341,7 +359,7 @@ impl Runtime {
         &self,
         script: &str,
         inserted_values: &[ValueContainer],
-        execution_context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         RuntimeInternal::execute_sync(self.internal(), script, inserted_values, execution_context)
     }
@@ -349,7 +367,7 @@ impl Runtime {
     pub async fn execute_dxb<'a>(
         &'a self,
         dxb: Vec<u8>,
-        execution_context: &'a mut ExecutionContext,
+        execution_context: Option<&'a mut ExecutionContext>,
         end_execution: bool,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         RuntimeInternal::execute_dxb(self.internal(), dxb, execution_context, end_execution).await
@@ -358,7 +376,7 @@ impl Runtime {
     pub fn execute_dxb_sync(
         &self,
         dxb: &[u8],
-        execution_context: &mut ExecutionContext,
+        execution_context: Option<&mut ExecutionContext>,
         end_execution: bool,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         RuntimeInternal::execute_dxb_sync(self.internal(), dxb, execution_context, end_execution)

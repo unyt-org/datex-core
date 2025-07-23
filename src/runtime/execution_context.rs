@@ -79,9 +79,9 @@ impl LocalExecutionContext {
         }
     }
 
-    pub fn new(runtime: Rc<RuntimeInternal>) -> Self {
+    pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
         LocalExecutionContext {
-            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime))),
+            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
             ..Default::default()
         }
     }

@@ -26,7 +26,9 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
 use datex_core::runtime::Runtime;
+use crate::runtime::execution_context::RemoteExecutionContext;
 use crate::runtime::RuntimeInternal;
+use crate::values::core_values::endpoint::Endpoint;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -40,6 +42,24 @@ pub struct ExecutionInput<'a> {
     pub end_execution: bool,
     pub context: Rc<RefCell<RuntimeExecutionContext>>,
 }
+
+// TODO: do we want a DatexProgram input enum like this for execution?
+// #[derive(Debug, Clone)]
+// pub enum DatexProgram {
+//     Dxb(Vec<u8>),
+//     Script(String),
+// }
+
+// impl From<Vec<u8>> for DatexProgram {
+//     fn from(dxb: Vec<u8>) -> Self {
+//         DatexProgram::Dxb(dxb)
+//     }
+// }
+// impl From<String> for DatexProgram {
+//     fn from(script: String) -> Self {
+//         DatexProgram::Script(script)
+//     }
+// }
 
 impl Default for ExecutionInput<'_> {
     fn default() -> Self {
@@ -77,14 +97,14 @@ pub struct RuntimeExecutionContext {
 }
 
 impl RuntimeExecutionContext {
-    
+
     pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
         Self {
             runtime_internal: Some(runtime_internal),
             ..Default::default()
         }
     }
-    
+
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
@@ -92,7 +112,7 @@ impl RuntimeExecutionContext {
     pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
         &self.runtime_internal
     }
-    
+
     /// Allocates a new slot with the given slot address.
     fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
         self.slots.borrow_mut().insert(address, value);
@@ -149,7 +169,7 @@ pub fn execute_dxb_sync(
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(_pointer_id) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(ValueContainer::from(42)));
+                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -164,19 +184,32 @@ pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
+    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(_pointer_id) => {
                 get_pointer_test().await;
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(ValueContainer::from(42)));
+                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
             }
-            ExecutionStep::RemoteExecution(receivers, buffer) => {
+            ExecutionStep::RemoteExecution(receivers, body) => {
                 // TODO: handle actual remote execution here
-
-                *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(ValueContainer::from(42)));
+                if let Some(runtime) = &runtime_internal {
+                    // assert that receivers is a single endpoint
+                    // TODO: support advanced receivers
+                    let receiver_endpoint = receivers.to_value().borrow().cast_to_endpoint().unwrap();
+                    let mut remote_execution_context = RemoteExecutionContext::new(
+                        receiver_endpoint
+                    );
+                    let res = RuntimeInternal::execute_remote(runtime.clone(), &mut remote_execution_context, body).await?;
+                    *interrupt_provider.borrow_mut() =
+                        Some(InterruptProvider::Result(res));
+                }
+                else {
+                    return Err(ExecutionError::RequiresRuntime);
+                }
             }
             _ => todo!(),
         }
@@ -223,6 +256,7 @@ pub enum ExecutionError {
     SlotNotAllocated(u32),
     SlotNotInitialized(u32),
     RequiresAsyncExecution,
+    RequiresRuntime,
     ResponseError(ResponseError),
     CompilerError(CompilerError),
 }
@@ -289,6 +323,9 @@ impl Display for ExecutionError {
             ExecutionError::RequiresAsyncExecution => {
                 write!(f, "Program must be executed asynchronously")
             }
+            ExecutionError::RequiresRuntime => {
+                write!(f, "Execution requires a runtime to be set")
+            }
             ExecutionError::ResponseError(err) => {
                 write!(f, "Response error: {err}")
             }
@@ -307,7 +344,7 @@ pub enum ExecutionStep {
 
 #[derive(Debug)]
 pub enum InterruptProvider {
-    Result(ValueContainer),
+    Result(Option<ValueContainer>),
 }
 
 #[macro_export]
@@ -315,6 +352,17 @@ macro_rules! interrupt {
     ($input:expr, $arg:expr) => {{
         yield Ok($arg);
         $input.take().unwrap()
+    }};
+}
+
+#[macro_export]
+macro_rules! interrupt_with_result {
+    ($input:expr, $arg:expr) => {{
+        yield Ok($arg);
+        let res = $input.take().unwrap();
+        match res {
+            InterruptProvider::Result(value) => value,
+        }
     }};
 }
 
@@ -524,14 +572,10 @@ fn get_result_value_from_instruction(
                     context.borrow_mut().scope_stack.pop_active_value();
 
                 if let Some(receivers) = maybe_receivers {
-                    let res = interrupt!(
+                    interrupt_with_result!(
                         interrupt_provider,
                         ExecutionStep::RemoteExecution(receivers, buffer)
-                    );
-                    match res {
-                        InterruptProvider::Result(value) => Some(value),
-                        _ => unreachable!(),
-                    }
+                    )
                 } else {
                     // should not happen, receivers must be set
                     yield Err(ExecutionError::InvalidProgram(

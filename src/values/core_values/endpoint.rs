@@ -231,7 +231,7 @@ impl Endpoint {
     }
 
     #[cfg(feature = "debug")]
-    pub fn from(name: &str) -> Endpoint {
+    pub fn new(name: &str) -> Endpoint {
         Endpoint::from_string(name).unwrap_or_else(|_| {
             panic!("Failed to convert str {name} to Endpoint")
         })
