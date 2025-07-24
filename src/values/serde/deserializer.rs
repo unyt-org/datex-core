@@ -1,7 +1,8 @@
+use std::str::FromStr;
 use chumsky::prelude::todo;
-use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
+use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any, Deserialize};
 use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
-use serde::de::value::Error;
+use datex_core::values::core_values::endpoint::Endpoint;
 use crate::{
     compiler::{
         CompileOptions, compile_script, extract_static_value_from_script,
@@ -129,7 +130,14 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Integer(Integer {
                     0: TypedInteger::U8(u),
                 }) => visitor.visit_u8(u),
-                CoreValue::Text(s) => visitor.visit_string(s.0),
+                CoreValue::Text(s) => {
+                    visitor.visit_string(s.0)
+                },
+                CoreValue::Endpoint(endpoint) => {
+                    let endpoint_str = endpoint.to_string();
+                    println!("Deserializing endpoint: {endpoint_str}");
+                    visitor.visit_string(endpoint_str)
+                }
                 CoreValue::Object(obj) => {
                     let map = obj
                         .into_iter()
@@ -171,12 +179,65 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        visitor.visit_enum(
+            DatexEnumAccess {
+                de: self,
+            }
+        )
     }
 
 
     fn is_human_readable(&self) -> bool {
         false
+    }
+}
+
+struct DatexEnumAccess {
+    de: DatexDeserializer,
+}
+
+
+
+impl<'de> EnumAccess<'de> for DatexEnumAccess {
+    type Error = SerializationError;
+    type Variant = DatexVariantAccess;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>
+    {
+        let variant = seed.deserialize(self.de)?;
+        Ok((variant, DatexVariantAccess))
+    }
+}
+
+struct DatexVariantAccess;
+impl<'de> VariantAccess<'de> for DatexVariantAccess {
+    type Error = SerializationError;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>
+    {
+        todo!()
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>
+    {
+        todo!()
+    }
+
+    fn struct_variant<V>(self, fields: &'static [&'static str], visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>
+    {
+        todo!()
     }
 }
 
@@ -209,6 +270,12 @@ mod tests {
     struct TestStruct {
         field1: String,
         field2: i32,
+    }
+
+    #[derive(Deserialize, Serialize, Debug)]
+    enum TestEnum {
+        Variant1,
+        Variant2,
     }
 
     #[test]
@@ -255,5 +322,33 @@ mod tests {
             Deserialize::deserialize(deserializer).unwrap();
         assert!(!result.field1.is_empty());
         println!("Deserialized from script: {result:?}");
+    }
+
+    #[test]
+    fn test_enum_1() {
+        let script = r#""Variant1""#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestEnum =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestEnum");
+        assert!(matches!(result, TestEnum::Variant1));
+    }
+
+    #[test]
+    fn test_enum_2() {
+        let script = r#""Variant2""#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestEnum =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestEnum");
+        assert!(matches!(result, TestEnum::Variant2));
     }
 }

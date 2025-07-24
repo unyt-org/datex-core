@@ -246,7 +246,9 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + serde::Serialize,
     {
-        todo!()
+        value.serialize(&mut *self).map_err(|e| {
+            SerializationError(format!("Failed to serialize some: {e}"))
+        })
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
@@ -276,9 +278,18 @@ impl Serializer for &mut DatexSerializer {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: ?Sized + serde::Serialize,
+        T: ?Sized + serde::Serialize
     {
-        todo!()
+        if name == "endpoint" {
+            let endpoint = value
+                .serialize(&mut *self)
+                .map_err(|e| SerializationError(format!("Failed to serialize endpoint: {e}")))?
+                .to_value().borrow().cast_to_endpoint().unwrap();
+            Ok(ValueContainer::from(endpoint))
+        }
+        else {
+            unreachable!()
+        }
     }
 
     fn serialize_newtype_variant<T>(

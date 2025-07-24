@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::crypto::random;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
@@ -13,6 +14,7 @@ use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
+use serde::de::Visitor;
 use strum::Display;
 
 #[derive(
@@ -584,17 +586,35 @@ impl Serialize for Endpoint {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        serializer.serialize_newtype_struct("endpoint", &self.to_string())
     }
 }
 
+pub struct EndpointVisitor;
+
+impl<'de> Visitor<'de> for EndpointVisitor {
+    type Value = Endpoint;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a newtype struct Endpoint containing a string")
+    }
+
+    fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Endpoint, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Ok(Endpoint::new(&s))
+    }
+}
 impl<'a> Deserialize<'a> for Endpoint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'a>,
     {
-        let name = String::deserialize(deserializer)?;
-        Endpoint::from_string(&name).map_err(serde::de::Error::custom)
+
+
+        deserializer.deserialize_newtype_struct("endpoint", EndpointVisitor)
     }
 }
 

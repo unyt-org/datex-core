@@ -293,9 +293,10 @@ macro_rules! delegate_com_interface_info {
 /// # use std::rc::Rc;
 /// # use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory};///
 /// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;///
-///
+/// use serde::{Deserialize, Serialize};
 /// use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
 ///
+/// #[derive(Serialize, Deserialize)]
 /// struct BaseInterfaceSetupData {
 ///    pub example_data: String,
 /// }
