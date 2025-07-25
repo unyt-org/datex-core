@@ -41,6 +41,13 @@ impl Display for ComInterfaceUUID {
         write!(f, "ComInterface({})", self.0)
     }
 }
+
+impl ComInterfaceUUID {
+    pub fn from_string(uuid: String) -> Self {
+        ComInterfaceUUID(UUID::from_string(uuid))
+    }
+}
+
 #[derive(Debug)]
 pub enum ComInterfaceError {
     SocketNotFound,

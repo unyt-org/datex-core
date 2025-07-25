@@ -26,6 +26,11 @@ impl Display for ComInterfaceSocketUUID {
         write!(f, "ComInterfaceSocket({})", self.0)
     }
 }
+impl ComInterfaceSocketUUID {
+    pub fn from_string(s: String) -> ComInterfaceSocketUUID {
+        ComInterfaceSocketUUID(UUID::from_string(s))
+    }
+}
 
 #[derive(Debug)]
 pub struct ComInterfaceSocket {

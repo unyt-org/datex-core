@@ -41,6 +41,8 @@ pub enum BaseInterfaceError {
     SendError,
     ReceiveError,
     SocketNotFound,
+    InterfaceNotFound,
+    InvalidInput(String),
 }
 
 #[com_interface]
@@ -171,7 +173,7 @@ impl ComInterface for BaseInterface {
 
 
 #[derive(Serialize, Deserialize)]
-pub struct BaseInterfaceSetupData(InterfaceProperties);
+pub struct BaseInterfaceSetupData(pub InterfaceProperties);
 
 impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
     fn create(
