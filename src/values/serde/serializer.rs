@@ -230,7 +230,6 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
-        println!("Serializing str: {} {}", v, ValueContainer::from(v));
         Ok(ValueContainer::from(v))
     }
 
@@ -402,18 +401,40 @@ impl Serializer for &mut DatexSerializer {
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-
+    use std::collections::HashMap;
     use crate::values::{
         core_value::CoreValue,
         serde::serializer::{DatexSerializer, to_bytes, to_value_container},
         value::Value,
         value_container::ValueContainer,
     };
-    use serde::Serialize;
+    use serde::{Deserialize, Serialize};
+    use crate::{assert_structural_eq, assert_value_eq};
+    use crate::values::core_values::endpoint::Endpoint;
+    use crate::values::core_values::object::Object;
+    use crate::values::traits::structural_eq::StructuralEq;
+
+
     #[derive(Serialize)]
     struct TestStruct {
         field1: String,
         field2: i32,
+    }
+
+    #[derive(Serialize)]
+    enum TestEnum {
+        Variant1,
+        Variant2,
+    }
+
+    #[derive(Serialize)]
+    struct TestStructWithEndpoint {
+        endpoint: Endpoint,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct StructWithUSize {
+        pub usize: Option<usize>
     }
 
     #[test]
@@ -439,6 +460,18 @@ mod tests {
     }
 
     #[test]
+    fn test_to_bytes_with_struct_with_usize() {
+        let test_struct = StructWithUSize { usize: Some(42) };
+        let result = to_value_container(&test_struct);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_structural_eq!(
+            result.to_value().borrow().cast_to_object().unwrap().get("usize").clone(),
+            ValueContainer::from(42)
+        );
+    }
+
+    #[test]
     fn test_datex_serializer() {
         let mut serializer = DatexSerializer::new();
         let test_struct = TestStruct {
@@ -453,6 +486,38 @@ mod tests {
                 inner: CoreValue::Object(_),
                 ..
             })
+        );
+    }
+
+    #[test]
+    fn test_enum() {
+        let test_enum = TestEnum::Variant1;
+        let result = to_value_container(&test_enum);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+
+        assert_eq!(
+            result,
+            ValueContainer::from("Variant1")
+        );
+    }
+
+    #[test]
+    fn test_endpoint() {
+        let test_struct = TestStructWithEndpoint {
+            endpoint: Endpoint::new("@test")
+        };
+
+        let result = to_value_container(&test_struct);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        let object = Object::from(HashMap::from([(
+            "endpoint".to_string(),
+            ValueContainer::from(Endpoint::new("@test"))
+        )]));
+        assert_eq!(
+            result,
+            ValueContainer::from(object)
         );
     }
 }

@@ -331,6 +331,11 @@ fn decompile_loop(
                 write!(output, "null")?;
                 handle_after_term(state, &mut output, false)?;
             }
+            Instruction::Endpoint(endpoint) => {
+                handle_before_term(state, &mut output, false)?;
+                write!(output, "{}", endpoint.to_string())?;
+                handle_after_term(state, &mut output, false)?;
+            }
             Instruction::ArrayStart => {
                 handle_before_term(state, &mut output, false)?;
                 state.new_scope(ScopeType::Array);
@@ -444,7 +449,7 @@ fn decompile_loop(
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write!(output, "$")?;
             }
-
+            
             _ => {
                 write!(output, "[[{instruction}]]")?;
             }

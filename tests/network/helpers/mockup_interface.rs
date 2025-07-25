@@ -33,7 +33,7 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MockupInterface {
     pub outgoing_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
 
@@ -44,6 +44,7 @@ pub struct MockupInterface {
 
 impl MockupInterface {
     pub fn new(setup_data: MockupInterfaceSetupData) -> Self {
+        info!("Creating MockupInterface with setup data: {:?}", setup_data);
         let mut mockup_interface = MockupInterface::default();
         mockup_interface.info.interface_properties =
             Some(MockupInterface::get_default_properties());
@@ -59,6 +60,7 @@ impl MockupInterface {
         if let Some(receiver) = setup_data.receiver() {
             mockup_interface.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
+        info!("MockupInterface created: {:?}", mockup_interface);
 
         mockup_interface
     }
@@ -81,10 +83,12 @@ impl SingleSocketProvider for MockupInterface {
     }
 }
 
+type OptSender = Option<mpsc::Sender<Vec<u8>>>;
+type OptReceiver = Option<mpsc::Receiver<Vec<u8>>>;
 thread_local! {
-    pub static CHANNELS: RefCell<Vec<(Option<mpsc::Sender<Vec<u8>>>,Option<mpsc::Receiver<Vec<u8>>>)>> = const {  RefCell::new(Vec::new()) };
+    pub static CHANNELS: RefCell<Vec<(OptSender, OptReceiver)>> = const { RefCell::new(Vec::new()) };
 }
-pub fn store_sender_and_receiver(sender: Option<mpsc::Sender<Vec<u8>>>, receiver: Option<mpsc::Receiver<Vec<u8>>>) -> usize {
+pub fn store_sender_and_receiver(sender: OptSender, receiver: OptReceiver) -> usize {
     CHANNELS.with(|channels| {
         let mut channels = channels.borrow_mut();
         channels.push((sender, receiver));
@@ -93,7 +97,7 @@ pub fn store_sender_and_receiver(sender: Option<mpsc::Sender<Vec<u8>>>, receiver
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MockupInterfaceSetupData {
     pub channel_index: Option<usize>,
     pub name: String,

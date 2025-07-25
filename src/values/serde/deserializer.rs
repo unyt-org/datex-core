@@ -85,7 +85,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         match self.value {
             // TODO implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
-                CoreValue::Null => visitor.visit_unit(),
+                CoreValue::Null => visitor.visit_none(),
                 CoreValue::Bool(b) => visitor.visit_bool(b.0),
                 CoreValue::TypedInteger(i) => match i {
                     TypedInteger::I128(i) => visitor.visit_i128(i),
@@ -135,7 +135,6 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 },
                 CoreValue::Endpoint(endpoint) => {
                     let endpoint_str = endpoint.to_string();
-                    println!("Deserializing endpoint: {endpoint_str}");
                     visitor.visit_string(endpoint_str)
                 }
                 CoreValue::Object(obj) => {
@@ -164,9 +163,20 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        if self.value.to_value().borrow().is_null() {
+            visitor.visit_none()
+        } else {
+            visitor.visit_some(self)
+        }
+    }
+
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
-        option unit unit_struct newtype_struct seq tuple tuple_struct
+        unit unit_struct newtype_struct seq tuple tuple_struct
         map struct identifier ignored_any
     }
 
@@ -278,6 +288,26 @@ mod tests {
         Variant2,
     }
 
+    #[derive(Deserialize, Serialize, Debug)]
+    struct TestStruct2 {
+        test_enum: TestEnum
+    }
+
+    #[derive(Deserialize, Serialize, Debug)]
+    struct TestWithOptionalField {
+        optional_field: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct TestStructWithEndpoint {
+        endpoint: Endpoint,
+    }
+
+    #[derive(Deserialize)]
+    struct TestStructWithOptionalEndpoint {
+        endpoint: Option<Endpoint>,
+    }
+
     #[test]
     fn test_from_bytes() {
         let data = to_bytes(&TestStruct {
@@ -350,5 +380,97 @@ mod tests {
             Deserialize::deserialize(deserializer)
                 .expect("Failed to deserialize TestEnum");
         assert!(matches!(result, TestEnum::Variant2));
+    }
+
+    #[test]
+    fn test_struct_with_enum() {
+        let script = r#"
+            {
+                test_enum: "Variant1"
+            }
+        "#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestStruct2 =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestStruct2");
+        assert!(matches!(result.test_enum, TestEnum::Variant1));
+    }
+
+    #[test]
+    fn test_endpoint() {
+        let script = r#"
+            {
+                endpoint: @jonas
+            }
+        "#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestStructWithEndpoint =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestStructWithEndpoint");
+        assert_eq!(result.endpoint.to_string(), "@jonas");
+    }
+
+    #[test]
+    fn test_optional_field() {
+        let script = r#"
+            {
+                optional_field: "Optional Value"
+            }
+        "#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestWithOptionalField =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestWithOptionalField");
+        assert!(result.optional_field.is_some());
+        assert_eq!(result.optional_field.unwrap(), "Optional Value");
+    }
+
+    #[test]
+    fn test_optional_field_empty() {
+        let script = r#"
+            {
+                optional_field: null
+            }
+        "#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestWithOptionalField =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestWithOptionalField");
+        assert!(result.optional_field.is_none());
+    }
+
+    #[test]
+    fn test_optional_endpoint() {
+        let script = r#"
+            {
+                endpoint: @jonas
+            }
+        "#;
+        let dxb = compile_script(script, CompileOptions::default())
+            .expect("Failed to compile script")
+            .0;
+        let deserializer = DatexDeserializer::from_bytes(&dxb)
+            .expect("Failed to create deserializer from DXB");
+        let result: TestStructWithOptionalEndpoint =
+            Deserialize::deserialize(deserializer)
+                .expect("Failed to deserialize TestStructWithOptionalEndpoint");
+        assert!(result.endpoint.is_some());
+        assert_eq!(result.endpoint.unwrap().to_string(), "@jonas");
     }
 }

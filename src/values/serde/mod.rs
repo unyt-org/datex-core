@@ -75,6 +75,11 @@ mod tests {
         test_struct: TestStruct,
     }
 
+    #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq)]
+    pub struct StructWithUSize {
+        pub usize: Option<usize>
+    }
+
     // FIXME
     #[test]
     #[ignore = "This test is currently failing"]
@@ -138,6 +143,13 @@ mod tests {
         assert!(result.is_ok());
         let deserialized: (i32, String, bool) =
             from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
+        
+        // struct with usize
+        let val = StructWithUSize { usize: Some(42) };
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: StructWithUSize = from_bytes(&result.unwrap()).unwrap();
         assert_eq!(val, deserialized);
     }
 }

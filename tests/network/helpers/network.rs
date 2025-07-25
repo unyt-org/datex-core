@@ -24,20 +24,20 @@ use datex_core::values::value_container::ValueContainer;
 pub struct InterfaceConnection {
     interface_type: String,
     priority: InterfacePriority,
-    pub setup_data: Option<ValueContainer>,
+    pub setup_data: Option<MockupInterfaceSetupData>,
     pub endpoint: Option<Endpoint>,
 }
 
 impl InterfaceConnection {
-    pub fn new<T: Serialize>(
+    pub fn new(
         interface_type: &str,
         priority: InterfacePriority,
-        setup_data: T,
+        setup_data: MockupInterfaceSetupData,
     ) -> Self {
         InterfaceConnection {
             interface_type: interface_type.to_string(),
             priority,
-            setup_data: Some(to_value_container(&setup_data).unwrap()),
+            setup_data: Some(setup_data),
             endpoint: None,
         }
     }
@@ -536,16 +536,11 @@ impl Network {
     ) {
         // get setup data as MockupInterfaceSetupData
         if let Some(setup_data) = &mut connection.setup_data {
-            let mut setup_data: MockupInterfaceSetupData = from_value_container(setup_data.clone())
-                .expect("MockupInterfaceSetupData is required for interface of type mockup");
             let channel = Network::get_mockup_interface_channel(
                 mockup_interface_channels,
                 setup_data.name.clone(),
             );
-            info!("setup_data: {:?}", setup_data.endpoint);
-            info!("For Channel: {:?}", setup_data.name);
-
-            match setup_data.direction {
+                   match setup_data.direction {
                 InterfaceDirection::In => {
                     setup_data.channel_index = Some(store_sender_and_receiver(None, Some(channel.receiver)));
                 }
@@ -557,6 +552,8 @@ impl Network {
                         Some(store_sender_and_receiver(Some(channel.sender), Some(channel.receiver)));
                 }
             }
+
+            info!("setup_data: {:?}", setup_data);
         }
     }
 
@@ -624,7 +621,7 @@ impl Network {
                     .com_hub()
                     .create_interface(
                         &connection.interface_type,
-                        connection.setup_data.take().unwrap(),
+                        to_value_container(&connection.setup_data.take().unwrap()).unwrap(),
                         connection.priority,
                     )
                     .await

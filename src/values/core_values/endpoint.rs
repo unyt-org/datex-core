@@ -590,31 +590,13 @@ impl Serialize for Endpoint {
     }
 }
 
-pub struct EndpointVisitor;
-
-impl<'de> Visitor<'de> for EndpointVisitor {
-    type Value = Endpoint;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a newtype struct Endpoint containing a string")
-    }
-
-    fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Endpoint, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        Ok(Endpoint::new(&s))
-    }
-}
 impl<'a> Deserialize<'a> for Endpoint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'a>,
     {
-
-
-        deserializer.deserialize_newtype_struct("endpoint", EndpointVisitor)
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Endpoint::from_string(&s).map_err(serde::de::Error::custom)
     }
 }
 
