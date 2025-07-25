@@ -1,0 +1,29 @@
+name: datex-tractor
+
+on:
+  workflow_dispatch:
+    branches:
+      - 'release/*'
+  push:
+    branches:
+      - 'release/*'
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  Datex-tractor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout own repo
+        uses: actions/checkout@v4
+
+      - name: Run datex_tractor
+        uses: unyt-org/todo-extractor@r0.0.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
