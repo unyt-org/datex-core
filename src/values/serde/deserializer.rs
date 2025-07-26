@@ -181,61 +181,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
-        tuple seq unit unit_struct
-         ignored_any
-    }
-
-    fn deserialize_struct<V>(
-        self,
-        name: &'static str,
-        fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        println!("Deserializing struct: {} ({})", name, fields.join(", "));
-        if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Object(t),
-            ..
-        }) = &self.value
-        {
-            println!("Object: {:?}", t.0.keys());
-            let values = t
-                .into_iter()
-                .map(|(s, v)| {
-                    (s.clone(), DatexDeserializer::from_value(v.clone()))
-                })
-                .collect::<HashMap<_, _>>();
-
-            // Provide it to Serde as a map
-            let map = MapDeserializer::new(values.into_iter());
-            visitor.visit_map(map)
-            // let map: HashMap<String, DatexDeserializer> = t
-            //     .iter()
-            //     .map(|(k, v)| {
-            //         (k.clone(), DatexDeserializer::from_value(v.clone()))
-            //     })
-            //     .collect();
-
-            // println!("map: {:?}", map.keys());
-
-            // let deserializer = MapDeserializer::new(map.into_iter());
-            // visitor.visit_map(deserializer)
-        } else {
-            // println!("Fields: {:?} ---> {}", fields, t);
-            // self.deserialize_newtype_struct(name, visitor)
-            // self.deserialize_struct(name, fields, visitor)
-            // unreachable!("Deserialization of structs is not implemented yet");
-            // visitor.visit_seq(serde::de::value::SeqDeserializer::new(
-            //     vec![self.value.clone()]
-            //         .into_iter()
-            //         .map(DatexDeserializer::from_value),
-            // ))
-            unreachable!("Deserialization of structs is not implemented yet");
-
-            // self.deserialize_any(visitor)
-        }
+        tuple seq unit unit_struct struct ignored_any
     }
 
     fn deserialize_newtype_struct<V>(

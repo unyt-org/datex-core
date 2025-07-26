@@ -66,7 +66,8 @@ impl SerializeStruct for &mut DatexSerializer {
     where
         T: Serialize,
     {
-        let value_container = value.serialize(&mut **self)?;
+        let mut serializer = DatexSerializer::new();
+        let value_container = value.serialize(&mut serializer)?;
         match self.container {
             ValueContainer::Value(Value {
                 inner: CoreValue::Object(ref mut obj),
