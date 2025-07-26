@@ -15,10 +15,12 @@ use crate::{
 use chumsky::prelude::todo;
 use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
+use serde::de::value::MapDeserializer;
 use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
 use serde::{
     Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,
 };
+use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -192,16 +194,34 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        println!("Deserializing struct: {}", name);
+        println!("Deserializing struct: {} ({})", name, fields.join(", "));
         if let ValueContainer::Value(value::Value {
             inner: CoreValue::Object(t),
             ..
         }) = &self.value
         {
+            println!("Object: {:?}", t.0.keys());
             let values = t
                 .into_iter()
-                .map(|(_, v)| DatexDeserializer::from_value(v.clone()));
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+                .map(|(s, v)| {
+                    (s.clone(), DatexDeserializer::from_value(v.clone()))
+                })
+                .collect::<HashMap<_, _>>();
+
+            // Provide it to Serde as a map
+            let map = MapDeserializer::new(values.into_iter());
+            visitor.visit_map(map)
+            // let map: HashMap<String, DatexDeserializer> = t
+            //     .iter()
+            //     .map(|(k, v)| {
+            //         (k.clone(), DatexDeserializer::from_value(v.clone()))
+            //     })
+            //     .collect();
+
+            // println!("map: {:?}", map.keys());
+
+            // let deserializer = MapDeserializer::new(map.into_iter());
+            // visitor.visit_map(deserializer)
         } else {
             // println!("Fields: {:?} ---> {}", fields, t);
             // self.deserialize_newtype_struct(name, visitor)
