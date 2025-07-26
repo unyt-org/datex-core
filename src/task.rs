@@ -46,9 +46,10 @@ macro_rules! run_async {
 
         tokio::task::LocalSet::new()
             .run_until(async move {
-                (async move { $($body)* }).await;
+                let res = (async move { $($body)* }).await;
                 datex_core::task::close_panic_notify().await;
                 datex_core::task::unwind_local_spawn_panics().await;
+                res
             }).await;
     }}
 }

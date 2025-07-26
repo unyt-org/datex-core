@@ -366,10 +366,8 @@ impl Runtime {
     #[cfg(feature = "native_crypto")]
     pub async fn create_native(
         endpoint: impl Into<Endpoint>,
-        global_context: GlobalContext,
     ) -> Runtime {
         let runtime = Self::init_native(endpoint);
-        set_global_context(global_context);
         runtime.start().await;
         runtime
     }
