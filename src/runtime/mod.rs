@@ -289,14 +289,14 @@ impl RuntimeInternal {
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct RuntimeConfig {
     endpoint: Option<Endpoint>,
-    interfaces: Vec<(String, ValueContainer)>,
+    interfaces: Option<Vec<(String, ValueContainer)>>,
 }
 
 impl RuntimeConfig {
     pub fn new_with_endpoint(endpoint: Endpoint) -> Self {
         RuntimeConfig {
             endpoint: Some(endpoint),
-            interfaces: Vec::new(),
+            interfaces: None,
         }
     }
 }
@@ -362,6 +362,10 @@ impl Runtime {
     ///  - ComHub
     ///  - Runtime
     pub async fn start(&self) {
+        if *self.internal().update_loop_running.borrow() {
+            info!("runtime update loop already running, skipping start");
+            return;
+        }
         info!("starting runtime...");
         self.com_hub()
             .init()
@@ -369,11 +373,13 @@ impl Runtime {
             .expect("Failed to initialize ComHub");
 
         // create interfaces
-        for (interface_type, setup_data) in self.internal.config.interfaces.iter() {
-            if let Err(err) = self.com_hub().create_interface(interface_type, setup_data.clone(), InterfacePriority::default()).await {
-                error!("Failed to create interface {interface_type}: {err:?}");
-            } else {
-                info!("Created interface: {interface_type}");
+        if let Some(interfaces) = &self.internal.config.interfaces {
+            for (interface_type, setup_data) in interfaces.iter() {
+                if let Err(err) = self.com_hub().create_interface(interface_type, setup_data.clone(), InterfacePriority::default()).await {
+                    error!("Failed to create interface {interface_type}: {err:?}");
+                } else {
+                    info!("Created interface: {interface_type}");
+                }
             }
         }
 

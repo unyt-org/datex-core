@@ -21,6 +21,7 @@ use serde::{
     Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,
 };
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -42,12 +43,12 @@ impl<'de> DatexDeserializer {
         Ok(Self { value })
     }
 
-    pub fn from_dx_file(path: &str) -> Result<Self, SerializationError> {
+    pub fn from_dx_file(path: PathBuf) -> Result<Self, SerializationError> {
         let input = std::fs::read_to_string(path)
             .map_err(|err| SerializationError(err.to_string()))?;
         DatexDeserializer::from_script(&input)
     }
-    pub fn from_dxb_file(path: &str) -> Result<Self, SerializationError> {
+    pub fn from_dxb_file(path: PathBuf) -> Result<Self, SerializationError> {
         let input = std::fs::read(path)
             .map_err(|err| SerializationError(err.to_string()))?;
         DatexDeserializer::from_bytes(&input)
