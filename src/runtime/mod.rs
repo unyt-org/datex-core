@@ -87,7 +87,13 @@ macro_rules! get_execution_context {
     // take context and self_rc as parameters
     ($self_rc:expr, $execution_context:expr) => {
         match $execution_context {
-            Some(context) => context,
+            Some(context) => {
+                // set current runtime in execution context if local execution context
+                if let &mut ExecutionContext::Local(ref mut local_context) = context {
+                    local_context.set_runtime_internal($self_rc.clone());
+                }
+                context
+            },
             None => {
                &mut ExecutionContext::local_with_runtime_internal($self_rc.clone())
             }

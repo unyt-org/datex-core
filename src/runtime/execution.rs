@@ -112,6 +112,13 @@ impl RuntimeExecutionContext {
     pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
         &self.runtime_internal
     }
+    
+    pub fn set_runtime_internal(
+        &mut self,
+        runtime_internal: Rc<RuntimeInternal>,
+    ) {
+        self.runtime_internal = Some(runtime_internal);
+    }
 
     /// Allocates a new slot with the given slot address.
     fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {

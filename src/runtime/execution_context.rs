@@ -49,7 +49,7 @@ impl RemoteExecutionContext {
 #[derive(Debug, Clone, Default)]
 pub struct LocalExecutionContext {
     compile_scope: Scope,
-    local_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
+    runtime_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
     execution_options: ExecutionOptions,
     verbose: bool,
 }
@@ -69,7 +69,7 @@ impl LocalExecutionContext {
 
     pub fn debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
         LocalExecutionContext {
-            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
+            runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
             execution_options: ExecutionOptions {
                 verbose: true,
                 ..ExecutionOptions::default()
@@ -81,9 +81,13 @@ impl LocalExecutionContext {
 
     pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
         LocalExecutionContext {
-            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
+            runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
             ..Default::default()
         }
+    }
+    
+    pub fn set_runtime_internal(&mut self, runtime_internal: Rc<RuntimeInternal>) {
+        self.runtime_execution_context.borrow_mut().set_runtime_internal(runtime_internal);
     }
 }
 
@@ -190,7 +194,7 @@ impl ExecutionContext {
     ) -> Result<ExecutionInput<'a>, ExecutionError> {
         let (local_execution_context, execution_options, verbose) = match &self {
             ExecutionContext::Local(LocalExecutionContext{
-                local_execution_context,
+                                        runtime_execution_context: local_execution_context,
                 execution_options,
                 verbose,
                 ..
