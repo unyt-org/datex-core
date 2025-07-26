@@ -10,14 +10,16 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::logger::init_logger;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
-use log::info;
+use log::{error, info};
+use serde::{Deserialize, Serialize};
 use crate::global::dxb_block::{DXBBlock, IncomingEndpointContextSectionId, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::values::value_container::ValueContainer;
-use crate::network::com_hub::{ComHub, ResponseOptions};
+use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
+use crate::network::com_interfaces::default_com_interfaces::websocket::websocket_common::{WebSocketClientInterfaceSetupData, WebSocketServerInterfaceSetupData};
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution_context::{ExecutionContext, RemoteExecutionContext, ScriptExecutionError};
 
@@ -61,6 +63,7 @@ pub struct RuntimeInternal {
     pub memory: RefCell<Memory>,
     pub com_hub: ComHub,
     pub endpoint: Endpoint,
+    pub config: RuntimeConfig,
     /// set to true if the update loop should be running
     /// when set to false, the update loop will stop
     update_loop_running: RefCell<bool>,
@@ -74,6 +77,7 @@ impl Default for RuntimeInternal {
     fn default() -> Self {
         RuntimeInternal {
             endpoint: Endpoint::default(),
+            config: RuntimeConfig::default(),
             memory: RefCell::new(Memory::new()),
             com_hub: ComHub::default(),
             update_loop_running: RefCell::new(false),
@@ -282,24 +286,39 @@ impl RuntimeInternal {
     }
 }
 
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct RuntimeConfig {
+    endpoint: Option<Endpoint>,
+    interfaces: Vec<(String, ValueContainer)>,
+}
+
+impl RuntimeConfig {
+    pub fn new_with_endpoint(endpoint: Endpoint) -> Self {
+        RuntimeConfig {
+            endpoint: Some(endpoint),
+            interfaces: Vec::new(),
+        }
+    }
+}
 
 /// publicly exposed wrapper impl for the Runtime
 /// around RuntimeInternal
 impl Runtime {
-    pub fn new(endpoint: impl Into<Endpoint>) -> Runtime {
-        let endpoint = endpoint.into();
+    pub fn new(config: RuntimeConfig) -> Runtime {
+        let endpoint = config.endpoint.clone().unwrap_or_else(|| Endpoint::default());
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             version: VERSION.to_string(),
             internal: Rc::new(RuntimeInternal {
                 endpoint,
+                config,
                 com_hub,
                 ..RuntimeInternal::default()
             })
         }
     }
     pub fn init(
-        endpoint: impl Into<Endpoint>,
+        config: RuntimeConfig,
         global_context: GlobalContext,
     ) -> Runtime {
         set_global_context(global_context);
@@ -308,7 +327,7 @@ impl Runtime {
             "Runtime initialized - Version {VERSION} Time: {}",
             get_global_context().time.lock().unwrap().now()
         );
-        Self::new(endpoint)
+        Self::new(config)
     }
 
     pub fn com_hub(&self) -> &ComHub {
@@ -327,11 +346,11 @@ impl Runtime {
     }
 
     #[cfg(feature = "native_crypto")]
-    pub fn init_native(endpoint: impl Into<Endpoint>) -> Runtime {
+    pub fn init_native(config: RuntimeConfig) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
         Self::init(
-            endpoint,
+            config,
             GlobalContext::new(
                 Arc::new(Mutex::new(CryptoNative)),
                 Arc::new(Mutex::new(TimeNative)),
@@ -348,26 +367,35 @@ impl Runtime {
             .init()
             .await
             .expect("Failed to initialize ComHub");
-        // ComHub::start_update_loop(self.com_hub());
+
+        // create interfaces
+        for (interface_type, setup_data) in self.internal.config.interfaces.iter() {
+            if let Err(err) = self.com_hub().create_interface(interface_type, setup_data.clone(), InterfacePriority::default()).await {
+                error!("Failed to create interface {interface_type}: {err:?}");
+            } else {
+                info!("Created interface: {interface_type}");
+            }
+        }
+
         RuntimeInternal::start_update_loop(self.internal());
     }
-    
+
     // inits a runtime and starts the update loop
     pub async fn create(
-        endpoint: impl Into<Endpoint>,
+        config: RuntimeConfig,
         global_context: GlobalContext,
     ) -> Runtime {
-        let runtime = Self::init(endpoint, global_context);
+        let runtime = Self::init(config, global_context);
         runtime.start().await;
         runtime
     }
-    
+
     // inits a native runtime and starts the update loop
     #[cfg(feature = "native_crypto")]
     pub async fn create_native(
-        endpoint: impl Into<Endpoint>,
+        config: RuntimeConfig,
     ) -> Runtime {
-        let runtime = Self::init_native(endpoint);
+        let runtime = Self::init_native(config);
         runtime.start().await;
         runtime
     }

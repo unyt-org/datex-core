@@ -25,7 +25,7 @@ use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct DatexDeserializer {
-    value: ValueContainer,
+    pub value: ValueContainer,
 }
 
 impl<'de> DatexDeserializer {

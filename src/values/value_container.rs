@@ -8,6 +8,13 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
+use log::info;
+use serde::{Deserialize, Serialize};
+use crate::compiler::compile_value;
+use crate::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::serde::deserializer::{from_bytes, DatexDeserializer};
+use crate::values::serde::serializer::to_bytes;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -39,6 +46,29 @@ pub enum ValueContainer {
     Value(Value),
     Reference(Reference),
 }
+
+impl Serialize for ValueContainer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct("value", &compile_value(self).unwrap())
+    }
+}
+
+impl<'a> Deserialize<'a> for ValueContainer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        let deserializer: &DatexDeserializer = unsafe {
+            &*(&deserializer as *const D as *const DatexDeserializer)
+        };
+        
+        Ok(deserializer.value.clone())
+    }
+}
+
 
 impl Hash for ValueContainer {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

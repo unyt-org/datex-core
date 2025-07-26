@@ -4,12 +4,12 @@ use thiserror::Error;
 use url::Url;
 use crate::network::com_hub::ComHubError;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WebSocketClientInterfaceSetupData {
     pub address: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WebSocketServerInterfaceSetupData {
     pub port: u16,
 }

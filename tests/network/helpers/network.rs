@@ -5,7 +5,7 @@ use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::runtime::Runtime;
+use datex_core::runtime::{Runtime, RuntimeConfig};
 use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -604,7 +604,7 @@ impl Network {
 
         // create new runtimes for each endpoint
         for endpoint in self.endpoints.iter_mut() {
-            let runtime = Rc::new(Runtime::new(endpoint.endpoint.clone()));
+            let runtime = Rc::new(Runtime::new(RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone())));
 
             // register factories
             for (interface_type, factory) in self.com_interface_factories.iter()

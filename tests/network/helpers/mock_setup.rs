@@ -8,7 +8,7 @@ use std::sync::{mpsc, Arc, Mutex};
 // FIXME no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::runtime::Runtime;
+use datex_core::runtime::{Runtime, RuntimeConfig};
 use super::mockup_interface::MockupInterface;
 
 lazy_static::lazy_static! {
@@ -65,7 +65,7 @@ pub async fn get_runtime_with_mock_interface(
     priority: InterfacePriority,
 ) -> (Runtime, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let runtime = Runtime::init_native(endpoint);
+    let runtime = Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
 
     // init mockup interface
     let mockup_interface_ref =

@@ -50,7 +50,7 @@ macro_rules! run_async {
                 datex_core::task::close_panic_notify().await;
                 datex_core::task::unwind_local_spawn_panics().await;
                 res
-            }).await;
+            }).await
     }}
 }
 
