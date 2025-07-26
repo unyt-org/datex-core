@@ -349,7 +349,7 @@ where
 
     /// Register the interface on which the factory is implemented
     /// on the given ComHub.
-    fn register_on_com_hub(com_hub: &mut ComHub) {
+    fn register_on_com_hub(com_hub: &ComHub) {
         let interface_type = Self::get_default_properties().interface_type;
         com_hub.register_interface_factory(interface_type, Self::factory);
     }

@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use futures::channel::oneshot::Sender;
-use futures_util::StreamExt;
 #[cfg(feature = "native_crypto")]
 use crate::crypto::crypto_native::CryptoNative;
 use crate::values::core_values::endpoint::Endpoint;
@@ -12,6 +11,7 @@ use crate::stdlib::{cell::RefCell, rc::Rc};
 use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use crate::global::dxb_block::{DXBBlock, IncomingEndpointContextSectionId, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -286,10 +286,16 @@ impl RuntimeInternal {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RuntimeConfigInterface {
+    r#type: String,
+    config: ValueContainer,
+}
+
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct RuntimeConfig {
     endpoint: Option<Endpoint>,
-    interfaces: Option<Vec<(String, ValueContainer)>>,
+    interfaces: Option<Vec<RuntimeConfigInterface>>,
 }
 
 impl RuntimeConfig {
@@ -372,13 +378,16 @@ impl Runtime {
             .await
             .expect("Failed to initialize ComHub");
 
+        // register interface factories
+        self.register_interface_factories();
+
         // create interfaces
         if let Some(interfaces) = &self.internal.config.interfaces {
-            for (interface_type, setup_data) in interfaces.iter() {
-                if let Err(err) = self.com_hub().create_interface(interface_type, setup_data.clone(), InterfacePriority::default()).await {
-                    error!("Failed to create interface {interface_type}: {err:?}");
+            for RuntimeConfigInterface {r#type, config} in interfaces.iter() {
+                if let Err(err) = self.com_hub().create_interface(r#type, config.clone(), InterfacePriority::default()).await {
+                    error!("Failed to create interface {}: {err:?}", r#type);
                 } else {
-                    info!("Created interface: {interface_type}");
+                    info!("Created interface: {}", r#type);
                 }
             }
         }
@@ -404,6 +413,24 @@ impl Runtime {
         let runtime = Self::init_native(config);
         runtime.start().await;
         runtime
+    }
+
+    fn register_interface_factories(&self) {
+        crate::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface::register_on_com_hub(self.com_hub());
+
+        #[cfg(feature = "native_websocket")]
+        crate::network::com_interfaces::default_com_interfaces::websocket::websocket_client_native_interface::WebSocketClientNativeInterface::register_on_com_hub(self.com_hub());
+        #[cfg(feature = "native_websocket")]
+        crate::network::com_interfaces::default_com_interfaces::websocket::websocket_server_native_interface::WebSocketServerNativeInterface::register_on_com_hub(self.com_hub());
+        #[cfg(feature = "native_serial")]
+        crate::network::com_interfaces::default_com_interfaces::serial::serial_native_interface::SerialNativeInterface::register_on_com_hub(self.com_hub());
+        #[cfg(feature = "native_tcp")]
+        crate::network::com_interfaces::default_com_interfaces::tcp::tcp_client_native_interface::TCPClientNativeInterface::register_on_com_hub(self.com_hub());
+        #[cfg(feature = "native_tcp")]
+        crate::network::com_interfaces::default_com_interfaces::tcp::tcp_server_native_interface::TCPServerNativeInterface::register_on_com_hub(self.com_hub());
+        // TODO:
+        // #[cfg(feature = "native_webrtc")]
+        // crate::network::com_interfaces::default_com_interfaces::webrtc::webrtc_native_interface::WebRTCNativeInterface::register_on_com_hub(self.com_hub());
     }
     
     pub async fn execute(

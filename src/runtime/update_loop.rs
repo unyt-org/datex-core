@@ -82,7 +82,7 @@ impl RuntimeInternal {
                     context_id,
                 );
                 // TODO: handle errors in sending response
-            })
+            });
         }
     }
 

@@ -41,6 +41,8 @@ use super::websocket_common::{
     WebSocketServerInterfaceSetupData,
 };
 use tokio_tungstenite::WebSocketStream;
+use crate::runtime::global_context::{get_global_context, set_global_context};
+use crate::task::{spawn_with_panic_notify};
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
@@ -94,7 +96,7 @@ impl WebSocketServerNativeInterface {
         .parse::<SocketAddr>()
         .map_err(|_| WebSocketServerError::InvalidPort)?;
 
-        let listener = TcpListener::bind(&addr).await.map_err(|_| {
+        let mut listener = TcpListener::bind(&addr).await.map_err(|_| {
             WebSocketServerError::WebSocketError(
                 WebSocketError::ConnectionError,
             )
@@ -105,7 +107,10 @@ impl WebSocketServerNativeInterface {
         let websocket_streams = self.websocket_streams.clone();
         let shutdown = self.shutdown_signal.clone();
         let mut tasks: Vec<JoinHandle<()>> = vec![];
+        let global_context = get_global_context();
         self.handle = Some(spawn(async move {
+            let global_context = global_context.clone();
+            set_global_context(global_context.clone());
             loop {
                 select! {
                     res = listener.accept() => {
@@ -114,7 +119,10 @@ impl WebSocketServerNativeInterface {
                                 let websocket_streams = websocket_streams.clone();
                                 let interface_uuid = interface_uuid.clone();
                                 let com_interface_sockets = com_interface_sockets.clone();
+                                let global_context = global_context.clone();
                                 let task = spawn(async move {
+                                    set_global_context(global_context.clone());
+
                                     match accept_async(stream).await {
                                         Ok(ws_stream) => {
                                             info!(

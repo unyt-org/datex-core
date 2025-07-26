@@ -147,7 +147,7 @@ async fn send_panic(panic: String) {
         .expect("Failed to send panic");
 }
 
-pub fn spawn_with_panic_notify<F>(fut: F)
+pub fn spawn_with_panic_notify<F>(fut: F) -> tokio::task::JoinHandle<()>
 where
     F: Future<Output = ()> + 'static,
 {
@@ -163,7 +163,7 @@ where
             };
             send_panic(panic_msg).await;
         }
-    });
+    })
 }
 
 cfg_if! {
@@ -175,11 +175,11 @@ cfg_if! {
             tokio::time::timeout(duration, fut)
         }
 
-        pub fn spawn_local<F>(fut: F)
+        pub fn spawn_local<F>(fut: F)-> tokio::task::JoinHandle<()>
         where
             F: std::future::Future<Output = ()> + 'static,
         {
-            tokio::task::spawn_local(fut);
+            tokio::task::spawn_local(fut)
         }
         pub fn spawn<F>(fut: F) -> tokio::task::JoinHandle<F::Output>
         where
