@@ -202,6 +202,14 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 .at(0).ok_or(SerializationError("Invalid tuple".to_string()))?.1;
             visitor.visit_string(identifier.to_value().borrow().cast_to_text().0)
         }
+        // match string
+        else if let ValueContainer::Value(value::Value {
+            inner: CoreValue::Text(s),
+            ..
+        }) = self.value
+        {
+            visitor.visit_string(s.0)
+        }
         else {
             Err(SerializationError("Expected identifier tuple".to_string()))
         }
@@ -534,7 +542,7 @@ mod tests {
             ExampleEnum::Variant1(s) => assert_eq!(s, "xy"),
             _ => panic!("Expected Variant1 with value 'xy'"),
         }
-        
+
         let script = r#"("Variant2", 42)"#;
         let dxb = compile_script(script, CompileOptions::default())
             .expect("Failed to compile script")
