@@ -352,6 +352,28 @@ impl Runtime {
         RuntimeInternal::start_update_loop(self.internal());
     }
     
+    // inits a runtime and starts the update loop
+    pub async fn create(
+        endpoint: impl Into<Endpoint>,
+        global_context: GlobalContext,
+    ) -> Runtime {
+        let runtime = Self::init(endpoint, global_context);
+        runtime.start().await;
+        runtime
+    }
+    
+    // inits a native runtime and starts the update loop
+    #[cfg(feature = "native_crypto")]
+    pub async fn create_native(
+        endpoint: impl Into<Endpoint>,
+        global_context: GlobalContext,
+    ) -> Runtime {
+        let runtime = Self::init_native(endpoint);
+        set_global_context(global_context);
+        runtime.start().await;
+        runtime
+    }
+    
     pub async fn execute(
         &self,
         script: &str,
