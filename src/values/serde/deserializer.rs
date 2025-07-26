@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use chumsky::prelude::todo;
+use log::info;
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any, Deserialize};
 use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
 use datex_core::values::core_values::endpoint::Endpoint;
@@ -16,6 +17,7 @@ use crate::{
         value_container::ValueContainer,
     },
 };
+use crate::values::core_values::tuple::Tuple;
 
 #[derive(Clone)]
 pub struct DatexDeserializer {
@@ -177,8 +179,39 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
-        tuple unit unit_struct tuple_struct seq newtype_struct
+        tuple seq unit unit_struct
         struct ignored_any
+    }
+
+    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let ValueContainer::Value(value::Value {
+             inner: CoreValue::Tuple(t),
+             ..
+         }) = self.value
+        {
+            let values = t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+        } else {
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(vec![self.value.clone()].into_iter().map(DatexDeserializer::from_value)))
+        }
+    }
+    fn deserialize_tuple_struct<V>(self, name: &'static str, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let ValueContainer::Value(value::Value {
+            inner: CoreValue::Tuple(t),
+            ..
+        }) = self.value
+        {
+            let values = t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+        } else {
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(vec![self.value.clone()].into_iter().map(DatexDeserializer::from_value)))
+        }
     }
 
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
