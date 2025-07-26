@@ -12,6 +12,7 @@ use global_context::{get_global_context, set_global_context, GlobalContext};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use datex_core::values::serde::error::SerializationError;
 use crate::global::dxb_block::{DXBBlock, IncomingEndpointContextSectionId, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -22,6 +23,7 @@ use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
 use crate::network::com_interfaces::default_com_interfaces::websocket::websocket_common::{WebSocketClientInterfaceSetupData, WebSocketServerInterfaceSetupData};
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution_context::{ExecutionContext, RemoteExecutionContext, ScriptExecutionError};
+use crate::values::serde::serializer::to_value_container;
 
 pub mod execution;
 pub mod global_context;
@@ -294,8 +296,8 @@ pub struct RuntimeConfigInterface {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct RuntimeConfig {
-    endpoint: Option<Endpoint>,
-    interfaces: Option<Vec<RuntimeConfigInterface>>,
+    pub endpoint: Option<Endpoint>,
+    pub interfaces: Option<Vec<RuntimeConfigInterface>>,
 }
 
 impl RuntimeConfig {
@@ -304,6 +306,22 @@ impl RuntimeConfig {
             endpoint: Some(endpoint),
             interfaces: None,
         }
+    }
+    
+    pub fn add_interface<T: Serialize>(
+        &mut self,
+        r#type: String,
+        config: T,
+    ) -> Result<(), SerializationError> {
+        let config = to_value_container(&config)?;
+        let interface = RuntimeConfigInterface { r#type, config };
+        if let Some(interfaces) = &mut self.interfaces {
+            interfaces.push(interface);
+        } else {
+            self.interfaces = Some(vec![interface]);
+        }
+        
+        Ok(())
     }
 }
 
