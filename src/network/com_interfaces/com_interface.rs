@@ -48,7 +48,7 @@ impl ComInterfaceUUID {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComInterfaceError {
     SocketNotFound,
     SocketAlreadyExists,

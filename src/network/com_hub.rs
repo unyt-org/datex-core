@@ -174,7 +174,7 @@ impl Default for InterfacePriority {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
     InterfaceCloseFailed,
@@ -184,6 +184,7 @@ pub enum ComHubError {
     InterfaceTypeDoesNotExist,
     InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
+    InterfaceOpenError,
 }
 
 #[derive(Debug)]
@@ -292,7 +293,10 @@ impl ComHub {
         if interface.borrow().get_state() != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
-            interface.borrow_mut().handle_open().await;
+            // FIXME: borrow_mut across await point
+            if interface.borrow_mut().handle_open().await == false {
+                return Err(ComHubError::InterfaceOpenError);
+            }
         }
         self.add_interface(interface.clone(), priority)
     }

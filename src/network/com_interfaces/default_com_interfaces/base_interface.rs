@@ -17,6 +17,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_hub::{ComHubError};
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -43,6 +44,13 @@ pub enum BaseInterfaceError {
     SocketNotFound,
     InterfaceNotFound,
     InvalidInput(String),
+    ComHubError(ComHubError),
+}
+
+impl From<ComHubError> for BaseInterfaceError {
+    fn from(err: ComHubError) -> Self {
+        BaseInterfaceError::ComHubError(err).into()
+    }
 }
 
 #[com_interface]

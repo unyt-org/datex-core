@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 use thiserror::Error;
 use url::Url;
+use crate::network::com_hub::ComHubError;
 
 #[derive(Serialize, Deserialize)]
 pub struct WebSocketClientInterfaceSetupData {
@@ -32,7 +33,15 @@ pub enum WebSocketError {
 pub enum WebSocketServerError {
     WebSocketError(WebSocketError),
     InvalidPort,
+    ComHubError(ComHubError),
 }
+
+impl From<ComHubError> for WebSocketServerError {
+    fn from(err: ComHubError) -> Self {
+        WebSocketServerError::ComHubError(err)
+    }
+}
+
 
 pub fn parse_url(address: &str) -> Result<Url, URLError> {
     let address = if address.contains("://") {
