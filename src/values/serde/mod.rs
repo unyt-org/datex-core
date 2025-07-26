@@ -75,14 +75,9 @@ mod tests {
         test_struct: TestStruct,
     }
 
-    #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq)]
-    pub struct StructWithUSize {
-        pub usize: Option<usize>
-    }
-
     // FIXME
     #[test]
-    #[ignore = "This test is currently failing"]
+    // #[ignore = "This test is currently failing"]
     fn test_nested_struct_serde_value_container() {
         let original = NestedStruct {
             nested_field: "Nested".to_string(),
@@ -97,6 +92,22 @@ mod tests {
         let deserialized: NestedStruct =
             from_value_container(serialized).unwrap();
         assert_eq!(original, deserialized);
+    }
+
+    #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq)]
+    pub struct StructWithUSize {
+        pub usize: Option<usize>,
+    }
+
+    #[test]
+    fn test_struct_with_option_serde_bytes() {
+        // struct with option
+        let val = StructWithUSize { usize: Some(42) };
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: StructWithUSize =
+            from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
     }
 
     // Core Value
@@ -143,13 +154,6 @@ mod tests {
         assert!(result.is_ok());
         let deserialized: (i32, String, bool) =
             from_bytes(&result.unwrap()).unwrap();
-        assert_eq!(val, deserialized);
-        
-        // struct with usize
-        let val = StructWithUSize { usize: Some(42) };
-        let result = to_bytes(&val);
-        assert!(result.is_ok());
-        let deserialized: StructWithUSize = from_bytes(&result.unwrap()).unwrap();
         assert_eq!(val, deserialized);
     }
 }

@@ -1,9 +1,4 @@
-use std::str::FromStr;
-use chumsky::prelude::todo;
-use log::info;
-use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any, Deserialize};
-use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
-use datex_core::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::tuple::Tuple;
 use crate::{
     compiler::{
         CompileOptions, compile_script, extract_static_value_from_script,
@@ -17,7 +12,14 @@ use crate::{
         value_container::ValueContainer,
     },
 };
-use crate::values::core_values::tuple::Tuple;
+use chumsky::prelude::todo;
+use datex_core::values::core_values::endpoint::Endpoint;
+use log::info;
+use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
+use serde::{
+    Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,
+};
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct DatexDeserializer {
@@ -133,9 +135,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Integer(Integer {
                     0: TypedInteger::U8(u),
                 }) => visitor.visit_u8(u),
-                CoreValue::Text(s) => {
-                    visitor.visit_string(s.0)
-                },
+                CoreValue::Text(s) => visitor.visit_string(s.0),
                 CoreValue::Endpoint(endpoint) => {
                     let endpoint_str = endpoint.to_string();
                     visitor.visit_string(endpoint_str)
@@ -180,25 +180,49 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
         tuple seq unit unit_struct
-        struct ignored_any
+         ignored_any
     }
 
-    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_struct<V>(
+        self,
+        name: &'static str,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
+        println!("Deserializing struct: {}", name);
         if let ValueContainer::Value(value::Value {
-             inner: CoreValue::Tuple(t),
-             ..
-         }) = self.value
+            inner: CoreValue::Object(t),
+            ..
+        }) = &self.value
         {
-            let values = t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
+            let values = t
+                .into_iter()
+                .map(|(_, v)| DatexDeserializer::from_value(v.clone()));
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
         } else {
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(vec![self.value.clone()].into_iter().map(DatexDeserializer::from_value)))
+            // println!("Fields: {:?} ---> {}", fields, t);
+            // self.deserialize_newtype_struct(name, visitor)
+            // self.deserialize_struct(name, fields, visitor)
+            // unreachable!("Deserialization of structs is not implemented yet");
+            // visitor.visit_seq(serde::de::value::SeqDeserializer::new(
+            //     vec![self.value.clone()]
+            //         .into_iter()
+            //         .map(DatexDeserializer::from_value),
+            // ))
+            unreachable!("Deserialization of structs is not implemented yet");
+
+            // self.deserialize_any(visitor)
         }
     }
-    fn deserialize_tuple_struct<V>(self, name: &'static str, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+
+    fn deserialize_newtype_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -207,10 +231,40 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             ..
         }) = self.value
         {
-            let values = t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
+            let values =
+                t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
         } else {
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(vec![self.value.clone()].into_iter().map(DatexDeserializer::from_value)))
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(
+                vec![self.value.clone()]
+                    .into_iter()
+                    .map(DatexDeserializer::from_value),
+            ))
+        }
+    }
+    fn deserialize_tuple_struct<V>(
+        self,
+        name: &'static str,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let ValueContainer::Value(value::Value {
+            inner: CoreValue::Tuple(t),
+            ..
+        }) = self.value
+        {
+            let values =
+                t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+        } else {
+            visitor.visit_seq(serde::de::value::SeqDeserializer::new(
+                vec![self.value.clone()]
+                    .into_iter()
+                    .map(DatexDeserializer::from_value),
+            ))
         }
     }
 
@@ -220,7 +274,10 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     {
         todo!("map")
     }
-    fn deserialize_identifier<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_identifier<V>(
+        self,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -232,8 +289,11 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }) = self.value
         {
             let identifier = t
-                .at(0).ok_or(SerializationError("Invalid tuple".to_string()))?.1;
-            visitor.visit_string(identifier.to_value().borrow().cast_to_text().0)
+                .at(0)
+                .ok_or(SerializationError("Invalid tuple".to_string()))?
+                .1;
+            visitor
+                .visit_string(identifier.to_value().borrow().cast_to_text().0)
         }
         // match string
         else if let ValueContainer::Value(value::Value {
@@ -242,8 +302,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }) = self.value
         {
             visitor.visit_string(s.0)
-        }
-        else {
+        } else {
             Err(SerializationError("Expected identifier tuple".to_string()))
         }
     }
@@ -258,13 +317,8 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         V: serde::de::Visitor<'de>,
     {
         println!("Deserializing enum: {:?}", self.value);
-        visitor.visit_enum(
-            DatexEnumAccess {
-                de: self,
-            }
-        )
+        visitor.visit_enum(DatexEnumAccess { de: self })
     }
-
 
     fn is_human_readable(&self) -> bool {
         false
@@ -275,23 +329,24 @@ struct DatexEnumAccess {
     de: DatexDeserializer,
 }
 
-
-
 impl<'de> EnumAccess<'de> for DatexEnumAccess {
     type Error = SerializationError;
     type Variant = DatexVariantAccess;
 
-    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    fn variant_seed<V>(
+        self,
+        seed: V,
+    ) -> Result<(V::Value, Self::Variant), Self::Error>
     where
-        V: DeserializeSeed<'de>
+        V: DeserializeSeed<'de>,
     {
         let variant = seed.deserialize(self.de.clone())?;
-        Ok((variant, DatexVariantAccess {de: self.de}))
+        Ok((variant, DatexVariantAccess { de: self.de }))
     }
 }
 
 struct DatexVariantAccess {
-    de: DatexDeserializer
+    de: DatexDeserializer,
 }
 impl<'de> VariantAccess<'de> for DatexVariantAccess {
     type Error = SerializationError;
@@ -300,40 +355,51 @@ impl<'de> VariantAccess<'de> for DatexVariantAccess {
         Ok(())
     }
 
-    fn newtype_variant_seed<T>(mut self, seed: T) -> Result<T::Value, Self::Error>
+    fn newtype_variant_seed<T>(
+        mut self,
+        seed: T,
+    ) -> Result<T::Value, Self::Error>
     where
-        T: DeserializeSeed<'de>
+        T: DeserializeSeed<'de>,
     {
         if let ValueContainer::Value(value::Value {
-             inner: CoreValue::Tuple(t),
-             ..
-         }) = self.de.value
+            inner: CoreValue::Tuple(t),
+            ..
+        }) = self.de.value
         {
             let value = t
-                .at(1).ok_or(SerializationError("Invalid tuple".to_string()))?.1;
+                .at(1)
+                .ok_or(SerializationError("Invalid tuple".to_string()))?
+                .1;
             self.de.value = value.clone();
             Ok(seed.deserialize(self.de)?)
-        }
-        else {
+        } else {
             Err(SerializationError("Expected identifier tuple".to_string()))
         }
     }
 
-    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    fn tuple_variant<V>(
+        self,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         todo!()
     }
 
-    fn struct_variant<V>(self, fields: &'static [&'static str], visitor: V) -> Result<V::Value, Self::Error>
+    fn struct_variant<V>(
+        self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         todo!()
     }
 }
-
 
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
 where
@@ -359,7 +425,7 @@ mod tests {
     use crate::values::serde::serializer::to_bytes;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Deserialize, Serialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct TestStruct {
         field1: String,
         field2: i32,
@@ -373,7 +439,7 @@ mod tests {
 
     #[derive(Deserialize, Serialize, Debug)]
     struct TestStruct2 {
-        test_enum: TestEnum
+        test_enum: TestEnum,
     }
 
     #[derive(Deserialize, Serialize, Debug)]
@@ -389,6 +455,35 @@ mod tests {
     #[derive(Deserialize)]
     struct TestStructWithOptionalEndpoint {
         endpoint: Option<Endpoint>,
+    }
+
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
+    struct TestNestedStruct {
+        nested: TestStruct,
+    }
+
+    #[test]
+    fn test_nested_struct_serde() {
+        let script = r#"
+            {
+                nested: {
+                    field1: "Hello",
+                    field2: 47
+                }
+            }
+        "#;
+        let deserializer = DatexDeserializer::from_script(script).unwrap();
+        let result: TestNestedStruct =
+            Deserialize::deserialize(deserializer).unwrap();
+        assert_eq!(
+            result,
+            TestNestedStruct {
+                nested: TestStruct {
+                    field1: "Hello".to_string(),
+                    field2: 47
+                }
+            }
+        );
     }
 
     #[test]
@@ -442,9 +537,8 @@ mod tests {
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
             .expect("Failed to create deserializer from DXB");
-        let result: TestEnum =
-            Deserialize::deserialize(deserializer)
-                .expect("Failed to deserialize TestEnum");
+        let result: TestEnum = Deserialize::deserialize(deserializer)
+            .expect("Failed to deserialize TestEnum");
         assert!(matches!(result, TestEnum::Variant1));
     }
 
@@ -456,9 +550,8 @@ mod tests {
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
             .expect("Failed to create deserializer from DXB");
-        let result: TestEnum =
-            Deserialize::deserialize(deserializer)
-                .expect("Failed to deserialize TestEnum");
+        let result: TestEnum = Deserialize::deserialize(deserializer)
+            .expect("Failed to deserialize TestEnum");
         assert!(matches!(result, TestEnum::Variant2));
     }
 
@@ -474,9 +567,8 @@ mod tests {
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
             .expect("Failed to create deserializer from DXB");
-        let result: TestStruct2 =
-            Deserialize::deserialize(deserializer)
-                .expect("Failed to deserialize TestStruct2");
+        let result: TestStruct2 = Deserialize::deserialize(deserializer)
+            .expect("Failed to deserialize TestStruct2");
         assert!(matches!(result.test_enum, TestEnum::Variant1));
     }
 
@@ -568,9 +660,8 @@ mod tests {
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
             .expect("Failed to create deserializer from DXB");
-        let result: ExampleEnum =
-            Deserialize::deserialize(deserializer)
-                .expect("Failed to deserialize ExampleEnum");
+        let result: ExampleEnum = Deserialize::deserialize(deserializer)
+            .expect("Failed to deserialize ExampleEnum");
         match result {
             ExampleEnum::Variant1(s) => assert_eq!(s, "xy"),
             _ => panic!("Expected Variant1 with value 'xy'"),
@@ -582,9 +673,8 @@ mod tests {
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
             .expect("Failed to create deserializer from DXB");
-        let result: ExampleEnum =
-            Deserialize::deserialize(deserializer)
-                .expect("Failed to deserialize ExampleEnum");
+        let result: ExampleEnum = Deserialize::deserialize(deserializer)
+            .expect("Failed to deserialize ExampleEnum");
         match result {
             ExampleEnum::Variant2(i) => assert_eq!(i, 42),
             _ => panic!("Expected Variant2 with value 42"),
