@@ -29,6 +29,7 @@ use tokio::{
 };
 use tungstenite::Message;
 use url::Url;
+use webrtc::media::audio::buffer::info;
 
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
@@ -37,12 +38,12 @@ use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
 use super::websocket_common::{
-    parse_url, WebSocketError, WebSocketServerError,
-    WebSocketServerInterfaceSetupData,
+    WebSocketError, WebSocketServerError, WebSocketServerInterfaceSetupData,
+    parse_url,
 };
-use tokio_tungstenite::WebSocketStream;
 use crate::runtime::global_context::{get_global_context, set_global_context};
-use crate::task::{spawn_with_panic_notify};
+use crate::task::spawn_with_panic_notify;
+use tokio_tungstenite::WebSocketStream;
 
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
@@ -111,6 +112,7 @@ impl WebSocketServerNativeInterface {
         self.handle = Some(spawn(async move {
             let global_context = global_context.clone();
             set_global_context(global_context.clone());
+            info!("WebSocket server started at {addr}");
             loop {
                 select! {
                     res = listener.accept() => {
@@ -120,6 +122,7 @@ impl WebSocketServerNativeInterface {
                                 let interface_uuid = interface_uuid.clone();
                                 let com_interface_sockets = com_interface_sockets.clone();
                                 let global_context = global_context.clone();
+                                info!("New connection from {addr}");
                                 let task = spawn(async move {
                                     set_global_context(global_context.clone());
 
