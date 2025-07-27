@@ -553,7 +553,7 @@ fn compile_expression(
                 .borrow_mut()
                 .extend_from_slice(&execution_block_ctx.buffer.borrow());
         }
-        
+
         // named slot
         DatexExpression::Slot(Slot::Named(name)) => {
             match name.as_str() {
@@ -2158,7 +2158,7 @@ pub mod tests {
             ]
         );
     }
-    
+
     #[test]
     fn test_slot_endpoint() {
         let script = "#endpoint";
@@ -2169,10 +2169,7 @@ pub mod tests {
             vec![
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
-                0,
-                0,
-                0,
-                0,
+                0, 0xff, 0xff, 0xff
             ]
         );
     }
