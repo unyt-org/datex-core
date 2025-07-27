@@ -71,7 +71,7 @@ impl WebSocketServerNativeInterface {
     pub fn new(
         port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
-        let address: String = format!("127.0.0.1:{port}");
+        let address: String = format!("0.0.0.0:{port}");
         let address = parse_url(&address).map_err(|_| {
             WebSocketServerError::WebSocketError(WebSocketError::InvalidURL)
         })?;
