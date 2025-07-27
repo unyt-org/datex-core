@@ -69,7 +69,6 @@ pub enum Token {
     #[token("..")] Range,
     #[token("..=")] RangeInclusive,
     #[token("...")] Spread,
-    #[token("#")] Hash,
     #[token("@")] At,
     #[token("&")] Ampersand,
     #[token("|")] Pipe,
@@ -159,8 +158,14 @@ pub enum Token {
 
     #[regex(r"@[+@]?\w+", allocated_string)] Endpoint(String),
 
-    // Other
+    // identifiers
     #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string)] Identifier(String),
+
+    // number slots (starting with #, followed by digits)
+    #[regex(r"#\d+", allocated_string)] Slot(String),
+
+    // named slots (starting with #, followed by A-Z or a-z)
+    #[regex(r"#[_a-zA-Z]+", allocated_string)] NamedSlot(String),
 
     #[regex(r"[ \t\n\f]")]
     Whitespace,

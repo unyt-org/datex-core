@@ -2,7 +2,7 @@ use super::stack::{Scope, ScopeStack};
 use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
-use crate::global::binary_codes::InstructionCode;
+use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::global::protocol_structures::instructions::*;
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
@@ -25,6 +25,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use num_enum::TryFromPrimitive;
 use datex_core::runtime::Runtime;
 use crate::runtime::execution_context::RemoteExecutionContext;
 use crate::runtime::RuntimeInternal;
@@ -171,6 +172,8 @@ pub fn execute_dxb_sync(
     input: ExecutionInput,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
+    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
@@ -178,11 +181,33 @@ pub fn execute_dxb_sync(
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
             }
+            ExecutionStep::GetInternalSlot(slot) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
+            }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
     }
 
     Err(ExecutionError::RequiresAsyncExecution)
+}
+
+fn get_internal_slot_value(runtime_internal: &Option<Rc<RuntimeInternal>>, slot: u32) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        let slot = InternalSlot::try_from_primitive(slot).map_err(|_| {
+            ExecutionError::SlotNotAllocated(slot)
+        })?;
+        let res = match slot {
+            InternalSlot::ENDPOINT => {
+                Some(ValueContainer::from(runtime.endpoint.clone()))
+            }
+        };
+        Ok(res)
+    }
+    else {
+        Err(ExecutionError::RequiresRuntime)
+    }
 }
 
 pub async fn get_pointer_test() {}
@@ -202,7 +227,6 @@ pub async fn execute_dxb(
                     Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
             }
             ExecutionStep::RemoteExecution(receivers, body) => {
-                // TODO: handle actual remote execution here
                 if let Some(runtime) = &runtime_internal {
                     // assert that receivers is a single endpoint
                     // TODO: support advanced receivers
@@ -217,6 +241,10 @@ pub async fn execute_dxb(
                 else {
                     return Err(ExecutionError::RequiresRuntime);
                 }
+            }
+            ExecutionStep::GetInternalSlot(slot) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
             }
             _ => todo!(),
         }
@@ -345,6 +373,7 @@ pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
     Return(Option<ValueContainer>),
     ResolvePointer(u64),
+    GetInternalSlot(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Pause,
 }
@@ -672,15 +701,27 @@ fn get_result_value_from_instruction(
                 None
             }
             Instruction::GetSlot(SlotAddress(address)) => {
-                let res = context.borrow_mut().get_slot_value(address);
-                // get value from slot
-                let slot_value = yield_unwrap!(res);
-                if slot_value.is_none() {
-                    return yield Err(ExecutionError::SlotNotInitialized(
-                        address,
-                    ));
+
+                // if address is >= 0xffffff00, resolve internal slot
+                if address >= 0xffffff00 {
+                    interrupt_with_result!(
+                        interrupt_provider,
+                        ExecutionStep::GetInternalSlot(address)
+                    )
                 }
-                slot_value
+
+                // else handle normal slot
+                else {
+                    let res = context.borrow_mut().get_slot_value(address);
+                    // get value from slot
+                    let slot_value = yield_unwrap!(res);
+                    if slot_value.is_none() {
+                        return yield Err(ExecutionError::SlotNotInitialized(
+                            address,
+                        ));
+                    }
+                    slot_value
+                }
             }
             Instruction::UpdateSlot(SlotAddress(address)) => {
                 context
@@ -976,6 +1017,18 @@ mod tests {
         })
     }
 
+    fn execute_datex_script_debug_with_error(
+        datex_script: &str,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        let (dxb, _) =
+            compile_script(datex_script, CompileOptions::default()).unwrap();
+        let context = ExecutionInput::new_with_dxb_and_options(
+            &dxb,
+            ExecutionOptions { verbose: true },
+        );
+        execute_dxb_sync(context)
+    }
+
     fn execute_datex_script_debug_with_result(
         datex_script: &str,
     ) -> ValueContainer {
@@ -1240,6 +1293,13 @@ mod tests {
         let result = execute_datex_script_debug_with_result("ref x = 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
+    }
+
+    #[test]
+    fn test_endpoint_slot() {
+        init_logger();
+        let result = execute_datex_script_debug_with_error("#endpoint");
+        assert_matches!(result.unwrap_err(), ExecutionError::RequiresRuntime);
     }
 
     #[test]

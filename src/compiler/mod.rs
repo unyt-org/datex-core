@@ -11,11 +11,13 @@ use crate::compiler::ast_parser::{
 use crate::compiler::context::{Context, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::scope::Scope;
-use crate::global::binary_codes::InstructionCode;
+use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
+use datex_core::compiler::ast_parser::Slot;
+
 pub mod ast_parser;
 pub mod context;
 pub mod error;
@@ -550,6 +552,22 @@ fn compile_expression(
                 .buffer
                 .borrow_mut()
                 .extend_from_slice(&execution_block_ctx.buffer.borrow());
+        }
+        
+        // named slot
+        DatexExpression::Slot(Slot::Named(name)) => {
+            match name.as_str() {
+                "endpoint" => {
+                    compilation_context.append_binary_code(
+                        InstructionCode::GET_SLOT,
+                    );
+                    compilation_context.append_u32(InternalSlot::ENDPOINT as u32);
+                }
+                _ => {
+                    // invalid slot name
+                    return Err(CompilerError::InvalidSlotName(name.clone()));
+                }
+            }
         }
 
         _ => return Err(CompilerError::UnexpectedTerm(ast)),
@@ -2131,6 +2149,24 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
+    }
+    
+    #[test]
+    fn test_slot_endpoint() {
+        let script = "#endpoint";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,

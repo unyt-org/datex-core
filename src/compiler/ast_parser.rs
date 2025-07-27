@@ -166,6 +166,12 @@ pub enum VariableType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum Slot {
+    Addressed(u32),
+    Named(String),
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
     Invalid,
@@ -196,6 +202,11 @@ pub enum DatexExpression {
     VariableDeclaration(VariableType, String, Box<DatexExpression>),
     /// Variable assignment, e.g. x = 1
     VariableAssignment(String, Box<DatexExpression>),
+
+    /// Slot, e.g. #1, #endpoint
+    Slot(Slot),
+    /// Slot assignment
+    SlotAssignment(Slot, Box<DatexExpression>),
 
     BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
     UnaryOperation(UnaryOperator, Box<DatexExpression>),
@@ -448,6 +459,11 @@ pub fn create_parser<'a, I>()
         Token::FalseKW => DatexExpression::Boolean(false),
         Token::NullKW => DatexExpression::Null,
         Token::Identifier(s) => DatexExpression::Variable(s),
+        Token::NamedSlot(s) => DatexExpression::Slot(Slot::Named(s[1..].to_string())),
+        Token::Slot(s) => DatexExpression::Slot(Slot::Addressed(
+            // replace first char (#) and convert to u32
+            s[1..].parse::<u32>().unwrap()
+        )),
         Token::PlaceholderKW => DatexExpression::Placeholder,
     };
     // expression wrapped in parentheses
@@ -2440,6 +2456,26 @@ mod tests {
                     },
                 ])),
             )
+        );
+    }
+
+    #[test]
+    fn test_named_slot() {
+        let src = "#endpoint";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Slot(Slot::Named("endpoint".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_addressed_slot() {
+        let src = "#123";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Slot(Slot::Addressed(123))
         );
     }
 }
