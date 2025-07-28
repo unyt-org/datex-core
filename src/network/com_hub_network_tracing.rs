@@ -521,7 +521,7 @@ impl ComHub {
                     ..
                 }) = value
                 {
-                    // FIXME what should the access look like?
+                    // FIXME #191 what should the access look like?
                     // let endpoint: Endpoint = obj.get("endpoint").into();
                     // let endpoint: Option<Endpoint> = obj.get("endpoint").try_into();
                     // let endpoint: Endpoint = obj.get("endpoint").try_cast_to_endpoint().unwrap();

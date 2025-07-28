@@ -87,7 +87,7 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::NOT_STRUCTURAL_EQUAL => BinaryOperator::NotStructuralEqual,
             InstructionCode::NOT_EQUAL => BinaryOperator::NotEqual,
             InstructionCode::IS => BinaryOperator::Is,
-            _ => todo!("Binary operator for {:?} not implemented", code),
+            _ => todo!("#154 Binary operator for {:?} not implemented", code),
         }
     }
 }
@@ -111,7 +111,7 @@ impl From<&Instruction> for BinaryOperator {
             Instruction::NotEqual => BinaryOperator::NotEqual,
             Instruction::Is => BinaryOperator::Is,
             _ => {
-                todo!("Binary operator for instruction {:?} not implemented", instruction);
+                todo!("#155 Binary operator for instruction {:?} not implemented", instruction);
             }
         }
     }
@@ -317,7 +317,7 @@ fn unescape_text(text: &str) -> String {
         .replace(r#"\b"#, "\x08") // Replace \b with backspace
         .replace(r#"\f"#, "\x0C") // Replace \f with form feed
         .replace(r#"\\"#, "\\") // Replace \\ with \
-        // TODO remove all other backslashes before any other character
+        // TODO #156 remove all other backslashes before any other character
         .to_string();
     // Decode unicode escapes, e.g. \u1234 or \uD800\uDC00
     decode_json_unicode_escapes(&escaped)
@@ -690,7 +690,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     })
 }
 
-// TODO: implement correctly - have fun with lifetimes :()
+// TODO #157: implement correctly - have fun with lifetimes :()
 // mainly relevant for IDE language support
 // pub fn parse_with_context(src: &str, parser) -> (DatexExpression, Vec<ParserError>) {
 //     let lexer = Token::lexer(src);
@@ -717,7 +717,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     fn print_report(errs: Vec<ParserError>, src: &str) {
-        // FIXME
+        // FIXME #158
         eprintln!("{errs:?}");
         // errs.into_iter().for_each(|e| {
         //     Report::build(ReportKind::Error, ((), e.span().into_range()))
@@ -2014,7 +2014,7 @@ mod tests {
         assert!(res.is_err());
     }
 
-    // TODO:
+    // TODO #159:
     // #[test]
     // fn variable_assignment_multiple() {
     //     let src = "x = y = 42";

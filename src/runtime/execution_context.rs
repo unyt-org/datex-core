@@ -115,7 +115,7 @@ impl ExecutionContext {
         inserted_values: &[ValueContainer],
     ) -> Result<Vec<u8>, CompilerError> {
         let compile_scope = self.compile_scope();
-        // TODO: don't clone compile_scope if possible
+        // TODO #107: don't clone compile_scope if possible
         let res = compile_template(
             script,
             inserted_values,
@@ -174,7 +174,7 @@ impl ExecutionContext {
 
         local_execution_context.borrow_mut().reset_index();
         Ok(ExecutionInput {
-            // FIXME: no clone here
+            // FIXME #108: no clone here
             context: (*local_execution_context).clone(),
             options: (*execution_options).clone(),
             dxb_body: dxb,

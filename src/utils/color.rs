@@ -110,12 +110,12 @@ impl Color {
         }
     }
 
-    // TODO:
+    // TODO #162:
     pub fn as_ansi_4_bit_bg(&self) -> &'static str {
         ""
     }
 
-    // TODO:
+    // TODO #163:
     pub fn as_ansi_4_bit(&self) -> &'static str {
         ""
     }

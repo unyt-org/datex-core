@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::values::reference::Reference;
-// FIXME no-std
+// FIXME #105 no-std
 
 pub struct Memory {
     pointers: HashMap<[u8; 26], Reference>, // all pointers

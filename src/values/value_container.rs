@@ -120,7 +120,7 @@ impl Display for ValueContainer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ValueContainer::Value(value) => write!(f, "{value}"),
-            // TODO: only simple temporary way to distinguish between Value and Pointer
+            // TODO #118: only simple temporary way to distinguish between Value and Pointer
             ValueContainer::Reference(pointer) => {
                 write!(
                     f,

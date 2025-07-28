@@ -5,7 +5,7 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex};
-// FIXME no-std
+// FIXME #218 no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 use datex_core::runtime::Runtime;
