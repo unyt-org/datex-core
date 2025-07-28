@@ -147,7 +147,7 @@ async fn send_panic(panic: String) {
         .expect("Failed to send panic");
 }
 
-pub fn spawn_with_panic_notify<F>(fut: F) -> tokio::task::JoinHandle<()>
+pub fn spawn_with_panic_notify<F>(fut: F)
 where
     F: Future<Output = ()> + 'static,
 {
@@ -163,7 +163,7 @@ where
             };
             send_panic(panic_msg).await;
         }
-    })
+    });
 }
 
 cfg_if! {
