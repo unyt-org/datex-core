@@ -5,7 +5,7 @@ pub struct Pointer {
 
 impl Pointer {
     pub fn create() -> Self {
-        Self { pointer_id: 42 } // FIXME
+        Self { pointer_id: 42 } // FIXME #120
     }
     pub fn new(pointer_id: u64) -> Self {
         Self { pointer_id }

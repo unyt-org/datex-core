@@ -10,7 +10,7 @@ use crate::{
     values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
 };
 use std::sync::Mutex;
-// FIXME no-std
+// FIXME #196 no-std
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {

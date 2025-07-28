@@ -33,7 +33,7 @@ impl CryptoTrait for CryptoNative {
         public_key: Vec<u8>,
     ) -> Pin<Box<(dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'static)>>
     {
-        todo!()
+        todo!("#164 Undescribed by author.")
     }
 
     fn decrypt_rsa(
@@ -42,7 +42,7 @@ impl CryptoTrait for CryptoNative {
         private_key: Vec<u8>,
     ) -> Pin<Box<(dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'static)>>
     {
-        todo!()
+        todo!("#165 Undescribed by author.")
     }
 
     fn sign_rsa(
@@ -50,7 +50,7 @@ impl CryptoTrait for CryptoNative {
         data: Vec<u8>,
         private_key: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>> {
-        todo!()
+        todo!("#166 Undescribed by author.")
     }
 
     fn verify_rsa(
@@ -59,7 +59,7 @@ impl CryptoTrait for CryptoNative {
         signature: Vec<u8>,
         public_key: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>>>> {
-        todo!()
+        todo!("#167 Undescribed by author.")
     }
 
     fn create_uuid(&self) -> String {
@@ -114,11 +114,11 @@ impl CryptoTrait for CryptoNative {
         &self,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
     {
-        todo!()
+        todo!("#168 Undescribed by author.")
     }
 }
 
-// TODO: reenable
+// TODO #169: reenable
 /*#[cfg(test)]
 mod tests {
     use super::*;

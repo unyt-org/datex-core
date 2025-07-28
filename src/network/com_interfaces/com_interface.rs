@@ -226,7 +226,7 @@ macro_rules! set_sync_opener {
     };
 }
 
-// TODO use procedural macros instead
+// TODO #193 use procedural macros instead
 #[macro_export]
 macro_rules! delegate_com_interface_info {
     () => {
@@ -370,7 +370,7 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
                 .outgoing_blocks_count
                 .update(|x| x + 1);
             spawn_with_panic_notify(async move {
-                // FIXME borrow_mut across await point!
+                // FIXME #194 borrow_mut across await point!
                 let has_been_send =
                     interface.borrow_mut().send_block(&block, uuid).await;
                 interface
@@ -399,7 +399,7 @@ pub trait ComInterface: Any {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     fn init_properties(&self) -> InterfaceProperties;
-    // TODO: no mut, wrap self.info in RefCell
+    // TODO #195: no mut, wrap self.info in RefCell
     fn get_properties(&mut self) -> &InterfaceProperties;
     fn get_properties_mut(&mut self) -> &mut InterfaceProperties;
     fn get_uuid(&self) -> &ComInterfaceUUID;

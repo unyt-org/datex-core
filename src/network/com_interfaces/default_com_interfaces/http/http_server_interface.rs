@@ -148,7 +148,7 @@ impl HTTPServerNativeInterface {
         let mut map = self.channels.write().await;
         if !map.contains_key(route) {
             let (server_tx, _) = broadcast::channel::<Bytes>(100);
-            let (client_tx, mut rx) = mpsc::channel::<Bytes>(100); // FIXME not braodcast needed
+            let (client_tx, mut rx) = mpsc::channel::<Bytes>(100); // FIXME #198 not braodcast needed
             map.insert(route.to_string(), (server_tx, client_tx));
             let socket = ComInterfaceSocket::new(
                 self.get_uuid().clone(),
@@ -241,7 +241,7 @@ impl ComInterface for HTTPServerNativeInterface {
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
+        // TODO #199
         Box::pin(async move { true })
     }
     fn send_block<'a>(

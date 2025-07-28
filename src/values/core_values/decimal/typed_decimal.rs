@@ -12,7 +12,7 @@ use std::{
     ops::{Add, AddAssign, Sub},
 };
 
-// TODO: think about hash keys for NaN
+// TODO #130: think about hash keys for NaN
 #[derive(Debug, Clone, Eq)]
 pub enum TypedDecimal {
     F32(OrderedFloat<f32>),
@@ -20,7 +20,7 @@ pub enum TypedDecimal {
     Decimal(Decimal),
 }
 
-// TODO: this is only a temporary solution to make clippy happy
+// TODO #131: this is only a temporary solution to make clippy happy
 impl Hash for TypedDecimal {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {

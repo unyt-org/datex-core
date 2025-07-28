@@ -248,7 +248,7 @@ impl ComInterface for MockupInterface {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // FIXME this should be inside the async body, why is it not working?
+        // FIXME #219 this should be inside the async body, why is it not working?
         let is_hello = {
             match DXBBlock::from_bytes(block) { Ok(block) => {
                 block.block_header.flags_and_timestamp.block_type()

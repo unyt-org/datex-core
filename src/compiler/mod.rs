@@ -428,7 +428,7 @@ fn compile_expression(
         // apply
         DatexExpression::ApplyChain(val, operands) => {
             compilation_scope.mark_has_non_static_value();
-            // TODO
+            // TODO #150
         }
 
         // variables
@@ -617,7 +617,7 @@ pub mod tests {
     fn test_is_operator() {
         init_logger();
 
-        // TODO: compare refs
+        // TODO #151: compare refs
         let datex_script = "1 is 2".to_string();
         let result = compile_and_log(&datex_script);
         assert_eq!(
@@ -833,7 +833,7 @@ pub mod tests {
         let result = compile_and_log(&datex_script);
 
         // note: scope is automatically collapsed by the parser since this is all the same operation
-        // TODO: we might need to change this to support nested additions, or maybe not if we only allow additions
+        // TODO #152: we might need to change this to support nested additions, or maybe not if we only allow additions
         // of values of the same type?...
         assert_eq!(
             result,

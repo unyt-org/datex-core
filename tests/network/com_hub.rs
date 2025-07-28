@@ -16,7 +16,7 @@ use core::panic;
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::mpsc;
-// FIXME no-std
+// FIXME #217 no-std
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     add_socket, get_all_received_single_blocks_from_com_hub,

@@ -509,7 +509,7 @@ async fn await_response_block() {
         assert_eq!(sections.len(), 0);
 
         // await receiver
-        // FIXME
+        // FIXME #216
         // let response = rx.await.unwrap();
 
         // // IncomingSection must be a SingleBlock

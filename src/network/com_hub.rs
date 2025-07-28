@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-// FIXME no-std
+// FIXME #175 no-std
 
 use super::com_interfaces::com_interface::{
     self, ComInterfaceError, ComInterfaceState
@@ -325,7 +325,7 @@ impl ComHub {
             .clone();
         {
             // Async close the interface (stop tasks, server, cleanup internal data)
-            // FIXME: borrow_mut should not be used here
+            // FIXME #176: borrow_mut should not be used here
             let mut interface = interface.borrow_mut();
             interface.handle_destroy().await;
         }
@@ -407,7 +407,7 @@ impl ComHub {
                 };
             }
 
-            // TODO: handle this via TTL, not explicitly for Hello blocks
+            // TODO #177: handle this via TTL, not explicitly for Hello blocks
             let should_relay =
                 // don't relay "Hello" blocks sent to own endpoint
                 !(
@@ -544,7 +544,7 @@ impl ComHub {
         // increment distance for next hop
         block.routing_header.distance += 1;
 
-        // TODO: ensure ttl is >= 1
+        // TODO #178: ensure ttl is >= 1
         // decrease TTL by 1
         block.routing_header.ttl -= 1;
         // if ttl is 0, drop the block
@@ -629,14 +629,14 @@ impl ComHub {
     }
 
     fn validate_block(&self, block: &DXBBlock) -> bool {
-        // TODO check for creation time, withdraw if too old (TBD) or in the future
+        // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
         let is_signed =
             block.routing_header.flags.signature_type() != SignatureType::None;
 
         match is_signed {
             true => {
-                // TODO: verify signature and abort if invalid
+                // TODO #180: verify signature and abort if invalid
                 // Check if signature is following in some later block and add them to
                 // a pool of incoming blocks awaiting some signature
                 true
@@ -649,7 +649,7 @@ impl ComHub {
                             get_global_context().debug_flags.allow_unsigned_blocks
                         }
                         else {
-                            // TODO Check if the sender is trusted (endpoint + interface) connection
+                            // TODO #181 Check if the sender is trusted (endpoint + interface) connection
                             false
                         }
                     }
@@ -846,7 +846,7 @@ impl ComHub {
                 .routing_header
                 .flags
                 .set_signature_type(SignatureType::Unencrypted);
-            // TODO include fingerprint of the own public key into body
+            // TODO #182 include fingerprint of the own public key into body
 
             let block = self.prepare_own_block(block);
 
@@ -1021,7 +1021,7 @@ impl ComHub {
             #[coroutine]
             move || {
                 let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
-                // TODO: can we optimize this to avoid cloning the endpoint_sockets vector?
+                // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
                 let endpoint_sockets =
                     endpoint_sockets_borrow.get(endpoint).cloned();
                 if endpoint_sockets.is_none() {
@@ -1054,7 +1054,7 @@ impl ComHub {
                             continue;
                         }
 
-                        // TODO optimize and separate outgoing/non-outgoing sockets for endpoint
+                        // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
                         // only yield outgoing sockets
                         // if a non-outgoing socket is found, all following sockets
                         // will also be non-outgoing
@@ -1115,9 +1115,9 @@ impl ComHub {
                 None
             }
 
-            // TODO: how to handle broadcasts?
+            // TODO #185: how to handle broadcasts?
             EndpointInstance::All => {
-                todo!()
+                todo!("#186 Undescribed by author.")
             }
         }
     }
@@ -1178,7 +1178,7 @@ impl ComHub {
     /// outbound socket uuids
     fn get_outbound_receiver_groups(
         &self,
-        // TODO: do we need the block here for additional information (match conditions),
+        // TODO #187: do we need the block here for additional information (match conditions),
         // otherwise receivers are enough
         block: &DXBBlock,
         mut exclude_sockets: Vec<ComInterfaceSocketUUID>,
@@ -1278,7 +1278,7 @@ impl ComHub {
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
     fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
-        // TODO signature & encryption
+        // TODO #188 signature & encryption
         let now = get_global_context().clone().time.lock().unwrap().now();
         block.routing_header.sender = self.endpoint.clone();
         block
@@ -1304,7 +1304,7 @@ impl ComHub {
 
     /// Sends a block and wait for a response block.
     /// Fix number of exact endpoints -> Expected responses are known at send time.
-    /// TODO: make sure that mutating blocks are always send to specific endpoint instances (@jonas/0001), not generic endpoints like @jonas.
+    /// TODO #189: make sure that mutating blocks are always send to specific endpoint instances (@jonas/0001), not generic endpoints like @jonas.
     /// @jonas -> response comes from a specific instance of @jonas/0001
     pub async fn send_own_block_await_response(
         &self,
@@ -1610,7 +1610,7 @@ impl ComHub {
                     endpoints.iter().map(|e| e.to_string()).join(", ")
                 );
 
-                // TODO: resend block if socket failed to send
+                // TODO #190: resend block if socket failed to send
                 socket_ref.queue_outgoing_block(bytes);
             }
             Err(err) => {

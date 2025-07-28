@@ -2,7 +2,7 @@ use binrw::{
     meta::{ReadEndian, WriteEndian},
     BinWrite,
 };
-use std::io::Cursor; // FIXME no-std
+use std::io::Cursor; // FIXME #114 no-std
 
 pub trait Serializable: BinWrite + ReadEndian + WriteEndian {
     fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error>

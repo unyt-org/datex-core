@@ -124,7 +124,7 @@ fn get_text_data(
     }
 }
 
-// TODO: refactor: pass a ParserState struct instead of individual parameters
+// TODO #90: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {

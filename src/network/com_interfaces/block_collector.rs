@@ -1,7 +1,7 @@
 use log::error;
 
 use crate::stdlib::{collections::VecDeque, sync::Arc};
-use std::sync::Mutex; // FIXME no-std
+use std::sync::Mutex; // FIXME #192 no-std
 
 use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
 

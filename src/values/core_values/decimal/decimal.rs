@@ -24,7 +24,7 @@ pub enum Decimal {
     NegInfinity,
 }
 
-// TODO: this is only a temporary solution to make clippy happy
+// TODO #132: this is only a temporary solution to make clippy happy
 impl Hash for Decimal {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
@@ -103,7 +103,7 @@ impl Decimal {
     }
 
     pub fn from_string(s: &str) -> Self {
-        // TODO represent as Infinity/-Infinity if out of bounds for representable DATEX values
+        // TODO #133 represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
             "Infinity" | "infinity" => Decimal::Infinity,
             "-Infinity" | "-infinity" => Decimal::NegInfinity,

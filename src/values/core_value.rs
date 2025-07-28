@@ -252,7 +252,7 @@ impl CoreValue {
             CoreValueType::Decimal => {
                 Some(CoreValue::Decimal(Decimal::from_string(self.cast_to_text().as_str())))
             }
-            _ => todo!(),
+            _ => todo!("#116 Undescribed by author."),
         }
     }
 
@@ -296,7 +296,7 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => Some(*int),
             CoreValue::Integer(Integer(int)) => Some(*int),
             CoreValue::Decimal(decimal) => {
-                Some(TypedInteger::from(decimal.try_into_f64()? as i128)) // TODO: handle bigints once implemented
+                Some(TypedInteger::from(decimal.try_into_f64()? as i128)) // TODO #117: handle bigints once implemented
             }
             CoreValue::TypedDecimal(decimal) => {
                 Some(TypedInteger::from(decimal.as_f64() as i64))

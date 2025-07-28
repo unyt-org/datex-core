@@ -121,7 +121,7 @@ impl ComInterface for TCPClientNativeInterface {
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
+        // TODO #208
         Box::pin(async move { true })
     }
 

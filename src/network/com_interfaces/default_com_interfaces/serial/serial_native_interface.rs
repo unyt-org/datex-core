@@ -125,7 +125,7 @@ impl SerialNativeInterface {
                     }
                 }
             }
-            // FIXME add reconnect logic (close gracefully and reopen)
+            // FIXME #212 add reconnect logic (close gracefully and reopen)
             state.lock().unwrap().set(ComInterfaceState::Destroyed);
             warn!("Serial socket closed");
         });
@@ -160,7 +160,7 @@ impl ComInterface for SerialNativeInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let port = self.port.clone();
         Box::pin(async move {
-            // FIXME improve the lifetime issue here to avoid cloning the block twice
+            // FIXME #213 improve the lifetime issue here to avoid cloning the block twice
             let block = block.to_vec();
             let result = spawn_blocking(move || {
                 let mut locked = port.lock().unwrap();

@@ -297,7 +297,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>> for WebRTCNativeInterface {
 impl WebRTCNativeInterface {
     #[create_opener]
     async fn open(&mut self) -> Result<(), WebRTCError> {
-        let has_media_support = true; // TODO
+        let has_media_support = true; // TODO #202
         let api = APIBuilder::new();
         let api = if has_media_support {
             let mut media_engine = MediaEngine::default();

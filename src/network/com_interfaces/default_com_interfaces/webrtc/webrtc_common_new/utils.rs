@@ -2,7 +2,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use strum::Display;
 use thiserror::Error;
 
-// FIXME this will later be replaced with a proper implementation
+// FIXME #205 this will later be replaced with a proper implementation
 // of Datex Values
 pub fn serialize<T: Serialize>(
     value: &T,
@@ -10,7 +10,7 @@ pub fn serialize<T: Serialize>(
     serde_json::to_string(value).map(|s| s.into_bytes())
 }
 
-// FIXME this will later be replaced with a proper implementation
+// FIXME #206 this will later be replaced with a proper implementation
 // of Datex Values
 pub fn deserialize<T: DeserializeOwned>(
     value: &[u8],

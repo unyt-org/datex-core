@@ -1,6 +1,6 @@
 use datex_core::stdlib::sync::Arc;
 use datex_core::utils::time_native::TimeNative;
-use std::sync::Mutex; // FIXME no-std
+use std::sync::Mutex; // FIXME #215 no-std
 
 use datex_core::logger::init_logger;
 use datex_core::{

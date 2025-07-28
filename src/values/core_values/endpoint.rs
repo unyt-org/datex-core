@@ -8,7 +8,7 @@ use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
 use binrw::{BinRead, BinWrite};
 use hex::decode;
-// FIXME no-std
+// FIXME #123 no-std
 use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
