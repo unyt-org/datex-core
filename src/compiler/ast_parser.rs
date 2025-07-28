@@ -730,6 +730,12 @@ pub enum ParserError {
     InvalidToken(Range<usize>),
 }
 
+impl From<Range<usize>> for ParserError {
+    fn from(range: Range<usize>) -> Self {
+        ParserError::InvalidToken(range)
+    }
+}
+
 pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
@@ -738,7 +744,9 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     }
 
     let tokens = Token::lexer(src);
-    let tokens = tokens.into_iter().map(|f| f.unwrap()).collect::<Vec<_>>();
+    let tokens:Vec<Token> = tokens.into_iter().map(|f| f).collect::<Result<Vec<Token>, Range<usize>>>().map_err(|e|
+        vec![ParserError::InvalidToken(e)]
+    )?;
 
     let parser = create_parser::<'_, TokenInput>();
 

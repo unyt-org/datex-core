@@ -11,70 +11,73 @@ use datex_core::network::com_interfaces::{
 };
 
 use std::{cell::RefCell, rc::Rc};
+use datex_core::run_async;
 
 #[tokio::test]
 pub async fn test_create_socket_connection() {
-    const PORT: u16 = 8085;
-    init_global_context();
-
-    const CLIENT_TO_SERVER_MSG: &[u8] = b"Hello World";
-    const SERVER_TO_CLIENT_MSG: &[u8] = b"Nooo, this is Patrick!";
-
-    let mut server = WebSocketServerNativeInterface::new(PORT).unwrap();
-    server.open().await.unwrap_or_else(|e| {
-        panic!("Failed to create WebSocketServerInterface: {e}");
-    });
-
-    let client = Rc::new(RefCell::new(
-        WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
-            .unwrap(),
-    ));
-    client.borrow_mut().open().await.unwrap_or_else(|e| {
-        panic!("Failed to create WebSocketClientInterface: {e}");
-    });
-    let server = Rc::new(RefCell::new(server));
-
-    let client_uuid = client.borrow().get_socket_uuid().unwrap();
-    assert!(
-        client
-            .borrow_mut()
-            .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
-            .await
-    );
-
-    let server_uuid = server.borrow().get_socket_uuid_at(0).unwrap();
-    assert!(
-        server
-            .borrow_mut()
-            .send_block(SERVER_TO_CLIENT_MSG, server_uuid.clone())
-            .await
-    );
-
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-    {
-        let server = server.clone();
-        let server = server.borrow_mut();
-        let socket = server.get_socket_with_uuid(server_uuid.clone()).unwrap();
-        let socket = socket.lock().unwrap();
-        let mut queue = socket.receive_queue.lock().unwrap();
-        assert_eq!(queue.drain(..).collect::<Vec<_>>(), CLIENT_TO_SERVER_MSG);
+    run_async! {
+        const PORT: u16 = 8085;
+        init_global_context();
+    
+        const CLIENT_TO_SERVER_MSG: &[u8] = b"Hello World";
+        const SERVER_TO_CLIENT_MSG: &[u8] = b"Nooo, this is Patrick!";
+    
+        let mut server = WebSocketServerNativeInterface::new(PORT).unwrap();
+        server.open().await.unwrap_or_else(|e| {
+            panic!("Failed to create WebSocketServerInterface: {e}");
+        });
+    
+        let client = Rc::new(RefCell::new(
+            WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
+                .unwrap(),
+        ));
+        client.borrow_mut().open().await.unwrap_or_else(|e| {
+            panic!("Failed to create WebSocketClientInterface: {e}");
+        });
+        let server = Rc::new(RefCell::new(server));
+    
+        let client_uuid = client.borrow().get_socket_uuid().unwrap();
+        assert!(
+            client
+                .borrow_mut()
+                .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
+                .await
+        );
+    
+        let server_uuid = server.borrow().get_socket_uuid_at(0).unwrap();
+        assert!(
+            server
+                .borrow_mut()
+                .send_block(SERVER_TO_CLIENT_MSG, server_uuid.clone())
+                .await
+        );
+    
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    
+        {
+            let server = server.clone();
+            let server = server.borrow_mut();
+            let socket = server.get_socket_with_uuid(server_uuid.clone()).unwrap();
+            let socket = socket.lock().unwrap();
+            let mut queue = socket.receive_queue.lock().unwrap();
+            assert_eq!(queue.drain(..).collect::<Vec<_>>(), CLIENT_TO_SERVER_MSG);
+        }
+    
+        {
+            let client = client.clone();
+            let client = client.borrow_mut();
+            let socket = client.get_socket().unwrap();
+            let socket = socket.lock().unwrap();
+            let mut queue = socket.receive_queue.lock().unwrap();
+            assert_eq!(queue.drain(..).collect::<Vec<_>>(), SERVER_TO_CLIENT_MSG);
+        }
+    
+        let client = &mut *client.borrow_mut();
+        client.destroy_ref().await;
+    
+        let server = &mut *server.borrow_mut();
+        server.destroy_ref().await;
     }
-
-    {
-        let client = client.clone();
-        let client = client.borrow_mut();
-        let socket = client.get_socket().unwrap();
-        let socket = socket.lock().unwrap();
-        let mut queue = socket.receive_queue.lock().unwrap();
-        assert_eq!(queue.drain(..).collect::<Vec<_>>(), SERVER_TO_CLIENT_MSG);
-    }
-
-    let client = &mut *client.borrow_mut();
-    client.destroy_ref().await;
-
-    let server = &mut *server.borrow_mut();
-    server.destroy_ref().await;
 }
 
 #[tokio::test]
