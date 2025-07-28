@@ -115,7 +115,7 @@ impl<'a> Context<'a> {
             .iter()
             .filter(|(slot, _)| slot.is_external())
             .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
-            .map(|(slot, _)| slot.clone())
+            .map(|(slot, _)| *slot)
             .collect()
     }
 

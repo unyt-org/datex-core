@@ -49,7 +49,7 @@ pub enum BaseInterfaceError {
 
 impl From<ComHubError> for BaseInterfaceError {
     fn from(err: ComHubError) -> Self {
-        BaseInterfaceError::ComHubError(err).into()
+        BaseInterfaceError::ComHubError(err)
     }
 }
 

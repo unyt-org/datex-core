@@ -8,13 +8,9 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
-use log::info;
 use serde::{Deserialize, Serialize};
 use crate::compiler::compile_value;
-use crate::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
-use crate::values::core_values::endpoint::Endpoint;
-use crate::values::serde::deserializer::{from_bytes, DatexDeserializer};
-use crate::values::serde::serializer::to_bytes;
+use crate::values::serde::deserializer::DatexDeserializer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {

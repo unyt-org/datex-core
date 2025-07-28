@@ -1,4 +1,3 @@
-use std::fmt;
 use crate::crypto::random;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
@@ -14,7 +13,6 @@ use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
-use serde::de::Visitor;
 use strum::Display;
 
 #[derive(

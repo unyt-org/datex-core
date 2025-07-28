@@ -15,7 +15,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME no-std
@@ -294,7 +293,7 @@ impl ComHub {
             // If interface is not connected, open it
             // and wait for it to be connected
             // FIXME: borrow_mut across await point
-            if interface.borrow_mut().handle_open().await == false {
+            if !(interface.borrow_mut().handle_open().await) {
                 return Err(ComHubError::InterfaceOpenError);
             }
         }

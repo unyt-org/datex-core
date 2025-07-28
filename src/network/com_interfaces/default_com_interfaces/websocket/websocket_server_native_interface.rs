@@ -29,7 +29,6 @@ use tokio::{
 };
 use tungstenite::Message;
 use url::Url;
-use webrtc::media::audio::buffer::info;
 
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
@@ -42,7 +41,6 @@ use super::websocket_common::{
     parse_url,
 };
 use crate::runtime::global_context::{get_global_context, set_global_context};
-use crate::task::spawn_with_panic_notify;
 use tokio_tungstenite::WebSocketStream;
 
 pub struct WebSocketServerNativeInterface {
@@ -97,7 +95,7 @@ impl WebSocketServerNativeInterface {
         .parse::<SocketAddr>()
         .map_err(|_| WebSocketServerError::InvalidPort)?;
 
-        let mut listener = TcpListener::bind(&addr).await.map_err(|_| {
+        let listener = TcpListener::bind(&addr).await.map_err(|_| {
             WebSocketServerError::WebSocketError(
                 WebSocketError::ConnectionError,
             )

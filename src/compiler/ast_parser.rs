@@ -744,7 +744,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     }
 
     let tokens = Token::lexer(src);
-    let tokens:Vec<Token> = tokens.into_iter().map(|f| f).collect::<Result<Vec<Token>, Range<usize>>>().map_err(|e|
+    let tokens:Vec<Token> = tokens.into_iter().collect::<Result<Vec<Token>, Range<usize>>>().map_err(|e|
         vec![ParserError::InvalidToken(e)]
     )?;
 

@@ -20,7 +20,6 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
-use crate::network::com_interfaces::default_com_interfaces::websocket::websocket_common::{WebSocketClientInterfaceSetupData, WebSocketServerInterfaceSetupData};
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution_context::{ExecutionContext, RemoteExecutionContext, ScriptExecutionError};
 use crate::values::serde::serializer::to_value_container;
@@ -329,7 +328,7 @@ impl RuntimeConfig {
 /// around RuntimeInternal
 impl Runtime {
     pub fn new(config: RuntimeConfig) -> Runtime {
-        let endpoint = config.endpoint.clone().unwrap_or_else(|| Endpoint::default());
+        let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::default);
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             version: VERSION.to_string(),
@@ -403,9 +402,9 @@ impl Runtime {
         if let Some(interfaces) = &self.internal.config.interfaces {
             for RuntimeConfigInterface {r#type, config} in interfaces.iter() {
                 if let Err(err) = self.com_hub().create_interface(r#type, config.clone(), InterfacePriority::default()).await {
-                    error!("Failed to create interface {}: {err:?}", r#type);
+                    error!("Failed to create interface {type}: {err:?}");
                 } else {
-                    info!("Created interface: {}", r#type);
+                    info!("Created interface: {type}");
                 }
             }
         }

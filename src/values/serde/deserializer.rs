@@ -1,4 +1,3 @@
-use crate::values::core_values::tuple::Tuple;
 use crate::{
     compiler::{
         CompileOptions, compile_script, extract_static_value_from_script,
@@ -12,17 +11,11 @@ use crate::{
         value_container::ValueContainer,
     },
 };
-use chumsky::prelude::todo;
-use datex_core::values::core_values::endpoint::Endpoint;
-use log::info;
-use serde::de::value::MapDeserializer;
 use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
 use serde::{
     Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,
 };
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct DatexDeserializer {
@@ -391,6 +384,7 @@ mod tests {
     use super::*;
     use crate::values::serde::serializer::to_bytes;
     use serde::{Deserialize, Serialize};
+    use crate::values::core_values::endpoint::Endpoint;
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct TestStruct {

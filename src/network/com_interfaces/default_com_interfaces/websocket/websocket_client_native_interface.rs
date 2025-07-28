@@ -11,7 +11,6 @@ use crate::{
     },
     set_opener,
     stdlib::sync::Arc,
-    task::spawn,
 };
 use datex_macros::{com_interface, create_opener};
 

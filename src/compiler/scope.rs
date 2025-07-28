@@ -56,7 +56,6 @@ impl Scope {
         } else if let Some(parent) = &self.parent_scope {
             parent
                 .resolve_variable_name_to_virtual_slot(name)
-                .map(|(virt_slot, var_type)| (virt_slot, var_type))
         } else {
             None
         }
