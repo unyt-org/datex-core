@@ -65,7 +65,10 @@ impl WebSocketClientNativeInterface {
         info!("Connecting to WebSocket server at {address}");
         let (stream, _) = tokio_tungstenite::connect_async(address)
             .await
-            .map_err(|_| WebSocketError::ConnectionError)?;
+            .map_err(|e| {
+                error!("Failed to connect to WebSocket server: {e}");
+                WebSocketError::ConnectionError
+            })?;
         let (write, mut read) = stream.split();
         let socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
