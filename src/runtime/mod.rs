@@ -328,7 +328,7 @@ impl RuntimeConfig {
 /// around RuntimeInternal
 impl Runtime {
     pub fn new(config: RuntimeConfig) -> Runtime {
-        let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::default);
+        let endpoint = config.endpoint.clone().unwrap_or_default();
         let com_hub = ComHub::new(endpoint.clone());
         Runtime {
             version: VERSION.to_string(),

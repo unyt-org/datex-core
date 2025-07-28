@@ -333,7 +333,7 @@ fn decompile_loop(
             }
             Instruction::Endpoint(endpoint) => {
                 handle_before_term(state, &mut output, false)?;
-                write!(output, "{}", endpoint)?;
+                write!(output, "{endpoint}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::ArrayStart => {
