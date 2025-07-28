@@ -6,7 +6,9 @@ use crate::compiler::{compile_template, CompileOptions};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
+use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::execution::{execute_dxb, execute_dxb_sync, ExecutionError, ExecutionInput, ExecutionOptions, RuntimeExecutionContext};
+use crate::runtime::RuntimeInternal;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
@@ -30,6 +32,7 @@ impl From<ExecutionError> for ScriptExecutionError {
 pub struct RemoteExecutionContext {
     pub compile_scope: Scope,
     pub endpoint: Endpoint,
+    pub context_id: Option<OutgoingContextId>
 }
 
 impl RemoteExecutionContext {
@@ -38,6 +41,7 @@ impl RemoteExecutionContext {
         RemoteExecutionContext {
             compile_scope: Scope::default(),
             endpoint: endpoint.into(),
+            context_id: None,
         }
     }
 }
@@ -45,7 +49,7 @@ impl RemoteExecutionContext {
 #[derive(Debug, Clone, Default)]
 pub struct LocalExecutionContext {
     compile_scope: Scope,
-    local_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
+    runtime_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
     execution_options: ExecutionOptions,
     verbose: bool,
 }
@@ -54,14 +58,36 @@ impl LocalExecutionContext {
     /// Creates a new local execution context with the given compile scope.
     pub fn debug() -> Self {
         LocalExecutionContext{
-            compile_scope: Scope::default(),
-            local_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
             execution_options: ExecutionOptions {
                 verbose: true,
                 ..ExecutionOptions::default()
             },
             verbose: true,
+            ..Default::default()
         }
+    }
+
+    pub fn debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        LocalExecutionContext {
+            runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
+            execution_options: ExecutionOptions {
+                verbose: true,
+                ..ExecutionOptions::default()
+            },
+            verbose: true,
+            ..Default::default()
+        }
+    }
+
+    pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        LocalExecutionContext {
+            runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
+            ..Default::default()
+        }
+    }
+    
+    pub fn set_runtime_internal(&mut self, runtime_internal: Rc<RuntimeInternal>) {
+        self.runtime_execution_context.borrow_mut().set_runtime_internal(runtime_internal);
     }
 }
 
@@ -80,10 +106,20 @@ impl ExecutionContext {
         ExecutionContext::Local(LocalExecutionContext::default())
     }
 
+    /// Creates a new local execution context with a runtime.
+    pub fn local_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::new(runtime_internal))
+    }
+
     /// Creates a new local execution context with verbose mode enabled,
     /// providing more log outputs for debugging purposes.
     pub fn local_debug() -> Self {
         ExecutionContext::Local(LocalExecutionContext::debug())
+    }
+
+    /// Creates a new local execution context with verbose mode enabled and a runtime.
+    pub fn local_debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::debug_with_runtime_internal(runtime_internal))
     }
 
     pub fn remote(endpoint: impl Into<Endpoint>) -> Self {
@@ -158,7 +194,7 @@ impl ExecutionContext {
     ) -> Result<ExecutionInput<'a>, ExecutionError> {
         let (local_execution_context, execution_options, verbose) = match &self {
             ExecutionContext::Local(LocalExecutionContext{
-                local_execution_context,
+                                        runtime_execution_context: local_execution_context,
                 execution_options,
                 verbose,
                 ..

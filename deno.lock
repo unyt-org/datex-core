@@ -1,0 +1,26 @@
+{
+  "version": "4",
+  "redirects": {
+    "https://esm.sh/@types/cytoscape-fcose@~2.2.4/index.d.ts": "https://esm.sh/@types/cytoscape-fcose@2.2.4/index.d.ts",
+    "https://esm.sh/cose-base@^1.0.0?target=denonext": "https://esm.sh/cose-base@1.0.3?target=denonext",
+    "https://esm.sh/cose-base@^2.2.0?target=denonext": "https://esm.sh/cose-base@2.2.0?target=denonext",
+    "https://esm.sh/layout-base@^1.0.0?target=denonext": "https://esm.sh/layout-base@1.0.2?target=denonext",
+    "https://esm.sh/layout-base@^2.0.0?target=denonext": "https://esm.sh/layout-base@2.0.1?target=denonext"
+  },
+  "remote": {
+    "https://esm.sh/cose-base@1.0.3/denonext/cose-base.mjs": "ede6e026ac176ff88825e93a42f07518d34760482e7e15b31f74f18f169108da",
+    "https://esm.sh/cose-base@1.0.3?target=denonext": "057886652775541b23c39fdf50ee426855e0ef2834249086e163b387bb38a35d",
+    "https://esm.sh/cose-base@2.2.0/denonext/cose-base.mjs": "ca97b62584fb2f8a19d3c26d892d1d9e2d1aa1e297e1f863e7ed4c8af9b63ada",
+    "https://esm.sh/cose-base@2.2.0?target=denonext": "dbfa7b440df04ecc7115ad7e288c9c230c9a5f97a284d3c9b8b03755a936e3bf",
+    "https://esm.sh/cytoscape-cose-bilkent@4.1.0": "b5821e738a91975e97ced4e63eb90a76bcac4547c806d5d387265877aec49773",
+    "https://esm.sh/cytoscape-cose-bilkent@4.1.0/denonext/cytoscape-cose-bilkent.mjs": "8b6eb6fb0990f1ac7d13c75c007a681af7b81ff79f260e369ca5074261e50ef4",
+    "https://esm.sh/cytoscape-fcose@2.2.0": "9dbe55512644e969d0ceec4eef249575abde8eb727e9af2ee5b9082d68b8e643",
+    "https://esm.sh/cytoscape-fcose@2.2.0/denonext/cytoscape-fcose.mjs": "a66065ab251658c2173730ba497c3b10ff86fe558a082a398fd02e224a7e12e6",
+    "https://esm.sh/cytoscape@3.32.0": "366857faa7370910ace367986b2ecebe8429794f3ebf66dcfa71f1133ed516fb",
+    "https://esm.sh/cytoscape@3.32.0/denonext/cytoscape.mjs": "8a916c48e76ab8809cf597ddb2121b51978e2fd3cd48cfa5aa7920b69e83cd12",
+    "https://esm.sh/layout-base@1.0.2/denonext/layout-base.mjs": "ef685af5af087080271c66164b9e978bbb98a3d0c46926d90ba0dabe32de2db8",
+    "https://esm.sh/layout-base@1.0.2?target=denonext": "c9a6855b1712976162fc03bdfeffbde2504932873bc312eb68fc3ae2400e8b37",
+    "https://esm.sh/layout-base@2.0.1/denonext/layout-base.mjs": "e779c7a5098bb79d3c6c78bc5b8f8eee0c795c6d39ce07fdf525aaf489f21654",
+    "https://esm.sh/layout-base@2.0.1?target=denonext": "6cae1fb18238190e3f037bc1b1f32ec25a9eac4e8588dd4f81f2fc2e55adb93f"
+  }
+}

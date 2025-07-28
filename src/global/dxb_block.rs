@@ -1,23 +1,21 @@
-use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::{Cursor, Read};
-use std::rc::Rc;
 // FIXME no-std
-
-use crate::values::core_values::endpoint::Endpoint;
-use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
-use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
-use binrw::{BinRead, BinWrite};
-use log::error;
-use strum::Display;
-use thiserror::Error;
 
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
     routing_header::{BlockSize, EncryptionType, RoutingHeader, SignatureType},
 };
+use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
+use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
+use crate::values::core_values::endpoint::Endpoint;
+use binrw::{BinRead, BinWrite};
+use futures::channel::mpsc::UnboundedReceiver;
+use futures_util::StreamExt;
+use log::error;
+use strum::Display;
+use thiserror::Error;
 
 #[derive(Debug, Display, Error)]
 pub enum HeaderParsingError {
@@ -57,74 +55,62 @@ pub type OutgoingContextId = u32;
 pub type OutgoingSectionIndex = u16;
 pub type OutgoingBlockNumber = u16;
 
-#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
 pub enum IncomingSection {
     /// a single block
-    SingleBlock(DXBBlock),
+    SingleBlock((Option<DXBBlock>, IncomingEndpointContextSectionId)),
     /// a stream of blocks
     /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
+    BlockStream(
+        (
+            Option<UnboundedReceiver<DXBBlock>>,
+            IncomingEndpointContextSectionId,
+        ),
+    ),
 }
 
-#[derive(Debug)]
-pub enum IncomingSectionIter {
-    /// a single block
-    SingleBlock(Option<DXBBlock>),
-    /// a stream of blocks
-    /// the stream is finished when a block has the end_of_block flag set
-    BlockStream((Rc<RefCell<VecDeque<DXBBlock>>>, IncomingSectionIndex)),
-}
-
-impl IntoIterator for IncomingSection {
-    type Item = DXBBlock;
-    type IntoIter = IncomingSectionIter;
-
-    fn into_iter(self) -> Self::IntoIter {
+impl IncomingSection {
+    pub async fn next(&mut self) -> Option<DXBBlock> {
         match self {
-            IncomingSection::SingleBlock(block) => IncomingSectionIter::SingleBlock(Some(block)),
-            IncomingSection::BlockStream(stream) => {
-                IncomingSectionIter::BlockStream(stream)
-            },
-        }
-    }
-}
-
-impl Iterator for IncomingSectionIter {
-    type Item = DXBBlock;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            IncomingSectionIter::SingleBlock(block) => {
-                block.take()
-            }
-            IncomingSectionIter::BlockStream((blocks, section_index)) => {
-                let mut blocks = blocks.borrow_mut();
-                blocks.pop_front()
+            IncomingSection::SingleBlock((block, _)) => block.take(),
+            IncomingSection::BlockStream((blocks, _)) => {
+                if let Some(receiver) = blocks {
+                    receiver.next().await
+                } else {
+                    None // No blocks to receive
+                }
             }
         }
     }
-}
 
+    pub async fn drain(&mut self) -> Vec<DXBBlock> {
+        let mut blocks = Vec::new();
+        while let Some(block) = self.next().await {
+            blocks.push(block);
+        }
+        blocks
+    }
+}
 
 impl IncomingSection {
     pub fn get_section_index(&self) -> IncomingSectionIndex {
-        match self {
-            IncomingSection::SingleBlock(block) => {
-                block.block_header.section_index
-            }
-            IncomingSection::BlockStream((_, section_index)) => *section_index,
-        }
+        self.get_section_context_id().section_index
     }
 
-    pub fn try_get_sender(&self) -> Option<Endpoint> {
+    pub fn get_sender(&self) -> Endpoint {
+        self.get_section_context_id()
+            .endpoint_context_id
+            .sender
+            .clone()
+    }
+
+    pub fn get_section_context_id(&self) -> &IncomingEndpointContextSectionId {
         match self {
-            IncomingSection::SingleBlock(block) => {
-                Some(block.routing_header.sender.clone())
+            IncomingSection::SingleBlock((_, section_context_id))
+            | IncomingSection::BlockStream((_, section_context_id)) => {
+                section_context_id
             }
-            IncomingSection::BlockStream((blocks, _)) => blocks
-                .borrow()
-                .front()
-                .map(|block| block.routing_header.sender.clone()),
         }
     }
 }
@@ -133,6 +119,24 @@ impl IncomingSection {
 pub struct IncomingEndpointContextId {
     pub sender: Endpoint,
     pub context_id: IncomingContextId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IncomingEndpointContextSectionId {
+    pub endpoint_context_id: IncomingEndpointContextId,
+    pub section_index: IncomingSectionIndex,
+}
+
+impl IncomingEndpointContextSectionId {
+    pub fn new(
+        endpoint_context_id: IncomingEndpointContextId,
+        section_index: IncomingSectionIndex,
+    ) -> Self {
+        IncomingEndpointContextSectionId {
+            endpoint_context_id,
+            section_index,
+        }
+    }
 }
 
 /// An identifier that defines a globally unique block
@@ -158,7 +162,7 @@ impl DXBBlock {
             raw_bytes: None,
         }
     }
-    
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error> {
         let mut writer = Cursor::new(Vec::new());
         self.routing_header.write(&mut writer)?;
@@ -341,6 +345,10 @@ impl DXBBlock {
         } else {
             unreachable!("No receivers set in the routing header")
         }
+    }
+
+    pub fn get_sender(&self) -> &Endpoint {
+        &self.routing_header.sender
     }
 
     pub fn get_endpoint_context_id(&self) -> IncomingEndpointContextId {

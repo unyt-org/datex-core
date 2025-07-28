@@ -37,9 +37,10 @@ use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
 use super::websocket_common::{
-    parse_url, WebSocketError, WebSocketServerError,
-    WebSocketServerInterfaceSetupData,
+    WebSocketError, WebSocketServerError, WebSocketServerInterfaceSetupData,
+    parse_url,
 };
+use crate::runtime::global_context::{get_global_context, set_global_context};
 use tokio_tungstenite::WebSocketStream;
 
 pub struct WebSocketServerNativeInterface {
@@ -68,7 +69,7 @@ impl WebSocketServerNativeInterface {
     pub fn new(
         port: u16,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
-        let address: String = format!("127.0.0.1:{port}");
+        let address: String = format!("0.0.0.0:{port}");
         let address = parse_url(&address).map_err(|_| {
             WebSocketServerError::WebSocketError(WebSocketError::InvalidURL)
         })?;
@@ -105,7 +106,11 @@ impl WebSocketServerNativeInterface {
         let websocket_streams = self.websocket_streams.clone();
         let shutdown = self.shutdown_signal.clone();
         let mut tasks: Vec<JoinHandle<()>> = vec![];
+        let global_context = get_global_context();
         self.handle = Some(spawn(async move {
+            let global_context = global_context.clone();
+            set_global_context(global_context.clone());
+            info!("WebSocket server started at {addr}");
             loop {
                 select! {
                     res = listener.accept() => {
@@ -114,7 +119,11 @@ impl WebSocketServerNativeInterface {
                                 let websocket_streams = websocket_streams.clone();
                                 let interface_uuid = interface_uuid.clone();
                                 let com_interface_sockets = com_interface_sockets.clone();
+                                let global_context = global_context.clone();
+                                info!("New connection from {addr}");
                                 let task = spawn(async move {
+                                    set_global_context(global_context.clone());
+
                                     match accept_async(stream).await {
                                         Ok(ws_stream) => {
                                             info!(

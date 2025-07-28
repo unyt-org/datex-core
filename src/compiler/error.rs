@@ -11,6 +11,7 @@ pub enum CompilerError {
     NonStaticValue,
     UndeclaredVariable(String),
     ScopePopError,
+    InvalidSlotName(String),
 }
 impl From<Vec<ParserError>> for CompilerError {
     fn from(value: Vec<ParserError>) -> Self {
@@ -47,6 +48,9 @@ impl Display for CompilerError {
             }
             CompilerError::ScopePopError => {
                 write!(f, "Could not pop scope, stack is empty")
+            }
+            CompilerError::InvalidSlotName(name) => {
+                write!(f, "Slot #{name} does not exist") 
             }
         }
     }

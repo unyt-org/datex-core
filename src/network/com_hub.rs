@@ -6,16 +6,13 @@ use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 
-use futures::channel::oneshot;
 use futures::channel::oneshot::Sender;
-use futures::FutureExt;
 use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::any::Any;
 use std::cmp::{Ordering, PartialEq};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
@@ -38,6 +35,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
@@ -50,9 +48,10 @@ pub struct DynamicEndpointProperties {
 
 pub type ComInterfaceFactoryFn =
     fn(
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
+#[derive(Debug)]
 pub struct ComHubOptions {
     default_receive_timeout: Duration,
 }
@@ -118,6 +117,19 @@ pub struct ComHub {
     pub block_handler: BlockHandler,
 }
 
+impl Debug for ComHub {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComHub")
+            .field("endpoint", &self.endpoint)
+            .field("options", &self.options)
+            .field("sockets", &self.sockets)
+            .field("endpoint_sockets_blacklist", &self.endpoint_sockets_blacklist)
+            .field("fallback_sockets", &self.fallback_sockets)
+            .field("endpoint_sockets", &self.endpoint_sockets)
+            .finish()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 struct EndpointIterateOptions<'a> {
     pub only_direct: bool,
@@ -161,7 +173,7 @@ impl Default for InterfacePriority {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
     InterfaceCloseFailed,
@@ -171,6 +183,7 @@ pub enum ComHubError {
     InterfaceTypeDoesNotExist,
     InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
+    InterfaceOpenError,
 }
 
 #[derive(Debug)]
@@ -213,10 +226,10 @@ impl ComHub {
     /// Creates a new interface instance using the registered factory
     /// for the specified interface type if it exists.
     /// The interface is opened and added to the ComHub.
-    pub async fn create_interface(
+    pub async fn create_interface<'a>(
         &self,
         interface_type: &str,
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");
@@ -279,7 +292,10 @@ impl ComHub {
         if interface.borrow().get_state() != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
-            interface.borrow_mut().handle_open().await;
+            // FIXME: borrow_mut across await point
+            if !(interface.borrow_mut().handle_open().await) {
+                return Err(ComHubError::InterfaceOpenError);
+            }
         }
         self.add_interface(interface.clone(), priority)
     }
@@ -1220,7 +1236,9 @@ impl ComHub {
     /// Runs the update loop for the ComHub.
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
-    pub fn start_update_loop(self_rc: Rc<Self>) {
+    /// This is only used for internal tests - in a full runtime setup, the main runtime update loop triggers
+    /// ComHub updates.
+    pub fn _start_update_loop(self_rc: Rc<Self>) {
         // if already running, do nothing
         if *self_rc.update_loop_running.borrow() {
             return;
@@ -1242,23 +1260,11 @@ impl ComHub {
         });
     }
 
-    /// Stops the update loop for the ComHub, if it is running.
-    pub async fn stop_update_loop(&self) {
-        info!("Stopping ComHub update loop for {}", self.endpoint);
-        *self.update_loop_running.borrow_mut() = false;
-
-        let (sender, receiver) = oneshot::channel::<()>();
-
-        self.update_loop_stop_sender.borrow_mut().replace(sender);
-
-        receiver.await.unwrap();
-    }
-
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     /// Updates are scheduled in local tasks and are not immediately visible.
     /// To wait for the block update to finish, use `wait_for_update_async()`.
-    fn update(&self) {
+    pub fn update(&self) {
         // update all interfaces
         self.update_interfaces();
 
@@ -1386,10 +1392,7 @@ impl ComHub {
                 while let Some(section) = rx.next().await {
                     let mut received_response = false;
                     // get sender
-                    let mut sender = section
-                        .try_get_sender()
-                        // this is a new section containing at least one block, which has not been drained yet
-                        .expect("No sender found for incoming section - this should never happen");
+                    let mut sender = section.get_sender();
                     // add to response for exactly matching endpoint instance
                     if let Some(response) = responses.get_mut(&sender) {
                         // check if the receiver is already set (= current set response is Err)
@@ -1457,10 +1460,7 @@ impl ComHub {
                 let mut rx = self.block_handler.register_incoming_block_observer(context_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
-                    let sender = section
-                        .try_get_sender()
-                        // this is a new section containing at least one block, which has not been drained yet
-                        .expect("No sender found for incoming section - this should never happen");
+                    let sender = section.get_sender();
                     info!("Received response from {sender}");
                     // add to response for exactly matching endpoint instance
                     responses.push(Ok(Response::UnspecifiedResponse(section)));

@@ -1,13 +1,11 @@
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
-use modular_bitfield::{bitfield, prelude::B43, BitfieldSpecifier};
+use modular_bitfield::{Specifier, bitfield, prelude::B43};
 use strum_macros::Display;
 
 // 4 bit
-#[derive(
-    Debug, Display, PartialEq, Clone, Copy, Default, BitfieldSpecifier,
-)]
+#[derive(Debug, Display, PartialEq, Clone, Copy, Default, Specifier)]
 pub enum BlockType {
     #[default]
     Request = 0,

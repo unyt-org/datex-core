@@ -11,7 +11,6 @@ use crate::{
     },
     set_opener,
     stdlib::sync::Arc,
-    task::spawn,
 };
 use datex_macros::{com_interface, create_opener};
 
@@ -28,6 +27,7 @@ use super::websocket_common::{
     parse_url, WebSocketClientInterfaceSetupData, WebSocketError,
 };
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use crate::task::spawn_with_panic_notify;
 
 #[derive(Debug)]
 pub struct WebSocketClientNativeInterface {
@@ -79,7 +79,7 @@ impl WebSocketClientNativeInterface {
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
         let state = self.get_info().state.clone();
-        spawn(async move {
+        spawn_with_panic_notify(async move {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Binary(data)) => {

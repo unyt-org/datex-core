@@ -1,9 +1,7 @@
 use log::error;
 
 use crate::values::core_values::endpoint::Endpoint;
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceInfo, ComInterfaceSockets,
-};
+use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory, ComInterfaceInfo, ComInterfaceSockets};
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
@@ -16,9 +14,10 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
+use serde::{Deserialize, Serialize};
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_hub::{ComHubError};
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -43,6 +42,15 @@ pub enum BaseInterfaceError {
     SendError,
     ReceiveError,
     SocketNotFound,
+    InterfaceNotFound,
+    InvalidInput(String),
+    ComHubError(ComHubError),
+}
+
+impl From<ComHubError> for BaseInterfaceError {
+    fn from(err: ComHubError) -> Self {
+        BaseInterfaceError::ComHubError(err)
+    }
 }
 
 #[com_interface]
@@ -169,4 +177,20 @@ impl ComInterface for BaseInterface {
     }
     delegate_com_interface_info!();
     set_sync_opener!(open);
+}
+
+
+#[derive(Serialize, Deserialize)]
+pub struct BaseInterfaceSetupData(pub InterfaceProperties);
+
+impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
+    fn create(
+        setup_data: BaseInterfaceSetupData,
+    ) -> Result<BaseInterface, ComInterfaceError> {
+        Ok(BaseInterface::new_with_properties(setup_data.0))
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties::default()
+    }
 }

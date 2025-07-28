@@ -18,3 +18,87 @@ val c;
 @@0123456789abcde;
 @jonas;
 @+unyt;
+
+
+/**
+25. Juli 2025
+
+Conclusion:
+var x = 10;
+x += 5;
+x = 10; // creates new pointer #x = $x2
+x $= 10; // internally mutates value of $x2
+
+var x = {a: name}; // #x = $x = {a: name}
+x $= {b: 5}; // internally mutates value of $x
+x $= $a; // creates indirect reference $x -> $a
+x.a = $b;
+*/
+
+// normal var updates and assignments
+
+// ref/val var;const
+
+type User = {
+    const name: string;
+    age: number;
+};
+
+const u = User {name: 3, age: $$x};
+
+var x = 10; // #x = $x = 10
+x += 5; // $x = 15
+x; // $x
+var y = x; // #y -> $x
+x = 4;
+y == 4;
+
+// use val for non-synced values
+// const/var
+var users = [a,b];
+loop (
+    // call(const users);
+    call(users as const); // important: const cast required
+    // call(ref users); call((const) users);
+    i += 1;
+    users += [1,2,3]
+)
+
+var y = {a: 1}; // #y = $y = {a: 1}
+y.a = 2; // $y = {a: 2}
+y.a = $x as const;
+// y = {a: 4, b: 5}; // #y = $y2 = {a: 4, b: 5}
+var z = y; // #z -> $y
+z == y; // true
+z === y; // true
+z is y; // true
+y = {a: 6}; // #y = $y2 = {a: 6} // reassigning slot y to $y2
+z // #z -> $y = {a: 4, b: 5} - still pointing to $y
+z is y; // false, #z still points to $y, but #y now points to $y2
+
+// variable bindings
+var a = {name: 'jonas'}; // #a = $a = {name: 'jonas'}
+var b = a; // #b -> $a;
+a = {x}; // $a2 = {x}
+b -> $a ; {name: 'jonas'}; //
+
+var user = null;
+loop (
+  user = getUser();
+)
+
+b is a; // true
+var c = always a; // requires var binding - changing #a = $aref -> $a (at compile time),  #c -> $aref
+b is a; // still true, $aref gets collapsed to $a
+c is a; // true
+a = {name: 'benni'}; // reassigning #a = $a2 = {name: 'benni'}
+b is a; // false, #b still points to $a, but #a now points to $a2
+c is a; // true, #c still points to $aref, which is now $a2
+
+// variable bindings for external scopes
+var a = {name: 'jonas'}; // #a = $a = {name: 'jonas'}
+function example() {
+    print a; // example requires binding to a, changing #a = $aref -> $a (at compile time)
+}
+a = {name: 'benni'}; // reassigning #a = $a2 = {name: 'benni'}
+example(); // prints {name: 'benni'}, #a still points to $aref, which is now $a2

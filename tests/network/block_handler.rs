@@ -12,6 +12,7 @@ use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
+use futures_util::StreamExt;
 
 #[tokio::test]
 async fn receive_single_block() {
@@ -57,13 +58,13 @@ async fn receive_single_block() {
         com_hub.update_async().await;
 
         // block must be in incoming_sections_queue
-        let sections = com_hub.block_handler.incoming_sections_queue.borrow().clone();
+        let sections = com_hub.block_handler.incoming_sections_queue.borrow();
         assert_eq!(sections.len(), 1);
         let section = sections.iter().next().unwrap();
 
         // block must be a single block
         match section {
-            IncomingSection::SingleBlock(block) => {
+            IncomingSection::SingleBlock((Some(block), ..)) => {
                 info!("section: {section:?}");
                 assert_eq!(block.get_endpoint_context_id(), block_endpoint_context_id);
             }
@@ -135,17 +136,16 @@ async fn receive_multiple_blocks() {
         com_hub.update_async().await;
 
         // block must be in incoming_sections_queue
-        let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
+        let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
-        let section = sections.first().unwrap();
+        let section = sections.first_mut().unwrap();
         // block must be a block stream
         match section {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {section:?}");
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index);
-                // blocks queue length must be 1
-                assert_eq!(blocks.borrow().len(), 1);
+                assert_eq!(incoming_context_section_id.section_index, section_index);
+                // blocks queue must contain the first block
+                assert!(section.next().await.is_some());
             }
             _ => panic!("Expected a BlockStream section"),
         }
@@ -158,18 +158,15 @@ async fn receive_multiple_blocks() {
         // update the com hub
         com_hub.update_async().await;
 
-        // block must be in incoming_sections_queue
-        let sections = com_hub.block_handler.incoming_sections_queue.borrow().clone();
         // no new incoming sections, old section receives new blocks
-        assert_eq!(sections.len(), 0);
+        assert_eq!(com_hub.block_handler.incoming_sections_queue.borrow().len(), 0);
         // block must be a block stream
         match section {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {section:?}");
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index);
+                assert_eq!(incoming_context_section_id.section_index, section_index);
                 // blocks queue length must be 2 (was not yet drained)
-                assert_eq!(blocks.borrow().len(), 2);
+                assert_eq!(section.drain().await.len(), 1);
             }
             _ => panic!("Expected a BlockStream section"),
         }
@@ -251,23 +248,22 @@ async fn receive_multiple_blocks_wrong_order() {
         com_hub.update_async().await;
 
         // block must be in incoming_sections_queue
-        let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
+        let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
 
+        let section = sections.first_mut().unwrap();
         // block must be a block stream
-        match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {sections:?}");
-
-                let blocks = blocks.borrow();
+        match section {
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index);
+                assert_eq!(incoming_context_section_id.section_index.clone(), section_index);
                 // blocks queue length must be 2
+                let blocks = section.drain().await;
                 assert_eq!(blocks.len(), 2);
 
                 // check order:
                 // first block must have block number 0
-                let block = blocks.front().unwrap();
+                let block = blocks.first().unwrap();
                 assert_eq!(block.block_header.block_number, 0);
                 // second block must have block number 1
                 let block = blocks.get(1).unwrap();
@@ -374,16 +370,16 @@ async fn receive_multiple_sections() {
         // update the com hub
         com_hub.update_async().await;
         // block must be in incoming_sections_queue
-        let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
+        let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
+        let section = sections.first_mut().unwrap();
         // block must be a block stream
-        match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {sections:?}");
+        match section {
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_1);
-                // blocks queue length must be 1
-                assert_eq!(blocks.borrow().len(), 1);
+                assert_eq!(incoming_context_section_id.section_index, section_index_1);
+                // block queue must contain the first block
+                assert!(section.next().await.is_some());
             }
             _ => panic!("Expected a BlockStream section"),
         }
@@ -399,14 +395,16 @@ async fn receive_multiple_sections() {
         // block must not be in incoming_sections_queue
         let new_sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(new_sections.len(), 0);
+
+        let section = sections.first_mut().unwrap();
+
         // block must be a block stream
-        match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {sections:?}");
+        match section {
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_1);
-                // blocks queue length must be 2
-                assert_eq!(blocks.borrow().len(), 2);
+                assert_eq!(incoming_context_section_id.section_index, section_index_1);
+                // blocks queue length must be 1
+                assert_eq!(section.drain().await.len(), 1);
             }
             _ => panic!("Expected a BlockStream section"),
         }
@@ -419,16 +417,16 @@ async fn receive_multiple_sections() {
         // update the com hub
         com_hub.update_async().await;
         // block must be in incoming_sections_queue
-        let sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
+        let mut sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(sections.len(), 1);
+        let section = sections.first_mut().unwrap();
         // block must be a block stream
-        match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {sections:?}");
+        match section {
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_2);
-                // blocks queue length must be 1
-                assert_eq!(blocks.borrow().len(), 1);
+                assert_eq!(incoming_context_section_id.section_index, section_index_2);
+                // block queue must contain the first block
+                assert!(section.next().await.is_some());
             }
             _ => panic!("Expected a BlockStream section"),
         }
@@ -443,14 +441,16 @@ async fn receive_multiple_sections() {
         // block must not be in incoming_sections_queue
         let new_sections = com_hub.block_handler.incoming_sections_queue.borrow_mut().drain(..).collect::<Vec<_>>();
         assert_eq!(new_sections.len(), 0);
+
+        let section = sections.first_mut().unwrap();
+
         // block must be a block stream
-        match sections.first().unwrap() {
-            IncomingSection::BlockStream((blocks, incoming_section_index)) => {
-                info!("section: {sections:?}");
+        match section {
+            IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
                 // section must match
-                assert_eq!(incoming_section_index, &section_index_2);
-                // blocks queue length must be 2
-                assert_eq!(blocks.borrow().len(), 2);
+                assert_eq!(incoming_context_section_id.section_index, section_index_2);
+                // blocks queue length must be 1
+                assert_eq!(section.drain().await.len(), 1);
             }
             _ => panic!("Expected a BlockStream section"),
         }

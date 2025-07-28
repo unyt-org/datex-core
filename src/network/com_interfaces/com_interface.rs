@@ -30,6 +30,9 @@ use std::{
     future::Future,
     sync::{Arc, Mutex},
 };
+use serde::Deserialize;
+use crate::values::serde::deserializer::from_value_container;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -38,7 +41,14 @@ impl Display for ComInterfaceUUID {
         write!(f, "ComInterface({})", self.0)
     }
 }
-#[derive(Debug)]
+
+impl ComInterfaceUUID {
+    pub fn from_string(uuid: String) -> Self {
+        ComInterfaceUUID(UUID::from_string(uuid))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComInterfaceError {
     SocketNotFound,
     SocketAlreadyExists,
@@ -290,9 +300,10 @@ macro_rules! delegate_com_interface_info {
 /// # use std::rc::Rc;
 /// # use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory};///
 /// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;///
-///
+/// use serde::{Deserialize, Serialize};
 /// use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
 ///
+/// #[derive(Serialize, Deserialize)]
 /// struct BaseInterfaceSetupData {
 ///    pub example_data: String,
 /// }
@@ -312,30 +323,33 @@ macro_rules! delegate_com_interface_info {
 pub trait ComInterfaceFactory<T>
 where
     Self: Sized + ComInterface,
-    T: 'static,
+    T: Deserialize<'static> + 'static,
 {
     /// The factory method that is called from the ComHub on a registered interface
     /// to create a new instance of the interface.
-    /// The setup data is passed as a Box<dyn Any> and has to be downcasted
+    /// The setup data is passed as a ValueContainer and has to be downcasted
     fn factory(
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError> {
-        match setup_data.downcast::<T>() {
+        let data = from_value_container::<T>(setup_data);
+        match data {
             Ok(init_data) => {
-                let init_data = *init_data;
                 let interface = Self::create(init_data);
                 match interface {
                     Ok(interface) => Ok(Rc::new(RefCell::new(interface))),
                     Err(e) => Err(e),
                 }
             }
-            Err(_) => panic!("Invalid setup data for com interface factory"),
+            Err(e) => {
+                error!("Failed to deserialize setup data: {e}");
+                panic!("Invalid setup data for com interface factory")
+            },
         }
     }
 
     /// Register the interface on which the factory is implemented
     /// on the given ComHub.
-    fn register_on_com_hub(com_hub: &mut ComHub) {
+    fn register_on_com_hub(com_hub: &ComHub) {
         let interface_type = Self::get_default_properties().interface_type;
         com_hub.register_interface_factory(interface_type, Self::factory);
     }

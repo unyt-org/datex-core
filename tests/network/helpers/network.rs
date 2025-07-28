@@ -1,40 +1,43 @@
+use super::mockup_interface::{store_sender_and_receiver, MockupInterface};
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
-use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
+use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::runtime::Runtime;
+use datex_core::runtime::{Runtime, RuntimeConfig};
+use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
 use std::path::Path;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
-use itertools::Itertools;
-use datex_core::network::com_hub_network_tracing::TraceOptions;
-use super::mockup_interface::MockupInterface;
+use datex_core::values::serde::deserializer::from_value_container;
+use datex_core::values::serde::serializer::to_value_container;
+use datex_core::values::value_container::ValueContainer;
 
 pub struct InterfaceConnection {
     interface_type: String,
     priority: InterfacePriority,
-    pub setup_data: Option<Box<dyn Any>>,
+    pub setup_data: Option<MockupInterfaceSetupData>,
     pub endpoint: Option<Endpoint>,
 }
 
 impl InterfaceConnection {
-    pub fn new<T: Any>(
+    pub fn new(
         interface_type: &str,
         priority: InterfacePriority,
-        setup_data: T,
+        setup_data: MockupInterfaceSetupData,
     ) -> Self {
         InterfaceConnection {
             interface_type: interface_type.to_string(),
             priority,
-            setup_data: Some(Box::new(setup_data)),
+            setup_data: Some(setup_data),
             endpoint: None,
         }
     }
@@ -48,7 +51,7 @@ impl InterfaceConnection {
 pub struct Node {
     pub endpoint: Endpoint,
     pub connections: Vec<InterfaceConnection>,
-    pub runtime: Option<Runtime>,
+    pub runtime: Option<Rc<Runtime>>,
 }
 
 impl Node {
@@ -107,19 +110,28 @@ impl Display for Route {
 }
 
 impl Route {
-    pub fn between(
-        source: impl Into<Endpoint>,
-        receiver: impl Into<Endpoint>,
-    ) -> Self {
+    pub fn between<R>(source: R, receiver: R) -> Self
+    where
+        R: TryInto<Endpoint>,
+        R::Error: Debug,
+    {
         Route {
-            receiver: receiver.into(),
-            hops: vec![(source.into(), None, None)],
+            receiver: receiver.try_into().expect("Invalid receiver endpoint"),
+            hops: vec![(
+                source.try_into().expect("Invalid source endpoint"),
+                None,
+                None,
+            )],
             next_fork: None,
         }
     }
 
-    pub fn hop(mut self, target: impl Into<Endpoint>) -> Self {
-        self.add_hop(target);
+    pub fn hop<R>(mut self, target: R) -> Self
+    where
+        R: TryInto<Endpoint>,
+        R::Error: Debug,
+    {
+        self.add_hop(target.try_into().expect("Invalid target endpoint"));
         self
     }
 
@@ -128,16 +140,16 @@ impl Route {
         self
     }
 
-    pub fn to_via(
-        mut self,
-        target: impl Into<Endpoint>,
-        channel: &str,
-    ) -> Self {
+    pub fn to_via<R>(mut self, target: R, channel: &str) -> Self
+    where
+        R: TryInto<Endpoint>,
+        R::Error: Debug,
+    {
         let len = self.hops.len();
         if len > 0 {
             self.hops[len - 1].1 = Some(channel.to_string());
         }
-        self.add_hop(target);
+        self.add_hop(target.try_into().expect("Invalid target endpoint"));
         self
     }
 
@@ -177,16 +189,28 @@ impl Route {
         segments
     }
 
-    pub async fn test(&self, network: &Network) -> Result<(), RouteAssertionError> {
-        self.test_with_options(network, TraceOptions::default()).await
+    pub async fn test(
+        &self,
+        network: &Network,
+    ) -> Result<(), RouteAssertionError> {
+        self.test_with_options(network, TraceOptions::default())
+            .await
     }
 
-    pub async fn test_with_options(&self, network: &Network, options: TraceOptions) -> Result<(), RouteAssertionError> {
+    pub async fn test_with_options(
+        &self,
+        network: &Network,
+        options: TraceOptions,
+    ) -> Result<(), RouteAssertionError> {
         test_routes(&[self.clone()], network, options).await
     }
 }
 
-pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOptions) -> Result<(), RouteAssertionError> {
+pub async fn test_routes(
+    routes: &[Route],
+    network: &Network,
+    options: TraceOptions,
+) -> Result<(), RouteAssertionError> {
     let start = routes[0].hops[0].0.clone();
     let ends = routes
         .iter()
@@ -208,16 +232,14 @@ pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOpti
             panic!("Route start {} does not match receiver {}", start, end);
         }
     }
-    
+
     let network_traces = network
         .get_runtime(start)
-        .com_hub
-        .record_trace_multiple_with_options(
-            TraceOptions {
-                endpoints: routes.iter().map(|r| r.receiver.clone()).collect(),
-                ..options
-            }
-        )
+        .com_hub()
+        .record_trace_multiple_with_options(TraceOptions {
+            endpoints: routes.iter().map(|r| r.receiver.clone()).collect(),
+            ..options
+        })
         .await;
 
     // combine received traces with original routes
@@ -248,11 +270,7 @@ pub async fn test_routes(routes: &[Route], network: &Network, options: TraceOpti
             .enumerate()
             .filter_map(
                 |(i, h)| {
-                    if i % 2 == 1 || i == 0 {
-                        Some(h)
-                    } else {
-                        None
-                    }
+                    if i % 2 == 1 || i == 0 { Some(h) } else { None }
                 },
             )
             .zip(route.hops.iter());
@@ -304,19 +322,27 @@ pub enum RouteAssertionError {
     InvalidEndpointOnHop(i32, Endpoint, Endpoint),
     InvalidChannelOnHop(i32, String, String),
     InvalidForkOnHop(i32, String, String),
-    MissingResponse(Endpoint)
+    MissingResponse(Endpoint),
 }
 
 impl Display for RouteAssertionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RouteAssertionError::InvalidEndpointOnHop(index, expected, actual) => {
+            RouteAssertionError::InvalidEndpointOnHop(
+                index,
+                expected,
+                actual,
+            ) => {
                 write!(
                     f,
                     "Expected hop #{index} to be {expected} but was {actual}"
                 )
             }
-            RouteAssertionError::InvalidChannelOnHop(index, expected, actual) => {
+            RouteAssertionError::InvalidChannelOnHop(
+                index,
+                expected,
+                actual,
+            ) => {
                 write!(
                     f,
                     "Expected hop #{index} to be channel {expected} but was {actual}"
@@ -334,7 +360,6 @@ impl Display for RouteAssertionError {
         }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 struct NetworkNode {
@@ -511,28 +536,24 @@ impl Network {
     ) {
         // get setup data as MockupInterfaceSetupData
         if let Some(setup_data) = &mut connection.setup_data {
-            let setup_data = setup_data
-                .downcast_mut::<MockupInterfaceSetupData>()
-                .expect("MockupInterfaceSetupData is required for interface of type mockup");
             let channel = Network::get_mockup_interface_channel(
                 mockup_interface_channels,
                 setup_data.name.clone(),
             );
-            info!("setup_data: {:?}", setup_data.endpoint);
-            info!("For Channel: {:?}", setup_data.name);
-
-            match setup_data.direction {
+                   match setup_data.direction {
                 InterfaceDirection::In => {
-                    setup_data.receiver = Some(channel.receiver);
+                    setup_data.channel_index = Some(store_sender_and_receiver(None, Some(channel.receiver)));
                 }
                 InterfaceDirection::Out => {
-                    setup_data.sender = Some(channel.sender);
+                    setup_data.channel_index = Some(store_sender_and_receiver(Some(channel.sender), None));
                 }
                 InterfaceDirection::InOut => {
-                    setup_data.receiver = Some(channel.receiver);
-                    setup_data.sender = Some(channel.sender);
+                    setup_data.channel_index =
+                        Some(store_sender_and_receiver(Some(channel.sender), Some(channel.receiver)));
                 }
             }
+
+            info!("setup_data: {:?}", setup_data);
         }
     }
 
@@ -556,12 +577,14 @@ impl Network {
                 sender: sender_a,
                 receiver: receiver_b,
             }
-        } else { match mockup_interface_channels.get_mut(&name).unwrap().take()
-        { Some(channel) => {
-            channel
-        } _ => {
-            panic!("Channel {name} is already used");
-        }}}
+        } else {
+            match mockup_interface_channels.get_mut(&name).unwrap().take() {
+                Some(channel) => channel,
+                _ => {
+                    panic!("Channel {name} is already used");
+                }
+            }
+        }
     }
 
     pub fn register_interface(
@@ -581,12 +604,12 @@ impl Network {
 
         // create new runtimes for each endpoint
         for endpoint in self.endpoints.iter_mut() {
-            let runtime = Runtime::new(endpoint.endpoint.clone());
+            let runtime = Rc::new(Runtime::new(RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone())));
 
             // register factories
             for (interface_type, factory) in self.com_interface_factories.iter()
             {
-                runtime.com_hub.register_interface_factory(
+                runtime.com_hub().register_interface_factory(
                     interface_type.clone(),
                     *factory,
                 )
@@ -595,15 +618,16 @@ impl Network {
             // add com interfaces
             for connection in endpoint.connections.iter_mut() {
                 runtime
-                    .com_hub
+                    .com_hub()
                     .create_interface(
                         &connection.interface_type,
-                        connection.setup_data.take().unwrap(),
+                        to_value_container(&connection.setup_data.take().unwrap()).unwrap(),
                         connection.priority,
                     )
                     .await
                     .expect("failed to create interface");
             }
+
             runtime.start().await;
             endpoint.runtime = Some(runtime);
         }

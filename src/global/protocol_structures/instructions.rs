@@ -21,6 +21,9 @@ pub enum Instruction {
     DecimalAsInt32(FloatAsInt32Data),
     Decimal(DecimalData),
 
+    ExecutionBlock(ExecutionBlockData),
+    RemoteExecution,
+
     ShortText(ShortTextData),
     Text(TextData),
     True,
@@ -105,7 +108,9 @@ impl Display for Instruction {
             // equality checks
             Instruction::StructuralEqual => write!(f, "STRUCTURAL_EQUAL"),
             Instruction::Equal => write!(f, "EQUAL"),
-            Instruction::NotStructuralEqual => write!(f, "NOT_STRUCTURAL_EQUAL"),
+            Instruction::NotStructuralEqual => {
+                write!(f, "NOT_STRUCTURAL_EQUAL")
+            }
             Instruction::NotEqual => write!(f, "NOT_EQUAL"),
             Instruction::Is => write!(f, "IS"),
 
@@ -122,6 +127,14 @@ impl Display for Instruction {
                 write!(f, "UPDATE_SLOT {}", address.0)
             }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
+            Instruction::ExecutionBlock(block) => {
+                write!(
+                    f,
+                    "EXECUTION_BLOCK (length: {}, injected_slot_count: {})",
+                    block.length, block.injected_slot_count
+                )
+            }
+            Instruction::RemoteExecution => write!(f, "REMOTE_EXECUTION"),
         }
     }
 }
@@ -217,3 +230,14 @@ pub struct InstructionCloseAndStore {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct SlotAddress(pub u32);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ExecutionBlockData {
+    pub length: u32,
+    pub injected_slot_count: u32,
+    #[br(count = injected_slot_count)]
+    pub injected_slots: Vec<u32>,
+    #[br(count = length)]
+    pub body: Vec<u8>,
+}

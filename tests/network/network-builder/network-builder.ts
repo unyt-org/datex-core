@@ -18,21 +18,24 @@ type NetworkDefinition = {
     }>;
 };
 
-type DirEntry  = {
+type DirEntry = {
     name: string;
     children?: DirEntry[];
 } | string;
 
 class NetworkManager {
     public static async getAllNetworks() {
-        const storedNetworks = await (await fetch("/rs-lib/datex-core/tests/network/network-builder/")).json() as DirEntry[];
+        const storedNetworks = await (await fetch("/"))
+            .json() as DirEntry[];
         return NetworkManager.resolveChildren(
             storedNetworks,
             "networks",
         )?.map((e) => e.replace(/\.json$/, ""));
     }
     public static loadNetwork(name: string) {
-        return fetch(`/rs-lib/datex-core/tests/network/network-builder/networks/${name}.json`)
+        return fetch(
+            `/networks/${name}.json`,
+        )
             .then((response) => response.json())
             .then((data: NetworkDefinition) => {
                 const nodes = data.nodes?.map((node) => ({
@@ -53,10 +56,13 @@ class NetworkManager {
             const next = current.find((item) =>
                 typeof item === "object" && item.name === part
             );
-            if (!next || !Array.isArray((next as {children: DirEntry[]}).children)) {
+            if (
+                !next ||
+                !Array.isArray((next as { children: DirEntry[] }).children)
+            ) {
                 return null;
             }
-            current = (next as {children: DirEntry[]}).children;
+            current = (next as { children: DirEntry[] }).children;
         }
         return current as string[];
     }
