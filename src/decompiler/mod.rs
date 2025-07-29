@@ -1,8 +1,8 @@
-use std::collections::HashMap; // FIXME #91 no-std
+use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
-// FIXME #92 no-std
+// FIXME #223 no-std
 
 use crate::compiler::{
     compile_template_with_refs, CompileOptions,
@@ -85,7 +85,7 @@ pub struct DecompileOptions {
     pub colorized: bool,
     /// display slots with generated variable names
     pub resolve_slots: bool,
-    /// TODO #93
+    /// TODO #224
     /// when set to true, the output is generated as compatible as possible with JSON, e.g. by
     /// always adding double quotes around keys
     pub json_compat: bool,
@@ -157,7 +157,7 @@ impl ScopeType {
 struct ScopeState {
     /// true if this is the outer scope (default scope)
     is_outer_scope: bool,
-    // TODO #94: use BinaryOperator instead of Instruction
+    // TODO #225: use BinaryOperator instead of Instruction
     active_operator: Option<(Instruction, bool)>,
     scope_type: (ScopeType, bool),
     /// skip inserted comma for next item (already inserted before key)

@@ -2,7 +2,7 @@
 #![feature(iter_from_coroutine)]
 #![feature(assert_matches)]
 #![feature(gen_blocks)]
-// FIXME #89 unused? Can be removed in the future.
+// FIXME #220 unused? Can be removed in the future.
 // #![feature(type_alias_impl_trait)]
 // #![feature(gen_blocks)]
 #[macro_use]
