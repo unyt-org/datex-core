@@ -9,7 +9,7 @@ mod tests {
     use datex_core::decompiler::decompile_body;
     use crate::{assert_structural_eq, assert_value_eq};
     use crate::decompiler::DecompileOptions;
-    use crate::logger::init_logger;
+    use crate::logger::init_logger_debug;
     use crate::values::serde::{
         deserializer::{from_bytes, from_value_container},
         serializer::{to_bytes, to_value_container},
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_struct_with_value_container_serde_bytes() {
-        init_logger();
+        init_logger_debug();
         // struct with value container
         let val = StructWithValueContainer {
             name: "test".to_string(),

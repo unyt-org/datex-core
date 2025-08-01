@@ -619,16 +619,15 @@ pub mod tests {
     use std::cell::RefCell;
     use std::io::Read;
     use std::vec;
-
-    use crate::compiler::scope;
-    use crate::{global::binary_codes::InstructionCode, logger::init_logger};
+    
+    use crate::{global::binary_codes::InstructionCode, logger::init_logger_debug};
     use log::*;
 
     use crate::compiler::ast_parser::parse;
     use crate::values::core_values::integer::integer::Integer;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
-        init_logger();
+        init_logger_debug();
         let (result, _) =
             compile_script(datex_script, CompileOptions::default()).unwrap();
         info!(
@@ -653,7 +652,7 @@ pub mod tests {
 
     #[test]
     fn test_simple_multiplication() {
-        init_logger();
+        init_logger_debug();
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
@@ -673,7 +672,7 @@ pub mod tests {
 
     #[test]
     fn test_simple_multiplication_close() {
-        init_logger();
+        init_logger_debug();
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
@@ -694,7 +693,7 @@ pub mod tests {
 
     #[test]
     fn test_is_operator() {
-        init_logger();
+        init_logger_debug();
 
         // TODO: compare refs
         let datex_script = "1 is 2".to_string();
@@ -753,7 +752,7 @@ pub mod tests {
 
     #[test]
     fn test_equality_operator() {
-        init_logger();
+        init_logger_debug();
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
@@ -811,7 +810,7 @@ pub mod tests {
 
     #[test]
     fn test_simple_addition() {
-        init_logger();
+        init_logger_debug();
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
@@ -845,7 +844,7 @@ pub mod tests {
 
     #[test]
     fn test_multi_addition() {
-        init_logger();
+        init_logger_debug();
 
         let op1: u8 = 1;
         let op2: u8 = 2;
@@ -874,7 +873,7 @@ pub mod tests {
 
     #[test]
     fn test_mixed_calculation() {
-        init_logger();
+        init_logger_debug();
 
         let op1: u8 = 1;
         let op2: u8 = 2;
@@ -903,7 +902,7 @@ pub mod tests {
 
     #[test]
     fn test_complex_addition() {
-        init_logger();
+        init_logger_debug();
 
         let a: u8 = 1;
         let b: u8 = 2;
@@ -931,7 +930,7 @@ pub mod tests {
 
     #[test]
     fn test_complex_addition_and_subtraction() {
-        init_logger();
+        init_logger_debug();
 
         let a: u8 = 1;
         let b: u8 = 2;
@@ -956,7 +955,7 @@ pub mod tests {
     // Test for integer/u8
     #[test]
     fn test_integer_u8() {
-        init_logger();
+        init_logger_debug();
         let val: u8 = 42;
         let datex_script = format!("{val}"); // 42
         let result = compile_and_log(&datex_script);
@@ -966,7 +965,7 @@ pub mod tests {
     // Test for decimal
     #[test]
     fn test_decimal() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "42.0";
         let result = compile_and_log(datex_script);
         let bytes = 42_i16.to_le_bytes();
@@ -981,7 +980,7 @@ pub mod tests {
     /// Test for test that is less than 256 characters
     #[test]
     fn test_short_text() {
-        init_logger();
+        init_logger_debug();
         let val = "unyt";
         let datex_script = format!("\"{val}\""); // "42"
         let result = compile_and_log(&datex_script);
@@ -994,7 +993,7 @@ pub mod tests {
     // Test empty array
     #[test]
     fn test_empty_array() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "[]";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
@@ -1007,7 +1006,7 @@ pub mod tests {
     // Test array with single element
     #[test]
     fn test_single_element_array() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "[42]";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1024,7 +1023,7 @@ pub mod tests {
     // Test array with multiple elements
     #[test]
     fn test_multi_element_array() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "[1, 2, 3]";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1045,7 +1044,7 @@ pub mod tests {
     // Test nested arrays
     #[test]
     fn test_nested_arrays() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "[1, [2, 3], 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1070,7 +1069,7 @@ pub mod tests {
     // Test array with expressions inside
     #[test]
     fn test_array_with_expressions() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "[1 + 2, 3 * 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1095,7 +1094,7 @@ pub mod tests {
     // Test array with mixed expressions
     #[test]
     fn test_array_with_mixed_expressions() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "[1, 2, 3 + 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1119,7 +1118,7 @@ pub mod tests {
     // Test tuple
     #[test]
     fn test_tuple() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "(1, 2, 3)";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1140,7 +1139,7 @@ pub mod tests {
     // Nested tuple
     #[test]
     fn test_nested_tuple() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "(1, (2, 3), 4)";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1165,7 +1164,7 @@ pub mod tests {
     // Tuple without parentheses
     #[test]
     fn test_tuple_without_parentheses() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "1, 2, 3";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1186,7 +1185,7 @@ pub mod tests {
     // key-value pair
     #[test]
     fn test_key_value_tuple() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "key: 42";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1206,7 +1205,7 @@ pub mod tests {
     // key-value pair with string key
     #[test]
     fn test_key_value_string() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "\"key\": 42";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1226,7 +1225,7 @@ pub mod tests {
     // key-value pair with integer key
     #[test]
     fn test_key_value_integer() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "10: 42";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1244,7 +1243,7 @@ pub mod tests {
     // key-value pair with long text key (>255 bytes)
     #[test]
     fn test_key_value_long_text() {
-        init_logger();
+        init_logger_debug();
         let long_key = "a".repeat(300);
         let datex_script = format!("\"{long_key}\": 42");
         let result = compile_and_log(&datex_script);
@@ -1266,7 +1265,7 @@ pub mod tests {
     // dynamic key-value pair
     #[test]
     fn test_dynamic_key_value() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "(1 + 2): 42";
         let result = compile_and_log(datex_script);
         let expected = [
@@ -1287,7 +1286,7 @@ pub mod tests {
     // multiple key-value pairs
     #[test]
     fn test_multiple_key_value_pairs() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "key: 42, 4: 43, (1 + 2): 44";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1320,7 +1319,7 @@ pub mod tests {
     // key value pair with parentheses
     #[test]
     fn test_key_value_with_parentheses() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "(key: 42)";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1340,7 +1339,7 @@ pub mod tests {
     // empty object
     #[test]
     fn test_empty_object() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
@@ -1353,7 +1352,7 @@ pub mod tests {
     // object with single key-value pair
     #[test]
     fn test_single_key_value_object() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1373,7 +1372,7 @@ pub mod tests {
     // object with multiple key-value pairs
     #[test]
     fn test_multi_key_value_object() {
-        init_logger();
+        init_logger_debug();
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
@@ -1409,7 +1408,7 @@ pub mod tests {
 
     #[test]
     fn test_allocate_slot() {
-        init_logger();
+        init_logger_debug();
         let script = "val a = 42";
         let result = compile_and_log(script);
         assert_eq!(
@@ -1429,7 +1428,7 @@ pub mod tests {
 
     #[test]
     fn test_allocate_slot_with_value() {
-        init_logger();
+        init_logger_debug();
         let script = "val a = 42; a + 1";
         let result = compile_and_log(script);
         assert_eq!(
@@ -1459,7 +1458,7 @@ pub mod tests {
 
     #[test]
     fn test_allocate_scoped_slots() {
-        init_logger();
+        init_logger_debug();
         let script = "val a = 42; (val a = 43; a); a";
         let result = compile_and_log(script);
         assert_eq!(
@@ -1506,7 +1505,7 @@ pub mod tests {
 
     #[test]
     fn test_allocate_scoped_slots_with_parent_variables() {
-        init_logger();
+        init_logger_debug();
         let script = "val a = 42; val b = 41; (val a = 43; a; b); a";
         let result = compile_and_log(script);
         assert_eq!(
@@ -1567,7 +1566,7 @@ pub mod tests {
 
     #[test]
     fn test_allocate_ref() {
-        init_logger();
+        init_logger_debug();
         let script = "ref a = 42";
         let result = compile_and_log(script);
         assert_eq!(
@@ -1588,7 +1587,7 @@ pub mod tests {
 
     #[test]
     fn test_read_ref() {
-        init_logger();
+        init_logger_debug();
         let script = "ref a = 42; a";
         let result = compile_and_log(script);
         assert_eq!(
@@ -1616,7 +1615,7 @@ pub mod tests {
 
     #[test]
     fn test_compile() {
-        init_logger();
+        init_logger_debug();
         let result = compile_template(
             "? + ?",
             &[1.into(), 2.into()],
@@ -1636,7 +1635,7 @@ pub mod tests {
 
     #[test]
     fn test_compile_macro() {
-        init_logger();
+        init_logger_debug();
         let a = 1;
         let result = compile!("?", a);
         assert_eq!(result.unwrap().0, vec![InstructionCode::INT_8.into(), 1,]);
@@ -1644,7 +1643,7 @@ pub mod tests {
 
     #[test]
     fn test_compile_macro_multi() {
-        init_logger();
+        init_logger_debug();
         let result = compile!("? + ?", 1, 2);
         assert_eq!(
             result.unwrap().0,
@@ -1683,7 +1682,7 @@ pub mod tests {
 
     #[test]
     fn test_static_value_detection() {
-        init_logger();
+        init_logger_debug();
 
         // non-static
         let script = "1 + 2";

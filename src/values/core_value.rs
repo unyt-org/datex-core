@@ -660,13 +660,13 @@ impl Display for CoreValue {
 mod tests {
     use log::{debug, info};
 
-    use crate::logger::init_logger;
+    use crate::logger::init_logger_debug;
 
     use super::*;
 
     #[test]
     fn test_addition() {
-        init_logger();
+        init_logger_debug();
         let a = CoreValue::from(42i32);
         let b = CoreValue::from(11i32);
         let c = CoreValue::from("11");

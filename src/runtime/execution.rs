@@ -25,6 +25,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use log::info;
 use num_enum::TryFromPrimitive;
 use crate::runtime::execution_context::RemoteExecutionContext;
 use crate::runtime::RuntimeInternal;
@@ -427,7 +428,7 @@ pub fn execute_loop(
             // TODO: use ? operator instead of yield_unwrap once supported in gen blocks
             let instruction = yield_unwrap!(instruction);
             if input.options.verbose {
-                println!("[Exec]: {instruction}");
+                info!("[Exec]: {instruction}");
             }
 
             // get initial value from instruction
@@ -997,7 +998,7 @@ mod tests {
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
-    use crate::logger::init_logger;
+    use crate::logger::init_logger_debug;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::{assert_structural_eq, assert_value_eq, datex_array};
 
@@ -1161,7 +1162,7 @@ mod tests {
 
     #[test]
     fn test_array_with_nested_scope() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
         let expected =
             datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
@@ -1201,7 +1202,7 @@ mod tests {
 
     #[test]
     fn test_integer_2() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
         assert_ne!(result, 2_u8.into());
@@ -1218,7 +1219,7 @@ mod tests {
 
     #[test]
     fn test_tuple() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
         let tuple: CoreValue = result.clone().to_value().borrow().clone().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
@@ -1260,21 +1261,21 @@ mod tests {
 
     #[test]
     fn test_val_assignment() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("val x = 42; x");
         assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
     fn test_val_assignment_with_addition() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("val x = 1 + 2; x");
         assert_eq!(result, Integer::from(3).into());
     }
 
     #[test]
     fn test_val_assignment_inside_scope() {
-        init_logger();
+        init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("[val x = 42, 2, x]");
         let expected = datex_array![
@@ -1287,7 +1288,7 @@ mod tests {
 
     #[test]
     fn test_ref_assignment() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("ref x = 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
@@ -1295,21 +1296,21 @@ mod tests {
 
     #[test]
     fn test_endpoint_slot() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_error("#endpoint");
         assert_matches!(result.unwrap_err(), ExecutionError::RequiresRuntime);
     }
 
     #[test]
     fn test_shebang() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("#!datex\n42");
         assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
     fn test_single_line_comment() {
-        init_logger();
+        init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("// this is a comment\n42");
         assert_eq!(result, Integer::from(42).into());
@@ -1322,7 +1323,7 @@ mod tests {
 
     #[test]
     fn test_multi_line_comment() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment */\n42",
         );

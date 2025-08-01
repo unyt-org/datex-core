@@ -217,7 +217,7 @@ mod tests {
     use super::*;
     use crate::{
         assert_structural_eq, datex_array,
-        logger::init_logger,
+        logger::init_logger_debug,
         values::core_values::{
             array::Array,
             endpoint::Endpoint,
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn test_endpoint() {
-        init_logger();
+        init_logger_debug();
         let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
         assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn array() {
-        init_logger();
+        init_logger_debug();
         let mut a: Array = CoreValue::from(vec![
             Value::from("42"),
             Value::from(42),
@@ -288,7 +288,7 @@ mod tests {
 
     #[test]
     fn boolean() {
-        init_logger();
+        init_logger_debug();
         let a = Value::from(true);
         let b = Value::from(false);
         let c = Value::from(false);
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn equality_same_type() {
-        init_logger();
+        init_logger_debug();
         let a = Value::from(42i8);
         let b = Value::from(42i8);
         let c = Value::from(27i8);
@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn decimal() {
-        init_logger();
+        init_logger_debug();
         let a = Value::from(42.1f32);
         let b = Value::from(27f32);
 
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_cast_type() {
-        init_logger();
+        init_logger_debug();
         let a = Value::from(42);
         let b = a.try_cast_to(CoreValueType::Text).unwrap();
         assert_eq!(b.get_type(), CoreValueType::Text);
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_null() {
-        init_logger();
+        init_logger_debug();
 
         let null_value = Value::null();
         assert_eq!(null_value.get_type(), CoreValueType::Null);
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_addition() {
-        init_logger();
+        init_logger_debug();
         let a = Value::from(42i8);
         let b = Value::from(27i8);
 
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_string_concatenation() {
-        init_logger();
+        init_logger_debug();
         let a = Value::from("Hello ");
         let b = Value::from(42i8);
 
