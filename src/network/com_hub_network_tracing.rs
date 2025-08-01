@@ -23,6 +23,7 @@ use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
 use std::time::Duration;
+use crate::runtime::global_context::get_global_context;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -273,7 +274,7 @@ impl ComHub {
         };
 
         // measure round trip time
-        let start_time = std::time::Instant::now();
+        let start_time = get_global_context().clone().time.lock().unwrap().now();
 
         let responses = self
             .send_own_block_await_response(
@@ -281,7 +282,10 @@ impl ComHub {
                 options.response_options,
             )
             .await;
-        let round_trip_time = start_time.elapsed();
+        let end_time = get_global_context().clone().time.lock().unwrap().now();
+        let round_trip_time = Duration::from_millis(
+            end_time - start_time
+        );
 
         let mut results = vec![];
 
