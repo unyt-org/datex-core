@@ -51,7 +51,7 @@ impl Display for ComHubMetadata {
                     .name
                     .clone()
                     .map(|n| format!(" ({n})"))
-                    .unwrap_or("".to_string())
+                    .unwrap_or("".to_string()),
             )?;
 
             // print sockets
@@ -123,7 +123,7 @@ impl ComHub {
                     });
             }
         }
-        
+
         for (socket_uuid, (socket, endpoints)) in self.sockets.borrow().iter() {
             // if no endpoints are registered, we consider it a socket without an endpoint
             if endpoints.is_empty() {
