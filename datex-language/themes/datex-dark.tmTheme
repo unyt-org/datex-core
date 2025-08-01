@@ -81,6 +81,32 @@
                 </dict>
             </dict>
 
+            <!-- Slots -->
+            <dict>
+                <key>name</key>
+                <string>Slot</string>
+                <key>scope</key>
+                <string>variable.other.slot.datex</string>
+                <key>settings</key>
+                <dict>
+                    <key>foreground</key>
+                    <string>#a7a7a7</string>
+                </dict>
+            </dict>
+
+            <!-- Endpoints -->
+            <dict>
+                <key>name</key>
+                <string>Endpoint</string>
+                <key>scope</key>
+                <string>variable.other.endpoint.datex</string>
+                <key>settings</key>
+                <dict>
+                    <key>foreground</key>
+                    <string>#58d452</string>
+                </dict>
+            </dict>
+
             <!-- Single-line Comments -->
             <dict>
                 <key>name</key>
