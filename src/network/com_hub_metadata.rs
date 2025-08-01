@@ -9,6 +9,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use std::collections::HashMap;
 use std::fmt::Display;
+use itertools::Itertools;
 
 pub struct ComHubMetadataInterfaceSocket {
     pub uuid: String,
@@ -55,7 +56,15 @@ impl Display for ComHubMetadata {
             )?;
 
             // print sockets
-            for socket in &interface.sockets {
+            let sorted_sockets = interface
+                .sockets
+                .iter()
+                .sorted_by_key(|s| match &s.properties {
+                    Some(properties) => properties.distance,
+                    None => i8::MAX,
+                });
+            
+            for socket in sorted_sockets {
                 writeln!(
                     f,
                     "   {} {}{} (distance: {}, uuid: {})",
