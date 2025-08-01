@@ -18,15 +18,15 @@ pub async fn test_create_socket_connection() {
     run_async! {
         const PORT: u16 = 8085;
         init_global_context();
-    
+
         const CLIENT_TO_SERVER_MSG: &[u8] = b"Hello World";
         const SERVER_TO_CLIENT_MSG: &[u8] = b"Nooo, this is Patrick!";
-    
-        let mut server = WebSocketServerNativeInterface::new(PORT).unwrap();
+
+        let mut server = WebSocketServerNativeInterface::new(PORT, false).unwrap();
         server.open().await.unwrap_or_else(|e| {
             panic!("Failed to create WebSocketServerInterface: {e}");
         });
-    
+
         let client = Rc::new(RefCell::new(
             WebSocketClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
                 .unwrap(),
@@ -35,7 +35,7 @@ pub async fn test_create_socket_connection() {
             panic!("Failed to create WebSocketClientInterface: {e}");
         });
         let server = Rc::new(RefCell::new(server));
-    
+
         let client_uuid = client.borrow().get_socket_uuid().unwrap();
         assert!(
             client
@@ -43,7 +43,7 @@ pub async fn test_create_socket_connection() {
                 .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
                 .await
         );
-    
+
         let server_uuid = server.borrow().get_socket_uuid_at(0).unwrap();
         assert!(
             server
@@ -51,9 +51,9 @@ pub async fn test_create_socket_connection() {
                 .send_block(SERVER_TO_CLIENT_MSG, server_uuid.clone())
                 .await
         );
-    
+
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    
+
         {
             let server = server.clone();
             let server = server.borrow_mut();
@@ -62,7 +62,7 @@ pub async fn test_create_socket_connection() {
             let mut queue = socket.receive_queue.lock().unwrap();
             assert_eq!(queue.drain(..).collect::<Vec<_>>(), CLIENT_TO_SERVER_MSG);
         }
-    
+
         {
             let client = client.clone();
             let client = client.borrow_mut();
@@ -71,10 +71,10 @@ pub async fn test_create_socket_connection() {
             let mut queue = socket.receive_queue.lock().unwrap();
             assert_eq!(queue.drain(..).collect::<Vec<_>>(), SERVER_TO_CLIENT_MSG);
         }
-    
+
         let client = &mut *client.borrow_mut();
         client.destroy_ref().await;
-    
+
         let server = &mut *server.borrow_mut();
         server.destroy_ref().await;
     }

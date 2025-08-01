@@ -49,7 +49,7 @@ impl WebSocketClientNativeInterface {
         address: &str,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
         let address =
-            parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
+            parse_url(address, true).map_err(|_| WebSocketError::InvalidURL)?;
         let info = ComInterfaceInfo::new();
         let interface = WebSocketClientNativeInterface {
             address,

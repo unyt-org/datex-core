@@ -68,9 +68,10 @@ impl MultipleSocketProvider for WebSocketServerNativeInterface {
 impl WebSocketServerNativeInterface {
     pub fn new(
         port: u16,
+        secure: bool,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
         let address: String = format!("0.0.0.0:{port}");
-        let address = parse_url(&address).map_err(|_| {
+        let address = parse_url(&address, secure).map_err(|_| {
             WebSocketServerError::WebSocketError(WebSocketError::InvalidURL)
         })?;
         let interface = WebSocketServerNativeInterface {
@@ -90,7 +91,7 @@ impl WebSocketServerNativeInterface {
         let addr = format!(
             "{}:{}",
             address.host_str().unwrap(),
-            address.port().unwrap()
+            address.port_or_known_default().unwrap()
         )
         .parse::<SocketAddr>()
         .map_err(|_| WebSocketServerError::InvalidPort)?;
@@ -217,7 +218,7 @@ impl ComInterfaceFactory<WebSocketServerInterfaceSetupData>
     fn create(
         setup_data: WebSocketServerInterfaceSetupData,
     ) -> Result<WebSocketServerNativeInterface, ComInterfaceError> {
-        WebSocketServerNativeInterface::new(setup_data.port)
+        WebSocketServerNativeInterface::new(setup_data.port, setup_data.secure.unwrap_or(true))
             .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
 

@@ -12,6 +12,8 @@ pub struct WebSocketClientInterfaceSetupData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WebSocketServerInterfaceSetupData {
     pub port: u16,
+    /// if true, the server will use wss (secure WebSocket). Defaults to true.
+    pub secure: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -43,11 +45,13 @@ impl From<ComHubError> for WebSocketServerError {
 }
 
 
-pub fn parse_url(address: &str) -> Result<Url, URLError> {
+/// Parses a WebSocket URL and returns a `Url` object.
+/// If no protocol is specified, it defaults to `ws` or `wss` based on the `secure` parameter.
+pub fn parse_url(address: &str, secure: bool) -> Result<Url, URLError> {
     let address = if address.contains("://") {
         address.to_string()
     } else {
-        format!("ws://{address}")
+        format!("{}://{address}", if secure { "wss" } else { "ws" })
     };
 
     let mut url = Url::parse(&address).map_err(|_| URLError::InvalidURL)?;
