@@ -143,6 +143,7 @@ impl IncomingEndpointContextSectionId {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockId {
     pub endpoint_context_id: IncomingEndpointContextId,
+    pub timestamp: u64,
     pub current_section_index: IncomingSectionIndex,
     pub current_block_number: IncomingBlockNumber,
 }
@@ -361,6 +362,7 @@ impl DXBBlock {
     pub fn get_block_id(&self) -> BlockId {
         BlockId {
             endpoint_context_id: self.get_endpoint_context_id(),
+            timestamp: self.block_header.flags_and_timestamp.creation_timestamp(),
             current_section_index: self.block_header.section_index,
             current_block_number: self.block_header.block_number,
         }

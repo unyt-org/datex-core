@@ -513,7 +513,6 @@ impl ComHub {
         let hops_datex = execute_dxb_sync(exec_input)
             .unwrap()
             .unwrap();
-        info!("hops datex {hops_datex}");
         if let ValueContainer::Value(Value {
             inner: CoreValue::Array(array),
             ..
@@ -611,7 +610,6 @@ impl ComHub {
                     });
                 }
             }
-            info!("Parsed hops from trace block: {hops:?}");
             Some(hops)
         } else {
             None

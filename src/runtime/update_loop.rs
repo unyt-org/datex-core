@@ -71,7 +71,6 @@ impl RuntimeInternal {
             // execute the section in a separate task
             let self_rc = self_rc.clone();
             spawn_with_panic_notify(async move {
-                info!("Handling incoming section: {section:?}");
                 let (result, endpoint, context_id) = RuntimeInternal::execute_incoming_section(self_rc.clone(), section).await;
                 info!("Execution result (on {} from {}): {result:?}", self_rc.endpoint, endpoint);
                 // send response back to the sender

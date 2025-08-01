@@ -146,7 +146,7 @@ impl WebSocketServerNativeInterface {
                                             websocket_streams
                                                 .lock()
                                                 .unwrap()
-                                                .insert(socket_uuid, write);
+                                                .insert(socket_uuid.clone(), write);
 
                                             while let Some(msg) = read.next().await {
                                                 match msg {
@@ -168,6 +168,19 @@ impl WebSocketServerNativeInterface {
                                                     }
                                                 }
                                             }
+                                            // consider the connection closed, clean up
+                                            let mut streams =
+                                                websocket_streams
+                                                    .lock()
+                                                    .unwrap();
+                                            streams.remove(&socket_uuid);
+                                            com_interface_sockets
+                                                .lock()
+                                                .unwrap()
+                                                .remove_socket(&socket_uuid);
+                                            info!(
+                                                "WebSocket connection from {addr} closed"
+                                            );
                                         }
                                         Err(e) => {
                                             error!(

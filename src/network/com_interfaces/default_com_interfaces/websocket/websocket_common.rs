@@ -47,7 +47,7 @@ pub fn parse_url(address: &str) -> Result<Url, URLError> {
     let address = if address.contains("://") {
         address.to_string()
     } else {
-        format!("wss://{address}")
+        format!("ws://{address}")
     };
 
     let mut url = Url::parse(&address).map_err(|_| URLError::InvalidURL)?;
