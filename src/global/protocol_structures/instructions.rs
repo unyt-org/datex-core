@@ -52,7 +52,7 @@ pub enum Instruction {
     AllocateSlot(SlotAddress),
     GetSlot(SlotAddress),
     DropSlot(SlotAddress),
-    UpdateSlot(SlotAddress),
+    SetSlot(SlotAddress),
 }
 
 impl Display for Instruction {
@@ -123,8 +123,8 @@ impl Display for Instruction {
             Instruction::DropSlot(address) => {
                 write!(f, "DROP_SLOT {}", address.0)
             }
-            Instruction::UpdateSlot(address) => {
-                write!(f, "UPDATE_SLOT {}", address.0)
+            Instruction::SetSlot(address) => {
+                write!(f, "SET_SLOT {}", address.0)
             }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
             Instruction::ExecutionBlock(block) => {

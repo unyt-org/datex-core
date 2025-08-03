@@ -723,7 +723,7 @@ fn get_result_value_from_instruction(
                     slot_value
                 }
             }
-            Instruction::UpdateSlot(SlotAddress(address)) => {
+            Instruction::SetSlot(SlotAddress(address)) => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -805,8 +805,6 @@ fn handle_value(
             // set value for slot
             let address = *address;
             context.set_slot_value(address, value_container.clone())?;
-            // set value_container as active value
-            context.pop_next_scope = true;
             Some(value_container)
         }
 

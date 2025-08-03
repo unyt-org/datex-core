@@ -714,6 +714,8 @@ fn compile_expression(
             };
 
             scope.register_variable_slot(variable);
+
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
 
         // assignment
@@ -800,11 +802,10 @@ fn compile_expression(
                 compilation_context.insert_virtual_slot_address(slot.upgrade());
             }
 
-            // insert block body (compilation_context.buffer
-            compilation_context
-                .buffer
-                .borrow_mut()
-                .extend_from_slice(&execution_block_ctx.buffer.borrow());
+            // insert block body (compilation_context.buffer)
+            compilation_context.append_buffer(
+                &execution_block_ctx.buffer.borrow(),
+            )
         }
 
         // named slot
@@ -978,6 +979,7 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 // val b = 69;
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -988,6 +990,7 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 69,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 // a is b
                 InstructionCode::IS.into(),
@@ -1677,6 +1680,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1697,6 +1701,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -1726,6 +1731,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -1735,6 +1741,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1,
@@ -1773,6 +1780,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
@@ -1781,6 +1789,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 41,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::SCOPE_START.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -1790,6 +1799,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 2,
@@ -1836,6 +1846,7 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1857,6 +1868,7 @@ pub mod tests {
                 InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
@@ -2091,6 +2103,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
@@ -2128,8 +2141,8 @@ pub mod tests {
     fn test_remote_execution_injected_var() {
         init_logger_debug();
         // var x only refers to a value, not a ref, but since it is transferred to a
-        // remote context, its state is synced via a ref
-        let script = "var x = 42; 1 :: x;";
+        // remote context, its state is synced via a ref (VariableReference model)
+        let script = "var x = 42; 1 :: x; x = 43;";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2143,6 +2156,8 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
+                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
@@ -2188,6 +2203,17 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CLOSE_AND_STORE.into(),
+                // TODO: this is not the correct slot assignment for VariableReference model
+                // set x to 43
+                InstructionCode::SET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::INT_8.into(),
+                43,
+                InstructionCode::CLOSE_AND_STORE.into(),
             ]
         );
     }
@@ -2208,6 +2234,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2217,6 +2244,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 69,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
@@ -2278,6 +2306,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2287,6 +2316,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 69,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
@@ -2294,8 +2324,8 @@ pub mod tests {
                 1,
                 // start of block
                 InstructionCode::EXECUTION_BLOCK.into(),
-                // block size (19 bytes)
-                19,
+                // block size (20 bytes)
+                20,
                 0,
                 0,
                 0,
@@ -2318,6 +2348,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 5,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 // expression: x + y
                 InstructionCode::ADD.into(),
@@ -2354,6 +2385,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
@@ -2425,6 +2457,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)

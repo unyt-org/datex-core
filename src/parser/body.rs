@@ -357,7 +357,7 @@ pub fn iterate_instructions<'a>(
                         if let Err(err) = address {
                             Err(err.into())
                         } else {
-                            Ok(Instruction::UpdateSlot(address.unwrap()))
+                            Ok(Instruction::SetSlot(address.unwrap()))
                         }
                     }
 

@@ -21,7 +21,7 @@ impl AstMetadata {
     pub fn variable_metadata(&self, id: usize) -> Option<&VariableMetadata> {
         self.variables.get(id)
     }
-    
+
     pub fn variable_metadata_mut(&mut self, id: usize) -> Option<&mut VariableMetadata> {
         self.variables.get_mut(id)
     }
@@ -267,7 +267,6 @@ fn visit_expression(expression: &mut DatexExpression, metadata: &mut AstMetadata
 
         DatexExpression::Statements(stmts) => {
             for stmt in stmts {
-                info!("Visiting statemtn with stack: {:?}, {:?}", scope_stack, stmt.expression);
                 visit_expression(&mut stmt.expression, metadata, scope_stack, NewScopeType::None)?;
             }
         }

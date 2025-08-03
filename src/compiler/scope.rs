@@ -132,7 +132,7 @@ impl CompilationScope {
             parent.next_slot_address = self.next_slot_address;
             Some((
                 *parent,
-                self.variables.keys().map(|k| self.variables[k].slots()).flatten().collect::<Vec<_>>()
+                self.variables.keys().flat_map(|k| self.variables[k].slots()).collect::<Vec<_>>()
             ))
         } else {
             None
