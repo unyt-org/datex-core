@@ -16,7 +16,7 @@ use strum::Display;
 pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
-    CLOSE_AND_STORE, // ;
+    CLOSE_AND_STORE, // ; TODO: do we need close_and_store at all, or is scope_end enough?
     SCOPE_START,     // (
     SCOPE_END,       // )
     CACHE_POINT,     // cache dxb from this point on

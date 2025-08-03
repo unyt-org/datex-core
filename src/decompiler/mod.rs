@@ -2,6 +2,7 @@ use std::collections::HashMap; // FIXME no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
+use log::info;
 // FIXME no-std
 
 use crate::compiler::{
@@ -698,7 +699,7 @@ fn handle_before_operand(
             }
             (Instruction::RemoteExecution, false) => {
                 write_operator(state, output, "::")?;
-                state.get_current_scope().close_scope_after_term = true;
+                state.get_current_scope().close_scope_after_term = false;
             }
             _ => {
                 panic!("Invalid operator: {operator:?}");

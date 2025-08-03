@@ -3,6 +3,7 @@ use crate::compiler::{ast_parser::VariableType, context::VirtualSlot, Variable, 
 use std::collections::HashMap;
 use std::rc::Rc;
 use itertools::Itertools;
+use log::info;
 use crate::compiler::ast_parser::VariableMutType;
 use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 
@@ -137,5 +138,9 @@ impl CompilationScope {
         } else {
             None
         }
+    }
+    
+    pub fn pop_external(self) -> Option<CompilationScope> {
+        self.external_parent_scope.map(|external_parent| *external_parent)
     }
 }

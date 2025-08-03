@@ -670,6 +670,9 @@ fn compile_expression(
             // create new variable depending on the model
             let variable = match variable_model {
                 VariableModel::VariableReference => {
+                    // scope end
+                    compilation_context
+                        .append_binary_code(InstructionCode::SCOPE_END);
                     // allocate an additional slot with a reference to the variable
                     let virtual_slot_addr_for_var = scope.get_next_virtual_slot();
                     compilation_context
@@ -734,6 +737,7 @@ fn compile_expression(
             }
 
             // append binary code to load variable
+            info!("append variable virtual slot: {virtual_slot:?}, name: {name}");
             compilation_context
                 .append_binary_code(InstructionCode::SET_SLOT);
             compilation_context.insert_virtual_slot_address(virtual_slot);
@@ -780,7 +784,7 @@ fn compile_expression(
             // compile remote execution block
             let execution_block_ctx =
                 CompilationContext::new(RefCell::new(Vec::with_capacity(256)), &[], true);
-            scope = compile_ast_with_metadata(
+            let external_scope = compile_ast_with_metadata(
                 &execution_block_ctx,
                 AstWithMetadata::new(
                     *script,
@@ -788,6 +792,10 @@ fn compile_expression(
                 ),
                 CompilationScope::new_with_external_parent_scope(scope),
             )?;
+            // reset to current scope
+            scope = external_scope.pop_external().ok_or_else(|| {
+                CompilerError::ScopePopError
+            })?;
 
             let external_slots = execution_block_ctx.external_slots();
             // start block
@@ -2157,7 +2165,6 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
@@ -2173,6 +2180,7 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
@@ -2213,6 +2221,7 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
+                InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
             ]
         );

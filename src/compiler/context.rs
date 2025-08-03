@@ -75,7 +75,7 @@ pub struct CompilationContext<'a> {
     pub inserted_values: RefCell<&'a [&'a ValueContainer]>,
     /// this flag is set to true if any non-static value is encountered
     pub has_non_static_value: RefCell<bool>,
-    
+
     /// Set to true if no further source text is expected to be compiled.
     /// Example: for a REPL, this is set to false
     pub is_end_of_source_text: bool,
@@ -149,6 +149,9 @@ impl<'a> CompilationContext<'a> {
         info!("remapping, bytes before: {:?}", self.buffer.borrow());
         info!("decompiled: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
             .expect("Failed to decompile body"));
+
+        info!("slot indices: {:#?}", self.slot_indices.borrow());
+
         let mut slot_address = 0;
 
         // parent slots
