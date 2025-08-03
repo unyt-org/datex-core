@@ -17,6 +17,8 @@ use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::Cursor;
+use std::rc::Rc;
+use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -62,6 +64,8 @@ impl VirtualSlot {
     }
 }
 
+
+/// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct Context<'a> {
     pub index: Cell<usize>,
     pub inserted_value_index: Cell<usize>,

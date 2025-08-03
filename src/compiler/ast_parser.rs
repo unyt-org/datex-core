@@ -177,6 +177,8 @@ pub enum Slot {
     Named(String),
 }
 
+pub type VariableId = usize;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
@@ -202,12 +204,12 @@ pub enum DatexExpression {
     Tuple(Vec<TupleEntry>),
     /// One or more statements, e.g (1; 2; 3)
     Statements(Vec<Statement>),
-    /// Identifier, e.g. a variable name
-    Variable(String),
-    /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2
-    VariableDeclaration(VariableType, VariableMutType, String, Box<DatexExpression>),
-    /// Variable assignment, e.g. x = 1
-    VariableAssignment(String, Box<DatexExpression>),
+    /// Identifier, e.g. a variable name. VariableId is always set to 0 by the ast parser.
+    Variable(Option<VariableId>, String),
+    /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
+    VariableDeclaration(Option<VariableId>, VariableType, VariableMutType, String, Box<DatexExpression>),
+    /// Variable assignment, e.g. x = 1. VariableId is always set to 0 by the ast parser.
+    VariableAssignment(Option<VariableId>, String, Box<DatexExpression>),
 
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),
@@ -464,7 +466,7 @@ pub fn create_parser<'a, I>()
         Token::TrueKW => DatexExpression::Boolean(true),
         Token::FalseKW => DatexExpression::Boolean(false),
         Token::NullKW => DatexExpression::Null,
-        Token::Identifier(s) => DatexExpression::Variable(s),
+        Token::Identifier(s) => DatexExpression::Variable(None, s),
         Token::NamedSlot(s) => DatexExpression::Slot(Slot::Named(s[1..].to_string())),
         Token::Slot(s) => DatexExpression::Slot(Slot::Addressed(
             // replace first char (#) and convert to u32
@@ -681,6 +683,7 @@ pub fn create_parser<'a, I>()
         .map(|(((var_type, mut_type), var_name), expr)| {
             if let Some(var_type) = var_type {
                 DatexExpression::VariableDeclaration(
+                    None,
                     if var_type == Token::ConstKW {
                         VariableType::Const
                     } else {
@@ -696,6 +699,7 @@ pub fn create_parser<'a, I>()
                 )
             } else {
                 DatexExpression::VariableAssignment(
+                    None,
                     var_name.to_string(),
                     Box::new(expr),
                 )
@@ -1466,7 +1470,7 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Array(vec![])),
-                    Box::new(DatexExpression::Variable("x".to_string())),
+                    Box::new(DatexExpression::Variable(None, "x".to_string())),
                 )),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -1742,7 +1746,7 @@ mod tests {
     fn test_variable_expression() {
         let src = "myVar";
         let expr = parse_unwrap(src);
-        assert_eq!(expr, DatexExpression::Variable("myVar".to_string()));
+        assert_eq!(expr, DatexExpression::Variable(None, "myVar".to_string()));
     }
 
     #[test]
@@ -1753,7 +1757,7 @@ mod tests {
             expr,
             DatexExpression::BinaryOperation(
                 BinaryOperator::Add,
-                Box::new(DatexExpression::Variable("myVar".to_string())),
+                Box::new(DatexExpression::Variable(None, "myVar".to_string())),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
             )
         );
@@ -1766,7 +1770,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myFunc".to_string())),
+                Box::new(DatexExpression::Variable(None, "myFunc".to_string())),
                 vec![Apply::FunctionCall(DatexExpression::Tuple(vec![
                     TupleEntry::Value(DatexExpression::Integer(Integer::from(
                         1
@@ -1789,7 +1793,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myFunc".to_string())),
+                Box::new(DatexExpression::Variable(None, "myFunc".to_string())),
                 vec![Apply::FunctionCall(DatexExpression::Statements(vec![]))],
             )
         );
@@ -1802,7 +1806,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myFunc".to_string())),
+                Box::new(DatexExpression::Variable(None, "myFunc".to_string())),
                 vec![
                     Apply::FunctionCall(DatexExpression::Integer(
                         Integer::from(1)
@@ -1827,7 +1831,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("print".to_string())),
+                Box::new(DatexExpression::Variable(None, "print".to_string())),
                 vec![Apply::FunctionCall(DatexExpression::Text(
                     "test".to_string()
                 ))],
@@ -1842,7 +1846,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myObj".to_string())),
+                Box::new(DatexExpression::Variable(None, "myObj".to_string())),
                 vec![Apply::PropertyAccess(DatexExpression::Text(
                     "myProp".to_string()
                 ))],
@@ -1857,7 +1861,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myObj".to_string())),
+                Box::new(DatexExpression::Variable(None, "myObj".to_string())),
                 vec![Apply::PropertyAccess(DatexExpression::Integer(
                     Integer::from(1)
                 ))],
@@ -1872,7 +1876,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myObj".to_string())),
+                Box::new(DatexExpression::Variable(None, "myObj".to_string())),
                 vec![
                     Apply::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
@@ -1888,12 +1892,14 @@ mod tests {
                     Apply::PropertyAccess(DatexExpression::Statements(vec![
                         Statement {
                             expression: DatexExpression::Variable(
+                                None,
                                 "x".to_string()
                             ),
                             is_terminated: true,
                         },
                         Statement {
                             expression: DatexExpression::Variable(
+                                None,
                                 "y".to_string()
                             ),
                             is_terminated: false,
@@ -1911,7 +1917,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myObj".to_string())),
+                Box::new(DatexExpression::Variable(None, "myObj".to_string())),
                 vec![
                     Apply::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
@@ -1936,7 +1942,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myFunc".to_string())),
+                Box::new(DatexExpression::Variable(None, "myFunc".to_string())),
                 vec![
                     Apply::FunctionCall(DatexExpression::Integer(
                         Integer::from(1)
@@ -1958,7 +1964,7 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::ApplyChain(
-                        Box::new(DatexExpression::Variable("x".to_string())),
+                        Box::new(DatexExpression::Variable(None, "x".to_string())),
                         vec![Apply::FunctionCall(DatexExpression::Integer(
                             Integer::from(1)
                         ))],
@@ -1981,6 +1987,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::VariableDeclaration(
+                None,
                 VariableType::Const,
                 VariableMutType::Immutable,
                 "x".to_string(),
@@ -1997,6 +2004,7 @@ mod tests {
             expr,
             DatexExpression::Statements(vec![Statement {
                 expression: DatexExpression::VariableDeclaration(
+                    None,
                     VariableType::Const,
                     VariableMutType::Immutable,
                     "x".to_string(),
@@ -2014,6 +2022,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::VariableDeclaration(
+                None,
                 VariableType::Var,
                 VariableMutType::Immutable,
                 "x".to_string(),
@@ -2033,6 +2042,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::VariableAssignment(
+                None,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(42))),
             )
@@ -2046,8 +2056,10 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::VariableAssignment(
+                None,
                 "x".to_string(),
                 Box::new(DatexExpression::VariableAssignment(
+                    None,
                     "y".to_string(),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                 )),
@@ -2062,6 +2074,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Array(vec![DatexExpression::VariableAssignment(
+                None,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
             ),])
@@ -2075,7 +2088,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Array(vec![DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Variable("myFunc".to_string())),
+                Box::new(DatexExpression::Variable(None, "myFunc".to_string())),
                 vec![Apply::FunctionCall(DatexExpression::Integer(
                     Integer::from(1)
                 ))]
@@ -2132,6 +2145,7 @@ mod tests {
             DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::VariableDeclaration(
+                        None,
                         VariableType::Var,
                         VariableMutType::Immutable,
                         "x".to_string(),
@@ -2141,6 +2155,7 @@ mod tests {
                 },
                 Statement {
                     expression: DatexExpression::VariableAssignment(
+                        None,
                         "x".to_string(),
                         Box::new(DatexExpression::BinaryOperation(
                             BinaryOperator::Multiply,
@@ -2393,8 +2408,8 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Variable("a".to_string())),
-                Box::new(DatexExpression::Variable("b".to_string()))
+                Box::new(DatexExpression::Variable(None, "a".to_string())),
+                Box::new(DatexExpression::Variable(None, "b".to_string()))
             )
         );
     }
@@ -2405,8 +2420,8 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Variable("a".to_string())),
-                Box::new(DatexExpression::Variable("b".to_string()))
+                Box::new(DatexExpression::Variable(None, "a".to_string())),
+                Box::new(DatexExpression::Variable(None, "b".to_string()))
             )
         );
     }
@@ -2418,13 +2433,13 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Variable("a".to_string())),
+                Box::new(DatexExpression::Variable(None, "a".to_string())),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
-                    Box::new(DatexExpression::Variable("b".to_string())),
+                    Box::new(DatexExpression::Variable(None, "b".to_string())),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::Multiply,
-                        Box::new(DatexExpression::Variable("c".to_string())),
+                        Box::new(DatexExpression::Variable(None, "c".to_string())),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                     )),
                 )),
@@ -2441,8 +2456,8 @@ mod tests {
             DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::RemoteExecution(
-                        Box::new(DatexExpression::Variable("a".to_string())),
-                        Box::new(DatexExpression::Variable("b".to_string()))
+                        Box::new(DatexExpression::Variable(None, "a".to_string())),
+                        Box::new(DatexExpression::Variable(None, "b".to_string()))
                     ),
                     is_terminated: true,
                 },
@@ -2461,7 +2476,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Variable("a".to_string())),
+                Box::new(DatexExpression::Variable(None, "a".to_string())),
                 Box::new(DatexExpression::Statements(vec![
                     Statement {
                         expression: DatexExpression::Integer(Integer::from(1)),

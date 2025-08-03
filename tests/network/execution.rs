@@ -5,6 +5,7 @@ use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
 use datex_core::values::value_container::ValueContainer;
 use std::time::Duration;
+use datex_core::logger::init_logger_debug;
 
 #[tokio::test]
 pub async fn test_basic_remote_execution() {
@@ -31,6 +32,7 @@ pub async fn test_basic_remote_execution() {
 
 #[tokio::test]
 pub async fn test_remote_execution_persistent_context() {
+    init_logger_debug();
     run_async! {
         let endpoint_a = Endpoint::new("@test_a");
         let endpoint_b = Endpoint::new("@test_b");

@@ -352,7 +352,7 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::DropSlot(address.unwrap()))
                         }
                     }
-                    InstructionCode::UPDATE_SLOT => {
+                    InstructionCode::SET_SLOT => {
                         let address = SlotAddress::read(&mut reader);
                         if let Err(err) = address {
                             Err(err.into())

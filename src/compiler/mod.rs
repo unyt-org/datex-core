@@ -14,7 +14,10 @@ use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
+use std::rc::Rc;
+use log::info;
 use datex_core::compiler::ast_parser::Slot;
+use crate::compiler::precompiler::{precompile_ast, AstMetadata, AstWithMetadata};
 
 pub mod ast_parser;
 pub mod context;
@@ -22,6 +25,7 @@ pub mod error;
 mod lexer;
 pub mod metadata;
 pub mod scope;
+mod precompiler;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -249,9 +253,34 @@ pub fn compile_ast(
     ast: DatexExpression,
     scope: Scope,
 ) -> Result<Scope, CompilerError> {
+    let ast_with_metadata = if let Some(precompiler_data) = &scope.precompiler_data {
+        // precompile the AST, adding metadata for variables etc.
+        precompile_ast(
+            ast,
+            precompiler_data.ast_metadata.clone(),
+            &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
+        )?
+    }
+    else {
+        // if no precompiler data, just use the AST with default metadata
+        AstWithMetadata::new_without_metadata(ast)
+    };
+
+    compile_ast_with_metadata(
+        compilation_context,
+        ast_with_metadata,
+        scope,
+    )
+}
+
+pub fn compile_ast_with_metadata(
+    compilation_context: &Context,
+    ast_with_metadata: AstWithMetadata,
+    scope: Scope,
+) -> Result<Scope, CompilerError> {
     let scope = compile_expression(
         compilation_context,
-        ast,
+        ast_with_metadata,
         CompileMetadata::outer(),
         scope,
     )?;
@@ -263,11 +292,12 @@ pub fn compile_ast(
 
 fn compile_expression(
     compilation_context: &Context,
-    ast: DatexExpression,
+    ast_with_metadata: AstWithMetadata,
     meta: CompileMetadata,
     mut scope: Scope,
 ) -> Result<Scope, CompilerError> {
-    match ast {
+    let metadata = ast_with_metadata.metadata;
+    match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
             compilation_context.insert_int(int.0.as_i64().unwrap());
         }
@@ -303,7 +333,7 @@ fn compile_expression(
             for item in array {
                 scope = compile_expression(
                     compilation_context,
-                    item,
+                    AstWithMetadata::new(item, &metadata),
                     CompileMetadata::default(),
                     scope,
                 )?;
@@ -320,13 +350,14 @@ fn compile_expression(
                             compilation_context,
                             key,
                             value,
+                            &metadata,
                             scope,
                         )?;
                     }
                     TupleEntry::Value(value) => {
                         scope = compile_expression(
                             compilation_context,
-                            value,
+                            AstWithMetadata::new(value, &metadata),
                             CompileMetadata::default(),
                             scope,
                         )?;
@@ -344,6 +375,7 @@ fn compile_expression(
                     compilation_context,
                     key,
                     value,
+                    &metadata,
                     scope,
                 )?;
             }
@@ -368,7 +400,10 @@ fn compile_expression(
             if statements.len() == 1 && !statements[0].is_terminated {
                 scope = compile_expression(
                     compilation_context,
-                    statements.remove(0).expression,
+                    AstWithMetadata::new(
+                        statements.remove(0).expression,
+                        &metadata
+                    ),
                     CompileMetadata::default(),
                     scope,
                 )?;
@@ -384,7 +419,7 @@ fn compile_expression(
                 for statement in statements {
                     child_scope = compile_expression(
                         compilation_context,
-                        statement.expression,
+                        AstWithMetadata::new(statement.expression, &metadata),
                         CompileMetadata::default(),
                         child_scope,
                     )?;
@@ -422,13 +457,13 @@ fn compile_expression(
                 .append_binary_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                *a,
+                AstWithMetadata::new(*a, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
                 compilation_context,
-                *b,
+                AstWithMetadata::new(*b, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -442,7 +477,7 @@ fn compile_expression(
 
         // variables
         // declaration
-        DatexExpression::VariableDeclaration(var_type, mut_type, name, expression) => {
+        DatexExpression::VariableDeclaration(id, var_type, mut_type, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // allocate new slot for variable
             let virtual_slot_addr = scope.get_next_virtual_slot();
@@ -459,7 +494,7 @@ fn compile_expression(
             // compile expression
             scope = compile_expression(
                 compilation_context,
-                *expression,
+                AstWithMetadata::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -469,7 +504,7 @@ fn compile_expression(
         }
 
         // assignment
-        DatexExpression::VariableAssignment(name, expression) => {
+        DatexExpression::VariableAssignment(id, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, var_type, mut_type) = scope
@@ -485,12 +520,12 @@ fn compile_expression(
 
             // append binary code to load variable
             compilation_context
-                .append_binary_code(InstructionCode::UPDATE_SLOT);
+                .append_binary_code(InstructionCode::SET_SLOT);
             compilation_context.insert_virtual_slot_address(virtual_slot);
             // compile expression
             scope = compile_expression(
                 compilation_context,
-                *expression,
+                AstWithMetadata::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -499,7 +534,7 @@ fn compile_expression(
         }
 
         // variable access
-        DatexExpression::Variable(name) => {
+        DatexExpression::Variable(id, name) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, ..) = scope
@@ -522,7 +557,7 @@ fn compile_expression(
             // insert compiled caller expression
             scope = compile_expression(
                 compilation_context,
-                *caller,
+                AstWithMetadata::new(*caller, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -530,10 +565,12 @@ fn compile_expression(
             // compile remote execution block
             let execution_block_ctx =
                 Context::new(RefCell::new(Vec::with_capacity(256)), &[]);
-            // TODO: extract injected slots
-            scope = compile_ast(
+            scope = compile_ast_with_metadata(
                 &execution_block_ctx,
-                *script,
+                AstWithMetadata::new(
+                    *script,
+                    &metadata,
+                ),
                 Scope::new_with_external_parent_scope(scope),
             )?;
 
@@ -573,7 +610,7 @@ fn compile_expression(
             }
         }
 
-        _ => return Err(CompilerError::UnexpectedTerm(ast)),
+        _ => return Err(CompilerError::UnexpectedTerm(ast_with_metadata.ast)),
     }
 
     Ok(scope)
@@ -583,6 +620,7 @@ fn compile_key_value_entry(
     compilation_scope: &Context,
     key: DatexExpression,
     value: DatexExpression,
+    metadata: &Rc<RefCell<AstMetadata>>,
     mut scope: Scope,
 ) -> Result<Scope, CompilerError> {
     match key {
@@ -596,7 +634,7 @@ fn compile_key_value_entry(
                 .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
                 compilation_scope,
-                key,
+                AstWithMetadata::new(key, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -605,7 +643,7 @@ fn compile_key_value_entry(
     // insert value
     scope = compile_expression(
         compilation_scope,
-        value,
+        AstWithMetadata::new(value, metadata),
         CompileMetadata::default(),
         scope,
     )?;
@@ -1693,7 +1731,7 @@ pub mod tests {
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
 
-        let script = "a b";
+        let script = "1 2";
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
 
@@ -1824,7 +1862,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_variable() {
+    fn test_remote_execution_injected_const() {
+        init_logger_debug();
         let script = "const x = 42; 1 :: x";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -1873,7 +1912,64 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_variables() {
+    fn test_remote_execution_injected_var() {
+        // var x only refers to a value, not a ref, but since it is transferred to a
+        // remote context, its state is synced via a ref
+        let script = "var x = 42; 1 :: x; x = 43;";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                InstructionCode::CREATE_REF.into(),
+                InstructionCode::INT_8.into(),
+                42,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::REMOTE_EXECUTION.into(),
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
+                // start of block
+                InstructionCode::EXECUTION_BLOCK.into(),
+                // block size (5 bytes)
+                5,
+                0,
+                0,
+                0,
+                // injected slots (1)
+                1,
+                0,
+                0,
+                0,
+                // slot 0
+                0,
+                0,
+                0,
+                0,
+                // slot 0 (mapped from slot 0)
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
+                // set value to 43
+                InstructionCode::SET_REF.into(),
+                InstructionCode::INT_8.into(),
+                43,
+                InstructionCode::CLOSE_AND_STORE.into(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remote_execution_injected_consts() {
         let script = "const x = 42; const y = 69; 1 :: x + y";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -1943,7 +2039,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_shadow_variable() {
+    fn test_remote_execution_shadow_const() {
         let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();

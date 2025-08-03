@@ -1,8 +1,21 @@
+use std::cell::RefCell;
 use crate::compiler::{ast_parser::VariableType, context::VirtualSlot};
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::compiler::ast_parser::VariableMutType;
+use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
+
 
 #[derive(Debug, Clone, Default)]
+pub struct PrecompilerData {
+
+    // precompiler ast metadata
+    pub ast_metadata: Rc<RefCell<AstMetadata>>,
+    // precompiler scope stack
+    pub precompiler_scope_stack: RefCell<PrecompilerScopeStack>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Scope {
     /// List of variables, mapped by name to their slot address and type.
     variables: HashMap<String, (u32, VariableType, VariableMutType)>,
@@ -11,9 +24,26 @@ pub struct Scope {
     /// scope of a parent context, e.g. when inside a block scope for remote execution calls or function bodies
     external_parent_scope: Option<Box<Scope>>,
     next_slot_address: u32,
+
+    /// optional precompiler data, only on the root scope
+    pub precompiler_data: Option<PrecompilerData>,
 }
 
+impl Default for Scope {
+    fn default() -> Self {
+        Scope {
+            variables: HashMap::new(),
+            parent_scope: None,
+            external_parent_scope: None,
+            next_slot_address: 0,
+            precompiler_data: Some(PrecompilerData::default()),
+        }
+    }
+}
+
+
 impl Scope {
+    
     pub fn new_with_external_parent_scope(parent_context: Scope) -> Scope {
         Scope {
             external_parent_scope: Some(Box::new(parent_context)),
@@ -70,6 +100,7 @@ impl Scope {
             parent_scope: Some(Box::new(self)),
             external_parent_scope: None,
             variables: HashMap::new(),
+            precompiler_data: None,
         }
     }
 
