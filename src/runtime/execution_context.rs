@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::compiler::error::CompilerError;
-use crate::compiler::scope::Scope;
+use crate::compiler::scope::CompilationScope;
 use crate::compiler::{compile_template, CompileOptions};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
@@ -30,16 +30,16 @@ impl From<ExecutionError> for ScriptExecutionError {
 
 #[derive(Debug, Clone, Default)]
 pub struct RemoteExecutionContext {
-    pub compile_scope: Scope,
+    pub compile_scope: CompilationScope,
     pub endpoint: Endpoint,
     pub context_id: Option<OutgoingContextId>
 }
 
 impl RemoteExecutionContext {
     /// Creates a new remote execution context with the given endpoint.
-    pub fn new(endpoint: impl Into<Endpoint>) -> Self {
+    pub fn new(endpoint: impl Into<Endpoint>, once: bool) -> Self {
         RemoteExecutionContext {
-            compile_scope: Scope::default(),
+            compile_scope: CompilationScope::new(once),
             endpoint: endpoint.into(),
             context_id: None,
         }
@@ -48,16 +48,27 @@ impl RemoteExecutionContext {
 
 #[derive(Debug, Clone, Default)]
 pub struct LocalExecutionContext {
-    compile_scope: Scope,
+    compile_scope: CompilationScope,
     runtime_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
     execution_options: ExecutionOptions,
     verbose: bool,
 }
 
 impl LocalExecutionContext {
+    
+    pub fn new(once: bool) -> Self {
+        LocalExecutionContext {
+            compile_scope: CompilationScope::new(once),
+            runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::default())),
+            execution_options: ExecutionOptions::default(),
+            verbose: false,
+        }
+    }
+    
     /// Creates a new local execution context with the given compile scope.
-    pub fn debug() -> Self {
-        LocalExecutionContext{
+    pub fn debug(once: bool) -> Self {
+        LocalExecutionContext {
+            compile_scope: CompilationScope::new(once),
             execution_options: ExecutionOptions {
                 verbose: true,
                 ..ExecutionOptions::default()
@@ -67,8 +78,9 @@ impl LocalExecutionContext {
         }
     }
 
-    pub fn debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
+    pub fn debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>, once: bool) -> Self {
         LocalExecutionContext {
+            compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
             execution_options: ExecutionOptions {
                 verbose: true,
@@ -79,8 +91,9 @@ impl LocalExecutionContext {
         }
     }
 
-    pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
+    pub fn new_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>, once: bool) -> Self {
         LocalExecutionContext {
+            compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(RuntimeExecutionContext::new(runtime_internal))),
             ..Default::default()
         }
@@ -101,39 +114,48 @@ pub enum ExecutionContext {
 }
 
 impl ExecutionContext {
-    /// Creates a new local execution context.
+    /// Creates a new local execution context (can only be used once).
+    pub fn local_once() -> Self {
+        ExecutionContext::Local(LocalExecutionContext::new(true))
+    }
+    
+    /// Creates a new local execution context (can be used multiple times).
     pub fn local() -> Self {
-        ExecutionContext::Local(LocalExecutionContext::default())
+        ExecutionContext::Local(LocalExecutionContext::new(false))
     }
 
     /// Creates a new local execution context with a runtime.
-    pub fn local_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
-        ExecutionContext::Local(LocalExecutionContext::new(runtime_internal))
+    pub fn local_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>, once: bool) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::new_with_runtime_internal(runtime_internal, once))
     }
 
     /// Creates a new local execution context with verbose mode enabled,
     /// providing more log outputs for debugging purposes.
-    pub fn local_debug() -> Self {
-        ExecutionContext::Local(LocalExecutionContext::debug())
+    pub fn local_debug(once: bool) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::debug(once))
     }
 
     /// Creates a new local execution context with verbose mode enabled and a runtime.
-    pub fn local_debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>) -> Self {
-        ExecutionContext::Local(LocalExecutionContext::debug_with_runtime_internal(runtime_internal))
+    pub fn local_debug_with_runtime_internal(runtime_internal: Rc<RuntimeInternal>, once: bool) -> Self {
+        ExecutionContext::Local(LocalExecutionContext::debug_with_runtime_internal(runtime_internal, once))
+    }
+
+    pub fn remote_once(endpoint: impl Into<Endpoint>) -> Self {
+        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, true))
     }
 
     pub fn remote(endpoint: impl Into<Endpoint>) -> Self {
-        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint))
+        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, false))
     }
 
-    fn compile_scope(&self) -> &Scope {
+    fn compile_scope(&self) -> &CompilationScope {
         match self {
             ExecutionContext::Local(LocalExecutionContext{ compile_scope, .. }) => compile_scope,
             ExecutionContext::Remote(RemoteExecutionContext{ compile_scope, .. }) => compile_scope,
         }
     }
 
-    fn set_compile_scope(&mut self, new_compile_scope: Scope) {
+    fn set_compile_scope(&mut self, new_compile_scope: CompilationScope) {
         match self {
             ExecutionContext::Local(LocalExecutionContext{ compile_scope, .. }) => {
                 *compile_scope = new_compile_scope

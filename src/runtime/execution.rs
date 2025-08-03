@@ -231,7 +231,8 @@ pub async fn execute_dxb(
                     // TODO: support advanced receivers
                     let receiver_endpoint = receivers.to_value().borrow().cast_to_endpoint().unwrap();
                     let mut remote_execution_context = RemoteExecutionContext::new(
-                        receiver_endpoint
+                        receiver_endpoint,
+                        true
                     );
                     let res = RuntimeInternal::execute_remote(runtime.clone(), &mut remote_execution_context, body).await?;
                     *interrupt_provider.borrow_mut() =

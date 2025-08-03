@@ -100,7 +100,7 @@ macro_rules! get_execution_context {
                 context
             },
             None => {
-               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone())
+               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone(), true)
             }
         }
     };
@@ -182,7 +182,7 @@ impl RuntimeInternal {
         if let Some(context) = execution_context {
             context
         } else {
-            let new_context = ExecutionContext::local_with_runtime_internal(self_rc.clone());
+            let new_context = ExecutionContext::local_with_runtime_internal(self_rc.clone(), false);
             // insert the new context into the map
             execution_contexts.insert(context_id.clone(), new_context.clone());
             new_context

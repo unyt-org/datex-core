@@ -1,14 +1,14 @@
 use std::cell::RefCell;
-use crate::compiler::{ast_parser::VariableType, context::VirtualSlot};
+use crate::compiler::{ast_parser::VariableType, context::VirtualSlot, Variable, VariableModel, VariableRepresentation};
 use std::collections::HashMap;
 use std::rc::Rc;
+use itertools::Itertools;
 use crate::compiler::ast_parser::VariableMutType;
 use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 
 
 #[derive(Debug, Clone, Default)]
 pub struct PrecompilerData {
-
     // precompiler ast metadata
     pub ast_metadata: Rc<RefCell<AstMetadata>>,
     // precompiler scope stack
@@ -16,38 +16,54 @@ pub struct PrecompilerData {
 }
 
 #[derive(Debug, Clone)]
-pub struct Scope {
+pub struct CompilationScope {
     /// List of variables, mapped by name to their slot address and type.
-    variables: HashMap<String, (u32, VariableType, VariableMutType)>,
+    variables: HashMap<String, Variable>,
     /// parent scope, accessible from a child scope
-    parent_scope: Option<Box<Scope>>,
+    parent_scope: Option<Box<CompilationScope>>,
     /// scope of a parent context, e.g. when inside a block scope for remote execution calls or function bodies
-    external_parent_scope: Option<Box<Scope>>,
+    external_parent_scope: Option<Box<CompilationScope>>,
     next_slot_address: u32,
+
+    // ------- Data only relevant for the root scope (FIXME: refactor?) -------
 
     /// optional precompiler data, only on the root scope
     pub precompiler_data: Option<PrecompilerData>,
+    /// If once is true, the scope can only be used for compilation once.
+    /// E.g. for a REPL, this needs to be false, so that the scope can be reused
+    pub once: bool,
+    /// If was_used is true, the scope has been used for compilation and should not be reused if once is true.
+    pub was_used: bool,
 }
 
-impl Default for Scope {
+impl Default for CompilationScope {
     fn default() -> Self {
-        Scope {
+        CompilationScope {
             variables: HashMap::new(),
             parent_scope: None,
             external_parent_scope: None,
             next_slot_address: 0,
             precompiler_data: Some(PrecompilerData::default()),
+            once: false,
+            was_used: false,
         }
     }
 }
 
 
-impl Scope {
-    
-    pub fn new_with_external_parent_scope(parent_context: Scope) -> Scope {
-        Scope {
+impl CompilationScope {
+
+    pub fn new(once: bool) -> CompilationScope {
+        CompilationScope {
+            once,
+            ..CompilationScope::default()
+        }
+    }
+
+    pub fn new_with_external_parent_scope(parent_context: CompilationScope) -> CompilationScope {
+        CompilationScope {
             external_parent_scope: Some(Box::new(parent_context)),
-            ..Scope::default()
+            ..CompilationScope::default()
         }
     }
 
@@ -57,13 +73,10 @@ impl Scope {
 
     pub fn register_variable_slot(
         &mut self,
-        slot_address: u32,
-        variable_type: VariableType,
-        mut_type: VariableMutType,
-        name: String,
+        variable: Variable,
     ) {
         self.variables
-            .insert(name.clone(), (slot_address, variable_type, mut_type));
+            .insert(variable.name.clone(), variable);
     }
 
     pub fn get_next_virtual_slot(&mut self) -> u32 {
@@ -79,8 +92,13 @@ impl Scope {
         &self,
         name: &str,
     ) -> Option<(VirtualSlot, VariableType, VariableMutType)> {
-        if let Some(slot) = self.variables.get(name) {
-            Some((VirtualSlot::local(slot.0), slot.1, slot.2))
+        if let Some(variable) = self.variables.get(name) {
+            let slot = match variable.representation {
+                VariableRepresentation::Constant(slot) => slot,
+                VariableRepresentation::VariableReference {container_slot, ..} => container_slot,
+                VariableRepresentation::VariableSlot(slot) => slot,
+            };
+            Some((slot, variable.var_type, variable.mut_type))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
@@ -94,25 +112,27 @@ impl Scope {
     }
 
     /// Creates a new `CompileScope` that is a child of the current scope.
-    pub fn push(self) -> Scope {
-        Scope {
+    pub fn push(self) -> CompilationScope {
+        CompilationScope {
             next_slot_address: self.next_slot_address,
             parent_scope: Some(Box::new(self)),
             external_parent_scope: None,
             variables: HashMap::new(),
             precompiler_data: None,
+            once: true,
+            was_used: false,
         }
     }
 
     /// Drops the current scope and returns to the parent scope and a list
     /// of all slot addresses that should be dropped.
-    pub fn pop(self) -> Option<(Scope, Vec<u32>)> {
+    pub fn pop(self) -> Option<(CompilationScope, Vec<VirtualSlot>)> {
         if let Some(mut parent) = self.parent_scope {
             // update next_slot_address for parent scope
             parent.next_slot_address = self.next_slot_address;
             Some((
                 *parent,
-                self.variables.keys().map(|k| self.variables[k].0).collect(),
+                self.variables.keys().map(|k| self.variables[k].slots()).flatten().collect::<Vec<_>>()
             ))
         } else {
             None

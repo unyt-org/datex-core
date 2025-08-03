@@ -13,6 +13,7 @@ pub enum CompilerError {
     ScopePopError,
     InvalidSlotName(String),
     AssignmentToConst(String),
+    OnceScopeUsedMultipleTimes,
 }
 impl From<Vec<ParserError>> for CompilerError {
     fn from(value: Vec<ParserError>) -> Self {
@@ -55,6 +56,9 @@ impl Display for CompilerError {
             }
             CompilerError::AssignmentToConst(name) => {
                 write!(f, "Cannot assign to immutable variable: {name}")
+            }
+            CompilerError::OnceScopeUsedMultipleTimes => {
+                write!(f, "Scope cannot be used multiple times, set 'once' to false to use a scope multiple times")
             }
         }
     }

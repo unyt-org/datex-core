@@ -5,10 +5,10 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::compiler::ast_parser::{DatexExpression, DatexScriptParser, TupleEntry, VariableType, parse, VariableMutType};
-use crate::compiler::context::{Context, VirtualSlot};
+use crate::compiler::ast_parser::{DatexExpression, DatexScriptParser, TupleEntry, VariableType, parse, VariableMutType, VariableId};
+use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::scope::Scope;
+use crate::compiler::scope::CompilationScope;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use log::info;
 use datex_core::compiler::ast_parser::Slot;
-use crate::compiler::precompiler::{precompile_ast, AstMetadata, AstWithMetadata};
+use crate::compiler::precompiler::{precompile_ast, AstMetadata, AstWithMetadata, VariableMetadata};
 
 pub mod ast_parser;
 pub mod context;
@@ -30,11 +30,11 @@ mod precompiler;
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
     pub parser: Option<&'a DatexScriptParser<'a>>,
-    pub compile_scope: Scope,
+    pub compile_scope: CompilationScope,
 }
 
 impl CompileOptions<'_> {
-    pub fn new_with_scope(compile_scope: Scope) -> Self {
+    pub fn new_with_scope(compile_scope: CompilationScope) -> Self {
         CompileOptions {
             parser: None,
             compile_scope,
@@ -53,6 +53,155 @@ impl From<Vec<u8>> for StaticValueOrDXB {
         StaticValueOrDXB::Dxb(dxb)
     }
 }
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum VariableModel {
+    /// A variable that is declared once and never reassigned afterward
+    /// e.g. `const a = 42;`
+    Constant,
+    /// A variable that can be reassigned by updating the slot value
+    /// e.g. `var a = 42; a = 69;`
+    VariableSlot,
+    /// A variable that can be reassigned by updating a reference value. The slot always point to this reference.
+    /// When variables are transferred across realms, `VariableReference` is used for `var` variables instead of `VariableSlot`.
+    /// e.g. `var a = 42; x :: (a)
+    VariableReference,
+}
+
+impl From<VariableRepresentation> for VariableModel {
+    fn from(value: VariableRepresentation) -> Self {
+        match value {
+            VariableRepresentation::Constant(_) => VariableModel::Constant,
+            VariableRepresentation::VariableSlot(_) => VariableModel::VariableSlot,
+            VariableRepresentation::VariableReference { .. } => VariableModel::VariableReference,
+        }
+    }
+}
+
+impl VariableModel {
+    /// Determines the variable model based on the variable type and metadata.
+    pub fn infer(
+        variable_type: VariableType,
+        variable_metadata: Option<VariableMetadata>,
+        is_end_of_source_text: bool,
+    ) -> Self {
+        // const variables are always constant
+        if variable_type == VariableType::Const {
+            VariableModel::Constant
+        }
+        // for cross-realm variables, we always use VariableReference
+        // if we don't know the full source text yet (e.g. in a repl), we
+        // must fall back to VariableReference, because we cannot determine if
+        // the variable will be transferred across realms later
+        else if variable_metadata.is_none() || variable_metadata.unwrap().is_cross_realm || !is_end_of_source_text {
+            VariableModel::VariableReference
+        }
+        // otherwise, we use VariableSlot (default for `var` variables)
+        else {
+            VariableModel::VariableSlot
+        }
+    }
+
+    pub fn infer_from_ast_metadata_and_type(
+        ast_metadata: &AstMetadata,
+        variable_id: Option<VariableId>,
+        variable_type: VariableType,
+        is_end_of_source_text: bool,
+    ) -> Self {
+        let variable_metadata = variable_id.and_then(|id| {
+            ast_metadata.variable_metadata(id)
+        });
+        Self::infer(variable_type, variable_metadata.cloned(), is_end_of_source_text)
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum VariableRepresentation {
+    Constant(VirtualSlot),
+    VariableSlot(VirtualSlot),
+    VariableReference {
+        /// The slot that contains the reference that is used as the variable
+        variable_slot: VirtualSlot,
+        /// The slot that contains the actual value container used in the script (Note: the value container may also be a reference)
+        container_slot: VirtualSlot,
+    },
+}
+
+
+/// Represents a variable in the DATEX script.
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub name: String,
+    pub var_type: VariableType,
+    pub mut_type: VariableMutType,
+    pub representation: VariableRepresentation,
+}
+
+
+impl Variable {
+    pub fn new_const(
+        name: String,
+        var_type: VariableType,
+        mut_type: VariableMutType,
+        slot: VirtualSlot,
+    ) -> Self {
+        Variable {
+            name,
+            var_type,
+            mut_type,
+            representation: VariableRepresentation::Constant(slot),
+        }
+    }
+
+    pub fn new_variable_slot(
+        name: String,
+        var_type: VariableType,
+        mut_type: VariableMutType,
+        slot: VirtualSlot,
+    ) -> Self {
+        Variable {
+            name,
+            var_type,
+            mut_type,
+            representation: VariableRepresentation::VariableSlot(slot),
+        }
+    }
+
+    pub fn new_variable_reference(
+        name: String,
+        var_type: VariableType,
+        mut_type: VariableMutType,
+        variable_slot: VirtualSlot,
+        container_slot: VirtualSlot,
+    ) -> Self {
+        Variable {
+            name,
+            var_type,
+            mut_type,
+            representation: VariableRepresentation::VariableReference {
+                variable_slot,
+                container_slot,
+            },
+        }
+    }
+
+    pub fn slots(&self) -> Vec<VirtualSlot> {
+        match &self.representation {
+            VariableRepresentation::Constant(slot) => vec![*slot],
+            VariableRepresentation::VariableSlot(slot) => vec![*slot],
+            VariableRepresentation::VariableReference {
+                variable_slot,
+                container_slot,
+            } => {
+                vec![*variable_slot, *container_slot]
+            }
+        }
+    }
+}
+
+
 
 /// Compiles a DATEX script text into a single DXB block including routing and block headers.
 /// This function is used to create a block that can be sent over the network.
@@ -93,7 +242,7 @@ pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
 pub fn compile_script<'a>(
     datex_script: &'a str,
     options: CompileOptions<'a>,
-) -> Result<(Vec<u8>, Scope), CompilerError> {
+) -> Result<(Vec<u8>, CompilationScope), CompilerError> {
     compile_template(datex_script, &[], options)
 }
 
@@ -113,7 +262,7 @@ pub fn compile_template_with_refs<'a>(
     datex_script: &'a str,
     inserted_values: &[&ValueContainer],
     options: CompileOptions<'a>,
-) -> Result<(Vec<u8>, Scope), CompilerError> {
+) -> Result<(Vec<u8>, CompilationScope), CompilerError> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         inserted_values,
@@ -132,7 +281,7 @@ pub fn compile_template_with_refs<'a>(
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
     options: CompileOptions<'a>,
-) -> Result<(StaticValueOrDXB, Scope), CompilerError> {
+) -> Result<(StaticValueOrDXB, CompilationScope), CompilerError> {
     compile_template_or_return_static_value_with_refs(
         datex_script,
         &[],
@@ -146,7 +295,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     inserted_values: &[&ValueContainer],
     return_static_value: bool,
     options: CompileOptions<'a>,
-) -> Result<(StaticValueOrDXB, Scope), CompilerError> {
+) -> Result<(StaticValueOrDXB, CompilationScope), CompilerError> {
     // shortcut if datex_script is "?" - call compile_value directly
     if datex_script == "?" {
         if inserted_values.len() != 1 {
@@ -160,7 +309,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     let ast = parse(datex_script)?;
 
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_context = Context::new(buffer, inserted_values);
+    let compilation_context = CompilationContext::new(buffer, inserted_values, options.compile_scope.once);
 
     if return_static_value {
         let scope = compile_ast(
@@ -200,7 +349,7 @@ pub fn compile_template<'a>(
     datex_script: &'a str,
     inserted_values: &[ValueContainer],
     options: CompileOptions<'a>,
-) -> Result<(Vec<u8>, Scope), CompilerError> {
+) -> Result<(Vec<u8>, CompilationScope), CompilerError> {
     compile_template_with_refs(
         datex_script,
         &inserted_values.iter().collect::<Vec<_>>(),
@@ -210,7 +359,7 @@ pub fn compile_template<'a>(
 
 pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_scope = Context::new(buffer, &[]);
+    let compilation_scope = CompilationContext::new(buffer, &[], true);
 
     compilation_scope.insert_value_container(value);
 
@@ -249,10 +398,18 @@ macro_rules! compile {
 }
 
 pub fn compile_ast(
-    compilation_context: &Context,
+    compilation_context: &CompilationContext,
     ast: DatexExpression,
-    scope: Scope,
-) -> Result<Scope, CompilerError> {
+    mut scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    // if once is set to true in already used, return error
+    if scope.once {
+        if scope.was_used {
+            return Err(CompilerError::OnceScopeUsedMultipleTimes);
+        }
+        // set was_used to true
+        scope.was_used = true;
+    }
     let ast_with_metadata = if let Some(precompiler_data) = &scope.precompiler_data {
         // precompile the AST, adding metadata for variables etc.
         precompile_ast(
@@ -274,10 +431,10 @@ pub fn compile_ast(
 }
 
 pub fn compile_ast_with_metadata(
-    compilation_context: &Context,
+    compilation_context: &CompilationContext,
     ast_with_metadata: AstWithMetadata,
-    scope: Scope,
-) -> Result<Scope, CompilerError> {
+    scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
     let scope = compile_expression(
         compilation_context,
         ast_with_metadata,
@@ -291,11 +448,11 @@ pub fn compile_ast_with_metadata(
 }
 
 fn compile_expression(
-    compilation_context: &Context,
+    compilation_context: &CompilationContext,
     ast_with_metadata: AstWithMetadata,
     meta: CompileMetadata,
-    mut scope: Scope,
-) -> Result<Scope, CompilerError> {
+    mut scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
     let metadata = ast_with_metadata.metadata;
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
@@ -439,7 +596,9 @@ fn compile_expression(
                     for slot_address in scope_data.1 {
                         compilation_context
                             .append_binary_code(InstructionCode::DROP_SLOT);
-                        compilation_context.append_u32(slot_address);
+                        // insert virtual slot address for dropping
+                        compilation_context
+                            .insert_virtual_slot_address(slot_address);
                     }
                     compilation_context
                         .append_binary_code(InstructionCode::SCOPE_END);
@@ -479,6 +638,7 @@ fn compile_expression(
         // declaration
         DatexExpression::VariableDeclaration(id, var_type, mut_type, name, expression) => {
             compilation_context.mark_has_non_static_value();
+
             // allocate new slot for variable
             let virtual_slot_addr = scope.get_next_virtual_slot();
             compilation_context
@@ -499,8 +659,61 @@ fn compile_expression(
                 scope,
             )?;
 
-            // register new variable
-            scope.register_variable_slot(virtual_slot_addr, var_type, mut_type, name);
+            let variable_model = VariableModel::infer_from_ast_metadata_and_type(
+                &metadata.borrow(),
+                id,
+                var_type,
+                compilation_context.is_end_of_source_text,
+            );
+            info!("variable model for {name}: {variable_model:?}");
+
+            // create new variable depending on the model
+            let variable = match variable_model {
+                VariableModel::VariableReference => {
+                    // allocate an additional slot with a reference to the variable
+                    let virtual_slot_addr_for_var = scope.get_next_virtual_slot();
+                    compilation_context
+                        .append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                    compilation_context.insert_virtual_slot_address(
+                        VirtualSlot::local(virtual_slot_addr_for_var),
+                    );
+                    // indirect reference to the variable
+                    compilation_context
+                        .append_binary_code(InstructionCode::CREATE_REF);
+                    // append binary code to load variable
+                    compilation_context
+                        .append_binary_code(InstructionCode::GET_SLOT);
+                    compilation_context.insert_virtual_slot_address(
+                        VirtualSlot::local(virtual_slot_addr),
+                    );
+
+                    Variable::new_variable_reference(
+                        name.clone(),
+                        var_type,
+                        mut_type,
+                        VirtualSlot::local(virtual_slot_addr_for_var),
+                        VirtualSlot::local(virtual_slot_addr),
+                    )
+                }
+                VariableModel::Constant => {
+                    Variable::new_const(
+                        name.clone(),
+                        var_type,
+                        mut_type,
+                        VirtualSlot::local(virtual_slot_addr),
+                    )
+                }
+                VariableModel::VariableSlot => {
+                    Variable::new_variable_slot(
+                        name.clone(),
+                        var_type,
+                        mut_type,
+                        VirtualSlot::local(virtual_slot_addr),
+                    )
+                }
+            };
+
+            scope.register_variable_slot(variable);
         }
 
         // assignment
@@ -564,14 +777,14 @@ fn compile_expression(
 
             // compile remote execution block
             let execution_block_ctx =
-                Context::new(RefCell::new(Vec::with_capacity(256)), &[]);
+                CompilationContext::new(RefCell::new(Vec::with_capacity(256)), &[], true);
             scope = compile_ast_with_metadata(
                 &execution_block_ctx,
                 AstWithMetadata::new(
                     *script,
                     &metadata,
                 ),
-                Scope::new_with_external_parent_scope(scope),
+                CompilationScope::new_with_external_parent_scope(scope),
             )?;
 
             let external_slots = execution_block_ctx.external_slots();
@@ -617,12 +830,12 @@ fn compile_expression(
 }
 
 fn compile_key_value_entry(
-    compilation_scope: &Context,
+    compilation_scope: &CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
     metadata: &Rc<RefCell<AstMetadata>>,
-    mut scope: Scope,
-) -> Result<Scope, CompilerError> {
+    mut scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
     match key {
         // text -> insert key string
         DatexExpression::Text(text) => {
@@ -634,7 +847,7 @@ fn compile_key_value_entry(
                 .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
                 compilation_scope,
-                AstWithMetadata::new(key, &metadata),
+                AstWithMetadata::new(key, metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -654,7 +867,7 @@ fn compile_key_value_entry(
 pub mod tests {
     use std::assert_matches::assert_matches;
     use super::{
-        CompileOptions, Context, Scope, StaticValueOrDXB, compile_ast,
+        CompileOptions, CompilationContext, CompilationScope, StaticValueOrDXB, compile_ast,
         compile_script, compile_script_or_return_static_value,
         compile_template,
     };
@@ -683,12 +896,12 @@ pub mod tests {
         result
     }
 
-    fn get_compilation_scope(script: &str) -> Context {
+    fn get_compilation_scope(script: &str) -> CompilationContext {
         let ast = parse(script);
         let ast = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
-        let compilation_scope = Context::new(buffer, &[]);
-        compile_ast(&compilation_scope, ast, Scope::default()).unwrap();
+        let compilation_scope = CompilationContext::new(buffer, &[], true);
+        compile_ast(&compilation_scope, ast, CompilationScope::default()).unwrap();
         compilation_scope
     }
 
@@ -1913,9 +2126,10 @@ pub mod tests {
 
     #[test]
     fn test_remote_execution_injected_var() {
+        init_logger_debug();
         // var x only refers to a value, not a ref, but since it is transferred to a
         // remote context, its state is synced via a ref
-        let script = "var x = 42; 1 :: x; x = 43;";
+        let script = "var x = 42; 1 :: x;";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -1927,9 +2141,23 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CREATE_REF.into(),
                 InstructionCode::INT_8.into(),
                 42,
+                InstructionCode::ALLOCATE_SLOT.into(),
+                // slot index as u32
+                1,
+                0,
+                0,
+                0,
+                // create ref
+                InstructionCode::CREATE_REF.into(),
+                // slot 0
+                InstructionCode::GET_SLOT.into(),
+                // slot index as u32
+                0,
+                0,
+                0,
+                0,
                 InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
@@ -1959,10 +2187,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                // set value to 43
-                InstructionCode::SET_REF.into(),
-                InstructionCode::INT_8.into(),
-                43,
                 InstructionCode::CLOSE_AND_STORE.into(),
             ]
         );
