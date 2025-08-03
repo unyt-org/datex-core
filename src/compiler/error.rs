@@ -12,6 +12,7 @@ pub enum CompilerError {
     UndeclaredVariable(String),
     ScopePopError,
     InvalidSlotName(String),
+    AssignmentToConst(String),
 }
 impl From<Vec<ParserError>> for CompilerError {
     fn from(value: Vec<ParserError>) -> Self {
@@ -51,6 +52,9 @@ impl Display for CompilerError {
             }
             CompilerError::InvalidSlotName(name) => {
                 write!(f, "Slot #{name} does not exist") 
+            }
+            CompilerError::AssignmentToConst(name) => {
+                write!(f, "Cannot assign to immutable variable: {name}")
             }
         }
     }

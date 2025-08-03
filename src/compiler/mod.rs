@@ -465,18 +465,23 @@ fn compile_expression(
             )?;
 
             // register new variable
-            scope.register_variable_slot(virtual_slot_addr, var_type, name);
+            scope.register_variable_slot(virtual_slot_addr, var_type, mut_type, name);
         }
 
         // assignment
         DatexExpression::VariableAssignment(name, expression) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
-            let (virtual_slot, var_type) = scope
+            let (virtual_slot, var_type, mut_type) = scope
                 .resolve_variable_name_to_virtual_slot(&name)
                 .ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
+
+            // if const, return error
+            if var_type == VariableType::Const {
+                return Err(CompilerError::AssignmentToConst(name.clone()));
+            }
 
             // append binary code to load variable
             compilation_context
@@ -497,7 +502,7 @@ fn compile_expression(
         DatexExpression::Variable(name) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
-            let (virtual_slot, var_type) = scope
+            let (virtual_slot, ..) = scope
                 .resolve_variable_name_to_virtual_slot(&name)
                 .ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
@@ -609,6 +614,7 @@ fn compile_key_value_entry(
 
 #[cfg(test)]
 pub mod tests {
+    use std::assert_matches::assert_matches;
     use super::{
         CompileOptions, Context, Scope, StaticValueOrDXB, compile_ast,
         compile_script, compile_script_or_return_static_value,
@@ -620,7 +626,7 @@ pub mod tests {
 
     use crate::{global::binary_codes::InstructionCode, logger::init_logger_debug};
     use log::*;
-
+    use datex_core::compiler::error::CompilerError;
     use crate::compiler::ast_parser::parse;
     use crate::values::core_values::integer::integer::Integer;
 
@@ -2153,6 +2159,28 @@ pub mod tests {
                 0,
                 0,
             ]
+        );
+    }
+
+    #[test]
+    fn test_assignment_to_const() {
+        init_logger_debug();
+        let script = "const a = 42; a = 43";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToConst { .. })
+        );
+    }
+
+    #[test]
+    fn test_assignment_to_const_mut() {
+        init_logger_debug();
+        let script = "const mut a = 42; a = 43";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToConst { .. })
         );
     }
 

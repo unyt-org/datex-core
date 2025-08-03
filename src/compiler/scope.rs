@@ -1,10 +1,11 @@
 use crate::compiler::{ast_parser::VariableType, context::VirtualSlot};
 use std::collections::HashMap;
+use crate::compiler::ast_parser::VariableMutType;
 
 #[derive(Debug, Clone, Default)]
 pub struct Scope {
     /// List of variables, mapped by name to their slot address and type.
-    variables: HashMap<String, (u32, VariableType)>,
+    variables: HashMap<String, (u32, VariableType, VariableMutType)>,
     /// parent scope, accessible from a child scope
     parent_scope: Option<Box<Scope>>,
     /// scope of a parent context, e.g. when inside a block scope for remote execution calls or function bodies
@@ -28,10 +29,11 @@ impl Scope {
         &mut self,
         slot_address: u32,
         variable_type: VariableType,
+        mut_type: VariableMutType,
         name: String,
     ) {
         self.variables
-            .insert(name.clone(), (slot_address, variable_type));
+            .insert(name.clone(), (slot_address, variable_type, mut_type));
     }
 
     pub fn get_next_virtual_slot(&mut self) -> u32 {
@@ -46,13 +48,13 @@ impl Scope {
     pub fn resolve_variable_name_to_virtual_slot(
         &self,
         name: &str,
-    ) -> Option<(VirtualSlot, VariableType)> {
+    ) -> Option<(VirtualSlot, VariableType, VariableMutType)> {
         if let Some(slot) = self.variables.get(name) {
-            Some((VirtualSlot::local(slot.0), slot.1))
+            Some((VirtualSlot::local(slot.0), slot.1, slot.2))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
-                .map(|(virt_slot, var_type)| (virt_slot.downgrade(), var_type))
+                .map(|(virt_slot, var_type, mut_type)| (virt_slot.downgrade(), var_type, mut_type))
         } else if let Some(parent) = &self.parent_scope {
             parent
                 .resolve_variable_name_to_virtual_slot(name)
