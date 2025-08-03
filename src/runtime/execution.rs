@@ -1262,14 +1262,14 @@ mod tests {
     #[test]
     fn test_val_assignment() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("val x = 42; x");
+        let result = execute_datex_script_debug_with_result("const x = 42; x");
         assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
     fn test_val_assignment_with_addition() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("val x = 1 + 2; x");
+        let result = execute_datex_script_debug_with_result("const x = 1 + 2; x");
         assert_eq!(result, Integer::from(3).into());
     }
 
@@ -1277,7 +1277,7 @@ mod tests {
     fn test_val_assignment_inside_scope() {
         init_logger_debug();
         let result =
-            execute_datex_script_debug_with_result("[val x = 42, 2, x]");
+            execute_datex_script_debug_with_result("[const x = 42, 2, x]");
         let expected = datex_array![
             Integer::from(42),
             Integer::from(2),
@@ -1289,7 +1289,7 @@ mod tests {
     #[test]
     fn test_ref_assignment() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("ref x = 42; x");
+        let result = execute_datex_script_debug_with_result("const mut x = 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
     }

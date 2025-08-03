@@ -89,8 +89,9 @@ pub enum Token {
     #[token("null")] NullKW,
 
     #[token("?")] PlaceholderKW,
-    #[token("val")] ValKW,
-    #[token("ref")] RefKW,
+    #[token("const")] ConstKW,
+    #[token("var")] VarKW,
+    #[token("mut")] MutKW,
 
     // decimal literals (infinity, nan)
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] InfinityLiteral(String),

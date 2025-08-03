@@ -161,8 +161,14 @@ pub enum Apply {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VariableType {
-    Value,
-    Reference,
+    Const,
+    Var,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum VariableMutType {
+    Mutable,
+    Immutable,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -198,8 +204,8 @@ pub enum DatexExpression {
     Statements(Vec<Statement>),
     /// Identifier, e.g. a variable name
     Variable(String),
-    /// Variable declaration, e.g. ref x = 1 or val y = 2
-    VariableDeclaration(VariableType, String, Box<DatexExpression>),
+    /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2
+    VariableDeclaration(VariableType, VariableMutType, String, Box<DatexExpression>),
     /// Variable assignment, e.g. x = 1
     VariableAssignment(String, Box<DatexExpression>),
 
@@ -661,22 +667,29 @@ pub fn create_parser<'a, I>()
     );
 
     // variable declarations or assignments
-    let variable_assignment = just(Token::ValKW)
-        .or(just(Token::RefKW))
+    let variable_assignment = just(Token::ConstKW)
+        .or(just(Token::VarKW))
         .or_not()
         .padded_by(whitespace.clone())
+        // optional MutKW
+        .then(just(Token::MutKW).or_not().padded_by(whitespace.clone()))
         .then(select! {
             Token::Identifier(s) => s
         })
         .then_ignore(just(Token::Assign).padded_by(whitespace.clone()))
         .then(equality.clone())
-        .map(|((var_type, var_name), expr)| {
+        .map(|(((var_type, mut_type), var_name), expr)| {
             if let Some(var_type) = var_type {
                 DatexExpression::VariableDeclaration(
-                    if var_type == Token::ValKW {
-                        VariableType::Value
+                    if var_type == Token::ConstKW {
+                        VariableType::Const
                     } else {
-                        VariableType::Reference
+                        VariableType::Var
+                    },
+                    if mut_type.is_some() {
+                        VariableMutType::Mutable
+                    } else {
+                        VariableMutType::Immutable
                     },
                     var_name.to_string(),
                     Box::new(expr),
@@ -1963,12 +1976,13 @@ mod tests {
 
     #[test]
     fn variable_declaration() {
-        let src = "val x = 42";
+        let src = "const x = 42";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
             DatexExpression::VariableDeclaration(
-                VariableType::Value,
+                VariableType::Const,
+                VariableMutType::Immutable,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(42))),
             )
@@ -1977,13 +1991,14 @@ mod tests {
 
     #[test]
     fn variable_declaration_statement() {
-        let src = "val x = 42;";
+        let src = "const x = 42;";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
             DatexExpression::Statements(vec![Statement {
                 expression: DatexExpression::VariableDeclaration(
-                    VariableType::Value,
+                    VariableType::Const,
+                    VariableMutType::Immutable,
                     "x".to_string(),
                     Box::new(DatexExpression::Integer(Integer::from(42))),
                 ),
@@ -1994,12 +2009,13 @@ mod tests {
 
     #[test]
     fn variable_declaration_with_expression() {
-        let src = "ref x = 1 + 2";
+        let src = "var x = 1 + 2";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
             DatexExpression::VariableDeclaration(
-                VariableType::Reference,
+                VariableType::Var,
+                VariableMutType::Immutable,
                 "x".to_string(),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -2109,14 +2125,15 @@ mod tests {
 
     #[test]
     fn variable_declaration_and_assignment() {
-        let src = "val x = 42; x = 100 * 10;";
+        let src = "var x = 42; x = 100 * 10;";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
             DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::VariableDeclaration(
-                        VariableType::Value,
+                        VariableType::Var,
+                        VariableMutType::Immutable,
                         "x".to_string(),
                         Box::new(DatexExpression::Integer(Integer::from(42))),
                     ),

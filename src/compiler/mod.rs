@@ -5,9 +5,7 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::compiler::ast_parser::{
-    DatexExpression, DatexScriptParser, TupleEntry, VariableType, parse,
-};
+use crate::compiler::ast_parser::{DatexExpression, DatexScriptParser, TupleEntry, VariableType, parse, VariableMutType};
 use crate::compiler::context::{Context, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::scope::Scope;
@@ -444,7 +442,7 @@ fn compile_expression(
 
         // variables
         // declaration
-        DatexExpression::VariableDeclaration(var_type, name, expression) => {
+        DatexExpression::VariableDeclaration(var_type, mut_type, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // allocate new slot for variable
             let virtual_slot_addr = scope.get_next_virtual_slot();
@@ -453,8 +451,8 @@ fn compile_expression(
             compilation_context.insert_virtual_slot_address(
                 VirtualSlot::local(virtual_slot_addr),
             );
-            // create reference
-            if var_type == VariableType::Reference {
+            // create reference if internally mutable
+            if mut_type == VariableMutType::Mutable {
                 compilation_context
                     .append_binary_code(InstructionCode::CREATE_REF);
             }
@@ -619,7 +617,7 @@ pub mod tests {
     use std::cell::RefCell;
     use std::io::Read;
     use std::vec;
-    
+
     use crate::{global::binary_codes::InstructionCode, logger::init_logger_debug};
     use log::*;
 
@@ -709,7 +707,7 @@ pub mod tests {
             ]
         );
 
-        let datex_script = "ref a = 42; ref b = 69; a is b".to_string(); // a is b
+        let datex_script = "const mut a = 42; const mut b = 69; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1409,7 +1407,7 @@ pub mod tests {
     #[test]
     fn test_allocate_slot() {
         init_logger_debug();
-        let script = "val a = 42";
+        let script = "const a = 42";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1429,7 +1427,7 @@ pub mod tests {
     #[test]
     fn test_allocate_slot_with_value() {
         init_logger_debug();
-        let script = "val a = 42; a + 1";
+        let script = "const a = 42; a + 1";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1459,7 +1457,7 @@ pub mod tests {
     #[test]
     fn test_allocate_scoped_slots() {
         init_logger_debug();
-        let script = "val a = 42; (val a = 43; a); a";
+        let script = "const a = 42; (const a = 43; a); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1506,7 +1504,7 @@ pub mod tests {
     #[test]
     fn test_allocate_scoped_slots_with_parent_variables() {
         init_logger_debug();
-        let script = "val a = 42; val b = 41; (val a = 43; a; b); a";
+        let script = "const a = 42; const b = 41; (const a = 43; a; b); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1567,7 +1565,7 @@ pub mod tests {
     #[test]
     fn test_allocate_ref() {
         init_logger_debug();
-        let script = "ref a = 42";
+        let script = "const mut a = 42";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1588,7 +1586,7 @@ pub mod tests {
     #[test]
     fn test_read_ref() {
         init_logger_debug();
-        let script = "ref a = 42; a";
+        let script = "const mut a = 42; a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1821,7 +1819,7 @@ pub mod tests {
 
     #[test]
     fn test_remote_execution_injected_variable() {
-        let script = "val x = 42; 1 :: x";
+        let script = "const x = 42; 1 :: x";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -1870,7 +1868,7 @@ pub mod tests {
 
     #[test]
     fn test_remote_execution_injected_variables() {
-        let script = "val x = 42; val y = 69; 1 :: x + y";
+        let script = "const x = 42; const y = 69; 1 :: x + y";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -1940,7 +1938,7 @@ pub mod tests {
 
     #[test]
     fn test_remote_execution_shadow_variable() {
-        let script = "val x = 42; val y = 69; 1 :: (val x = 5; x + y)";
+        let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2015,7 +2013,7 @@ pub mod tests {
 
     #[test]
     fn test_remote_execution_nested() {
-        let script = "val x = 42; (1 :: (2 :: x))";
+        let script = "const x = 42; (1 :: (2 :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
 
@@ -2086,7 +2084,7 @@ pub mod tests {
 
     #[test]
     fn test_remote_execution_nested2() {
-        let script = "val x = 42; (1 :: (x :: x))";
+        let script = "const x = 42; (1 :: (x :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
 

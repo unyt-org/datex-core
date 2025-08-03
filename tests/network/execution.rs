@@ -44,7 +44,7 @@ pub async fn test_remote_execution_persistent_context() {
         let mut remote_execution_context = ExecutionContext::remote(endpoint_b);
 
         // execute script remotely on @test_b
-        let result = runtime_a.execute("val x = 10; x", &[], Some(&mut remote_execution_context)).await;
+        let result = runtime_a.execute("const x = 10; x", &[], Some(&mut remote_execution_context)).await;
         assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(10)));
 
         // execute another script that uses the previous context
