@@ -53,14 +53,14 @@ impl Rational {
         Rational { big_rational }
     }
 
-    // TODO: support e-notation for large numbers
+    // TODO #128: support e-notation for large numbers
     pub(crate) fn finite_fraction_to_decimal_string(
         mut numerator: BigInt,
         denominator: BigInt,
     ) -> String {
         let mut shift = denominator.to_string().len() as u32; // absolute value
 
-        // TODO more efficient algorithm for this?
+        // TODO #129 more efficient algorithm for this?
 
         let numerator_is_neg = numerator.is_negative();
         if numerator_is_neg {

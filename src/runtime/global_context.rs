@@ -2,7 +2,7 @@ use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use std::{
     cell::RefCell,
     sync::{Arc, Mutex},
-}; // FIXME no-std
+}; // FIXME #106 no-std
 
 #[cfg(feature = "debug")]
 #[derive(Clone, Debug)]

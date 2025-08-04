@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::io::{Cursor, Read};
-// FIXME no-std
+// FIXME #109 no-std
 
 use super::protocol_structures::{
     block_header::BlockHeader,
@@ -23,7 +23,7 @@ pub enum HeaderParsingError {
     InsufficientLength,
 }
 
-// TODO: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
+// TODO #110: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
 
 #[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
@@ -262,7 +262,7 @@ impl DXBBlock {
                 let mut signature = Vec::with_capacity(255);
                 reader.read_exact(&mut signature)?;
 
-                // TODO: decrypt the signature
+                // TODO #111: decrypt the signature
                 Some(signature)
             }
             SignatureType::Unencrypted => {
@@ -274,10 +274,10 @@ impl DXBBlock {
             SignatureType::None => None,
         };
 
-        // TODO: validate the signature
+        // TODO #112: validate the signature
         let decrypted_bytes = match routing_header.flags.encryption_type() {
             EncryptionType::Encrypted => {
-                // TODO: decrypt the body
+                // TODO #113: decrypt the body
                 let mut decrypted_bytes = Vec::with_capacity(255);
                 reader.read_exact(&mut decrypted_bytes)?;
                 decrypted_bytes

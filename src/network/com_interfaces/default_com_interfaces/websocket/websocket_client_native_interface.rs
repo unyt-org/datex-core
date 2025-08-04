@@ -1,5 +1,5 @@
 use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
-// FIXME no-std
+// FIXME #209 no-std
 
 use crate::{
     delegate_com_interface_info,
@@ -159,7 +159,7 @@ impl ComInterface for WebSocketClientNativeInterface {
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
+        // TODO #210
         Box::pin(async move { true })
     }
 

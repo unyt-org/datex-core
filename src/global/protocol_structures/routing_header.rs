@@ -146,7 +146,7 @@ pub struct RoutingHeader {
     pub block_size_u32: Option<u32>,
 
     pub sender: Endpoint,
-    // TODO: add custom match receiver queries
+    // TODO #115: add custom match receiver queries
     pub receivers: Receivers,
 }
 

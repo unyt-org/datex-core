@@ -8,7 +8,7 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 use binrw::{BinRead, BinWrite};
 use hex::decode;
-// FIXME no-std
+// FIXME #123 no-std
 use crate::stdlib::str;
 use std::io::Cursor;
 use std::str::FromStr;

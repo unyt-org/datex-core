@@ -246,7 +246,7 @@ pub async fn execute_dxb(
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
             }
-            _ => todo!(),
+            _ => todo!("#99 Undescribed by author."),
         }
     }
 
@@ -426,7 +426,7 @@ pub fn execute_loop(
         let instruction_iterator = body::iterate_instructions(dxb_body);
 
         for instruction in instruction_iterator {
-            // TODO: use ? operator instead of yield_unwrap once supported in gen blocks
+            // TODO #100: use ? operator instead of yield_unwrap once supported in gen blocks
             let instruction = yield_unwrap!(instruction);
             if input.options.verbose {
                 info!("[Exec]: {instruction}");
@@ -478,7 +478,7 @@ pub fn execute_loop(
 
         if end_execution {
             // cleanup...
-            // TODO: check for other unclosed stacks
+            // TODO #101: check for other unclosed stacks
             // if we have an active key here, this is invalid and leads to an error
             // if context.scope_stack.get_active_key().is_some() {
             //     return Err(ExecutionError::InvalidProgram(
@@ -942,7 +942,7 @@ fn handle_unary_operation(
         UnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
-        _ => todo!("Unary instruction not implemented: {operator:?}"),
+        _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }
 }
 
@@ -974,7 +974,7 @@ fn handle_binary_operation(
             Ok(ValueContainer::from(val))
         }
         BinaryOperator::Is => {
-            // TODO we should throw a runtime error when one of lhs or rhs is a value
+            // TODO #103 we should throw a runtime error when one of lhs or rhs is a value
             // instead of a ref. Identity checks using the is operator shall be only allowed
             // for references.
             // @benstre: or keep as always false ? - maybe a compiler check would be better
@@ -1254,7 +1254,7 @@ mod tests {
         ]);
         debug!("Expected tuple: {expected_strict}");
         debug!("Tuple result: {tuple}");
-        // FIXME type information gets lost on compile
+        // FIXME #104 type information gets lost on compile
         // assert_eq!(result, expected.into());
     }
 

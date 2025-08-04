@@ -54,7 +54,7 @@ impl Display for Integer {
     }
 }
 
-// FIXME use integer i32 by default and switch automaticially if a calculation provoces one of the values to get out of bounds
+// FIXME #124 use integer i32 by default and switch automaticially if a calculation provoces one of the values to get out of bounds
 impl Add for Integer {
     type Output = Option<Integer>;
 

@@ -84,7 +84,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         V: serde::de::Visitor<'de>,
     {
         match self.value {
-            // TODO implement missing mapping
+            // TODO #148 implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
                 CoreValue::Null => visitor.visit_none(),
                 CoreValue::Bool(b) => visitor.visit_bool(b.0),
@@ -472,7 +472,7 @@ mod tests {
         assert!(!result.field1.is_empty());
     }
 
-    // FIXME we are loosing the type information for integers here (i128 instead of i32 as in structure)
+    // FIXME #149 we are loosing the type information for integers here (i128 instead of i32 as in structure)
     // what causes a invalid type: integer error on the serde deserialization
     #[test]
     #[ignore = "This test is currently failing due to type mismatch (i128 instead of i32)"]

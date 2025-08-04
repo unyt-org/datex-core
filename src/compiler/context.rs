@@ -192,7 +192,7 @@ impl<'a> CompilationContext<'a> {
         match value_container {
             ValueContainer::Value(value) => self.insert_value(value),
             ValueContainer::Reference(reference) => {
-                // TODO: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
+                // TODO #160: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
                 // add CREATE_REF instruction
                 self.append_binary_code(InstructionCode::CREATE_REF);
                 self.insert_value(

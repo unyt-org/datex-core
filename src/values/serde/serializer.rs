@@ -236,7 +236,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        todo!("#134 Undescribed by author.")
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
@@ -253,14 +253,14 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        todo!("#136 Undescribed by author.")
     }
 
     fn serialize_unit_struct(
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        todo!("#137 Undescribed by author.")
     }
 
     fn serialize_unit_variant(
@@ -325,14 +325,14 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + serde::Serialize,
     {
-        todo!()
+        todo!("#140 Undescribed by author.")
     }
 
     fn serialize_seq(
         self,
         len: Option<usize>,
     ) -> Result<Self::SerializeSeq, Self::Error> {
-        todo!()
+        todo!("#141 Undescribed by author.")
     }
 
     fn serialize_tuple(
@@ -359,14 +359,14 @@ impl Serializer for &mut DatexSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        todo!()
+        todo!("#142 Undescribed by author.")
     }
 
     fn serialize_map(
         self,
         len: Option<usize>,
     ) -> Result<Self::SerializeMap, Self::Error> {
-        todo!()
+        todo!("#143 Undescribed by author.")
     }
 
     fn serialize_struct_variant(
@@ -376,7 +376,7 @@ impl Serializer for &mut DatexSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        todo!()
+        todo!("#144 Undescribed by author.")
     }
 
     fn serialize_i128(self, v: i128) -> Result<Self::Ok, Self::Error> {
@@ -406,7 +406,7 @@ impl Serializer for &mut DatexSerializer {
         V: Serialize,
         I: IntoIterator<Item = (K, V)>,
     {
-        todo!()
+        todo!("#145 Undescribed by author.")
     }
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok, Self::Error>

@@ -11,14 +11,14 @@ use std::fmt::Debug;
 use std::rc::Rc;
 // use tokio_stream::StreamExt;
 
-// TODO: store scope memory
+// TODO #170: store scope memory
 #[derive(Debug)]
 pub struct ScopeContext {
     pub next_section_index: IncomingSectionIndex,
     pub next_block_number: IncomingBlockNumber,
     /// timestamp of the last keep alive block
     /// when a specific time has passed since the timestamp, the scope context is disposed
-    /// TODO: implement dispose of scope context
+    /// TODO #171: implement dispose of scope context
     pub keep_alive_timestamp: u64,
     // a reference to the sender for the current section
     pub current_queue_sender: Option<UnboundedSender<DXBBlock>>,
@@ -233,7 +233,7 @@ impl BlockHandler {
             .entry(endpoint_context_id.clone())
             .or_default();
 
-        // TODO: what happens if the endpoint has not received all blocks starting with block_number 0?
+        // TODO #172: what happens if the endpoint has not received all blocks starting with block_number 0?
         // we should still potentially process those blocks
 
         // Case 2: if the block is the next expected block in the current section, put it into the
@@ -326,7 +326,7 @@ impl BlockHandler {
         // put it into the block cache
         else {
             // check if block is already in cache
-            // TODO: this should not happen, we should make sure duplicate blocks are dropped before
+            // TODO #173: this should not happen, we should make sure duplicate blocks are dropped before
             if scope_context.cached_blocks.contains_key(&block_number) {
                 log::warn!(
                     "Block {block_number} already in cache, dropping block"
@@ -377,7 +377,7 @@ impl BlockHandler {
         let rx =
             self.register_incoming_block_observer(context_id, section_index);
         // Await the result from the callback
-        // FIXME
+        // FIXME #174
         None
         // rx.next().await
     }

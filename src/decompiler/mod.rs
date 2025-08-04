@@ -1,9 +1,10 @@
-use std::collections::HashMap; // FIXME no-std
+use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
 use log::info;
-// FIXME no-std
+// FIXME #223 no-std
+
 
 use crate::compiler::{
     compile_template_with_refs, CompileOptions,
@@ -86,7 +87,7 @@ pub struct DecompileOptions {
     pub colorized: bool,
     /// display slots with generated variable names
     pub resolve_slots: bool,
-    /// TODO
+    /// TODO #224
     /// when set to true, the output is generated as compatible as possible with JSON, e.g. by
     /// always adding double quotes around keys
     pub json_compat: bool,
@@ -158,7 +159,7 @@ impl ScopeType {
 struct ScopeState {
     /// true if this is the outer scope (default scope)
     is_outer_scope: bool,
-    // TODO: use BinaryOperator instead of Instruction
+    // TODO #225: use BinaryOperator instead of Instruction
     active_operator: Option<(Instruction, bool)>,
     scope_type: (ScopeType, bool),
     /// skip inserted comma for next item (already inserted before key)
@@ -402,7 +403,7 @@ fn decompile_loop(
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    // TODO: generate variable name for slot
+                    // TODO #95: generate variable name for slot
                     write!(output, "#{} := ", address.0)?;
                 } else {
                     // otherwise just write the slot address
@@ -414,7 +415,7 @@ fn decompile_loop(
                 handle_before_term(state, &mut output, false)?;
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    // TODO: get variable name for slot
+                    // TODO #96: get variable name for slot
                     write!(output, "#{}", address.0)?;
                 } else {
                     // otherwise just write the slot address
@@ -425,7 +426,7 @@ fn decompile_loop(
             Instruction::DropSlot(address) => {
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    // TODO: generate variable name for slot
+                    // TODO #97: generate variable name for slot
                     write!(output, "#drop {}", address.0)?;
                 } else {
                     // otherwise just write the slot address
@@ -437,7 +438,7 @@ fn decompile_loop(
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    // TODO: generate variable name for slot
+                    // TODO #98: generate variable name for slot
                     write!(output, "#{} = ", address.0)?;
                 } else {
                     // otherwise just write the slot address

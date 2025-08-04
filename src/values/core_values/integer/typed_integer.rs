@@ -112,7 +112,7 @@ impl TypedInteger {
         }
     }
 
-    // FIXME we should probably allow casting to i128 from u128
+    // FIXME #125 we should probably allow casting to i128 from u128
     pub fn as_u128(&self) -> u128 {
         match self {
             TypedInteger::U8(v) => *v as u128,
@@ -453,7 +453,7 @@ impl Add for &TypedInteger {
 }
 
 impl AddAssign for TypedInteger {
-    // FIXME add try_add_assign
+    // FIXME #126 add try_add_assign
     fn add_assign(&mut self, rhs: Self) {
         let res = (*self + rhs).unwrap();
         match res {
