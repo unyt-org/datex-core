@@ -9,12 +9,17 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use std::collections::HashMap;
 use std::fmt::Display;
+use itertools::Itertools;
 
 pub struct ComHubMetadataInterfaceSocket {
     pub uuid: String,
-    pub endpoint: Endpoint,
     pub direction: InterfaceDirection,
-    pub properties: DynamicEndpointProperties,
+    pub endpoint: Option<Endpoint>,
+    pub properties: Option<DynamicEndpointProperties>,
+}
+pub struct ComHubMetadataInterfaceSocketWithoutEndpoint {
+    pub uuid: String,
+    pub direction: InterfaceDirection,
 }
 pub struct ComHubMetadataInterface {
     pub uuid: String,
@@ -47,11 +52,19 @@ impl Display for ComHubMetadata {
                     .name
                     .clone()
                     .map(|n| format!(" ({n})"))
-                    .unwrap_or("".to_string())
+                    .unwrap_or("".to_string()),
             )?;
 
             // print sockets
-            for socket in &interface.sockets {
+            let sorted_sockets = interface
+                .sockets
+                .iter()
+                .sorted_by_key(|s| match &s.properties {
+                    Some(properties) => properties.distance,
+                    None => i8::MAX,
+                });
+            
+            for socket in sorted_sockets {
                 writeln!(
                     f,
                     "   {} {}{} (distance: {}, uuid: {})",
@@ -60,12 +73,21 @@ impl Display for ComHubMetadata {
                         InterfaceDirection::Out => "◀──".to_string(),
                         InterfaceDirection::InOut => "◀──▶".to_string(),
                     },
-                    match socket.properties.is_direct {
-                        true => "".to_string(),
-                        false => "[INDIRECT] ".to_string(),
+                    match &socket.properties {
+                        Some(properties) => match properties.is_direct {
+                            true => "".to_string(),
+                            false => "[INDIRECT] ".to_string(),
+                        },
+                        None => "".to_string(),
                     },
-                    socket.endpoint,
-                    socket.properties.distance,
+                    match &socket.endpoint {
+                        Some(endpoint) => endpoint.to_string(),
+                        None => "unknown".to_string(),
+                    },
+                    match &socket.properties {
+                        Some(properties) => properties.distance.to_string(),
+                        None => "unknown".to_string(),
+                    },
                     socket.uuid
                 )?;
             }
@@ -104,10 +126,36 @@ impl ComHub {
                     .unwrap()
                     .push(ComHubMetadataInterfaceSocket {
                         uuid: socket_uuid.0.to_string(),
-                        endpoint: endpoint.clone(),
+                        endpoint: Some(endpoint.clone()),
                         direction: socket.direction.clone(),
-                        properties: properties.clone(),
+                        properties: Some(properties.clone()),
                     });
+            }
+        }
+
+        for (socket_uuid, (socket, endpoints)) in self.sockets.borrow().iter() {
+            // if no endpoints are registered, we consider it a socket without an endpoint
+            if endpoints.is_empty() {
+                let socket = socket.lock().unwrap();
+                let com_interface_uuid = socket.interface_uuid.clone();
+                if !sockets_by_com_interface_uuid
+                    .contains_key(&com_interface_uuid)
+                {
+                    sockets_by_com_interface_uuid
+                        .insert(com_interface_uuid.clone(), Vec::new());
+                }
+                sockets_by_com_interface_uuid
+                    .get_mut(&com_interface_uuid)
+                    .unwrap()
+                    .push(
+                    ComHubMetadataInterfaceSocket {
+                        uuid: socket_uuid.0.to_string(),
+                        direction: socket.direction.clone(),
+                        endpoint: None,
+                        properties: None,
+                    },
+                );
+                continue;
             }
         }
 

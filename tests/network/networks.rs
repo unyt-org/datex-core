@@ -59,7 +59,7 @@ async fn create_network_with_two_nodes() {
 
             // send trace from A to B
             let network_trace = runtime_a
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_B.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -73,7 +73,7 @@ async fn create_network_with_two_nodes() {
 
             // send trace from B to A
             let network_trace = runtime_b
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_A.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -87,7 +87,7 @@ async fn create_network_with_two_nodes() {
 
             // send trace from A to A
             let network_trace = runtime_a
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_A.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -217,7 +217,7 @@ async fn network_routing_with_four_nodes_1() {
 
             for endpoint in network.endpoints.iter() {
                 if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
+                    runtime.com_hub().print_metadata();
                 }
             }
 
@@ -227,7 +227,7 @@ async fn network_routing_with_four_nodes_1() {
 
             // send trace from A to C
             let network_trace = runtime_a
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_C.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -263,7 +263,7 @@ async fn network_routing_with_four_nodes_2() {
 
             for endpoint in network.endpoints.iter() {
                 if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
+                    runtime.com_hub().print_metadata();
                 }
             }
 
@@ -276,7 +276,7 @@ async fn network_routing_with_four_nodes_2() {
             // order in the priority list
             // after the first trace, the routing should be deterministic
             let network_trace = runtime_c
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_A.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -284,14 +284,14 @@ async fn network_routing_with_four_nodes_2() {
 
             // clear endpoint blacklist to make sure it has no influence on the following routing
             runtime_c
-                .com_hub
+                .com_hub()
                 .endpoint_sockets_blacklist
                 .borrow_mut()
                 .clear();
 
             // send trace from C to A again
             let network_trace = runtime_c
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_A.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -327,7 +327,7 @@ async fn network_routing_with_four_nodes_3() {
 
             for endpoint in network.endpoints.iter() {
                 if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
+                    runtime.com_hub().print_metadata();
                 }
             }
 
@@ -337,7 +337,7 @@ async fn network_routing_with_four_nodes_3() {
 
             // send trace from A to D
             let network_trace = runtime_a
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_D.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -377,7 +377,7 @@ async fn network_routing_with_four_nodes_4() {
 
             for endpoint in network.endpoints.iter() {
                 if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
+                    runtime.com_hub().print_metadata();
                 }
             }
 
@@ -390,7 +390,7 @@ async fn network_routing_with_four_nodes_4() {
             // order in the priority list
             // after the first trace, the routing should be deterministic
             let network_trace = runtime_b
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_D.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -398,14 +398,14 @@ async fn network_routing_with_four_nodes_4() {
 
             // clear endpoint blacklist to make sure it has no influence on the following routing
             runtime_c
-                .com_hub
+                .com_hub()
                 .endpoint_sockets_blacklist
                 .borrow_mut()
                 .clear();
 
             // send trace from B to D again
             let network_trace = runtime_b
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_D.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -442,7 +442,7 @@ async fn network_routing_with_four_nodes_5_deterministic_priorities() {
 
             for endpoint in network.endpoints.iter() {
                 if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
+                    runtime.com_hub().print_metadata();
                 }
             }
 
@@ -453,7 +453,7 @@ async fn network_routing_with_four_nodes_5_deterministic_priorities() {
             // send trace from B to D
 
             let network_trace = runtime_b
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_D.clone())
                 .await;
             assert!(network_trace.is_some());
@@ -490,7 +490,7 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
 
             for endpoint in network.endpoints.iter() {
                 if let Some(runtime) = &endpoint.runtime {
-                    runtime.com_hub.print_metadata();
+                    runtime.com_hub().print_metadata();
                 }
             }
 
@@ -499,7 +499,7 @@ async fn network_routing_with_four_nodes_6_deterministic_priorities() {
             // send trace from C A
 
             let network_trace = runtime_c
-                .com_hub
+                .com_hub()
                 .record_trace(TEST_ENDPOINT_A.clone())
                 .await;
             assert!(network_trace.is_some());

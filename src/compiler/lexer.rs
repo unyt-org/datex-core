@@ -48,6 +48,7 @@ pub enum Token {
     #[token("/")] Slash,
     #[token(":")] Colon,
     #[token("::")] DoubleColon,
+    #[token(":::")] TripleColon,
     #[token(";")] Semicolon,
     #[token(".")] Dot,
     #[token(",")] Comma,
@@ -68,7 +69,6 @@ pub enum Token {
     #[token("..")] Range,
     #[token("..=")] RangeInclusive,
     #[token("...")] Spread,
-    #[token("#")] Hash,
     #[token("@")] At,
     #[token("&")] Ampersand,
     #[token("|")] Pipe,
@@ -89,8 +89,9 @@ pub enum Token {
     #[token("null")] NullKW,
 
     #[token("?")] PlaceholderKW,
-    #[token("val")] ValKW,
-    #[token("ref")] RefKW,
+    #[token("const")] ConstKW,
+    #[token("var")] VarKW,
+    #[token("mut")] MutKW,
 
     // decimal literals (infinity, nan)
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] InfinityLiteral(String),
@@ -155,11 +156,21 @@ pub enum Token {
 
     #[regex(r#"[a-z0-9]*("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*')"#, allocated_string)] StringLiteral(String),
 
-    // Other
+
+    #[regex(r"@[+@]?[a-zA-Z0-9_-]+", allocated_string)] Endpoint(String),
+
+    // identifiers
     #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string)] Identifier(String),
+
+    // number slots (starting with #, followed by digits)
+    #[regex(r"#\d+", allocated_string)] Slot(String),
+
+    // named slots (starting with #, followed by A-Z or a-z)
+    #[regex(r"#[_a-zA-Z]+", allocated_string)] NamedSlot(String),
 
     #[regex(r"[ \t\n\f]")]
     Whitespace,
+
 
     Error
 }

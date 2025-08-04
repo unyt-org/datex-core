@@ -46,10 +46,11 @@ macro_rules! run_async {
 
         tokio::task::LocalSet::new()
             .run_until(async move {
-                (async move { $($body)* }).await;
+                let res = (async move { $($body)* }).await;
                 datex_core::task::close_panic_notify().await;
                 datex_core::task::unwind_local_spawn_panics().await;
-            }).await;
+                res
+            }).await
     }}
 }
 
@@ -174,11 +175,11 @@ cfg_if! {
             tokio::time::timeout(duration, fut)
         }
 
-        pub fn spawn_local<F>(fut: F)
+        pub fn spawn_local<F>(fut: F)-> tokio::task::JoinHandle<()>
         where
             F: std::future::Future<Output = ()> + 'static,
         {
-            tokio::task::spawn_local(fut);
+            tokio::task::spawn_local(fut)
         }
         pub fn spawn<F>(fut: F) -> tokio::task::JoinHandle<F::Output>
         where

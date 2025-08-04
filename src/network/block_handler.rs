@@ -1,20 +1,18 @@
-use crate::global::dxb_block::{
-    BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
-    IncomingEndpointContextId, IncomingSection, IncomingSectionIndex,
-    OutgoingContextId, OutgoingSectionIndex,
-};
+use crate::global::dxb_block::{BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId, IncomingEndpointContextId, IncomingEndpointContextSectionId, IncomingSection, IncomingSectionIndex, OutgoingContextId, OutgoingSectionIndex};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::global_context::get_global_context;
 use futures::channel::mpsc;
-use futures::channel::mpsc::UnboundedReceiver;
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use log::info;
 use ringmap::RingMap;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::fmt::Debug;
 use std::rc::Rc;
 // use tokio_stream::StreamExt;
 
 // TODO #170: store scope memory
+#[derive(Debug)]
 pub struct ScopeContext {
     pub next_section_index: IncomingSectionIndex,
     pub next_block_number: IncomingBlockNumber,
@@ -22,8 +20,8 @@ pub struct ScopeContext {
     /// when a specific time has passed since the timestamp, the scope context is disposed
     /// TODO #171: implement dispose of scope context
     pub keep_alive_timestamp: u64,
-    // a reference to the block queue for the current section
-    pub current_block_queue: Option<Rc<RefCell<VecDeque<DXBBlock>>>>,
+    // a reference to the sender for the current section
+    pub current_queue_sender: Option<UnboundedSender<DXBBlock>>,
     // a cache for all blocks indexed by their block number
     pub cached_blocks: BTreeMap<IncomingBlockNumber, DXBBlock>,
 }
@@ -39,7 +37,7 @@ impl Default for ScopeContext {
                 .lock()
                 .unwrap()
                 .now(),
-            current_block_queue: None,
+            current_queue_sender: None,
             cached_blocks: BTreeMap::new(),
         }
     }
@@ -73,6 +71,17 @@ pub struct BlockHandler {
 
     /// history of all incoming blocks
     pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData>>,
+}
+
+impl Debug for BlockHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BlockHandler")
+            .field("current_context_id", &self.current_context_id)
+            .field("block_cache", &self.block_cache)
+            .field("incoming_sections_queue", &self.incoming_sections_queue)
+            .field("incoming_blocks_history", &self.incoming_blocks_history)
+            .finish()
+    }
 }
 
 impl Default for BlockHandler {
@@ -203,17 +212,19 @@ impl BlockHandler {
             sender: block.routing_header.sender.clone(),
             context_id: block.block_header.context_id,
         };
+        let section_context_id = IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index);
 
         // get scope context if it already exists
         let has_scope_context =
             self.block_cache.borrow().contains_key(&endpoint_context_id);
+
 
         // Case 1: shortcut if no scope context exists and the block is a single block
         if !has_scope_context
             && block_number == 0
             && (is_end_of_section || is_end_of_context)
         {
-            return vec![IncomingSection::SingleBlock(block)];
+            return vec![IncomingSection::SingleBlock((Some(block), section_context_id.clone()))];
         }
 
         // make sure a scope context exists from here on
@@ -235,28 +246,31 @@ impl BlockHandler {
             let mut is_end_of_context = is_end_of_context;
             let mut is_end_of_section = is_end_of_section;
             let mut next_block = block;
+            let mut section_index = section_index;
 
             // loop over the input block and potential blocks from the cache until the next block cannot be found
             // or the end of the scope is reached
             loop {
-                let is_first_block_of_section =
-                    scope_context.current_block_queue.is_none();
-                let current_block_queue = scope_context
-                    .current_block_queue
-                    .get_or_insert_with(|| {
-                        // create a new block queue for the current section
-                        Rc::new(RefCell::new(VecDeque::new()))
-                    });
+                if let Some(sender ) = &mut scope_context.current_queue_sender {
+                    // send the next block to the section queue receiver
+                    sender.start_send(next_block)
+                        .expect("Failed to send block to current section queue");
+                }
+                else {
+                    // create a new block queue for the current section
+                    let (mut sender, receiver) = mpsc::unbounded();
 
-                // push block to current block queue
-                current_block_queue.borrow_mut().push_back(next_block);
-
-                // add a new incoming section if this is the first block of the section
-                if is_first_block_of_section {
+                    // add the first block to the queue
                     new_blocks.push(IncomingSection::BlockStream((
-                        current_block_queue.clone(),
-                        section_index,
+                        Some(receiver),
+                        IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index),
                     )));
+
+                    // send the next block to the section queue receiver
+                    sender.start_send(next_block)
+                        .expect("Failed to send first block to current section queue");
+
+                    scope_context.current_queue_sender = Some(sender);
                 }
 
                 // cleanup / prepare for next block =======================
@@ -272,8 +286,10 @@ impl BlockHandler {
                 else if is_end_of_section {
                     // increment section index
                     scope_context.next_section_index += 1;
-                    // remove block queue
-                    scope_context.current_block_queue = None;
+                    // close and remove the current section queue sender
+                    if let Some(sender) = scope_context.current_queue_sender.take() {
+                        sender.close_channel();
+                    }
                 }
                 // ========================================================
 
@@ -294,6 +310,9 @@ impl BlockHandler {
                         .is_end_of_context();
                     // set next block
                     next_block = next_cached_block;
+
+                    // update section index from next block
+                    section_index = next_block.block_header.section_index;
                 }
                 // no more blocks in cache, break
                 else {

@@ -41,3 +41,6 @@ contexts:
 
     - match: '#\d+'    # Slot
       scope: variable.other.slot.datex
+
+    - match: '@[@+]?\w+'    # Endpoint
+      scope: variable.other.endpoint.datex

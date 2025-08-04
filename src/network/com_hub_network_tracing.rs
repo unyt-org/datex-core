@@ -23,6 +23,7 @@ use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::fmt::Display;
 use std::time::Duration;
+use crate::runtime::global_context::get_global_context;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -273,7 +274,7 @@ impl ComHub {
         };
 
         // measure round trip time
-        let start_time = std::time::Instant::now();
+        let start_time = get_global_context().clone().time.lock().unwrap().now();
 
         let responses = self
             .send_own_block_await_response(
@@ -281,7 +282,10 @@ impl ComHub {
                 options.response_options,
             )
             .await;
-        let round_trip_time = start_time.elapsed();
+        let end_time = get_global_context().clone().time.lock().unwrap().now();
+        let round_trip_time = Duration::from_millis(
+            end_time - start_time
+        );
 
         let mut results = vec![];
 
@@ -289,17 +293,21 @@ impl ComHub {
             match response {
                 Ok(Response::ExactResponse(
                     sender,
-                    IncomingSection::SingleBlock(block),
+                    IncomingSection::SingleBlock((block, ..)),
                 ))
                 | Ok(Response::ResolvedResponse(
                     sender,
-                    IncomingSection::SingleBlock(block),
+                    IncomingSection::SingleBlock((block, ..)),
                 )) => {
                     info!(
                         "Received trace block response from {}",
                         sender.clone()
                     );
-                    let hops = self.get_trace_data_from_block(&block);
+                    let block = block
+                        .as_ref()
+                        .expect("Expected a block in incoming section");
+                    
+                    let hops = self.get_trace_data_from_block(block);
                     if let Some(hops) = hops {
                         let result = NetworkTraceResult {
                             sender: self.endpoint.clone(),
@@ -313,6 +321,7 @@ impl ComHub {
                         continue;
                     }
                 }
+
                 Ok(Response::UnspecifiedResponse(
                     IncomingSection::SingleBlock(_),
                 )) => {
@@ -508,7 +517,6 @@ impl ComHub {
         let hops_datex = execute_dxb_sync(exec_input)
             .unwrap()
             .unwrap();
-        info!("hops datex {hops_datex}");
         if let ValueContainer::Value(Value {
             inner: CoreValue::Array(array),
             ..
@@ -606,7 +614,6 @@ impl ComHub {
                     });
                 }
             }
-            info!("Parsed hops from trace block: {hops:?}");
             Some(hops)
         } else {
             None

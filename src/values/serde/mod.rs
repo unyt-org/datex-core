@@ -4,12 +4,18 @@ pub mod serializer;
 
 #[cfg(test)]
 mod tests {
+    use log::info;
     use serde::{Deserialize, Serialize};
-
+    use datex_core::decompiler::decompile_body;
+    use crate::{assert_structural_eq, assert_value_eq};
+    use crate::decompiler::DecompileOptions;
+    use crate::logger::init_logger_debug;
     use crate::values::serde::{
         deserializer::{from_bytes, from_value_container},
         serializer::{to_bytes, to_value_container},
     };
+    use crate::values::value_container::ValueContainer;
+    use crate::values::traits::structural_eq::StructuralEq;
 
     // Tuple Struct
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
@@ -77,7 +83,7 @@ mod tests {
 
     // FIXME #146
     #[test]
-    #[ignore = "This test is currently failing"]
+    // #[ignore = "This test is currently failing"]
     fn test_nested_struct_serde_value_container() {
         let original = NestedStruct {
             nested_field: "Nested".to_string(),
@@ -92,6 +98,28 @@ mod tests {
         let deserialized: NestedStruct =
             from_value_container(serialized).unwrap();
         assert_eq!(original, deserialized);
+    }
+
+    #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq)]
+    pub struct StructWithUSize {
+        pub usize: Option<usize>,
+    }
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    pub struct StructWithValueContainer {
+        pub name: String,
+        pub value_container: ValueContainer
+    }
+
+    #[test]
+    fn test_struct_with_option_serde_bytes() {
+        // struct with option
+        let val = StructWithUSize { usize: Some(42) };
+        let result = to_bytes(&val);
+        assert!(result.is_ok());
+        let deserialized: StructWithUSize =
+            from_bytes(&result.unwrap()).unwrap();
+        assert_eq!(val, deserialized);
     }
 
     // Core Value
@@ -139,5 +167,20 @@ mod tests {
         let deserialized: (i32, String, bool) =
             from_bytes(&result.unwrap()).unwrap();
         assert_eq!(val, deserialized);
+    }
+
+    #[test]
+    fn test_struct_with_value_container_serde_bytes() {
+        init_logger_debug();
+        // struct with value container
+        let val = StructWithValueContainer {
+            name: "test".to_string(),
+            value_container: ValueContainer::from(vec![1, 2, 3]),
+        };
+        let result = to_bytes(&val).unwrap();
+        info!("{}", decompile_body(&result, DecompileOptions::colorized()).unwrap());
+        let deserialized: StructWithValueContainer =
+            from_bytes(&result).unwrap();
+        assert_structural_eq!(val.value_container, deserialized.value_container);
     }
 }

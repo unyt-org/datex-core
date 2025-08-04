@@ -13,19 +13,76 @@ use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
+use itertools::Itertools;
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::io::Cursor;
+use log::info;
+use datex_core::decompiler::decompile_body;
 
-pub struct Context<'a> {
+#[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
+pub struct VirtualSlot {
+    pub level: u8, // parent scope level if exists, otherwise 0
+    // local slot address of scope with level
+    pub virtual_address: u32,
+}
+
+impl VirtualSlot {
+    pub fn local(virtual_address: u32) -> Self {
+        VirtualSlot {
+            level: 0,
+            virtual_address,
+        }
+    }
+    pub fn is_external(&self) -> bool {
+        self.level > 0
+    }
+
+    pub fn external(level: u8, virtual_address: u32) -> Self {
+        VirtualSlot {
+            level,
+            virtual_address,
+        }
+    }
+
+    pub fn downgrade(&self) -> Self {
+        VirtualSlot {
+            level: self.level + 1,
+            virtual_address: self.virtual_address,
+        }
+    }
+
+    pub fn upgrade(&self) -> Self {
+        if self.level > 0 {
+            VirtualSlot {
+                level: self.level - 1,
+                virtual_address: self.virtual_address,
+            }
+        } else {
+            panic!("Cannot upgrade a local slot");
+        }
+    }
+}
+
+
+/// compilation context, created for each compiler call, even if compiling a script for the same scope
+pub struct CompilationContext<'a> {
     pub index: Cell<usize>,
     pub inserted_value_index: Cell<usize>,
     pub buffer: RefCell<Vec<u8>>,
     pub inserted_values: RefCell<&'a [&'a ValueContainer]>,
     /// this flag is set to true if any non-static value is encountered
     pub has_non_static_value: RefCell<bool>,
+
+    /// Set to true if no further source text is expected to be compiled.
+    /// Example: for a REPL, this is set to false
+    pub is_end_of_source_text: bool,
+
+    // mapping for temporary scope slot resolution
+    slot_indices: RefCell<HashMap<VirtualSlot, Vec<u32>>>,
 }
 
-impl<'a> Context<'a> {
+impl<'a> CompilationContext<'a> {
     const MAX_INT_32: i64 = 2_147_483_647;
     const MIN_INT_32: i64 = -2_147_483_648;
 
@@ -49,14 +106,83 @@ impl<'a> Context<'a> {
     pub fn new(
         buffer: RefCell<Vec<u8>>,
         inserted_values: &'a [&'a ValueContainer],
+        is_end_of_source_text: bool,
     ) -> Self {
-        Context {
+        CompilationContext {
             index: Cell::new(0),
             inserted_value_index: Cell::new(0),
             buffer,
             inserted_values: RefCell::new(inserted_values),
             has_non_static_value: RefCell::new(false),
+            slot_indices: RefCell::new(HashMap::new()),
+            is_end_of_source_text,
         }
+    }
+
+    pub fn external_slots(&self) -> Vec<VirtualSlot> {
+        self.slot_indices
+            .borrow()
+            .iter()
+            .filter(|(slot, _)| slot.is_external())
+            .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
+            .map(|(slot, _)| *slot)
+            .collect()
+    }
+
+    /// Gets all slots for either local or external slots depending on the value of external
+    pub fn get_slot_byte_indices(
+        &self,
+        match_externals: bool,
+    ) -> Vec<Vec<u32>> {
+        self.slot_indices
+            .borrow()
+            .iter()
+            .filter(|(slot, _)| slot.is_external() == match_externals)
+            .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
+            .map(|(_, indices)| indices.clone())
+            .collect()
+    }
+
+    pub fn remap_virtual_slots(&self) {
+        info!("remapping, bytes before: {:?}", self.buffer.borrow());
+        info!("decompiled: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
+            .expect("Failed to decompile body"));
+
+        info!("slot indices: {:#?}", self.slot_indices.borrow());
+
+        let mut slot_address = 0;
+
+        // parent slots
+        for byte_indices in self.get_slot_byte_indices(true) {
+            info!("remapping slot address: {slot_address}, indices: {byte_indices:?}");
+            for byte_index in byte_indices {
+                self.set_u32_at_index(slot_address, byte_index as usize);
+            }
+            slot_address += 1;
+        }
+
+        // local slots
+        for byte_indices in self.get_slot_byte_indices(false) {
+            info!("remapping local slot address: {slot_address}, indices: {byte_indices:?}");
+            for byte_index in byte_indices {
+                self.set_u32_at_index(slot_address, byte_index as usize);
+            }
+            slot_address += 1;
+        }
+        info!("decompiled after: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
+            .expect("Failed to decompile body"));
+    }
+
+    // This method writes a placeholder value for the slot
+    // since the slot address is not known yet and just temporary.
+    pub fn insert_virtual_slot_address(&self, virtual_slot: VirtualSlot) {
+        let mut slot_indices = self.slot_indices.borrow_mut();
+        if let Some(indices) = slot_indices.get_mut(&virtual_slot) {
+            indices.push(self.index.get() as u32);
+        } else {
+            slot_indices.insert(virtual_slot, vec![self.index.get() as u32]);
+        }
+        self.append_u32(0); // placeholder for the slot address
     }
 
     pub fn insert_value_container(&self, value_container: &ValueContainer) {
@@ -217,7 +343,7 @@ impl<'a> Context<'a> {
     }
 
     pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
-        fn insert_f32_or_f64(scope: &Context, decimal: &TypedDecimal) {
+        fn insert_f32_or_f64(scope: &CompilationContext, decimal: &TypedDecimal) {
             match decimal {
                 TypedDecimal::F32(val) => {
                     scope.insert_float32(val.into_inner());
@@ -292,11 +418,11 @@ impl<'a> Context<'a> {
     }
 
     pub fn insert_int(&self, int: i64) {
-        if (Context::MIN_INT_8..=Context::MAX_INT_8).contains(&int) {
+        if (CompilationContext::MIN_INT_8..=CompilationContext::MAX_INT_8).contains(&int) {
             self.insert_i8(int as i8)
-        } else if (Context::MIN_INT_16..=Context::MAX_INT_16).contains(&int) {
+        } else if (CompilationContext::MIN_INT_16..=CompilationContext::MAX_INT_16).contains(&int) {
             self.insert_i16(int as i16)
-        } else if (Context::MIN_INT_32..=Context::MAX_INT_32).contains(&int) {
+        } else if (CompilationContext::MIN_INT_32..=CompilationContext::MAX_INT_32).contains(&int) {
             self.insert_i32(int as i32)
         } else {
             self.insert_i64(int)
@@ -346,45 +472,50 @@ impl<'a> Context<'a> {
     }
     pub fn append_u8(&self, u8: u8) {
         append_u8(self.buffer.borrow_mut().as_mut(), u8);
-        self.index.update(|x| x + Context::INT_8_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     pub fn append_u32(&self, u32: u32) {
         append_u32(self.buffer.borrow_mut().as_mut(), u32);
-        self.index.update(|x| x + Context::INT_32_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_32_BYTES as usize);
+    }
+    pub fn set_u32_at_index(&self, u32: u32, index: usize) {
+        let mut buffer = self.buffer.borrow_mut();
+        buffer[index..index + CompilationContext::INT_32_BYTES as usize]
+            .copy_from_slice(&u32.to_le_bytes());
     }
     pub fn append_i8(&self, i8: i8) {
         append_i8(self.buffer.borrow_mut().as_mut(), i8);
-        self.index.update(|x| x + Context::INT_8_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     pub fn append_i16(&self, i16: i16) {
         append_i16(self.buffer.borrow_mut().as_mut(), i16);
-        self.index.update(|x| x + Context::INT_16_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_16_BYTES as usize);
     }
     pub fn append_i32(&self, i32: i32) {
         append_i32(self.buffer.borrow_mut().as_mut(), i32);
-        self.index.update(|x| x + Context::INT_32_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     pub fn append_i64(&self, i64: i64) {
         append_i64(self.buffer.borrow_mut().as_mut(), i64);
-        self.index.update(|x| x + Context::INT_64_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_64_BYTES as usize);
     }
     pub fn append_i128(&self, i128: i128) {
         append_i128(self.buffer.borrow_mut().as_mut(), i128);
-        self.index.update(|x| x + Context::INT_128_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     pub fn append_u128(&self, u128: u128) {
         append_u128(self.buffer.borrow_mut().as_mut(), u128);
-        self.index.update(|x| x + Context::INT_128_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     pub fn append_f32(&self, f32: f32) {
         append_f32(self.buffer.borrow_mut().as_mut(), f32);
-        self.index.update(|x| x + Context::FLOAT_32_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::FLOAT_32_BYTES as usize);
     }
     pub fn append_f64(&self, f64: f64) {
         append_f64(self.buffer.borrow_mut().as_mut(), f64);
-        self.index.update(|x| x + Context::FLOAT_64_BYTES as usize);
+        self.index.update(|x| x + CompilationContext::FLOAT_64_BYTES as usize);
     }
     pub fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();

@@ -4,6 +4,7 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
+
 use crate::compiler::{
     compile_template_with_refs, CompileOptions,
 };
@@ -331,6 +332,11 @@ fn decompile_loop(
                 write!(output, "null")?;
                 handle_after_term(state, &mut output, false)?;
             }
+            Instruction::Endpoint(endpoint) => {
+                handle_before_term(state, &mut output, false)?;
+                write!(output, "{endpoint}")?;
+                handle_after_term(state, &mut output, false)?;
+            }
             Instruction::ArrayStart => {
                 handle_before_term(state, &mut output, false)?;
                 state.new_scope(ScopeType::Array);
@@ -426,7 +432,7 @@ fn decompile_loop(
                     write!(output, "#drop {}", address.0)?;
                 }
             }
-            Instruction::UpdateSlot(address) => {
+            Instruction::SetSlot(address) => {
                 handle_before_term(state, &mut output, false)?;
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
@@ -445,6 +451,27 @@ fn decompile_loop(
                 write!(output, "$")?;
             }
 
+            Instruction::RemoteExecution => {
+                handle_before_term(state, &mut output, false)?;
+                state.get_current_scope().active_operator = Some((instruction, true,));
+            }
+
+            Instruction::ExecutionBlock(data) => {
+                handle_before_term(state, &mut output, true)?;
+                // decompile data.body
+                let decompiled_body = decompile_body(
+                    &data.body,
+                    state.options.clone(),
+                )?;
+                let slot_mapping = data.injected_slots.iter().enumerate().map(|(k, v)| {
+                    format!(
+                        "#{v} => #{k}"
+                    )
+                }).collect::<Vec<_>>().join(", ");
+                // write the decompiled body
+                write!(output, "[{slot_mapping}]({decompiled_body})")?;
+            }
+            
             _ => {
                 write!(output, "[[{instruction}]]")?;
             }
@@ -667,6 +694,10 @@ fn handle_before_operand(
             (Instruction::Divide, false) => {
                 write_operator(state, output, "/")?;
                 state.get_current_scope().close_scope_after_term = true;
+            }
+            (Instruction::RemoteExecution, false) => {
+                write_operator(state, output, "::")?;
+                state.get_current_scope().close_scope_after_term = false;
             }
             _ => {
                 panic!("Invalid operator: {operator:?}");

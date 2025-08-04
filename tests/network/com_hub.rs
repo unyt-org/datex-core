@@ -33,7 +33,7 @@ use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
 };
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
-
+use datex_core::values::serde::serializer::to_value_container;
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 
 #[tokio::test]
@@ -521,7 +521,7 @@ pub async fn register_factory() {
         let mockup_interface = com_hub
             .create_interface(
                 "mockup",
-                Box::new(MockupInterfaceSetupData::new("mockup")),
+                to_value_container(&MockupInterfaceSetupData::new("mockup")).unwrap(),
                 InterfacePriority::default(),
             )
             .await
