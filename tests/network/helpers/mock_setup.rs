@@ -5,10 +5,10 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex};
-// FIXME no-std
+// FIXME #218 no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::runtime::Runtime;
+use datex_core::runtime::{Runtime, RuntimeConfig};
 use super::mockup_interface::MockupInterface;
 
 lazy_static::lazy_static! {
@@ -65,7 +65,7 @@ pub async fn get_runtime_with_mock_interface(
     priority: InterfacePriority,
 ) -> (Runtime, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let runtime = Runtime::init_native(endpoint);
+    let runtime = Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
 
     // init mockup interface
     let mockup_interface_ref =
@@ -73,7 +73,7 @@ pub async fn get_runtime_with_mock_interface(
 
     // add mockup interface to com_hub
     runtime
-        .com_hub
+        .com_hub()
         .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
@@ -176,7 +176,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
         Rc::new(RefCell::new(receiver));
 
     if enable_update_loop {
-        ComHub::start_update_loop(com_hub.clone());
+        ComHub::_start_update_loop(com_hub.clone());
 
         // start mockup interface update loop
         mockup_interface_ref.borrow_mut().start_update_loop();
@@ -287,7 +287,7 @@ pub fn get_last_received_single_block_from_com_hub(
     assert_eq!(sections.len(), 1);
 
     match &sections[0] {
-        IncomingSection::SingleBlock(block) => block.clone(),
+        IncomingSection::SingleBlock((Some(block), ..)) => block.clone(),
         _ => {
             panic!("Expected single block, but got block stream");
         }
@@ -304,7 +304,7 @@ pub fn get_all_received_single_blocks_from_com_hub(
 
     for section in sections {
         match section {
-            IncomingSection::SingleBlock(block) => {
+            IncomingSection::SingleBlock((Some(block), ..)) => {
                 blocks.push(block.clone());
             }
             _ => {

@@ -1,7 +1,7 @@
 use datex_core::compiler::{compile_script, CompileOptions};
 use datex_core::decompiler::decompile_body;
 use datex_core::decompiler::DecompileOptions;
-use datex_core::logger::init_logger;
+use datex_core::logger::init_logger_debug;
 use log::info;
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
@@ -43,7 +43,7 @@ fn compare_compiled(datex_script: &str, expected: &str) {
 
 #[test]
 pub fn compile_literals() {
-    init_logger();
+    init_logger_debug();
     compare_compiled_with_decompiled("42;");
     compare_compiled_with_decompiled("4200000000000;");
     compare_compiled_with_decompiled("1.23;");
@@ -67,7 +67,7 @@ c";"#,
 
 #[test]
 pub fn compile_expressions() {
-    init_logger();
+    init_logger_debug();
     compare_compiled_with_decompiled("1 + 2;");
     compare_compiled_with_decompiled("[1,2]");
     // ARR_START 1 2 3 SCOPE_END

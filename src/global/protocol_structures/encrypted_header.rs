@@ -1,10 +1,10 @@
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
-use modular_bitfield::{bitfield, BitfieldSpecifier};
+use modular_bitfield::{Specifier, bitfield};
 
 // 4 bit
-#[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
+#[derive(Debug, PartialEq, Clone, Default, Specifier)]
 pub enum DeviceType {
     #[default]
     Unknown = 0,

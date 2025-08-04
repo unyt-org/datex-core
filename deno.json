@@ -1,0 +1,11 @@
+{
+    "tasks": {
+        "serve": "deno run -A https://raw.githubusercontent.com/unyt-org/ts-file-server/main/src/run.ts -p tests/network/network-builder -w --minify=false --port 8043"
+    },
+    "compilerOptions": {
+        "lib": ["dom", "esnext"]
+    },
+    "fmt": {
+        "indentWidth": 4
+    }
+}

@@ -1,13 +1,14 @@
-use crate::values::core_values::endpoint::Endpoint;
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, Int128Data, Int16Data, Int32Data, Int64Data, Int8Data,
-    ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw,
+    DecimalData, ExecutionBlockData, Float32Data, Float64Data,
+    FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
+    Int32Data, Int64Data, Int128Data, ShortTextData, ShortTextDataRaw,
+    SlotAddress, TextData, TextDataRaw,
 };
 use crate::stdlib::fmt;
 use crate::utils::buffers;
+use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use std::fmt::Display;
 use std::io::Cursor;
@@ -71,7 +72,10 @@ impl Display for DXBParserError {
                 write!(f, "UTF-8 conversion error: {err}")
             }
             DXBParserError::InvalidScopeEndType { expected, found } => {
-                write!(f, "Invalid scope end type: expected {expected:?}, found {found:?}")
+                write!(
+                    f,
+                    "Invalid scope end type: expected {expected:?}, found {found:?}"
+                )
             }
         }
     }
@@ -124,7 +128,7 @@ fn get_text_data(
     }
 }
 
-// TODO: refactor: pass a ParserState struct instead of individual parameters
+// TODO #221: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {
@@ -244,6 +248,15 @@ pub fn iterate_instructions<'a>(
                         }
                     }
 
+                    InstructionCode::REMOTE_EXECUTION => {
+                        Ok(Instruction::RemoteExecution)
+                    }
+                    InstructionCode::EXECUTION_BLOCK => {
+                        ExecutionBlockData::read(&mut reader)
+                            .map(Instruction::ExecutionBlock)
+                            .map_err(|err| err.into())
+                    }
+
                     InstructionCode::SHORT_TEXT => {
                         get_short_text_data(&mut reader)
                             .map(Instruction::ShortText)
@@ -303,16 +316,14 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
 
                     // equality
-                    InstructionCode::STRUCTURAL_EQUAL => Ok(Instruction::StructuralEqual),
-                    InstructionCode::EQUAL => {
-                        Ok(Instruction::Equal)
+                    InstructionCode::STRUCTURAL_EQUAL => {
+                        Ok(Instruction::StructuralEqual)
                     }
+                    InstructionCode::EQUAL => Ok(Instruction::Equal),
                     InstructionCode::NOT_STRUCTURAL_EQUAL => {
                         Ok(Instruction::NotStructuralEqual)
                     }
-                    InstructionCode::NOT_EQUAL => {
-                        Ok(Instruction::NotEqual)
-                    }
+                    InstructionCode::NOT_EQUAL => Ok(Instruction::NotEqual),
                     InstructionCode::IS => Ok(Instruction::Is),
                     InstructionCode::CREATE_REF => Ok(Instruction::CreateRef),
 
@@ -341,12 +352,12 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::DropSlot(address.unwrap()))
                         }
                     }
-                    InstructionCode::UPDATE_SLOT => {
+                    InstructionCode::SET_SLOT => {
                         let address = SlotAddress::read(&mut reader);
                         if let Err(err) = address {
                             Err(err.into())
                         } else {
-                            Ok(Instruction::UpdateSlot(address.unwrap()))
+                            Ok(Instruction::SetSlot(address.unwrap()))
                         }
                     }
 

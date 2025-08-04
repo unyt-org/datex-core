@@ -4,7 +4,7 @@ use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
 // 2 bit
-#[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
+#[derive(Debug, PartialEq, Clone, Default, Specifier)]
 #[bits = 2]
 pub enum SignatureType {
     #[default]
@@ -14,7 +14,7 @@ pub enum SignatureType {
 }
 
 // 1 bit
-#[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
+#[derive(Debug, PartialEq, Clone, Default, Specifier)]
 pub enum EncryptionType {
     #[default]
     Unencrypted = 0b0,
@@ -22,7 +22,7 @@ pub enum EncryptionType {
 }
 
 // 1 bit
-#[derive(Debug, PartialEq, Clone, Default, BitfieldSpecifier)]
+#[derive(Debug, PartialEq, Clone, Default, Specifier)]
 pub enum BlockSize {
     #[default]
     Default = 0b0,
@@ -146,7 +146,7 @@ pub struct RoutingHeader {
     pub block_size_u32: Option<u32>,
 
     pub sender: Endpoint,
-    // TODO: add custom match receiver queries
+    // TODO #115: add custom match receiver queries
     pub receivers: Receivers,
 }
 

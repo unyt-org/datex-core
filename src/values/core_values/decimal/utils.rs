@@ -5,7 +5,7 @@ use ordered_float::OrderedFloat;
 
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 
-// TODO: currently not required
+// TODO #127: currently not required
 pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
     if value.is_nan()
         || value.is_infinite()

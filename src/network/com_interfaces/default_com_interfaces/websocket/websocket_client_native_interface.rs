@@ -1,5 +1,5 @@
 use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
-// FIXME no-std
+// FIXME #209 no-std
 
 use crate::{
     delegate_com_interface_info,
@@ -11,7 +11,6 @@ use crate::{
     },
     set_opener,
     stdlib::sync::Arc,
-    task::spawn,
 };
 use datex_macros::{com_interface, create_opener};
 
@@ -28,6 +27,7 @@ use super::websocket_common::{
     parse_url, WebSocketClientInterfaceSetupData, WebSocketError,
 };
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use crate::task::spawn_with_panic_notify;
 
 #[derive(Debug)]
 pub struct WebSocketClientNativeInterface {
@@ -49,7 +49,7 @@ impl WebSocketClientNativeInterface {
         address: &str,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
         let address =
-            parse_url(address).map_err(|_| WebSocketError::InvalidURL)?;
+            parse_url(address, true).map_err(|_| WebSocketError::InvalidURL)?;
         let info = ComInterfaceInfo::new();
         let interface = WebSocketClientNativeInterface {
             address,
@@ -65,7 +65,10 @@ impl WebSocketClientNativeInterface {
         info!("Connecting to WebSocket server at {address}");
         let (stream, _) = tokio_tungstenite::connect_async(address)
             .await
-            .map_err(|_| WebSocketError::ConnectionError)?;
+            .map_err(|e| {
+                error!("Failed to connect to WebSocket server: {e}");
+                WebSocketError::ConnectionError
+            })?;
         let (write, mut read) = stream.split();
         let socket = ComInterfaceSocket::new(
             self.get_uuid().clone(),
@@ -79,7 +82,7 @@ impl WebSocketClientNativeInterface {
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
         let state = self.get_info().state.clone();
-        spawn(async move {
+        spawn_with_panic_notify(async move {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Binary(data)) => {
@@ -147,13 +150,16 @@ impl ComInterface for WebSocketClientNativeInterface {
     }
 
     fn init_properties(&self) -> InterfaceProperties {
-        Self::get_default_properties()
+        InterfaceProperties {
+            name: Some(self.address.to_string()),
+            ..Self::get_default_properties()
+        }
     }
 
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
+        // TODO #210
         Box::pin(async move { true })
     }
 

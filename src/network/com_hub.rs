@@ -6,21 +6,18 @@ use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 
-use futures::channel::oneshot;
 use futures::channel::oneshot::Sender;
-use futures::FutureExt;
 use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::any::Any;
 use std::cmp::{Ordering, PartialEq};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-// FIXME no-std
+// FIXME #175 no-std
 
 use super::com_interfaces::com_interface::{
     self, ComInterfaceError, ComInterfaceState
@@ -38,6 +35,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
@@ -50,9 +48,10 @@ pub struct DynamicEndpointProperties {
 
 pub type ComInterfaceFactoryFn =
     fn(
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
 
+#[derive(Debug)]
 pub struct ComHubOptions {
     default_receive_timeout: Duration,
 }
@@ -118,6 +117,19 @@ pub struct ComHub {
     pub block_handler: BlockHandler,
 }
 
+impl Debug for ComHub {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComHub")
+            .field("endpoint", &self.endpoint)
+            .field("options", &self.options)
+            .field("sockets", &self.sockets)
+            .field("endpoint_sockets_blacklist", &self.endpoint_sockets_blacklist)
+            .field("fallback_sockets", &self.fallback_sockets)
+            .field("endpoint_sockets", &self.endpoint_sockets)
+            .finish()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 struct EndpointIterateOptions<'a> {
     pub only_direct: bool,
@@ -161,7 +173,7 @@ impl Default for InterfacePriority {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
     InterfaceCloseFailed,
@@ -171,6 +183,7 @@ pub enum ComHubError {
     InterfaceTypeDoesNotExist,
     InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
+    InterfaceOpenError,
 }
 
 #[derive(Debug)]
@@ -213,10 +226,10 @@ impl ComHub {
     /// Creates a new interface instance using the registered factory
     /// for the specified interface type if it exists.
     /// The interface is opened and added to the ComHub.
-    pub async fn create_interface(
+    pub async fn create_interface<'a>(
         &self,
         interface_type: &str,
-        setup_data: Box<dyn Any>,
+        setup_data: ValueContainer,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");
@@ -279,7 +292,10 @@ impl ComHub {
         if interface.borrow().get_state() != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
-            interface.borrow_mut().handle_open().await;
+            // FIXME #240: borrow_mut across await point
+            if !(interface.borrow_mut().handle_open().await) {
+                return Err(ComHubError::InterfaceOpenError);
+            }
         }
         self.add_interface(interface.clone(), priority)
     }
@@ -325,7 +341,7 @@ impl ComHub {
             .clone();
         {
             // Async close the interface (stop tasks, server, cleanup internal data)
-            // FIXME: borrow_mut should not be used here
+            // FIXME #176: borrow_mut should not be used here
             let mut interface = interface.borrow_mut();
             interface.handle_destroy().await;
         }
@@ -407,7 +423,7 @@ impl ComHub {
                 };
             }
 
-            // TODO: handle this via TTL, not explicitly for Hello blocks
+            // TODO #177: handle this via TTL, not explicitly for Hello blocks
             let should_relay =
                 // don't relay "Hello" blocks sent to own endpoint
                 !(
@@ -544,7 +560,7 @@ impl ComHub {
         // increment distance for next hop
         block.routing_header.distance += 1;
 
-        // TODO: ensure ttl is >= 1
+        // TODO #178: ensure ttl is >= 1
         // decrease TTL by 1
         block.routing_header.ttl -= 1;
         // if ttl is 0, drop the block
@@ -629,14 +645,14 @@ impl ComHub {
     }
 
     fn validate_block(&self, block: &DXBBlock) -> bool {
-        // TODO check for creation time, withdraw if too old (TBD) or in the future
+        // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
         let is_signed =
             block.routing_header.flags.signature_type() != SignatureType::None;
 
         match is_signed {
             true => {
-                // TODO: verify signature and abort if invalid
+                // TODO #180: verify signature and abort if invalid
                 // Check if signature is following in some later block and add them to
                 // a pool of incoming blocks awaiting some signature
                 true
@@ -649,7 +665,7 @@ impl ComHub {
                             get_global_context().debug_flags.allow_unsigned_blocks
                         }
                         else {
-                            // TODO Check if the sender is trusted (endpoint + interface) connection
+                            // TODO #181 Check if the sender is trusted (endpoint + interface) connection
                             false
                         }
                     }
@@ -846,7 +862,7 @@ impl ComHub {
                 .routing_header
                 .flags
                 .set_signature_type(SignatureType::Unencrypted);
-            // TODO include fingerprint of the own public key into body
+            // TODO #182 include fingerprint of the own public key into body
 
             let block = self.prepare_own_block(block);
 
@@ -1021,7 +1037,7 @@ impl ComHub {
             #[coroutine]
             move || {
                 let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
-                // TODO: can we optimize this to avoid cloning the endpoint_sockets vector?
+                // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
                 let endpoint_sockets =
                     endpoint_sockets_borrow.get(endpoint).cloned();
                 if endpoint_sockets.is_none() {
@@ -1054,7 +1070,7 @@ impl ComHub {
                             continue;
                         }
 
-                        // TODO optimize and separate outgoing/non-outgoing sockets for endpoint
+                        // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
                         // only yield outgoing sockets
                         // if a non-outgoing socket is found, all following sockets
                         // will also be non-outgoing
@@ -1115,9 +1131,9 @@ impl ComHub {
                 None
             }
 
-            // TODO: how to handle broadcasts?
+            // TODO #185: how to handle broadcasts?
             EndpointInstance::All => {
-                todo!()
+                todo!("#186 Undescribed by author.")
             }
         }
     }
@@ -1178,7 +1194,7 @@ impl ComHub {
     /// outbound socket uuids
     fn get_outbound_receiver_groups(
         &self,
-        // TODO: do we need the block here for additional information (match conditions),
+        // TODO #187: do we need the block here for additional information (match conditions),
         // otherwise receivers are enough
         block: &DXBBlock,
         mut exclude_sockets: Vec<ComInterfaceSocketUUID>,
@@ -1220,7 +1236,9 @@ impl ComHub {
     /// Runs the update loop for the ComHub.
     /// This method will continuously handle incoming data, send out
     /// queued blocks and update the sockets.
-    pub fn start_update_loop(self_rc: Rc<Self>) {
+    /// This is only used for internal tests - in a full runtime setup, the main runtime update loop triggers
+    /// ComHub updates.
+    pub fn _start_update_loop(self_rc: Rc<Self>) {
         // if already running, do nothing
         if *self_rc.update_loop_running.borrow() {
             return;
@@ -1242,23 +1260,11 @@ impl ComHub {
         });
     }
 
-    /// Stops the update loop for the ComHub, if it is running.
-    pub async fn stop_update_loop(&self) {
-        info!("Stopping ComHub update loop for {}", self.endpoint);
-        *self.update_loop_running.borrow_mut() = false;
-
-        let (sender, receiver) = oneshot::channel::<()>();
-
-        self.update_loop_stop_sender.borrow_mut().replace(sender);
-
-        receiver.await.unwrap();
-    }
-
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     /// Updates are scheduled in local tasks and are not immediately visible.
     /// To wait for the block update to finish, use `wait_for_update_async()`.
-    fn update(&self) {
+    pub fn update(&self) {
         // update all interfaces
         self.update_interfaces();
 
@@ -1278,7 +1284,7 @@ impl ComHub {
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
     fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
-        // TODO signature & encryption
+        // TODO #188 signature & encryption
         let now = get_global_context().clone().time.lock().unwrap().now();
         block.routing_header.sender = self.endpoint.clone();
         block
@@ -1304,7 +1310,7 @@ impl ComHub {
 
     /// Sends a block and wait for a response block.
     /// Fix number of exact endpoints -> Expected responses are known at send time.
-    /// TODO: make sure that mutating blocks are always send to specific endpoint instances (@jonas/0001), not generic endpoints like @jonas.
+    /// TODO #189: make sure that mutating blocks are always send to specific endpoint instances (@jonas/0001), not generic endpoints like @jonas.
     /// @jonas -> response comes from a specific instance of @jonas/0001
     pub async fn send_own_block_await_response(
         &self,
@@ -1386,10 +1392,7 @@ impl ComHub {
                 while let Some(section) = rx.next().await {
                     let mut received_response = false;
                     // get sender
-                    let mut sender = section
-                        .try_get_sender()
-                        // this is a new section containing at least one block, which has not been drained yet
-                        .expect("No sender found for incoming section - this should never happen");
+                    let mut sender = section.get_sender();
                     // add to response for exactly matching endpoint instance
                     if let Some(response) = responses.get_mut(&sender) {
                         // check if the receiver is already set (= current set response is Err)
@@ -1457,10 +1460,7 @@ impl ComHub {
                 let mut rx = self.block_handler.register_incoming_block_observer(context_id, section_index);
                 while let Some(section) = rx.next().await {
                     // get sender
-                    let sender = section
-                        .try_get_sender()
-                        // this is a new section containing at least one block, which has not been drained yet
-                        .expect("No sender found for incoming section - this should never happen");
+                    let sender = section.get_sender();
                     info!("Received response from {sender}");
                     // add to response for exactly matching endpoint instance
                     responses.push(Ok(Response::UnspecifiedResponse(section)));
@@ -1610,7 +1610,7 @@ impl ComHub {
                     endpoints.iter().map(|e| e.to_string()).join(", ")
                 );
 
-                // TODO: resend block if socket failed to send
+                // TODO #190: resend block if socket failed to send
                 socket_ref.queue_outgoing_block(bytes);
             }
             Err(err) => {

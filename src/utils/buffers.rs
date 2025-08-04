@@ -147,7 +147,7 @@ pub fn toggle_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
     }
 }
 
-// TODO
+// TODO #161
 // pub fn write_int<T: PrimInt>(buffer: &mut Vec<u8>, mut index: usize, val: T) {
 //     let bytes = val.to_u128().unwrap().to_le_bytes();
 //     for b in bytes {

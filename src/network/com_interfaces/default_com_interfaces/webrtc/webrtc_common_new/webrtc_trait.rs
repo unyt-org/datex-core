@@ -93,7 +93,7 @@ pub trait WebRTCTraitInternal<T: 'static> {
         interface_uuid: ComInterfaceUUID,
         sockets: Arc<Mutex<ComInterfaceSockets>>,
     ) -> ComInterfaceSocketUUID {
-        // FIXME clean up old sockets
+        // FIXME #203 clean up old sockets
         let mut sockets = sockets.lock().unwrap();
         let socket = ComInterfaceSocket::new(
             interface_uuid,
@@ -159,7 +159,7 @@ pub trait WebRTCTraitInternal<T: 'static> {
                     interface_uuid.clone(),
                     sockets.clone(),
                 );
-                // FIXME
+                // FIXME #204
                 let data_channels = data_channels.clone();
                 let channel_clone2 = channel_clone2.clone();
                 channel_clone2

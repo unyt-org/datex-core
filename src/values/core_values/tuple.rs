@@ -41,6 +41,10 @@ impl Tuple {
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         self.entries.get(key)
     }
+    
+    pub fn at(&self, index: usize) -> Option<(&ValueContainer, &ValueContainer)> {
+        self.entries.get_index(index)
+    }
 
     /// Set a key-value pair in the tuple. This method should only be used internal, since tuples
     /// are immutable after creation as per DATEX specification.

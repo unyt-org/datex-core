@@ -10,7 +10,7 @@ use crate::{
     values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
 };
 use std::sync::Mutex;
-// FIXME no-std
+// FIXME #196 no-std
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {
@@ -24,6 +24,11 @@ pub struct ComInterfaceSocketUUID(pub UUID);
 impl Display for ComInterfaceSocketUUID {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "ComInterfaceSocket({})", self.0)
+    }
+}
+impl ComInterfaceSocketUUID {
+    pub fn from_string(s: String) -> ComInterfaceSocketUUID {
+        ComInterfaceSocketUUID(UUID::from_string(s))
     }
 }
 

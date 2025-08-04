@@ -174,7 +174,7 @@ impl ComInterface for TCPServerNativeInterface {
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO
+        // TODO #207
         Box::pin(async move { true })
     }
 

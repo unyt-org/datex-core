@@ -13,31 +13,10 @@ use strum::Display;
     num_enum::IntoPrimitive,
 )]
 #[repr(u8)]
-
-// x = a * 2;
-// b();
-
-// x;
-// y;
-
-// SETCURRENTVAR #x;
-
-// ADD;
-// VAR a
-// INT 2 -> active
-
-// CLOSE_AND_STORE
-// APPLY
-// VAR b
-// TUPLE <-- apply
-// SCOPE_START
-// asdfasdf
-// SCOPE_END <- <actu
-
 pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
-    CLOSE_AND_STORE, // ;
+    CLOSE_AND_STORE, // ; TODO: do we need close_and_store at all, or is scope_end enough?
     SCOPE_START,     // (
     SCOPE_END,       // )
     CACHE_POINT,     // cache dxb from this point on
@@ -153,15 +132,15 @@ pub enum InstructionCode {
     CLONE_COLLAPSE,        // collapse
 
     // comparators 0x80 - 0x8f
-    STRUCTURAL_EQUAL,      // ==
-    NOT_STRUCTURAL_EQUAL,  // !=
-    EQUAL,     // ===
-    NOT_EQUAL, // !==
-    GREATER,          // >
-    LESS,             // <
-    GREATER_EQUAL,    // >=
-    LESS_EQUAL,       // <=
-    IS,               // is
+    STRUCTURAL_EQUAL,     // ==
+    NOT_STRUCTURAL_EQUAL, // !=
+    EQUAL,                // ===
+    NOT_EQUAL,            // !==
+    GREATER,              // >
+    LESS,                 // <
+    GREATER_EQUAL,        // >=
+    LESS_EQUAL,           // <=
+    IS,                   // is
 
     // logical + algebraic operators 0x90  - 0x9f
     AND,       // &
@@ -180,7 +159,7 @@ pub enum InstructionCode {
 
     // slots
     GET_SLOT, // #xyz   0x0000-0x00ff = variables passed on between scopes, 0x0100-0xfdff = normal variables, 0xfe00-0xffff = it variables (#it.0, #it.1, ...) for function arguments
-    UPDATE_SLOT, // #aa = ...
+    SET_SLOT, // #aa = ...
     ALLOCATE_SLOT, // #aa = ...
     SLOT_ACTION, // #x += ...
     DROP_SLOT, // drop #aa
@@ -191,10 +170,10 @@ pub enum InstructionCode {
     LABEL_ACTION, // $x += ...
 
     POINTER,        // $x
-    SET_POINTER,    // $aa = ...
     INIT_POINTER,   // $aa := ...
     POINTER_ACTION, // $aa += ...
-    CREATE_REF, // $$ ()
+    CREATE_REF,     // $$ ()
+    SET_REF,    // $aa = ...
 
     CHILD_GET,           // .y
     CHILD_SET,           // .y = a
@@ -226,7 +205,7 @@ pub enum InstructionCode {
     NULL,
     VOID,
     BUFFER,
-    SCOPE_BLOCK_START,
+    EXECUTION_BLOCK,
     QUANTITY,
 
     SHORT_TEXT, // string with max. 255 characters
@@ -271,7 +250,23 @@ pub enum InstructionCode {
 
     YEET, // !
 
-    REMOTE, // ::
+    REMOTE_EXECUTION, // ::
 
     _SYNC_SILENT, // <==:
+}
+
+/// internal slots address space, starting at 0xffffff_00
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    TryFromPrimitive,
+    Copy,
+    Clone,
+    Display,
+    num_enum::IntoPrimitive,
+)]
+#[repr(u32)]
+pub enum InternalSlot {
+    ENDPOINT = 0xffffff00,
 }

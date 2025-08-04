@@ -31,8 +31,9 @@ use std::{
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MockupInterface {
     pub outgoing_queue: Vec<(ComInterfaceSocketUUID, Vec<u8>)>,
 
@@ -43,6 +44,7 @@ pub struct MockupInterface {
 
 impl MockupInterface {
     pub fn new(setup_data: MockupInterfaceSetupData) -> Self {
+        info!("Creating MockupInterface with setup data: {:?}", setup_data);
         let mut mockup_interface = MockupInterface::default();
         mockup_interface.info.interface_properties =
             Some(MockupInterface::get_default_properties());
@@ -52,12 +54,13 @@ impl MockupInterface {
             interface_properties.name = Some(setup_data.name.clone());
         }
 
-        if let Some(sender) = setup_data.sender {
+        if let Some(sender) = setup_data.sender() {
             mockup_interface.sender = Some(sender);
         }
-        if let Some(receiver) = setup_data.receiver {
+        if let Some(receiver) = setup_data.receiver() {
             mockup_interface.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
+        info!("MockupInterface created: {:?}", mockup_interface);
 
         mockup_interface
     }
@@ -80,9 +83,23 @@ impl SingleSocketProvider for MockupInterface {
     }
 }
 
+type OptSender = Option<mpsc::Sender<Vec<u8>>>;
+type OptReceiver = Option<mpsc::Receiver<Vec<u8>>>;
+thread_local! {
+    pub static CHANNELS: RefCell<Vec<(OptSender, OptReceiver)>> = const { RefCell::new(Vec::new()) };
+}
+pub fn store_sender_and_receiver(sender: OptSender, receiver: OptReceiver) -> usize {
+    CHANNELS.with(|channels| {
+        let mut channels = channels.borrow_mut();
+        channels.push((sender, receiver));
+        channels.len() - 1
+    })
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MockupInterfaceSetupData {
-    pub sender: Option<mpsc::Sender<Vec<u8>>>,
-    pub receiver: Option<mpsc::Receiver<Vec<u8>>>,
+    pub channel_index: Option<usize>,
     pub name: String,
     pub endpoint: Option<Endpoint>,
     pub direction: InterfaceDirection,
@@ -92,8 +109,7 @@ impl MockupInterfaceSetupData {
     pub fn new(name: &str) -> MockupInterfaceSetupData {
         MockupInterfaceSetupData {
             name: name.to_string(),
-            receiver: None,
-            sender: None,
+            channel_index: None,
             endpoint: None,
             direction: InterfaceDirection::InOut,
         }
@@ -104,8 +120,7 @@ impl MockupInterfaceSetupData {
     ) -> MockupInterfaceSetupData {
         MockupInterfaceSetupData {
             name: name.to_string(),
-            receiver: None,
-            sender: None,
+            channel_index: None,
             endpoint: None,
             direction,
         }
@@ -113,8 +128,7 @@ impl MockupInterfaceSetupData {
     pub fn new_with_endpoint(name: &str, endpoint: Endpoint) -> Self {
         MockupInterfaceSetupData {
             name: name.to_string(),
-            receiver: None,
-            sender: None,
+            channel_index: None,
             endpoint: Some(endpoint),
             direction: InterfaceDirection::InOut,
         }
@@ -127,6 +141,32 @@ impl MockupInterfaceSetupData {
         let mut setup_data = Self::new_with_endpoint(name, endpoint);
         setup_data.direction = direction;
         setup_data
+    }
+
+    pub fn sender(
+        &self,
+    ) -> Option<mpsc::Sender<Vec<u8>>> {
+        CHANNELS.with(|channels| {
+            let mut channels = channels.borrow_mut();
+            if let Some(index) = self.channel_index {
+                channels.get_mut(index).unwrap().0.take()
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn receiver(
+        &self,
+    ) -> Option<mpsc::Receiver<Vec<u8>>> {
+        CHANNELS.with(|channels| {
+            let mut channels = channels.borrow_mut();
+            if let Some(index) = self.channel_index {
+                channels.get_mut(index).unwrap().1.take()
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -248,7 +288,7 @@ impl ComInterface for MockupInterface {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // FIXME this should be inside the async body, why is it not working?
+        // FIXME #219 this should be inside the async body, why is it not working?
         let is_hello = {
             match DXBBlock::from_bytes(block) { Ok(block) => {
                 block.block_header.flags_and_timestamp.block_type()

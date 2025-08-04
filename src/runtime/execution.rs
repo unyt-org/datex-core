@@ -1,11 +1,13 @@
 use super::stack::{Scope, ScopeStack};
 use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
-use crate::global::protocol_structures::instructions::{
-    DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, ShortTextData, SlotAddress, TextData,
-};
+use crate::compiler::compile_value;
+use crate::compiler::error::CompilerError;
+use crate::global::binary_codes::{InstructionCode, InternalSlot};
+use crate::global::protocol_structures::instructions::*;
+use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -23,7 +25,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use crate::network::com_hub::ResponseError;
+use log::info;
+use num_enum::TryFromPrimitive;
+use crate::runtime::execution_context::RemoteExecutionContext;
+use crate::runtime::RuntimeInternal;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -37,6 +42,24 @@ pub struct ExecutionInput<'a> {
     pub end_execution: bool,
     pub context: Rc<RefCell<RuntimeExecutionContext>>,
 }
+
+// TODO #229: do we want a DatexProgram input enum like this for execution?
+// #[derive(Debug, Clone)]
+// pub enum DatexProgram {
+//     Dxb(Vec<u8>),
+//     Script(String),
+// }
+
+// impl From<Vec<u8>> for DatexProgram {
+//     fn from(dxb: Vec<u8>) -> Self {
+//         DatexProgram::Dxb(dxb)
+//     }
+// }
+// impl From<String> for DatexProgram {
+//     fn from(script: String) -> Self {
+//         DatexProgram::Script(script)
+//     }
+// }
 
 impl Default for ExecutionInput<'_> {
     fn default() -> Self {
@@ -70,11 +93,31 @@ pub struct RuntimeExecutionContext {
     slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
     // if set to true, the execution loop will pop the current scope before continuing with the next instruction
     pop_next_scope: bool,
+    runtime_internal: Option<Rc<RuntimeInternal>>,
 }
 
 impl RuntimeExecutionContext {
+
+    pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
+        Self {
+            runtime_internal: Some(runtime_internal),
+            ..Default::default()
+        }
+    }
+
     pub fn reset_index(&mut self) {
         self.index = 0;
+    }
+
+    pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
+        &self.runtime_internal
+    }
+    
+    pub fn set_runtime_internal(
+        &mut self,
+        runtime_internal: Rc<RuntimeInternal>,
+    ) {
+        self.runtime_internal = Some(runtime_internal);
     }
 
     /// Allocates a new slot with the given slot address.
@@ -128,15 +171,18 @@ pub fn execute_dxb_sync(
     input: ExecutionInput,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
+    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::Return(result) => {
-                return Ok(result)
+            ExecutionStep::Return(result) => return Ok(result),
+            ExecutionStep::ResolvePointer(_pointer_id) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
             }
-            ExecutionStep::ResolvePointer(pointer_id) => {
-                *interrupt_provider.borrow_mut() = Some(InterruptProvider::ResolvePointer(
-                    ValueContainer::from(42)
-                ));
+            ExecutionStep::GetInternalSlot(slot) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -145,27 +191,65 @@ pub fn execute_dxb_sync(
     Err(ExecutionError::RequiresAsyncExecution)
 }
 
+fn get_internal_slot_value(runtime_internal: &Option<Rc<RuntimeInternal>>, slot: u32) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        let slot = InternalSlot::try_from_primitive(slot).map_err(|_| {
+            ExecutionError::SlotNotAllocated(slot)
+        })?;
+        let res = match slot {
+            InternalSlot::ENDPOINT => {
+                Some(ValueContainer::from(runtime.endpoint.clone()))
+            }
+        };
+        Ok(res)
+    }
+    else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
 pub async fn get_pointer_test() {}
 
 pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
+    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::Return(result) => {
-                return Ok(result)
-            }
-            ExecutionStep::ResolvePointer(pointer_id) => {
+            ExecutionStep::Return(result) => return Ok(result),
+            ExecutionStep::ResolvePointer(_pointer_id) => {
                 get_pointer_test().await;
-                *interrupt_provider.borrow_mut() = Some(InterruptProvider::ResolvePointer(
-                    ValueContainer::from(42)
-                ));
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
             }
-            _ => todo!(),
+            ExecutionStep::RemoteExecution(receivers, body) => {
+                if let Some(runtime) = &runtime_internal {
+                    // assert that receivers is a single endpoint
+                    // TODO #230: support advanced receivers
+                    let receiver_endpoint = receivers.to_value().borrow().cast_to_endpoint().unwrap();
+                    let mut remote_execution_context = RemoteExecutionContext::new(
+                        receiver_endpoint,
+                        true
+                    );
+                    let res = RuntimeInternal::execute_remote(runtime.clone(), &mut remote_execution_context, body).await?;
+                    *interrupt_provider.borrow_mut() =
+                        Some(InterruptProvider::Result(res));
+                }
+                else {
+                    return Err(ExecutionError::RequiresRuntime);
+                }
+            }
+            ExecutionStep::GetInternalSlot(slot) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
+            }
+            _ => todo!("#99 Undescribed by author."),
         }
     }
-    
+
     unreachable!("Execution loop should always return a result");
 }
 
@@ -175,6 +259,7 @@ pub enum InvalidProgramError {
     InvalidKeyValuePair,
     // any unterminated sequence, e.g. missing key in key-value pair
     UnterminatedSequence,
+    MissingRemoteExecutionReceiver,
 }
 
 impl Display for InvalidProgramError {
@@ -188,6 +273,9 @@ impl Display for InvalidProgramError {
             }
             InvalidProgramError::UnterminatedSequence => {
                 write!(f, "Unterminated sequence")
+            }
+            InvalidProgramError::MissingRemoteExecutionReceiver => {
+                write!(f, "Missing remote execution receiver")
             }
         }
     }
@@ -203,7 +291,9 @@ pub enum ExecutionError {
     SlotNotAllocated(u32),
     SlotNotInitialized(u32),
     RequiresAsyncExecution,
+    RequiresRuntime,
     ResponseError(ResponseError),
+    CompilerError(CompilerError),
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -230,9 +320,18 @@ impl From<ResponseError> for ExecutionError {
     }
 }
 
+impl From<CompilerError> for ExecutionError {
+    fn from(error: CompilerError) -> Self {
+        ExecutionError::CompilerError(error)
+    }
+}
+
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ExecutionError::CompilerError(err) => {
+                write!(f, "Compiler error: {err}")
+            }
             ExecutionError::ParserError(err) => {
                 write!(f, "Parser error: {err}")
             }
@@ -259,6 +358,9 @@ impl Display for ExecutionError {
             ExecutionError::RequiresAsyncExecution => {
                 write!(f, "Program must be executed asynchronously")
             }
+            ExecutionError::RequiresRuntime => {
+                write!(f, "Execution requires a runtime to be set")
+            }
             ExecutionError::ResponseError(err) => {
                 write!(f, "Response error: {err}")
             }
@@ -271,37 +373,46 @@ pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
     Return(Option<ValueContainer>),
     ResolvePointer(u64),
+    GetInternalSlot(u32),
+    RemoteExecution(ValueContainer, Vec<u8>),
     Pause,
 }
 
 #[derive(Debug)]
 pub enum InterruptProvider {
-    ResolvePointer(ValueContainer),
+    Result(Option<ValueContainer>),
 }
 
 #[macro_export]
 macro_rules! interrupt {
-    ($input:expr, $arg:expr) => {
-        {
-            yield Ok($arg);
-            $input.take().unwrap()
+    ($input:expr, $arg:expr) => {{
+        yield Ok($arg);
+        $input.take().unwrap()
+    }};
+}
+
+#[macro_export]
+macro_rules! interrupt_with_result {
+    ($input:expr, $arg:expr) => {{
+        yield Ok($arg);
+        let res = $input.take().unwrap();
+        match res {
+            InterruptProvider::Result(value) => value,
         }
-    }
+    }};
 }
 
 #[macro_export]
 macro_rules! yield_unwrap {
-    ($e:expr) => {
-        {
-            let res = $e;
-            if let Ok(res) = res { res }
-            else {
-                return yield Err(res.unwrap_err().into());
-            }
+    ($e:expr) => {{
+        let res = $e;
+        if let Ok(res) = res {
+            res
+        } else {
+            return yield Err(res.unwrap_err().into());
         }
-    };
+    }};
 }
-
 
 pub fn execute_loop(
     input: ExecutionInput,
@@ -315,25 +426,30 @@ pub fn execute_loop(
         let instruction_iterator = body::iterate_instructions(dxb_body);
 
         for instruction in instruction_iterator {
-            // TODO: use ? operator instead of yield_unwrap once supported in gen blocks
+            // TODO #100: use ? operator instead of yield_unwrap once supported in gen blocks
             let instruction = yield_unwrap!(instruction);
             if input.options.verbose {
-                println!("[Exec]: {instruction}");
+                info!("[Exec]: {instruction}");
             }
 
             // get initial value from instruction
             let mut result_value = None;
 
-            for output in get_result_value_from_instruction(context.clone(), instruction, interrupt_provider.clone()) {
+            for output in get_result_value_from_instruction(
+                context.clone(),
+                instruction,
+                interrupt_provider.clone(),
+            ) {
                 match yield_unwrap!(output) {
                     ExecutionStep::InternalReturn(result) => {
                         result_value = result;
                     }
                     step => {
-                        *interrupt_provider.borrow_mut() = Some(interrupt!(interrupt_provider, step));
+                        *interrupt_provider.borrow_mut() =
+                            Some(interrupt!(interrupt_provider, step));
                     }
                 }
-            };
+            }
 
             // 1. if value is Some, handle it
             // 2. while pop_next_scope is true: pop current scope and repeat
@@ -344,8 +460,7 @@ pub fn execute_loop(
                     let res = handle_value(&mut context_mut, value);
                     drop(context_mut);
                     yield_unwrap!(res);
-                }
-                else {
+                } else {
                     drop(context_mut);
                 }
 
@@ -363,7 +478,7 @@ pub fn execute_loop(
 
         if end_execution {
             // cleanup...
-            // TODO: check for other unclosed stacks
+            // TODO #101: check for other unclosed stacks
             // if we have an active key here, this is invalid and leads to an error
             // if context.scope_stack.get_active_key().is_some() {
             //     return Err(ExecutionError::InvalidProgram(
@@ -372,17 +487,15 @@ pub fn execute_loop(
             // }
 
             // removes the current active value from the scope stack
-            let res = match context.borrow_mut().scope_stack.pop_active_value() {
+            let res = match context.borrow_mut().scope_stack.pop_active_value()
+            {
                 None => ExecutionStep::Return(None),
                 Some(val) => ExecutionStep::Return(Some(val)),
             };
             yield Ok(res);
-        }
-
-        else {
+        } else {
             yield Ok(ExecutionStep::Pause);
         }
-
     }
 }
 
@@ -400,13 +513,23 @@ fn get_result_value_from_instruction(
 
             // integers
             Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
-            Instruction::Int16(integer) => Some(Integer::from(integer.0).into()),
-            Instruction::Int32(integer) => Some(Integer::from(integer.0).into()),
-            Instruction::Int64(integer) => Some(Integer::from(integer.0).into()),
-            Instruction::Int128(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int16(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
+            Instruction::Int32(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
+            Instruction::Int64(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
+            Instruction::Int128(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
 
             // unsigned integers
-            Instruction::UInt128(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::UInt128(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
 
             // specific floats
             Instruction::DecimalF32(Float32Data(f32)) => {
@@ -447,10 +570,55 @@ fn get_result_value_from_instruction(
             | Instruction::Equal
             | Instruction::NotStructuralEqual
             | Instruction::NotEqual => {
-                context.borrow_mut().scope_stack.create_scope(Scope::BinaryOperation {
-                    operator: BinaryOperator::from(instruction),
-                });
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::BinaryOperation {
+                        operator: BinaryOperator::from(instruction),
+                    },
+                );
                 None
+            }
+
+            Instruction::ExecutionBlock(block) => {
+                // build dxb
+
+                let mut buffer = Vec::with_capacity(256);
+                for (addr, local_slot) in
+                    block.injected_slots.into_iter().enumerate()
+                {
+                    buffer.push(InstructionCode::ALLOCATE_SLOT as u8);
+                    append_u32(&mut buffer, addr as u32);
+
+                    if let Some(vc) = yield_unwrap!(
+                        context.borrow().get_slot_value(local_slot).map_err(
+                            |_| ExecutionError::SlotNotAllocated(local_slot),
+                        )
+                    ) {
+                        buffer.extend_from_slice(&yield_unwrap!(
+                            compile_value(&vc)
+                        ));
+                    } else {
+                        return yield Err(ExecutionError::SlotNotInitialized(
+                            local_slot,
+                        ));
+                    }
+                }
+                buffer.extend_from_slice(&block.body);
+
+                let maybe_receivers =
+                    context.borrow_mut().scope_stack.pop_active_value();
+
+                if let Some(receivers) = maybe_receivers {
+                    interrupt_with_result!(
+                        interrupt_provider,
+                        ExecutionStep::RemoteExecution(receivers, buffer)
+                    )
+                } else {
+                    // should not happen, receivers must be set
+                    yield Err(ExecutionError::InvalidProgram(
+                        InvalidProgramError::MissingRemoteExecutionReceiver,
+                    ));
+                    None
+                }
             }
 
             Instruction::CloseAndStore => {
@@ -459,44 +627,62 @@ fn get_result_value_from_instruction(
             }
 
             Instruction::ScopeStart => {
-                context.borrow_mut().scope_stack.create_scope(Scope::Default);
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::Default);
                 None
             }
 
             Instruction::ArrayStart => {
-                context.borrow_mut().scope_stack.create_scope_with_active_value(
-                    Scope::Collection,
-                    Array::default().into(),
-                );
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope_with_active_value(
+                        Scope::Collection,
+                        Array::default().into(),
+                    );
                 None
             }
 
             Instruction::ObjectStart => {
-                context.borrow_mut().scope_stack.create_scope_with_active_value(
-                    Scope::Collection,
-                    Object::default().into(),
-                );
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope_with_active_value(
+                        Scope::Collection,
+                        Object::default().into(),
+                    );
                 None
             }
 
             Instruction::TupleStart => {
-                context.borrow_mut().scope_stack.create_scope_with_active_value(
-                    Scope::Collection,
-                    Tuple::default().into(),
-                );
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope_with_active_value(
+                        Scope::Collection,
+                        Tuple::default().into(),
+                    );
                 None
             }
 
             Instruction::KeyValueShortText(ShortTextData(key)) => {
-                context.borrow_mut().scope_stack.create_scope_with_active_value(
-                    Scope::KeyValuePair,
-                    key.into(),
-                );
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope_with_active_value(
+                        Scope::KeyValuePair,
+                        key.into(),
+                    );
                 None
             }
 
             Instruction::KeyValueDynamic => {
-                context.borrow_mut().scope_stack.create_scope(Scope::KeyValuePair);
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::KeyValuePair);
                 None
             }
 
@@ -515,16 +701,31 @@ fn get_result_value_from_instruction(
                 None
             }
             Instruction::GetSlot(SlotAddress(address)) => {
-                let res = context.borrow_mut().get_slot_value(address);
-                // get value from slot
-                let slot_value = yield_unwrap!(res);
-                if slot_value.is_none() {
-                    return yield Err(ExecutionError::SlotNotInitialized(address));
+
+                // if address is >= 0xffffff00, resolve internal slot
+                if address >= 0xffffff00 {
+                    interrupt_with_result!(
+                        interrupt_provider,
+                        ExecutionStep::GetInternalSlot(address)
+                    )
                 }
-                slot_value
+
+                // else handle normal slot
+                else {
+                    let res = context.borrow_mut().get_slot_value(address);
+                    // get value from slot
+                    let slot_value = yield_unwrap!(res);
+                    if slot_value.is_none() {
+                        return yield Err(ExecutionError::SlotNotInitialized(
+                            address,
+                        ));
+                    }
+                    slot_value
+                }
             }
-            Instruction::UpdateSlot(SlotAddress(address)) => {
-                context.borrow_mut()
+            Instruction::SetSlot(SlotAddress(address)) => {
+                context
+                    .borrow_mut()
                     .scope_stack
                     .create_scope(Scope::SlotAssignment { address });
                 None
@@ -532,9 +733,20 @@ fn get_result_value_from_instruction(
 
             // refs
             Instruction::CreateRef => {
-                context.borrow_mut().scope_stack.create_scope(Scope::UnaryOperation {
-                    operator: UnaryOperator::CreateRef,
-                });
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::CreateRef,
+                    },
+                );
+                None
+            }
+
+            // remote execution
+            Instruction::RemoteExecution => {
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::RemoteExecution);
                 None
             }
 
@@ -593,8 +805,6 @@ fn handle_value(
             // set value for slot
             let address = *address;
             context.set_slot_value(address, value_container.clone())?;
-            // set value_container as active value
-            context.pop_next_scope = true;
             Some(value_container)
         }
 
@@ -732,7 +942,7 @@ fn handle_unary_operation(
         UnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
-        _ => todo!("Unary instruction not implemented: {operator:?}"),
+        _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }
 }
 
@@ -764,7 +974,7 @@ fn handle_binary_operation(
             Ok(ValueContainer::from(val))
         }
         BinaryOperator::Is => {
-            // TODO we should throw a runtime error when one of lhs or rhs is a value
+            // TODO #103 we should throw a runtime error when one of lhs or rhs is a value
             // instead of a ref. Identity checks using the is operator shall be only allowed
             // for references.
             // @benstre: or keep as always false ? - maybe a compiler check would be better
@@ -787,7 +997,7 @@ mod tests {
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
-    use crate::logger::init_logger;
+    use crate::logger::init_logger_debug;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::{assert_structural_eq, assert_value_eq, datex_array};
 
@@ -800,10 +1010,21 @@ mod tests {
             &dxb,
             ExecutionOptions { verbose: true },
         );
+        execute_dxb_sync(context).unwrap_or_else(|err| {
+            panic!("Execution failed: {err}");
+        })
+    }
+
+    fn execute_datex_script_debug_with_error(
+        datex_script: &str,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        let (dxb, _) =
+            compile_script(datex_script, CompileOptions::default()).unwrap();
+        let context = ExecutionInput::new_with_dxb_and_options(
+            &dxb,
+            ExecutionOptions { verbose: true },
+        );
         execute_dxb_sync(context)
-            .unwrap_or_else(|err| {
-                panic!("Execution failed: {err}");
-            })
     }
 
     fn execute_datex_script_debug_with_result(
@@ -940,7 +1161,7 @@ mod tests {
 
     #[test]
     fn test_array_with_nested_scope() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
         let expected =
             datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
@@ -980,7 +1201,7 @@ mod tests {
 
     #[test]
     fn test_integer_2() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
         assert_ne!(result, 2_u8.into());
@@ -997,7 +1218,7 @@ mod tests {
 
     #[test]
     fn test_tuple() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
         let tuple: CoreValue = result.clone().to_value().borrow().clone().inner;
         let tuple: Tuple = tuple.try_into().unwrap();
@@ -1033,29 +1254,29 @@ mod tests {
         ]);
         debug!("Expected tuple: {expected_strict}");
         debug!("Tuple result: {tuple}");
-        // FIXME type information gets lost on compile
+        // FIXME #104 type information gets lost on compile
         // assert_eq!(result, expected.into());
     }
 
     #[test]
     fn test_val_assignment() {
-        init_logger();
-        let result = execute_datex_script_debug_with_result("val x = 42; x");
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result("const x = 42; x");
         assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
     fn test_val_assignment_with_addition() {
-        init_logger();
-        let result = execute_datex_script_debug_with_result("val x = 1 + 2; x");
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result("const x = 1 + 2; x");
         assert_eq!(result, Integer::from(3).into());
     }
 
     #[test]
     fn test_val_assignment_inside_scope() {
-        init_logger();
+        init_logger_debug();
         let result =
-            execute_datex_script_debug_with_result("[val x = 42, 2, x]");
+            execute_datex_script_debug_with_result("[const x = 42, 2, x]");
         let expected = datex_array![
             Integer::from(42),
             Integer::from(2),
@@ -1066,22 +1287,29 @@ mod tests {
 
     #[test]
     fn test_ref_assignment() {
-        init_logger();
-        let result = execute_datex_script_debug_with_result("ref x = 42; x");
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result("const mut x = 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
     }
 
     #[test]
+    fn test_endpoint_slot() {
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_error("#endpoint");
+        assert_matches!(result.unwrap_err(), ExecutionError::RequiresRuntime);
+    }
+
+    #[test]
     fn test_shebang() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result("#!datex\n42");
         assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
     fn test_single_line_comment() {
-        init_logger();
+        init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("// this is a comment\n42");
         assert_eq!(result, Integer::from(42).into());
@@ -1094,7 +1322,7 @@ mod tests {
 
     #[test]
     fn test_multi_line_comment() {
-        init_logger();
+        init_logger_debug();
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment */\n42",
         );
