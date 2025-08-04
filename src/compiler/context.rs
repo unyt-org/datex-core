@@ -17,10 +17,8 @@ use itertools::Itertools;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::rc::Rc;
 use log::info;
 use datex_core::decompiler::decompile_body;
-use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {

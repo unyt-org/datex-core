@@ -2,7 +2,6 @@ use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
-use log::info;
 // FIXME #223 no-std
 
 
@@ -466,13 +465,11 @@ fn decompile_loop(
                 )?;
                 let slot_mapping = data.injected_slots.iter().enumerate().map(|(k, v)| {
                     format!(
-                        "#{} => #{}",
-                        v,
-                        k
+                        "#{v} => #{k}"
                     )
                 }).collect::<Vec<_>>().join(", ");
                 // write the decompiled body
-                write!(output, "[{}]({})", slot_mapping, decompiled_body)?;
+                write!(output, "[{slot_mapping}]({decompiled_body})")?;
             }
             
             _ => {

@@ -197,7 +197,7 @@ fn visit_expression(expression: &mut DatexExpression, metadata: &mut AstMetadata
         },
 
         DatexExpression::Variable(id, name) => {
-            info!("Visiting variable: {}, scope stack: {:?}", name, scope_stack);
+            info!("Visiting variable: {name}, scope stack: {scope_stack:?}");
             *id = Some(scope_stack.get_variable_id(name, metadata)?);
         }
 
