@@ -9,7 +9,7 @@ use crate::compiler::error::CompilerError;
 pub struct VariableMetadata {
     original_realm_index: usize,
     pub is_cross_realm: bool,
-    // TODO: store type information etc.
+    // TODO #239: store type information etc.
 }
 
 #[derive(Default, Debug)]

@@ -232,7 +232,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        todo!("map")
+        todo!("#235 map")
     }
     fn deserialize_identifier<V>(
         self,
@@ -346,7 +346,7 @@ impl<'de> VariantAccess<'de> for DatexVariantAccess {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        todo!("#236 Undescribed by author.")
     }
 
     fn struct_variant<V>(
@@ -357,7 +357,7 @@ impl<'de> VariantAccess<'de> for DatexVariantAccess {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        todo!("#237 Undescribed by author.")
     }
 }
 

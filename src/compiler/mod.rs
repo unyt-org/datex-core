@@ -2211,7 +2211,7 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CLOSE_AND_STORE.into(),
-                // TODO: this is not the correct slot assignment for VariableReference model
+                // TODO #238: this is not the correct slot assignment for VariableReference model
                 // set x to 43
                 InstructionCode::SET_SLOT.into(),
                 // slot index as u32

@@ -80,7 +80,7 @@ impl RuntimeInternal {
                     endpoint,
                     context_id,
                 );
-                // TODO: handle errors in sending response
+                // TODO #231: handle errors in sending response
             });
         }
     }
@@ -129,7 +129,7 @@ impl RuntimeInternal {
                 Ok(vec![])
             };
 
-            // TODO: handle compiler error here
+            // TODO #232: handle compiler error here
             let dxb = dxb.unwrap();
 
             let mut block =
@@ -139,7 +139,7 @@ impl RuntimeInternal {
             self_rc.com_hub.send_own_block(block)
         }
         else {
-            todo!("Handle returning error response block");
+            todo!("#233 Handle returning error response block");
         }
     }
 }

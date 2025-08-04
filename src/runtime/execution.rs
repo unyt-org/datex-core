@@ -43,7 +43,7 @@ pub struct ExecutionInput<'a> {
     pub context: Rc<RefCell<RuntimeExecutionContext>>,
 }
 
-// TODO: do we want a DatexProgram input enum like this for execution?
+// TODO #229: do we want a DatexProgram input enum like this for execution?
 // #[derive(Debug, Clone)]
 // pub enum DatexProgram {
 //     Dxb(Vec<u8>),
@@ -228,7 +228,7 @@ pub async fn execute_dxb(
             ExecutionStep::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
                     // assert that receivers is a single endpoint
-                    // TODO: support advanced receivers
+                    // TODO #230: support advanced receivers
                     let receiver_endpoint = receivers.to_value().borrow().cast_to_endpoint().unwrap();
                     let mut remote_execution_context = RemoteExecutionContext::new(
                         receiver_endpoint,

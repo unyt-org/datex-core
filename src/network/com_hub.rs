@@ -292,7 +292,7 @@ impl ComHub {
         if interface.borrow().get_state() != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
-            // FIXME: borrow_mut across await point
+            // FIXME #240: borrow_mut across await point
             if !(interface.borrow_mut().handle_open().await) {
                 return Err(ComHubError::InterfaceOpenError);
             }
