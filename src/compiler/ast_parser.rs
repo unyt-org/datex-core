@@ -744,8 +744,7 @@ pub enum ParserError {
     InvalidToken(Range<usize>),
 }
 
-impl From<Range<usize
-for ParserError {
+impl From<Range<usize>> for ParserError {
     fn from(range: Range<usize>) -> Self {
         ParserError::InvalidToken(range)
     }
