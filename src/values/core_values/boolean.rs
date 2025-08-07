@@ -1,5 +1,5 @@
 use std::{fmt::Display, ops::Not};
-
+use serde::{Deserialize, Serialize};
 use crate::values::{
     traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
@@ -7,7 +7,7 @@ use crate::values::{
 
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Boolean(pub bool);
 
 impl Boolean {

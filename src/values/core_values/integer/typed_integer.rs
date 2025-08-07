@@ -3,7 +3,7 @@ use std::{
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
-
+use serde::{Deserialize, Serialize};
 use crate::values::{
     core_value_trait::CoreValueTrait,
     core_values::integer::utils::{
@@ -13,7 +13,7 @@ use crate::values::{
     value_container::{ValueContainer, ValueError},
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy, Serialize, Deserialize)]
 pub enum TypedInteger {
     I8(i8),
     I16(i16),

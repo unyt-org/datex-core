@@ -2,12 +2,12 @@ use std::{
     fmt::Display,
     ops::{Add, AddAssign},
 };
-
+use serde::{Deserialize, Serialize};
 use crate::values::traits::structural_eq::StructuralEq;
 
 use super::super::core_value_trait::CoreValueTrait;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Text(pub String);
 
 impl Display for Text {

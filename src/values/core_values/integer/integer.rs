@@ -3,7 +3,7 @@ use std::{
     hash::Hash,
     ops::{Add, Sub},
 };
-
+use serde::{Deserialize, Serialize};
 use crate::values::{
     core_values::integer::{
         typed_integer::TypedInteger,
@@ -12,7 +12,7 @@ use crate::values::{
     traits::structural_eq::StructuralEq,
 };
 
-#[derive(Debug, Clone, Eq, Copy)]
+#[derive(Debug, Clone, Eq, Copy, Serialize, Deserialize)]
 pub struct Integer(pub TypedInteger);
 impl Integer {
     pub fn to_smallest_fitting(&self) -> TypedInteger {
