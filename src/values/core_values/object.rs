@@ -24,6 +24,9 @@ impl Object {
     pub fn try_get(&self, key: &str) -> Option<&ValueContainer> {
         self.0.get(key)
     }
+    pub fn try_get_mut(&mut self, key: &str) -> Option<&mut ValueContainer> {
+        self.0.get_mut(key)
+    }
     pub fn get_or_insert_with<F>(
         &mut self,
         key: &str,

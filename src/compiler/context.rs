@@ -194,7 +194,7 @@ impl<'a> CompilationContext<'a> {
                 // add CREATE_REF instruction
                 self.append_binary_code(InstructionCode::CREATE_REF);
                 self.insert_value(
-                    &reference.borrow().current_resolved_value().borrow(),
+                    &reference.borrow().resolve_current_value().borrow(),
                 )
             }
         }

@@ -16,6 +16,8 @@ use crate::values::traits::value_eq::ValueEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
+use serde::Deserialize;
+use serde_with::serde_derive::Serialize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -183,6 +185,16 @@ impl CoreValue {
         CoreValue: From<T>,
     {
         value.into()
+    }
+
+
+    /// Check if the CoreValue is a combined value type (Array, Object, Tuple)
+    /// that consists of multiple CoreValues.
+    pub fn is_combined_value(&self) -> bool {
+        matches!(
+            self,
+            CoreValue::Array(_) | CoreValue::Object(_) | CoreValue::Tuple(_)
+        )
     }
 
     pub fn get_default_type(&self) -> CoreValueType {
