@@ -187,6 +187,16 @@ impl CoreValue {
         value.into()
     }
 
+
+    /// Check if the CoreValue is a combined value type (Array, Object, Tuple)
+    /// that consists of multiple CoreValues.
+    pub fn is_combined_value(&self) -> bool {
+        matches!(
+            self,
+            CoreValue::Array(_) | CoreValue::Object(_) | CoreValue::Tuple(_)
+        )
+    }
+
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Bool(_) => CoreValueType::Bool,
