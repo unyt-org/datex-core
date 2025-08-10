@@ -6,9 +6,11 @@ use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::{Ref, RefCell, RefMut};
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
+use crate::dif::{DIFUpdate, DIFValue};
 use crate::values::core_value::CoreValue;
 
 #[derive(Clone, Debug)]
@@ -85,6 +87,7 @@ impl Reference {
             pointer: None,
             allowed_type,
             parents: Vec::new(),
+            observers: Vec::new(),
         })));
         reference.upgrade_inner_combined_values_to_references();
         reference
@@ -181,6 +184,26 @@ impl Reference {
         })
     }
 
+    pub fn try_set_value<T: Into<ValueContainer>>(
+        &self,
+        value: T,
+    ) -> Result<(), String> {
+        // TODO: ensure type compatibility with allowed_type
+        let value_container= &value.into();
+        self.with_value(|core_value| {
+            // Set the value directly, ensuring it is a ValueContainer
+            core_value.inner = value_container.to_value().borrow().inner.clone();
+        });
+
+        // Notify observers of the update
+        if self.has_observers() {
+            let dif = DIFUpdate::Replace(DIFValue::from(value_container));
+            self.notify_observers(&dif);
+        }
+        
+        Ok(())
+    }
+
     /// upgrades all inner combined values (e.g. object properties) to references
     pub fn upgrade_inner_combined_values_to_references(
         &self,
@@ -204,7 +227,7 @@ impl Reference {
 
     /// Binds a child value to this reference, ensuring the child is a reference if it is a combined value
     /// and adding self to the parent list of the child.
-    pub fn bind_child(&self, child: ValueContainer) -> ValueContainer {
+    fn bind_child(&self, child: ValueContainer) -> ValueContainer {
         // Ensure the child is a reference if it is a combined value
         let child = child.upgrade_combined_value_to_reference();
 
@@ -215,10 +238,27 @@ impl Reference {
 
         child
     }
+
+    pub fn observe<F: Fn(&DIFUpdate) + 'static>(&self, observer: F) {
+        // Add the observer to the list of observers
+        self.borrow_mut().observers.push(Box::new(observer));
+    }
+    
+    fn notify_observers(&self, dif: &DIFUpdate) {
+        // Notify all observers of the update
+        for observer in &self.borrow().observers {
+            observer(dif);
+        }
+    }
+    
+    fn has_observers(&self) -> bool {
+        // Check if there are any observers registered
+        !self.borrow().observers.is_empty()
+    }
 }
 
+type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 
-#[derive(Debug)]
 pub struct ReferenceData {
     /// the value that this reference points to
     pub value_container: ValueContainer,
@@ -229,6 +269,20 @@ pub struct ReferenceData {
     pub allowed_type: CoreValueType,
     /// weak refs to all parents of this reference for update propagation
     pub parents: Vec<Weak<RefCell<ReferenceData>>>,
+    /// list of observer callbacks
+    pub observers: Vec<ReferenceObserver>,
+}
+
+impl Debug for ReferenceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReferenceData")
+            .field("value_container", &self.value_container)
+            .field("pointer", &self.pointer)
+            .field("allowed_type", &self.allowed_type)
+            .field("parents", &self.parents.len())
+            .field("observers", &self.observers.len())
+            .finish()
+    }
 }
 
 impl PartialEq for ReferenceData {
@@ -385,5 +439,26 @@ mod tests {
 
             })
             .expect("object_b_ref should be a reference");
+    }
+    
+    #[test]
+    fn test_value_change_observe() {
+        let int_ref = Reference::from(42);
+        
+        let observer_dif: Rc<RefCell<Option<DIFUpdate>>> = Rc::new(RefCell::new(None));
+        let observer_dif_clone = observer_dif.clone();
+        // add observer to the reference
+        int_ref.observe(move |dif| {
+            println!("Observed change: {:?}", dif);
+            observer_dif_clone.borrow_mut().replace(dif.clone());
+        });
+
+        // update the value of the reference
+        int_ref.try_set_value(43).expect("Failed to set value");
+        
+        assert_eq!(
+            *observer_dif.borrow(),
+            Some(DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(43))))
+        );
     }
 }
