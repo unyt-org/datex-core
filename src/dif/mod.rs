@@ -1,6 +1,6 @@
 use std::fmt;
 use serde::{de, Deserialize, Deserializer, Serializer};
-use serde::de::{MapAccess, SeqAccess, Visitor};
+use serde::de::{IntoDeserializer, MapAccess, SeqAccess, Visitor};
 use serde_with::serde_derive::Serialize;
 use datex_core::values::core_value::CoreValue;
 use crate::values::datex_type::CoreValueType;
@@ -63,7 +63,7 @@ impl From<&ValueContainer> for DIFValue {
                         DIFValue {
                             value: Some(DIFCoreValue::List(vec![k.into(), v.into()])),
                             core_type: CoreValueType::Array,
-                            r#type: k.to_string(),
+                            r#type: serde_json::to_string(&k).unwrap().trim_matches('"').to_string(),
                             ptr_id: None,
                         }
                     }).collect(),
@@ -74,7 +74,7 @@ impl From<&ValueContainer> for DIFValue {
         DIFValue {
             value: dif_core_value,
             core_type,
-            r#type: actual_type.to_string(),
+            r#type: serde_json::to_string(&actual_type).unwrap().trim_matches('"').to_string(),
             ptr_id: None,
         }
     }
