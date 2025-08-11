@@ -4,6 +4,7 @@ use strum::Display;
 #[derive(
     Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize, Hash,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum CoreValueType {
     Null,
     Text,
