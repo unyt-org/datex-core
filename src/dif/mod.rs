@@ -246,7 +246,7 @@ mod tests {
         let dif_value: DIFValue = DIFValue::from(&value_container);
         assert_eq!(dif_value.value, Some(DIFCoreValue::Integer(42)));
         assert_eq!(dif_value.core_type, CoreValueType::I32);
-        assert_eq!(dif_value.r#type, "I32");
+        assert_eq!(dif_value.r#type, "i32");
         assert!(dif_value.ptr_id.is_none());
         let serialized = serde_json::to_string(&dif_value).unwrap();
         println!("Serialized DIFValue from int: {}", serialized);
