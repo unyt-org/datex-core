@@ -86,7 +86,6 @@ impl Reference {
             value_container,
             pointer: None,
             allowed_type,
-            parents: Vec::new(),
             observers: Vec::new(),
         })));
         reference.upgrade_inner_combined_values_to_references();
@@ -119,23 +118,6 @@ impl Reference {
                 unreachable!("Expected a ValueContainer::Value, but found a Reference")
             }
         }
-    }
-
-    /// Registers a parent for this reference.
-    pub fn add_parent(&self, parent: &Reference) {
-        self.borrow_mut().parents.push(Rc::downgrade(&parent.0));
-    }
-
-
-    /// Removes a parent from this reference.
-    pub fn remove_parent(&self, parent: &Reference) {
-        self.borrow_mut().parents.retain(|p| {
-            if let Some(p) = p.upgrade() {
-                !Rc::ptr_eq(&p, &parent.0)
-            } else {
-                true // keep weak references that are no longer valid
-            }
-        });
     }
 
     /// Sets a text property on the value if applicable (e.g. for objects)
@@ -200,7 +182,7 @@ impl Reference {
             let dif = DIFUpdate::Replace(DIFValue::from(value_container));
             self.notify_observers(&dif);
         }
-        
+
         Ok(())
     }
 
@@ -226,16 +208,9 @@ impl Reference {
     }
 
     /// Binds a child value to this reference, ensuring the child is a reference if it is a combined value
-    /// and adding self to the parent list of the child.
     fn bind_child(&self, child: ValueContainer) -> ValueContainer {
         // Ensure the child is a reference if it is a combined value
         let child = child.upgrade_combined_value_to_reference();
-
-        // Add the child as a parent of this reference
-        child.with_maybe_reference(|child_ref| {
-            child_ref.add_parent(self);
-        });
-
         child
     }
 
@@ -243,14 +218,14 @@ impl Reference {
         // Add the observer to the list of observers
         self.borrow_mut().observers.push(Box::new(observer));
     }
-    
+
     fn notify_observers(&self, dif: &DIFUpdate) {
         // Notify all observers of the update
         for observer in &self.borrow().observers {
             observer(dif);
         }
     }
-    
+
     fn has_observers(&self) -> bool {
         // Check if there are any observers registered
         !self.borrow().observers.is_empty()
@@ -267,8 +242,6 @@ pub struct ReferenceData {
     pointer: Option<Pointer>,
     /// custom type for the pointer that the Datex value is allowed to reference
     pub allowed_type: CoreValueType,
-    /// weak refs to all parents of this reference for update propagation
-    pub parents: Vec<Weak<RefCell<ReferenceData>>>,
     /// list of observer callbacks
     pub observers: Vec<ReferenceObserver>,
 }
@@ -279,7 +252,6 @@ impl Debug for ReferenceData {
             .field("value_container", &self.value_container)
             .field("pointer", &self.pointer)
             .field("allowed_type", &self.allowed_type)
-            .field("parents", &self.parents.len())
             .field("observers", &self.observers.len())
             .finish()
     }
@@ -392,59 +364,12 @@ mod tests {
                 });
             })
             .expect("object_b_ref should be a reference");
-
-        // assert that parents are set correctly
-        object_b_ref
-            .with_maybe_reference(|b_ref| {
-                // b has no parents
-                {
-                    let parents = &b_ref.borrow().parents;
-                    assert_eq!(parents.len(), 0, "Object B should not have any parents");
-                }
-
-                // a has one parent, which is b
-                let object_a_ref = b_ref.try_get_text_property("a").unwrap().unwrap();
-
-                object_a_ref
-                    .with_maybe_reference(|a_ref| {
-                        // a_ref should have one parent, which is b_ref
-                        {
-                            let parents = &a_ref.borrow().parents;
-                            // object_b should be a parent of object_a
-                            assert_eq!(parents.len(), 1, "Object A should have one parent");
-                            let parent = parents.first().unwrap();
-                            // parent should be a weak reference to object_b
-                            assert!(parent.upgrade().is_some(), "Parent should be a valid reference");
-                            let parent_ref = parent.upgrade().unwrap();
-                            // parent reference should be equal to object_b_ref
-                            assert_eq!(parent_ref, b_ref.0, "Parent reference should be equal to object_b_ref");
-                        }
-
-                        // object_a_ref.obj should have object_a as a parent
-                        let object_a_obj_ref = a_ref.try_get_text_property("obj").unwrap().unwrap();
-                        object_a_obj_ref
-                            .with_maybe_reference(|obj_ref| {
-                                let obj_parents = &obj_ref.borrow().parents;
-                                assert_eq!(obj_parents.len(), 1, "Object A's obj should have one parent");
-                                let obj_parent = obj_parents.first().unwrap();
-                                // parent should be a weak reference to object_a
-                                assert!(obj_parent.upgrade().is_some(), "Parent should be a valid reference");
-                                let obj_parent_ref = obj_parent.upgrade().unwrap();
-                                // parent reference should be equal to object_a_ref
-                                assert_eq!(obj_parent_ref, a_ref.0, "Parent reference should be equal to object_a_ref");
-                            })
-                            .expect("object_a_obj_ref should be a reference");
-                    })
-                    .expect("object_a_ref should be a reference");
-
-            })
-            .expect("object_b_ref should be a reference");
     }
     
     #[test]
     fn test_value_change_observe() {
         let int_ref = Reference::from(42);
-        
+
         let observer_dif: Rc<RefCell<Option<DIFUpdate>>> = Rc::new(RefCell::new(None));
         let observer_dif_clone = observer_dif.clone();
         // add observer to the reference
@@ -455,7 +380,7 @@ mod tests {
 
         // update the value of the reference
         int_ref.try_set_value(43).expect("Failed to set value");
-        
+
         assert_eq!(
             *observer_dif.borrow(),
             Some(DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(43))))
