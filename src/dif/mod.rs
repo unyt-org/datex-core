@@ -28,28 +28,28 @@ impl From<&ValueContainer> for DIFValue {
             CoreValue::Null => None,
             CoreValue::Bool(bool) => Some(DIFCoreValue::Boolean(bool.0)),
             CoreValue::Integer(integer) => {
-                Some(DIFCoreValue::Integer(integer.0.as_i64().unwrap()))
+                Some(DIFCoreValue::Number(integer.0.as_i64().unwrap() as f64))
             },
             CoreValue::TypedInteger(integer) => {
-                Some(DIFCoreValue::Integer(integer.as_i64().unwrap()))
+                Some(DIFCoreValue::Number(integer.as_i64().unwrap() as f64))
             }
             CoreValue::Decimal(decimal) => {
-                Some(DIFCoreValue::Float(decimal.try_into_f64().unwrap()))
+                Some(DIFCoreValue::Number(decimal.try_into_f64().unwrap()))
             }
             CoreValue::TypedDecimal(decimal) => {
-                Some(DIFCoreValue::Float(decimal.as_f64()))
+                Some(DIFCoreValue::Number(decimal.as_f64()))
             }
             CoreValue::Text(text) => Some(DIFCoreValue::String(text.0.clone())),
             CoreValue::Endpoint(endpoint) => {
                 Some(DIFCoreValue::String(endpoint.to_string()))
             }
             CoreValue::Array(array) => {
-                Some(DIFCoreValue::List(
+                Some(DIFCoreValue::Array(
                     array.0.iter().map(|v| v.into()).collect(),
                 ))
             }
             CoreValue::Object(object) => {
-                Some(DIFCoreValue::Map(
+                Some(DIFCoreValue::Object(
                     object
                         .0
                         .iter()
@@ -58,10 +58,10 @@ impl From<&ValueContainer> for DIFValue {
                 ))
             }
             CoreValue::Tuple(tuple) => {
-                Some(DIFCoreValue::List(
+                Some(DIFCoreValue::Array(
                     tuple.entries.iter().map(|(k, v)| {
                         DIFValue {
-                            value: Some(DIFCoreValue::List(vec![k.into(), v.into()])),
+                            value: Some(DIFCoreValue::Array(vec![k.into(), v.into()])),
                             core_type: CoreValueType::Array,
                             r#type: serde_json::to_string(&k).unwrap().trim_matches('"').to_string(),
                             ptr_id: None,
@@ -87,14 +87,12 @@ pub enum DIFCoreValue {
     Boolean(bool),
     /// Represents a string value in DIF.
     String(String),
-    /// Represents an integer value in DIF.
-    Integer(i64),
-    /// Represents a floating-point number in DIF.
-    Float(f64),
+    /// Represents a number in DIF.
+    Number(f64),
     /// Represents a list of DIF values.
-    List(Vec<DIFValue>),
+    Array(Vec<DIFValue>),
     /// Represents a map of DIF values.
-    Map(Vec<(String, DIFValue)>),
+    Object(Vec<(String, DIFValue)>),
 }
 
 impl serde::Serialize for DIFCoreValue {
@@ -106,10 +104,9 @@ impl serde::Serialize for DIFCoreValue {
             DIFCoreValue::Null => serializer.serialize_none(),
             DIFCoreValue::Boolean(b) => serializer.serialize_bool(*b),
             DIFCoreValue::String(s) => serializer.serialize_str(s),
-            DIFCoreValue::Integer(i) => serializer.serialize_i64(*i),
-            DIFCoreValue::Float(f) => serializer.serialize_f64(*f),
-            DIFCoreValue::List(vec) => vec.serialize(serializer),
-            DIFCoreValue::Map(map) => {
+            DIFCoreValue::Number(f) => serializer.serialize_f64(*f),
+            DIFCoreValue::Array(vec) => vec.serialize(serializer),
+            DIFCoreValue::Object(map) => {
                 use std::collections::BTreeMap;
                 let mut m = BTreeMap::new();
                 for (k, v) in map {
@@ -138,16 +135,16 @@ impl<'de> Deserialize<'de> for DIFCoreValue {
             }
 
             fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
-                Ok(DIFCoreValue::Integer(value))
+                Ok(DIFCoreValue::Number(value as f64))
             }
 
             fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
                 // Safe cast since DIFCoreValue uses i64
-                Ok(DIFCoreValue::Integer(value as i64))
+                Ok(DIFCoreValue::Number(value as f64))
             }
 
             fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E> {
-                Ok(DIFCoreValue::Float(value))
+                Ok(DIFCoreValue::Number(value))
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -173,7 +170,7 @@ impl<'de> Deserialize<'de> for DIFCoreValue {
                 while let Some(elem) = seq.next_element()? {
                     elements.push(elem);
                 }
-                Ok(DIFCoreValue::List(elements))
+                Ok(DIFCoreValue::Array(elements))
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -182,7 +179,7 @@ impl<'de> Deserialize<'de> for DIFCoreValue {
                 while let Some((k, v)) = map.next_entry()? {
                     entries.push((k, v));
                 }
-                Ok(DIFCoreValue::Map(entries))
+                Ok(DIFCoreValue::Object(entries))
             }
         }
 
@@ -244,7 +241,7 @@ mod tests {
     fn test_from_value_container_int() {
         let value_container = ValueContainer::from(42i32);
         let dif_value: DIFValue = DIFValue::from(&value_container);
-        assert_eq!(dif_value.value, Some(DIFCoreValue::Integer(42)));
+        assert_eq!(dif_value.value, Some(DIFCoreValue::Number(42f64)));
         assert_eq!(dif_value.core_type, CoreValueType::I32);
         assert_eq!(dif_value.r#type, "i32");
         assert!(dif_value.ptr_id.is_none());

@@ -217,6 +217,7 @@ impl Reference {
     pub fn observe<F: Fn(&DIFUpdate) + 'static>(&self, observer: F) {
         // Add the observer to the list of observers
         self.borrow_mut().observers.push(Box::new(observer));
+        // TODO: also set observers on child references if not yet active, keep track of active observers
     }
 
     fn notify_observers(&self, dif: &DIFUpdate) {
