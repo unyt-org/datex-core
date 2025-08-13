@@ -59,7 +59,7 @@ impl Value {
         self.is_of_type(CoreValueType::I8)
     }
     pub fn is_bool(&self) -> bool {
-        self.is_of_type(CoreValueType::Bool)
+        self.is_of_type(CoreValueType::Boolean)
     }
 
     /// Attempts to cast the value to the target type, returning an Option<Value>.
@@ -292,8 +292,8 @@ mod tests {
         let a = Value::from(true);
         let b = Value::from(false);
         let c = Value::from(false);
-        assert_eq!(a.get_type(), CoreValueType::Bool);
-        assert_eq!(b.get_type(), CoreValueType::Bool);
+        assert_eq!(a.get_type(), CoreValueType::Boolean);
+        assert_eq!(b.get_type(), CoreValueType::Boolean);
         assert_ne!(a, b);
         assert_eq!(b, c);
 

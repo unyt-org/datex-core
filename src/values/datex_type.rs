@@ -26,7 +26,7 @@ pub enum CoreValueType {
     F32,
     F64,
 
-    Bool,
+    Boolean,
     Array,
     Object,
     Endpoint,

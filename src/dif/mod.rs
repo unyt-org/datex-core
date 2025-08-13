@@ -1,6 +1,7 @@
 use std::fmt;
 use serde::{de, Deserialize, Deserializer, Serializer};
 use serde::de::{IntoDeserializer, MapAccess, SeqAccess, Visitor};
+use serde::ser::SerializeMap;
 use serde_with::serde_derive::Serialize;
 use datex_core::values::core_value::CoreValue;
 use crate::values::datex_type::CoreValueType;
@@ -25,7 +26,7 @@ impl From<&ValueContainer> for DIFValue {
         let core_type = core_value.get_default_type();
 
         let dif_core_value = match core_value {
-            CoreValue::Null => None,
+            CoreValue::Null => Some(DIFCoreValue::Null),
             CoreValue::Bool(bool) => Some(DIFCoreValue::Boolean(bool.0)),
             CoreValue::Integer(integer) => {
                 Some(DIFCoreValue::Number(integer.0.as_i64().unwrap() as f64))
@@ -49,7 +50,7 @@ impl From<&ValueContainer> for DIFValue {
                 ))
             }
             CoreValue::Object(object) => {
-                Some(DIFCoreValue::Object(
+                Some(DIFCoreValue::Map(
                     object
                         .0
                         .iter()
@@ -92,7 +93,7 @@ pub enum DIFCoreValue {
     /// Represents a list of DIF values.
     Array(Vec<DIFValue>),
     /// Represents a map of DIF values.
-    Object(Vec<(String, DIFValue)>),
+    Map(Vec<(String, DIFValue)>),
 }
 
 impl serde::Serialize for DIFCoreValue {
@@ -101,18 +102,17 @@ impl serde::Serialize for DIFCoreValue {
         S: Serializer,
     {
         match self {
-            DIFCoreValue::Null => serializer.serialize_none(),
+            DIFCoreValue::Null => serializer.serialize_unit(),
             DIFCoreValue::Boolean(b) => serializer.serialize_bool(*b),
             DIFCoreValue::String(s) => serializer.serialize_str(s),
             DIFCoreValue::Number(f) => serializer.serialize_f64(*f),
             DIFCoreValue::Array(vec) => vec.serialize(serializer),
-            DIFCoreValue::Object(map) => {
-                use std::collections::BTreeMap;
-                let mut m = BTreeMap::new();
-                for (k, v) in map {
-                    m.insert(k, v);
+            DIFCoreValue::Map(entries) => {
+                let mut map = serializer.serialize_map(Some(entries.len()))?;
+                for (k, v) in entries {
+                    map.serialize_entry(k, v)?;
                 }
-                m.serialize(serializer)
+                map.end()
             }
         }
     }
@@ -179,7 +179,7 @@ impl<'de> Deserialize<'de> for DIFCoreValue {
                 while let Some((k, v)) = map.next_entry()? {
                     entries.push((k, v));
                 }
-                Ok(DIFCoreValue::Object(entries))
+                Ok(DIFCoreValue::Map(entries))
             }
         }
 

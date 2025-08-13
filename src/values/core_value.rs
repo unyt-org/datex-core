@@ -199,7 +199,7 @@ impl CoreValue {
 
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
-            CoreValue::Bool(_) => CoreValueType::Bool,
+            CoreValue::Bool(_) => CoreValueType::Boolean,
             CoreValue::TypedInteger(int) => match int {
                 TypedInteger::I8(_) => CoreValueType::I8,
                 TypedInteger::I16(_) => CoreValueType::I16,
@@ -231,7 +231,7 @@ impl CoreValue {
 
     pub fn cast_to(&self, target_type: CoreValueType) -> Option<CoreValue> {
         match target_type {
-            CoreValueType::Bool => Some(CoreValue::Bool(self.cast_to_bool()?)),
+            CoreValueType::Boolean => Some(CoreValue::Bool(self.cast_to_bool()?)),
             CoreValueType::I8
             | CoreValueType::I16
             | CoreValueType::I32
@@ -719,25 +719,25 @@ mod tests {
     fn test_boolean_casting() {
         let bool_value = CoreValue::from(true);
         assert_eq!(
-            bool_value.cast_to(CoreValueType::Bool).unwrap(),
+            bool_value.cast_to(CoreValueType::Boolean).unwrap(),
             CoreValue::from(true)
         );
 
         let int_value = CoreValue::from(1);
         assert_eq!(
-            int_value.cast_to(CoreValueType::Bool).unwrap(),
+            int_value.cast_to(CoreValueType::Boolean).unwrap(),
             CoreValue::from(true)
         );
 
         let zero_int_value = CoreValue::from(0);
         assert_eq!(
-            zero_int_value.cast_to(CoreValueType::Bool).unwrap(),
+            zero_int_value.cast_to(CoreValueType::Boolean).unwrap(),
             CoreValue::from(false)
         );
 
         let invalid_text_value = CoreValue::from("sometext");
         assert_eq!(
-            invalid_text_value.cast_to(CoreValueType::Bool),
+            invalid_text_value.cast_to(CoreValueType::Boolean),
             Some(CoreValue::from(true))
         );
     }
