@@ -22,6 +22,7 @@ pub enum CoreValueType {
     U64,
     U128,
 
+    // TODO: distinguish between Decimal typed variant and Decimal default type? (Decimal/BigDecimal)
     Decimal,
     F32,
     F64,

@@ -87,7 +87,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             // TODO #148 implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
                 CoreValue::Null => visitor.visit_none(),
-                CoreValue::Bool(b) => visitor.visit_bool(b.0),
+                CoreValue::Boolean(b) => visitor.visit_bool(b.0),
                 CoreValue::TypedInteger(i) => match i {
                     TypedInteger::I128(i) => visitor.visit_i128(i),
                     TypedInteger::U128(u) => visitor.visit_u128(u),

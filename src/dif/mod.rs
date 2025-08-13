@@ -4,7 +4,14 @@ use serde::de::{IntoDeserializer, MapAccess, SeqAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde_with::serde_derive::Serialize;
 use datex_core::values::core_value::CoreValue;
+use datex_core::values::core_values::integer::integer::Integer;
+use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::text::Text;
 use crate::values::datex_type::CoreValueType;
+use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
 /// Represents a value in the Datex Interface Format (DIF).
@@ -27,18 +34,37 @@ impl From<&ValueContainer> for DIFValue {
 
         let dif_core_value = match core_value {
             CoreValue::Null => Some(DIFCoreValue::Null),
-            CoreValue::Bool(bool) => Some(DIFCoreValue::Boolean(bool.0)),
+            CoreValue::Boolean(bool) => Some(DIFCoreValue::Boolean(bool.0)),
             CoreValue::Integer(integer) => {
-                Some(DIFCoreValue::Number(integer.0.as_i64().unwrap() as f64))
+                // TODO: optimize this and pass as integer if in range
+                Some(DIFCoreValue::String(integer.to_string()))
             },
             CoreValue::TypedInteger(integer) => {
-                Some(DIFCoreValue::Number(integer.as_i64().unwrap() as f64))
+                // Some(DIFCoreValue::Number(integer.as_i64().unwrap() as f64))
+                match integer {
+                    TypedInteger::I8(i) => Some(DIFCoreValue::Number(*i as f64)),
+                    TypedInteger::U8(u) => Some(DIFCoreValue::Number(*u as f64)),
+                    TypedInteger::I16(i) => Some(DIFCoreValue::Number(*i as f64)),
+                    TypedInteger::U16(u) => Some(DIFCoreValue::Number(*u as f64)),
+                    TypedInteger::I32(i) => Some(DIFCoreValue::Number(*i as f64)),
+                    TypedInteger::U32(u) => Some(DIFCoreValue::Number(*u as f64)),
+                    // i64 and above are serialized as strings in DIF
+                    TypedInteger::I64(i) => Some(DIFCoreValue::String(i.to_string())),
+                    TypedInteger::U64(u) => Some(DIFCoreValue::String(u.to_string())),
+                    TypedInteger::I128(i) => Some(DIFCoreValue::String(i.to_string())),
+                    TypedInteger::U128(u) => Some(DIFCoreValue::String(u.to_string())),
+                }
             }
             CoreValue::Decimal(decimal) => {
-                Some(DIFCoreValue::Number(decimal.try_into_f64().unwrap()))
+                // TODO: optimize this and pass as decimal if in range
+                Some(DIFCoreValue::String(decimal.to_string()))
             }
             CoreValue::TypedDecimal(decimal) => {
-                Some(DIFCoreValue::Number(decimal.as_f64()))
+                match decimal {
+                    TypedDecimal::F32(f) => Some(DIFCoreValue::Number(f.0 as f64)),
+                    TypedDecimal::F64(f) => Some(DIFCoreValue::Number(f.0)),
+                    TypedDecimal::Decimal(bd) => Some(DIFCoreValue::String(bd.to_string())),
+                }
             }
             CoreValue::Text(text) => Some(DIFCoreValue::String(text.0.clone())),
             CoreValue::Endpoint(endpoint) => {
@@ -78,6 +104,44 @@ impl From<&ValueContainer> for DIFValue {
             r#type: serde_json::to_string(&actual_type).unwrap().trim_matches('"').to_string(),
             ptr_id: None,
         }
+    }
+}
+
+impl From<&DIFValue> for ValueContainer {
+    fn from(value: &DIFValue) -> Self {
+        let core_value = match &value.value {
+            Some(DIFCoreValue::Null) => CoreValue::Null,
+            Some(DIFCoreValue::Boolean(b)) => CoreValue::Boolean(Boolean(*b)),
+            Some(DIFCoreValue::String(s)) => {
+                match value.core_type {
+                    CoreValueType::Text => CoreValue::Text(Text(s.clone())),
+                    CoreValueType::Endpoint => CoreValue::Endpoint(s.parse().unwrap()),
+                    // i64 and above are also serialized as strings in DIF
+                    CoreValueType::I64 => CoreValue::TypedInteger(TypedInteger::I64(s.parse().unwrap())),
+                    CoreValueType::U64 => CoreValue::TypedInteger(TypedInteger::U64(s.parse().unwrap())),
+                    CoreValueType::Integer => CoreValue::Integer(Integer::from(s.parse::<i64>().unwrap())),
+                    // big decimal types are also serialized as strings in DIF
+                    CoreValueType::Decimal => CoreValue::Decimal(Decimal::from(s.parse::<f64>().unwrap())),
+                    _ => unreachable!("Unsupported core type for string conversion"),
+                }
+            },
+            Some(DIFCoreValue::Number(n)) => {
+                match value.core_type {
+                    CoreValueType::I32 => CoreValue::TypedInteger(TypedInteger::I32(*n as i32)),
+                    CoreValueType::U32 => CoreValue::TypedInteger(TypedInteger::U32(*n as u32)),
+                    CoreValueType::F32 => CoreValue::TypedDecimal(TypedDecimal::from(*n as f32)),
+                    CoreValueType::F64 => CoreValue::TypedDecimal(TypedDecimal::from(*n)),
+                    _ => unreachable!("Unsupported core type for number conversion"),
+                }
+            }
+            Some(DIFCoreValue::Array(arr)) => CoreValue::Array(arr.iter().map(ValueContainer::from).collect()),
+            Some(DIFCoreValue::Map(entries)) => CoreValue::Object(
+                entries.iter().map(|(k, v)| (k.clone(), ValueContainer::from(v))).collect(),
+            ),
+            None => CoreValue::Null,
+        };
+
+        ValueContainer::Value(Value::from(core_value))
     }
 }
 
@@ -238,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_value_container_int() {
+    fn test_from_value_container_i32() {
         let value_container = ValueContainer::from(42i32);
         let dif_value: DIFValue = DIFValue::from(&value_container);
         assert_eq!(dif_value.value, Some(DIFCoreValue::Number(42f64)));
@@ -248,4 +312,49 @@ mod tests {
         let serialized = serde_json::to_string(&dif_value).unwrap();
         println!("Serialized DIFValue from int: {}", serialized);
     }
+
+    #[test]
+    fn test_from_value_container_text() {
+        let value_container = ValueContainer::from("Hello, World!");
+        let dif_value: DIFValue = DIFValue::from(&value_container);
+        assert_eq!(dif_value.value, Some(DIFCoreValue::String("Hello, World!".to_string())));
+        assert_eq!(dif_value.core_type, CoreValueType::Text);
+        assert_eq!(dif_value.r#type, "text");
+        assert!(dif_value.ptr_id.is_none());
+    }
+
+    #[test]
+    fn test_to_value_container_i32() {
+        let dif_value = DIFValue {
+            value: Some(DIFCoreValue::Number(42f64)),
+            core_type: CoreValueType::I32,
+            r#type: "i32".to_string(),
+            ptr_id: None,
+        };
+        let value_container: ValueContainer = ValueContainer::from(&dif_value);
+        if let ValueContainer::Value(val) = value_container {
+            assert_eq!(val.inner, CoreValue::TypedInteger(TypedInteger::I32(42)));
+            assert_eq!(val.actual_type, CoreValueType::I32);
+        } else {
+            panic!("Expected ValueContainer::Value");
+        }
+    }
+    
+    #[test]
+    fn test_to_value_container_text() {
+        let dif_value = DIFValue {
+            value: Some(DIFCoreValue::String("Hello, World!".to_string())),
+            core_type: CoreValueType::Text,
+            r#type: "text".to_string(),
+            ptr_id: None,
+        };
+        let value_container: ValueContainer = ValueContainer::from(&dif_value);
+        if let ValueContainer::Value(val) = value_container {
+            assert_eq!(val.inner, CoreValue::Text(Text("Hello, World!".to_string())));
+            assert_eq!(val.actual_type, CoreValueType::Text);
+        } else {
+            panic!("Expected ValueContainer::Value");
+        }
+    }
+
 }

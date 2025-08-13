@@ -22,7 +22,7 @@ use serde_with::serde_derive::Serialize;
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Null,
-    Bool(Boolean),
+    Boolean(Boolean),
     Integer(Integer),
     TypedInteger(TypedInteger),
     Decimal(Decimal),
@@ -36,7 +36,7 @@ pub enum CoreValue {
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (CoreValue::Bool(a), CoreValue::Bool(b)) => a.structural_eq(b),
+            (CoreValue::Boolean(a), CoreValue::Boolean(b)) => a.structural_eq(b),
 
             // Integers + TypedIntegers
             (
@@ -112,7 +112,7 @@ where
 
 impl From<bool> for CoreValue {
     fn from(value: bool) -> Self {
-        CoreValue::Bool(value.into())
+        CoreValue::Boolean(value.into())
     }
 }
 
@@ -199,7 +199,7 @@ impl CoreValue {
 
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
-            CoreValue::Bool(_) => CoreValueType::Boolean,
+            CoreValue::Boolean(_) => CoreValueType::Boolean,
             CoreValue::TypedInteger(int) => match int {
                 TypedInteger::I8(_) => CoreValueType::I8,
                 TypedInteger::I16(_) => CoreValueType::I16,
@@ -231,7 +231,7 @@ impl CoreValue {
 
     pub fn cast_to(&self, target_type: CoreValueType) -> Option<CoreValue> {
         match target_type {
-            CoreValueType::Boolean => Some(CoreValue::Bool(self.cast_to_bool()?)),
+            CoreValueType::Boolean => Some(CoreValue::Boolean(self.cast_to_bool()?)),
             CoreValueType::I8
             | CoreValueType::I16
             | CoreValueType::I32
@@ -281,7 +281,7 @@ impl CoreValue {
     pub fn cast_to_bool(&self) -> Option<Boolean> {
         match self {
             CoreValue::Text(text) => Some(Boolean(!text.0.is_empty())),
-            CoreValue::Bool(bool) => Some(bool.clone()),
+            CoreValue::Boolean(bool) => Some(bool.clone()),
             CoreValue::TypedInteger(int) => Some(Boolean(int.as_i128()? != 0)),
             CoreValue::Null => Some(Boolean(false)),
             _ => None,
@@ -641,7 +641,7 @@ impl Not for CoreValue {
 
     fn not(self) -> Self::Output {
         match self {
-            CoreValue::Bool(bool) => Some(CoreValue::Bool(!bool)),
+            CoreValue::Boolean(bool) => Some(CoreValue::Boolean(!bool)),
             _ => None, // Not applicable for other types
         }
     }
@@ -650,7 +650,7 @@ impl Not for CoreValue {
 impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            CoreValue::Bool(bool) => write!(f, "{bool}"),
+            CoreValue::Boolean(bool) => write!(f, "{bool}"),
             CoreValue::TypedInteger(int) => write!(f, "{int}"),
             CoreValue::TypedDecimal(decimal) => write!(f, "{decimal}"),
             CoreValue::Text(text) => write!(f, "{text}"),

@@ -239,7 +239,7 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
             CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
             CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
-            CoreValue::Bool(val) => self.insert_boolean(val.0),
+            CoreValue::Boolean(val) => self.insert_boolean(val.0),
             CoreValue::Null => self.append_binary_code(InstructionCode::NULL),
             CoreValue::Text(val) => {
                 self.insert_text(&val.0.clone());
