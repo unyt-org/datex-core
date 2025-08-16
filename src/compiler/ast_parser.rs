@@ -159,10 +159,17 @@ pub enum Apply {
     PropertyAccess(DatexExpression),
 }
 
+// TODO TBD can we deprecate this?
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VariableType {
     Const,
     Var,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum BindingMutability {
+    Immutable, // e.g. `const x = ...`
+    Mutable,   // e.g. `var x = ...`
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -211,6 +218,7 @@ pub enum DatexExpression {
     VariableDeclaration(
         Option<VariableId>,
         VariableType,
+        BindingMutability,
         ReferenceMutability,
         String,
         Box<DatexExpression>,
@@ -729,6 +737,11 @@ pub fn create_parser<'a, I>()
                     } else {
                         VariableType::Var
                     },
+                    if var_type == Token::ConstKW {
+                        BindingMutability::Immutable
+                    } else {
+                        BindingMutability::Mutable
+                    },
                     mutability,
                     var_name.to_string(),
                     expr,
@@ -846,6 +859,7 @@ mod tests {
             DatexExpression::VariableDeclaration(
                 None,
                 VariableType::Const,
+                BindingMutability::Immutable,
                 ReferenceMutability::Mutable,
                 "x".to_string(),
                 Box::new(DatexExpression::Array(vec![
@@ -866,6 +880,7 @@ mod tests {
             DatexExpression::VariableDeclaration(
                 None,
                 VariableType::Const,
+                BindingMutability::Immutable,
                 ReferenceMutability::Immutable,
                 "x".to_string(),
                 Box::new(DatexExpression::Array(vec![
@@ -885,6 +900,7 @@ mod tests {
             DatexExpression::VariableDeclaration(
                 None,
                 VariableType::Const,
+                BindingMutability::Immutable,
                 ReferenceMutability::None,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
@@ -2085,6 +2101,7 @@ mod tests {
                 expression: DatexExpression::VariableDeclaration(
                     None,
                     VariableType::Const,
+                    BindingMutability::Immutable,
                     ReferenceMutability::None,
                     "x".to_string(),
                     Box::new(DatexExpression::Integer(Integer::from(42))),
@@ -2103,6 +2120,7 @@ mod tests {
             DatexExpression::VariableDeclaration(
                 None,
                 VariableType::Var,
+                BindingMutability::Mutable,
                 ReferenceMutability::None,
                 "x".to_string(),
                 Box::new(DatexExpression::BinaryOperation(
@@ -2227,6 +2245,7 @@ mod tests {
                     expression: DatexExpression::VariableDeclaration(
                         None,
                         VariableType::Var,
+                        BindingMutability::Mutable,
                         ReferenceMutability::None,
                         "x".to_string(),
                         Box::new(DatexExpression::Integer(Integer::from(42))),

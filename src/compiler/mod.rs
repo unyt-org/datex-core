@@ -6,8 +6,8 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::compiler::ast_parser::{
-    DatexExpression, DatexScriptParser, ReferenceMutability, TupleEntry,
-    VariableId, VariableType, parse,
+    BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
+    TupleEntry, VariableId, VariableType, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
@@ -147,21 +147,22 @@ pub enum VariableRepresentation {
 pub struct Variable {
     pub name: String,
     pub var_type: VariableType,
-    pub mut_type: ReferenceMutability,
+    pub ref_mut: ReferenceMutability,
+    pub binding_mut: BindingMutability,
     pub representation: VariableRepresentation,
 }
 
 impl Variable {
     pub fn new_const(
         name: String,
-        var_type: VariableType,
         mut_type: ReferenceMutability,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
-            var_type,
-            mut_type,
+            var_type: VariableType::Const,
+            binding_mut: BindingMutability::Immutable,
+            ref_mut: mut_type,
             representation: VariableRepresentation::Constant(slot),
         }
     }
@@ -169,13 +170,15 @@ impl Variable {
     pub fn new_variable_slot(
         name: String,
         var_type: VariableType,
-        mut_type: ReferenceMutability,
+        binding_mut: BindingMutability,
+        ref_mut: ReferenceMutability,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
             var_type,
-            mut_type,
+            binding_mut,
+            ref_mut,
             representation: VariableRepresentation::VariableSlot(slot),
         }
     }
@@ -183,14 +186,16 @@ impl Variable {
     pub fn new_variable_reference(
         name: String,
         var_type: VariableType,
-        mut_type: ReferenceMutability,
+        ref_mut: ReferenceMutability,
+        binding_mut: BindingMutability,
         variable_slot: VirtualSlot,
         container_slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
             var_type,
-            mut_type,
+            ref_mut,
+            binding_mut,
             representation: VariableRepresentation::VariableReference {
                 variable_slot,
                 container_slot,
@@ -648,7 +653,8 @@ fn compile_expression(
         DatexExpression::VariableDeclaration(
             id,
             var_type,
-            mut_type,
+            binding_mut,
+            ref_mut,
             name,
             expression,
         ) => {
@@ -662,7 +668,7 @@ fn compile_expression(
                 VirtualSlot::local(virtual_slot_addr),
             );
             // create reference if internally mutable
-            if mut_type == ReferenceMutability::Mutable {
+            if ref_mut == ReferenceMutability::Mutable {
                 compilation_context
                     .append_binary_code(InstructionCode::CREATE_REF);
             }
@@ -710,21 +716,22 @@ fn compile_expression(
                     Variable::new_variable_reference(
                         name.clone(),
                         var_type,
-                        mut_type,
+                        ref_mut,
+                        binding_mut,
                         VirtualSlot::local(virtual_slot_addr_for_var),
                         VirtualSlot::local(virtual_slot_addr),
                     )
                 }
                 VariableModel::Constant => Variable::new_const(
                     name.clone(),
-                    var_type,
-                    mut_type,
+                    ref_mut,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
                 VariableModel::VariableSlot => Variable::new_variable_slot(
                     name.clone(),
                     var_type,
-                    mut_type,
+                    binding_mut,
+                    ref_mut,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
             };

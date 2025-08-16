@@ -98,7 +98,7 @@ impl CompilationScope {
                 } => container_slot,
                 VariableRepresentation::VariableSlot(slot) => slot,
             };
-            Some((slot, variable.var_type, variable.mut_type))
+            Some((slot, variable.var_type, variable.ref_mut))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
