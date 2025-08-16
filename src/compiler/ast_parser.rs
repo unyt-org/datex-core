@@ -124,7 +124,10 @@ impl From<&Instruction> for BinaryOperator {
             Instruction::NotEqual => BinaryOperator::NotEqual,
             Instruction::Is => BinaryOperator::Is,
             _ => {
-                todo!("#155 Binary operator for instruction {:?} not implemented", instruction);
+                todo!(
+                    "#155 Binary operator for instruction {:?} not implemented",
+                    instruction
+                );
             }
         }
     }
@@ -163,9 +166,10 @@ pub enum VariableType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum VariableMutType {
+pub enum ReferenceMutability {
     Mutable,
     Immutable,
+    None,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -204,7 +208,19 @@ pub enum DatexExpression {
     /// Identifier, e.g. a variable name. VariableId is always set to 0 by the ast parser.
     Variable(Option<VariableId>, String),
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
-    VariableDeclaration(Option<VariableId>, VariableType, VariableMutType, String, Box<DatexExpression>),
+    VariableDeclaration(
+        Option<VariableId>,
+        VariableType,
+        ReferenceMutability,
+        String,
+        Box<DatexExpression>,
+    ),
+
+    /// Reference, e.g. &x
+    Ref(Box<DatexExpression>),
+    /// Mutable reference, e.g. &mut x
+    RefMut(Box<DatexExpression>),
+
     /// Variable assignment, e.g. x = 1. VariableId is always set to 0 by the ast parser.
     VariableAssignment(Option<VariableId>, String, Box<DatexExpression>),
 
@@ -569,6 +585,24 @@ pub fn create_parser<'a, I>()
     ))
     .boxed();
 
+    let unary = recursive(|unary| {
+        // & or &mut prefix
+        just(Token::Ampersand)
+            .ignore_then(
+                just(Token::MutKW).or_not().padded_by(whitespace.clone()),
+            )
+            .then(unary.clone())
+            .map(|(mut_kw, expr)| {
+                if mut_kw.is_some() {
+                    DatexExpression::RefMut(Box::new(expr))
+                } else {
+                    DatexExpression::Ref(Box::new(expr))
+                }
+            })
+            // could also add unary minus, not, etc. here later
+            .or(atom.clone())
+    });
+
     // operations on atoms
     let op = |c| {
         just(Token::Whitespace)
@@ -579,7 +613,7 @@ pub fn create_parser<'a, I>()
     };
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
-    let apply_or_property_access = atom
+    let apply_or_property_access = unary
         .clone()
         .then(
             choice((
@@ -670,15 +704,24 @@ pub fn create_parser<'a, I>()
         .or(just(Token::VarKW))
         .or_not()
         .padded_by(whitespace.clone())
-        // optional MutKW
-        .then(just(Token::MutKW).or_not().padded_by(whitespace.clone()))
         .then(select! {
             Token::Identifier(s) => s
         })
         .then_ignore(just(Token::Assign).padded_by(whitespace.clone()))
         .then(equality.clone())
-        .map(|(((var_type, mut_type), var_name), expr)| {
+        .map(|((var_type, var_name), expr)| {
             if let Some(var_type) = var_type {
+                let (mutability, expr) = match expr {
+                    DatexExpression::RefMut(expr) => {
+                        (ReferenceMutability::Mutable, expr)
+                    }
+
+                    DatexExpression::Ref(expr) => {
+                        (ReferenceMutability::Immutable, expr)
+                    }
+
+                    expr => (ReferenceMutability::None, Box::new(expr)),
+                };
                 DatexExpression::VariableDeclaration(
                     None,
                     if var_type == Token::ConstKW {
@@ -686,13 +729,9 @@ pub fn create_parser<'a, I>()
                     } else {
                         VariableType::Var
                     },
-                    if mut_type.is_some() {
-                        VariableMutType::Mutable
-                    } else {
-                        VariableMutType::Immutable
-                    },
+                    mutability,
                     var_name.to_string(),
-                    Box::new(expr),
+                    expr,
                 )
             } else {
                 DatexExpression::VariableAssignment(
@@ -758,9 +797,10 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     }
 
     let tokens = Token::lexer(src);
-    let tokens:Vec<Token> = tokens.into_iter().collect::<Result<Vec<Token>, Range<usize>>>().map_err(|e|
-        vec![ParserError::InvalidToken(e)]
-    )?;
+    let tokens: Vec<Token> = tokens
+        .into_iter()
+        .collect::<Result<Vec<Token>, Range<usize>>>()
+        .map_err(|e| vec![ParserError::InvalidToken(e)])?;
 
     let parser = create_parser::<'_, TokenInput>();
 
@@ -796,6 +836,61 @@ mod tests {
     use super::*;
 
     use std::assert_matches::assert_matches;
+
+    #[test]
+    fn variable_declaration_mut() {
+        let src = "const x = &mut [1, 2, 3]";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::VariableDeclaration(
+                None,
+                VariableType::Const,
+                ReferenceMutability::Mutable,
+                "x".to_string(),
+                Box::new(DatexExpression::Array(vec![
+                    DatexExpression::Integer(Integer::from(1)),
+                    DatexExpression::Integer(Integer::from(2)),
+                    DatexExpression::Integer(Integer::from(3)),
+                ])),
+            )
+        );
+    }
+
+    #[test]
+    fn variable_declaration_ref() {
+        let src = "const x = &[1, 2, 3]";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::VariableDeclaration(
+                None,
+                VariableType::Const,
+                ReferenceMutability::Immutable,
+                "x".to_string(),
+                Box::new(DatexExpression::Array(vec![
+                    DatexExpression::Integer(Integer::from(1)),
+                    DatexExpression::Integer(Integer::from(2)),
+                    DatexExpression::Integer(Integer::from(3)),
+                ])),
+            )
+        );
+    }
+    #[test]
+    fn variable_declaration() {
+        let src = "const x = 1";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::VariableDeclaration(
+                None,
+                VariableType::Const,
+                ReferenceMutability::None,
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+            )
+        );
+    }
 
     fn print_report(errs: Vec<ParserError>, src: &str) {
         // FIXME #158
@@ -1961,7 +2056,10 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::ApplyChain(
-                        Box::new(DatexExpression::Variable(None, "x".to_string())),
+                        Box::new(DatexExpression::Variable(
+                            None,
+                            "x".to_string()
+                        )),
                         vec![Apply::FunctionCall(DatexExpression::Integer(
                             Integer::from(1)
                         ))],
@@ -1978,22 +2076,6 @@ mod tests {
     }
 
     #[test]
-    fn variable_declaration() {
-        let src = "const x = 42";
-        let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                VariableMutType::Immutable,
-                "x".to_string(),
-                Box::new(DatexExpression::Integer(Integer::from(42))),
-            )
-        );
-    }
-
-    #[test]
     fn variable_declaration_statement() {
         let src = "const x = 42;";
         let expr = parse_unwrap(src);
@@ -2003,7 +2085,7 @@ mod tests {
                 expression: DatexExpression::VariableDeclaration(
                     None,
                     VariableType::Const,
-                    VariableMutType::Immutable,
+                    ReferenceMutability::None,
                     "x".to_string(),
                     Box::new(DatexExpression::Integer(Integer::from(42))),
                 ),
@@ -2021,7 +2103,7 @@ mod tests {
             DatexExpression::VariableDeclaration(
                 None,
                 VariableType::Var,
-                VariableMutType::Immutable,
+                ReferenceMutability::None,
                 "x".to_string(),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -2145,7 +2227,7 @@ mod tests {
                     expression: DatexExpression::VariableDeclaration(
                         None,
                         VariableType::Var,
-                        VariableMutType::Immutable,
+                        ReferenceMutability::None,
                         "x".to_string(),
                         Box::new(DatexExpression::Integer(Integer::from(42))),
                     ),
@@ -2437,7 +2519,10 @@ mod tests {
                     Box::new(DatexExpression::Variable(None, "b".to_string())),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::Multiply,
-                        Box::new(DatexExpression::Variable(None, "c".to_string())),
+                        Box::new(DatexExpression::Variable(
+                            None,
+                            "c".to_string()
+                        )),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                     )),
                 )),
@@ -2454,8 +2539,14 @@ mod tests {
             DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::RemoteExecution(
-                        Box::new(DatexExpression::Variable(None, "a".to_string())),
-                        Box::new(DatexExpression::Variable(None, "b".to_string()))
+                        Box::new(DatexExpression::Variable(
+                            None,
+                            "a".to_string()
+                        )),
+                        Box::new(DatexExpression::Variable(
+                            None,
+                            "b".to_string()
+                        ))
                     ),
                     is_terminated: true,
                 },
@@ -2511,9 +2602,6 @@ mod tests {
     fn test_addressed_slot() {
         let src = "#123";
         let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::Slot(Slot::Addressed(123))
-        );
+        assert_eq!(expr, DatexExpression::Slot(Slot::Addressed(123)));
     }
 }
