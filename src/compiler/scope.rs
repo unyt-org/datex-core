@@ -1,11 +1,13 @@
+use crate::compiler::ast_parser::ReferenceMutability;
+use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
+use crate::compiler::{
+    Variable, VariableRepresentation, ast_parser::VariableType,
+    context::VirtualSlot,
+};
+use itertools::Itertools;
 use std::cell::RefCell;
-use crate::compiler::{ast_parser::VariableType, context::VirtualSlot, Variable, VariableRepresentation};
 use std::collections::HashMap;
 use std::rc::Rc;
-use itertools::Itertools;
-use crate::compiler::ast_parser::VariableMutType;
-use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
-
 
 #[derive(Debug, Clone, Default)]
 pub struct PrecompilerData {
@@ -26,7 +28,6 @@ pub struct CompilationScope {
     next_slot_address: u32,
 
     // ------- Data only relevant for the root scope (FIXME: refactor?) -------
-
     /// optional precompiler data, only on the root scope
     pub precompiler_data: Option<PrecompilerData>,
     /// If once is true, the scope can only be used for compilation once.
@@ -50,9 +51,7 @@ impl Default for CompilationScope {
     }
 }
 
-
 impl CompilationScope {
-
     pub fn new(once: bool) -> CompilationScope {
         CompilationScope {
             once,
@@ -60,7 +59,9 @@ impl CompilationScope {
         }
     }
 
-    pub fn new_with_external_parent_scope(parent_context: CompilationScope) -> CompilationScope {
+    pub fn new_with_external_parent_scope(
+        parent_context: CompilationScope,
+    ) -> CompilationScope {
         CompilationScope {
             external_parent_scope: Some(Box::new(parent_context)),
             ..CompilationScope::default()
@@ -71,12 +72,8 @@ impl CompilationScope {
         self.external_parent_scope.is_some()
     }
 
-    pub fn register_variable_slot(
-        &mut self,
-        variable: Variable,
-    ) {
-        self.variables
-            .insert(variable.name.clone(), variable);
+    pub fn register_variable_slot(&mut self, variable: Variable) {
+        self.variables.insert(variable.name.clone(), variable);
     }
 
     pub fn get_next_virtual_slot(&mut self) -> u32 {
@@ -91,21 +88,25 @@ impl CompilationScope {
     pub fn resolve_variable_name_to_virtual_slot(
         &self,
         name: &str,
-    ) -> Option<(VirtualSlot, VariableType, VariableMutType)> {
+    ) -> Option<(VirtualSlot, VariableType, ReferenceMutability)> {
         if let Some(variable) = self.variables.get(name) {
             let slot = match variable.representation {
                 VariableRepresentation::Constant(slot) => slot,
-                VariableRepresentation::VariableReference {container_slot, ..} => container_slot,
+                VariableRepresentation::VariableReference {
+                    container_slot,
+                    ..
+                } => container_slot,
                 VariableRepresentation::VariableSlot(slot) => slot,
             };
             Some((slot, variable.var_type, variable.mut_type))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
-                .map(|(virt_slot, var_type, mut_type)| (virt_slot.downgrade(), var_type, mut_type))
+                .map(|(virt_slot, var_type, mut_type)| {
+                    (virt_slot.downgrade(), var_type, mut_type)
+                })
         } else if let Some(parent) = &self.parent_scope {
-            parent
-                .resolve_variable_name_to_virtual_slot(name)
+            parent.resolve_variable_name_to_virtual_slot(name)
         } else {
             None
         }
@@ -132,14 +133,18 @@ impl CompilationScope {
             parent.next_slot_address = self.next_slot_address;
             Some((
                 *parent,
-                self.variables.keys().flat_map(|k| self.variables[k].slots()).collect::<Vec<_>>()
+                self.variables
+                    .keys()
+                    .flat_map(|k| self.variables[k].slots())
+                    .collect::<Vec<_>>(),
             ))
         } else {
             None
         }
     }
-    
+
     pub fn pop_external(self) -> Option<CompilationScope> {
-        self.external_parent_scope.map(|external_parent| *external_parent)
+        self.external_parent_scope
+            .map(|external_parent| *external_parent)
     }
 }
