@@ -7,6 +7,8 @@ use crate::global::protocol_structures::instructions::*;
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::runtime::RuntimeInternal;
+use crate::runtime::execution_context::RemoteExecutionContext;
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::array::Array;
@@ -21,14 +23,12 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
+use log::info;
+use num_enum::TryFromPrimitive;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use log::info;
-use num_enum::TryFromPrimitive;
-use crate::runtime::execution_context::RemoteExecutionContext;
-use crate::runtime::RuntimeInternal;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -97,7 +97,6 @@ pub struct RuntimeExecutionContext {
 }
 
 impl RuntimeExecutionContext {
-
     pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
         Self {
             runtime_internal: Some(runtime_internal),
@@ -112,7 +111,7 @@ impl RuntimeExecutionContext {
     pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
         &self.runtime_internal
     }
-    
+
     pub fn set_runtime_internal(
         &mut self,
         runtime_internal: Rc<RuntimeInternal>,
@@ -171,18 +170,23 @@ pub fn execute_dxb_sync(
     input: ExecutionInput,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
-    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+    let runtime_internal =
+        input.context.borrow_mut().runtime_internal().clone();
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(_pointer_id) => {
-                *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
+                *interrupt_provider.borrow_mut() = Some(
+                    InterruptProvider::Result(Some(ValueContainer::from(42))),
+                );
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
+                    Some(InterruptProvider::Result(get_internal_slot_value(
+                        &runtime_internal,
+                        slot,
+                    )?));
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -191,20 +195,21 @@ pub fn execute_dxb_sync(
     Err(ExecutionError::RequiresAsyncExecution)
 }
 
-fn get_internal_slot_value(runtime_internal: &Option<Rc<RuntimeInternal>>, slot: u32) -> Result<Option<ValueContainer>, ExecutionError> {
+fn get_internal_slot_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    slot: u32,
+) -> Result<Option<ValueContainer>, ExecutionError> {
     if let Some(runtime) = &runtime_internal {
         // convert slot to InternalSlot enum
-        let slot = InternalSlot::try_from_primitive(slot).map_err(|_| {
-            ExecutionError::SlotNotAllocated(slot)
-        })?;
+        let slot = InternalSlot::try_from_primitive(slot)
+            .map_err(|_| ExecutionError::SlotNotAllocated(slot))?;
         let res = match slot {
             InternalSlot::ENDPOINT => {
                 Some(ValueContainer::from(runtime.endpoint.clone()))
             }
         };
         Ok(res)
-    }
-    else {
+    } else {
         Err(ExecutionError::RequiresRuntime)
     }
 }
@@ -215,36 +220,47 @@ pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
-    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+    let runtime_internal =
+        input.context.borrow_mut().runtime_internal().clone();
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(_pointer_id) => {
                 get_pointer_test().await;
-                *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
+                *interrupt_provider.borrow_mut() = Some(
+                    InterruptProvider::Result(Some(ValueContainer::from(42))),
+                );
             }
             ExecutionStep::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
                     // assert that receivers is a single endpoint
                     // TODO #230: support advanced receivers
-                    let receiver_endpoint = receivers.to_value().borrow().cast_to_endpoint().unwrap();
-                    let mut remote_execution_context = RemoteExecutionContext::new(
-                        receiver_endpoint,
-                        true
-                    );
-                    let res = RuntimeInternal::execute_remote(runtime.clone(), &mut remote_execution_context, body).await?;
+                    let receiver_endpoint = receivers
+                        .to_value()
+                        .borrow()
+                        .cast_to_endpoint()
+                        .unwrap();
+                    let mut remote_execution_context =
+                        RemoteExecutionContext::new(receiver_endpoint, true);
+                    let res = RuntimeInternal::execute_remote(
+                        runtime.clone(),
+                        &mut remote_execution_context,
+                        body,
+                    )
+                    .await?;
                     *interrupt_provider.borrow_mut() =
                         Some(InterruptProvider::Result(res));
-                }
-                else {
+                } else {
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
+                    Some(InterruptProvider::Result(get_internal_slot_value(
+                        &runtime_internal,
+                        slot,
+                    )?));
             }
             _ => todo!("#99 Undescribed by author."),
         }
@@ -701,7 +717,6 @@ fn get_result_value_from_instruction(
                 None
             }
             Instruction::GetSlot(SlotAddress(address)) => {
-
                 // if address is >= 0xffffff00, resolve internal slot
                 if address >= 0xffffff00 {
                     interrupt_with_result!(
@@ -709,7 +724,6 @@ fn get_result_value_from_instruction(
                         ExecutionStep::GetInternalSlot(address)
                     )
                 }
-
                 // else handle normal slot
                 else {
                     let res = context.borrow_mut().get_slot_value(address);
@@ -1268,7 +1282,8 @@ mod tests {
     #[test]
     fn test_val_assignment_with_addition() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("const x = 1 + 2; x");
+        let result =
+            execute_datex_script_debug_with_result("const x = 1 + 2; x");
         assert_eq!(result, Integer::from(3).into());
     }
 
@@ -1288,7 +1303,8 @@ mod tests {
     #[test]
     fn test_ref_assignment() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("const mut x = 42; x");
+        let result =
+            execute_datex_script_debug_with_result("const x = &mut 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
     }

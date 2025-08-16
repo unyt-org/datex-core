@@ -997,7 +997,7 @@ pub mod tests {
         );
 
         let datex_script =
-            "const mut a = 42; const mut b = 69; a is b".to_string(); // a is b
+            "const a = &mut 42; const b = &mut 69; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1864,7 +1864,7 @@ pub mod tests {
     #[test]
     fn test_allocate_ref() {
         init_logger_debug();
-        let script = "const mut a = 42";
+        let script = "const a = &mut 42";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1886,7 +1886,7 @@ pub mod tests {
     #[test]
     fn test_read_ref() {
         init_logger_debug();
-        let script = "const mut a = 42; a";
+        let script = "const a = &mut 42; a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -2559,7 +2559,7 @@ pub mod tests {
     #[test]
     fn test_assignment_to_const_mut() {
         init_logger_debug();
-        let script = "const mut a = 42; a = 43";
+        let script = "const a = &mut 42; a = 43";
         let result = compile_script(script, CompileOptions::default());
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
