@@ -2564,6 +2564,33 @@ pub mod tests {
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
+    // WIP
+    #[test]
+    fn test_addition_to_const_ref() {
+        init_logger_debug();
+        let script = "const a = &mut 42; a += 1";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Ok(_));
+    }
+
+    // WIP
+    #[test]
+    fn test_addition_to_immutable_value() {
+        init_logger_debug();
+        let script = "var a = 42; a += 1";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. })); // AssignmentToImmutableValue
+    }
+
+    // WIP
+    #[test]
+    fn test_addition_to_immutable_ref() {
+        init_logger_debug();
+        let script = "const a = &42; a += 1";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. })); // AssignmentToImmutableReference
+    }
+
     #[test]
     fn test_slot_endpoint() {
         let script = "#endpoint";
