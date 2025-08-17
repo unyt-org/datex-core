@@ -687,8 +687,8 @@ fn compile_expression(
             compilation_context.insert_virtual_slot_address(
                 VirtualSlot::local(virtual_slot_addr),
             );
-            // create reference if internally mutable
-            if ref_mut == ReferenceMutability::Mutable {
+            // create reference if value marked with & or &mut
+            if ref_mut != ReferenceMutability::None {
                 compilation_context
                     .append_binary_code(InstructionCode::CREATE_REF);
             }
