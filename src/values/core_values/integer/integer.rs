@@ -1,9 +1,3 @@
-use std::{
-    fmt::Display,
-    hash::Hash,
-    ops::{Add, Sub},
-};
-use serde::{Deserialize, Serialize};
 use crate::values::{
     core_values::integer::{
         typed_integer::TypedInteger,
@@ -11,107 +5,252 @@ use crate::values::{
     },
     traits::structural_eq::StructuralEq,
 };
+use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
+use num::BigInt;
+use num_traits::ToPrimitive;
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::Display,
+    hash::Hash,
+    io::{Read, Seek},
+    ops::{Add, Neg, Sub},
+    str::FromStr,
+};
 
-#[derive(Debug, Clone, Eq, Copy, Serialize, Deserialize)]
-pub struct Integer(pub TypedInteger);
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct Integer(pub BigInt);
 impl Integer {
-    pub fn to_smallest_fitting(&self) -> TypedInteger {
-        self.0.to_smallest_fitting()
+    // pub fn to_smallest_fitting(&self) -> TypedInteger {
+    //     self.0.to_smallest_fitting()
+    // }
+
+    pub fn from_string(s: &str) -> Self {
+        Integer(BigInt::from_str(s).unwrap_or_else(|_| {
+            panic!("Failed to parse integer from string: {s}")
+        }))
     }
-    
-    pub fn from_string(s: &str) -> Result<Self, String> {
-        Integer::from_string_radix(s, 10)
+
+    pub fn is_negative(&self) -> bool {
+        self.0.sign() == num::bigint::Sign::Minus
     }
-    
-    pub fn from_string_radix(s: &str, radix: u32) -> Result<Self, String> {
-        // remove all underscores
-        let s = &s.replace('_', "");
-        match i128::from_str_radix(s, radix) {
-            Ok(value) => Ok(Integer(TypedInteger::I128(value))),
-            Err(_) => match s.parse::<u128>() {
-                Ok(value) => Ok(Integer(TypedInteger::U128(value))),
-                Err(_) => Err(format!("Failed to parse integer from string with radix {radix}: {s}")),
-            },
-        }
+    pub fn is_positive(&self) -> bool {
+        self.0.sign() == num::bigint::Sign::Plus
     }
+
+    pub fn as_i8(&self) -> Option<i8> {
+        self.0.to_i8()
+    }
+    pub fn as_u8(&self) -> Option<u8> {
+        self.0.to_u8()
+    }
+    pub fn as_i16(&self) -> Option<i16> {
+        self.0.to_i16()
+    }
+    pub fn as_u16(&self) -> Option<u16> {
+        self.0.to_u16()
+    }
+    pub fn as_i32(&self) -> Option<i32> {
+        self.0.to_i32()
+    }
+    pub fn as_u32(&self) -> Option<u32> {
+        self.0.to_u32()
+    }
+    pub fn as_i64(&self) -> Option<i64> {
+        self.0.to_i64()
+    }
+    pub fn as_u64(&self) -> Option<u64> {
+        self.0.to_u64()
+    }
+    pub fn as_i128(&self) -> Option<i128> {
+        self.0.to_i128()
+    }
+    pub fn as_u128(&self) -> Option<u128> {
+        self.0.to_u128()
+    }
+
+    // pub fn from_string(s: &str) -> Result<Self, String> {
+    //     Integer::from_string_radix(s, 10)
+    // }
+
+    // pub fn from_string_radix(s: &str, radix: u32) -> Result<Self, String> {
+    //     // remove all underscores
+    //     let s = &s.replace('_', "");
+    //     match i128::from_str_radix(s, radix) {
+    //         Ok(value) => Ok(Integer(TypedInteger::I128(value))),
+    //         Err(_) => match s.parse::<u128>() {
+    //             Ok(value) => Ok(Integer(TypedInteger::U128(value))),
+    //             Err(_) => Err(format!(
+    //                 "Failed to parse integer from string with radix {radix}: {s}"
+    //             )),
+    //         },
+    //     }
+    // }
 }
 
 impl StructuralEq for Integer {
     fn structural_eq(&self, other: &Self) -> bool {
-        self.0.structural_eq(&other.0)
+        self.0 == other.0
     }
 }
 
-impl<T: Into<TypedInteger>> From<T> for Integer {
-    fn from(value: T) -> Self {
-        Integer(value.into())
+impl Neg for Integer {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        return Integer(-self.0);
     }
 }
 
-impl Display for Integer {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-// FIXME #124 use integer i32 by default and switch automaticially if a calculation provoces one of the values to get out of bounds
 impl Add for Integer {
-    type Output = Option<Integer>;
+    type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let a = self.0;
-        let b = rhs.0;
-        if a.is_unsigned() && b.is_unsigned() {
-            Some(Integer(smallest_fitting_unsigned(
-                a.as_u128().checked_add(b.as_u128())?,
-            )))
-        } else {
-            Some(Integer(smallest_fitting_signed(
-                a.as_i128()?.checked_add(b.as_i128()?)?,
-            )))
-        }
+        Integer(self.0 + rhs.0)
     }
 }
 impl Add for &Integer {
-    type Output = Option<Integer>;
+    type Output = Integer;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Integer::add(*self, *rhs)
+        Integer::add(self.clone(), rhs.clone())
     }
 }
 
 impl Sub for Integer {
-    type Output = Option<Integer>;
+    type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let a = self.0;
-        let b = rhs.0;
-        Some(Integer(smallest_fitting_signed(
-            a.as_i128()?.checked_sub(b.as_i128()?)?,
-        )))
+        self + (-rhs)
     }
 }
 
 impl Sub for &Integer {
-    type Output = Option<Integer>;
+    type Output = Integer;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Integer::sub(*self, *rhs)
+        Integer::sub(self.clone(), rhs.clone())
     }
 }
 
-impl PartialEq for Integer {
-    fn eq(&self, other: &Self) -> bool {
-        self.structural_eq(other)
+impl Display for Integer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
-impl Hash for Integer {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        if self.0.is_signed() {
-            self.0.as_i128().hash(state);
-        } else {
-            self.0.as_u128().hash(state);
+impl BinWrite for Integer {
+    type Args<'a> = ();
+
+    fn write_options<W: std::io::Write + Seek>(
+        &self,
+        writer: &mut W,
+        endian: Endian,
+        _: Self::Args<'_>,
+    ) -> BinResult<()> {
+        let (sign, bytes) = self.0.to_bytes_be();
+        let len = bytes.len() as u32;
+        writer.write_all(&[sign as u8])?;
+        writer.write_all(&len.to_le_bytes())?;
+        writer.write_all(&bytes)?;
+
+        Ok(())
+    }
+}
+impl BinRead for Integer {
+    type Args<'a> = ();
+
+    fn read_options<R: Read + Seek>(
+        reader: &mut R,
+        endian: Endian,
+        _: Self::Args<'_>,
+    ) -> BinResult<Self> {
+        let sign = reader.read_le::<u8>()?;
+        let len = reader.read_le::<u32>()? as usize;
+        let mut bytes = vec![0; len];
+        reader.read_exact(&mut bytes)?;
+
+        let big_int = BigInt::from_bytes_be(
+            if sign == 0 {
+                num::bigint::Sign::Plus
+            } else {
+                num::bigint::Sign::Minus
+            },
+            &bytes,
+        );
+        Ok(Integer(big_int))
+    }
+}
+
+impl From<i8> for Integer {
+    fn from(value: i8) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<u8> for Integer {
+    fn from(value: u8) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<i16> for Integer {
+    fn from(value: i16) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<u16> for Integer {
+    fn from(value: u16) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<i32> for Integer {
+    fn from(value: i32) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<u32> for Integer {
+    fn from(value: u32) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<i64> for Integer {
+    fn from(value: i64) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<u64> for Integer {
+    fn from(value: u64) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<i128> for Integer {
+    fn from(value: i128) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<u128> for Integer {
+    fn from(value: u128) -> Self {
+        Integer(BigInt::from(value))
+    }
+}
+impl From<BigInt> for Integer {
+    fn from(value: BigInt) -> Self {
+        Integer(value)
+    }
+}
+
+impl From<TypedInteger> for Integer {
+    fn from(value: TypedInteger) -> Self {
+        match value {
+            TypedInteger::I8(v) => Integer::from(v),
+            TypedInteger::U8(v) => Integer::from(v),
+            TypedInteger::I16(v) => Integer::from(v),
+            TypedInteger::U16(v) => Integer::from(v),
+            TypedInteger::I32(v) => Integer::from(v),
+            TypedInteger::U32(v) => Integer::from(v),
+            TypedInteger::I64(v) => Integer::from(v),
+            TypedInteger::U64(v) => Integer::from(v),
+            TypedInteger::I128(v) => Integer::from(v),
+            TypedInteger::U128(v) => Integer::from(v),
+            TypedInteger::Integer(v) => v,
         }
     }
 }
@@ -120,6 +259,37 @@ impl Hash for Integer {
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_integer_addition() {
+        let dec1 = Integer::from_string("12");
+        let dec2 = Integer::from_string("56");
+        let result = dec1 + dec2;
+        assert_eq!(result.to_string(), "68");
+
+        let dec1 = Integer::from_string("-12345");
+        let dec2 = Integer::from_string("3");
+        let result = dec1 + dec2;
+        assert_eq!(result.to_string(), "-12342");
+    }
+
+    #[test]
+    fn test_formatting() {
+        let int1 = Integer::from_string("12");
+        assert_eq!(int1.to_string(), "12");
+
+        let int2 = Integer::from_string("-12345");
+        assert_eq!(int2.to_string(), "-12345");
+        let int3 = Integer::from_string("0");
+        assert_eq!(int3.to_string(), "0");
+
+        let int4 = Integer::from_string("123456789012345678901234567890");
+        assert_eq!(int4.to_string(), "123456789012345678901234567890");
+
+        let int5 = Integer::from_string("-123456789012345678901234567890");
+        assert_eq!(int5.to_string(), "-123456789012345678901234567890");
+    }
+
+    /* TODO Move these test cases to typed_integer module once ready (17/08/2025)
     #[test]
     fn test_typed_integer_addition() {
         let a = TypedInteger::I8(10);
@@ -237,4 +407,5 @@ mod tests {
         assert_eq!(i.to_smallest_fitting(), TypedInteger::I8(1));
         assert_eq!(j.to_smallest_fitting(), TypedInteger::U8(1));
     }
+     */
 }
