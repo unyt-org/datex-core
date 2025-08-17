@@ -447,11 +447,22 @@ fn decompile_loop(
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    // TODO #98: generate variable name for slot
                     write!(output, "#{} += ", address.0)?;
                 } else {
                     // otherwise just write the slot address
                     write!(output, "#{} += ", address.0)?;
+                }
+            }
+
+            Instruction::SubtractAssign(address) => {
+                handle_before_term(state, &mut output, false)?;
+                state.new_scope(ScopeType::SlotAssignment);
+                // if resolve_slots is enabled, write the slot as variable
+                if state.options.resolve_slots {
+                    write!(output, "#{} -= ", address.0)?;
+                } else {
+                    // otherwise just write the slot address
+                    write!(output, "#{} -= ", address.0)?;
                 }
             }
 

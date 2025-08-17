@@ -766,6 +766,26 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::SubtractAssign(SlotAddress(address)) => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignmentOperation {
+                        address,
+                        operator: AssignmentOperator::SubstractAssign,
+                    },
+                );
+                None
+            }
+
+            Instruction::SubtractAssign(SlotAddress(address)) => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignmentOperation {
+                        address,
+                        operator: AssignmentOperator::SubstractAssign,
+                    },
+                );
+                None
+            }
+
             // refs
             Instruction::CreateRef => {
                 context.borrow_mut().scope_stack.create_scope(
@@ -1062,7 +1082,7 @@ fn handle_assignment_operation(
     // apply operation to active value
     match operator {
         AssignmentOperator::AddAssign => Ok((lhs + rhs)?),
-        AssignmentOperator::SubAssign => Ok((lhs - rhs)?),
+        AssignmentOperator::SubstractAssign => Ok((lhs - rhs)?),
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);
         }
@@ -1410,6 +1430,23 @@ mod tests {
         // is no longer a reference but a value what is incorrect.
         // assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
+    }
+
+    #[test]
+    fn test_ref_sub_assignment() {
+        init_logger_debug();
+        let result =
+            execute_datex_script_debug_with_result("const x = &mut 42; x -= 1");
+        assert_value_eq!(result, ValueContainer::from(Integer::from(41)));
+
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; x -= 1; x",
+        );
+
+        // FIXME due to addition the resulting value container of the slot
+        // is no longer a reference but a value what is incorrect.
+        // assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(41)));
     }
 
     #[test]

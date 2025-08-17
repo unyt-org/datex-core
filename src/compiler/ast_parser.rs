@@ -23,39 +23,38 @@ pub enum TupleEntry {
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOperator {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    Power,
-    And,
-    Or,
-    CompositeAnd,
-    CompositeOr,
+    Add,          // +
+    Subtract,     // -
+    Multiply,     // *
+    Divide,       // /
+    Modulo,       // %
+    Power,        // ^
+    And,          // &&
+    Or,           // ||
+    CompositeAnd, // TODO
+    CompositeOr,  // TODO
 }
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ComparisonOperator {
-    Is,
-    StructuralEqual,
-    NotStructuralEqual,
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqual,
-    GreaterThanOrEqual,
+    Is,                 // is
+    StructuralEqual,    // ==
+    NotStructuralEqual, // !=
+    Equal,              // ===
+    NotEqual,           // !==
+    LessThan,           // <
+    GreaterThan,        // >
+    LessThanOrEqual,    // <=
+    GreaterThanOrEqual, // >=
 }
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {
-    Assign,    // =
-    AddAssign, // +=
-    SubAssign, // -=
-    MulAssign, // *=
-    DivAssign, // /=
-               // etc.
+    Assign,          // =
+    AddAssign,       // +=
+    SubstractAssign, // -=
+    MultiplyAssign,  // *=
+    DivideAssign,    // /=
 }
 
 impl From<&ComparisonOperator> for InstructionCode {
@@ -89,9 +88,13 @@ impl From<&AssignmentOperator> for InstructionCode {
         match op {
             AssignmentOperator::Assign => InstructionCode::ASSIGN,
             AssignmentOperator::AddAssign => InstructionCode::ADD_ASSIGN,
-            AssignmentOperator::SubAssign => InstructionCode::SUBTRACT_ASSIGN,
-            AssignmentOperator::MulAssign => InstructionCode::MULTIPLY_ASSIGN,
-            AssignmentOperator::DivAssign => InstructionCode::DIVIDE_ASSIGN,
+            AssignmentOperator::SubstractAssign => {
+                InstructionCode::SUBTRACT_ASSIGN
+            }
+            AssignmentOperator::MultiplyAssign => {
+                InstructionCode::MULTIPLY_ASSIGN
+            }
+            AssignmentOperator::DivideAssign => InstructionCode::DIVIDE_ASSIGN,
             operator => todo!(
                 "Assignment operator {:?} not implemented for InstructionCode",
                 operator
@@ -791,9 +794,9 @@ pub fn create_parser<'a, I>()
     let assignment_op = select! {
         Token::Assign      => AssignmentOperator::Assign,
         Token::AddAssign   => AssignmentOperator::AddAssign,
-        Token::SubAssign   => AssignmentOperator::SubAssign,
-        Token::MulAssign   => AssignmentOperator::MulAssign,
-        Token::DivAssign   => AssignmentOperator::DivAssign,
+        Token::SubAssign   => AssignmentOperator::SubstractAssign,
+        Token::MulAssign   => AssignmentOperator::MultiplyAssign,
+        Token::DivAssign   => AssignmentOperator::DivideAssign,
     }
     .padded_by(whitespace.clone());
 
@@ -943,94 +946,6 @@ mod tests {
     use super::*;
 
     use std::assert_matches::assert_matches;
-
-    #[test]
-    fn variable_add_assignment() {
-        let src = "x += 42";
-        let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::AssignmentOperation(
-                AssignmentOperator::AddAssign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpression::Integer(Integer::from(42))),
-            )
-        );
-    }
-
-    #[test]
-    fn variable_sub_assignment() {
-        let src = "x -= 42";
-        let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::AssignmentOperation(
-                AssignmentOperator::SubAssign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpression::Integer(Integer::from(42))),
-            )
-        );
-    }
-
-    #[test]
-    fn variable_declaration_mut() {
-        let src = "const x = &mut [1, 2, 3]";
-        let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                BindingMutability::Immutable,
-                ReferenceMutability::Mutable,
-                "x".to_string(),
-                Box::new(DatexExpression::Array(vec![
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(2)),
-                    DatexExpression::Integer(Integer::from(3)),
-                ])),
-            )
-        );
-    }
-
-    #[test]
-    fn variable_declaration_ref() {
-        let src = "const x = &[1, 2, 3]";
-        let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                BindingMutability::Immutable,
-                ReferenceMutability::Immutable,
-                "x".to_string(),
-                Box::new(DatexExpression::Array(vec![
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(2)),
-                    DatexExpression::Integer(Integer::from(3)),
-                ])),
-            )
-        );
-    }
-    #[test]
-    fn variable_declaration() {
-        let src = "const x = 1";
-        let expr = parse_unwrap(src);
-        assert_eq!(
-            expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                BindingMutability::Immutable,
-                ReferenceMutability::None,
-                "x".to_string(),
-                Box::new(DatexExpression::Integer(Integer::from(1))),
-            )
-        );
-    }
 
     fn print_report(errs: Vec<ParserError>, src: &str) {
         // FIXME #158
@@ -2751,5 +2666,93 @@ mod tests {
         let src = "#123";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Slot(Slot::Addressed(123)));
+    }
+
+    #[test]
+    fn variable_add_assignment() {
+        let src = "x += 42";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::AssignmentOperation(
+                AssignmentOperator::AddAssign,
+                None,
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+            )
+        );
+    }
+
+    #[test]
+    fn variable_sub_assignment() {
+        let src = "x -= 42";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::AssignmentOperation(
+                AssignmentOperator::SubstractAssign,
+                None,
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+            )
+        );
+    }
+
+    #[test]
+    fn variable_declaration_mut() {
+        let src = "const x = &mut [1, 2, 3]";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::VariableDeclaration(
+                None,
+                VariableType::Const,
+                BindingMutability::Immutable,
+                ReferenceMutability::Mutable,
+                "x".to_string(),
+                Box::new(DatexExpression::Array(vec![
+                    DatexExpression::Integer(Integer::from(1)),
+                    DatexExpression::Integer(Integer::from(2)),
+                    DatexExpression::Integer(Integer::from(3)),
+                ])),
+            )
+        );
+    }
+
+    #[test]
+    fn variable_declaration_ref() {
+        let src = "const x = &[1, 2, 3]";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::VariableDeclaration(
+                None,
+                VariableType::Const,
+                BindingMutability::Immutable,
+                ReferenceMutability::Immutable,
+                "x".to_string(),
+                Box::new(DatexExpression::Array(vec![
+                    DatexExpression::Integer(Integer::from(1)),
+                    DatexExpression::Integer(Integer::from(2)),
+                    DatexExpression::Integer(Integer::from(3)),
+                ])),
+            )
+        );
+    }
+    #[test]
+    fn variable_declaration() {
+        let src = "const x = 1";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::VariableDeclaration(
+                None,
+                VariableType::Const,
+                BindingMutability::Immutable,
+                ReferenceMutability::None,
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(1))),
+            )
+        );
     }
 }

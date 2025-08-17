@@ -791,7 +791,8 @@ fn compile_expression(
                     compilation_context
                         .append_binary_code(InstructionCode::SET_SLOT);
                 }
-                AssignmentOperator::AddAssign => {
+                AssignmentOperator::AddAssign
+                | AssignmentOperator::SubstractAssign => {
                     // if immutable reference, return error
                     if mut_type == ReferenceMutability::Immutable {
                         return Err(
@@ -807,7 +808,7 @@ fn compile_expression(
                         ));
                     }
                     compilation_context
-                        .append_binary_code(InstructionCode::ADD_ASSIGN);
+                        .append_binary_code(InstructionCode::from(&operator));
                 }
                 op => todo!("Handle assignment operator: {op:?}"),
             }
