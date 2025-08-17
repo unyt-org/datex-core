@@ -13,6 +13,8 @@ pub enum CompilerError {
     ScopePopError,
     InvalidSlotName(String),
     AssignmentToConst(String),
+    AssignmentToImmutableReference(String),
+    AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
 }
 impl From<Vec<ParserError>> for CompilerError {
@@ -52,13 +54,22 @@ impl Display for CompilerError {
                 write!(f, "Could not pop scope, stack is empty")
             }
             CompilerError::InvalidSlotName(name) => {
-                write!(f, "Slot #{name} does not exist") 
+                write!(f, "Slot #{name} does not exist")
             }
             CompilerError::AssignmentToConst(name) => {
                 write!(f, "Cannot assign to immutable variable: {name}")
             }
             CompilerError::OnceScopeUsedMultipleTimes => {
-                write!(f, "Scope cannot be used multiple times, set 'once' to false to use a scope multiple times")
+                write!(
+                    f,
+                    "Scope cannot be used multiple times, set 'once' to false to use a scope multiple times"
+                )
+            }
+            CompilerError::AssignmentToImmutableValue(name) => {
+                write!(f, "Cannot assign to immutable value: {name}")
+            }
+            CompilerError::AssignmentToImmutableReference(name) => {
+                write!(f, "Cannot assign to immutable reference: {name}")
             }
         }
     }

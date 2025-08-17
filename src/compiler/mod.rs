@@ -768,16 +768,15 @@ fn compile_expression(
             name,
             expression,
         ) => {
+            compilation_context.mark_has_non_static_value();
+            // get variable slot address
+            let (virtual_slot, var_type, mut_type) = scope
+                .resolve_variable_name_to_virtual_slot(&name)
+                .ok_or_else(|| {
+                    CompilerError::UndeclaredVariable(name.clone())
+                })?;
             match operator {
                 AssignmentOperator::Assign => {
-                    compilation_context.mark_has_non_static_value();
-                    // get variable slot address
-                    let (virtual_slot, var_type, mut_type) = scope
-                        .resolve_variable_name_to_virtual_slot(&name)
-                        .ok_or_else(|| {
-                            CompilerError::UndeclaredVariable(name.clone())
-                        })?;
-
                     // if const, return error
                     if var_type == VariableType::Const {
                         return Err(CompilerError::AssignmentToConst(
@@ -791,21 +790,38 @@ fn compile_expression(
                     );
                     compilation_context
                         .append_binary_code(InstructionCode::SET_SLOT);
+                }
+                AssignmentOperator::AddAssign => {
+                    // if immutable reference, return error
+                    if mut_type == ReferenceMutability::Immutable {
+                        return Err(
+                            CompilerError::AssignmentToImmutableReference(
+                                name.clone(),
+                            ),
+                        );
+                    }
+                    // if immutable value, return error
+                    else if mut_type == ReferenceMutability::None {
+                        return Err(CompilerError::AssignmentToImmutableValue(
+                            name.clone(),
+                        ));
+                    }
                     compilation_context
-                        .insert_virtual_slot_address(virtual_slot);
-                    // compile expression
-                    scope = compile_expression(
-                        compilation_context,
-                        AstWithMetadata::new(*expression, &metadata),
-                        CompileMetadata::default(),
-                        scope,
-                    )?;
-                    // close assignment scope
-                    compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_END);
+                        .append_binary_code(InstructionCode::SET_SLOT);
                 }
                 op => todo!("Handle assignment operator: {op:?}"),
             }
+
+            compilation_context.insert_virtual_slot_address(virtual_slot);
+            // compile expression
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            // close assignment scope
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
@@ -2600,6 +2616,7 @@ pub mod tests {
     }
 
     // WIP
+
     #[test]
     fn test_addition_to_const_ref() {
         init_logger_debug();
@@ -2614,7 +2631,10 @@ pub mod tests {
         init_logger_debug();
         let script = "var a = 42; a += 1";
         let result = compile_script(script, CompileOptions::default());
-        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. })); // AssignmentToImmutableValue
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToImmutableValue { .. })
+        );
     }
 
     // WIP

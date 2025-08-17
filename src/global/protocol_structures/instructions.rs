@@ -37,15 +37,25 @@ pub enum Instruction {
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
     CloseAndStore,
+
+    // binary operator
     Add,
     Subtract,
     Multiply,
     Divide,
+
+    // comparison operator
     Is,
     StructuralEqual,
     Equal,
     NotStructuralEqual,
     NotEqual,
+
+    // assignment operator
+    AddAssign(SlotAddress),
+    SubtractAssign(SlotAddress),
+    MultiplyAssign(SlotAddress),
+    DivideAssign(SlotAddress),
 
     CreateRef,
 
@@ -135,6 +145,18 @@ impl Display for Instruction {
                 )
             }
             Instruction::RemoteExecution => write!(f, "REMOTE_EXECUTION"),
+            Instruction::AddAssign(address) => {
+                write!(f, "ADD_ASSIGN {}", address.0)
+            }
+            Instruction::SubtractAssign(address) => {
+                write!(f, "SUBTRACT_ASSIGN {}", address.0)
+            }
+            Instruction::MultiplyAssign(address) => {
+                write!(f, "MULTIPLY_ASSIGN {}", address.0)
+            }
+            Instruction::DivideAssign(address) => {
+                write!(f, "DIVIDE_ASSIGN {}", address.0)
+            }
         }
     }
 }
