@@ -366,12 +366,8 @@ pub fn iterate_instructions<'a>(
                         if let Err(err) = address {
                             Err(err.into())
                         } else {
-                            let _op = u8::read(&mut reader);
-                            let _op = u8::read(&mut reader);
+                            // let _op = u8::read(&mut reader);
                             let operator = InstructionCode::ADD_ASSIGN;
-
-                            panic!("gege {operator:?} {address:?} {_op:?}");
-
                             Ok(Instruction::AddAssign(address.unwrap()))
                         }
                     }

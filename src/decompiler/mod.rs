@@ -4,23 +4,20 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
-
-use crate::compiler::{
-    compile_template_with_refs, CompileOptions,
-};
-use crate::values::core_values::decimal::utils::decimal_to_string;
-use crate::values::value_container::ValueContainer;
+use crate::compiler::{CompileOptions, compile_template_with_refs};
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, Int16Data, Int32Data, Int64Data, Int8Data, ShortTextData,
+    Instruction, Int8Data, Int16Data, Int32Data, Int64Data, ShortTextData,
     TextData,
 };
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::values::core_values::decimal::utils::decimal_to_string;
+use crate::values::value_container::ValueContainer;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
-use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
+use syntect::util::{LinesWithEndings, as_24_bit_terminal_escaped};
 
 /// Decompiles a DXB bytecode body into a human-readable string representation.
 pub fn decompile_body(
@@ -445,6 +442,19 @@ fn decompile_loop(
                 }
             }
 
+            Instruction::AddAssign(address) => {
+                handle_before_term(state, &mut output, false)?;
+                state.new_scope(ScopeType::SlotAssignment);
+                // if resolve_slots is enabled, write the slot as variable
+                if state.options.resolve_slots {
+                    // TODO #98: generate variable name for slot
+                    write!(output, "#{} += ", address.0)?;
+                } else {
+                    // otherwise just write the slot address
+                    write!(output, "#{} += ", address.0)?;
+                }
+            }
+
             Instruction::CreateRef => {
                 handle_before_term(state, &mut output, false)?;
                 state.get_current_scope().skip_comma_for_next_item = true;
@@ -453,25 +463,26 @@ fn decompile_loop(
 
             Instruction::RemoteExecution => {
                 handle_before_term(state, &mut output, false)?;
-                state.get_current_scope().active_operator = Some((instruction, true,));
+                state.get_current_scope().active_operator =
+                    Some((instruction, true));
             }
 
             Instruction::ExecutionBlock(data) => {
                 handle_before_term(state, &mut output, true)?;
                 // decompile data.body
-                let decompiled_body = decompile_body(
-                    &data.body,
-                    state.options.clone(),
-                )?;
-                let slot_mapping = data.injected_slots.iter().enumerate().map(|(k, v)| {
-                    format!(
-                        "#{v} => #{k}"
-                    )
-                }).collect::<Vec<_>>().join(", ");
+                let decompiled_body =
+                    decompile_body(&data.body, state.options.clone())?;
+                let slot_mapping = data
+                    .injected_slots
+                    .iter()
+                    .enumerate()
+                    .map(|(k, v)| format!("#{v} => #{k}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 // write the decompiled body
                 write!(output, "[{slot_mapping}]({decompiled_body})")?;
             }
-            
+
             _ => {
                 write!(output, "[[{instruction}]]")?;
             }

@@ -21,6 +21,7 @@ pub enum Scope {
         operator: ComparisonOperator,
     },
     AssignmentOperation {
+        address: u32,
         operator: AssignmentOperator,
     },
     BinaryOperation {

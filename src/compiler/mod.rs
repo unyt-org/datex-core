@@ -807,7 +807,7 @@ fn compile_expression(
                         ));
                     }
                     compilation_context
-                        .append_binary_code(InstructionCode::SET_SLOT);
+                        .append_binary_code(InstructionCode::ADD_ASSIGN);
                 }
                 op => todo!("Handle assignment operator: {op:?}"),
             }
@@ -2616,7 +2616,6 @@ pub mod tests {
     }
 
     // WIP
-
     #[test]
     fn test_addition_to_const_ref() {
         init_logger_debug();

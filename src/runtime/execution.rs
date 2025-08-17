@@ -1,6 +1,6 @@
 use super::stack::{Scope, ScopeStack};
 use crate::compiler::ast_parser::{
-    BinaryOperator, ComparisonOperator, UnaryOperator,
+    AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator,
 };
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
@@ -756,6 +756,18 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::AddAssign(SlotAddress(address)) => {
+                panic!("BP1");
+
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignmentOperation {
+                        address,
+                        operator: AssignmentOperator::AddAssign,
+                    },
+                );
+                None
+            }
+
             // refs
             Instruction::CreateRef => {
                 context.borrow_mut().scope_stack.create_scope(
@@ -833,6 +845,12 @@ fn handle_value(
             Some(value_container)
         }
 
+        Scope::AssignmentOperation { operator, address } => {
+            panic!(
+                "Assignment operation is not supported in this context: {operator:?}"
+            );
+        }
+
         Scope::UnaryOperation { operator } => {
             let operator = *operator;
             context.pop_next_scope = true;
@@ -881,12 +899,6 @@ fn handle_value(
                 }
                 None => Some(value_container),
             }
-        }
-
-        Scope::AssignmentOperation { operator } => {
-            panic!(
-                "Assignment operation is not supported in this context: {operator:?}"
-            );
         }
 
         Scope::Collection => {
