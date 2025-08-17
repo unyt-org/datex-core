@@ -1,5 +1,7 @@
 use super::stack::{Scope, ScopeStack};
-use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
+use crate::compiler::ast_parser::{
+    BinaryOperator, ComparisonOperator, UnaryOperator,
+};
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
@@ -576,19 +578,28 @@ fn get_result_value_from_instruction(
             Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
             Instruction::Text(TextData(text)) => Some(text.into()),
 
-            // operations
+            // binary operations
             Instruction::Add
             | Instruction::Subtract
             | Instruction::Multiply
-            | Instruction::Divide
-            | Instruction::Is
+            | Instruction::Divide => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::BinaryOperation {
+                        operator: BinaryOperator::from(instruction),
+                    },
+                );
+                None
+            }
+
+            // equality operations
+            Instruction::Is
             | Instruction::StructuralEqual
             | Instruction::Equal
             | Instruction::NotStructuralEqual
             | Instruction::NotEqual => {
                 context.borrow_mut().scope_stack.create_scope(
-                    Scope::BinaryOperation {
-                        operator: BinaryOperator::from(instruction),
+                    Scope::ComparisonOperation {
+                        operator: ComparisonOperator::from(instruction),
                     },
                 );
                 None
@@ -850,6 +861,34 @@ fn handle_value(
             }
         }
 
+        Scope::ComparisonOperation { operator } => {
+            let active_value = &scope_container.active_value;
+            match active_value {
+                Some(active_value_container) => {
+                    let res = handle_comparison_operation(
+                        active_value_container,
+                        value_container,
+                        *operator,
+                    );
+                    if let Ok(val) = res {
+                        // set val as active value
+                        context.pop_next_scope = true;
+                        Some(val)
+                    } else {
+                        // handle error
+                        return Err(res.unwrap_err());
+                    }
+                }
+                None => Some(value_container),
+            }
+        }
+
+        Scope::AssignmentOperation { operator } => {
+            panic!(
+                "Assignment operation is not supported in this context: {operator:?}"
+            );
+        }
+
         Scope::Collection => {
             let active_value = &mut scope_container.active_value;
             match active_value {
@@ -960,6 +999,43 @@ fn handle_unary_operation(
     }
 }
 
+fn handle_comparison_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: ComparisonOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        ComparisonOperator::StructuralEqual => {
+            let val = active_value_container.structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::Equal => {
+            let val = active_value_container.value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::NotStructuralEqual => {
+            let val = !active_value_container.structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::NotEqual => {
+            let val = !active_value_container.value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::Is => {
+            // TODO #103 we should throw a runtime error when one of lhs or rhs is a value
+            // instead of a ref. Identity checks using the is operator shall be only allowed
+            // for references.
+            // @benstre: or keep as always false ? - maybe a compiler check would be better
+            let val = active_value_container.identical(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        _ => {
+            unreachable!("Instruction {:?} is not a valid operation", operator);
+        }
+    }
+}
+
 fn handle_binary_operation(
     active_value_container: &ValueContainer,
     value_container: ValueContainer,
@@ -970,30 +1046,6 @@ fn handle_binary_operation(
         BinaryOperator::Add => Ok((active_value_container + &value_container)?),
         BinaryOperator::Subtract => {
             Ok((active_value_container - &value_container)?)
-        }
-        BinaryOperator::StructuralEqual => {
-            let val = active_value_container.structural_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::Equal => {
-            let val = active_value_container.value_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::NotStructuralEqual => {
-            let val = !active_value_container.structural_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::NotEqual => {
-            let val = !active_value_container.value_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::Is => {
-            // TODO #103 we should throw a runtime error when one of lhs or rhs is a value
-            // instead of a ref. Identity checks using the is operator shall be only allowed
-            // for references.
-            // @benstre: or keep as always false ? - maybe a compiler check would be better
-            let val = active_value_container.identical(&value_container);
-            Ok(ValueContainer::from(val))
         }
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);

@@ -1,4 +1,6 @@
-use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
+use crate::compiler::ast_parser::{
+    AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator,
+};
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;
@@ -15,6 +17,12 @@ pub enum Scope {
     Default,
     Collection,
     RemoteExecution,
+    ComparisonOperation {
+        operator: ComparisonOperator,
+    },
+    AssignmentOperation {
+        operator: AssignmentOperator,
+    },
     BinaryOperation {
         operator: BinaryOperator,
     },

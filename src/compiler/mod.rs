@@ -642,6 +642,26 @@ fn compile_expression(
             )?;
         }
 
+        // comparisons (e.g., equal, not equal, greater than, etc.)
+        DatexExpression::ComparisonOperation(operator, a, b) => {
+            compilation_context.mark_has_non_static_value();
+            // append binary code for operation if not already current binary operator
+            compilation_context
+                .append_binary_code(InstructionCode::from(&operator));
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*a, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*b, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
         // apply
         DatexExpression::ApplyChain(val, operands) => {
             compilation_context.mark_has_non_static_value();

@@ -155,6 +155,15 @@ pub enum InstructionCode {
     INCREMENT, // ++
     DECREMENT, // --
 
+    // assignment operators
+    ASSIGN,          // =
+    ADD_ASSIGN,      // +=
+    SUBTRACT_ASSIGN, // -=
+    MULTIPLY_ASSIGN, // *=
+    DIVIDE_ASSIGN,   // /=
+    MODULO_ASSIGN,   // %=
+    POWER_ASSIGN,    // ^=
+
     // pointers & variables 0xa0 - 0xbf
 
     // slots
@@ -173,7 +182,7 @@ pub enum InstructionCode {
     INIT_POINTER,   // $aa := ...
     POINTER_ACTION, // $aa += ...
     CREATE_REF,     // $$ ()
-    SET_REF,    // $aa = ...
+    SET_REF,        // $aa = ...
 
     CHILD_GET,           // .y
     CHILD_SET,           // .y = a

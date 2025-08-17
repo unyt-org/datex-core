@@ -33,15 +33,71 @@ pub enum BinaryOperator {
     Or,
     CompositeAnd,
     CompositeOr,
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum ComparisonOperator {
+    Is,
     StructuralEqual,
     NotStructuralEqual,
     Equal,
     NotEqual,
-    Is,
     LessThan,
     GreaterThan,
     LessThanOrEqual,
     GreaterThanOrEqual,
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum AssignmentOperator {
+    Assign,    // =
+    AddAssign, // +=
+    SubAssign, // -=
+    MulAssign, // *=
+    DivAssign, // /=
+               // etc.
+}
+
+impl From<&ComparisonOperator> for InstructionCode {
+    fn from(op: &ComparisonOperator) -> Self {
+        match op {
+            ComparisonOperator::StructuralEqual => {
+                InstructionCode::STRUCTURAL_EQUAL
+            }
+            ComparisonOperator::NotStructuralEqual => {
+                InstructionCode::NOT_STRUCTURAL_EQUAL
+            }
+            ComparisonOperator::Equal => InstructionCode::EQUAL,
+            ComparisonOperator::NotEqual => InstructionCode::NOT_EQUAL,
+            ComparisonOperator::Is => InstructionCode::IS,
+            operator => todo!(
+                "Comparison operator {:?} not implemented for InstructionCode",
+                operator
+            ),
+        }
+    }
+}
+
+impl From<ComparisonOperator> for InstructionCode {
+    fn from(op: ComparisonOperator) -> Self {
+        InstructionCode::from(&op)
+    }
+}
+
+impl From<&AssignmentOperator> for InstructionCode {
+    fn from(op: &AssignmentOperator) -> Self {
+        match op {
+            AssignmentOperator::Assign => InstructionCode::ASSIGN,
+            AssignmentOperator::AddAssign => InstructionCode::ADD_ASSIGN,
+            AssignmentOperator::SubAssign => InstructionCode::SUBTRACT_ASSIGN,
+            AssignmentOperator::MulAssign => InstructionCode::MULTIPLY_ASSIGN,
+            AssignmentOperator::DivAssign => InstructionCode::DIVIDE_ASSIGN,
+            operator => todo!(
+                "Assignment operator {:?} not implemented for InstructionCode",
+                operator
+            ),
+        }
+    }
 }
 
 impl From<&BinaryOperator> for InstructionCode {
@@ -55,15 +111,6 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Power => InstructionCode::POWER,
             BinaryOperator::And => InstructionCode::AND,
             BinaryOperator::Or => InstructionCode::OR,
-            BinaryOperator::StructuralEqual => {
-                InstructionCode::STRUCTURAL_EQUAL
-            }
-            BinaryOperator::Equal => InstructionCode::EQUAL,
-            BinaryOperator::NotStructuralEqual => {
-                InstructionCode::NOT_STRUCTURAL_EQUAL
-            }
-            BinaryOperator::NotEqual => InstructionCode::NOT_EQUAL,
-            BinaryOperator::Is => InstructionCode::IS,
             operator => todo!(
                 "Binary operator {:?} not implemented for InstructionCode",
                 operator
@@ -89,15 +136,6 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::POWER => BinaryOperator::Power,
             InstructionCode::AND => BinaryOperator::And,
             InstructionCode::OR => BinaryOperator::Or,
-            InstructionCode::STRUCTURAL_EQUAL => {
-                BinaryOperator::StructuralEqual
-            }
-            InstructionCode::EQUAL => BinaryOperator::Equal,
-            InstructionCode::NOT_STRUCTURAL_EQUAL => {
-                BinaryOperator::NotStructuralEqual
-            }
-            InstructionCode::NOT_EQUAL => BinaryOperator::NotEqual,
-            InstructionCode::IS => BinaryOperator::Is,
             _ => todo!("#154 Binary operator for {:?} not implemented", code),
         }
     }
@@ -116,13 +154,6 @@ impl From<&Instruction> for BinaryOperator {
             Instruction::Subtract => BinaryOperator::Subtract,
             Instruction::Multiply => BinaryOperator::Multiply,
             Instruction::Divide => BinaryOperator::Divide,
-            Instruction::StructuralEqual => BinaryOperator::StructuralEqual,
-            Instruction::Equal => BinaryOperator::Equal,
-            Instruction::NotStructuralEqual => {
-                BinaryOperator::NotStructuralEqual
-            }
-            Instruction::NotEqual => BinaryOperator::NotEqual,
-            Instruction::Is => BinaryOperator::Is,
             _ => {
                 todo!(
                     "#155 Binary operator for instruction {:?} not implemented",
@@ -136,6 +167,32 @@ impl From<&Instruction> for BinaryOperator {
 impl From<Instruction> for BinaryOperator {
     fn from(instruction: Instruction) -> Self {
         BinaryOperator::from(&instruction)
+    }
+}
+
+impl From<&Instruction> for ComparisonOperator {
+    fn from(instruction: &Instruction) -> Self {
+        match instruction {
+            Instruction::StructuralEqual => ComparisonOperator::StructuralEqual,
+            Instruction::Equal => ComparisonOperator::Equal,
+            Instruction::NotStructuralEqual => {
+                ComparisonOperator::NotStructuralEqual
+            }
+            Instruction::NotEqual => ComparisonOperator::NotEqual,
+            Instruction::Is => ComparisonOperator::Is,
+            _ => {
+                todo!(
+                    "Comparison operator for instruction {:?} not implemented",
+                    instruction
+                );
+            }
+        }
+    }
+}
+
+impl From<Instruction> for ComparisonOperator {
+    fn from(instruction: Instruction) -> Self {
+        ComparisonOperator::from(&instruction)
     }
 }
 
@@ -238,6 +295,16 @@ pub enum DatexExpression {
     SlotAssignment(Slot, Box<DatexExpression>),
 
     BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
+    ComparisonOperation(
+        ComparisonOperator,
+        Box<DatexExpression>,
+        Box<DatexExpression>,
+    ),
+    AssignmentOperation(
+        AssignmentOperator,
+        Box<DatexExpression>,
+        Box<DatexExpression>,
+    ),
     UnaryOperation(UnaryOperator, Box<DatexExpression>),
 
     // apply (e.g. x (1)) or property access
@@ -389,6 +456,20 @@ fn binary_op(
 ) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
 {
     move |lhs, rhs| DatexExpression::BinaryOperation(op, lhs, rhs)
+}
+
+fn comparison_op(
+    op: ComparisonOperator,
+) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
+{
+    move |lhs, rhs| DatexExpression::ComparisonOperation(op, lhs, rhs)
+}
+
+fn assignment_op(
+    op: AssignmentOperator,
+) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
+{
+    move |lhs, rhs| DatexExpression::AssignmentOperation(op, lhs, rhs)
 }
 
 pub struct DatexParseResult {
@@ -684,15 +765,15 @@ pub fn create_parser<'a, I>()
     let equality = sum.clone().foldl(
         choice((
             op(Token::StructuralEqual) //  ==
-                .to(binary_op(BinaryOperator::StructuralEqual)),
+                .to(comparison_op(ComparisonOperator::StructuralEqual)),
             op(Token::Equal) //  ===
-                .to(binary_op(BinaryOperator::Equal)),
+                .to(comparison_op(ComparisonOperator::Equal)),
             op(Token::NotStructuralEqual) //  !=
-                .to(binary_op(BinaryOperator::NotStructuralEqual)),
+                .to(comparison_op(ComparisonOperator::NotStructuralEqual)),
             op(Token::NotEqual) //  !==
-                .to(binary_op(BinaryOperator::NotEqual)),
+                .to(comparison_op(ComparisonOperator::NotEqual)),
             op(Token::Is) //  is
-                .to(binary_op(BinaryOperator::Is)),
+                .to(comparison_op(ComparisonOperator::Is)),
             // op(Token::LessThan) //  <
             //     .to(binary_op(BinaryOperator::LessThan)),
             // op(Token::GreaterThan) //  >
@@ -1005,8 +1086,8 @@ mod tests {
         let val = parse_unwrap(src);
         assert_eq!(
             val,
-            DatexExpression::BinaryOperation(
-                BinaryOperator::StructuralEqual,
+            DatexExpression::ComparisonOperation(
+                ComparisonOperator::StructuralEqual,
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -1020,8 +1101,8 @@ mod tests {
         let val = parse_unwrap(src);
         assert_eq!(
             val,
-            DatexExpression::BinaryOperation(
-                BinaryOperator::Equal,
+            DatexExpression::ComparisonOperation(
+                ComparisonOperator::Equal,
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -1035,8 +1116,8 @@ mod tests {
         let val = parse_unwrap(src);
         assert_eq!(
             val,
-            DatexExpression::BinaryOperation(
-                BinaryOperator::NotStructuralEqual,
+            DatexExpression::ComparisonOperation(
+                ComparisonOperator::NotStructuralEqual,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -1049,8 +1130,8 @@ mod tests {
         let val = parse_unwrap(src);
         assert_eq!(
             val,
-            DatexExpression::BinaryOperation(
-                BinaryOperator::NotEqual,
+            DatexExpression::ComparisonOperation(
+                ComparisonOperator::NotEqual,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
@@ -1064,8 +1145,8 @@ mod tests {
         let val = parse_unwrap(src);
         assert_eq!(
             val,
-            DatexExpression::BinaryOperation(
-                BinaryOperator::Is,
+            DatexExpression::ComparisonOperation(
+                ComparisonOperator::Is,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
