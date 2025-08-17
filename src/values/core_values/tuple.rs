@@ -41,8 +41,11 @@ impl Tuple {
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         self.entries.get(key)
     }
-    
-    pub fn at(&self, index: usize) -> Option<(&ValueContainer, &ValueContainer)> {
+
+    pub fn at(
+        &self,
+        index: usize,
+    ) -> Option<(&ValueContainer, &ValueContainer)> {
         self.entries.get_index(index)
     }
 
@@ -56,10 +59,10 @@ impl Tuple {
         let key = key.into();
         // if key is integer and the expected next int key, increment the next_int_key
         if let ValueContainer::Value(Value {
-            inner: CoreValue::Integer(typed_int),
+            inner: CoreValue::Integer(int),
             ..
-        }) = key
-            && let Some(int) = typed_int.0.as_i128()
+        }) = &key
+            && let Some(int) = int.as_i128()
             && int == self.next_int_key as i128
         {
             self.next_int_key += 1;
