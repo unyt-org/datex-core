@@ -2615,7 +2615,6 @@ pub mod tests {
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
-    // WIP
     #[test]
     fn test_addition_to_const_ref() {
         init_logger_debug();
@@ -2624,7 +2623,6 @@ pub mod tests {
         assert_matches!(result, Ok(_));
     }
 
-    // WIP
     #[test]
     fn test_addition_to_immutable_value() {
         init_logger_debug();
@@ -2636,13 +2634,15 @@ pub mod tests {
         );
     }
 
-    // WIP
     #[test]
     fn test_addition_to_immutable_ref() {
         init_logger_debug();
         let script = "const a = &42; a += 1";
         let result = compile_script(script, CompileOptions::default());
-        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. })); // AssignmentToImmutableReference
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToImmutableReference { .. })
+        );
     }
 
     #[test]

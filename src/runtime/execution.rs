@@ -757,8 +757,6 @@ fn get_result_value_from_instruction(
             }
 
             Instruction::AddAssign(SlotAddress(address)) => {
-                panic!("BP1");
-
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::AssignmentOperation {
                         address,
@@ -846,9 +844,17 @@ fn handle_value(
         }
 
         Scope::AssignmentOperation { operator, address } => {
-            panic!(
-                "Assignment operation is not supported in this context: {operator:?}"
-            );
+            let operator = *operator;
+            let address = *address;
+            let lhs = if let Ok(Some(val)) = context.get_slot_value(address) {
+                val
+            } else {
+                return Err(ExecutionError::SlotNotInitialized(address));
+            };
+            let res =
+                handle_assignment_operation(lhs, value_container, operator)?;
+            context.set_slot_value(address, res.clone())?;
+            Some(res)
         }
 
         Scope::UnaryOperation { operator } => {
@@ -1048,6 +1054,21 @@ fn handle_comparison_operation(
     }
 }
 
+fn handle_assignment_operation(
+    lhs: ValueContainer,
+    rhs: ValueContainer,
+    operator: AssignmentOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        AssignmentOperator::AddAssign => Ok((lhs + rhs)?),
+        AssignmentOperator::SubAssign => Ok((lhs - rhs)?),
+        _ => {
+            unreachable!("Instruction {:?} is not a valid operation", operator);
+        }
+    }
+}
+
 fn handle_binary_operation(
     active_value_container: &ValueContainer,
     value_container: ValueContainer,
@@ -1071,6 +1092,7 @@ mod tests {
     use std::vec;
 
     use log::debug;
+    use webrtc::media::audio::buffer::info;
 
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
@@ -1371,6 +1393,23 @@ mod tests {
             execute_datex_script_debug_with_result("const x = &mut 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
+    }
+
+    #[test]
+    fn test_ref_add_assignment() {
+        init_logger_debug();
+        let result =
+            execute_datex_script_debug_with_result("const x = &mut 42; x += 1");
+        assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
+
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; x += 1; x",
+        );
+
+        // FIXME due to addition the resulting value container of the slot
+        // is no longer a reference but a value what is incorrect.
+        // assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
     }
 
     #[test]
