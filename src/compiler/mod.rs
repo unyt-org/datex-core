@@ -6,8 +6,8 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::compiler::ast_parser::{
-    BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
-    TupleEntry, VariableId, VariableType, parse,
+    AssignmentOperator, BindingMutability, DatexExpression, DatexScriptParser,
+    ReferenceMutability, TupleEntry, VariableId, VariableType, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
@@ -762,35 +762,50 @@ fn compile_expression(
         }
 
         // assignment
-        DatexExpression::VariableAssignment(id, name, expression) => {
-            compilation_context.mark_has_non_static_value();
-            // get variable slot address
-            let (virtual_slot, var_type, mut_type) = scope
-                .resolve_variable_name_to_virtual_slot(&name)
-                .ok_or_else(|| {
-                    CompilerError::UndeclaredVariable(name.clone())
-                })?;
+        DatexExpression::AssignmentOperation(
+            operator,
+            id,
+            name,
+            expression,
+        ) => {
+            match operator {
+                AssignmentOperator::Assign => {
+                    compilation_context.mark_has_non_static_value();
+                    // get variable slot address
+                    let (virtual_slot, var_type, mut_type) = scope
+                        .resolve_variable_name_to_virtual_slot(&name)
+                        .ok_or_else(|| {
+                            CompilerError::UndeclaredVariable(name.clone())
+                        })?;
 
-            // if const, return error
-            if var_type == VariableType::Const {
-                return Err(CompilerError::AssignmentToConst(name.clone()));
+                    // if const, return error
+                    if var_type == VariableType::Const {
+                        return Err(CompilerError::AssignmentToConst(
+                            name.clone(),
+                        ));
+                    }
+
+                    // append binary code to load variable
+                    info!(
+                        "append variable virtual slot: {virtual_slot:?}, name: {name}"
+                    );
+                    compilation_context
+                        .append_binary_code(InstructionCode::SET_SLOT);
+                    compilation_context
+                        .insert_virtual_slot_address(virtual_slot);
+                    // compile expression
+                    scope = compile_expression(
+                        compilation_context,
+                        AstWithMetadata::new(*expression, &metadata),
+                        CompileMetadata::default(),
+                        scope,
+                    )?;
+                    // close assignment scope
+                    compilation_context
+                        .append_binary_code(InstructionCode::SCOPE_END);
+                }
+                op => todo!("Handle assignment operator: {op:?}"),
             }
-
-            // append binary code to load variable
-            info!(
-                "append variable virtual slot: {virtual_slot:?}, name: {name}"
-            );
-            compilation_context.append_binary_code(InstructionCode::SET_SLOT);
-            compilation_context.insert_virtual_slot_address(virtual_slot);
-            // compile expression
-            scope = compile_expression(
-                compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-            // close assignment scope
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
 
         // variable access

@@ -245,7 +245,7 @@ fn visit_expression(
             *id = Some(scope_stack.get_variable_id(name, metadata)?);
         }
 
-        DatexExpression::VariableAssignment(id, name, expr) => {
+        DatexExpression::AssignmentOperation(operator, id, name, expr) => {
             visit_expression(
                 expr,
                 metadata,

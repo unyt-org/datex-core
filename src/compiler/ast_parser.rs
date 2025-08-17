@@ -287,7 +287,7 @@ pub enum DatexExpression {
     RefMut(Box<DatexExpression>),
 
     /// Variable assignment, e.g. x = 1. VariableId is always set to 0 by the ast parser.
-    VariableAssignment(Option<VariableId>, String, Box<DatexExpression>),
+    // VariableAssignment(Option<VariableId>, String, Box<DatexExpression>),
 
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),
@@ -302,7 +302,8 @@ pub enum DatexExpression {
     ),
     AssignmentOperation(
         AssignmentOperator,
-        Box<DatexExpression>,
+        Option<VariableId>,
+        String,
         Box<DatexExpression>,
     ),
     UnaryOperation(UnaryOperator, Box<DatexExpression>),
@@ -467,9 +468,8 @@ fn comparison_op(
 
 fn assignment_op(
     op: AssignmentOperator,
-) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
-{
-    move |lhs, rhs| DatexExpression::AssignmentOperation(op, lhs, rhs)
+) -> impl Fn(String, Box<DatexExpression>) -> DatexExpression + Clone {
+    move |lhs, rhs| DatexExpression::AssignmentOperation(op, None, lhs, rhs)
 }
 
 pub struct DatexParseResult {
@@ -788,6 +788,15 @@ pub fn create_parser<'a, I>()
         |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
     );
 
+    let assignment_op = select! {
+        Token::Assign      => AssignmentOperator::Assign,
+        Token::AddAssign   => AssignmentOperator::AddAssign,
+        Token::SubAssign   => AssignmentOperator::SubAssign,
+        Token::MulAssign   => AssignmentOperator::MulAssign,
+        Token::DivAssign   => AssignmentOperator::DivAssign,
+    }
+    .padded_by(whitespace.clone());
+
     // variable declarations or assignments
     let variable_assignment = just(Token::ConstKW)
         .or(just(Token::VarKW))
@@ -796,9 +805,9 @@ pub fn create_parser<'a, I>()
         .then(select! {
             Token::Identifier(s) => s
         })
-        .then_ignore(just(Token::Assign).padded_by(whitespace.clone()))
+        .then(assignment_op)
         .then(equality.clone())
-        .map(|((var_type, var_name), expr)| {
+        .map(|(((var_type, var_name), op), expr)| {
             if let Some(var_type) = var_type {
                 let (mutability, expr) = match expr {
                     DatexExpression::RefMut(expr) => {
@@ -811,6 +820,9 @@ pub fn create_parser<'a, I>()
 
                     expr => (ReferenceMutability::None, Box::new(expr)),
                 };
+                if op != AssignmentOperator::Assign {
+                    return DatexExpression::Invalid;
+                }
                 DatexExpression::VariableDeclaration(
                     None,
                     if var_type == Token::ConstKW {
@@ -828,7 +840,8 @@ pub fn create_parser<'a, I>()
                     expr,
                 )
             } else {
-                DatexExpression::VariableAssignment(
+                DatexExpression::AssignmentOperation(
+                    op,
                     None,
                     var_name.to_string(),
                     Box::new(expr),
@@ -930,6 +943,36 @@ mod tests {
     use super::*;
 
     use std::assert_matches::assert_matches;
+
+    #[test]
+    fn variable_add_assignment() {
+        let src = "x += 42";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::AssignmentOperation(
+                AssignmentOperator::AddAssign,
+                None,
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+            )
+        );
+    }
+
+    #[test]
+    fn variable_sub_assignment() {
+        let src = "x -= 42";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::AssignmentOperation(
+                AssignmentOperator::SubAssign,
+                None,
+                "x".to_string(),
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+            )
+        );
+    }
 
     #[test]
     fn variable_declaration_mut() {
@@ -2219,7 +2262,8 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::VariableAssignment(
+            DatexExpression::AssignmentOperation(
+                AssignmentOperator::Assign,
                 None,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(42))),
@@ -2233,10 +2277,12 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::VariableAssignment(
+            DatexExpression::AssignmentOperation(
+                AssignmentOperator::Assign,
                 None,
                 "x".to_string(),
-                Box::new(DatexExpression::VariableAssignment(
+                Box::new(DatexExpression::AssignmentOperation(
+                    AssignmentOperator::Assign,
                     None,
                     "y".to_string(),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
@@ -2251,11 +2297,12 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Array(vec![DatexExpression::VariableAssignment(
+            DatexExpression::Array(vec![DatexExpression::AssignmentOperation(
+                AssignmentOperator::Assign,
                 None,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
-            ),])
+            )])
         );
     }
 
@@ -2334,7 +2381,8 @@ mod tests {
                     is_terminated: true,
                 },
                 Statement {
-                    expression: DatexExpression::VariableAssignment(
+                    expression: DatexExpression::AssignmentOperation(
+                        AssignmentOperator::Assign,
                         None,
                         "x".to_string(),
                         Box::new(DatexExpression::BinaryOperation(
