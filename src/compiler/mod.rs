@@ -470,7 +470,7 @@ fn compile_expression(
     let metadata = ast_with_metadata.metadata;
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
-            compilation_context.insert_int(int.0.as_i64().unwrap());
+            compilation_context.insert_integer(&int);
         }
         DatexExpression::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {

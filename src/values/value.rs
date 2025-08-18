@@ -411,13 +411,13 @@ mod tests {
         assert_structural_eq!(a, b);
 
         assert_eq!(
-            Value::from(Integer(TypedInteger::I8(42))),
-            Value::from(Integer(TypedInteger::U32(42))),
+            Value::from(TypedInteger::I8(42)),
+            Value::from(TypedInteger::U32(42)),
         );
 
         assert_structural_eq!(
-            Value::from(Integer(TypedInteger::I8(42))),
-            Value::from(Integer(TypedInteger::U32(42))),
+            Value::from(TypedInteger::I8(42)),
+            Value::from(TypedInteger::U32(42)),
         );
 
         assert_structural_eq!(

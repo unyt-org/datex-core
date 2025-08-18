@@ -6,7 +6,7 @@ use crate::values::{
     traits::structural_eq::StructuralEq,
 };
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
-use num::BigInt;
+use num::{BigInt, Num};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,6 +17,12 @@ use std::{
     str::FromStr,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InvalidIntegerError {
+    ParseError(String),
+    OutOfBounds(String),
+}
+
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
 impl Integer {
@@ -24,10 +30,20 @@ impl Integer {
     //     self.0.to_smallest_fitting()
     // }
 
-    pub fn from_string(s: &str) -> Self {
-        Integer(BigInt::from_str(s).unwrap_or_else(|_| {
-            panic!("Failed to parse integer from string: {s}")
-        }))
+    pub fn from_string(s: &str) -> Result<Self, InvalidIntegerError> {
+        BigInt::from_str(s)
+            .map(Integer)
+            .map_err(|_| InvalidIntegerError::ParseError(s.into()))
+    }
+    pub fn from_string_radix(
+        s: &str,
+        radix: u32,
+    ) -> Result<Self, InvalidIntegerError> {
+        // remove all underscores
+        let s = &s.replace('_', "");
+        BigInt::from_str_radix(s, radix)
+            .map(Integer)
+            .map_err(|_| InvalidIntegerError::ParseError(s.into()))
     }
 
     pub fn is_negative(&self) -> bool {
@@ -261,31 +277,33 @@ mod tests {
 
     #[test]
     fn test_integer_addition() {
-        let dec1 = Integer::from_string("12");
-        let dec2 = Integer::from_string("56");
+        let dec1 = Integer::from_string("12").unwrap();
+        let dec2 = Integer::from_string("56").unwrap();
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "68");
 
-        let dec1 = Integer::from_string("-12345");
-        let dec2 = Integer::from_string("3");
+        let dec1 = Integer::from_string("-12345").unwrap();
+        let dec2 = Integer::from_string("3").unwrap();
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "-12342");
     }
 
     #[test]
     fn test_formatting() {
-        let int1 = Integer::from_string("12");
+        let int1 = Integer::from_string("12").unwrap();
         assert_eq!(int1.to_string(), "12");
 
-        let int2 = Integer::from_string("-12345");
+        let int2 = Integer::from_string("-12345").unwrap();
         assert_eq!(int2.to_string(), "-12345");
-        let int3 = Integer::from_string("0");
+        let int3 = Integer::from_string("0").unwrap();
         assert_eq!(int3.to_string(), "0");
 
-        let int4 = Integer::from_string("123456789012345678901234567890");
+        let int4 =
+            Integer::from_string("123456789012345678901234567890").unwrap();
         assert_eq!(int4.to_string(), "123456789012345678901234567890");
 
-        let int5 = Integer::from_string("-123456789012345678901234567890");
+        let int5 =
+            Integer::from_string("-123456789012345678901234567890").unwrap();
         assert_eq!(int5.to_string(), "-123456789012345678901234567890");
     }
 

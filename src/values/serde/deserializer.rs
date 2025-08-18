@@ -99,38 +99,39 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::U16(u) => visitor.visit_u16(u),
                     TypedInteger::I8(i) => visitor.visit_i8(i),
                     TypedInteger::U8(u) => visitor.visit_u8(u),
-                    _ => unreachable!(),
+                    e => todo!("Unsupported typed integer: {:?}", e),
                 },
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::I128(i),
-                }) => visitor.visit_i128(i),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::U128(u),
-                }) => visitor.visit_u128(u),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::I64(i),
-                }) => visitor.visit_i64(i),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::U64(u),
-                }) => visitor.visit_u64(u),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::I32(i),
-                }) => visitor.visit_i32(i),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::U32(u),
-                }) => visitor.visit_u32(u),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::I16(i),
-                }) => visitor.visit_i16(i),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::U16(u),
-                }) => visitor.visit_u16(u),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::I8(i),
-                }) => visitor.visit_i8(i),
-                CoreValue::Integer(Integer {
-                    0: TypedInteger::U8(u),
-                }) => visitor.visit_u8(u),
+                // FIXME
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::I128(i),
+                // }) => visitor.visit_i128(i),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::U128(u),
+                // }) => visitor.visit_u128(u),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::I64(i),
+                // }) => visitor.visit_i64(i),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::U64(u),
+                // }) => visitor.visit_u64(u),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::I32(i),
+                // }) => visitor.visit_i32(i),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::U32(u),
+                // }) => visitor.visit_u32(u),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::I16(i),
+                // }) => visitor.visit_i16(i),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::U16(u),
+                // }) => visitor.visit_u16(u),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::I8(i),
+                // }) => visitor.visit_i8(i),
+                // CoreValue::Integer(Integer {
+                //     0: TypedInteger::U8(u),
+                // }) => visitor.visit_u8(u),
                 CoreValue::Text(s) => visitor.visit_string(s.0),
                 CoreValue::Endpoint(endpoint) => {
                     let endpoint_str = endpoint.to_string();
@@ -382,9 +383,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::values::core_values::endpoint::Endpoint;
     use crate::values::serde::serializer::to_bytes;
     use serde::{Deserialize, Serialize};
-    use crate::values::core_values::endpoint::Endpoint;
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct TestStruct {

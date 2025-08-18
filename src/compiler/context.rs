@@ -13,12 +13,12 @@ use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
+use datex_core::decompiler::decompile_body;
 use itertools::Itertools;
+use log::info;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::Cursor;
-use log::info;
-use datex_core::decompiler::decompile_body;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -63,7 +63,6 @@ impl VirtualSlot {
         }
     }
 }
-
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct CompilationContext<'a> {
@@ -145,8 +144,11 @@ impl<'a> CompilationContext<'a> {
 
     pub fn remap_virtual_slots(&self) {
         info!("remapping, bytes before: {:?}", self.buffer.borrow());
-        info!("decompiled: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
-            .expect("Failed to decompile body"));
+        info!(
+            "decompiled: {:?}",
+            decompile_body(&self.buffer.borrow(), Default::default())
+                .expect("Failed to decompile body")
+        );
 
         info!("slot indices: {:#?}", self.slot_indices.borrow());
 
@@ -154,7 +156,9 @@ impl<'a> CompilationContext<'a> {
 
         // parent slots
         for byte_indices in self.get_slot_byte_indices(true) {
-            info!("remapping slot address: {slot_address}, indices: {byte_indices:?}");
+            info!(
+                "remapping slot address: {slot_address}, indices: {byte_indices:?}"
+            );
             for byte_index in byte_indices {
                 self.set_u32_at_index(slot_address, byte_index as usize);
             }
@@ -163,14 +167,19 @@ impl<'a> CompilationContext<'a> {
 
         // local slots
         for byte_indices in self.get_slot_byte_indices(false) {
-            info!("remapping local slot address: {slot_address}, indices: {byte_indices:?}");
+            info!(
+                "remapping local slot address: {slot_address}, indices: {byte_indices:?}"
+            );
             for byte_index in byte_indices {
                 self.set_u32_at_index(slot_address, byte_index as usize);
             }
             slot_address += 1;
         }
-        info!("decompiled after: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
-            .expect("Failed to decompile body"));
+        info!(
+            "decompiled after: {:?}",
+            decompile_body(&self.buffer.borrow(), Default::default())
+                .expect("Failed to decompile body")
+        );
     }
 
     // This method writes a placeholder value for the slot
@@ -202,40 +211,42 @@ impl<'a> CompilationContext<'a> {
 
     pub fn insert_value(&self, value: &Value) {
         match &value.inner {
-            CoreValue::TypedInteger(val) | CoreValue::Integer(Integer(val)) => {
-                match val.to_smallest_fitting() {
-                    TypedInteger::I8(val) => {
-                        self.insert_i8(val);
-                    }
-                    TypedInteger::I16(val) => {
-                        self.insert_i16(val);
-                    }
-                    TypedInteger::I32(val) => {
-                        self.insert_i32(val);
-                    }
-                    TypedInteger::I64(val) => {
-                        self.insert_i64(val);
-                    }
-                    TypedInteger::I128(val) => {
-                        self.insert_i128(val);
-                    }
-                    TypedInteger::U8(val) => {
-                        self.insert_u8(val);
-                    }
-                    TypedInteger::U16(val) => {
-                        self.insert_u16(val);
-                    }
-                    TypedInteger::U32(val) => {
-                        self.insert_u32(val);
-                    }
-                    TypedInteger::U64(val) => {
-                        self.insert_u64(val);
-                    }
-                    TypedInteger::U128(val) => {
-                        self.insert_u128(val);
-                    }
-                }
-            }
+            CoreValue::Integer(integer) => self.insert_integer(integer),
+            CoreValue::TypedInteger(val) => self.insert_typed_integer(val),
+            // CoreValue::TypedInteger(val) | CoreValue::Integer(Integer(val)) => {
+            //     match val.to_smallest_fitting() {
+            //         TypedInteger::I8(val) => {
+            //             self.insert_i8(val);
+            //         }
+            //         TypedInteger::I16(val) => {
+            //             self.insert_i16(val);
+            //         }
+            //         TypedInteger::I32(val) => {
+            //             self.insert_i32(val);
+            //         }
+            //         TypedInteger::I64(val) => {
+            //             self.insert_i64(val);
+            //         }
+            //         TypedInteger::I128(val) => {
+            //             self.insert_i128(val);
+            //         }
+            //         TypedInteger::U8(val) => {
+            //             self.insert_u8(val);
+            //         }
+            //         TypedInteger::U16(val) => {
+            //             self.insert_u16(val);
+            //         }
+            //         TypedInteger::U32(val) => {
+            //             self.insert_u32(val);
+            //         }
+            //         TypedInteger::U64(val) => {
+            //             self.insert_u64(val);
+            //         }
+            //         TypedInteger::U128(val) => {
+            //             self.insert_u128(val);
+            //         }
+            //     }
+            // }
             CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
             CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
             CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
@@ -266,7 +277,7 @@ impl<'a> CompilationContext<'a> {
                 for (key, value) in val {
                     // if next expected integer key, ignore and just insert value
                     if let ValueContainer::Value(key) = key
-                        && let CoreValue::Integer(Integer(integer)) = key.inner
+                        && let CoreValue::Integer(integer) = &key.inner
                         && let Some(int) = integer.as_i128()
                         && int == next_expected_integer_key
                     {
@@ -343,7 +354,10 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
-        fn insert_f32_or_f64(scope: &CompilationContext, decimal: &TypedDecimal) {
+        fn insert_f32_or_f64(
+            scope: &CompilationContext,
+            decimal: &TypedDecimal,
+        ) {
             match decimal {
                 TypedDecimal::F32(val) => {
                     scope.insert_float32(val.into_inner());
@@ -391,6 +405,50 @@ impl<'a> CompilationContext<'a> {
         self.append_buffer(&endpoint.to_binary());
     }
 
+    pub fn insert_integer(&self, decimal: &Integer) {
+        todo!(
+            "#TODO: insert_integer should be removed, use insert_typed_integer instead"
+        );
+    }
+
+    pub fn insert_typed_integer(&self, integer: &TypedInteger) {
+        match integer {
+            TypedInteger::I8(val) => {
+                self.insert_i8(*val);
+            }
+            TypedInteger::I16(val) => {
+                self.insert_i16(*val);
+            }
+            TypedInteger::I32(val) => {
+                self.insert_i32(*val);
+            }
+            TypedInteger::I64(val) => {
+                self.insert_i64(*val);
+            }
+            TypedInteger::I128(val) => {
+                self.insert_i128(*val);
+            }
+            TypedInteger::U8(val) => {
+                self.insert_u8(*val);
+            }
+            TypedInteger::U16(val) => {
+                self.insert_u16(*val);
+            }
+            TypedInteger::U32(val) => {
+                self.insert_u32(*val);
+            }
+            TypedInteger::U64(val) => {
+                self.insert_u64(*val);
+            }
+            TypedInteger::U128(val) => {
+                self.insert_u128(*val);
+            }
+            TypedInteger::Integer(val) => {
+                self.insert_integer(val);
+            }
+        }
+    }
+
     pub fn insert_decimal(&self, decimal: &Decimal) {
         self.append_binary_code(InstructionCode::DECIMAL_BIG);
         // big_decimal binrw write into buffer
@@ -418,11 +476,19 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn insert_int(&self, int: i64) {
-        if (CompilationContext::MIN_INT_8..=CompilationContext::MAX_INT_8).contains(&int) {
+        if (CompilationContext::MIN_INT_8..=CompilationContext::MAX_INT_8)
+            .contains(&int)
+        {
             self.insert_i8(int as i8)
-        } else if (CompilationContext::MIN_INT_16..=CompilationContext::MAX_INT_16).contains(&int) {
+        } else if (CompilationContext::MIN_INT_16
+            ..=CompilationContext::MAX_INT_16)
+            .contains(&int)
+        {
             self.insert_i16(int as i16)
-        } else if (CompilationContext::MIN_INT_32..=CompilationContext::MAX_INT_32).contains(&int) {
+        } else if (CompilationContext::MIN_INT_32
+            ..=CompilationContext::MAX_INT_32)
+            .contains(&int)
+        {
             self.insert_i32(int as i32)
         } else {
             self.insert_i64(int)
@@ -472,11 +538,13 @@ impl<'a> CompilationContext<'a> {
     }
     pub fn append_u8(&self, u8: u8) {
         append_u8(self.buffer.borrow_mut().as_mut(), u8);
-        self.index.update(|x| x + CompilationContext::INT_8_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     pub fn append_u32(&self, u32: u32) {
         append_u32(self.buffer.borrow_mut().as_mut(), u32);
-        self.index.update(|x| x + CompilationContext::INT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     pub fn set_u32_at_index(&self, u32: u32, index: usize) {
         let mut buffer = self.buffer.borrow_mut();
@@ -485,37 +553,45 @@ impl<'a> CompilationContext<'a> {
     }
     pub fn append_i8(&self, i8: i8) {
         append_i8(self.buffer.borrow_mut().as_mut(), i8);
-        self.index.update(|x| x + CompilationContext::INT_8_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     pub fn append_i16(&self, i16: i16) {
         append_i16(self.buffer.borrow_mut().as_mut(), i16);
-        self.index.update(|x| x + CompilationContext::INT_16_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_16_BYTES as usize);
     }
     pub fn append_i32(&self, i32: i32) {
         append_i32(self.buffer.borrow_mut().as_mut(), i32);
-        self.index.update(|x| x + CompilationContext::INT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     pub fn append_i64(&self, i64: i64) {
         append_i64(self.buffer.borrow_mut().as_mut(), i64);
-        self.index.update(|x| x + CompilationContext::INT_64_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_64_BYTES as usize);
     }
     pub fn append_i128(&self, i128: i128) {
         append_i128(self.buffer.borrow_mut().as_mut(), i128);
-        self.index.update(|x| x + CompilationContext::INT_128_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     pub fn append_u128(&self, u128: u128) {
         append_u128(self.buffer.borrow_mut().as_mut(), u128);
-        self.index.update(|x| x + CompilationContext::INT_128_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     pub fn append_f32(&self, f32: f32) {
         append_f32(self.buffer.borrow_mut().as_mut(), f32);
-        self.index.update(|x| x + CompilationContext::FLOAT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::FLOAT_32_BYTES as usize);
     }
     pub fn append_f64(&self, f64: f64) {
         append_f64(self.buffer.borrow_mut().as_mut(), f64);
-        self.index.update(|x| x + CompilationContext::FLOAT_64_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::FLOAT_64_BYTES as usize);
     }
     pub fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();

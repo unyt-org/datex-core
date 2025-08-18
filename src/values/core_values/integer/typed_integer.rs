@@ -14,7 +14,7 @@ use std::{
     ops::{Add, AddAssign, Neg, Sub},
 };
 
-#[derive(Debug, Clone, Hash, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum TypedInteger {
     Integer(Integer),
     I8(i8),
@@ -27,6 +27,24 @@ pub enum TypedInteger {
     U32(u32),
     U64(u64),
     U128(u128),
+}
+
+impl Hash for TypedInteger {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            TypedInteger::Integer(v) => v.hash(state),
+            TypedInteger::I8(v) => v.hash(state),
+            TypedInteger::I16(v) => v.hash(state),
+            TypedInteger::I32(v) => v.hash(state),
+            TypedInteger::I64(v) => v.hash(state),
+            TypedInteger::I128(v) => v.hash(state),
+            TypedInteger::U8(v) => v.hash(state),
+            TypedInteger::U16(v) => v.hash(state),
+            TypedInteger::U32(v) => v.hash(state),
+            TypedInteger::U64(v) => v.hash(state),
+            TypedInteger::U128(v) => v.hash(state),
+        }
+    }
 }
 
 impl TypedInteger {
@@ -52,7 +70,21 @@ impl TypedInteger {
     //         TypedInteger::U128(_) => "/u128",
     //     }
     // }
-
+    pub fn as_integer(&self) -> Integer {
+        match self {
+            TypedInteger::Integer(v) => v.clone(),
+            TypedInteger::I8(v) => Integer::from(*v),
+            TypedInteger::I16(v) => Integer::from(*v),
+            TypedInteger::I32(v) => Integer::from(*v),
+            TypedInteger::I64(v) => Integer::from(*v),
+            TypedInteger::I128(v) => Integer::from(*v),
+            TypedInteger::U8(v) => Integer::from(*v),
+            TypedInteger::U16(v) => Integer::from(*v),
+            TypedInteger::U32(v) => Integer::from(*v),
+            TypedInteger::U64(v) => Integer::from(*v),
+            TypedInteger::U128(v) => Integer::from(*v),
+        }
+    }
     pub fn as_i8(&self) -> Option<i8> {
         match self {
             TypedInteger::I8(v) => i8::try_from(*v).ok(),
