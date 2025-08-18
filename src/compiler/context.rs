@@ -443,7 +443,7 @@ impl<'a> CompilationContext<'a> {
             TypedInteger::U128(val) => {
                 self.insert_u128(*val);
             }
-            TypedInteger::Integer(val) => {
+            TypedInteger::Big(val) => {
                 self.insert_integer(val);
             }
         }

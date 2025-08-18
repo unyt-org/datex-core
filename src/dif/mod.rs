@@ -73,7 +73,7 @@ impl From<&ValueContainer> for DIFValue {
                     TypedInteger::U128(u) => {
                         Some(DIFCoreValue::String(u.to_string()))
                     }
-                    TypedInteger::Integer(i) => {
+                    TypedInteger::Big(i) => {
                         Some(DIFCoreValue::String(i.to_string()))
                     }
                 }

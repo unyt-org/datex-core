@@ -266,7 +266,7 @@ impl From<TypedInteger> for Integer {
             TypedInteger::U64(v) => Integer::from(v),
             TypedInteger::I128(v) => Integer::from(v),
             TypedInteger::U128(v) => Integer::from(v),
-            TypedInteger::Integer(v) => v,
+            TypedInteger::Big(v) => v,
         }
     }
 }

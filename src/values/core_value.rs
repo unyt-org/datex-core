@@ -218,7 +218,7 @@ impl CoreValue {
                 TypedInteger::U64(_) => CoreValueType::U64,
                 TypedInteger::U128(_) => CoreValueType::U128,
 
-                TypedInteger::Integer(_) => CoreValueType::Integer,
+                TypedInteger::Big(_) => CoreValueType::Integer,
             },
             CoreValue::TypedDecimal(decimal) => match decimal {
                 TypedDecimal::F32(_) => CoreValueType::F32,
@@ -318,7 +318,7 @@ impl CoreValue {
                 .ok()
                 .map(TypedInteger::from),
             CoreValue::TypedInteger(int) => Some(int.clone()),
-            CoreValue::Integer(int) => Some(TypedInteger::Integer(int.clone())),
+            CoreValue::Integer(int) => Some(TypedInteger::Big(int.clone())),
             CoreValue::Decimal(decimal) => {
                 Some(TypedInteger::from(decimal.try_into_f64()? as i128)) // TODO #117: handle bigints once implemented
             }
