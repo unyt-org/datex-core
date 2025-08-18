@@ -118,12 +118,12 @@ impl CryptoTrait for CryptoNative {
     }
 }
 
-// TODO: reenable
-/*#[cfg(test)]
+#[cfg(test)]
 mod tests {
     use super::*;
     static CRYPTO: CryptoNative = CryptoNative {};
 
+    /*
     #[test]
     fn uuid() {
         let uuid = CRYPTO.create_uuid();
@@ -133,6 +133,7 @@ mod tests {
             assert_ne!(CRYPTO.create_uuid(), uuid);
         }
     }
+    */
 
     #[test]
     fn random_bytes() {
@@ -146,4 +147,4 @@ mod tests {
         assert_eq!(key_pair.0.len(), 550);
         // assert_eq!(key_pair.1.len(), 2375);
     }
-}*/
+}
