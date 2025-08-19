@@ -246,7 +246,7 @@ impl StructuralEq for TypedInteger {
             (TypedInteger::U64(v1), TypedInteger::U64(v2)) => v1 == v2,
             (TypedInteger::U128(v1), TypedInteger::U128(v2)) => v1 == v2,
             (TypedInteger::Big(i1), TypedInteger::Big(i2)) => i1 == i2,
-            _ => false,
+            (a, b) => a.as_integer() == b.as_integer(),
         }
     }
 }
