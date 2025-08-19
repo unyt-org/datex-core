@@ -405,10 +405,22 @@ impl<'a> CompilationContext<'a> {
         self.append_buffer(&endpoint.to_binary());
     }
 
-    pub fn insert_integer(&self, decimal: &Integer) {
-        todo!(
-            "#TODO: insert_integer should be removed, use insert_typed_integer instead"
-        );
+    pub fn insert_integer(&self, integer: &Integer) {
+        self.append_binary_code(InstructionCode::INT_BIG);
+        // use BinWrite to write the integer to the buffer
+        // big_integer binrw write into buffer
+        let mut buffer = self.buffer.borrow_mut();
+        let original_length = buffer.len();
+        let mut buffer_writer = Cursor::new(&mut *buffer);
+        // set writer position to end
+        buffer_writer.set_position(original_length as u64);
+        integer
+            .write_le(&mut buffer_writer)
+            .expect("Failed to write big integer");
+        // get byte count of written data
+        let byte_count = buffer_writer.position() as usize;
+        // update index
+        self.index.update(|x| x + byte_count - original_length);
     }
 
     pub fn insert_typed_integer(&self, integer: &TypedInteger) {
