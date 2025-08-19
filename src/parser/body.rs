@@ -3,8 +3,8 @@ use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
     DecimalData, ExecutionBlockData, Float32Data, Float64Data,
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
-    Int32Data, Int64Data, Int128Data, ShortTextData, ShortTextDataRaw,
-    SlotAddress, TextData, TextDataRaw,
+    Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData,
+    ShortTextDataRaw, SlotAddress, TextData, TextDataRaw,
 };
 use crate::stdlib::fmt;
 use crate::utils::buffers;
@@ -201,6 +201,15 @@ pub fn iterate_instructions<'a>(
                             Err(err.into())
                         } else {
                             Ok(Instruction::Int128(data.unwrap()))
+                        }
+                    }
+
+                    InstructionCode::INT_BIG => {
+                        let data = IntegerData::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Integer(data.unwrap()))
                         }
                     }
 
