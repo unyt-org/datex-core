@@ -4,7 +4,8 @@ use crate::global::protocol_structures::instructions::{
     DecimalData, ExecutionBlockData, Float32Data, Float64Data,
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
     Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData,
-    ShortTextDataRaw, SlotAddress, TextData, TextDataRaw,
+    ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data,
+    UInt16Data, UInt32Data, UInt64Data, UInt128Data,
 };
 use crate::stdlib::fmt;
 use crate::utils::buffers;
@@ -159,6 +160,47 @@ pub fn iterate_instructions<'a>(
                 //info!("Instruction code: {:?}", instruction_code);
 
                 yield match instruction_code {
+                    InstructionCode::UINT_8 => {
+                        let data = UInt8Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::UInt8(data.unwrap()))
+                        }
+                    }
+                    InstructionCode::UINT_16 => {
+                        let data = UInt16Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::UInt16(data.unwrap()))
+                        }
+                    }
+                    InstructionCode::UINT_32 => {
+                        let data = UInt32Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::UInt32(data.unwrap()))
+                        }
+                    }
+                    InstructionCode::UINT_64 => {
+                        let data = UInt64Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::UInt64(data.unwrap()))
+                        }
+                    }
+                    InstructionCode::UINT_128 => {
+                        let data = UInt128Data::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::UInt128(data.unwrap()))
+                        }
+                    }
+
                     InstructionCode::INT_8 => {
                         let data = Int8Data::read(&mut reader);
                         if let Err(err) = data {
