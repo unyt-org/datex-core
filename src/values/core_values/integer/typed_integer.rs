@@ -7,6 +7,7 @@ use crate::values::{
     traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };
+use core::panic;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
@@ -48,13 +49,17 @@ impl Hash for TypedInteger {
 }
 
 impl TypedInteger {
-    // pub fn to_smallest_fitting(&self) -> TypedInteger {
-    //     if self.is_unsigned() {
-    //         smallest_fitting_unsigned(self.as_u128())
-    //     } else {
-    //         smallest_fitting_signed(self.as_i128().unwrap())
-    //     }
-    // }
+    pub fn to_smallest_fitting(&self) -> TypedInteger {
+        if self.is_unsigned()
+            && let Some(u128) = self.as_u128()
+        {
+            smallest_fitting_unsigned(u128)
+        } else if let Some(i128) = self.as_i128() {
+            smallest_fitting_signed(i128)
+        } else {
+            self.clone()
+        }
+    }
 
     // fn subtype(&self) -> &'static str {
     //     match self {
@@ -677,5 +682,115 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
             }
             None => Err(ValueError::IsVoid),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_typed_integer_addition() {
+        let a = TypedInteger::I8(10);
+        let b = TypedInteger::I8(20);
+
+        let result = a.clone() + b;
+        assert_eq!(result, Some(TypedInteger::I8(30)));
+
+        let c = TypedInteger::U8(10);
+        let result = a.clone() + c.clone();
+        assert_eq!(result, Some(TypedInteger::I8(20)));
+
+        let result = c + a;
+        assert_eq!(result, Some(TypedInteger::U8(20)));
+
+        // out of bounds
+        let d = TypedInteger::I8(100);
+        let e = TypedInteger::I8(50);
+        let result = d + e;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_typed_integer_subtraction() {
+        let a = TypedInteger::I8(30);
+        let b = TypedInteger::I8(20);
+        let result = a - b;
+        assert_eq!(result, Some(TypedInteger::I8(10)));
+
+        // negative result
+        let c = TypedInteger::I8(20);
+        let d = TypedInteger::I8(30);
+        let result = c - d;
+        assert_eq!(result, Some(TypedInteger::I8(-10)));
+
+        // out of bounds
+        let e = TypedInteger::I8(-100);
+        let f = TypedInteger::I8(50);
+        let result = e - f;
+        assert_eq!(result, None);
+
+        let g = TypedInteger::U8(30);
+        let h = TypedInteger::I8(30);
+        let result = g - h;
+        assert_eq!(result, Some(TypedInteger::U8(0)));
+
+        let h = TypedInteger::U8(30);
+        let i = TypedInteger::I8(31);
+
+        let result = h - i;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_integer_addition() {
+        let a = TypedInteger::from(10_i8);
+        let b = TypedInteger::from(20_i8);
+        let result = a + b;
+        assert_eq!(result, Some(TypedInteger::I8(30_i8)));
+    }
+
+    #[test]
+    fn test_integer() {
+        let a = TypedInteger::from(1_i8);
+        assert_eq!(a, TypedInteger::I8(1));
+
+        let b = TypedInteger::from(1_u8);
+        assert_eq!(b, TypedInteger::U8(1));
+
+        let c = TypedInteger::from(1_i16);
+        assert_eq!(c, TypedInteger::I16(1));
+
+        let d = TypedInteger::from(1_u16);
+        assert_eq!(d, TypedInteger::U16(1));
+
+        let e = TypedInteger::from(1_i32);
+        assert_eq!(e, TypedInteger::I32(1));
+
+        let f = TypedInteger::from(1_u32);
+        assert_eq!(f, TypedInteger::U32(1));
+
+        let g = TypedInteger::from(1_i64);
+        assert_eq!(g, TypedInteger::I64(1));
+
+        let h = TypedInteger::from(1_u64);
+        assert_eq!(h, TypedInteger::U64(1));
+
+        let i = TypedInteger::from(1_i128);
+        assert_eq!(i, TypedInteger::I128(1));
+
+        let j = TypedInteger::from(1_u128);
+        assert_eq!(j, TypedInteger::U128(1));
+
+        assert_eq!(a.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(b.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(c.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(d.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(e.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(f.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(g.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(h.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(i.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(j.to_smallest_fitting(), TypedInteger::U8(1));
     }
 }
