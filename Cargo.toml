@@ -14,8 +14,8 @@ license-file = "LICENSE"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
- [workspace]
- members = ["macros"]
+[workspace]
+members = ["macros"]
 
 [[bench]]
 name = "mod"
@@ -92,10 +92,11 @@ tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
 hyper = { version = "1", optional = true }
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
 serialport = { version = "4.7.1", optional = true }
-tokio-tungstenite = { version = "0.21.0", optional = true, features = ["native-tls"] }
+tokio-tungstenite = { version = "0.21.0", optional = true, features = [
+    "native-tls",
+] }
 tungstenite = { version = "0.21.0", optional = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = { optional = true, version = "0.4.29" }
 gloo-timers = { version = "0.3.0", features = ["futures"] }
 
