@@ -201,6 +201,10 @@ pub enum InstructionCode {
     INT_128,
     INT_BIG,
 
+    UINT_8, // u8
+    UINT_16,
+    UINT_32,
+    UINT_64,
     UINT_128,
 
     DECIMAL_F32,
