@@ -84,8 +84,6 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        info!("Deserializing any: {:?}", self.value);
-        println!("Deserializing any: {:?}", self.value);
         match self.value {
             // TODO #148 implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
