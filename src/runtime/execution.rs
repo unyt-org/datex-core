@@ -976,6 +976,7 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             inner: CoreValue::Tuple(tuple),
             ..
         }) => {
+            // FIXME shall we consider a special case for tuples indexing?
             // automatic tuple keys are always default integer values
             let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
             tuple.set(index, value);
@@ -1187,7 +1188,7 @@ mod tests {
     fn test_single_value() {
         assert_eq!(
             execute_datex_script_debug_with_result("42"),
-            Integer::from(42).into()
+            TypedInteger::from(42i8).into()
         );
     }
 
@@ -1236,7 +1237,7 @@ mod tests {
     #[test]
     fn test_single_value_scope() {
         let result = execute_datex_script_debug_with_result("(42)");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
         assert_structural_eq!(result, ValueContainer::from(42_u128));
     }
 
@@ -1250,7 +1251,7 @@ mod tests {
     #[test]
     fn test_nested_scope() {
         let result = execute_datex_script_debug_with_result("1 + (2 + 3)");
-        assert_eq!(result, Integer::from(6).into());
+        assert_eq!(result, TypedInteger::from(6i8).into());
     }
 
     #[test]
@@ -1281,8 +1282,11 @@ mod tests {
     fn test_array() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
         let array: Array = result.to_value().borrow().cast_to_array().unwrap();
-        let expected =
-            datex_array![Integer::from(1), Integer::from(2), Integer::from(3)];
+        let expected = datex_array![
+            TypedInteger::from(1i8),
+            TypedInteger::from(2i8),
+            TypedInteger::from(3i8)
+        ];
         assert_eq!(array.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
@@ -1293,8 +1297,11 @@ mod tests {
     fn test_array_with_nested_scope() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
-        let expected =
-            datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
+        let expected = datex_array![
+            TypedInteger::from(1i8),
+            TypedInteger::from(5i8),
+            TypedInteger::from(4i8)
+        ];
 
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
@@ -1333,9 +1340,9 @@ mod tests {
     fn test_integer_2() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("2");
-        assert_eq!(result, Integer::from(2).into());
+        assert_eq!(result, TypedInteger::from(2i8).into());
         assert_ne!(result, 2_u8.into());
-        assert_structural_eq!(result, ValueContainer::from(2_u8));
+        assert_structural_eq!(result, ValueContainer::from(2_i8));
     }
 
     #[test]
@@ -1357,15 +1364,20 @@ mod tests {
         assert_eq!(tuple.to_string(), "(\"x\": 1, 0: 2, 1: 42)");
         assert_eq!(tuple.size(), 3);
 
+        info!("Tuple: {:?}", tuple);
+
         // access by key
-        assert_eq!(tuple.get(&"x".into()), Some(&Integer::from(1).into()));
         assert_eq!(
-            tuple.get(&Integer::from(0_u32).into()),
-            Some(&Integer::from(2).into())
+            tuple.get(&"x".into()),
+            Some(&TypedInteger::from(1i8).into())
         );
         assert_eq!(
-            tuple.get(&Integer::from(1_u32).into()),
-            Some(&Integer::from(42).into())
+            tuple.get(&Integer::from(0).into()),
+            Some(&TypedInteger::from(2i8).into())
+        );
+        assert_eq!(
+            tuple.get(&Integer::from(1).into()),
+            Some(&TypedInteger::from(42i8).into())
         );
 
         // structural equality checks
@@ -1378,9 +1390,9 @@ mod tests {
 
         // strict equality checks
         let expected_strict: Tuple = Tuple::from(vec![
-            ("x".into(), Integer::from(1_u32).into()),
-            (0_u32.into(), Integer::from(2_u32).into()),
-            (1_u32.into(), Integer::from(42_u32).into()),
+            ("x".into(), TypedInteger::from(1_u32).into()),
+            (0.into(), TypedInteger::from(2_u32).into()),
+            (1.into(), TypedInteger::from(42_u32).into()),
         ]);
         debug!("Expected tuple: {expected_strict}");
         debug!("Tuple result: {tuple}");
@@ -1392,7 +1404,7 @@ mod tests {
     fn test_val_assignment() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("const x = 42; x");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
     }
 
     #[test]
@@ -1400,7 +1412,7 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = 1 + 2; x");
-        assert_eq!(result, Integer::from(3).into());
+        assert_eq!(result, TypedInteger::from(3i8).into());
     }
 
     #[test]
@@ -1409,9 +1421,9 @@ mod tests {
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
         let expected = datex_array![
-            Integer::from(42),
-            Integer::from(2),
-            Integer::from(42)
+            TypedInteger::from(42i8),
+            TypedInteger::from(2i8),
+            TypedInteger::from(42i8)
         ];
         assert_eq!(result, expected.into());
     }
@@ -1422,7 +1434,10 @@ mod tests {
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
+        assert_value_eq!(
+            result,
+            ValueContainer::from(TypedInteger::from(42i8))
+        );
     }
 
     #[test]
@@ -1430,7 +1445,10 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x += 1");
-        assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
+        assert_value_eq!(
+            result,
+            ValueContainer::from(TypedInteger::from(43i8))
+        );
 
         let result = execute_datex_script_debug_with_result(
             "const x = &mut 42; x += 1; x",
@@ -1439,7 +1457,10 @@ mod tests {
         // FIXME due to addition the resulting value container of the slot
         // is no longer a reference but a value what is incorrect.
         // assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
+        assert_value_eq!(
+            result,
+            ValueContainer::from(TypedInteger::from(43i8))
+        );
     }
 
     #[test]
@@ -1447,7 +1468,10 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x -= 1");
-        assert_value_eq!(result, ValueContainer::from(Integer::from(41)));
+        assert_value_eq!(
+            result,
+            ValueContainer::from(TypedInteger::from(41i8))
+        );
 
         let result = execute_datex_script_debug_with_result(
             "const x = &mut 42; x -= 1; x",
@@ -1456,7 +1480,10 @@ mod tests {
         // FIXME due to addition the resulting value container of the slot
         // is no longer a reference but a value what is incorrect.
         // assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(41)));
+        assert_value_eq!(
+            result,
+            ValueContainer::from(TypedInteger::from(41i8))
+        );
     }
 
     #[test]
@@ -1470,7 +1497,7 @@ mod tests {
     fn test_shebang() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("#!datex\n42");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
     }
 
     #[test]
@@ -1478,12 +1505,12 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("// this is a comment\n42");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result(
             "// this is a comment\n// another comment\n42",
         );
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
     }
 
     #[test]
@@ -1492,15 +1519,16 @@ mod tests {
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment */\n42",
         );
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment\n   with multiple lines */\n42",
         );
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, TypedInteger::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
-        let expected = datex_array![Integer::from(1), Integer::from(3)];
+        let expected =
+            datex_array![TypedInteger::from(1i8), TypedInteger::from(3i8)];
         assert_eq!(result, expected.into());
     }
 }
