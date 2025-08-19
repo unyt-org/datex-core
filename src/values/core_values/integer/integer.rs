@@ -84,23 +84,41 @@ impl Integer {
         self.0.to_u128()
     }
 
-    // pub fn from_string(s: &str) -> Result<Self, String> {
-    //     Integer::from_string_radix(s, 10)
-    // }
+    pub fn to_smallest_fitting(&self) -> TypedInteger {
+        if let Some(i) = self.as_i8() {
+            return TypedInteger::I8(i);
+        }
+        if let Some(u) = self.as_u8() {
+            return TypedInteger::U8(u);
+        }
+        if let Some(i) = self.as_i16() {
+            return TypedInteger::I16(i);
+        }
+        if let Some(u) = self.as_u16() {
+            return TypedInteger::U16(u);
+        }
+        if let Some(i) = self.as_i32() {
+            return TypedInteger::I32(i);
+        }
+        if let Some(u) = self.as_u32() {
+            return TypedInteger::U32(u);
+        }
+        if let Some(i) = self.as_i64() {
+            return TypedInteger::I64(i);
+        }
+        if let Some(u) = self.as_u64() {
+            return TypedInteger::U64(u);
+        }
+        if let Some(i) = self.as_i128() {
+            return TypedInteger::I128(i);
+        }
+        if let Some(u) = self.as_u128() {
+            return TypedInteger::U128(u);
+        }
 
-    // pub fn from_string_radix(s: &str, radix: u32) -> Result<Self, String> {
-    //     // remove all underscores
-    //     let s = &s.replace('_', "");
-    //     match i128::from_str_radix(s, radix) {
-    //         Ok(value) => Ok(Integer(TypedInteger::I128(value))),
-    //         Err(_) => match s.parse::<u128>() {
-    //             Ok(value) => Ok(Integer(TypedInteger::U128(value))),
-    //             Err(_) => Err(format!(
-    //                 "Failed to parse integer from string with radix {radix}: {s}"
-    //             )),
-    //         },
-    //     }
-    // }
+        // If no smaller fitting type is found, return BigInt
+        TypedInteger::Big(self.clone())
+    }
 }
 
 impl StructuralEq for Integer {
@@ -186,10 +204,16 @@ impl BinRead for Integer {
         reader.read_exact(&mut bytes)?;
 
         let big_int = BigInt::from_bytes_be(
-            if sign == 0 {
-                num::bigint::Sign::Plus
-            } else {
-                num::bigint::Sign::Minus
+            match sign {
+                0 => num::bigint::Sign::Minus,
+                1 => num::bigint::Sign::NoSign,
+                2 => num::bigint::Sign::Plus,
+                _ => {
+                    return Err(binrw::Error::AssertFail {
+                        pos: reader.stream_position()?,
+                        message: "Invalid sign byte".into(),
+                    });
+                }
             },
             &bytes,
         );
@@ -306,124 +330,4 @@ mod tests {
             Integer::from_string("-123456789012345678901234567890").unwrap();
         assert_eq!(int5.to_string(), "-123456789012345678901234567890");
     }
-
-    /* TODO Move these test cases to typed_integer module once ready (17/08/2025)
-    #[test]
-    fn test_typed_integer_addition() {
-        let a = TypedInteger::I8(10);
-        let b = TypedInteger::I8(20);
-
-        let result = a + b;
-        assert_eq!(result, Some(TypedInteger::I8(30)));
-
-        let c = TypedInteger::U8(10);
-        let result = a + c;
-        assert_eq!(result, Some(TypedInteger::I8(20)));
-
-        let result = c + a;
-        assert_eq!(result, Some(TypedInteger::U8(20)));
-
-        // out of bounds
-        let d = TypedInteger::I8(100);
-        let e = TypedInteger::I8(50);
-        let result = d + e;
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_typed_integer_subtraction() {
-        let a = TypedInteger::I8(30);
-        let b = TypedInteger::I8(20);
-        let result = a - b;
-        assert_eq!(result, Some(TypedInteger::I8(10)));
-
-        // negative result
-        let c = TypedInteger::I8(20);
-        let d = TypedInteger::I8(30);
-        let result = c - d;
-        assert_eq!(result, Some(TypedInteger::I8(-10)));
-
-        // out of bounds
-        let e = TypedInteger::I8(-100);
-        let f = TypedInteger::I8(50);
-        let result = e - f;
-        assert_eq!(result, None);
-
-        let g = TypedInteger::U8(30);
-        let h = TypedInteger::I8(30);
-        let result = g - h;
-        assert_eq!(result, Some(TypedInteger::U8(0)));
-
-        let h = TypedInteger::U8(30);
-        let i = TypedInteger::I8(31);
-
-        let result = h - i;
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_integer_addition() {
-        let a = Integer::from(10_i8);
-        let b = Integer::from(20_i8);
-        let result = a + b;
-        assert_eq!(result, Some(Integer(TypedInteger::I8(30))));
-
-        // let c = Integer::from(10 as u8);
-        // let result = a + c;
-        // assert_eq!(result, Some(Integer(TypedInteger::I8(20))));
-
-        // let result = c + a;
-        // assert_eq!(result, Some(Integer(TypedInteger::U8(20))));
-
-        // // out of bounds
-        // let d = Integer::from(100 as i8);
-        // let e = Integer::from(50 as i8);
-        // let result = d + e;
-        // assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_integer() {
-        let a = Integer::from(1_i8);
-        assert_eq!(a.0, TypedInteger::I8(1));
-
-        let b = Integer::from(1_u8);
-        assert_eq!(b.0, TypedInteger::U8(1));
-
-        let c = Integer::from(1_i16);
-        assert_eq!(c.0, TypedInteger::I16(1));
-
-        let d = Integer::from(1_u16);
-        assert_eq!(d.0, TypedInteger::U16(1));
-
-        let e = Integer::from(1_i32);
-        assert_eq!(e.0, TypedInteger::I32(1));
-
-        let f = Integer::from(1_u32);
-        assert_eq!(f.0, TypedInteger::U32(1));
-
-        let g = Integer::from(1_i64);
-        assert_eq!(g.0, TypedInteger::I64(1));
-
-        let h = Integer::from(1_u64);
-        assert_eq!(h.0, TypedInteger::U64(1));
-
-        let i = Integer::from(1_i128);
-        assert_eq!(i.0, TypedInteger::I128(1));
-
-        let j = Integer::from(1_u128);
-        assert_eq!(j.0, TypedInteger::U128(1));
-
-        assert_eq!(a.to_smallest_fitting(), TypedInteger::I8(1));
-        assert_eq!(b.to_smallest_fitting(), TypedInteger::U8(1));
-        assert_eq!(c.to_smallest_fitting(), TypedInteger::I8(1));
-        assert_eq!(d.to_smallest_fitting(), TypedInteger::U8(1));
-        assert_eq!(e.to_smallest_fitting(), TypedInteger::I8(1));
-        assert_eq!(f.to_smallest_fitting(), TypedInteger::U8(1));
-        assert_eq!(g.to_smallest_fitting(), TypedInteger::I8(1));
-        assert_eq!(h.to_smallest_fitting(), TypedInteger::U8(1));
-        assert_eq!(i.to_smallest_fitting(), TypedInteger::I8(1));
-        assert_eq!(j.to_smallest_fitting(), TypedInteger::U8(1));
-    }
-     */
 }
