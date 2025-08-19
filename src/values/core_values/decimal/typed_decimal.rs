@@ -12,6 +12,17 @@ use std::{
     ops::{Add, AddAssign, Sub},
 };
 
+use strum_macros::{AsRefStr, EnumIter, EnumString};
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
+)]
+#[strum(serialize_all = "lowercase")]
+pub enum DecimalTypeVariant {
+    F32,
+    F64,
+}
+
 // TODO #130: think about hash keys for NaN
 #[derive(Debug, Clone, Eq)]
 pub enum TypedDecimal {
@@ -24,13 +35,16 @@ pub enum TypedDecimal {
 impl Hash for TypedDecimal {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            TypedDecimal::F32(value) => value.into_inner().to_bits().hash(state),
-            TypedDecimal::F64(value) => value.into_inner().to_bits().hash(state),
+            TypedDecimal::F32(value) => {
+                value.into_inner().to_bits().hash(state)
+            }
+            TypedDecimal::F64(value) => {
+                value.into_inner().to_bits().hash(state)
+            }
             TypedDecimal::Decimal(value) => value.hash(state),
         }
     }
 }
-
 
 impl CoreValueTrait for TypedDecimal {}
 
@@ -84,6 +98,23 @@ impl PartialEq for TypedDecimal {
 }
 
 impl TypedDecimal {
+    // FIXME add NaN and Infinity?
+    pub fn from_string_with_variant(
+        value: &str,
+        variant: DecimalTypeVariant,
+    ) -> Option<Self> {
+        match variant {
+            DecimalTypeVariant::F32 => value
+                .parse::<f32>()
+                .ok()
+                .map(|v| TypedDecimal::F32(OrderedFloat(v))),
+            DecimalTypeVariant::F64 => value
+                .parse::<f64>()
+                .ok()
+                .map(|v| TypedDecimal::F64(OrderedFloat(v))),
+        }
+    }
+
     pub fn as_f32(&self) -> f32 {
         match self {
             TypedDecimal::F32(value) => value.into_inner(),

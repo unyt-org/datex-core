@@ -14,6 +14,25 @@ use std::{
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
+use strum_macros::{AsRefStr, EnumIter, EnumString};
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
+)]
+#[strum(serialize_all = "lowercase")]
+pub enum IntegerTypeVariant {
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+    N,
+}
 
 #[derive(Debug, Clone, Eq)]
 pub enum TypedInteger {
@@ -49,6 +68,55 @@ impl Hash for TypedInteger {
 }
 
 impl TypedInteger {
+    pub fn from_string_with_variant(
+        s: &str,
+        variant: IntegerTypeVariant,
+    ) -> Option<TypedInteger> {
+        Self::from_string_radix_with_variant(s, 10, variant)
+    }
+    pub fn from_string_radix_with_variant(
+        s: &str,
+        radix: u32,
+        variant: IntegerTypeVariant,
+    ) -> Option<TypedInteger> {
+        let s = &s.replace('_', "");
+        Some(match variant {
+            IntegerTypeVariant::U8 => u8::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::U8(v)),
+            IntegerTypeVariant::U16 => u16::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::U16(v)),
+            IntegerTypeVariant::U32 => u32::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::U32(v)),
+            IntegerTypeVariant::U64 => u64::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::U64(v)),
+            IntegerTypeVariant::U128 => u128::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::U128(v)),
+            IntegerTypeVariant::I8 => i8::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::I8(v)),
+            IntegerTypeVariant::I16 => i16::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::I16(v)),
+            IntegerTypeVariant::I32 => i32::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::I32(v)),
+            IntegerTypeVariant::I64 => i64::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::I64(v)),
+            IntegerTypeVariant::I128 => i128::from_str_radix(&s, radix)
+                .ok()
+                .map(|v| TypedInteger::I128(v)),
+            IntegerTypeVariant::N => Integer::from_string_radix(s, radix)
+                .ok()
+                .map(TypedInteger::Big),
+        }?)
+    }
+
     pub fn to_smallest_fitting(&self) -> TypedInteger {
         if self.is_unsigned()
             && let Some(u128) = self.as_u128()
