@@ -17,6 +17,7 @@ use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::reference::Reference;
@@ -532,21 +533,22 @@ fn get_result_value_from_instruction(
             // integers
             Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
             Instruction::Int16(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             Instruction::Int32(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             Instruction::Int64(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             Instruction::Int128(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
+            Instruction::Integer(IntegerData(integer)) => Some(integer.into()),
 
             // unsigned integers
             Instruction::UInt128(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
 
             // specific floats
@@ -761,16 +763,6 @@ fn get_result_value_from_instruction(
                     Scope::AssignmentOperation {
                         address,
                         operator: AssignmentOperator::AddAssign,
-                    },
-                );
-                None
-            }
-
-            Instruction::SubtractAssign(SlotAddress(address)) => {
-                context.borrow_mut().scope_stack.create_scope(
-                    Scope::AssignmentOperation {
-                        address,
-                        operator: AssignmentOperator::SubstractAssign,
                     },
                 );
                 None
