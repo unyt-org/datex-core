@@ -316,21 +316,26 @@ impl CoreValue {
         }
     }
 
+    // FIXME discuss here - shall we fit the integer in the minimum viable type?
     pub fn cast_to_integer(&self) -> Option<TypedInteger> {
         match self {
-            CoreValue::Text(text) => text
-                .to_string()
-                .parse::<i128>()
-                .ok()
-                .map(TypedInteger::from),
-            CoreValue::TypedInteger(int) => Some(int.clone()),
-            CoreValue::Integer(int) => Some(TypedInteger::Big(int.clone())),
-            CoreValue::Decimal(decimal) => {
-                Some(TypedInteger::from(decimal.try_into_f64()? as i128)) // TODO #117: handle bigints once implemented
+            CoreValue::Text(text) => Integer::from_string(&text.to_string())
+                .map(|x| Some(x.to_smallest_fitting()))
+                .unwrap_or(None),
+            CoreValue::TypedInteger(int) => {
+                Some(int.to_smallest_fitting().clone())
             }
-            CoreValue::TypedDecimal(decimal) => {
-                Some(TypedInteger::from(decimal.as_f64() as i64))
+            CoreValue::Integer(int) => {
+                Some(TypedInteger::Big(int.clone()).to_smallest_fitting())
             }
+            CoreValue::Decimal(decimal) => Some(
+                TypedInteger::from(decimal.try_into_f64()? as i128)
+                    .to_smallest_fitting(),
+            ),
+            CoreValue::TypedDecimal(decimal) => Some(
+                TypedInteger::from(decimal.as_f64() as i64)
+                    .to_smallest_fitting(),
+            ),
             _ => None,
         }
     }
