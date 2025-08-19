@@ -27,8 +27,12 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
                 .all(|c| c.is_ascii_digit() || c == '+' || c == '-');
             if is_integer {
                 // Parse as integer
-                let int_value = num_str.parse::<i128>().unwrap();
-                Value::from(Integer::from(int_value).to_smallest_fitting())
+                // Value::from(Integer::from_string(num_str).unwrap())
+                Value::from(
+                    Integer::from_string(num_str)
+                        .unwrap()
+                        .to_smallest_fitting(),
+                )
             } else {
                 // Parse as big decimal
                 Value::from(Decimal::from_string(num_str))
