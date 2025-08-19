@@ -26,10 +26,6 @@ pub enum InvalidIntegerError {
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
 impl Integer {
-    // pub fn to_smallest_fitting(&self) -> TypedInteger {
-    //     self.0.to_smallest_fitting()
-    // }
-
     pub fn from_string(s: &str) -> Result<Self, InvalidIntegerError> {
         BigInt::from_str(s)
             .map(Integer)
