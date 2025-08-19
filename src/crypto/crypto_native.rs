@@ -15,7 +15,7 @@ use openssl::{
     ec::{EcGroup, EcKey, PointConversionForm},
     hash::MessageDigest,
     nid::Nid,
-    pkey::{PKey, Private, Public},
+    pkey::{Id, PKey, Private, Public},
     sign::{Signer, Verifier},
 };
 
@@ -83,6 +83,33 @@ impl CryptoNative {
             .map_err(|_| CryptoError::VerificationError).unwrap();
         Ok(verifier.verify(sign).map_err(|_| CryptoError::VerificationError).unwrap())
     }
+
+    // Returns public key and signature (EdDSA)
+    pub fn gen_sig_ed25519(digest: &Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+        let key = PKey::generate_ed25519()
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+        let public_key = key.raw_public_key()
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+
+        let mut signer = Signer::new_without_digest(&key)
+            .map_err(|_| CryptoError::SigningError).unwrap();
+        let signature = signer.sign_oneshot_to_vec(digest)
+            .map_err(|_| CryptoError::SigningError).unwrap();
+
+        assert_eq!(signature.len(), 64);
+        Ok((public_key, signature))
+    }
+
+    // Verifies signature (EdDSA)
+    pub fn ver_sig_ed25519(pub_key: &Vec<u8>, sig: Vec<u8>, data: Vec<u8>) -> Result<bool, CryptoError> {
+        let public_key = PKey::public_key_from_raw_bytes(pub_key, Id::ED25519)
+            .map_err(|_| CryptoError::KeyImportFailed).unwrap();
+        let mut verifier = Verifier::new_without_digest(&public_key)
+            .map_err(|_| CryptoError::VerificationError).unwrap();
+
+        Ok(verifier.verify_oneshot(&sig, &data).unwrap())
+    }
+
 }
 impl CryptoTrait for CryptoNative {
     fn encrypt_rsa(
@@ -232,5 +259,14 @@ mod tests {
         assert_eq!(pub_key.len(), 49);
         assert_ne!(pub_key[0], 0x04);
         assert!(pri_key.len() >= 31);
+    }
+    #[test]
+    fn eddsa_sign_verify() {
+        let data = b"Some message to sign".to_vec();
+        let fake_data = b"Datex-tractor".to_vec();
+        let (pub_key, sig) = CryptoNative::gen_sig_ed25519(&data).unwrap();
+
+        assert!(CryptoNative::ver_sig_ed25519(&pub_key, sig.clone(), data).unwrap());
+        assert!(!CryptoNative::ver_sig_ed25519(&pub_key, sig, fake_data).unwrap());
     }
 }
