@@ -1,4 +1,7 @@
-use std::{fmt, ops::Range};
+use std::{
+    fmt::{self, Display},
+    ops::Range,
+};
 
 use logos::{Lexer, Logos};
 
@@ -212,20 +215,29 @@ pub struct TypedLiteral<T> {
     pub variant: Option<T>,
 }
 
+impl Display for TypedLiteral<IntegerTypeVariant> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(variant) = &self.variant {
+            write!(f, "{}{}", self.value, variant.as_ref())
+        } else {
+            write!(f, "{}", self.value)
+        }
+    }
+}
+
 trait TypeSuffix: IntoEnumIterator + Copy + AsRef<str> {}
 impl<T> TypeSuffix for T where T: IntoEnumIterator + Copy + AsRef<str> {}
 
 fn parse_typed_literal<T: TypeSuffix>(
     lex: &mut Lexer<Token>,
 ) -> TypedLiteral<T> {
-    let s = lex.slice().replace('_', "");
     let mut variant = None;
-    let mut number_part = s.as_str();
+    let mut number_part = lex.slice();
     for suffix in T::iter() {
         let suffix_str = suffix.as_ref();
-        if s.ends_with(suffix_str) {
+        if number_part.ends_with(suffix_str) {
             variant = Some(suffix);
-            number_part = &s[..s.len() - suffix_str.len()];
+            number_part = &number_part[..number_part.len() - suffix_str.len()];
             break;
         }
     }
@@ -261,6 +273,29 @@ mod tests {
                 variant: None
             }))
         );
+    }
+
+    #[test]
+    fn test_integer_type() {
+        let mut lexer = Token::lexer("42u8");
+        let res = lexer.next().unwrap();
+        if let Ok(Token::DecimalIntegerLiteral(literal)) = res {
+            assert_eq!(literal.value, "42");
+            assert_eq!(literal.variant, Some(IntegerTypeVariant::U8));
+            assert_eq!(format!("{}", literal), "42u8".to_string());
+        } else {
+            panic!("Expected DecimalIntegerLiteral with variant U8");
+        }
+
+        let mut lexer = Token::lexer("42");
+        let res = lexer.next().unwrap();
+        if let Ok(Token::DecimalIntegerLiteral(literal)) = res {
+            assert_eq!(literal.value, "42");
+            assert_eq!(literal.variant, None);
+            assert_eq!(format!("{}", literal), "42".to_string());
+        } else {
+            panic!("Expected DecimalIntegerLiteral with no variant");
+        }
     }
 
     #[test]
@@ -458,7 +493,7 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalIntegerLiteral(IntegerLiteral {
-                value: "1000".to_string(),
+                value: "1_000".to_string(),
                 variant: None
             }))
         );
@@ -467,7 +502,7 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::HexadecimalIntegerLiteral(IntegerLiteral {
-                value: "0xFFFFFF".to_string(),
+                value: "0xFF_FF_FF".to_string(),
                 variant: None
             }))
         );
@@ -476,7 +511,7 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::BinaryIntegerLiteral(IntegerLiteral {
-                value: "0b10101010".to_string(),
+                value: "0b1010_1010".to_string(),
                 variant: None
             }))
         );
@@ -488,7 +523,7 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalLiteral(TypedLiteral::<DecimalTypeVariant> {
-                value: "1000.123456".to_string(),
+                value: "1_000.123_456".to_string(),
                 variant: None
             }))
         );
@@ -497,7 +532,7 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalLiteral(TypedLiteral::<DecimalTypeVariant> {
-                value: "0.123456e2".to_string(),
+                value: "0.123_456e2".to_string(),
                 variant: None
             }))
         );
@@ -506,7 +541,7 @@ mod tests {
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalLiteral(TypedLiteral::<DecimalTypeVariant> {
-                value: "1.234567e-8".to_string(),
+                value: "1.234_567e-8".to_string(),
                 variant: None
             }))
         );
