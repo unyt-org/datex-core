@@ -471,7 +471,9 @@ fn compile_expression(
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
             // FIXME is a loose integer conversion okay here?
-            compilation_context.insert_big_integer(&int);
+            compilation_context
+                .insert_typed_integer(&int.to_smallest_fitting());
+            // compilation_context.insert_big_integer(&int);
         }
         DatexExpression::TypedInteger(typed_int) => {
             compilation_context.insert_typed_integer(&typed_int);
@@ -490,6 +492,9 @@ fn compile_expression(
                 compilation_context.insert_decimal(&decimal);
             }
         },
+        DatexExpression::TypedDecimal(typed_decimal) => {
+            compilation_context.insert_typed_decimal(&typed_decimal);
+        }
         DatexExpression::Text(text) => {
             compilation_context.insert_text(&text);
         }
