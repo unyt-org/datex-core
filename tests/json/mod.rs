@@ -6,7 +6,6 @@ use datex_core::runtime::execution::{
 use datex_core::values::core_value::CoreValue;
 use datex_core::values::core_values::decimal::decimal::Decimal;
 use datex_core::values::core_values::integer::integer::Integer;
-use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 use datex_core::values::core_values::object::Object;
 use datex_core::values::value::Value;
 use datex_core::values::value_container::ValueContainer;
@@ -29,7 +28,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
             if is_integer {
                 // Parse as integer
                 let int_value = num_str.parse::<i128>().unwrap();
-                Value::from(TypedInteger::from(int_value).to_smallest_fitting())
+                Value::from(Integer::from(int_value).to_smallest_fitting())
             } else {
                 // Parse as big decimal
                 Value::from(Decimal::from_string(num_str))
@@ -57,8 +56,6 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
         }
     }
 }
-use datex_core::values::traits::structural_eq::StructuralEq;
-use datex_core::{assert_structural_eq, assert_value_eq, datex_array};
 
 fn compare_datex_result_with_json(json_string: &str) {
     println!(" JSON String: {json_string}");
@@ -76,23 +73,16 @@ fn compare_datex_result_with_json(json_string: &str) {
     let json_value_converted = json_value_to_datex_value(&json_value);
 
     println!(" JSON Value: {json_value}");
-    println!(" DATEX Value: {datex_value}");
-    println!(" Converted JSON Value: {json_value_converted}");
+    println!(
+        " DATEX Value: {datex_value} ({})",
+        datex_value.to_value().borrow().actual_type
+    );
+    println!(
+        " Converted JSON Value: {json_value_converted} ({})",
+        json_value_converted.actual_type
+    );
 
-    if matches!(
-        json_value_converted,
-        Value {
-            inner: CoreValue::TypedInteger(_),
-            ..
-        }
-    ) {
-        assert_structural_eq!(
-            ValueContainer::from(json_value_converted.clone()),
-            datex_value
-        );
-    } else {
-        assert_eq!(json_value_converted, *datex_value.to_value().borrow());
-    }
+    assert_eq!(json_value_converted, *datex_value.to_value().borrow());
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
