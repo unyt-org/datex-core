@@ -1,9 +1,10 @@
-use crate::compiler::lexer::Token;
+use crate::compiler::lexer::{IntegerLiteral, Token};
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -262,6 +263,10 @@ pub enum DatexExpression {
     Decimal(Decimal),
     /// Integer, e.g 123456789123456789
     Integer(Integer),
+
+    /// Typed Integer, e.g. 123i8
+    TypedInteger(TypedInteger),
+
     /// Endpoint, e.g. @test_a or @test_b
     Endpoint(Endpoint),
     /// Array, e.g  `[1, 2, 3, "text"]`
@@ -540,13 +545,13 @@ pub fn create_parser<'a, I>()
 
     // primitive values (e.g. 1, "text", true, null)
     let integer = select! {
-        Token::IntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s).unwrap()),
-        Token::BinaryIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s[2..], 2).unwrap()),
-        Token::HexadecimalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s[2..], 16).unwrap()),
-        Token::OctalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s[2..], 8).unwrap()),
+        Token::DecimalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s.value).unwrap()),
+        Token::BinaryIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s.value[2..], 2).unwrap()),
+        Token::HexadecimalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s.value[2..], 16).unwrap()),
+        Token::OctalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s.value[2..], 8).unwrap()),
     };
     let decimal = select! {
-        Token::DecimalLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s)),
+        Token::DecimalLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s.value)),
         Token::NanLiteral => DatexExpression::Decimal(Decimal::NaN),
         Token::InfinityLiteral(s) => DatexExpression::Decimal(
             if s.starts_with('-') {
