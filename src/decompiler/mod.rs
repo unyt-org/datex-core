@@ -5,6 +5,13 @@ use std::io::Cursor;
 // FIXME #223 no-std
 
 use crate::compiler::{CompileOptions, compile_template_with_refs};
+use crate::global::protocol_structures::instructions::Int128Data;
+use crate::global::protocol_structures::instructions::IntegerData;
+use crate::global::protocol_structures::instructions::UInt8Data;
+use crate::global::protocol_structures::instructions::UInt16Data;
+use crate::global::protocol_structures::instructions::UInt32Data;
+use crate::global::protocol_structures::instructions::UInt64Data;
+use crate::global::protocol_structures::instructions::UInt128Data;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
     Instruction, Int8Data, Int16Data, Int32Data, Int64Data, ShortTextData,
@@ -259,6 +266,41 @@ fn decompile_loop(
             Instruction::Int64(Int64Data(i64)) => {
                 handle_before_term(state, &mut output, true)?;
                 write!(output, "{i64}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::Int128(Int128Data(i128)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{i128}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::UInt8(UInt8Data(u8)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{u8}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::UInt16(UInt16Data(u16)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{u16}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::UInt32(UInt32Data(u32)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{u32}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::UInt64(UInt64Data(u64)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{u64}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::UInt128(UInt128Data(u128)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{u128}")?;
+                handle_after_term(state, &mut output, true)?;
+            }
+            Instruction::BigInteger(IntegerData(big_int)) => {
+                handle_before_term(state, &mut output, true)?;
+                write!(output, "{big_int}n")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalF32(Float32Data(f32)) => {
