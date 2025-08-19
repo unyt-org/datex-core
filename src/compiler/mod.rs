@@ -470,8 +470,10 @@ fn compile_expression(
     let metadata = ast_with_metadata.metadata;
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
+            // FIXME is a loose integer conversion okay here?
             compilation_context
                 .insert_typed_integer(&int.to_smallest_fitting());
+            // compilation_context.insert_big_integer(&int);
         }
         DatexExpression::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
@@ -1295,11 +1297,10 @@ pub mod tests {
         );
     }
 
-    // Test for integer/u8
     #[test]
     fn test_integer_u8() {
         init_logger_debug();
-        let val: u8 = 42;
+        let val = 42;
         let datex_script = format!("{val}"); // 42
         let result = compile_and_log(&datex_script);
         assert_eq!(result, vec![InstructionCode::INT_8.into(), val,]);
