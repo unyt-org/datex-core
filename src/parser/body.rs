@@ -209,7 +209,7 @@ pub fn iterate_instructions<'a>(
                         if let Err(err) = data {
                             Err(err.into())
                         } else {
-                            Ok(Instruction::Integer(data.unwrap()))
+                            Ok(Instruction::BigInteger(data.unwrap()))
                         }
                     }
 
