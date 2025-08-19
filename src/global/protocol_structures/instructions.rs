@@ -8,13 +8,22 @@ use std::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
+    // signed integers
     Int8(Int8Data),
     Int16(Int16Data),
     Int32(Int32Data),
     Int64(Int64Data),
     Int128(Int128Data),
+
+    // unsigned integers
+    UInt8(UInt8Data),
+    UInt16(UInt16Data),
+    UInt32(UInt32Data),
+    UInt64(UInt64Data),
     UInt128(UInt128Data),
-    Integer(IntegerData),
+
+    // big integers
+    BigInteger(IntegerData),
 
     Endpoint(Endpoint),
 
@@ -76,8 +85,16 @@ impl Display for Instruction {
             Instruction::Int32(data) => write!(f, "INT_32 {}", data.0),
             Instruction::Int64(data) => write!(f, "INT_64 {}", data.0),
             Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
+
+            Instruction::UInt8(data) => write!(f, "UINT_8 {}", data.0),
+            Instruction::UInt16(data) => write!(f, "UINT_16 {}", data.0),
+            Instruction::UInt32(data) => write!(f, "UINT_32 {}", data.0),
+            Instruction::UInt64(data) => write!(f, "UINT_64 {}", data.0),
             Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
-            Instruction::Integer(data) => write!(f, "INTEGER {}", data.0),
+
+            Instruction::BigInteger(data) => {
+                write!(f, "BIG_INTEGER {}", data.0)
+            }
             Instruction::Endpoint(data) => {
                 write!(f, "ENDPOINT {data}")
             }
