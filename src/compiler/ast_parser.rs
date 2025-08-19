@@ -1,8 +1,9 @@
-use crate::compiler::lexer::{IntegerLiteral, Token};
+use crate::compiler::lexer::{DecimalLiteral, IntegerLiteral, Token};
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
@@ -261,6 +262,9 @@ pub enum DatexExpression {
     Text(String),
     /// Decimal, e.g 123.456789123456
     Decimal(Decimal),
+
+    TypedDecimal(TypedDecimal),
+
     /// Integer, e.g 123456789123456789
     Integer(Integer),
 
@@ -545,13 +549,56 @@ pub fn create_parser<'a, I>()
 
     // primitive values (e.g. 1, "text", true, null)
     let integer = select! {
-        Token::DecimalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string(&s.value).unwrap()),
-        Token::BinaryIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s.value[2..], 2).unwrap()),
-        Token::HexadecimalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s.value[2..], 16).unwrap()),
-        Token::OctalIntegerLiteral(s) => DatexExpression::Integer(Integer::from_string_radix(&s.value[2..], 8).unwrap()),
+        Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_with_variant(&value, var)
+                    .map(DatexExpression::TypedInteger)
+                    .unwrap_or(DatexExpression::Invalid),
+                None => Integer::from_string(&value)
+                    .map(DatexExpression::Integer)
+                    .unwrap_or(DatexExpression::Invalid),
+            }
+        },
+        Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
+                    .map(DatexExpression::TypedInteger)
+                    .unwrap_or(DatexExpression::Invalid),
+                None => Integer::from_string_radix(&value[2..], 2)
+                    .map(DatexExpression::Integer)
+                    .unwrap_or(DatexExpression::Invalid),
+            }
+        },
+        Token::HexadecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 16, var)
+                    .map(DatexExpression::TypedInteger)
+                    .unwrap_or(DatexExpression::Invalid),
+                None => Integer::from_string_radix(&value[2..], 16)
+                    .map(DatexExpression::Integer)
+                    .unwrap_or(DatexExpression::Invalid),
+            }
+        },
+        Token::OctalIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 8, var)
+                    .map(DatexExpression::TypedInteger)
+                    .unwrap_or(DatexExpression::Invalid),
+                None => Integer::from_string_radix(&value[2..], 8)
+                    .map(DatexExpression::Integer)
+                    .unwrap_or(DatexExpression::Invalid),
+            }
+        },
     };
     let decimal = select! {
-        Token::DecimalLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s.value)),
+        Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedDecimal::from_string_with_variant(&value, var)
+                    .map(DatexExpression::TypedDecimal)
+                    .unwrap_or(DatexExpression::Invalid),
+                None => DatexExpression::Decimal(Decimal::from_string(&value))
+            }
+        },
         Token::NanLiteral => DatexExpression::Decimal(Decimal::NaN),
         Token::InfinityLiteral(s) => DatexExpression::Decimal(
             if s.starts_with('-') {
