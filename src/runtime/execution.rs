@@ -1225,8 +1225,8 @@ mod tests {
     #[test]
     fn test_add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
-        assert_structural_eq!(result, ValueContainer::from(3_u128));
         assert_eq!(result, Integer::from(3).into());
+        assert_structural_eq!(result, ValueContainer::from(3));
     }
 
     #[test]
