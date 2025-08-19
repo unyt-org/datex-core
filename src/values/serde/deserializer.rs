@@ -11,6 +11,7 @@ use crate::{
         value_container::ValueContainer,
     },
 };
+use log::info;
 use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
 use serde::{
     Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,
@@ -83,6 +84,8 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
+        info!("Deserializing any: {:?}", self.value);
+        println!("Deserializing any: {:?}", self.value);
         match self.value {
             // TODO #148 implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
@@ -105,7 +108,18 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     e => todo!("Unsupported typed integer: {:?}", e),
                 },
                 CoreValue::Integer(i) => {
-                    visitor.visit_i128(i.as_i128().unwrap())
+                    println!("Deserializing integer: {:?}", i);
+                    if let Some(v) = i.as_i8() {
+                        visitor.visit_i8(v)
+                    } else if let Some(v) = i.as_i16() {
+                        visitor.visit_i16(v)
+                    } else if let Some(v) = i.as_i32() {
+                        visitor.visit_i32(v)
+                    } else if let Some(v) = i.as_i64() {
+                        visitor.visit_i64(v)
+                    } else {
+                        visitor.visit_i128(i.as_i128().unwrap())
+                    }
                 }
                 CoreValue::Text(s) => visitor.visit_string(s.0),
                 CoreValue::Endpoint(endpoint) => {
@@ -358,8 +372,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::core_values::endpoint::Endpoint;
     use crate::values::serde::serializer::to_bytes;
+    use crate::{logger::init_logger, values::core_values::endpoint::Endpoint};
     use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
@@ -437,6 +451,7 @@ mod tests {
 
     #[test]
     fn test_from_script() {
+        init_logger();
         let script = r#"
             {
                 field1: "Hello",
