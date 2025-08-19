@@ -1345,9 +1345,45 @@ mod tests {
     #[test]
     fn test_typed_integer() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("2i16");
-        assert_eq!(result, Integer::from(2i16).into());
-        assert_structural_eq!(result, ValueContainer::from(2_i16));
+        let result = execute_datex_script_debug_with_result("-2i16");
+        assert_eq!(result, Integer::from(-2i16).into());
+        assert_structural_eq!(result, ValueContainer::from(-2_i16));
+
+        let result = execute_datex_script_debug_with_result("2i32");
+        assert_eq!(result, Integer::from(2i32).into());
+        assert_structural_eq!(result, ValueContainer::from(2_i32));
+
+        let result = execute_datex_script_debug_with_result("-2i64");
+        assert_eq!(result, Integer::from(-2i64).into());
+        assert_structural_eq!(result, ValueContainer::from(-2_i64));
+
+        let result = execute_datex_script_debug_with_result("2i128");
+        assert_eq!(result, Integer::from(2i128).into());
+        assert_structural_eq!(result, ValueContainer::from(2_i128));
+
+        let result = execute_datex_script_debug_with_result("2u8");
+        assert_eq!(result, Integer::from(2_u8).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u8));
+
+        let result = execute_datex_script_debug_with_result("2u16");
+        assert_eq!(result, Integer::from(2_u16).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u16));
+
+        let result = execute_datex_script_debug_with_result("2u32");
+        assert_eq!(result, Integer::from(2_u32).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u32));
+
+        let result = execute_datex_script_debug_with_result("2u64");
+        assert_eq!(result, Integer::from(2_u64).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u64));
+
+        let result = execute_datex_script_debug_with_result("2u128");
+        assert_eq!(result, Integer::from(2_u128).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u128));
+
+        let result = execute_datex_script_debug_with_result("2n");
+        assert_eq!(result, Integer::from(2).into());
+        assert_structural_eq!(result, ValueContainer::from(2));
     }
 
     #[test]
