@@ -531,7 +531,9 @@ fn get_result_value_from_instruction(
             Instruction::False => Some(false.into()),
 
             // integers
-            Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
+            Instruction::Int8(integer) => {
+                Some(TypedInteger::from(integer.0).into())
+            }
             Instruction::Int16(integer) => {
                 Some(TypedInteger::from(integer.0).into())
             }
@@ -544,11 +546,27 @@ fn get_result_value_from_instruction(
             Instruction::Int128(integer) => {
                 Some(TypedInteger::from(integer.0).into())
             }
-            Instruction::Integer(IntegerData(integer)) => Some(integer.into()),
 
             // unsigned integers
+            Instruction::UInt8(integer) => {
+                Some(TypedInteger::from(integer.0).into())
+            }
+            Instruction::UInt16(integer) => {
+                Some(TypedInteger::from(integer.0).into())
+            }
+            Instruction::UInt32(integer) => {
+                Some(TypedInteger::from(integer.0).into())
+            }
+            Instruction::UInt64(integer) => {
+                Some(TypedInteger::from(integer.0).into())
+            }
             Instruction::UInt128(integer) => {
                 Some(TypedInteger::from(integer.0).into())
+            }
+
+            // big integers
+            Instruction::BigInteger(IntegerData(integer)) => {
+                Some(integer.into())
             }
 
             // specific floats
@@ -1225,8 +1243,8 @@ mod tests {
     #[test]
     fn test_add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
-        assert_eq!(result, Integer::from(3).into());
-        assert_structural_eq!(result, ValueContainer::from(3));
+        assert_eq!(result, TypedInteger::from(3i8).into());
+        assert_structural_eq!(result, ValueContainer::from(3i8));
     }
 
     #[test]
