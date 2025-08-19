@@ -211,42 +211,15 @@ impl<'a> CompilationContext<'a> {
 
     pub fn insert_value(&self, value: &Value) {
         match &value.inner {
-            CoreValue::Integer(integer) => self.insert_integer(integer),
-            CoreValue::TypedInteger(val) => self.insert_typed_integer(val),
-            // CoreValue::TypedInteger(val) | CoreValue::Integer(Integer(val)) => {
-            //     match val.to_smallest_fitting() {
-            //         TypedInteger::I8(val) => {
-            //             self.insert_i8(val);
-            //         }
-            //         TypedInteger::I16(val) => {
-            //             self.insert_i16(val);
-            //         }
-            //         TypedInteger::I32(val) => {
-            //             self.insert_i32(val);
-            //         }
-            //         TypedInteger::I64(val) => {
-            //             self.insert_i64(val);
-            //         }
-            //         TypedInteger::I128(val) => {
-            //             self.insert_i128(val);
-            //         }
-            //         TypedInteger::U8(val) => {
-            //             self.insert_u8(val);
-            //         }
-            //         TypedInteger::U16(val) => {
-            //             self.insert_u16(val);
-            //         }
-            //         TypedInteger::U32(val) => {
-            //             self.insert_u32(val);
-            //         }
-            //         TypedInteger::U64(val) => {
-            //             self.insert_u64(val);
-            //         }
-            //         TypedInteger::U128(val) => {
-            //             self.insert_u128(val);
-            //         }
-            //     }
-            // }
+            CoreValue::Integer(integer) => {
+                let integer = integer.to_smallest_fitting();
+                self.insert_typed_integer(&integer);
+            }
+            CoreValue::TypedInteger(val) => {
+                let integer = val.to_smallest_fitting();
+                self.insert_typed_integer(&integer);
+            }
+
             CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
             CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
             CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
@@ -405,7 +378,7 @@ impl<'a> CompilationContext<'a> {
         self.append_buffer(&endpoint.to_binary());
     }
 
-    pub fn insert_integer(&self, integer: &Integer) {
+    pub fn insert_big_integer(&self, integer: &Integer) {
         self.append_binary_code(InstructionCode::INT_BIG);
         // use BinWrite to write the integer to the buffer
         // big_integer binrw write into buffer
@@ -456,7 +429,7 @@ impl<'a> CompilationContext<'a> {
                 self.insert_u128(*val);
             }
             TypedInteger::Big(val) => {
-                self.insert_integer(val);
+                self.insert_big_integer(val);
             }
         }
     }
