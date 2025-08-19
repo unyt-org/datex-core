@@ -215,8 +215,8 @@ impl<'a> CompilationContext<'a> {
                 let integer = integer.to_smallest_fitting();
                 self.insert_typed_integer(&integer);
             }
-            CoreValue::TypedInteger(val) => {
-                let integer = val.to_smallest_fitting();
+            CoreValue::TypedInteger(integer) => {
+                let integer = integer.to_smallest_fitting();
                 self.insert_typed_integer(&integer);
             }
 
@@ -459,27 +459,6 @@ impl<'a> CompilationContext<'a> {
         self.append_binary_code(InstructionCode::DECIMAL_AS_INT_32);
         self.append_i32(int);
     }
-
-    pub fn insert_int(&self, int: i64) {
-        if (CompilationContext::MIN_INT_8..=CompilationContext::MAX_INT_8)
-            .contains(&int)
-        {
-            self.insert_i8(int as i8)
-        } else if (CompilationContext::MIN_INT_16
-            ..=CompilationContext::MAX_INT_16)
-            .contains(&int)
-        {
-            self.insert_i16(int as i16)
-        } else if (CompilationContext::MIN_INT_32
-            ..=CompilationContext::MAX_INT_32)
-            .contains(&int)
-        {
-            self.insert_i32(int as i32)
-        } else {
-            self.insert_i64(int)
-        }
-    }
-
     pub fn insert_i8(&self, int8: i8) {
         self.append_binary_code(InstructionCode::INT_8);
         self.append_i8(int8);
