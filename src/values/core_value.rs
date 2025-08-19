@@ -50,6 +50,12 @@ impl StructuralEq for CoreValue {
                 a.structural_eq(b)
             }
 
+            // Integers + TypedIntegers
+            (CoreValue::Integer(a), CoreValue::TypedInteger(b))
+            | (CoreValue::TypedInteger(b), CoreValue::Integer(a)) => {
+                TypedInteger::Big(a.clone()).structural_eq(b)
+            }
+
             // Decimals
             (CoreValue::Decimal(a), CoreValue::Decimal(b)) => {
                 a.structural_eq(b)
