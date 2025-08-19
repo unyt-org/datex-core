@@ -24,10 +24,10 @@ pub async fn test_basic_remote_execution() {
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("1 + 2", &[], Some(&mut remote_execution_context)).await;
-        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(TypedInteger::from(3i8)));
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(3i8)));
 
         let result = runtime_a.execute("2 + 3", &[], Some(&mut remote_execution_context)).await;
-        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(TypedInteger::from(5i8)));
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(5i8)));
     }
 }
 
@@ -48,11 +48,11 @@ pub async fn test_remote_execution_persistent_context() {
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("const x = 10; x", &[], Some(&mut remote_execution_context)).await;
-        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(TypedInteger::from(10i8)));
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(10i8)));
 
         // execute another script that uses the previous context
         let result = runtime_a.execute("x + 5", &[], Some(&mut remote_execution_context)).await;
-        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(TypedInteger::from(15i8)));
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(15i8)));
     }
 }
 
@@ -72,7 +72,7 @@ pub async fn test_remote_inline() {
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("@test_b :: 1 + 2", &[], Some(&mut execution_context)).await;
-        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(TypedInteger::from(3i8)));
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(3i8)));
     }
 }
 
@@ -89,6 +89,6 @@ pub async fn test_remote_inline_implicit_context() {
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("@test_b :: 1 + 2", &[], None).await;
-        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(TypedInteger::from(3i8)));
+        assert_eq!(result.unwrap().unwrap(), ValueContainer::from(Integer::from(3i8)));
     }
 }
