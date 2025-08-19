@@ -1,17 +1,19 @@
-use serde::ser::{
-    Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
-    Serializer,
-};
-use std::fmt::Display;
-use log::info;
 use crate::compiler::compile_value;
-use crate::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
+use crate::runtime::execution::{
+    ExecutionInput, ExecutionOptions, execute_dxb_sync,
+};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use log::info;
+use serde::ser::{
+    Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
+    Serializer,
+};
+use std::fmt::Display;
 pub struct DatexSerializer {
     container: ValueContainer,
 }
@@ -294,23 +296,22 @@ impl Serializer for &mut DatexSerializer {
                 .cast_to_endpoint()
                 .unwrap();
             Ok(ValueContainer::from(endpoint))
-        }
-        else if name == "value" {
+        } else if name == "value" {
             info!("Serializing value");
             // unsafe cast value to ValueContainer
-            let bytes = unsafe {
-                &*(value as *const T as *const Vec<u8>)
-            };
-            Ok(execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(bytes, ExecutionOptions::default())).unwrap().unwrap())
-        }
-        else if name == "object" {
-            let object = value
-                .serialize(&mut *self);
+            let bytes = unsafe { &*(value as *const T as *const Vec<u8>) };
+            Ok(execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
+                bytes,
+                ExecutionOptions::default(),
+            ))
+            .unwrap()
+            .unwrap())
+        } else if name == "object" {
+            let object = value.serialize(&mut *self);
             Ok(object.map_err(|e| {
                 SerializationError(format!("Failed to serialize object: {e}"))
             })?)
-        }
-        else {
+        } else {
             unreachable!()
         }
     }
