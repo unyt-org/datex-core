@@ -55,7 +55,7 @@ impl Tuple {
         if let ValueContainer::Value(Value { inner, .. }) = &key {
             let matches = match inner {
                 CoreValue::Integer(int) => int.as_i128(),
-                CoreValue::TypedInteger(int) => int.as_i128(),
+                // CoreValue::TypedInteger(int) => int.as_i128(), // FIXME do we want this or no?
                 _ => None,
             };
 
