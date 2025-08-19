@@ -10,6 +10,14 @@ use rsa::{
     RsaPrivateKey, RsaPublicKey,
 };
 use uuid::Uuid;
+use openssl::{
+    bn::BigNumContext,
+    ec::{EcGroup, EcKey, PointConversionForm},
+    hash::MessageDigest,
+    nid::Nid,
+    pkey::{PKey, Private, Public},
+    sign::{Signer, Verifier},
+};
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -26,6 +34,56 @@ fn generate_pseudo_uuid() -> String {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
+impl CryptoNative {
+
+    pub fn ec_keypair() -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+        // Curves: crypto-api=openssl::nid
+        // P-256=X9_62_PRIME256V1, P-384=SECP384R1, P-512=SECP512R1
+        let group = EcGroup::from_curve_name(Nid::BRAINPOOL_P384R1)
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+        let ec = EcKey::generate(&group)
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+
+
+        let mut ctx = BigNumContext::new().unwrap();
+
+        let public_key = &ec.public_key().to_bytes(
+            &group,
+            PointConversionForm::COMPRESSED,
+            &mut ctx,
+        ).unwrap();
+        let private_key = ec.private_key().to_vec();
+
+        Ok((public_key.to_vec(), private_key))
+    }
+
+    // ECDSA
+    pub fn gen_keypair() -> Result<PKey<Private>, CryptoError> {
+        // Curves: crypto-api=openssl::nid
+        // P-256=X9_62_PRIME256V1, P-384=SECP384R1, P-512=SECP512R1
+        let group = EcGroup::from_curve_name(Nid::BRAINPOOL_P384R1)
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+        let ec = EcKey::generate(&group)
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+        Ok(PKey::from_ec_key(ec).unwrap())
+    }
+
+    pub fn sign(privkey: &PKey<Private>, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
+        let mut signer = Signer::new(MessageDigest::sha256(), privkey)
+            .map_err(|_| CryptoError::SigningError).unwrap();
+        signer.update(data)
+            .map_err(|_| CryptoError::SigningError).unwrap();
+        Ok(signer.sign_to_vec().map_err(|_| CryptoError::SigningError).unwrap())
+    }
+
+    pub fn verify(pubkey: &PKey<Public>, data: &[u8], sign: &[u8]) -> Result<bool, CryptoError> {
+        let mut verifier = Verifier::new(MessageDigest::sha256(), pubkey)
+            .map_err(|_| CryptoError::VerificationError).unwrap();
+        verifier.update(data)
+            .map_err(|_| CryptoError::VerificationError).unwrap();
+        Ok(verifier.verify(sign).map_err(|_| CryptoError::VerificationError).unwrap())
+    }
+}
 impl CryptoTrait for CryptoNative {
     fn encrypt_rsa(
         &self,
@@ -146,5 +204,33 @@ mod tests {
         let key_pair = CRYPTO.new_encryption_key_pair().await.unwrap();
         assert_eq!(key_pair.0.len(), 550);
         // assert_eq!(key_pair.1.len(), 2375);
+    }
+
+    #[test]
+    fn sign_verify() {
+        let data = b"Datex-core";
+        let fake_data = b"Datex-tractor";
+
+        let server_pkey = CryptoNative::gen_keypair().unwrap();
+        let server_pub_pem = server_pkey.public_key_to_pem().unwrap();
+        let server_pub_key = PKey::public_key_from_pem(&server_pub_pem);
+
+        let sig = CryptoNative::sign(&server_pkey, data).unwrap();
+
+        let verified = CryptoNative::verify(&server_pub_key.as_ref().unwrap(), data, &sig).unwrap();
+        let unverified = CryptoNative::verify(&server_pub_key.unwrap(), fake_data, &sig).unwrap();
+
+        assert!(verified);
+        assert!(!unverified);
+    }
+
+    #[test]
+    fn ec_keygen() {
+        let (pub_key, pri_key) = CryptoNative::ec_keypair()
+            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+        // pub_key.len() = 33 for secp256, 49 for brainpool384
+        assert_eq!(pub_key.len(), 49);
+        assert_ne!(pub_key[0], 0x04);
+        assert!(pri_key.len() >= 31);
     }
 }
