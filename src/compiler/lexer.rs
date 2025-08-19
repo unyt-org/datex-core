@@ -13,34 +13,11 @@ pub struct Loc {
     pub span: core::ops::Range<usize>,
 }
 use strum::IntoEnumIterator;
-use strum_macros::{AsRefStr, EnumIter, EnumString};
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
-)]
-#[strum(serialize_all = "lowercase")]
-pub enum IntegerTypeVariant {
-    U8,
-    U16,
-    U32,
-    U64,
-    U128,
-    I8,
-    I16,
-    I32,
-    I64,
-    I128,
-    N,
-}
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
-)]
-#[strum(serialize_all = "lowercase")]
-pub enum DecimalTypeVariant {
-    F32,
-    F64,
-}
+use crate::values::core_values::{
+    decimal::typed_decimal::DecimalTypeVariant,
+    integer::typed_integer::IntegerTypeVariant,
+};
 
 impl Loc {
     pub fn new(source: SourceId, span: core::ops::Range<usize>) -> Self {
