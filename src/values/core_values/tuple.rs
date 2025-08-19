@@ -15,13 +15,8 @@ pub struct Tuple {
     pub entries: IndexMap<ValueContainer, ValueContainer>,
     next_int_key: u32,
 }
+
 impl Tuple {
-    pub fn default() -> Self {
-        Tuple {
-            entries: IndexMap::new(),
-            next_int_key: 0,
-        }
-    }
     pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
         Tuple {
             entries,
@@ -57,16 +52,18 @@ impl Tuple {
         value: V,
     ) {
         let key = key.into();
-        // if key is integer and the expected next int key, increment the next_int_key
-        if let ValueContainer::Value(Value {
-            inner: CoreValue::Integer(int),
-            ..
-        }) = &key
-            && let Some(int) = int.as_i128()
-            && int == self.next_int_key as i128
-        {
-            self.next_int_key += 1;
+        if let ValueContainer::Value(Value { inner, .. }) = &key {
+            let matches = match inner {
+                CoreValue::Integer(int) => int.as_i128(),
+                CoreValue::TypedInteger(int) => int.as_i128(),
+                _ => None,
+            };
+
+            if matches == Some(self.next_int_key as i128) {
+                self.next_int_key += 1;
+            }
         }
+
         self.entries.insert(key, value.into());
     }
     pub fn insert<V: Into<ValueContainer>>(&mut self, value: V) {
