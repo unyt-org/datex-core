@@ -3,11 +3,13 @@ use std::hash::Hasher;
 
 use serde::{Deserialize, Serialize};
 
+use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::r#type::descriptor::TypeDescriptor;
 use crate::values::core_values::r#type::path::TypePath;
+use crate::values::datex_type::CoreValueType;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::value_container::ValueContainer;
+use crate::values::value_container::{ValueContainer, ValueError};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub struct Type {
@@ -41,6 +43,10 @@ impl Type {
         other.name.is_parent_of(&self.name)
     }
 
+    pub fn is_typeof(&self, other: &Self) -> bool {
+        self == other || self.is_subtype_of(other)
+    }
+
     /// Checks if the current type is a parent type of another type.
     pub fn is_parent_type_of(&self, other: &Self) -> bool {
         self.name.is_parent_of(&other.name)
@@ -62,5 +68,28 @@ impl StructuralEq for Type {
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Type {
+    type Error = ValueError;
+    fn try_from(value: Option<T>) -> Result<Self, Self::Error> {
+        match value {
+            Some(v) => {
+                let boolean: ValueContainer = v.into();
+                boolean
+                    .to_value()
+                    .borrow()
+                    .cast_to_type()
+                    .ok_or(ValueError::TypeConversionError)
+            }
+            None => Err(ValueError::IsVoid),
+        }
+    }
+}
+
+impl From<Type> for CoreValue {
+    fn from(value: Type) -> Self {
+        CoreValue::Type(Box::new(value))
     }
 }
