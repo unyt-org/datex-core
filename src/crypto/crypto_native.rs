@@ -1,15 +1,9 @@
 use crate::stdlib::{future::Future, pin::Pin, usize};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
 use crate::runtime::global_context::get_global_context;
-use rand::{rngs::OsRng, Rng};
-use rsa::{
-    pkcs8::{EncodePrivateKey, EncodePublicKey},
-    RsaPrivateKey, RsaPublicKey,
-};
-use uuid::Uuid;
 use openssl::{
     bn::BigNumContext,
     ec::{EcGroup, EcKey, PointConversionForm},
@@ -18,6 +12,12 @@ use openssl::{
     pkey::{Id, PKey, Private, Public},
     sign::{Signer, Verifier},
 };
+use rand::{Rng, rngs::OsRng};
+use rsa::{
+    RsaPrivateKey, RsaPublicKey,
+    pkcs8::{EncodePrivateKey, EncodePublicKey},
+};
+use uuid::Uuid;
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -35,23 +35,22 @@ fn generate_pseudo_uuid() -> String {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
 impl CryptoNative {
-
     pub fn ec_keypair() -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
         // Curves: crypto-api=openssl::nid
         // P-256=X9_62_PRIME256V1, P-384=SECP384R1, P-512=SECP512R1
         let group = EcGroup::from_curve_name(Nid::BRAINPOOL_P384R1)
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
         let ec = EcKey::generate(&group)
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
-
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
 
         let mut ctx = BigNumContext::new().unwrap();
 
-        let public_key = &ec.public_key().to_bytes(
-            &group,
-            PointConversionForm::COMPRESSED,
-            &mut ctx,
-        ).unwrap();
+        let public_key = &ec
+            .public_key()
+            .to_bytes(&group, PointConversionForm::COMPRESSED, &mut ctx)
+            .unwrap();
         let private_key = ec.private_key().to_vec();
 
         Ok((public_key.to_vec(), private_key))
@@ -62,54 +61,95 @@ impl CryptoNative {
         // Curves: crypto-api=openssl::nid
         // P-256=X9_62_PRIME256V1, P-384=SECP384R1, P-512=SECP512R1
         let group = EcGroup::from_curve_name(Nid::BRAINPOOL_P384R1)
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
         let ec = EcKey::generate(&group)
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
         Ok(PKey::from_ec_key(ec).unwrap())
     }
 
-    pub fn sign(privkey: &PKey<Private>, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    pub fn sign(
+        privkey: &PKey<Private>,
+        data: &[u8],
+    ) -> Result<Vec<u8>, CryptoError> {
         let mut signer = Signer::new(MessageDigest::sha256(), privkey)
-            .map_err(|_| CryptoError::SigningError).unwrap();
-        signer.update(data)
-            .map_err(|_| CryptoError::SigningError).unwrap();
-        Ok(signer.sign_to_vec().map_err(|_| CryptoError::SigningError).unwrap())
+            .map_err(|_| CryptoError::SigningError)
+            .unwrap();
+        signer
+            .update(data)
+            .map_err(|_| CryptoError::SigningError)
+            .unwrap();
+        Ok(signer
+            .sign_to_vec()
+            .map_err(|_| CryptoError::SigningError)
+            .unwrap())
     }
 
-    pub fn verify(pubkey: &PKey<Public>, data: &[u8], sign: &[u8]) -> Result<bool, CryptoError> {
+    pub fn verify(
+        pubkey: &PKey<Public>,
+        data: &[u8],
+        sign: &[u8],
+    ) -> Result<bool, CryptoError> {
         let mut verifier = Verifier::new(MessageDigest::sha256(), pubkey)
-            .map_err(|_| CryptoError::VerificationError).unwrap();
-        verifier.update(data)
-            .map_err(|_| CryptoError::VerificationError).unwrap();
-        Ok(verifier.verify(sign).map_err(|_| CryptoError::VerificationError).unwrap())
+            .map_err(|_| CryptoError::VerificationError)
+            .unwrap();
+        verifier
+            .update(data)
+            .map_err(|_| CryptoError::VerificationError)
+            .unwrap();
+        Ok(verifier
+            .verify(sign)
+            .map_err(|_| CryptoError::VerificationError)
+            .unwrap())
     }
 
     // Returns public key and signature (EdDSA)
-    pub fn gen_sig_ed25519(digest: &Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+    pub fn gen_sig_ed25519(
+        digest: &Vec<u8>,
+    ) -> Pin<Box<(dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>> + 'static)>> {
         let key = PKey::generate_ed25519()
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
-        let public_key = key.raw_public_key()
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
+        let public_key = key
+            .raw_public_key()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
 
         let mut signer = Signer::new_without_digest(&key)
-            .map_err(|_| CryptoError::SigningError).unwrap();
-        let signature = signer.sign_oneshot_to_vec(digest)
-            .map_err(|_| CryptoError::SigningError).unwrap();
+            .map_err(|_| CryptoError::SigningError)
+            .unwrap();
+        let signature = signer
+            .sign_oneshot_to_vec(digest)
+            .map_err(|_| CryptoError::SigningError)
+            .unwrap();
 
         assert_eq!(signature.len(), 64);
-        Ok((public_key, signature))
+
+        Box::pin(async {
+            Ok((public_key, signature))
+        })
     }
 
     // Verifies signature (EdDSA)
-    pub fn ver_sig_ed25519(pub_key: &Vec<u8>, sig: Vec<u8>, data: Vec<u8>) -> Result<bool, CryptoError> {
+    pub fn ver_sig_ed25519(
+        pub_key: &Vec<u8>,
+        sig: &Vec<u8>,
+        data: &Vec<u8>,
+    ) -> Pin<Box<(dyn Future<Output = Result<bool, CryptoError>> + 'static)>> {
+
         let public_key = PKey::public_key_from_raw_bytes(pub_key, Id::ED25519)
-            .map_err(|_| CryptoError::KeyImportFailed).unwrap();
+            .map_err(|_| CryptoError::KeyImportFailed)
+            .unwrap();
         let mut verifier = Verifier::new_without_digest(&public_key)
-            .map_err(|_| CryptoError::VerificationError).unwrap();
+            .map_err(|_| CryptoError::VerificationError)
+            .unwrap();
 
-        Ok(verifier.verify_oneshot(&sig, &data).unwrap())
+        let verified = verifier.verify_oneshot(sig, data).clone().unwrap();
+        Box::pin(async move {
+            Ok(verified)
+        })
     }
-
 }
 impl CryptoTrait for CryptoNative {
     fn encrypt_rsa(
@@ -244,8 +284,12 @@ mod tests {
 
         let sig = CryptoNative::sign(&server_pkey, data).unwrap();
 
-        let verified = CryptoNative::verify(&server_pub_key.as_ref().unwrap(), data, &sig).unwrap();
-        let unverified = CryptoNative::verify(&server_pub_key.unwrap(), fake_data, &sig).unwrap();
+        let verified =
+            CryptoNative::verify(&server_pub_key.as_ref().unwrap(), data, &sig)
+                .unwrap();
+        let unverified =
+            CryptoNative::verify(&server_pub_key.unwrap(), fake_data, &sig)
+                .unwrap();
 
         assert!(verified);
         assert!(!unverified);
@@ -254,19 +298,20 @@ mod tests {
     #[test]
     fn ec_keygen() {
         let (pub_key, pri_key) = CryptoNative::ec_keypair()
-            .map_err(|_| CryptoError::KeyGeneratorFailed).unwrap();
+            .map_err(|_| CryptoError::KeyGeneratorFailed)
+            .unwrap();
         // pub_key.len() = 33 for secp256, 49 for brainpool384
         assert_eq!(pub_key.len(), 49);
         assert_ne!(pub_key[0], 0x04);
         assert!(pri_key.len() >= 31);
     }
-    #[test]
-    fn eddsa_sign_verify() {
+    #[tokio::test]
+    async fn eddsa_sign_verify() {
         let data = b"Some message to sign".to_vec();
         let fake_data = b"Datex-tractor".to_vec();
-        let (pub_key, sig) = CryptoNative::gen_sig_ed25519(&data).unwrap();
+        let (pub_key, sig) = CryptoNative::gen_sig_ed25519(&data).await.unwrap();
 
-        assert!(CryptoNative::ver_sig_ed25519(&pub_key, sig.clone(), data).unwrap());
-        assert!(!CryptoNative::ver_sig_ed25519(&pub_key, sig, fake_data).unwrap());
+        assert!(CryptoNative::ver_sig_ed25519(&pub_key, &sig, &data).await.unwrap());
+        assert!(!CryptoNative::ver_sig_ed25519(&pub_key, &sig, &fake_data).await.unwrap());
     }
 }
