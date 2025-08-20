@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::values::{
-    core_value_trait::CoreValueTrait, datex_type::CoreValueType,
-    traits::structural_eq::StructuralEq, value_container::ValueContainer,
+    core_value_trait::CoreValueTrait, core_values::r#type::r#type::Type,
+    datex_type::CoreValueType, traits::structural_eq::StructuralEq,
+    value_container::ValueContainer,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -10,38 +11,34 @@ pub struct Union {
     pub options: Vec<ValueContainer>,
 }
 fn is_instance_of(value: &ValueContainer, parent: &ValueContainer) -> bool {
-    let core_type = value.r#type();
-    return false;
-    // match core_type {
-    //     CoreValueType::Type => false, // Type is not an instance of anything
-    //     core_type => {
-    //         // FIXME
-    //         // 2 (core type: integer) == integer (core type: type)
-    //         // core_type == parent.to_value().borrow().cast_to_type()
-    //         true
-    //     }
-    // }
+    if parent.is_type() && !value.is_type() {
+        let value_type = value.r#type();
+        let parent_type = parent.to_value().borrow().cast_to_type().unwrap();
+        return value_type.is_typeof(&parent_type);
+    } else if parent.is_type() && value.is_type() {
+        let value_type = value.to_value().borrow().cast_to_type().unwrap();
+        let parent_type = parent.to_value().borrow().cast_to_type().unwrap();
+        return value_type.is_typeof(&parent_type);
+    }
+    false
 }
 
 fn normalize_union(options: &mut Vec<ValueContainer>) {
-    options.dedup_by(|a, b| a.structural_eq(b));
+    options.dedup_by(|a, b| a == b);
 
-    // if a type subsumes a literal, drop the literal
-    // let mut keep = Vec::new();
-    // for i in 0..options.len() {
-    //     let v = &options[i];
-    //     if v.core_type() != CoreValueType::Type {
-    //         // literal → check if some Type in options covers it
-    //         if options.iter().any(|o| {
-    //             o.core_type() == CoreValueType::Type && is_instance_of(v, o)
-    //         }) {
-    //             continue; // skip this literal, it's subsumed
-    //         }
-    //     }
-    //     keep.push(v.clone());
-    // }
+    let mut keep = Vec::new();
+    for i in 0..options.len() {
+        let v = &options[i];
+        if !v.is_type() {
+            // literal → check if some Type in options covers it
+            if options.iter().any(|o| o.is_type() && is_instance_of(v, o)) {
+                continue; // skip this literal, it's subsumed
+            }
+        }
+        keep.push(v.clone());
+    }
 
-    // *options = keep;
+    *options = keep;
 }
 
 impl Union {
@@ -76,6 +73,10 @@ impl Union {
     pub fn len(&self) -> usize {
         self.options.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.options.is_empty()
+    }
 }
 impl CoreValueTrait for Union {}
 
@@ -109,10 +110,32 @@ mod tests {
     use crate::{
         datex_array,
         values::{
-            core_values::{integer::integer::Integer, text::Text},
+            core_value::CoreValue,
+            core_values::{
+                integer::integer::Integer,
+                text::Text,
+                r#type::{core::integer, r#type::Type},
+            },
             value_container::ValueContainer,
         },
     };
+
+    #[test]
+    fn test_type_and_value() {
+        let union = Union::new(vec![
+            ValueContainer::from(Integer::from(1)),
+            ValueContainer::from(integer()),
+        ]);
+
+        assert_eq!(union.len(), 1);
+
+        assert!(union.matches(Integer::from(1)));
+        assert!(union.matches(Integer::from(2)));
+        assert!(union.matches(Integer::from(42)));
+
+        assert!(!union.matches(Text::from("test")));
+        assert!(!union.matches(Text::from("test2")));
+    }
 
     #[test]
     fn test_union_creation() {
