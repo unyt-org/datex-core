@@ -1,16 +1,18 @@
+use crate::values::core_values::r#type::r#type::Type;
+use crate::values::datex_type::CoreValueType;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;
 
 use super::{reference::Reference, value::Value};
+use crate::compiler::compile_value;
+use crate::values::serde::deserializer::DatexDeserializer;
 use crate::values::traits::value_eq::ValueEq;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
-use crate::compiler::compile_value;
-use crate::values::serde::deserializer::DatexDeserializer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -48,7 +50,8 @@ impl Serialize for ValueContainer {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_newtype_struct("value", &compile_value(self).unwrap())
+        serializer
+            .serialize_newtype_struct("value", &compile_value(self).unwrap())
     }
 }
 
@@ -60,11 +63,10 @@ impl<'a> Deserialize<'a> for ValueContainer {
         let deserializer: &DatexDeserializer = unsafe {
             &*(&deserializer as *const D as *const DatexDeserializer)
         };
-        
+
         Ok(deserializer.value.clone())
     }
 }
-
 
 impl Hash for ValueContainer {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -172,6 +174,24 @@ impl ValueContainer {
         }
     }
 
+    pub fn is_type(&self) -> bool {
+        match self {
+            ValueContainer::Value(value) => value.is_type(),
+            ValueContainer::Reference(reference) => {
+                reference.borrow().current_value_container().is_type()
+            }
+        }
+    }
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            ValueContainer::Value(value) => value.r#type(),
+            ValueContainer::Reference(reference) => {
+                reference.borrow().allowed_type.clone()
+            }
+        }
+    }
+
     pub fn new_value<T: Into<Value>>(value: T) -> ValueContainer {
         ValueContainer::Value(value.into())
     }
@@ -190,10 +210,7 @@ impl ValueContainer {
     }
 
     /// Runs a closure with the contained Reference if it is a Reference, otherwise returns None.
-    pub fn with_maybe_reference<F, R>(
-        &self,
-        f: F,
-    ) -> Option<R>
+    pub fn with_maybe_reference<F, R>(&self, f: F) -> Option<R>
     where
         F: FnOnce(&Reference) -> R,
     {
@@ -212,12 +229,9 @@ impl ValueContainer {
         }
     }
 
-
     /// Upgrades the ValueContainer to a ValueContainer::Reference if it is a ValueContainer::Value
     /// and if the contained value is a combined value, not a primitive value like integer, text, etc.
-    pub fn upgrade_combined_value_to_reference(
-        self,
-    ) -> ValueContainer {
+    pub fn upgrade_combined_value_to_reference(self) -> ValueContainer {
         match &self {
             // already a reference, no need to upgrade
             ValueContainer::Reference(_) => self,
