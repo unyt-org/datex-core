@@ -1381,7 +1381,7 @@ mod tests {
         assert_eq!(result, Integer::from(2_u128).into());
         assert_structural_eq!(result, ValueContainer::from(2_u128));
 
-        let result = execute_datex_script_debug_with_result("2n");
+        let result = execute_datex_script_debug_with_result("2big");
         assert_eq!(result, Integer::from(2).into());
         assert_structural_eq!(result, ValueContainer::from(2));
     }

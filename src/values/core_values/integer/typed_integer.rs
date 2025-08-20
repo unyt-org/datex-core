@@ -16,6 +16,10 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
+/// The integer type variants to be used as a inline
+/// definition in DATEX (such as 42u32 or -42i64).
+/// Note that changing the enum variants will change
+/// the way integers are parsed in DATEX scripts.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
 )]
@@ -31,7 +35,7 @@ pub enum IntegerTypeVariant {
     I32,
     I64,
     I128,
-    N,
+    Big,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -111,7 +115,7 @@ impl TypedInteger {
             IntegerTypeVariant::I128 => i128::from_str_radix(&s, radix)
                 .ok()
                 .map(|v| TypedInteger::I128(v)),
-            IntegerTypeVariant::N => Integer::from_string_radix(s, radix)
+            IntegerTypeVariant::Big => Integer::from_string_radix(s, radix)
                 .ok()
                 .map(TypedInteger::Big),
         }?)

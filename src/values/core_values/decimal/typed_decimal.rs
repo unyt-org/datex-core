@@ -14,6 +14,10 @@ use std::{
 
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
+/// The decimal type variants to be used as a inline
+/// definition in DATEX (such as 42.4f32 or -42.4f32).
+/// Note that changing the enum variants will change
+/// the way decimals are parsed in DATEX scripts.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
 )]

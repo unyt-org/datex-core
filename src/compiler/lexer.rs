@@ -151,13 +151,13 @@ pub enum Token {
     // - Decimal integers with leading zeros:
     // - `0123`
     // - `-0123`
-    #[regex(r"[+-]?(0|[1-9])(\d|_)*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|n)?", parse_typed_literal::<IntegerTypeVariant>)] DecimalIntegerLiteral(IntegerLiteral),
+    #[regex(r"[+-]?(0|[1-9])(\d|_)*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] DecimalIntegerLiteral(IntegerLiteral),
     // binary integer
-    #[regex(r"0[bB][01_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|n)?", parse_typed_literal::<IntegerTypeVariant>)] BinaryIntegerLiteral(IntegerLiteral),
+    #[regex(r"0[bB][01_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] BinaryIntegerLiteral(IntegerLiteral),
     // octal integer
-    #[regex(r"0[oO][0-7_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|n)?", parse_typed_literal::<IntegerTypeVariant>)] OctalIntegerLiteral(IntegerLiteral),
+    #[regex(r"0[oO][0-7_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] OctalIntegerLiteral(IntegerLiteral),
     // hexadecimal integer
-    #[regex(r"0[xX][0-9a-fA-F_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|n)?", parse_typed_literal::<IntegerTypeVariant>)] HexadecimalIntegerLiteral(IntegerLiteral),
+    #[regex(r"0[xX][0-9a-fA-F_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] HexadecimalIntegerLiteral(IntegerLiteral),
 
     // fraction (e.g. 1/2)
     #[regex(r"[+-]?\d+/\d+", allocated_string)] FractionLiteral(String),
@@ -295,12 +295,12 @@ mod tests {
             }))
         );
 
-        let mut lexer = Token::lexer("42n");
+        let mut lexer = Token::lexer("42big");
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalIntegerLiteral(IntegerLiteral {
                 value: "42".to_string(),
-                variant: Some(IntegerTypeVariant::N)
+                variant: Some(IntegerTypeVariant::Big)
             }))
         );
     }
