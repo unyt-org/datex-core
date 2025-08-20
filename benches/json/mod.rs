@@ -133,7 +133,7 @@ pub fn dxb_to_runtime_value(dxb: &[u8]) {
     );
     let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
     assert_eq!(
-        json_value.to_value().borrow().actual_type,
+        json_value.to_value().borrow().get_type(),
         CoreValueType::Object
     );
 }
