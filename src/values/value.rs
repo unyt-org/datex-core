@@ -75,7 +75,7 @@ impl Value {
     }
 
     pub fn r#type(&self) -> Type {
-        return self.actual_type.as_ref().clone();
+        self.actual_type.as_ref().clone()
     }
 
     /// Attempts to cast the value to the target type, returning an Option<Value>.
