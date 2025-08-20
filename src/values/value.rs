@@ -56,13 +56,7 @@ impl<T: Into<CoreValue>> From<T> for Value {
 
 impl Value {
     pub fn is_type(&self) -> bool {
-        match self.inner {
-            CoreValue::Type(_) => true,
-            _ => false,
-        }
-        // let inner = self.inner.cast_to_bool();
-        // self.r#type() == *self.actual_type
-        //self.is_of_type(CoreValueType::Type)
+        matches!(self.inner, CoreValue::Type(_))
     }
 
     pub fn is_of_type(&self, target: CoreValueType) -> bool {
@@ -104,11 +98,11 @@ impl Value {
     /// ```
     pub fn try_cast_to(&self, target_type: CoreValueType) -> Option<Value> {
         self.inner.cast_to(target_type.clone()).map(|inner| Value {
-            inner,
-            actual_type: Box::new(Type::new(
-                "core:fixme",
-                TypeDescriptor::Core(target_type),
-            )),
+            actual_type: Box::new(inner.get_default_type_new()),
+            inner, // Box::new(Type::new(
+                   //     "core:fixme",
+                   //     TypeDescriptor::Core(target_type),
+                   // )),
         })
     }
 
