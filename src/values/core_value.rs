@@ -10,7 +10,7 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
-use crate::values::core_values::r#type::core::{boolean, i8, integer, text};
+use crate::values::core_values::r#type::core::*;
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::core_values::union::Union;
 use crate::values::datex_type::CoreValueType;
@@ -214,14 +214,35 @@ impl CoreValue {
     pub fn get_default_type_new(&self) -> Type {
         match self {
             CoreValue::Type(ty) => ty.as_ref().clone(), // what is the type of type?
+            CoreValue::Union(_) => union(),
             CoreValue::Boolean(_) => boolean(),
             CoreValue::TypedInteger(int) => match int {
                 TypedInteger::I8(_) => i8(),
-                _ => todo!("get_default_type_new for other TypedInteger types"),
+                TypedInteger::I16(_) => i16(),
+                TypedInteger::I32(_) => i32(),
+                TypedInteger::I64(_) => i64(),
+                TypedInteger::I128(_) => i128(),
+                TypedInteger::U8(_) => u8(),
+                TypedInteger::U16(_) => u16(),
+                TypedInteger::U32(_) => u32(),
+                TypedInteger::U64(_) => u64(),
+                TypedInteger::U128(_) => u128(),
+                TypedInteger::Big(_) => big(),
+            },
+            CoreValue::TypedDecimal(dec) => match dec {
+                TypedDecimal::F32(_) => f32(),
+                TypedDecimal::F64(_) => f64(),
+                TypedDecimal::Decimal(_) => decimal(),
             },
             CoreValue::Text(_) => text(),
+            CoreValue::Null => null(),
+            CoreValue::Endpoint(_) => endpoint(),
+            CoreValue::Array(_) => array(),
+            CoreValue::Object(_) => object(),
+            CoreValue::Tuple(_) => tuple(),
             CoreValue::Integer(_) => integer(),
-            e => todo!("get_default_type_new for {e:?}"),
+            CoreValue::Decimal(_) => decimal(),
+            // e => todo!("get_default_type_new for {e:?}"),
         }
     }
 
