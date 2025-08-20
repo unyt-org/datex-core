@@ -1342,6 +1342,8 @@ mod tests {
         assert_structural_eq!(result, ValueContainer::from(2_i8));
     }
 
+    // FIXME these shall produce TypedInteger values, not Integer
+    // but this will only work once the compiler supports the type system
     #[test]
     fn test_typed_integer() {
         init_logger_debug();
