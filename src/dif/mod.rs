@@ -129,7 +129,8 @@ impl From<&ValueContainer> for DIFValue {
         DIFValue {
             value: dif_core_value,
             core_type,
-            r#type: serde_json::to_string(&actual_type)
+            // FIXME custom type when serializing the whole actual_type to a json object
+            r#type: serde_json::to_string(&actual_type.to_string())
                 .unwrap()
                 .trim_matches('"')
                 .to_string(),
