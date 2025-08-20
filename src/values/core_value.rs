@@ -10,12 +10,12 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
+use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::union::Union;
 use crate::values::datex_type::CoreValueType;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value_container::{ValueContainer, ValueError};
-use serde::Deserialize;
-use serde_with::serde_derive::Serialize;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
 
@@ -32,6 +32,8 @@ pub enum CoreValue {
     Array(Array),
     Object(Object),
     Tuple(Tuple),
+    Union(Union),
+    Type(Box<Type>),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -210,6 +212,8 @@ impl CoreValue {
 
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
+            CoreValue::Type(_) => CoreValueType::Type,
+            CoreValue::Union(_) => CoreValueType::Union,
             CoreValue::Boolean(_) => CoreValueType::Boolean,
             CoreValue::TypedInteger(int) => match int {
                 TypedInteger::I8(_) => CoreValueType::I8,
@@ -667,6 +671,8 @@ impl Not for CoreValue {
 impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
+            CoreValue::Type(ty) => write!(f, "{ty}"),
+            CoreValue::Union(union) => write!(f, "{union}"),
             CoreValue::Boolean(bool) => write!(f, "{bool}"),
             CoreValue::TypedInteger(int) => write!(f, "{int}"),
             CoreValue::TypedDecimal(decimal) => write!(f, "{decimal}"),
