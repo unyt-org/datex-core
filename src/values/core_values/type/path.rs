@@ -1,17 +1,17 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-pub struct TypePath<'a> {
-    pub namespace: &'a str,
-    pub name: &'a str,
-    pub variant: Option<&'a str>,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypePath {
+    pub namespace: String,
+    pub name: String,
+    pub variant: Option<String>,
 }
 
-impl<'a> TypePath<'a> {
-    pub fn new<N: Into<&'a str>, T: Into<&'a str>>(
+impl TypePath {
+    pub fn new<N: Into<String>, T: Into<String>>(
         namespace: N,
         name: T,
-        variant: Option<&'a str>,
+        variant: Option<String>,
     ) -> Self {
         TypePath {
             namespace: namespace.into(),
@@ -20,7 +20,7 @@ impl<'a> TypePath<'a> {
         }
     }
 
-    pub fn parse(s: &'a str) -> Self {
+    pub fn parse(s: &str) -> Self {
         // split namespace:type
         let mut parts = s.splitn(2, ':');
         let namespace =
@@ -35,7 +35,7 @@ impl<'a> TypePath<'a> {
         TypePath {
             namespace,
             name,
-            variant: variant.as_deref(),
+            variant,
         }
     }
 
@@ -62,27 +62,25 @@ impl<'a> TypePath<'a> {
     }
 }
 
-impl<'a> From<&'a str> for TypePath<'a> {
-    fn from(s: &'a str) -> Self {
+impl From<&str> for TypePath {
+    fn from(s: &str) -> Self {
         TypePath::parse(s)
     }
 }
 
-impl<'a, N: Into<&'a str>, T: Into<&'a str>> From<(N, T)> for TypePath<'a> {
+impl<N: Into<String>, T: Into<String>> From<(N, T)> for TypePath {
     fn from(value: (N, T)) -> Self {
         TypePath::new(value.0, value.1, None)
     }
 }
 
-impl<'a, N: Into<&'a str>, T: Into<&'a str>> From<(N, T, &'a str)>
-    for TypePath<'a>
-{
-    fn from(value: (N, T, &'a str)) -> Self {
+impl<N: Into<String>, T: Into<String>> From<(N, T, String)> for TypePath {
+    fn from(value: (N, T, String)) -> Self {
         TypePath::new(value.0, value.1, Some(value.2))
     }
 }
 
-impl<'a> Display for TypePath<'a> {
+impl Display for TypePath {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
@@ -98,10 +96,11 @@ mod tests {
         assert_eq!(path.name, "integer");
         assert!(path.variant.is_none());
 
-        let path_with_variant = TypePath::new("std", "integer", Some("u8"));
+        let path_with_variant =
+            TypePath::new("std", "integer", Some("u8".to_string()));
         assert_eq!(path_with_variant.namespace, "std");
         assert_eq!(path_with_variant.name, "integer");
-        assert_eq!(path_with_variant.variant, Some("u8"));
+        assert_eq!(path_with_variant.variant, Some("u8".to_string()));
     }
 
     #[test]
@@ -109,7 +108,7 @@ mod tests {
         let parsed_path = TypePath::parse("std:integer/u8");
         assert_eq!(parsed_path.namespace, "std");
         assert_eq!(parsed_path.name, "integer");
-        assert_eq!(parsed_path.variant, Some("u8"));
+        assert_eq!(parsed_path.variant, Some("u8".to_string()));
 
         let parsed_path = TypePath::parse("std:integer");
         assert_eq!(parsed_path.namespace, "std");
@@ -119,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_type_path_parent() {
-        let path = TypePath::new("std", "integer", Some("u8"));
+        let path = TypePath::new("std", "integer", Some("u8".to_string()));
         let parent = path.parent().unwrap();
         assert_eq!(parent.namespace, "std");
         assert_eq!(parent.name, "integer");
@@ -129,13 +128,13 @@ mod tests {
     #[test]
     fn test_type_path_is_parent_of() {
         let parent = TypePath::new("std", "integer", None);
-        let child = TypePath::new("std", "integer", Some("u8"));
+        let child = TypePath::new("std", "integer", Some("u8".to_string()));
         assert!(parent.is_parent_of(&child));
     }
 
     #[test]
     fn test_type_path_display() {
-        let path = TypePath::new("std", "integer", Some("u8"));
+        let path = TypePath::new("std", "integer", Some("u8".to_string()));
         assert_eq!(path.to_string(), "std:integer/u8");
     }
 }
