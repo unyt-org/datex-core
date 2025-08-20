@@ -16,6 +16,7 @@ use crate::runtime::execution_context::{
 };
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::r#type::core::*;
 use crate::values::core_values::r#type::descriptor::TypeDescriptor;
 use crate::values::core_values::r#type::registry::TypeRegistry;
 use crate::values::core_values::r#type::r#type::Type;
@@ -89,41 +90,39 @@ fn create_core_registry() -> TypeRegistry {
 
     // register core types
     registry
-        .insert(Type::new(
-            "core:integer",
-            TypeDescriptor::Core(CoreValueType::Integer),
-        ))
+        .insert(integer())
         .expect("Failed to register core integer type");
-
     registry
-        .insert(Type::new_with_base(
-            "core:integer/u8",
-            TypeDescriptor::Core(CoreValueType::Integer),
-            "core:integer",
-        ))
-        .expect("Failed to register core integer type");
-
-    registry
-        .insert(Type::new_with_base(
-            "core:integer/u16",
-            TypeDescriptor::Core(CoreValueType::Integer),
-            "core:integer",
-        ))
-        .expect("Failed to register core integer type");
-
-    registry
-        .insert(Type::new(
-            "core:text",
-            TypeDescriptor::Core(CoreValueType::Text),
-        ))
+        .insert(text())
         .expect("Failed to register core text type");
-
     registry
-        .insert(Type::new(
-            "core:boolean",
-            TypeDescriptor::Core(CoreValueType::Boolean),
-        ))
+        .insert(boolean())
         .expect("Failed to register core boolean type");
+    registry
+        .insert(i8())
+        .expect("Failed to register core i8 type");
+    registry
+        .insert(i16())
+        .expect("Failed to register core i16 type");
+    registry
+        .insert(i32())
+        .expect("Failed to register core i32 type");
+    registry
+        .insert(i64())
+        .expect("Failed to register core i64 type");
+    registry
+        .insert(u8())
+        .expect("Failed to register core u8 type");
+    registry
+        .insert(u16())
+        .expect("Failed to register core u16 type");
+    registry
+        .insert(u32())
+        .expect("Failed to register core u32 type");
+    registry
+        .insert(u64())
+        .expect("Failed to register core u64 type");
+    // FIXME registering all
 
     registry
 }
