@@ -35,14 +35,46 @@ fn create_core_type_with_base(
     create_core_type_internal(name, core_type, Some(base))
 }
 
+// integer
 pub fn integer() -> Type {
     create_core_type("integer", CoreValueType::Integer)
 }
+
+// signed integers
 pub fn i8() -> Type {
     create_core_type_with_base("integer/i8", CoreValueType::I8, integer())
 }
+pub fn i16() -> Type {
+    create_core_type_with_base("integer/i16", CoreValueType::I16, integer())
+}
 pub fn i32() -> Type {
     create_core_type_with_base("integer/i32", CoreValueType::I32, integer())
+}
+pub fn i64() -> Type {
+    create_core_type_with_base("integer/i64", CoreValueType::I64, integer())
+}
+pub fn i128() -> Type {
+    create_core_type_with_base("integer/i128", CoreValueType::I128, integer())
+}
+
+// unsigned integers
+pub fn u8() -> Type {
+    create_core_type_with_base("integer/u8", CoreValueType::U8, integer())
+}
+pub fn u16() -> Type {
+    create_core_type_with_base("integer/u16", CoreValueType::U16, integer())
+}
+pub fn u32() -> Type {
+    create_core_type_with_base("integer/u32", CoreValueType::U32, integer())
+}
+pub fn u64() -> Type {
+    create_core_type_with_base("integer/u64", CoreValueType::U64, integer())
+}
+pub fn u128() -> Type {
+    create_core_type_with_base("integer/u128", CoreValueType::U128, integer())
+}
+pub fn big() -> Type {
+    create_core_type_with_base("integer/big", CoreValueType::Integer, integer())
 }
 
 pub fn text() -> Type {
@@ -62,4 +94,21 @@ pub fn array() -> Type {
 }
 pub fn null() -> Type {
     create_core_type("null", CoreValueType::Null)
+}
+pub fn tuple() -> Type {
+    create_core_type("tuple", CoreValueType::Tuple)
+}
+
+pub fn f32() -> Type {
+    create_core_type_with_base("decimal/f32", CoreValueType::F32, decimal())
+}
+pub fn f64() -> Type {
+    create_core_type_with_base("decimal/f64", CoreValueType::F64, decimal())
+}
+pub fn endpoint() -> Type {
+    create_core_type("endpoint", CoreValueType::Endpoint)
+}
+
+pub fn union() -> Type {
+    create_core_type("union", CoreValueType::Union)
 }
