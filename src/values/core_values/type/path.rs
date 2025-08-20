@@ -62,6 +62,16 @@ impl TypePath {
             None => format!("{}:{}", self.namespace, self.name),
         }
     }
+    pub fn to_clean_string(&self) -> String {
+        if self.namespace == "core" {
+            match &self.variant {
+                Some(v) => format!("{}/{}", self.name, v),
+                None => self.name.to_string(),
+            }
+        } else {
+            self.as_str()
+        }
+    }
 }
 
 impl From<&str> for TypePath {
