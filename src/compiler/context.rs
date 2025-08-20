@@ -211,6 +211,12 @@ impl<'a> CompilationContext<'a> {
 
     pub fn insert_value(&self, value: &Value) {
         match &value.inner {
+            CoreValue::Type(ty) => {
+                todo!("Type value not supported in CompilationContext");
+            }
+            CoreValue::Union(union_value) => {
+                todo!("Union type not supported in CompilationContext");
+            }
             CoreValue::Integer(integer) => {
                 let integer = integer.to_smallest_fitting();
                 self.insert_typed_integer(&integer);
