@@ -43,19 +43,26 @@ impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
         let actual_type = inner.get_default_type();
+        let new_type = inner.get_default_type_new();
         Value {
             inner,
-            actual_type: Box::new(Type::new(
-                "core:fixme",
-                TypeDescriptor::Core(actual_type),
-            )),
+            actual_type: Box::new(new_type), // Box::new(Type::new(
+                                             //     "core:fixme",
+                                             //     TypeDescriptor::Core(actual_type),
+                                             // )),
         }
     }
 }
 
 impl Value {
     pub fn is_type(&self) -> bool {
-        self.is_of_type(CoreValueType::Type)
+        match self.inner {
+            CoreValue::Type(_) => true,
+            _ => false,
+        }
+        // let inner = self.inner.cast_to_bool();
+        // self.r#type() == *self.actual_type
+        //self.is_of_type(CoreValueType::Type)
     }
 
     pub fn is_of_type(&self, target: CoreValueType) -> bool {
