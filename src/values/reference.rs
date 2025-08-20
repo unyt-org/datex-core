@@ -1,4 +1,7 @@
 use super::datex_type::CoreValueType;
+use crate::dif::{DIFUpdate, DIFValue};
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::r#type::Type;
 use crate::values::pointer::Pointer;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
@@ -10,8 +13,6 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
-use crate::dif::{DIFUpdate, DIFValue};
-use crate::values::core_value::CoreValue;
 
 #[derive(Clone, Debug)]
 pub struct Reference(pub Rc<RefCell<ReferenceData>>);
@@ -62,8 +63,7 @@ impl Hash for Reference {
 impl<T: Into<ValueContainer>> From<T> for Reference {
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
-        let allowed_type =
-            value_container.to_value().borrow().actual_type.clone();
+        let allowed_type = value_container.to_value().borrow().r#type().clone();
         Reference::new_from_value_container(value_container, allowed_type)
     }
 }
@@ -80,7 +80,7 @@ impl Deref for Reference {
 impl Reference {
     pub fn new_from_value_container(
         value_container: ValueContainer,
-        allowed_type: CoreValueType,
+        allowed_type: Type,
     ) -> Self {
         let reference = Reference(Rc::new(RefCell::new(ReferenceData {
             value_container,
@@ -111,11 +111,11 @@ impl Reference {
         let reference = self.collapse_reference_chain();
         let mut ref_value = reference.borrow_mut();
         match &mut ref_value.value_container {
-            ValueContainer::Value(value) => {
-                f(value)
-            }
+            ValueContainer::Value(value) => f(value),
             ValueContainer::Reference(_) => {
-                unreachable!("Expected a ValueContainer::Value, but found a Reference")
+                unreachable!(
+                    "Expected a ValueContainer::Value, but found a Reference"
+                )
             }
         }
     }
@@ -126,7 +126,6 @@ impl Reference {
         key: &str,
         mut val: ValueContainer,
     ) -> Result<(), String> {
-
         // Ensure the value is a reference if it is a combined value (e.g. an object)
         val = val.upgrade_combined_value_to_reference();
 
@@ -148,8 +147,11 @@ impl Reference {
         })
     }
 
-    pub fn try_get_text_property(&self, key: &str) -> Result<Option<ValueContainer>, String> {
-        self.with_value(|value | {
+    pub fn try_get_text_property(
+        &self,
+        key: &str,
+    ) -> Result<Option<ValueContainer>, String> {
+        self.with_value(|value| {
             match value.inner {
                 CoreValue::Object(ref mut obj) => {
                     // If the value is an object, get the property
@@ -171,10 +173,11 @@ impl Reference {
         value: T,
     ) -> Result<(), String> {
         // TODO: ensure type compatibility with allowed_type
-        let value_container= &value.into();
+        let value_container = &value.into();
         self.with_value(|core_value| {
             // Set the value directly, ensuring it is a ValueContainer
-            core_value.inner = value_container.to_value().borrow().inner.clone();
+            core_value.inner =
+                value_container.to_value().borrow().inner.clone();
         });
 
         // Notify observers of the update
@@ -187,9 +190,7 @@ impl Reference {
     }
 
     /// upgrades all inner combined values (e.g. object properties) to references
-    pub fn upgrade_inner_combined_values_to_references(
-        &self,
-    ) {
+    pub fn upgrade_inner_combined_values_to_references(&self) {
         self.with_value(|value| {
             match &mut value.inner {
                 CoreValue::Object(obj) => {
@@ -198,7 +199,7 @@ impl Reference {
                         // TODO: no clone here, implement some sort of map
                         *prop = self.bind_child(prop.clone());
                     }
-                },
+                }
                 // TODO: other combined value types should be added here
                 _ => {
                     // If the value is not an object, we do not need to upgrade anything
@@ -242,7 +243,7 @@ pub struct ReferenceData {
     /// this can be None if only a local reference is needed
     pointer: Option<Pointer>,
     /// custom type for the pointer that the Datex value is allowed to reference
-    pub allowed_type: CoreValueType,
+    pub allowed_type: Type,
     /// list of observer callbacks
     pub observers: Vec<ReferenceObserver>,
 }
@@ -281,11 +282,11 @@ impl ReferenceData {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
-    use datex_core::values::core_values::object::Object;
     use super::*;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
+    use datex_core::values::core_values::object::Object;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn test_reference_identity() {
@@ -343,35 +344,42 @@ mod tests {
 
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
-        object_b_ref
-            .with_maybe_reference(|b_ref| {
-                b_ref.try_set_text_property("a", object_a_val.clone())
-            });
+        object_b_ref.with_maybe_reference(|b_ref| {
+            b_ref.try_set_text_property("a", object_a_val.clone())
+        });
 
         println!("Object B Reference: {:#?}", object_b_ref);
 
         // assert that the reference to object_a is set correctly
         object_b_ref
             .with_maybe_reference(|b_ref| {
-                let object_a_ref = b_ref.try_get_text_property("a").unwrap().unwrap();
+                let object_a_ref =
+                    b_ref.try_get_text_property("a").unwrap().unwrap();
                 assert_structural_eq!(object_a_ref, object_a_val);
                 // object_a_ref should be a reference
                 assert_matches!(object_a_ref, ValueContainer::Reference(_));
                 object_a_ref.with_maybe_reference(|a_ref| {
                     // object_a_ref.number should be a value
-                    assert_matches!(a_ref.try_get_text_property("number"), Ok(Some(ValueContainer::Value(_))));
+                    assert_matches!(
+                        a_ref.try_get_text_property("number"),
+                        Ok(Some(ValueContainer::Value(_)))
+                    );
                     // object_a_ref.obj should be a reference
-                    assert_matches!(a_ref.try_get_text_property("obj"), Ok(Some(ValueContainer::Reference(_))));
+                    assert_matches!(
+                        a_ref.try_get_text_property("obj"),
+                        Ok(Some(ValueContainer::Reference(_)))
+                    );
                 });
             })
             .expect("object_b_ref should be a reference");
     }
-    
+
     #[test]
     fn test_value_change_observe() {
         let int_ref = Reference::from(42);
 
-        let observer_dif: Rc<RefCell<Option<DIFUpdate>>> = Rc::new(RefCell::new(None));
+        let observer_dif: Rc<RefCell<Option<DIFUpdate>>> =
+            Rc::new(RefCell::new(None));
         let observer_dif_clone = observer_dif.clone();
         // add observer to the reference
         int_ref.observe(move |dif| {
@@ -384,7 +392,9 @@ mod tests {
 
         assert_eq!(
             *observer_dif.borrow(),
-            Some(DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(43))))
+            Some(DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(
+                43
+            ))))
         );
     }
 }
