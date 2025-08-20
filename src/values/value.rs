@@ -1,8 +1,10 @@
 use super::datex_type::CoreValueType;
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::descriptor::TypeDescriptor;
+use crate::values::core_values::r#type::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
-use crate::values::value_container::ValueError;
+use crate::values::value_container::{ValueContainer, ValueError};
 use log::error;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Deref, Not, Sub};
@@ -10,7 +12,7 @@ use std::ops::{Add, AddAssign, Deref, Not, Sub};
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
     pub inner: CoreValue,
-    pub actual_type: CoreValueType, // custom type for the value that can not be changed
+    pub actual_type: Box<Type>,
 }
 
 /// Two values are structurally equal, if their inner values are structurally equal, regardless
@@ -41,11 +43,21 @@ impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
         let actual_type = inner.get_default_type();
-        Value { inner, actual_type }
+        Value {
+            inner,
+            actual_type: Box::new(Type::new(
+                "core:fixme",
+                TypeDescriptor::Core(actual_type),
+            )),
+        }
     }
 }
 
 impl Value {
+    pub fn is_type(&self) -> bool {
+        self.is_of_type(CoreValueType::Type)
+    }
+
     pub fn is_of_type(&self, target: CoreValueType) -> bool {
         self.get_type() == target
     }
@@ -60,6 +72,10 @@ impl Value {
     }
     pub fn is_bool(&self) -> bool {
         self.is_of_type(CoreValueType::Boolean)
+    }
+
+    pub fn r#type(&self) -> Type {
+        return self.actual_type.as_ref().clone();
     }
 
     /// Attempts to cast the value to the target type, returning an Option<Value>.
@@ -82,7 +98,10 @@ impl Value {
     pub fn try_cast_to(&self, target_type: CoreValueType) -> Option<Value> {
         self.inner.cast_to(target_type.clone()).map(|inner| Value {
             inner,
-            actual_type: target_type,
+            actual_type: Box::new(Type::new(
+                "core:fixme",
+                TypeDescriptor::Core(target_type),
+            )),
         })
     }
 
@@ -130,8 +149,13 @@ impl Value {
         self.try_cast_to(target_type).unwrap_or(Value::null())
     }
 
+    // FIXME deprecate
     pub fn get_type(&self) -> CoreValueType {
-        self.actual_type.clone()
+        // self.actual_type.clone()
+        match self.r#type().descriptor {
+            TypeDescriptor::Core(core_type) => core_type,
+            _ => unreachable!("Value should always have a core type"),
+        }
     }
 
     pub fn null() -> Self {
