@@ -110,32 +110,14 @@ mod tests {
     use crate::{
         datex_array,
         values::{
-            core_value::CoreValue,
             core_values::{
-                integer::integer::Integer,
+                integer::{integer::Integer, typed_integer::TypedInteger},
                 text::Text,
-                r#type::{core::integer, r#type::Type},
+                r#type::core::integer,
             },
             value_container::ValueContainer,
         },
     };
-
-    #[test]
-    fn test_type_and_value() {
-        let union = Union::new(vec![
-            ValueContainer::from(Integer::from(1)),
-            ValueContainer::from(integer()),
-        ]);
-
-        assert_eq!(union.len(), 1);
-
-        assert!(union.matches(Integer::from(1)));
-        assert!(union.matches(Integer::from(2)));
-        assert!(union.matches(Integer::from(42)));
-
-        assert!(!union.matches(Text::from("test")));
-        assert!(!union.matches(Text::from("test2")));
-    }
 
     #[test]
     fn test_union_creation() {
@@ -187,5 +169,44 @@ mod tests {
         let union =
             Union::new(vec![ValueContainer::from(1), ValueContainer::from(2)]);
         assert_eq!(union.to_string(), "1 | 2");
+    }
+
+    #[test]
+    fn test_integer_and_typed_integer() {
+        let union = Union::new(
+            datex_array![TypedInteger::from(1u8), Integer::from(1)].into(),
+        );
+
+        assert_eq!(union.len(), 2);
+        assert_eq!(union.to_string(), "1 | 1");
+
+        assert!(union.matches(Integer::from(1)));
+        assert!(union.matches(TypedInteger::from(1u8)));
+        assert!(!union.matches(Integer::from(42)));
+        assert!(!union.matches(TypedInteger::from(1u16)));
+    }
+
+    #[test]
+    fn test_type() {
+        let union = Union::new(datex_array![integer()].into());
+
+        assert_eq!(union.len(), 1);
+        assert_eq!(union.to_string(), "core:integer");
+
+        assert!(union.matches(Integer::from(1)));
+        assert!(union.matches(Integer::from(2)));
+        assert!(union.matches(Integer::from(42)));
+    }
+
+    #[test]
+    fn test_type_and_value() {
+        let union =
+            Union::new(datex_array![Integer::from(1), integer()].into());
+
+        assert_eq!(union.len(), 1);
+
+        assert!(union.matches(Integer::from(1)));
+        assert!(union.matches(Integer::from(2)));
+        assert!(union.matches(Integer::from(42)));
     }
 }
