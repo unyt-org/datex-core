@@ -32,4 +32,7 @@ pub enum CoreValueType {
     Object,
     Endpoint,
     Tuple,
+
+    Type,
+    Union,
 }
