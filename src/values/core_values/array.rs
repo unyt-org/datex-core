@@ -101,7 +101,7 @@ macro_rules! datex_array {
     ( $( $x:expr ),* ) => {
         {
             let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
-            Array(arr)
+            $crate::values::core_values::array::Array(arr)
         }
     };
 }
@@ -113,5 +113,11 @@ impl TryFrom<CoreValue> for Array {
             return Ok(array);
         }
         Err(ValueError::TypeConversionError)
+    }
+}
+
+impl From<Array> for Vec<ValueContainer> {
+    fn from(array: Array) -> Self {
+        array.0
     }
 }
