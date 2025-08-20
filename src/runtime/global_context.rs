@@ -1,4 +1,7 @@
-use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
+use crate::{
+    crypto::crypto::CryptoTrait, utils::time::TimeTrait,
+    values::core_values::r#type::registry::TypeRegistry,
+};
 use std::{
     cell::RefCell,
     sync::{Arc, Mutex},
