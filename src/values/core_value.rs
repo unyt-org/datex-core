@@ -10,6 +10,7 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
+use crate::values::core_values::r#type::core::{boolean, i8, integer, text};
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::core_values::union::Union;
 use crate::values::datex_type::CoreValueType;
@@ -210,6 +211,20 @@ impl CoreValue {
         )
     }
 
+    pub fn get_default_type_new(&self) -> Type {
+        match self {
+            CoreValue::Type(ty) => ty.as_ref().clone(), // what is the type of type?
+            CoreValue::Boolean(_) => boolean(),
+            CoreValue::TypedInteger(int) => match int {
+                TypedInteger::I8(_) => i8(),
+                _ => todo!("get_default_type_new for other TypedInteger types"),
+            },
+            CoreValue::Text(_) => text(),
+            CoreValue::Integer(_) => integer(),
+            e => todo!("get_default_type_new for {e:?}"),
+        }
+    }
+
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Type(_) => CoreValueType::Type,
@@ -287,6 +302,13 @@ impl CoreValue {
                 Decimal::from_string(self.cast_to_text().as_str()),
             )),
             _ => todo!("#116 Undescribed by author."),
+        }
+    }
+
+    pub fn cast_to_type(&self) -> Option<Type> {
+        match self {
+            CoreValue::Type(ty) => Some(ty.as_ref().clone()),
+            _ => None,
         }
     }
 
