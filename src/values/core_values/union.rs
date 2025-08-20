@@ -191,7 +191,7 @@ mod tests {
         let union = Union::new(datex_array![integer()].into());
 
         assert_eq!(union.len(), 1);
-        assert_eq!(union.to_string(), "core:integer");
+        assert_eq!(union.to_string(), "integer");
 
         assert!(union.matches(Integer::from(1)));
         assert!(union.matches(Integer::from(2)));
