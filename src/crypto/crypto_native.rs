@@ -9,6 +9,7 @@ use openssl::{
     pkey::{Id, PKey},
     pkey_ctx::{HkdfMode, PkeyCtx},
     sign::{Signer, Verifier},
+    symm::{Cipher, Crypter, Mode},
 };
 use rand::{Rng, rngs::OsRng};
 use rsa::{
@@ -20,6 +21,8 @@ use uuid::Uuid;
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
 pub const KEY_LEN: usize = 32;
+pub const IV_LEN: usize = 12;
+pub const TAG_LEN: usize = 16;
 pub const SIG_LEN: usize = 64;
 
 fn init_counter() -> &'static AtomicU64 {
@@ -52,6 +55,59 @@ pub fn hkdf(ikm: &[u8], salt: &[u8], info: &[u8], out_len: usize) -> Result<Vec<
     ctx.derive(Some(&mut okm))
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
     Ok(okm)
+}
+
+// AES GCM
+pub fn aes_gcm_encrypt(
+    key: &[u8; KEY_LEN],
+    iv: &[u8; IV_LEN],
+    aad: &[u8],
+    plaintext: &[u8],
+) -> Result<(Vec<u8>, [u8; TAG_LEN]), CryptoError> {
+    let cipher = Cipher::aes_256_gcm();
+    let mut enc = Crypter::new(cipher, Mode::Encrypt, key, Some(iv))
+        .map_err(|_| CryptoError::EncryptionError)?;
+    enc.aad_update(aad)
+        .map_err(|_| CryptoError::EncryptionError)?;
+
+    let mut out = vec![0u8; plaintext.len() + cipher.block_size()];
+    let mut count = enc
+        .update(plaintext, &mut out)
+        .map_err(|_| CryptoError::EncryptionError)?;
+    count += enc
+        .finalize(&mut out[count..])
+        .map_err(|_| CryptoError::EncryptionError)?;
+    out.truncate(count);
+
+    let mut tag = [0u8; TAG_LEN];
+    enc.get_tag(&mut tag)
+        .map_err(|_| CryptoError::EncryptionError)?;
+    Ok((out, tag))
+}
+
+pub fn aes_gcm_decrypt(
+    key: &[u8; KEY_LEN],
+    iv: &[u8; IV_LEN],
+    aad: &[u8],
+    ciphertext: &[u8],
+    tag: &[u8; TAG_LEN],
+) -> Result<Vec<u8>, CryptoError> {
+    let cipher = Cipher::aes_256_gcm();
+    let mut dec = Crypter::new(cipher, Mode::Decrypt, key, Some(iv))
+        .map_err(|_| CryptoError::DecryptionError)?;
+    dec.aad_update(aad)
+        .map_err(|_| CryptoError::DecryptionError)?;
+    dec.set_tag(tag).map_err(|_| CryptoError::DecryptionError)?;
+
+    let mut out = vec![0u8; ciphertext.len() + cipher.block_size()];
+    let mut count = dec
+        .update(ciphertext, &mut out)
+        .map_err(|_| CryptoError::DecryptionError)?;
+    count += dec
+        .finalize(&mut out[count..])
+        .map_err(|_| CryptoError::DecryptionError)?;
+    out.truncate(count);
+    Ok(out)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -278,5 +334,19 @@ mod tests {
                 .await
                 .unwrap()
         );
+    }
+    #[test]
+    fn aes_gcm_roundtrip() {
+        const INFO: &[u8] = b"ECIES|X25519|HKDF-SHA256|AES-256-GCM";
+        let key = [0u8; 32];
+        let iv = [0u8; 12];
+
+        let data = b"Some message to encrypt".to_vec();
+
+        let (ciphered, tag) = aes_gcm_encrypt(&key, &iv, &INFO, &data).unwrap();
+        let deciphered = aes_gcm_decrypt(&key, &iv, &INFO, &ciphered, &tag).unwrap();
+
+        assert_ne!(ciphered, data);
+        assert_eq!(data, deciphered.to_vec());
     }
 }
