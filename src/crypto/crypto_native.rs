@@ -6,8 +6,9 @@ use super::crypto::{CryptoError, CryptoTrait};
 use crate::runtime::global_context::get_global_context;
 use openssl::{
     md::Md,
-    pkey::Id,
+    pkey::{Id, PKey},
     pkey_ctx::{HkdfMode, PkeyCtx},
+    sign::{Signer, Verifier},
 };
 use rand::{Rng, rngs::OsRng};
 use rsa::{
@@ -17,6 +18,9 @@ use rsa::{
 use uuid::Uuid;
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
+
+pub const KEY_LEN: usize = 32;
+pub const SIG_LEN: usize = 64;
 
 fn init_counter() -> &'static AtomicU64 {
     UUID_COUNTER.get_or_init(|| AtomicU64::new(1))
@@ -142,6 +146,63 @@ impl CryptoTrait for CryptoNative {
     {
         todo!()
     }
+    // EdDSA keygen
+    fn gen_ed25519(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<([u8; KEY_LEN], [u8; KEY_LEN]), CryptoError>> + 'static>>
+    {
+        Box::pin(async move {
+            let key = PKey::generate_ed25519().map_err(|_| CryptoError::KeyGeneratorFailed)?;
+
+            let public_key: [u8; KEY_LEN] = key
+                .raw_public_key()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .try_into()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let private_key: [u8; KEY_LEN] = key
+                .raw_private_key()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .try_into()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            Ok((public_key, private_key))
+        })
+    }
+
+    // EdDSA signature
+    fn sig_ed25519<'a>(
+        &'a self,
+        pri_key: &'a [u8; KEY_LEN],
+        digest: &'a Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>> {
+        Box::pin(async move {
+            let sig_key = PKey::private_key_from_raw_bytes(pri_key, Id::ED25519)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            let mut signer =
+                Signer::new_without_digest(&sig_key).map_err(|_| CryptoError::SigningError)?;
+            let signature = signer
+                .sign_oneshot_to_vec(digest)
+                .map_err(|_| CryptoError::SigningError)?;
+            Ok(signature)
+        })
+    }
+
+    // EdDSA verification of signature
+    fn ver_ed25519<'a>(
+        &'a self,
+        pub_key: &'a [u8; KEY_LEN],
+        sig: &'a [u8; SIG_LEN],
+        data: &'a Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + Send + 'a>> {
+        Box::pin(async move {
+            let public_key = PKey::public_key_from_raw_bytes(pub_key, Id::ED25519)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            let mut verifier = Verifier::new_without_digest(&public_key)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            Ok(verifier
+                .verify_oneshot(sig, &data)
+                .map_err(|_| CryptoError::VerificationError)?)
+        })
+    }
 }
 
 #[cfg(test)]
@@ -183,5 +244,39 @@ mod tests {
         let hash = hkdf(&ikm, &salt, &INFO, 32).unwrap();
 
         assert_eq!(hash.len(), 32);
+    }
+    #[tokio::test]
+    async fn test_dsa_ed2519() {
+        static CRYPTO: CryptoNative = CryptoNative {};
+        let data = b"Some message to sign".to_vec();
+        let fake_data = b"Some other message to sign".to_vec();
+
+        let (pub_key, pri_key) = CRYPTO.gen_ed25519().await.unwrap();
+
+        let sig: [u8; 64] = CRYPTO
+            .sig_ed25519(&pri_key, &data)
+            .await
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let fake_sig = [0u8; 64];
+
+        assert_eq!(pub_key.len(), 32);
+        assert_eq!(pri_key.len(), 32);
+        assert_eq!(sig.len(), 64);
+
+        assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
+        assert!(
+            !CRYPTO
+                .ver_ed25519(&pub_key, &sig, &fake_data)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !CRYPTO
+                .ver_ed25519(&pub_key, &fake_sig, &data)
+                .await
+                .unwrap()
+        );
     }
 }
