@@ -1245,6 +1245,38 @@ mod tests {
 
     #[test]
     fn test_type_var_declaration() {
+        // var X = (4 & 4i16 | 4343) // -> type
+        // var X = (3, 4, integer) // -> type
+        // var X = {x: integer} // -> type
+        // var X: Array<u8> // -> type
+        // var x = Array<u8>
+        // var x = Array<u8> // typeof
+        // var x = 4 // typeof Type<>
+        // var y: X = 32
+
+        // use std::LibType;
+        // use core::integer;
+        // val = $4353534453345
+        // dffds:sdfsdffd:user
+
+        // var Y = 5 | "text"
+        // var u = X as u8 + 5 // 10
+        // var x: Y = 55
+
+        // var x = x.x < 0 ? 5 : 2
+        // const y: X = 5;
+
+        // type X = env.x ? { x: integer/u8 } : string
+        // var x: X = 42
+
+        // typeof z {}
+
+        // { x: 5}
+
+        // var x = @fdsfdsffds
+        // var y = x/42
+        // var x = User/adult { }
+        // typeof User
         let src = "var x: 5 = 42";
         let val = parse_unwrap(src);
         assert_eq!(
