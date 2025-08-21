@@ -56,6 +56,9 @@ pub trait CryptoTrait: Send + Sync {
         sig: &'a [u8; SIG_LEN],
         data: &'a Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + Send + 'a>>;
+
+    // Elliptic curve generation
+    fn gen_x25519(&self) -> Result<([u8; KEY_LEN], [u8; KEY_LEN]), CryptoError>;
 }
 
 pub struct Crypto;

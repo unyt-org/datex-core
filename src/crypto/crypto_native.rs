@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::crypto::{CryptoError, CryptoTrait};
 use crate::runtime::global_context::get_global_context;
 use openssl::{
+    derive::Deriver,
     md::Md,
     pkey::{Id, PKey},
     pkey_ctx::{HkdfMode, PkeyCtx},
@@ -108,6 +109,25 @@ pub fn aes_gcm_decrypt(
         .map_err(|_| CryptoError::DecryptionError)?;
     out.truncate(count);
     Ok(out)
+}
+
+// Derive shared secret on x255109
+pub fn derive_x25519(
+    my_raw: &[u8; KEY_LEN],
+    peer_pub: &[u8; KEY_LEN],
+) -> Result<Vec<u8>, CryptoError> {
+    let peer_pub = PKey::public_key_from_raw_bytes(peer_pub, Id::X25519)
+        .map_err(|_| CryptoError::KeyImportFailed)?;
+    let my_priv = PKey::private_key_from_raw_bytes(my_raw, Id::X25519)
+        .map_err(|_| CryptoError::KeyImportFailed)?;
+
+    let mut deriver = Deriver::new(&my_priv).map_err(|_| CryptoError::KeyDerivationFailed)?;
+    deriver
+        .set_peer(&peer_pub)
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    deriver
+        .derive_to_vec()
+        .map_err(|_| CryptoError::KeyDerivationFailed)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -259,6 +279,23 @@ impl CryptoTrait for CryptoNative {
                 .map_err(|_| CryptoError::VerificationError)?)
         })
     }
+
+    // Generate encryption keypair
+    fn gen_x25519(&self) -> Result<([u8; KEY_LEN], [u8; KEY_LEN]), CryptoError> {
+        // ) -> Pin<Box<dyn Future<Output = Result<([u8; KEY_LEN], [u8; KEY_LEN]), CryptoError>> + 'static>>
+        let key = PKey::generate_x25519().map_err(|_| CryptoError::KeyGeneratorFailed)?;
+        let public_key: [u8; KEY_LEN] = key
+            .raw_public_key()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?
+            .try_into()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+        let private_key: [u8; KEY_LEN] = key
+            .raw_private_key()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?
+            .try_into()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+        Ok((public_key, private_key))
+    }
 }
 
 #[cfg(test)]
@@ -303,7 +340,6 @@ mod tests {
     }
     #[tokio::test]
     async fn test_dsa_ed2519() {
-        static CRYPTO: CryptoNative = CryptoNative {};
         let data = b"Some message to sign".to_vec();
         let fake_data = b"Some other message to sign".to_vec();
 
@@ -348,5 +384,16 @@ mod tests {
 
         assert_ne!(ciphered, data);
         assert_eq!(data, deciphered.to_vec());
+    }
+    #[test]
+    fn test_dh_x25519() {
+        let (ser_pub, ser_pri) = CRYPTO.gen_x25519().unwrap();
+        let (cli_pub, cli_pri) = CRYPTO.gen_x25519().unwrap();
+
+        let cli_shared = derive_x25519(&cli_pri, &ser_pub).unwrap();
+        let ser_shared = derive_x25519(&ser_pri, &cli_pub).unwrap();
+
+        assert_eq!(cli_shared, ser_shared);
+        assert_eq!(cli_shared.len(), 32);
     }
 }
