@@ -4,14 +4,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
 use crate::runtime::global_context::get_global_context;
-use openssl::{
-    bn::BigNumContext,
-    ec::{EcGroup, EcKey, PointConversionForm},
-    hash::MessageDigest,
-    nid::Nid,
-    pkey::{Id, PKey, Private, Public},
-    sign::{Signer, Verifier},
-};
 use rand::{Rng, rngs::OsRng};
 use rsa::{
     RsaPrivateKey, RsaPublicKey,
