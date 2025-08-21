@@ -4,6 +4,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
 use crate::runtime::global_context::get_global_context;
+use openssl::{
+    md::Md,
+    pkey::Id,
+    pkey_ctx::{HkdfMode, PkeyCtx},
+};
 use rand::{Rng, rngs::OsRng};
 use rsa::{
     RsaPrivateKey, RsaPublicKey,
@@ -22,6 +27,27 @@ fn generate_pseudo_uuid() -> String {
 
     // Encode counter into last segment, keeping UUID-like structure
     format!("00000000-0000-0000-0000-{count:012x}")
+}
+
+// HKDF (hash)
+pub fn hkdf(ikm: &[u8], salt: &[u8], info: &[u8], out_len: usize) -> Result<Vec<u8>, CryptoError> {
+    let mut ctx = PkeyCtx::new_id(Id::HKDF).map_err(|_| CryptoError::KeyDerivationFailed)?;
+    ctx.derive_init()
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    ctx.set_hkdf_mode(HkdfMode::EXTRACT_THEN_EXPAND)
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    ctx.set_hkdf_md(&Md::sha256())
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    ctx.set_hkdf_salt(salt)
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    ctx.set_hkdf_key(ikm)
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    ctx.add_hkdf_info(info)
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    let mut okm = vec![0u8; out_len];
+    ctx.derive(Some(&mut okm))
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    Ok(okm)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -146,5 +172,16 @@ mod tests {
         let key_pair = CRYPTO.new_encryption_key_pair().await.unwrap();
         assert_eq!(key_pair.0.len(), 550);
         // assert_eq!(key_pair.1.len(), 2375);
+    }
+
+    #[test]
+    fn test_hkdf() {
+        const INFO: &[u8] = b"ECIES|X25519|HKDF-SHA256|AES-256-GCM";
+        let ikm = vec![0u8; 32];
+        let salt = vec![0u8; 16];
+
+        let hash = hkdf(&ikm, &salt, &INFO, 32).unwrap();
+
+        assert_eq!(hash.len(), 32);
     }
 }
