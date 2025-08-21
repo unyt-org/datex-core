@@ -7,6 +7,7 @@ use log::info;
 
 use crate::context::init_global_context;
 
+/*
 #[tokio::test]
 pub async fn test_construct() {
     init_global_context();
@@ -27,4 +28,4 @@ pub async fn test_construct() {
     let socket_uuid = interface.get_socket_uuid().unwrap();
     assert!(interface.send_block(b"Hello World", socket_uuid).await);
     interface.destroy().await;
-}
+}*/

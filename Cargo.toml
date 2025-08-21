@@ -82,6 +82,7 @@ chumsky = { version = "0.10.1", features = ["std"], default-features = false }
 ariadne = "0.5.1"
 logos = "0.15.0"
 
+openssl = "0.10"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
