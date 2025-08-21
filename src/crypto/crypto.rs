@@ -45,6 +45,7 @@ pub enum CryptoError {
     KeyGeneratorFailed,
     KeyExportFailed,
     KeyImportFailed,
+    KeyDerivationFailed,
     EncryptionError,
     DecryptionError,
     SigningError,
