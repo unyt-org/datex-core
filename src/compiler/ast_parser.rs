@@ -249,6 +249,19 @@ pub enum Slot {
 
 pub type VariableId = usize;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeExpression {
+    Atom(Box<DatexExpression>), // e.g. 2
+    Literal {
+        head: Box<DatexExpression>, // e,g, integer
+        variant: Option<String>,    // e.g. u8
+    },
+    Union(Vec<TypeExpression>),        // T1 | T2
+    Intersection(Vec<TypeExpression>), // T1 & T2
+    Array(Box<TypeExpression>),        // T[]
+    Tuple(Vec<TypeExpression>),        // (T1, T2, ...)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// Invalid expression, e.g. syntax error
@@ -290,7 +303,7 @@ pub enum DatexExpression {
         binding_mutability: BindingMutability,
         reference_mutability: ReferenceMutability,
         name: String,
-        type_annotation: Option<Box<DatexExpression>>,
+        type_annotation: Option<TypeExpression>,
         value: Box<DatexExpression>,
     },
 
@@ -332,7 +345,7 @@ pub enum DatexExpression {
 fn internal_variable_declaration(
     name: String,
     value: Box<DatexExpression>,
-    type_annotation: Option<Box<DatexExpression>>,
+    type_annotation: Option<TypeExpression>,
     reference_mutability: ReferenceMutability,
     kind: VariableKind,
 ) -> DatexExpression {
@@ -361,7 +374,7 @@ fn variable_declaration(
 fn typed_variable_declaration(
     name: String,
     value: Box<DatexExpression>,
-    type_annotation: Box<DatexExpression>,
+    type_annotation: TypeExpression,
     reference_mutability: ReferenceMutability,
     kind: VariableKind,
 ) -> DatexExpression {
@@ -898,6 +911,110 @@ pub fn create_parser<'a, I>()
     }
     .padded_by(whitespace.clone());
 
+    let type_expr = recursive(|type_expr| {
+        // Base atom: any existing DatexExpression
+        let type_atom =
+            unary.clone().map(|e| TypeExpression::Atom(Box::new(e)));
+
+        // Array suffix: T[]
+        let type_array = type_atom
+            .clone()
+            .then(
+                just(Token::LeftBracket)
+                    .then_ignore(just(Token::RightBracket))
+                    .repeated()
+                    .count(),
+            )
+            .map(|(base, brackets)| {
+                let mut out = base;
+                for _ in 0..brackets {
+                    out = TypeExpression::Array(Box::new(out));
+                }
+                out
+            });
+
+        // Slash variant: identifier[/variant]
+        // let type_path = select! { Token::Identifier(s) => s }
+        //     .then(
+        //         just(Token::Slash)
+        //             .ignore_then(select! { Token::Identifier(s) => s })
+        //             .or_not(),
+        //     )
+        //     .map(|(head, variant)| {
+        //         if let Some(v) = variant {
+        //             TypeExpression::Literal {
+        //                 head: DatexExpression::Identifier(head),
+        //                 variant: v,
+        //             }
+        //         } else {
+        //             TypeExpression::Atom(DatexExpression::Identifier(head))
+        //         }
+        //     });
+
+        // // Tuples (T1, T2, ...)
+        // let type_tuple = type_expr
+        //     .clone()
+        //     .separated_by(just(Token::Comma))
+        //     .allow_trailing()
+        //     .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        //     .map(|items| {
+        //         if items.len() == 1 {
+        //             items.into_iter().next().unwrap()
+        //         } else {
+        //             TypeExpression::Tuple(items)
+        //         }
+        //     });
+
+        // Primary choice
+        let type_primary =
+            choice((/*type_path, type_tuple, */ type_array, type_atom));
+
+        // Intersection: A & B & C
+        let type_intersection = type_primary
+            .clone()
+            .then(
+                just(Token::Ampersand)
+                    .ignore_then(type_primary.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, rest)| {
+                if rest.is_empty() {
+                    first
+                } else {
+                    TypeExpression::Intersection(
+                        std::iter::once(first).chain(rest).collect(),
+                    )
+                }
+            });
+
+        // Union: A | B | C
+        let type_union = type_intersection
+            .clone()
+            .then(
+                just(Token::Pipe)
+                    .ignore_then(type_intersection.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, rest)| {
+                if rest.is_empty() {
+                    first
+                } else {
+                    TypeExpression::Union(
+                        std::iter::once(first).chain(rest).collect(),
+                    )
+                }
+            });
+
+        type_union
+    });
+
+    let type_annotation = just(Token::Colon)
+        .padded_by(whitespace.clone())
+        .ignore_then(type_expr.clone())
+        .or_not();
+
     // variable declarations or assignments
     let variable_assignment = just(Token::ConstKW)
         .or(just(Token::VarKW))
@@ -906,10 +1023,11 @@ pub fn create_parser<'a, I>()
         .then(select! {
             Token::Identifier(s) => s
         })
+        .then(type_annotation)
         .then(assignment_op)
         .then(equality.clone())
-        .map(|(((var_type, var_name), op), expr)| {
-            if let Some(var_type) = var_type {
+        .map(|((((var_keyword, var_name), type_annotation), op), expr)| {
+            if let Some(var_type) = var_keyword {
                 let (reference_mutability, expr) = match expr {
                     DatexExpression::RefMut(expr) => {
                         (ReferenceMutability::Mutable, expr)
@@ -929,14 +1047,17 @@ pub fn create_parser<'a, I>()
                 } else {
                     VariableKind::Var
                 };
-                variable_declaration(
+                internal_variable_declaration(
                     var_name.to_string(),
                     expr,
+                    type_annotation,
                     reference_mutability,
                     var_kind,
                 )
-                .into()
             } else {
+                if type_annotation.is_some() {
+                    return DatexExpression::Invalid;
+                }
                 DatexExpression::AssignmentOperation(
                     op,
                     None,
@@ -1132,11 +1253,24 @@ mod tests {
         );
     }
 
+    /**
+     * var myval: < type > = value;
+     * < integer >
+     * < integer/u8 >
+     * < 2 >
+     * < {x: 2} >
+     * < {x: integer} >
+     * < integer/u8[] >
+     * < (integer, text, null) >
+     * < User & {x: 2} >
+     * < User | text >
+     * < {x: integer, y: 5} >
+     */
+
     // WIP
     #[test]
-    #[ignore = "reason"]
     fn test_type_var_declaration() {
-        let src = "var x: integer/u8 = 42";
+        let src = "var x: 5 = 42";
         let val = parse_unwrap(src);
         assert_eq!(
             val,
@@ -1145,9 +1279,37 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: None,
+                type_annotation: Some(TypeExpression::Atom(Box::new(
+                    DatexExpression::Integer(Integer::from(5))
+                ))),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Invalid)
+                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+            }
+        );
+    }
+
+    // # issues
+    // value: 5[] -> apply operation
+    // type: 5[] -> array declaration
+
+    #[test]
+    fn test_type_var_declaration_array() {
+        let src = "var x: 5[] = 42";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: Some(TypeExpression::Array(Box::new(
+                    TypeExpression::Atom(Box::new(DatexExpression::Integer(
+                        Integer::from(5)
+                    ))),
+                ))),
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
     }
