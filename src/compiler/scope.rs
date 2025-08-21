@@ -1,7 +1,7 @@
 use crate::compiler::ast_parser::ReferenceMutability;
 use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 use crate::compiler::{
-    Variable, VariableRepresentation, ast_parser::VariableType,
+    Variable, VariableRepresentation, ast_parser::VariableKind,
     context::VirtualSlot,
 };
 use itertools::Itertools;
@@ -88,7 +88,7 @@ impl CompilationScope {
     pub fn resolve_variable_name_to_virtual_slot(
         &self,
         name: &str,
-    ) -> Option<(VirtualSlot, VariableType, ReferenceMutability)> {
+    ) -> Option<(VirtualSlot, VariableKind, ReferenceMutability)> {
         if let Some(variable) = self.variables.get(name) {
             let slot = match variable.representation {
                 VariableRepresentation::Constant(slot) => slot,

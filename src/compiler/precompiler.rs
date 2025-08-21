@@ -219,16 +219,17 @@ fn visit_expression(
 
     // Important: always make sure all expressions are visited recursively
     match expression {
-        DatexExpression::VariableDeclaration(
+        DatexExpression::VariableDeclaration {
             id,
-            var_type,
-            binding_mut,
-            ref_mut,
+            kind,
+            binding_mutability,
+            reference_mutability,
             name,
-            expr,
-        ) => {
+            value,
+            type_annotation,
+        } => {
             visit_expression(
-                expr,
+                value,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,

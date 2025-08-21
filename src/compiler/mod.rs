@@ -7,7 +7,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::compiler::ast_parser::{
     AssignmentOperator, BindingMutability, DatexExpression, DatexScriptParser,
-    ReferenceMutability, TupleEntry, VariableId, VariableType, parse,
+    ReferenceMutability, TupleEntry, VariableId, VariableKind, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
@@ -90,12 +90,12 @@ impl From<VariableRepresentation> for VariableModel {
 impl VariableModel {
     /// Determines the variable model based on the variable type and metadata.
     pub fn infer(
-        variable_type: VariableType,
+        variable_type: VariableKind,
         variable_metadata: Option<VariableMetadata>,
         is_end_of_source_text: bool,
     ) -> Self {
         // const variables are always constant
-        if variable_type == VariableType::Const {
+        if variable_type == VariableKind::Const {
             VariableModel::Constant
         }
         // for cross-realm variables, we always use VariableReference
@@ -117,7 +117,7 @@ impl VariableModel {
     pub fn infer_from_ast_metadata_and_type(
         ast_metadata: &AstMetadata,
         variable_id: Option<VariableId>,
-        variable_type: VariableType,
+        variable_type: VariableKind,
         is_end_of_source_text: bool,
     ) -> Self {
         let variable_metadata =
@@ -146,7 +146,7 @@ pub enum VariableRepresentation {
 #[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
-    pub var_type: VariableType,
+    pub var_type: VariableKind,
     pub ref_mut: ReferenceMutability,
     pub binding_mut: BindingMutability,
     pub representation: VariableRepresentation,
@@ -160,7 +160,7 @@ impl Variable {
     ) -> Self {
         Variable {
             name,
-            var_type: VariableType::Const,
+            var_type: VariableKind::Const,
             binding_mut: BindingMutability::Immutable,
             ref_mut: mut_type,
             representation: VariableRepresentation::Constant(slot),
@@ -169,7 +169,7 @@ impl Variable {
 
     pub fn new_variable_slot(
         name: String,
-        var_type: VariableType,
+        var_type: VariableKind,
         binding_mut: BindingMutability,
         ref_mut: ReferenceMutability,
         slot: VirtualSlot,
@@ -185,7 +185,7 @@ impl Variable {
 
     pub fn new_variable_reference(
         name: String,
-        var_type: VariableType,
+        var_type: VariableKind,
         ref_mut: ReferenceMutability,
         binding_mut: BindingMutability,
         variable_slot: VirtualSlot,
@@ -679,14 +679,15 @@ fn compile_expression(
 
         // variables
         // declaration
-        DatexExpression::VariableDeclaration(
+        DatexExpression::VariableDeclaration {
             id,
-            var_type,
-            binding_mut,
-            ref_mut,
+            binding_mutability,
+            reference_mutability,
             name,
-            expression,
-        ) => {
+            kind,
+            type_annotation,
+            value,
+        } => {
             compilation_context.mark_has_non_static_value();
 
             // allocate new slot for variable
@@ -697,14 +698,14 @@ fn compile_expression(
                 VirtualSlot::local(virtual_slot_addr),
             );
             // create reference if value marked with & or &mut
-            if ref_mut != ReferenceMutability::None {
+            if reference_mutability != ReferenceMutability::None {
                 compilation_context
                     .append_binary_code(InstructionCode::CREATE_REF);
             }
             // compile expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                AstWithMetadata::new(*value, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -713,7 +714,7 @@ fn compile_expression(
                 VariableModel::infer_from_ast_metadata_and_type(
                     &metadata.borrow(),
                     id,
-                    var_type,
+                    kind,
                     compilation_context.is_end_of_source_text,
                 );
             info!("variable model for {name}: {variable_model:?}");
@@ -744,23 +745,23 @@ fn compile_expression(
 
                     Variable::new_variable_reference(
                         name.clone(),
-                        var_type,
-                        ref_mut,
-                        binding_mut,
+                        kind,
+                        reference_mutability,
+                        binding_mutability,
                         VirtualSlot::local(virtual_slot_addr_for_var),
                         VirtualSlot::local(virtual_slot_addr),
                     )
                 }
                 VariableModel::Constant => Variable::new_const(
                     name.clone(),
-                    ref_mut,
+                    reference_mutability,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
                 VariableModel::VariableSlot => Variable::new_variable_slot(
                     name.clone(),
-                    var_type,
-                    binding_mut,
-                    ref_mut,
+                    kind,
+                    binding_mutability,
+                    reference_mutability,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
             };
@@ -787,7 +788,7 @@ fn compile_expression(
             match operator {
                 AssignmentOperator::Assign => {
                     // if const, return error
-                    if var_type == VariableType::Const {
+                    if var_type == VariableKind::Const {
                         return Err(CompilerError::AssignmentToConst(
                             name.clone(),
                         ));

@@ -223,7 +223,7 @@ pub enum Apply {
 
 // TODO TBD can we deprecate this?
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum VariableType {
+pub enum VariableKind {
     Const,
     Var,
 }
@@ -284,14 +284,15 @@ pub enum DatexExpression {
     /// Identifier, e.g. a variable name. VariableId is always set to 0 by the ast parser.
     Variable(Option<VariableId>, String),
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
-    VariableDeclaration(
-        Option<VariableId>,
-        VariableType,
-        BindingMutability,
-        ReferenceMutability,
-        String,
-        Box<DatexExpression>,
-    ),
+    VariableDeclaration {
+        id: Option<VariableId>,
+        kind: VariableKind,
+        binding_mutability: BindingMutability,
+        reference_mutability: ReferenceMutability,
+        name: String,
+        type_annotation: Option<Box<DatexExpression>>,
+        value: Box<DatexExpression>,
+    },
 
     /// Reference, e.g. &x
     Ref(Box<DatexExpression>),
@@ -326,6 +327,51 @@ pub enum DatexExpression {
     Placeholder,
     // @xy :: z
     RemoteExecution(Box<DatexExpression>, Box<DatexExpression>),
+}
+
+fn internal_variable_declaration(
+    name: String,
+    value: Box<DatexExpression>,
+    type_annotation: Option<Box<DatexExpression>>,
+    reference_mutability: ReferenceMutability,
+    kind: VariableKind,
+) -> DatexExpression {
+    DatexExpression::VariableDeclaration {
+        id: None,
+        kind,
+        binding_mutability: if kind == VariableKind::Const {
+            BindingMutability::Immutable
+        } else {
+            BindingMutability::Mutable
+        },
+        reference_mutability,
+        name,
+        type_annotation,
+        value,
+    }
+}
+fn variable_declaration(
+    name: String,
+    value: Box<DatexExpression>,
+    reference_mutability: ReferenceMutability,
+    kind: VariableKind,
+) -> DatexExpression {
+    internal_variable_declaration(name, value, None, reference_mutability, kind)
+}
+fn typed_variable_declaration(
+    name: String,
+    value: Box<DatexExpression>,
+    type_annotation: Box<DatexExpression>,
+    reference_mutability: ReferenceMutability,
+    kind: VariableKind,
+) -> DatexExpression {
+    internal_variable_declaration(
+        name,
+        value,
+        Some(type_annotation),
+        reference_mutability,
+        kind,
+    )
 }
 
 // directly convert DatexExpression to a ValueContainer
@@ -864,7 +910,7 @@ pub fn create_parser<'a, I>()
         .then(equality.clone())
         .map(|(((var_type, var_name), op), expr)| {
             if let Some(var_type) = var_type {
-                let (mutability, expr) = match expr {
+                let (reference_mutability, expr) = match expr {
                     DatexExpression::RefMut(expr) => {
                         (ReferenceMutability::Mutable, expr)
                     }
@@ -878,22 +924,18 @@ pub fn create_parser<'a, I>()
                 if op != AssignmentOperator::Assign {
                     return DatexExpression::Invalid;
                 }
-                DatexExpression::VariableDeclaration(
-                    None,
-                    if var_type == Token::ConstKW {
-                        VariableType::Const
-                    } else {
-                        VariableType::Var
-                    },
-                    if var_type == Token::ConstKW {
-                        BindingMutability::Immutable
-                    } else {
-                        BindingMutability::Mutable
-                    },
-                    mutability,
+                let var_kind = if var_type == Token::ConstKW {
+                    VariableKind::Const
+                } else {
+                    VariableKind::Var
+                };
+                variable_declaration(
                     var_name.to_string(),
                     expr,
+                    reference_mutability,
+                    var_kind,
                 )
+                .into()
             } else {
                 DatexExpression::AssignmentOperation(
                     op,
@@ -1087,6 +1129,26 @@ mod tests {
                     )
                 ),
             ])
+        );
+    }
+
+    // WIP
+    #[test]
+    #[ignore = "reason"]
+    fn test_type_var_declaration() {
+        let src = "var x: integer/u8 = 42";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: None,
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::Invalid)
+            }
         );
     }
 
@@ -2189,14 +2251,17 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Statements(vec![Statement {
-                expression: DatexExpression::VariableDeclaration(
-                    None,
-                    VariableType::Const,
-                    BindingMutability::Immutable,
-                    ReferenceMutability::None,
-                    "x".to_string(),
-                    Box::new(DatexExpression::Integer(Integer::from(42))),
-                ),
+                expression: DatexExpression::VariableDeclaration {
+                    id: None,
+                    kind: VariableKind::Const,
+                    binding_mutability: BindingMutability::Immutable,
+                    type_annotation: None,
+                    reference_mutability: ReferenceMutability::None,
+                    name: "x".to_string(),
+                    value: Box::new(DatexExpression::Integer(Integer::from(
+                        42
+                    ))),
+                },
                 is_terminated: true,
             },])
         );
@@ -2208,18 +2273,19 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Var,
-                BindingMutability::Mutable,
-                ReferenceMutability::None,
-                "x".to_string(),
-                Box::new(DatexExpression::BinaryOperation(
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: None,
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                 )),
-            )
+            }
         );
     }
 
@@ -2337,14 +2403,17 @@ mod tests {
             expr,
             DatexExpression::Statements(vec![
                 Statement {
-                    expression: DatexExpression::VariableDeclaration(
-                        None,
-                        VariableType::Var,
-                        BindingMutability::Mutable,
-                        ReferenceMutability::None,
-                        "x".to_string(),
-                        Box::new(DatexExpression::Integer(Integer::from(42))),
-                    ),
+                    expression: DatexExpression::VariableDeclaration {
+                        id: None,
+                        kind: VariableKind::Var,
+                        binding_mutability: BindingMutability::Mutable,
+                        reference_mutability: ReferenceMutability::None,
+                        name: "x".to_string(),
+                        value: Box::new(DatexExpression::Integer(
+                            Integer::from(42)
+                        )),
+                        type_annotation: None
+                    },
                     is_terminated: true,
                 },
                 Statement {
@@ -2756,18 +2825,19 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                BindingMutability::Immutable,
-                ReferenceMutability::Mutable,
-                "x".to_string(),
-                Box::new(DatexExpression::Array(vec![
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Const,
+                binding_mutability: BindingMutability::Immutable,
+                reference_mutability: ReferenceMutability::Mutable,
+                name: "x".to_string(),
+                type_annotation: None,
+                value: Box::new(DatexExpression::Array(vec![
                     DatexExpression::Integer(Integer::from(1)),
                     DatexExpression::Integer(Integer::from(2)),
                     DatexExpression::Integer(Integer::from(3)),
                 ])),
-            )
+            }
         );
     }
 
@@ -2777,18 +2847,19 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                BindingMutability::Immutable,
-                ReferenceMutability::Immutable,
-                "x".to_string(),
-                Box::new(DatexExpression::Array(vec![
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Const,
+                binding_mutability: BindingMutability::Immutable,
+                reference_mutability: ReferenceMutability::Immutable,
+                name: "x".to_string(),
+                type_annotation: None,
+                value: Box::new(DatexExpression::Array(vec![
                     DatexExpression::Integer(Integer::from(1)),
                     DatexExpression::Integer(Integer::from(2)),
                     DatexExpression::Integer(Integer::from(3)),
                 ])),
-            )
+            }
         );
     }
     #[test]
@@ -2797,14 +2868,15 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::VariableDeclaration(
-                None,
-                VariableType::Const,
-                BindingMutability::Immutable,
-                ReferenceMutability::None,
-                "x".to_string(),
-                Box::new(DatexExpression::Integer(Integer::from(1))),
-            )
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Const,
+                binding_mutability: BindingMutability::Immutable,
+                reference_mutability: ReferenceMutability::None,
+                name: "x".to_string(),
+                type_annotation: None,
+                value: Box::new(DatexExpression::Integer(Integer::from(1))),
+            }
         );
     }
 }
