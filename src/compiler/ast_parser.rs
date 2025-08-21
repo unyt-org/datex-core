@@ -993,6 +993,7 @@ pub fn create_parser<'a, I>()
             .clone()
             .then(
                 just(Token::Pipe)
+                    .padded_by(whitespace.clone())
                     .ignore_then(type_intersection.clone())
                     .repeated()
                     .collect::<Vec<_>>(),
@@ -1267,7 +1268,6 @@ mod tests {
      * < {x: integer, y: 5} >
      */
 
-    // WIP
     #[test]
     fn test_type_var_declaration() {
         let src = "var x: 5 = 42";
@@ -1292,6 +1292,32 @@ mod tests {
     // value: 5[] -> apply operation
     // type: 5[] -> array declaration
 
+    // WIP
+    #[test]
+    fn test_type_var_declaration_union() {
+        let src = "var x: 5 | 6 = 42";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: Some(TypeExpression::Union(vec![
+                    TypeExpression::Atom(Box::new(DatexExpression::Integer(
+                        Integer::from(5)
+                    ))),
+                    TypeExpression::Atom(Box::new(DatexExpression::Integer(
+                        Integer::from(6)
+                    ))),
+                ])),
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+            }
+        );
+    }
+
     #[test]
     fn test_type_var_declaration_array() {
         let src = "var x: 5[] = 42";
@@ -1307,6 +1333,25 @@ mod tests {
                     TypeExpression::Atom(Box::new(DatexExpression::Integer(
                         Integer::from(5)
                     ))),
+                ))),
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+            }
+        );
+
+        let src = "var x: (5)[][] = 42";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: Some(TypeExpression::Array(Box::new(
+                    TypeExpression::Array(Box::new(TypeExpression::Atom(
+                        Box::new(DatexExpression::Integer(Integer::from(5)))
+                    ),))
                 ))),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
