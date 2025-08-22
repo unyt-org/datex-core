@@ -240,11 +240,6 @@ fn visit_expression(
                 scope_stack.add_new_variable(name.clone(), new_id);
             metadata.variables.push(var_metadata);
         }
-
-        // DatexExpression::Variable(id, name) => {
-        //     info!("Visiting variable: {name}, scope stack: {scope_stack:?}");
-        //     *id = Some(scope_stack.get_variable_id(name, metadata)?);
-        // }
         DatexExpression::Literal { name, variant } => {
             // if reserved core type
             let reserved_literals = [
@@ -293,7 +288,6 @@ fn visit_expression(
                 return Ok(());
             }
         }
-
         DatexExpression::AssignmentOperation(operator, id, name, expr) => {
             visit_expression(
                 expr,
@@ -303,7 +297,6 @@ fn visit_expression(
             )?;
             *id = Some(scope_stack.get_variable_id(name, metadata)?);
         }
-
         DatexExpression::ApplyChain(expr, applies) => {
             visit_expression(
                 expr,
@@ -335,7 +328,6 @@ fn visit_expression(
                 }
             }
         }
-
         DatexExpression::Array(exprs) => {
             for expr in exprs {
                 visit_expression(
@@ -346,7 +338,6 @@ fn visit_expression(
                 )?;
             }
         }
-
         DatexExpression::Object(properties) => {
             for (key, val) in properties {
                 visit_expression(
@@ -363,7 +354,6 @@ fn visit_expression(
                 )?;
             }
         }
-
         DatexExpression::Tuple(entries) => {
             for entry in entries {
                 match entry {
@@ -392,7 +382,6 @@ fn visit_expression(
                 }
             }
         }
-
         DatexExpression::RemoteExecution(callee, expr) => {
             visit_expression(
                 callee,
@@ -407,7 +396,6 @@ fn visit_expression(
                 NewScopeType::NewScopeWithNewRealm,
             )?;
         }
-
         DatexExpression::BinaryOperation(_operator, left, right) => {
             visit_expression(
                 left,
@@ -422,7 +410,6 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-
         DatexExpression::UnaryOperation(_operator, expr) => {
             visit_expression(
                 expr,
@@ -431,7 +418,6 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-
         DatexExpression::SlotAssignment(_slot, expr) => {
             visit_expression(
                 expr,
@@ -440,7 +426,6 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-
         DatexExpression::Statements(stmts) => {
             for stmt in stmts {
                 visit_expression(
@@ -451,8 +436,51 @@ fn visit_expression(
                 )?;
             }
         }
+        DatexExpression::ComparisonOperation(op, left, right) => {
+            visit_expression(
+                left,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            visit_expression(
+                right,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+        }
+        DatexExpression::RefMut(expr) | DatexExpression::Ref(expr) => {
+            visit_expression(
+                expr,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+        }
+        DatexExpression::Invalid => todo!(),
+        DatexExpression::Variable(_, _) => unreachable!(
+            "Variable expressions should have been replaced with their IDs during precompilation"
+        ),
+        DatexExpression::FunctionDeclaration {
+            name,
+            parameters,
+            return_type,
+            body,
+        } => todo!(),
+        DatexExpression::Slot(slot) => todo!(),
 
-        _ => {}
+        DatexExpression::Integer(_)
+        | DatexExpression::Text(_)
+        | DatexExpression::Boolean(_)
+        | DatexExpression::Null
+        | DatexExpression::Decimal(_)
+        | DatexExpression::Endpoint(_)
+        | DatexExpression::Placeholder
+        | DatexExpression::TypedDecimal(_)
+        | DatexExpression::TypedInteger(_) => {
+            // ignored
+        }
     }
 
     match new_scope {
