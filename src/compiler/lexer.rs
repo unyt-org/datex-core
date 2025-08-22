@@ -92,14 +92,16 @@ pub enum Token {
     #[token("is")] Is,
 
     // Keywords
-    #[token("true")] TrueKW,
-    #[token("false")] FalseKW,
-    #[token("null")] NullKW,
+    #[token("true")] True,
+    #[token("false")] False,
+    #[token("null")] Null,
 
-    #[token("?")] PlaceholderKW,
-    #[token("const")] ConstKW,
-    #[token("var")] VarKW,
-    #[token("mut")] MutKW,
+    #[token("?")] Placeholder,
+    #[token("const")] Const,
+    #[token("var")] Variable,
+    #[token("mut")] Mutable,
+    #[token("type")] Type,
+    #[token("function")] Function,
 
     // decimal literals (infinity, nan)
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] InfinityLiteral(String),

@@ -677,16 +677,16 @@ pub fn create_parser<'a, I>()
         }
     };
     let literal = select! {
-        Token::TrueKW => DatexExpression::Boolean(true),
-        Token::FalseKW => DatexExpression::Boolean(false),
-        Token::NullKW => DatexExpression::Null,
+        Token::True => DatexExpression::Boolean(true),
+        Token::False => DatexExpression::Boolean(false),
+        Token::Null => DatexExpression::Null,
         Token::Identifier(s) => DatexExpression::Variable(None, s),
         Token::NamedSlot(s) => DatexExpression::Slot(Slot::Named(s[1..].to_string())),
         Token::Slot(s) => DatexExpression::Slot(Slot::Addressed(
             // replace first char (#) and convert to u32
             s[1..].parse::<u32>().unwrap()
         )),
-        Token::PlaceholderKW => DatexExpression::Placeholder,
+        Token::Placeholder => DatexExpression::Placeholder,
     };
     // expression wrapped in parentheses
     let wrapped_expression = statements
@@ -790,7 +790,7 @@ pub fn create_parser<'a, I>()
         // & or &mut prefix
         just(Token::Ampersand)
             .ignore_then(
-                just(Token::MutKW).or_not().padded_by(whitespace.clone()),
+                just(Token::Mutable).or_not().padded_by(whitespace.clone()),
             )
             .then(unary.clone())
             .map(|(mut_kw, expr)| {
@@ -992,8 +992,8 @@ pub fn create_parser<'a, I>()
         .or_not();
 
     // variable declarations or assignments
-    let variable_assignment = just(Token::ConstKW)
-        .or(just(Token::VarKW))
+    let variable_assignment = just(Token::Const)
+        .or(just(Token::Variable))
         .or_not()
         .padded_by(whitespace.clone())
         .then(select! {
@@ -1018,7 +1018,7 @@ pub fn create_parser<'a, I>()
                 if op != AssignmentOperator::Assign {
                     return DatexExpression::Invalid;
                 }
-                let var_kind = if var_type == Token::ConstKW {
+                let var_kind = if var_type == Token::Const {
                     VariableKind::Const
                 } else {
                     VariableKind::Var
