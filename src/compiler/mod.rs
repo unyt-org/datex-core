@@ -328,14 +328,9 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
         inserted_values,
         options.compile_scope.once,
     );
-
+    let scope =
+        compile_ast(&compilation_context, ast.clone(), options.compile_scope)?;
     if return_static_value {
-        let scope = compile_ast(
-            &compilation_context,
-            ast.clone(),
-            options.compile_scope,
-        )?;
-
         if !*compilation_context.has_non_static_value.borrow() {
             if let Ok(value) = ValueContainer::try_from(ast) {
                 return Ok((
@@ -352,8 +347,6 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
             ))
         }
     } else {
-        let scope =
-            compile_ast(&compilation_context, ast, options.compile_scope)?;
         // return DXB body
         Ok((
             StaticValueOrDXB::Dxb(compilation_context.buffer.take()),
@@ -1041,7 +1034,6 @@ pub mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_is_operator() {
         init_logger_debug();
 
