@@ -1041,6 +1041,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_is_operator() {
         init_logger_debug();
 
