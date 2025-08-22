@@ -904,6 +904,39 @@ pub fn create_parser<'a, I>()
         )
         .boxed();
 
+    let return_type = just(Token::Arrow)
+        .padded_by(whitespace.clone())
+        .ignore_then(union.clone())
+        .or_not();
+
+    let function_body = statements
+        .clone()
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
+
+    let function_params = tuple
+        .clone()
+        .or_not()
+        .map(|e| e.unwrap_or(DatexExpression::Tuple(vec![])))
+        .delimited_by(
+            just(Token::LeftParen).padded_by(whitespace.clone()), // '(' with spaces/newlines after
+            just(Token::RightParen).padded_by(whitespace.clone()), // ')' with spaces/newlines before
+        );
+
+    let function_declaration = just(Token::Function)
+        .padded_by(whitespace.clone())
+        .ignore_then(select! { Token::Identifier(name) => name })
+        .then(function_params)
+        // .then(return_type)
+        .then(function_body)
+        .map(|(((name, params)/*, return_type*/), body)| {
+            DatexExpression::FunctionDeclaration {
+                name,
+                parameters: Box::new(params),
+                return_type: None, // return_type.map(Box::new)
+                body: Box::new(body),
+            }
+        });
+
     // equality (==, !=, is, …)
     let equality = union
         .clone()
@@ -990,8 +1023,11 @@ pub fn create_parser<'a, I>()
             }
         });
 
-    expression_without_tuple
-        .define(choice((variable_assignment, equality.clone())));
+    expression_without_tuple.define(choice((
+        variable_assignment,
+        function_declaration.clone(),
+        equality.clone(),
+    )));
 
     // expression :: expression
     let remote_execution = expression_without_tuple
@@ -1176,15 +1212,13 @@ mod tests {
         );
     }
 
-    // WIP
     #[test]
-    #[ignore]
     fn test_function_simple() {
-        let src = r#"""
+        let src = r#"
             function myFunction() (
                 42
             )
-        """#;
+        "#;
         let val = parse_unwrap(src);
         assert_eq!(
             val,
@@ -1193,6 +1227,71 @@ mod tests {
                 parameters: Box::new(DatexExpression::Tuple(vec![])),
                 return_type: None,
                 body: Box::new(DatexExpression::Integer(Integer::from(42))),
+            }
+        );
+    }
+
+    #[test]
+    fn test_function_with_params() {
+        let src = r#"
+            function myFunction(x: integer) (
+                42
+            )
+        "#;
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::FunctionDeclaration {
+                name: "myFunction".to_string(),
+                parameters: Box::new(DatexExpression::Tuple(vec![
+                    TupleEntry::KeyValue(
+                        DatexExpression::Text("x".to_string()),
+                        DatexExpression::Literal {
+                            name: "integer".to_owned(),
+                            variant: None
+                        }
+                    )
+                ])),
+                return_type: None,
+                body: Box::new(DatexExpression::Integer(Integer::from(42))),
+            }
+        );
+
+        let src = r#"
+            function myFunction(x: integer, y: integer) (
+                1 + 2;
+            )
+        "#;
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::FunctionDeclaration {
+                name: "myFunction".to_string(),
+                parameters: Box::new(DatexExpression::Tuple(vec![
+                    TupleEntry::KeyValue(
+                        DatexExpression::Text("x".to_string()),
+                        DatexExpression::Literal {
+                            name: "integer".to_owned(),
+                            variant: None
+                        }
+                    ),
+                    TupleEntry::KeyValue(
+                        DatexExpression::Text("y".to_string()),
+                        DatexExpression::Literal {
+                            name: "integer".to_owned(),
+                            variant: None
+                        }
+                    )
+                ])),
+                return_type: None,
+                body: Box::new(DatexExpression::Statements(vec![Statement {
+                    expression: DatexExpression::BinaryOperation(
+                        BinaryOperator::Add,
+                        Box::new(DatexExpression::Integer(Integer::from(1))),
+                        Box::new(DatexExpression::Integer(Integer::from(2)))
+                    ),
+                    is_terminated: true
+                }])),
             }
         );
     }
