@@ -468,7 +468,6 @@ fn visit_expression(
             return_type,
             body,
         } => todo!(),
-        DatexExpression::Slot(slot) => todo!(),
 
         DatexExpression::Integer(_)
         | DatexExpression::Text(_)
@@ -478,7 +477,8 @@ fn visit_expression(
         | DatexExpression::Endpoint(_)
         | DatexExpression::Placeholder
         | DatexExpression::TypedDecimal(_)
-        | DatexExpression::TypedInteger(_) => {
+        | DatexExpression::TypedInteger(_)
+        | DatexExpression::Slot(_) => {
             // ignored
         }
     }
