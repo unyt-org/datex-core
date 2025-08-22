@@ -218,6 +218,9 @@ pub struct Statement {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Apply {
+    /// Apply an array type to an argument
+    ArrayType,
+
     /// Apply a function to an argument
     FunctionCall(DatexExpression),
     /// Apply a property access to an argument
@@ -251,16 +254,6 @@ pub enum Slot {
 }
 
 pub type VariableId = usize;
-
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum TypeExpression {
-//     Atom(Box<DatexExpression>), // e.g. 2
-//     Literal(TypePath),
-//     Union(Vec<TypeExpression>),        // T1 | T2
-//     Intersection(Vec<TypeExpression>), // T1 & T2
-//     Array(Box<TypeExpression>),        // T[]
-//     Tuple(Vec<TypeExpression>),        // (T1, T2, ...)
-// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
@@ -302,6 +295,7 @@ pub enum DatexExpression {
     Statements(Vec<Statement>),
     /// Identifier, e.g. a variable name. VariableId is always set to 0 by the ast parser.
     Variable(Option<VariableId>, String),
+
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
     VariableDeclaration {
         id: Option<VariableId>,
@@ -324,9 +318,6 @@ pub enum DatexExpression {
     Ref(Box<DatexExpression>),
     /// Mutable reference, e.g. &mut x
     RefMut(Box<DatexExpression>),
-
-    /// Variable assignment, e.g. x = 1. VariableId is always set to 0 by the ast parser.
-    // VariableAssignment(Option<VariableId>, String, Box<DatexExpression>),
 
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),
@@ -563,6 +554,7 @@ pub struct DatexParseResult {
 
 pub fn create_parser<'a, I>()
 -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> {
+    // an expression
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
 
@@ -854,6 +846,9 @@ pub fn create_parser<'a, I>()
                     .padded_by(whitespace.clone())
                     .ignore_then(key.clone())
                     .map(Apply::PropertyAccess),
+                just(Token::LeftBracket)
+                    .ignore_then(just(Token::RightBracket))
+                    .map(|_| Apply::ArrayType),
             ))
             .repeated()
             .collect::<Vec<_>>(),
@@ -887,48 +882,47 @@ pub fn create_parser<'a, I>()
         |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
     );
 
-    let intersection = sum.clone().foldl(
-        op(Token::Ampersand)
-            .to(binary_op(BinaryOperator::Intersection))
-            .then(sum.clone())
-            .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
+    let intersection = sum
+        .clone()
+        .foldl(
+            op(Token::Ampersand)
+                .to(binary_op(BinaryOperator::Intersection))
+                .then(sum.clone())
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        )
+        .boxed();
 
-    let union = intersection.clone().foldl(
-        op(Token::Pipe)
-            .to(binary_op(BinaryOperator::Union))
-            .then(intersection.clone())
-            .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
+    let union = intersection
+        .clone()
+        .foldl(
+            op(Token::Pipe)
+                .to(binary_op(BinaryOperator::Union))
+                .then(intersection.clone())
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        )
+        .boxed();
 
-    // equality
-    let equality = union.clone().foldl(
-        choice((
-            op(Token::StructuralEqual) //  ==
-                .to(comparison_op(ComparisonOperator::StructuralEqual)),
-            op(Token::Equal) //  ===
-                .to(comparison_op(ComparisonOperator::Equal)),
-            op(Token::NotStructuralEqual) //  !=
-                .to(comparison_op(ComparisonOperator::NotStructuralEqual)),
-            op(Token::NotEqual) //  !==
-                .to(comparison_op(ComparisonOperator::NotEqual)),
-            op(Token::Is) //  is
-                .to(comparison_op(ComparisonOperator::Is)),
-            // op(Token::LessThan) //  <
-            //     .to(binary_op(BinaryOperator::LessThan)),
-            // op(Token::GreaterThan) //  >
-            //     .to(binary_op(BinaryOperator::GreaterThan)),
-            // op(Token::LessThanOrEqual) //  <=
-            //     .to(binary_op(BinaryOperator::LessThanOrEqual)),
-            // op(Token::GreaterThanOrEqual) //  >=
-            //     .to(binary_op(BinaryOperator::GreaterThanOrEqual)),
-        ))
-        .then(union.clone())
-        .repeated(), // allows chaining like a == b == c
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
+    // equality (==, !=, is, …)
+    let equality = union
+        .clone()
+        .foldl(
+            choice((
+                op(Token::StructuralEqual)
+                    .to(comparison_op(ComparisonOperator::StructuralEqual)),
+                op(Token::Equal).to(comparison_op(ComparisonOperator::Equal)),
+                op(Token::NotStructuralEqual)
+                    .to(comparison_op(ComparisonOperator::NotStructuralEqual)),
+                op(Token::NotEqual)
+                    .to(comparison_op(ComparisonOperator::NotEqual)),
+                op(Token::Is).to(comparison_op(ComparisonOperator::Is)),
+            ))
+            .then(union.clone())
+            .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        )
+        .boxed();
 
     let assignment_op = select! {
         Token::Assign      => AssignmentOperator::Assign,
@@ -1028,83 +1022,6 @@ pub fn create_parser<'a, I>()
         statements,
     ))
 }
-
-// let type_expr = recursive(|type_expr| {
-//     let identifier = select! { Token::Identifier(s) => s.clone() };
-
-//     let type_path = identifier
-//         .then(just(Token::Slash).ignore_then(identifier.clone()).or_not())
-//         .map(|(head, variant): (String, Option<String>)| {
-//             TypeExpression::Literal(TypePath::new("core", head, variant))
-//         });
-
-//     // Base atom (other expressions)
-//     let type_atom =
-//         unary.clone().map(|e| TypeExpression::Atom(Box::new(e)));
-
-//     // Base primary type
-//     let type_primary_base = choice((
-//         type_path,
-//         type_atom,
-//         /* add tuple/object parsing here if needed */
-//     ));
-
-//     // Apply repeated array brackets: T[], T[][], T[][][], etc.
-//     let type_primary = type_primary_base
-//         .then(
-//             just(Token::LeftBracket)
-//                 .then_ignore(just(Token::RightBracket))
-//                 .repeated() // this allows any number of [] brackets
-//                 .collect::<Vec<_>>(),
-//         )
-//         .map(|(base, brackets)| {
-//             brackets
-//                 .into_iter()
-//                 .fold(base, |acc, _| TypeExpression::Array(Box::new(acc)))
-//         });
-
-//     // Intersection: A & B & C
-//     let type_intersection = type_primary
-//         .clone()
-//         .then(
-//             just(Token::Ampersand)
-//                 .padded_by(whitespace.clone())
-//                 .ignore_then(type_primary.clone())
-//                 .repeated()
-//                 .collect::<Vec<_>>(),
-//         )
-//         .map(|(first, rest)| {
-//             if rest.is_empty() {
-//                 first
-//             } else {
-//                 TypeExpression::Intersection(
-//                     std::iter::once(first).chain(rest).collect(),
-//                 )
-//             }
-//         });
-
-//     // Union: A | B | C
-//     let type_union = type_intersection
-//         .clone()
-//         .then(
-//             just(Token::Pipe)
-//                 .padded_by(whitespace.clone())
-//                 .ignore_then(type_intersection.clone())
-//                 .repeated()
-//                 .collect::<Vec<_>>(),
-//         )
-//         .map(|(first, rest)| {
-//             if rest.is_empty() {
-//                 first
-//             } else {
-//                 TypeExpression::Union(
-//                     std::iter::once(first).chain(rest).collect(),
-//                 )
-//             }
-//         });
-
-//     type_union
-// });
 
 type TokenInput<'a> = &'a [Token];
 
@@ -1279,20 +1196,6 @@ mod tests {
         );
     }
 
-    /**
-     * var myval: < type > = value;
-     * < integer >
-     * < integer/u8 >
-     * < 2 >
-     * < {x: 2} >
-     * < {x: integer} >
-     * < integer/u8[] >
-     * < (integer, text, null) >
-     * < User & {x: 2} >
-     * < User | text >
-     * < {x: integer, y: 5} >
-     */
-
     #[test]
     fn test_type_var_declaration() {
         let src = "var x: 5 = 42";
@@ -1330,10 +1233,6 @@ mod tests {
             }
         );
     }
-
-    // # issues
-    // value: 5[] -> apply operation
-    // type: 5[] -> array declaration
 
     #[test]
     fn test_intersection() {
@@ -1528,67 +1427,58 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_type_var_declaration_array() {
-    //     let src = "var x: 5[] = 42";
-    //     let val = parse_unwrap(src);
-    //     assert_eq!(
-    //         val,
-    //         DatexExpression::VariableDeclaration {
-    //             id: None,
-    //             kind: VariableKind::Var,
-    //             binding_mutability: BindingMutability::Mutable,
-    //             reference_mutability: ReferenceMutability::None,
-    //             type_annotation: Some(TypeExpression::Array(Box::new(
-    //                 TypeExpression::Atom(Box::new(DatexExpression::Integer(
-    //                     Integer::from(5)
-    //                 ))),
-    //             ))),
-    //             name: "x".to_string(),
-    //             value: Box::new(DatexExpression::Integer(Integer::from(42)))
-    //         }
-    //     );
+    #[test]
+    fn test_var_declaration_with_type_intersection() {
+        let src = "var x: 5 & 6 = 42";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: Some(Box::new(
+                    DatexExpression::BinaryOperation(
+                        BinaryOperator::Intersection,
+                        Box::new(DatexExpression::Integer(Integer::from(5))),
+                        Box::new(DatexExpression::Integer(Integer::from(6)))
+                    )
+                )),
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+            }
+        );
+    }
 
-    //     let src = "var x: integer/u8[] = 42";
-    //     let val = parse_unwrap(src);
-    //     assert_eq!(
-    //         val,
-    //         DatexExpression::VariableDeclaration {
-    //             id: None,
-    //             kind: VariableKind::Var,
-    //             binding_mutability: BindingMutability::Mutable,
-    //             reference_mutability: ReferenceMutability::None,
-    //             type_annotation: Some(TypeExpression::Array(Box::new(
-    //                 TypeExpression::Literal(TypePath::new(
-    //                     "core",
-    //                     "integer",
-    //                     Some("u8".to_owned())
-    //                 )),
-    //             ))),
-    //             name: "x".to_string(),
-    //             value: Box::new(DatexExpression::Integer(Integer::from(42)))
-    //         }
-    //     );
-
-    //     let src = "var x: (5)[][] = 42";
-    //     let val = parse_unwrap(src);
-    //     assert_eq!(
-    //         val,
-    //         DatexExpression::VariableDeclaration {
-    //             id: None,
-    //             kind: VariableKind::Var,
-    //             binding_mutability: BindingMutability::Mutable,
-    //             reference_mutability: ReferenceMutability::None,
-    //             type_annotation: Some(TypeExpression::Array(Box::new(
-    //                 TypeExpression::Array(Box::new(TypeExpression::Atom(
-    //                     Box::new(DatexExpression::Integer(Integer::from(5)))
-    //                 ),))
-    //             ))),
-    //             name: "x".to_string(),
-    //             value: Box::new(DatexExpression::Integer(Integer::from(42)))
-    //         }
-    //     );
-    // }
+    #[test]
+    #[ignore = "TBD"]
+    fn test_type_var_declaration_array() {
+        // FIXME what would be a syntax for array declarations that doesn't collide with apply chains
+        // myfunc [] // function call with empty array
+        // myfunc [5] // function call with array
+        // var x: 5[] // special declaration only valid after colon and only when no space used?
+        let src = "var x: integer[] = 42";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::VariableDeclaration {
+                id: None,
+                kind: VariableKind::Var,
+                binding_mutability: BindingMutability::Mutable,
+                reference_mutability: ReferenceMutability::None,
+                type_annotation: Some(Box::new(DatexExpression::ApplyChain(
+                    Box::new(DatexExpression::Literal {
+                        name: "integer".to_string(),
+                        variant: None
+                    }),
+                    vec![Apply::ArrayType]
+                ))),
+                name: "x".to_string(),
+                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+            }
+        );
+    }
 
     #[test]
     fn test_equal_operators() {
