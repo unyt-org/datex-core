@@ -904,9 +904,14 @@ pub fn create_parser<'a, I>()
         )
         .boxed();
 
+    // FIXME
     let return_type = just(Token::Arrow)
         .padded_by(whitespace.clone())
-        .ignore_then(union.clone())
+        .ignore_then(
+            expression_without_tuple
+                .clone()
+                .padded_by(whitespace.clone()),
+        )
         .or_not();
 
     let function_body = statements
@@ -926,13 +931,13 @@ pub fn create_parser<'a, I>()
         .padded_by(whitespace.clone())
         .ignore_then(select! { Token::Identifier(name) => name })
         .then(function_params)
-        // .then(return_type)
+        .then(return_type)
         .then(function_body)
-        .map(|(((name, params)/*, return_type*/), body)| {
+        .map(|(((name, params), return_type), body)| {
             DatexExpression::FunctionDeclaration {
                 name,
                 parameters: Box::new(params),
-                return_type: None, // return_type.map(Box::new)
+                return_type: return_type.map(Box::new),
                 body: Box::new(body),
             }
         });
@@ -1292,6 +1297,38 @@ mod tests {
                     ),
                     is_terminated: true
                 }])),
+            }
+        );
+    }
+
+    // FIXME WIP
+    #[test]
+    #[ignore = "WIP"]
+    fn test_function_with_return_type() {
+        let src = r#"
+            function myFunction(x: integer) -> integer (
+                42
+            );
+        "#;
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::FunctionDeclaration {
+                name: "myFunction".to_string(),
+                parameters: Box::new(DatexExpression::Tuple(vec![
+                    TupleEntry::KeyValue(
+                        DatexExpression::Text("x".to_string()),
+                        DatexExpression::Literal {
+                            name: "integer".to_owned(),
+                            variant: None
+                        }
+                    )
+                ])),
+                return_type: Some(Box::new(DatexExpression::Literal {
+                    name: "integer".to_owned(),
+                    variant: None
+                })),
+                body: Box::new(DatexExpression::Integer(Integer::from(42))),
             }
         );
     }
