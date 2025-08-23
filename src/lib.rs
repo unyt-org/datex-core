@@ -12,9 +12,11 @@ extern crate mopa;
 
 extern crate num_integer;
 
+pub mod ast;
 pub mod compiler;
 pub mod crypto;
 pub mod decompiler;
+pub mod dif;
 pub mod generator;
 pub mod global;
 pub mod logger;
@@ -24,7 +26,6 @@ pub mod runtime;
 pub mod task;
 pub mod utils;
 pub mod values;
-pub mod dif;
 
 // reexport macros
 pub use datex_macros as macros;

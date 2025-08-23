@@ -1,23 +1,22 @@
+use crate::ast::{self, TokenInput, function, utils};
 use crate::compiler::lexer::{DecimalLiteral, IntegerLiteral, Token};
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::r#type::path::TypePath;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::{
-    compiler::ast_parser::extra::Err, values::core_values::endpoint::Endpoint,
-};
+use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::str::FromStr;
 use std::{collections::HashMap, ops::Range};
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
     KeyValue(DatexExpression, DatexExpression),
@@ -432,101 +431,6 @@ impl TryFrom<DatexExpression> for ValueContainer {
 pub type DatexScriptParser<'a> =
     Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
 
-fn decode_json_unicode_escapes(input: &str) -> String {
-    let mut output = String::new();
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\\' && chars.peek() == Some(&'u') {
-            chars.next(); // skip 'u'
-
-            let mut code_unit = String::new();
-            for _ in 0..4 {
-                if let Some(c) = chars.next() {
-                    code_unit.push(c);
-                } else {
-                    output.push_str("\\u");
-                    output.push_str(&code_unit);
-                    break;
-                }
-            }
-
-            if let Ok(first_unit) = u16::from_str_radix(&code_unit, 16) {
-                if (0xD800..=0xDBFF).contains(&first_unit) {
-                    // High surrogate — look for low surrogate
-                    if chars.next() == Some('\\') && chars.next() == Some('u') {
-                        let mut low_code = String::new();
-                        for _ in 0..4 {
-                            if let Some(c) = chars.next() {
-                                low_code.push(c);
-                            } else {
-                                output.push_str(&format!(
-                                    "\\u{first_unit:04X}\\u{low_code}"
-                                ));
-                                break;
-                            }
-                        }
-
-                        if let Ok(second_unit) =
-                            u16::from_str_radix(&low_code, 16)
-                            && (0xDC00..=0xDFFF).contains(&second_unit)
-                        {
-                            let combined = 0x10000
-                                + (((first_unit - 0xD800) as u32) << 10)
-                                + ((second_unit - 0xDC00) as u32);
-                            if let Some(c) = char::from_u32(combined) {
-                                output.push(c);
-                                continue;
-                            }
-                        }
-
-                        // Invalid surrogate fallback
-                        output.push_str(&format!(
-                            "\\u{first_unit:04X}\\u{low_code}"
-                        ));
-                    } else {
-                        // Unpaired high surrogate
-                        output.push_str(&format!("\\u{first_unit:04X}"));
-                    }
-                } else {
-                    // Normal scalar value
-                    if let Some(c) = char::from_u32(first_unit as u32) {
-                        output.push(c);
-                    } else {
-                        output.push_str(&format!("\\u{first_unit:04X}"));
-                    }
-                }
-            } else {
-                output.push_str(&format!("\\u{code_unit}"));
-            }
-        } else {
-            output.push(ch);
-        }
-    }
-
-    output
-}
-
-/// Takes a literal text string input, e.g. ""Hello, world!"" or "'Hello, world!' or ""x\"""
-/// and returns the unescaped text, e.g. "Hello, world!" or 'Hello, world!' or "x\""
-fn unescape_text(text: &str) -> String {
-    // remove first and last quote (double or single)
-    let escaped = text[1..text.len() - 1]
-        // Replace escape sequences with actual characters
-        .replace(r#"\""#, "\"") // Replace \" with "
-        .replace(r#"\'"#, "'") // Replace \' with '
-        .replace(r#"\n"#, "\n") // Replace \n with newline
-        .replace(r#"\r"#, "\r") // Replace \r with carriage return
-        .replace(r#"\t"#, "\t") // Replace \t with tab
-        .replace(r#"\b"#, "\x08") // Replace \b with backspace
-        .replace(r#"\f"#, "\x0C") // Replace \f with form feed
-        .replace(r#"\\"#, "\\") // Replace \\ with \
-        // TODO #156 remove all other backslashes before any other character
-        .to_string();
-    // Decode unicode escapes, e.g. \u1234 or \uD800\uDC00
-    decode_json_unicode_escapes(&escaped)
-}
-
 fn binary_op(
     op: BinaryOperator,
 ) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
@@ -558,7 +462,7 @@ pub fn create_parser<'a, I>()
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
 
-    let whitespace = just(Token::Whitespace).repeated().ignored();
+    let whitespace = ast::utils::whitespace();
 
     // a sequence of expressions, separated by semicolons, optionally terminated with a semicolon
     let statements = expression
@@ -608,92 +512,22 @@ pub fn create_parser<'a, I>()
         .boxed();
 
     // primitive values (e.g. 1, "text", true, null)
-    let integer = select! {
-        Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_with_variant(&value, var)
-                    .map(DatexExpression::TypedInteger)
-                    .unwrap_or(DatexExpression::Invalid),
-                None => Integer::from_string(&value)
-                    .map(DatexExpression::Integer)
-                    .unwrap_or(DatexExpression::Invalid),
-            }
-        },
-        Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
-                    .map(DatexExpression::TypedInteger)
-                    .unwrap_or(DatexExpression::Invalid),
-                None => Integer::from_string_radix(&value[2..], 2)
-                    .map(DatexExpression::Integer)
-                    .unwrap_or(DatexExpression::Invalid),
-            }
-        },
-        Token::HexadecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 16, var)
-                    .map(DatexExpression::TypedInteger)
-                    .unwrap_or(DatexExpression::Invalid),
-                None => Integer::from_string_radix(&value[2..], 16)
-                    .map(DatexExpression::Integer)
-                    .unwrap_or(DatexExpression::Invalid),
-            }
-        },
-        Token::OctalIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 8, var)
-                    .map(DatexExpression::TypedInteger)
-                    .unwrap_or(DatexExpression::Invalid),
-                None => Integer::from_string_radix(&value[2..], 8)
-                    .map(DatexExpression::Integer)
-                    .unwrap_or(DatexExpression::Invalid),
-            }
-        },
-    };
-    let decimal = select! {
-        Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedDecimal::from_string_with_variant(&value, var)
-                    .map(DatexExpression::TypedDecimal)
-                    .unwrap_or(DatexExpression::Invalid),
-                None => DatexExpression::Decimal(Decimal::from_string(&value))
-            }
-        },
-        Token::NanLiteral => DatexExpression::Decimal(Decimal::NaN),
-        Token::InfinityLiteral(s) => DatexExpression::Decimal(
-            if s.starts_with('-') {
-                Decimal::NegInfinity
-            } else {
-                Decimal::Infinity
-            }
-        ),
-        Token::FractionLiteral(s) => DatexExpression::Decimal(Decimal::from_string(&s)),
-    };
-    let text = select! {
-        Token::StringLiteral(s) => DatexExpression::Text(unescape_text(&s))
-    };
-    let endpoint = select! {
-        Token::Endpoint(s) =>
-            match Endpoint::from_str(s.as_str()) {
-                Err(_) => DatexExpression::Invalid,
-                Ok(endpoint) => DatexExpression::Endpoint(endpoint)
-        }
-    };
-    let literal = choice((
-        select! { Token::True => DatexExpression::Boolean(true) },
-        select! { Token::False => DatexExpression::Boolean(false) },
-        select! { Token::Null => DatexExpression::Null },
-        select! { Token::NamedSlot(s) => DatexExpression::Slot(Slot::Named(s[1..].to_string())) },
-        select! { Token::Slot(s) => DatexExpression::Slot(Slot::Addressed(s[1..].parse::<u32>().unwrap())) },
-        select! { Token::Placeholder => DatexExpression::Placeholder },
-        select! { Token::Identifier(name) => name }
-            .then(
-                just(Token::Slash)
-                    .ignore_then(select! { Token::Identifier(sub) => sub })
-                    .or_not(),
-            )
-            .map(|(name, variant)| DatexExpression::Literal { name, variant }),
-    ));
+
+    // let literal = choice((
+    //     select! { Token::True => DatexExpression::Boolean(true) },
+    //     select! { Token::False => DatexExpression::Boolean(false) },
+    //     select! { Token::Null => DatexExpression::Null },
+    //     select! { Token::NamedSlot(s) => DatexExpression::Slot(Slot::Named(s[1..].to_string())) },
+    //     select! { Token::Slot(s) => DatexExpression::Slot(Slot::Addressed(s[1..].parse::<u32>().unwrap())) },
+    //     select! { Token::Placeholder => DatexExpression::Placeholder },
+    //     select! { Token::Identifier(name) => name }
+    //         .then(
+    //             just(Token::Slash)
+    //                 .ignore_then(select! { Token::Identifier(sub) => sub })
+    //                 .or_not(),
+    //         )
+    //         .map(|(name, variant)| DatexExpression::Literal { name, variant }),
+    // ));
     // expression wrapped in parentheses
     let wrapped_expression = statements
         .clone()
@@ -701,117 +535,33 @@ pub fn create_parser<'a, I>()
 
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
-    let key = choice((
-        text,
-        decimal,
-        integer,
-        endpoint,
-        // any valid identifiers (equivalent to variable names), mapped to a text
-        select! {
-            Token::Identifier(s) => DatexExpression::Text(s)
-        },
-        // dynamic key
-        wrapped_expression.clone(),
-    ));
+    let key = ast::key::key(wrapped_expression.clone());
 
     // array
     // 1,2,3
     // [1,2,3,4,13434,(1),4,5,7,8]
-    let array = expression_without_tuple
-        .clone()
-        .separated_by(just(Token::Comma).padded_by(whitespace.clone()))
-        .at_least(0)
-        .allow_trailing()
-        .collect()
-        .padded_by(whitespace.clone())
-        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(DatexExpression::Array);
+    let array = ast::array::array(expression_without_tuple.clone());
 
     // object
-    let object = key
-        .clone()
-        .then_ignore(just(Token::Colon).padded_by(whitespace.clone()))
-        .then(expression_without_tuple.clone())
-        .separated_by(just(Token::Comma).padded_by(whitespace.clone()))
-        .at_least(0)
-        .allow_trailing()
-        .collect()
-        .padded_by(whitespace.clone())
-        .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
-        .map(DatexExpression::Object);
+    let object =
+        ast::object::object(key.clone(), expression_without_tuple.clone());
 
     // tuple
     // Key-value pair
-    let tuple_key_value_pair = key
-        .clone()
-        .then_ignore(just(Token::Colon).padded_by(whitespace.clone()))
-        .then(expression_without_tuple.clone())
-        .map(|(key, value)| TupleEntry::KeyValue(key, value));
-
-    // tuple (either key:value entries or just values)
-    let tuple_entry = choice((
-        // Key-value pair
-        tuple_key_value_pair.clone(),
-        // Just a value with no key
-        expression_without_tuple.clone().map(TupleEntry::Value),
-    ))
-    .boxed();
-
-    let tuple = tuple_entry
-        .clone()
-        .separated_by(just(Token::Comma).padded_by(whitespace.clone()))
-        .at_least(2)
-        .collect::<Vec<_>>()
-        .map(DatexExpression::Tuple);
-
-    // e.g. x,
-    let single_value_tuple = tuple_entry
-        .clone()
-        .then_ignore(just(Token::Comma))
-        .map(|value| vec![value])
-        .map(DatexExpression::Tuple);
-
-    // e.g. (a:1)
-    let single_keyed_tuple_entry = tuple_key_value_pair
-        .clone()
-        .map(|value| vec![value])
-        .map(DatexExpression::Tuple);
-
-    let tuple = choice((tuple, single_value_tuple, single_keyed_tuple_entry));
+    let tuple =
+        ast::tuple::tuple(key.clone(), expression_without_tuple.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
-    let atom = choice((
+    let atom = ast::atom::atom(
         array.clone(),
         object.clone(),
-        literal,
-        decimal,
-        integer,
-        text,
-        endpoint,
         wrapped_expression.clone(),
-    ))
-    .boxed();
+    );
 
-    let unary = recursive(|unary| {
-        // & or &mut prefix
-        just(Token::Ampersand)
-            .ignore_then(
-                just(Token::Mutable).or_not().padded_by(whitespace.clone()),
-            )
-            .then(unary.clone())
-            .map(|(mut_kw, expr)| {
-                if mut_kw.is_some() {
-                    DatexExpression::RefMut(Box::new(expr))
-                } else {
-                    DatexExpression::Ref(Box::new(expr))
-                }
-            })
-            // could also add unary minus, not, etc. here later
-            .or(atom.clone())
-    });
+    let unary = ast::unary::unary(atom.clone());
 
     // operations on atoms
-    let op = |c| {
+    let op = |c: Token| {
         just(Token::Whitespace)
             .repeated()
             .at_least(1)
@@ -819,128 +569,25 @@ pub fn create_parser<'a, I>()
             .then_ignore(just(Token::Whitespace).repeated().at_least(1))
     };
 
+    // WIP
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
-    let apply_or_property_access = unary
-        .clone()
-        .then(
-            choice((
-                // apply #1: a wrapped expression, array, or object - no whitespace required before
-                // x () x [] x {}
-                choice((
-                    wrapped_expression.clone(),
-                    array.clone(),
-                    object.clone(),
-                ))
-                .clone()
-                .padded_by(whitespace.clone())
-                .map(Apply::FunctionCall),
-                // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
-                // print "sdf"
-                just(Token::Whitespace)
-                    .repeated()
-                    .at_least(1)
-                    .ignore_then(atom.clone().padded_by(whitespace.clone()))
-                    .map(Apply::FunctionCall),
-                // property access
-                just(Token::Dot)
-                    .padded_by(whitespace.clone())
-                    .ignore_then(key.clone())
-                    .map(Apply::PropertyAccess),
-                just(Token::LeftBracket)
-                    .ignore_then(just(Token::RightBracket))
-                    .map(|_| Apply::ArrayType),
-            ))
-            .repeated()
-            .collect::<Vec<_>>(),
-        )
-        .map(|(val, args)| {
-            // if only single value, return it directly
-            if args.is_empty() {
-                val
-            } else {
-                DatexExpression::ApplyChain(Box::new(val), args)
-            }
-        });
-
-    let product = apply_or_property_access.clone().foldl(
-        choice((
-            op(Token::Star).to(binary_op(BinaryOperator::Multiply)),
-            op(Token::Slash).to(binary_op(BinaryOperator::Divide)),
-        ))
-        .then(apply_or_property_access)
-        .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    let chain = ast::chain::chain(
+        unary.clone(),
+        key.clone(),
+        array.clone(),
+        object.clone(),
+        wrapped_expression.clone(),
+        atom.clone(),
     );
 
-    let sum = product.clone().foldl(
-        choice((
-            op(Token::Plus).to(binary_op(BinaryOperator::Add)),
-            op(Token::Minus).to(binary_op(BinaryOperator::Subtract)),
-        ))
-        .then(product)
-        .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
-
-    let intersection = sum
-        .clone()
-        .foldl(
-            op(Token::Ampersand)
-                .to(binary_op(BinaryOperator::Intersection))
-                .then(sum.clone())
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        )
-        .boxed();
-
-    let union = intersection
-        .clone()
-        .foldl(
-            op(Token::Pipe)
-                .to(binary_op(BinaryOperator::Union))
-                .then(intersection.clone())
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        )
-        .boxed();
+    let union = ast::binary_operation::binary_operation(chain.clone());
 
     // FIXME
-    let return_type = just(Token::Arrow)
-        .padded_by(whitespace.clone())
-        .ignore_then(
-            expression_without_tuple
-                .clone()
-                .padded_by(whitespace.clone()),
-        )
-        .or_not();
-
-    let function_body = statements
-        .clone()
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
-
-    let function_params = tuple
-        .clone()
-        .or_not()
-        .map(|e| e.unwrap_or(DatexExpression::Tuple(vec![])))
-        .delimited_by(
-            just(Token::LeftParen).padded_by(whitespace.clone()), // '(' with spaces/newlines after
-            just(Token::RightParen).padded_by(whitespace.clone()), // ')' with spaces/newlines before
-        );
-
-    let function_declaration = just(Token::Function)
-        .padded_by(whitespace.clone())
-        .ignore_then(select! { Token::Identifier(name) => name })
-        .then(function_params)
-        .then(return_type)
-        .then(function_body)
-        .map(|(((name, params), return_type), body)| {
-            DatexExpression::FunctionDeclaration {
-                name,
-                parameters: Box::new(params),
-                return_type: return_type.map(Box::new),
-                body: Box::new(body),
-            }
-        });
+    let function_declaration = ast::function::function(
+        statements.clone(),
+        tuple.clone(),
+        expression_without_tuple.clone(),
+    );
 
     // equality (==, !=, is, …)
     let equality = union
@@ -1063,8 +710,6 @@ pub fn create_parser<'a, I>()
         statements,
     ))
 }
-
-type TokenInput<'a> = &'a [Token];
 
 #[derive(Debug)]
 pub enum ParserError {

@@ -27,7 +27,7 @@ use std::rc::Rc;
 pub mod ast_parser;
 pub mod context;
 pub mod error;
-mod lexer;
+pub mod lexer;
 pub mod metadata;
 mod precompiler;
 pub mod scope;
