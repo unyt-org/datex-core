@@ -49,7 +49,10 @@ use std::{collections::HashMap, ops::Range};
 
 pub type TokenInput<'a> = &'a [Token];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
-    Parser<'a, &'a [Token], T, Err<Cheap>> + Clone + 'a;
+    Parser<'a, TokenInput<'a>, T, Err<Rich<'a, Token>>> + Clone + 'a;
+
+pub type DatexScriptParser<'a> =
+    Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement {
@@ -214,9 +217,6 @@ impl TryFrom<DatexExpression> for ValueContainer {
     }
 }
 
-pub type DatexScriptParser<'a> =
-    Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
-
 pub struct DatexParseResult {
     pub expression: DatexExpression,
     pub is_static_value: bool,
@@ -356,10 +356,75 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a> {
     ))
 }
 
-#[derive(Debug)]
+// #[derive(Debug, Clone)]
 pub enum ParserError {
-    UnexpectedToken(Range<usize>),
+    UnexpectedToken(Rich<'static, Token>),
     InvalidToken(Range<usize>),
+}
+use ariadne::{Color, Label, Report, ReportKind, Source};
+use std::fmt::Debug;
+
+impl Debug for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParserError::UnexpectedToken(rich) => {
+                write!(f, "Unexpected token: {}", rich)
+            }
+            ParserError::InvalidToken(range) => {
+                write!(f, "Invalid token at range: {:?}", range)
+            }
+        }
+    }
+}
+
+pub struct ErrorCollector {
+    pub errors: Vec<ParserError>,
+    pub src: String,
+}
+impl ErrorCollector {
+    pub fn new(src: String) -> Self {
+        Self {
+            errors: Vec::new(),
+            src,
+        }
+    }
+    pub fn new_with_errors(src: String, errors: Vec<ParserError>) -> Self {
+        Self { errors, src }
+    }
+
+    pub fn add_error(&mut self, error: ParserError) {
+        self.errors.push(error);
+    }
+
+    pub fn print(&self) {
+        let src = &self.src;
+        for error in &self.errors {
+            match error {
+                ParserError::UnexpectedToken(rich) => {
+                    println!("Parsing error: {}", rich);
+                }
+                ParserError::InvalidToken(range) => {
+                    println!("Invalid token error: {:?}", range);
+                }
+            }
+            // let range = match error {
+            //     ParserError::UnexpectedToken(range) => range,
+            //     ParserError::InvalidToken(range) => range,
+            // };
+            // Report::build(ReportKind::Error, ("datex", range.clone()))
+            //     .with_config(
+            //         ariadne::Config::new()
+            //             .with_index_type(ariadne::IndexType::Byte),
+            //     )
+            //     .with_message("Parsing error")
+            //     .with_label(
+            //         Label::new(("datex", range.clone())).with_color(Color::Red),
+            //     )
+            //     .finish()
+            //     .eprint(("datex", Source::from(src)))
+            //     .unwrap();
+        }
+    }
 }
 
 impl From<Range<usize>> for ParserError {
@@ -385,7 +450,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
 
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
-            .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
+            .map(|e| ParserError::UnexpectedToken(e.clone().into_owned()))
             .collect()
     })
 }
@@ -411,35 +476,13 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-
     use std::{assert_matches::assert_matches, str::FromStr};
-
-    fn print_report(errs: Vec<ParserError>, src: &str) {
-        // FIXME #158
-        eprintln!("{errs:?}");
-        // errs.into_iter().for_each(|e| {
-        //     Report::build(ReportKind::Error, ((), e.span().into_range()))
-        //         .with_config(
-        //             ariadne::Config::new()
-        //                 .with_index_type(ariadne::IndexType::Byte),
-        //         )
-        //         .with_message(e.to_string())
-        //         .with_label(
-        //             Label::new(((), e.span().into_range()))
-        //                 .with_color(Color::Red),
-        //         )
-        //         .finish()
-        //         .eprint(Source::from(&src))
-        //         .unwrap()
-        // });
-    }
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let res = parse(src);
-        if res.is_err() {
-            print_report(res.unwrap_err(), src);
+        if let Err(errors) = res {
+            ErrorCollector::new_with_errors(src.to_string(), errors).print();
             panic!("Parsing errors found");
         }
         res.unwrap()
@@ -505,6 +548,18 @@ mod tests {
                 ),
             ])
         );
+    }
+
+    // WIP
+    #[test]
+    fn test_parse_error() {
+        let src = r#"
+        var x = 52; var y = ; 
+        var y = 5
+        "#;
+        let res = parse_unwrap(src);
+        // assert!(res.is_err());
+        // println!("{:?}", res.unwrap_err());
     }
 
     #[test]
