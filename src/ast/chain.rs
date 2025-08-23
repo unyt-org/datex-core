@@ -1,8 +1,19 @@
+use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
-use crate::compiler::ast_parser::{Apply, DatexExpression};
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ApplyOperation {
+    /// Apply an array type to an argument
+    ArrayType,
+
+    /// Apply a function to an argument
+    FunctionCall(DatexExpression),
+    /// Apply a property access to an argument
+    PropertyAccess(DatexExpression),
+}
 
 pub fn chain<'a>(
     unary: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a,
@@ -28,22 +39,22 @@ pub fn chain<'a>(
                 choice((wrapped_expression, array, object))
                     .clone()
                     .padded_by(whitespace())
-                    .map(Apply::FunctionCall),
+                    .map(ApplyOperation::FunctionCall),
                 // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
                 // print "sdf"
                 just(Token::Whitespace)
                     .repeated()
                     .at_least(1)
                     .ignore_then(atom.padded_by(whitespace()))
-                    .map(Apply::FunctionCall),
+                    .map(ApplyOperation::FunctionCall),
                 // property access
                 just(Token::Dot)
                     .padded_by(whitespace())
                     .ignore_then(key)
-                    .map(Apply::PropertyAccess),
+                    .map(ApplyOperation::PropertyAccess),
                 just(Token::LeftBracket)
                     .ignore_then(just(Token::RightBracket))
-                    .map(|_| Apply::ArrayType),
+                    .map(|_| ApplyOperation::ArrayType),
             ))
             .repeated()
             .collect::<Vec<_>>(),

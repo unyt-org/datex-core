@@ -1,5 +1,5 @@
+use crate::ast::DatexExpression;
 use crate::ast::TokenInput;
-use crate::compiler::ast_parser::DatexExpression;
 use crate::compiler::lexer::{IntegerLiteral, Token};
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;

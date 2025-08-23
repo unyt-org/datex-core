@@ -1,4 +1,4 @@
-use crate::compiler::ast_parser::{DatexExpression, ParserError};
+use crate::ast::{DatexExpression, ParserError};
 use std::fmt::Display;
 #[derive(Debug)]
 pub enum CompilerError {

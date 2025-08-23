@@ -1,5 +1,5 @@
+use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
-use crate::compiler::ast_parser::DatexExpression;
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;

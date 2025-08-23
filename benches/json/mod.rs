@@ -1,4 +1,4 @@
-use datex_core::compiler::ast_parser::DatexScriptParser;
+use datex_core::ast::DatexScriptParser;
 use datex_core::compiler::{
     CompileOptions, StaticValueOrDXB, compile_script,
     compile_script_or_return_static_value, compile_value,

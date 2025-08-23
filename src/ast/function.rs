@@ -1,5 +1,5 @@
+use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
-use crate::compiler::ast_parser::DatexExpression;
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
@@ -36,6 +36,7 @@ fn parameters<'a>(
     + 'a,
 ) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
     tuple
+        .clone()
         .or_not()
         .map(|e| e.unwrap_or(DatexExpression::Tuple(vec![])))
         .delimited_by(

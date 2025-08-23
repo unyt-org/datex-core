@@ -1,5 +1,5 @@
+use crate::ast::DatexExpression;
 use crate::ast::TokenInput;
-use crate::compiler::ast_parser::DatexExpression;
 use crate::compiler::lexer::Token;
 use chumsky::extra::Err;
 use chumsky::prelude::*;

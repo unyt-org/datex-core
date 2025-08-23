@@ -1,6 +1,7 @@
-use crate::compiler::ast_parser::{
-    AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator,
-};
+use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::comparison_operation::ComparisonOperator;
+use crate::ast::unary_operation::UnaryOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;

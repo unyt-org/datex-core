@@ -1,3 +1,5 @@
+use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::tuple::TupleEntry;
 use crate::compiler::error::CompilerError;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
@@ -5,9 +7,9 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::compiler::ast_parser::{
-    AssignmentOperator, BindingMutability, DatexExpression, DatexScriptParser,
-    ReferenceMutability, TupleEntry, VariableId, VariableKind, parse,
+use crate::ast::{
+    BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
+    VariableId, VariableKind, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
@@ -19,12 +21,11 @@ use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
-use datex_core::compiler::ast_parser::Slot;
+use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub mod ast_parser;
 pub mod context;
 pub mod error;
 pub mod lexer;
@@ -959,7 +960,7 @@ pub mod tests {
     use std::io::Read;
     use std::vec;
 
-    use crate::compiler::ast_parser::parse;
+    use crate::ast::parse;
     use crate::values::core_values::integer::integer::Integer;
     use crate::{
         global::binary_codes::InstructionCode, logger::init_logger_debug,

@@ -1,9 +1,15 @@
+use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
-use crate::compiler::ast_parser::{DatexExpression, TupleEntry};
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
 use chumsky::recursive::Indirect;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum TupleEntry {
+    KeyValue(DatexExpression, DatexExpression),
+    Value(DatexExpression),
+}
 
 /// A key-value pair inside a tuple
 /// Example: (1: "value"), ("key": 123), (("x"+"y"): endpoint(...))

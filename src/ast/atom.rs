@@ -1,10 +1,10 @@
+use crate::ast::DatexExpression;
 use crate::ast::TokenInput;
 use crate::ast::decimal::decimal;
 use crate::ast::endpoint::endpoint;
 use crate::ast::integer::integer;
 use crate::ast::literal::literal;
 use crate::ast::text::text;
-use crate::compiler::ast_parser::DatexExpression;
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;

@@ -1,4 +1,4 @@
-use crate::compiler::ast_parser::{DatexExpression, Slot};
+use crate::ast::{DatexExpression, Slot};
 use crate::compiler::lexer::Token;
 use chumsky::extra::Err;
 use chumsky::prelude::*;

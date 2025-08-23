@@ -1,4 +1,6 @@
-use crate::compiler::ast_parser::{Apply, DatexExpression, TupleEntry};
+use crate::ast::DatexExpression;
+use crate::ast::chain::ApplyOperation;
+use crate::ast::tuple::TupleEntry;
 use crate::compiler::error::CompilerError;
 use log::info;
 use std::cell::RefCell;
@@ -306,7 +308,7 @@ fn visit_expression(
             )?;
             for apply in applies {
                 match apply {
-                    Apply::FunctionCall(expr) => {
+                    ApplyOperation::FunctionCall(expr) => {
                         visit_expression(
                             expr,
                             metadata,
@@ -314,7 +316,7 @@ fn visit_expression(
                             NewScopeType::NewScope,
                         )?;
                     }
-                    Apply::PropertyAccess(expr) => {
+                    ApplyOperation::PropertyAccess(expr) => {
                         visit_expression(
                             expr,
                             metadata,
@@ -322,7 +324,7 @@ fn visit_expression(
                             NewScopeType::NewScope,
                         )?;
                     }
-                    Apply::ArrayType => {
+                    ApplyOperation::ArrayType => {
                         todo!("Handle ArrayType in precompiler")
                     }
                 }

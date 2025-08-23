@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
+use crate::ast::DatexExpression;
 use crate::ast::TokenInput;
-use crate::compiler::ast_parser::DatexExpression;
 use crate::compiler::lexer::Token;
 use crate::values::core_values::endpoint::Endpoint;
 use chumsky::extra::Err;
