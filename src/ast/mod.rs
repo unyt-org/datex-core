@@ -17,6 +17,7 @@ pub mod unary;
 pub mod unary_operation;
 pub mod utils;
 pub mod variable;
+use chumsky::error::RichReason;
 
 use crate::ast::array::*;
 use crate::ast::assignment_operation::*;
@@ -50,7 +51,7 @@ use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 
 pub type TokenInput<'a> = &'a [Token];
-pub trait DatexParserTrait<'a, T = DatexExpression> =
+pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
     Parser<'a, TokenInput<'a>, T, Err<Rich<'a, Token>>> + Clone + 'a;
 
 pub type DatexScriptParser<'a> =
@@ -224,7 +225,7 @@ pub struct DatexParseResult {
     pub is_static_value: bool,
 }
 
-pub fn create_parser<'a>() -> impl DatexParserTrait<'a> {
+pub fn create_parser<'a, T>() -> impl DatexParserTrait<'a, DatexExpression, T> {
     // an expression
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
@@ -378,8 +379,6 @@ impl Debug for ParserError {
         }
     }
 }
-use ariadne::ColorGenerator;
-use chumsky::error::{RichReason, Simple};
 
 fn report_from_rich(error: &Rich<'static, Token>, src_id: &str, src: &str) {
     let msg = if let RichReason::Custom(msg) = error.reason() {
@@ -441,7 +440,7 @@ fn report_from_rich(error: &Rich<'static, Token>, src_id: &str, src: &str) {
     };
     let report =
         Report::build(ReportKind::Error, (src_id, error.span().into_range()))
-            .with_code("Syntax Error")
+            .with_code("Unexpected Token")
             .with_message(msg)
             .with_note("Please check the syntax and try again.")
             .with_label(
@@ -514,13 +513,43 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
         .collect::<Result<Vec<Token>, Range<usize>>>()
         .map_err(|e| vec![ParserError::InvalidToken(e)])?;
 
-    let parser = create_parser();
+    let parser = create_parser::<'_, (Token, Range<usize>)>();
 
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| ParserError::UnexpectedToken(e.clone().into_owned()))
             .collect()
     })
+}
+
+// WIP
+pub fn parse_spanned(
+    mut src: &str,
+) -> Result<DatexExpression, Vec<ParserError>> {
+    // strip shebang at beginning of the source code
+    if src.starts_with("#!") {
+        let end_of_line = src.find('\n').unwrap_or(src.len());
+        src = &src[end_of_line + 1..];
+    }
+
+    let tokens = Token::lexer(src);
+    let tokens: Vec<(Token, Range<usize>)> = tokens
+        .spanned()
+        .map(|(tok, span)| {
+            tok.map(|t| (t, span.clone()))
+                .map_err(|_| ParserError::InvalidToken(span))
+        })
+        .collect::<Result<_, _>>()
+        .map_err(|e| vec![e])?;
+
+    let parser = create_parser::<'_, (Token, Range<usize>)>();
+
+    // parser.parse(&tokens).into_result().map_err(|err| {
+    //     err.into_iter()
+    //         .map(|e| ParserError::UnexpectedToken(e.clone().into_owned()))
+    //         .collect()
+    // })
+    todo!("fix")
 }
 
 // TODO #157: implement correctly - have fun with lifetimes :()
