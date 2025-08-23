@@ -45,6 +45,7 @@ use crate::{compiler::lexer::Token, values::core_values::array::Array};
 use chumsky::error::RichPattern;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
+use chumsky::util::Maybe;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 
@@ -384,50 +385,80 @@ fn report_from_rich(error: &Rich<'static, Token>, src_id: &str, src: &str) {
     let msg = if let RichReason::Custom(msg) = error.reason() {
         msg.clone()
     } else {
-        let expected = error.expected();
+        let mut normal_items = Vec::new();
+        let mut has_something_else = false;
+
+        for expected in error.expected() {
+            match expected {
+                RichPattern::Token(token) => {
+                    normal_items.push(match token {
+                        Maybe::Ref(token) => token.to_string().to_lowercase(),
+                        Maybe::Val(token) => token.to_string().to_lowercase(),
+                    });
+                }
+                RichPattern::Label(label) => {
+                    normal_items.push(format!("label '{}'", label));
+                }
+                RichPattern::Identifier(id) => {
+                    normal_items.push(format!("identifier '{}'", id));
+                }
+                RichPattern::Any => {
+                    normal_items.push("anything".to_string());
+                }
+                RichPattern::EndOfInput => {
+                    normal_items.push("end of input".to_string());
+                }
+                RichPattern::SomethingElse => {
+                    has_something_else = true;
+                }
+            }
+        }
+
+        // Build final list, putting `something else` at the end if needed
+        if has_something_else {
+            normal_items.push("something else".to_string());
+        }
+
+        // Format nicely with commas and "or"
+        let expected_str = match normal_items.len() {
+            0 => "something else".to_string(),
+            1 => normal_items[0].clone(),
+            2 => format!("{} or {}", normal_items[0], normal_items[1]),
+            _ => {
+                let last = normal_items.pop().unwrap();
+                format!("{}, or {}", normal_items.join(", "), last)
+            }
+        };
+
         format!(
-            "Unexpected token, expected {}",
-            if expected.len() == 0 {
-                "something else".to_string()
-            } else {
-                expected
-                    .map(|expected| match expected {
-                        RichPattern::Token(token) => token.to_string(),
-                        RichPattern::Label(label) => {
-                            format!("label '{}'", label)
-                        }
-                        RichPattern::Identifier(id) => {
-                            format!("identifier '{}'", id)
-                        }
-                        RichPattern::Any => "anything".to_string(),
-                        RichPattern::SomethingElse => {
-                            "something else".to_string()
-                        }
-                        RichPattern::EndOfInput => "end of input".to_string(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            },
+            "Unexpected {}, expected {}.",
+            error
+                .found()
+                .map(|c| format!("token {}", c.to_string().to_lowercase()))
+                .unwrap_or_else(|| "end of input".to_string()),
+            expected_str
         )
     };
-    let report = Report::build(ReportKind::Error, error.span().into_range())
-        .with_code(3)
-        .with_message(msg)
-        .with_label(
-            Label::new(error.span().into_range())
-                .with_message(match error.reason() {
-                    RichReason::Custom(msg) => msg.clone(),
-                    _ => format!(
-                        "Unexpected {}",
-                        error
-                            .found()
-                            .map(|c| format!("token {}", c))
-                            .unwrap_or_else(|| "end of input".to_string())
-                    ),
-                })
-                .with_color(Color::Red),
-        );
-    report.finish().eprint(Source::from(src)).unwrap();
+    let report =
+        Report::build(ReportKind::Error, (src_id, error.span().into_range()))
+            .with_code("Syntax Error")
+            .with_message(msg)
+            .with_note("Please check the syntax and try again.")
+            .with_label(
+                Label::new((src_id, error.span().into_range()))
+                    .with_message(match error.reason() {
+                        RichReason::Custom(msg) => msg.clone(),
+                        _ => format!(
+                            "Unexpected {}",
+                            error
+                                .found()
+                                .map(|c| format!("token {}", c))
+                                .unwrap_or_else(|| "end of input".to_string())
+                        ),
+                    })
+                    .with_color(Color::Red),
+            );
+    report.finish().eprint((src_id, Source::from(src))).unwrap();
 }
 
 pub struct ErrorCollector {
