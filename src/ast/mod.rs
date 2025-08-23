@@ -42,6 +42,7 @@ use crate::values::core_values::object::Object;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use crate::{compiler::lexer::Token, values::core_values::array::Array};
+use chumsky::error::RichPattern;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
@@ -376,6 +377,58 @@ impl Debug for ParserError {
         }
     }
 }
+use ariadne::ColorGenerator;
+use chumsky::error::{RichReason, Simple};
+
+fn report_from_rich(error: &Rich<'static, Token>, src_id: &str, src: &str) {
+    let msg = if let RichReason::Custom(msg) = error.reason() {
+        msg.clone()
+    } else {
+        let expected = error.expected();
+        format!(
+            "Unexpected token, expected {}",
+            if expected.len() == 0 {
+                "something else".to_string()
+            } else {
+                expected
+                    .map(|expected| match expected {
+                        RichPattern::Token(token) => token.to_string(),
+                        RichPattern::Label(label) => {
+                            format!("label '{}'", label)
+                        }
+                        RichPattern::Identifier(id) => {
+                            format!("identifier '{}'", id)
+                        }
+                        RichPattern::Any => "anything".to_string(),
+                        RichPattern::SomethingElse => {
+                            "something else".to_string()
+                        }
+                        RichPattern::EndOfInput => "end of input".to_string(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            },
+        )
+    };
+    let report = Report::build(ReportKind::Error, error.span().into_range())
+        .with_code(3)
+        .with_message(msg)
+        .with_label(
+            Label::new(error.span().into_range())
+                .with_message(match error.reason() {
+                    RichReason::Custom(msg) => msg.clone(),
+                    _ => format!(
+                        "Unexpected {}",
+                        error
+                            .found()
+                            .map(|c| format!("token {}", c))
+                            .unwrap_or_else(|| "end of input".to_string())
+                    ),
+                })
+                .with_color(Color::Red),
+        );
+    report.finish().eprint(Source::from(src)).unwrap();
+}
 
 pub struct ErrorCollector {
     pub errors: Vec<ParserError>,
@@ -401,28 +454,12 @@ impl ErrorCollector {
         for error in &self.errors {
             match error {
                 ParserError::UnexpectedToken(rich) => {
-                    println!("Parsing error: {}", rich);
+                    report_from_rich(rich, "datex", src);
                 }
                 ParserError::InvalidToken(range) => {
                     println!("Invalid token error: {:?}", range);
                 }
             }
-            // let range = match error {
-            //     ParserError::UnexpectedToken(range) => range,
-            //     ParserError::InvalidToken(range) => range,
-            // };
-            // Report::build(ReportKind::Error, ("datex", range.clone()))
-            //     .with_config(
-            //         ariadne::Config::new()
-            //             .with_index_type(ariadne::IndexType::Byte),
-            //     )
-            //     .with_message("Parsing error")
-            //     .with_label(
-            //         Label::new(("datex", range.clone())).with_color(Color::Red),
-            //     )
-            //     .finish()
-            //     .eprint(("datex", Source::from(src)))
-            //     .unwrap();
         }
     }
 }
