@@ -534,29 +534,6 @@ impl From<Range<usize>> for ParserError {
     }
 }
 
-pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
-    // strip shebang at beginning of the source code
-    if src.starts_with("#!") {
-        let end_of_line = src.find('\n').unwrap_or(src.len());
-        src = &src[end_of_line + 1..];
-    }
-
-    let tokens = Token::lexer(src);
-    let tokens: Vec<Token> = tokens
-        .into_iter()
-        .collect::<Result<Vec<Token>, Range<usize>>>()
-        .map_err(|e| vec![ParserError::InvalidToken(e)])?;
-
-    let parser = create_parser::<'_, Token>();
-    parser.parse(&tokens).into_result().map_err(|err| {
-        err.into_iter()
-            .map(|e| {
-                ParserError::UnexpectedToken(e.clone().into_owned().into())
-            })
-            .collect()
-    })
-}
-
 pub struct DatexRich<'a, T> {
     span: Range<usize>,
     rich: Rich<'a, T>,
@@ -592,10 +569,7 @@ impl<'a, T> From<Rich<'a, T>> for DatexRich<'a, T> {
     }
 }
 
-// WIP
-pub fn parse_spanned(
-    mut src: &str,
-) -> Result<DatexExpression, Vec<ParserError>> {
+pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
         let end_of_line = src.find('\n').unwrap_or(src.len());
@@ -612,45 +586,20 @@ pub fn parse_spanned(
         .collect::<Result<_, _>>()
         .map_err(|e| vec![e])?;
 
-    let tokens = tokens_spanned
-        .into_iter()
-        .map(|(t, s)| t)
-        .collect::<Vec<_>>();
-
+    let (tokens, spans): (Vec<_>, Vec<_>) = tokens_spanned.into_iter().unzip();
     let parser = create_parser::<'_, Token>();
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| {
                 let owned_rich = e.to_owned().clone();
                 let range = owned_rich.span().into_range();
-                let token_index = range.start;
-                println!("token_index = {}", token_index);
-                ParserError::UnexpectedToken(
-                    DatexRich::from(owned_rich).into_owned(),
-                )
+                let span = spans.get(range.start).unwrap();
+                let rich = DatexRich::new(span.clone(), owned_rich);
+                ParserError::UnexpectedToken(rich.into_owned())
             })
             .collect()
     })
 }
-
-// TODO #157: implement correctly - have fun with lifetimes :()
-// mainly relevant for IDE language support
-// pub fn parse_with_context(src: &str, parser) -> (DatexExpression, Vec<ParserError>) {
-//     let lexer = Token::lexer(src);
-//     let tokens = lexer.spanned().map(|(tok, span)| match tok {
-//         Ok(tok) => (tok, span.into()),
-//         Err(_) => (Token::Error, span.into()),
-//     });
-//     let tokens = Stream::from_iter(tokens)
-//         .map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
-
-//     let result = parser.parse(tokens).into_result().map_err(|err| {
-//         err.into_iter()
-//             .map(|e| ParserError::UnexpectedToken(e.span().into_range()))
-//             .collect()
-//     });
-//     result
-// }
 
 #[cfg(test)]
 mod tests {
@@ -658,7 +607,7 @@ mod tests {
     use std::{assert_matches::assert_matches, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
-        let res = parse_spanned(src);
+        let res = parse(src);
         if let Err(errors) = res {
             ErrorCollector::new_with_errors(src.to_string(), errors).print();
             panic!("Parsing errors found");
