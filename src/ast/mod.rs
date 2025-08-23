@@ -18,6 +18,7 @@ pub mod unary_operation;
 pub mod utils;
 pub mod variable;
 use chumsky::error::RichReason;
+use chumsky::label::LabelError;
 
 use crate::ast::array::*;
 use crate::ast::assignment_operation::*;
@@ -48,19 +49,36 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
 use logos::Logos;
+use std::ops::Deref;
 use std::{collections::HashMap, ops::Range};
 
 #[derive(Clone, Debug, PartialEq)]
-struct SpannedToken {
-    token: Token,
-    span: Range<usize>,
-}
-impl Eq for SpannedToken {}
+struct SpannedToken(Token);
 
+impl Deref for SpannedToken {
+    type Target = Token;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<SpannedToken> for Token {
+    fn from(spanned: SpannedToken) -> Self {
+        spanned.0
+    }
+}
+impl From<Token> for SpannedToken {
+    fn from(token: Token) -> Self {
+        SpannedToken(token)
+    }
+}
+
+impl Eq for SpannedToken {}
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
     Parser<'a, TokenInput<'a, X>, T, Err<Rich<'a, X>>> + Clone + 'a
-    where X: std::cmp::PartialEq + 'a;
+    where X: PartialEq + 'a;
 
 pub type DatexScriptParser<'a> =
     Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
@@ -373,7 +391,7 @@ where
 
 // #[derive(Debug, Clone)]
 pub enum ParserError {
-    UnexpectedToken(Rich<'static, Token>),
+    UnexpectedToken(DatexRich<'static, Token>),
     InvalidToken(Range<usize>),
 }
 use ariadne::{Color, Label, Report, ReportKind, Source};
@@ -383,7 +401,7 @@ impl Debug for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParserError::UnexpectedToken(rich) => {
-                write!(f, "Unexpected token: {}", rich)
+                write!(f, "Unexpected token: {:?}", rich.span)
             }
             ParserError::InvalidToken(range) => {
                 write!(f, "Invalid token at range: {:?}", range)
@@ -392,7 +410,11 @@ impl Debug for ParserError {
     }
 }
 
-fn report_from_rich(error: &Rich<'static, Token>, src_id: &str, src: &str) {
+fn report_from_rich(
+    error: &DatexRich<'static, Token>,
+    src_id: &str,
+    src: &str,
+) {
     let msg = if let RichReason::Custom(msg) = error.reason() {
         msg.clone()
     } else {
@@ -528,9 +550,39 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     let parser = create_parser::<'_, Token>();
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
-            .map(|e| ParserError::UnexpectedToken(e.clone().into_owned()))
+            .map(|e| {
+                ParserError::UnexpectedToken(e.clone().into_owned().into())
+            })
             .collect()
     })
+}
+
+pub struct DatexRich<'a, T> {
+    span: Range<usize>,
+    rich: Rich<'a, T>,
+}
+impl Deref for DatexRich<'static, Token> {
+    type Target = Rich<'static, Token>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.rich
+    }
+}
+impl<'a, T> DatexRich<'a, T> {
+    pub fn new(span: Range<usize>, rich: Rich<'a, T>) -> Self {
+        Self { span, rich }
+    }
+
+    pub fn span(&self) -> &Range<usize> {
+        &self.span
+    }
+}
+
+impl<'a, T> From<Rich<'a, T>> for DatexRich<'a, T> {
+    fn from(rich: Rich<'a, T>) -> Self {
+        let span = rich.span().into_range();
+        DatexRich::new(span, rich)
+    }
 }
 
 // WIP
@@ -544,7 +596,7 @@ pub fn parse_spanned(
     }
 
     let tokens = Token::lexer(src);
-    let tokens: Vec<(Token, Range<usize>)> = tokens
+    let tokens_spanned: Vec<(Token, Range<usize>)> = tokens
         .spanned()
         .map(|(tok, span)| {
             tok.map(|t| (t, span.clone()))
@@ -553,14 +605,45 @@ pub fn parse_spanned(
         .collect::<Result<_, _>>()
         .map_err(|e| vec![e])?;
 
-    let parser = create_parser::<'_, (Token, Range<usize>)>();
+    let tokens = tokens_spanned
+        .into_iter()
+        .map(|(t, s)| t)
+        .collect::<Vec<_>>();
 
-    // parser.parse(&tokens).into_result().map_err(|err| {
-    //     err.into_iter()
-    //         .map(|e| ParserError::UnexpectedToken(e.clone().into_owned()))
-    //         .collect()
-    // })
-    todo!("fix")
+    let parser = create_parser::<'_, Token>();
+
+    // let parser = create_parser::<'_, (Token, Range<usize>)>();
+
+    parser.parse(&tokens).into_result().map_err(|err| {
+        err.into_iter()
+            .map(|e: Rich<'static, Token>| {
+                let range = e.span().into_range();
+                let context = e.contexts().collect::<Vec<_>>();
+                let span = e.span();
+                let mut rich: Rich<
+                    'static,
+                    Token,
+                    chumsky::span::SimpleSpan<usize>,
+                > = Rich::custom(span.clone(), "");
+
+                for (context, span) in context.iter().rev() {
+                    let context = context.clone().to_owned();
+                    let span: chumsky::span::SimpleSpan<usize> =
+                        span.to_owned().clone();
+                    rich.in_context(context, span);
+                }
+                // let rich = Rich::custom(*e.span(), "msg").in_context(
+                //     context
+                //         .clone()
+                //         .into_iter()
+                //         .map(|(r, msg)| (r, msg.clone()))
+                //         .collect(),
+                // );
+
+                ParserError::UnexpectedToken(rich)
+            })
+            .collect()
+    })
 }
 
 // TODO #157: implement correctly - have fun with lifetimes :()
