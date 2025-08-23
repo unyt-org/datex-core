@@ -48,8 +48,8 @@ use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 
 pub type TokenInput<'a> = &'a [Token];
-pub trait DatexParserTrait<'a> =
-    Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone;
+pub trait DatexParserTrait<'a, T = DatexExpression> =
+    Parser<'a, &'a [Token], T, Err<Cheap>> + Clone + 'a;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement {
@@ -222,8 +222,7 @@ pub struct DatexParseResult {
     pub is_static_value: bool,
 }
 
-pub fn create_parser<'a, I>()
--> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> {
+pub fn create_parser<'a>() -> impl DatexParserTrait<'a> {
     // an expression
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
@@ -382,7 +381,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
         .collect::<Result<Vec<Token>, Range<usize>>>()
         .map_err(|e| vec![ParserError::InvalidToken(e)])?;
 
-    let parser = create_parser::<'_, TokenInput>();
+    let parser = create_parser();
 
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
