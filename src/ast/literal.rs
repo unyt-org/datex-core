@@ -1,10 +1,9 @@
-use crate::ast::{DatexExpression, Slot};
+use crate::ast::{DatexExpression, DatexParserTrait, Slot};
 use crate::compiler::lexer::Token;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 
-pub fn literal<'a>()
--> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+pub fn literal<'a>() -> impl DatexParserTrait<'a> {
     choice((
         select! { Token::True => DatexExpression::Boolean(true) },
         select! { Token::False => DatexExpression::Boolean(false) },

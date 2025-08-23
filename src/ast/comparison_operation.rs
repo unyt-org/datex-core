@@ -1,4 +1,5 @@
 use crate::ast::DatexExpression;
+use crate::ast::DatexParserTrait;
 use crate::ast::TokenInput;
 use crate::ast::utils::operation;
 use crate::compiler::lexer::Token;
@@ -28,8 +29,8 @@ fn comparison_op(
 }
 
 pub fn comparison_operation<'a>(
-    union: impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+    union: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     union
         .clone()
         .foldl(

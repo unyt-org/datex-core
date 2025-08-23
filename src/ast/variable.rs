@@ -4,7 +4,8 @@ use crate::ast::assignment_operation::{
 use crate::ast::comparison_operation::comparison_operation;
 use crate::ast::utils::whitespace;
 use crate::ast::{
-    BindingMutability, DatexExpression, ReferenceMutability, VariableKind,
+    BindingMutability, DatexExpression, DatexParserTrait, ReferenceMutability,
+    VariableKind,
 };
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
@@ -56,10 +57,8 @@ fn typed_variable_declaration(
 }
 
 pub fn variable_assignment_or_declaration<'a>(
-    union: impl Parser<'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>
-    + Clone
-    + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    union: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     let type_annotation = just(Token::Colon)
         .padded_by(whitespace())
         .ignore_then(union.clone())

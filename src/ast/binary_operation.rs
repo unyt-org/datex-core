@@ -1,4 +1,5 @@
 use crate::ast::DatexExpression;
+use crate::ast::DatexParserTrait;
 use crate::ast::TokenInput;
 use crate::ast::utils::operation;
 use crate::compiler::lexer::Token;
@@ -30,9 +31,7 @@ fn binary_op(
     move |lhs, rhs| DatexExpression::BinaryOperation(op, lhs, rhs)
 }
 
-fn product<'a>(
-    chain: impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+fn product<'a>(chain: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     chain
         .clone()
         .foldl(
@@ -47,11 +46,7 @@ fn product<'a>(
         .boxed()
 }
 
-fn sum<'a>(
-    product: impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>>
-    + Clone
-    + 'a,
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+fn sum<'a>(product: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     product
         .clone()
         .foldl(
@@ -67,8 +62,8 @@ fn sum<'a>(
 }
 
 fn intersection<'a>(
-    sum: impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+    sum: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     sum.clone()
         .foldl(
             operation(Token::Ampersand)
@@ -81,10 +76,8 @@ fn intersection<'a>(
 }
 
 fn union<'a>(
-    intersection: impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>>
-    + Clone
-    + 'a,
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+    intersection: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     intersection
         .clone()
         .foldl(
@@ -98,15 +91,9 @@ fn union<'a>(
 }
 
 pub fn binary_operation<'a>(
-    chain: impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
-    let product = product(chain);
-    let sum = sum(product);
-    let intersection = intersection(sum);
-    let union = union(intersection);
-
-    union
-    // union(intersection(sum(product(chain))))
+    chain: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    union(intersection(sum(product(chain))))
 }
 
 impl From<&BinaryOperator> for InstructionCode {

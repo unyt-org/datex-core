@@ -1,9 +1,8 @@
-use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
+use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
-use chumsky::recursive::Indirect;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TupleEntry {
@@ -14,15 +13,9 @@ pub enum TupleEntry {
 /// A key-value pair inside a tuple
 /// Example: (1: "value"), ("key": 123), (("x"+"y"): endpoint(...))
 fn tuple_key_value_pair<'a>(
-    key: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>>
-    + Clone
-    + 'a
-    + Clone
-    + 'a,
-    expression_without_tuple: Recursive<
-        Indirect<'a, 'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>,
-    >,
-) -> impl Parser<'a, &'a [Token], TupleEntry, Err<Cheap>> + Clone + 'a {
+    key: impl DatexParserTrait<'a>,
+    expression_without_tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a, TupleEntry> {
     key.then_ignore(just(Token::Colon).padded_by(whitespace()))
         .then(expression_without_tuple)
         .map(|(key, value)| TupleEntry::KeyValue(key, value))
@@ -30,13 +23,9 @@ fn tuple_key_value_pair<'a>(
 
 /// An entry inside a tuple, either a key-value pair or just a value
 fn tuple_entry<'a>(
-    key_value_pair: impl Parser<'a, &'a [Token], TupleEntry, Err<Cheap>>
-    + Clone
-    + 'a,
-    expression_without_tuple: Recursive<
-        Indirect<'a, 'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>,
-    >,
-) -> impl Parser<'a, &'a [Token], TupleEntry, Err<Cheap>> + Clone + 'a {
+    key_value_pair: impl DatexParserTrait<'a, TupleEntry>,
+    expression_without_tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a, TupleEntry> {
     choice((
         // Key-value pair
         key_value_pair,
@@ -48,8 +37,8 @@ fn tuple_entry<'a>(
 
 /// A collection of tuple entries with at least two entries, e.g. (1,2)
 fn tuple_with_commas<'a>(
-    entry: impl Parser<'a, &'a [Token], TupleEntry, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    entry: impl DatexParserTrait<'a, TupleEntry>,
+) -> impl DatexParserTrait<'a> {
     entry
         .separated_by(just(Token::Comma).padded_by(whitespace()))
         .at_least(2)
@@ -59,8 +48,8 @@ fn tuple_with_commas<'a>(
 
 /// A single value tuple, e.g. (123,)
 fn single_value_tuple<'a>(
-    entry: impl Parser<'a, &'a [Token], TupleEntry, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    entry: impl DatexParserTrait<'a, TupleEntry>,
+) -> impl DatexParserTrait<'a> {
     entry
         .clone()
         .then_ignore(just(Token::Comma))
@@ -70,10 +59,8 @@ fn single_value_tuple<'a>(
 
 /// A keyed tuple with a single entry, e.g. (key: value)
 fn single_keyed_tuple_entry<'a>(
-    key_value_pair: impl Parser<'a, &'a [Token], TupleEntry, Err<Cheap>>
-    + Clone
-    + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    key_value_pair: impl DatexParserTrait<'a, TupleEntry>,
+) -> impl DatexParserTrait<'a> {
     key_value_pair
         .clone()
         .map(|value| vec![value])
@@ -81,15 +68,9 @@ fn single_keyed_tuple_entry<'a>(
 }
 
 pub fn tuple<'a>(
-    key: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>>
-    + Clone
-    + 'a
-    + Clone
-    + 'a,
-    expression_without_tuple: Recursive<
-        Indirect<'a, 'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>,
-    >,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    key: impl DatexParserTrait<'a>,
+    expression_without_tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     let tuple_key_value_pair =
         tuple_key_value_pair(key, expression_without_tuple.clone());
     let tuple_entry = tuple_entry(

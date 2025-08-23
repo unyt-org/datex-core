@@ -1,5 +1,5 @@
-use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
+use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
@@ -16,21 +16,13 @@ pub enum ApplyOperation {
 }
 
 pub fn chain<'a>(
-    unary: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a,
-    key: impl Parser<'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>
-    + Clone
-    + 'a,
-    array: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a,
-    object: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a,
-    wrapped_expression: impl Parser<
-        'a,
-        &'a [Token],
-        DatexExpression,
-        Full<Cheap, (), ()>,
-    > + Clone
-    + 'a,
-    atom: impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    unary: impl DatexParserTrait<'a>,
+    key: impl DatexParserTrait<'a>,
+    array: impl DatexParserTrait<'a>,
+    object: impl DatexParserTrait<'a>,
+    wrapped_expression: impl DatexParserTrait<'a>,
+    atom: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     unary
         .then(
             choice((

@@ -1,19 +1,12 @@
-use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
+use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
 
 fn return_type<'a>(
-    expression_without_tuple: impl Parser<
-        'a,
-        &'a [Token],
-        DatexExpression,
-        Full<Cheap, (), ()>,
-    > + Clone
-    + 'a,
-) -> impl Parser<'a, &'a [Token], Option<DatexExpression>, Err<Cheap>> + Clone + 'a
-{
+    expression_without_tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a, Option<DatexExpression>> {
     just(Token::Arrow)
         .padded_by(whitespace())
         .ignore_then(expression_without_tuple.padded_by(whitespace()))
@@ -21,20 +14,16 @@ fn return_type<'a>(
 }
 
 fn body<'a>(
-    statements: impl Parser<'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>
-    + Clone
-    + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    statements: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     statements
         .clone()
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
 }
 
 fn parameters<'a>(
-    tuple: impl Parser<'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>
-    + Clone
-    + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     tuple
         .clone()
         .or_not()
@@ -46,20 +35,10 @@ fn parameters<'a>(
 }
 
 pub fn function<'a>(
-    statements: impl Parser<'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>
-    + Clone
-    + 'a,
-    tuple: impl Parser<'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>
-    + Clone
-    + 'a,
-    expression_without_tuple: impl Parser<
-        'a,
-        &'a [Token],
-        DatexExpression,
-        Full<Cheap, (), ()>,
-    > + Clone
-    + 'a,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    statements: impl DatexParserTrait<'a>,
+    tuple: impl DatexParserTrait<'a>,
+    expression_without_tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     let function_params = parameters(tuple);
     let return_type = return_type(expression_without_tuple);
     let function_body = body(statements);

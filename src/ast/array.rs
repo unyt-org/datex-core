@@ -1,15 +1,11 @@
-use crate::ast::DatexExpression;
 use crate::ast::utils::whitespace;
+use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
-use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
-use chumsky::recursive::Indirect;
 
 pub fn array<'a>(
-    expression_without_tuple: Recursive<
-        Indirect<'a, 'a, &'a [Token], DatexExpression, Full<Cheap, (), ()>>,
-    >,
-) -> impl Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone + 'a {
+    expression_without_tuple: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
     expression_without_tuple
         .clone()
         .separated_by(just(Token::Comma).padded_by(whitespace()))

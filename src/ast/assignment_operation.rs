@@ -1,5 +1,5 @@
-use crate::ast::TokenInput;
 use crate::ast::utils::whitespace;
+use crate::ast::{DatexParserTrait, TokenInput};
 use crate::compiler::lexer::Token;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::extra::Err;
@@ -35,8 +35,7 @@ impl From<&AssignmentOperator> for InstructionCode {
 }
 
 pub fn assignment_operation<'a>()
--> impl Parser<'a, TokenInput<'a>, AssignmentOperator, Err<Cheap>> + Clone + 'a
-{
+-> impl DatexParserTrait<'a, AssignmentOperator> {
     select! {
         Token::Assign      => AssignmentOperator::Assign,
         Token::AddAssign   => AssignmentOperator::AddAssign,

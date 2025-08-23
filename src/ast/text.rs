@@ -1,11 +1,9 @@
 use crate::ast::DatexExpression;
-use crate::ast::TokenInput;
+use crate::ast::DatexParserTrait;
 use crate::compiler::lexer::Token;
-use chumsky::extra::Err;
 use chumsky::prelude::*;
 
-pub fn text<'a>()
--> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+pub fn text<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::StringLiteral(s) => DatexExpression::Text(unescape_text(&s))
     }

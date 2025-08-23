@@ -1,4 +1,5 @@
 use crate::ast::DatexExpression;
+use crate::ast::DatexParserTrait;
 use crate::ast::TokenInput;
 use crate::compiler::lexer::{DecimalLiteral, Token};
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -6,8 +7,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 
-pub fn decimal<'a>()
--> impl Parser<'a, TokenInput<'a>, DatexExpression, Err<Cheap>> + Clone + 'a {
+pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
             match variant {

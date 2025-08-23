@@ -1,16 +1,13 @@
-use crate::ast::TokenInput;
+use crate::ast::{DatexParserTrait, TokenInput};
 use crate::compiler::lexer::Token;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 
-pub fn whitespace<'a>()
--> impl Parser<'a, TokenInput<'a>, (), Err<Cheap>> + Clone + 'a {
+pub fn whitespace<'a>() -> impl DatexParserTrait<'a, ()> {
     just(Token::Whitespace).repeated().ignored()
 }
 
-pub fn operation<'a>(
-    c: Token,
-) -> impl Parser<'a, TokenInput<'a>, Token, Err<Cheap>> + Clone + 'a {
+pub fn operation<'a>(c: Token) -> impl DatexParserTrait<'a, Token> {
     just(Token::Whitespace)
         .repeated()
         .at_least(1)
