@@ -50,9 +50,17 @@ use chumsky::util::Maybe;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 
-pub type TokenInput<'a> = &'a [Token];
+#[derive(Clone, Debug, PartialEq)]
+struct SpannedToken {
+    token: Token,
+    span: Range<usize>,
+}
+impl Eq for SpannedToken {}
+
+pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
-    Parser<'a, TokenInput<'a>, T, Err<Rich<'a, Token>>> + Clone + 'a;
+    Parser<'a, TokenInput<'a, X>, T, Err<Rich<'a, X>>> + Clone + 'a
+    where X: std::cmp::PartialEq + 'a;
 
 pub type DatexScriptParser<'a> =
     Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
@@ -225,7 +233,11 @@ pub struct DatexParseResult {
     pub is_static_value: bool,
 }
 
-pub fn create_parser<'a, T>() -> impl DatexParserTrait<'a, DatexExpression, T> {
+pub fn create_parser<'a, T>()
+-> impl DatexParserTrait<'a, DatexExpression, Token>
+where
+    T: std::cmp::PartialEq + 'a,
+{
     // an expression
     let mut expression = Recursive::declare();
     let mut expression_without_tuple = Recursive::declare();
@@ -513,8 +525,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
         .collect::<Result<Vec<Token>, Range<usize>>>()
         .map_err(|e| vec![ParserError::InvalidToken(e)])?;
 
-    let parser = create_parser::<'_, (Token, Range<usize>)>();
-
+    let parser = create_parser::<'_, Token>();
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| ParserError::UnexpectedToken(e.clone().into_owned()))
