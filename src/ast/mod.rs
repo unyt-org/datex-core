@@ -48,6 +48,8 @@ use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 
 pub type TokenInput<'a> = &'a [Token];
+pub trait DatexParserTrait<'a> =
+    Parser<'a, &'a [Token], DatexExpression, Err<Cheap>> + Clone;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement {
