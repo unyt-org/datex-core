@@ -52,29 +52,6 @@ use logos::Logos;
 use std::ops::Deref;
 use std::{collections::HashMap, ops::Range};
 
-#[derive(Clone, Debug, PartialEq)]
-struct SpannedToken(Token);
-
-impl Deref for SpannedToken {
-    type Target = Token;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<SpannedToken> for Token {
-    fn from(spanned: SpannedToken) -> Self {
-        spanned.0
-    }
-}
-impl From<Token> for SpannedToken {
-    fn from(token: Token) -> Self {
-        SpannedToken(token)
-    }
-}
-
-impl Eq for SpannedToken {}
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
     Parser<'a, TokenInput<'a, X>, T, Err<Rich<'a, X>>> + Clone + 'a
@@ -389,7 +366,7 @@ where
     ))
 }
 
-// #[derive(Debug, Clone)]
+#[derive(PartialEq)]
 pub enum ParserError {
     UnexpectedToken(DatexRich<'static, Token>),
     InvalidToken(Range<usize>),
@@ -534,6 +511,7 @@ impl From<Range<usize>> for ParserError {
     }
 }
 
+#[derive(Clone, PartialEq)]
 pub struct DatexRich<'a, T> {
     span: Range<usize>,
     rich: Rich<'a, T>,
@@ -677,16 +655,14 @@ mod tests {
         );
     }
 
-    // WIP
     #[test]
+    #[ignore = "Only demonstration"]
     fn test_parse_error() {
         let src = r#"
         var x = 52; var y = ; 
         var y = 5
         "#;
-        let res = parse_unwrap(src);
-        // assert!(res.is_err());
-        // println!("{:?}", res.unwrap_err());
+        parse_unwrap(src);
     }
 
     #[test]
