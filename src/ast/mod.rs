@@ -473,12 +473,12 @@ fn report_from_rich(
         )
     };
     let report =
-        Report::build(ReportKind::Error, (src_id, error.span().into_range()))
+        Report::build(ReportKind::Error, (src_id, error.span().clone()))
             .with_code("Unexpected Token")
             .with_message(msg)
             .with_note("Please check the syntax and try again.")
             .with_label(
-                Label::new((src_id, error.span().into_range()))
+                Label::new((src_id, error.span().clone()))
                     .with_message(match error.reason() {
                         RichReason::Custom(msg) => msg.clone(),
                         _ => format!(
@@ -576,6 +576,13 @@ impl<'a, T> DatexRich<'a, T> {
     pub fn span(&self) -> &Range<usize> {
         &self.span
     }
+
+    pub fn into_owned<'b>(self) -> DatexRich<'b, T>
+    where
+        T: Clone,
+    {
+        DatexRich::new(self.span().clone(), self.rich.into_owned())
+    }
 }
 
 impl<'a, T> From<Rich<'a, T>> for DatexRich<'a, T> {
@@ -611,36 +618,16 @@ pub fn parse_spanned(
         .collect::<Vec<_>>();
 
     let parser = create_parser::<'_, Token>();
-
-    // let parser = create_parser::<'_, (Token, Range<usize>)>();
-
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
-            .map(|e: Rich<'static, Token>| {
-                let range = e.span().into_range();
-                let context = e.contexts().collect::<Vec<_>>();
-                let span = e.span();
-                let mut rich: Rich<
-                    'static,
-                    Token,
-                    chumsky::span::SimpleSpan<usize>,
-                > = Rich::custom(span.clone(), "");
-
-                for (context, span) in context.iter().rev() {
-                    let context = context.clone().to_owned();
-                    let span: chumsky::span::SimpleSpan<usize> =
-                        span.to_owned().clone();
-                    rich.in_context(context, span);
-                }
-                // let rich = Rich::custom(*e.span(), "msg").in_context(
-                //     context
-                //         .clone()
-                //         .into_iter()
-                //         .map(|(r, msg)| (r, msg.clone()))
-                //         .collect(),
-                // );
-
-                ParserError::UnexpectedToken(rich)
+            .map(|e| {
+                let owned_rich = e.to_owned().clone();
+                let range = owned_rich.span().into_range();
+                let token_index = range.start;
+                println!("token_index = {}", token_index);
+                ParserError::UnexpectedToken(
+                    DatexRich::from(owned_rich).into_owned(),
+                )
             })
             .collect()
     })
@@ -671,7 +658,7 @@ mod tests {
     use std::{assert_matches::assert_matches, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
-        let res = parse(src);
+        let res = parse_spanned(src);
         if let Err(errors) = res {
             ErrorCollector::new_with_errors(src.to_string(), errors).print();
             panic!("Parsing errors found");
