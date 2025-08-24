@@ -10,9 +10,9 @@ use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME #123 no-std
 use crate::stdlib::str;
+use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
 use strum::Display;
 
 #[derive(
@@ -132,7 +132,7 @@ impl TryFrom<CoreValue> for Endpoint {
     }
 }
 
-#[derive(PartialEq, Debug, Display)]
+#[derive(PartialEq, Debug, Display, Clone)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
