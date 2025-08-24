@@ -32,6 +32,9 @@ impl SrcId {
     pub fn repl() -> Self {
         SrcId(Intern::new(vec!["repl".to_string()]))
     }
+    pub fn test() -> Self {
+        SrcId(Intern::new(vec!["test".to_string()]))
+    }
 
     pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
         SrcId(Intern::new(
