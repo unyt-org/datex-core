@@ -394,7 +394,6 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
                 let span = spans.get(range).unwrap();
                 owned_error.set_span(span.clone());
                 owned_error
-                //todo!("");
             })
             .collect()
     })

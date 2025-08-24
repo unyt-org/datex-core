@@ -44,8 +44,8 @@ pub enum ErrorKind {
 pub struct ParseError {
     kind: ErrorKind,
     span: SpanOrToken,
-    while_parsing: Option<(SpanOrToken, &'static str)>,
-    label: Option<&'static str>,
+    context: Option<(SpanOrToken, &'static str)>,
+    note: Option<&'static str>,
 }
 
 impl ParseError {
@@ -53,8 +53,8 @@ impl ParseError {
         Self {
             kind,
             span,
-            while_parsing: None,
-            label: None,
+            context: None,
+            note: None,
         }
     }
     pub fn new_custom(message: String, span: SpanOrToken) -> Self {
@@ -90,17 +90,17 @@ impl ParseError {
         )
     }
 
-    pub fn with_while_parsing(
+    pub fn with_context(
         mut self,
         span: SpanOrToken,
         context: &'static str,
     ) -> Self {
-        self.while_parsing = Some((span, context));
+        self.context = Some((span, context));
         self
     }
 
-    pub fn with_label(mut self, label: &'static str) -> Self {
-        self.label = Some(label);
+    pub fn with_note(mut self, note: &'static str) -> Self {
+        self.note = Some(note);
         self
     }
 }
@@ -145,8 +145,8 @@ impl ParseError {
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
     }
-    pub fn label(&self) -> Option<&'static str> {
-        self.label
+    pub fn note(&self) -> Option<&'static str> {
+        self.note
     }
     pub fn span(&self) -> Option<Range<usize>> {
         match &self.span {
@@ -202,7 +202,10 @@ impl ParseError {
         let report = Report::build(ReportKind::Error, span.clone())
             .with_code("Unexpected Token")
             .with_message(self.message())
-            .with_note("Please check the syntax and try again.")
+            .with_note(
+                self.note
+                    .unwrap_or("Please check the syntax and try again."),
+            )
             .with_label(
                 Label::new(span)
                     .with_message(match &self.kind {
@@ -287,8 +290,8 @@ impl<'a> LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
                 expected,
             },
             span: SpanOrToken::Token(span.start),
-            while_parsing: None,
-            label: None,
+            context: None,
+            note: None,
         }
     }
 }
