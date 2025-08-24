@@ -77,12 +77,15 @@ where
     {
         self.validate(
             |item: Result<DatexExpression, I>,
-             _,
+             ctx,
              emitter: &mut chumsky::input::Emitter<ParseError>| {
                 match item {
                     Ok(expr) => expr,
                     Err(err) => {
-                        emitter.emit(err.into());
+                        let span = ctx.span();
+                        let mut error: ParseError = err.into();
+                        error.set_token_pos(span.start);
+                        emitter.emit(error);
                         DatexExpression::Invalid
                     }
                 }
@@ -128,6 +131,8 @@ pub type VariableId = usize;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
+    // TODO deprecate this, we'll add NOOP, but invalid must be
+    // replaced with proper error handling in AST parsing logic
     /// Invalid expression, e.g. syntax error
     Invalid,
 
@@ -543,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_syntax() {
+    fn test_parse_error_missing_token() {
         let src = r#"
         var x = 52; var y = ; 
         var y = 5
@@ -560,6 +565,20 @@ mod tests {
             }
         );
         assert_eq!(error.span(), Some(29..30));
+    }
+
+    #[test]
+    fn test_parse_error_invalid_declaration() {
+        let src = "var x = 10; const x += 5;";
+        let result = parse_print_error(src);
+        let errors = result.err().unwrap();
+        assert_eq!(errors.len(), 1);
+        let error = errors[0].clone();
+        assert_eq!(
+            error.message(),
+            "Cannot use non assignment operator in variable declaration"
+        );
+        assert_eq!(error.span(), Some(12..17));
     }
 
     #[test]

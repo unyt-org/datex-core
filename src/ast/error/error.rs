@@ -158,6 +158,9 @@ impl ParseError {
     pub(crate) fn set_span(&mut self, span: Range<usize>) {
         self.span = span.into();
     }
+    pub(crate) fn set_token_pos(&mut self, pos: usize) {
+        self.span = pos.into();
+    }
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
     }

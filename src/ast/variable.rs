@@ -2,10 +2,11 @@ use crate::ast::assignment_operation::{
     AssignmentOperator, assignment_operation,
 };
 use crate::ast::comparison_operation::comparison_operation;
+use crate::ast::error::error::ParseError;
 use crate::ast::utils::whitespace;
 use crate::ast::{
-    BindingMutability, DatexExpression, DatexParserTrait, ReferenceMutability,
-    VariableKind,
+    BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
+    ReferenceMutability, VariableKind,
 };
 use crate::compiler::lexer::Token;
 use chumsky::extra::{Err, Full};
@@ -90,30 +91,37 @@ pub fn variable_assignment_or_declaration<'a>(
                     expr => (ReferenceMutability::None, Box::new(expr)),
                 };
                 if op != AssignmentOperator::Assign {
-                    return DatexExpression::Invalid;
+                    return Err(ParseError::new_custom(format!(
+                        "Cannot use '{}' operator in variable declaration",
+                        op
+                    )));
                 }
                 let var_kind = if var_type == Token::Const {
                     VariableKind::Const
                 } else {
                     VariableKind::Var
                 };
-                internal_variable_declaration(
+                Ok(internal_variable_declaration(
                     var_name.to_string(),
                     expr,
                     type_annotation,
                     reference_mutability,
                     var_kind,
-                )
+                ))
             } else {
                 if type_annotation.is_some() {
-                    return DatexExpression::Invalid;
+                    return Err(ParseError::new_custom(
+                        "Cannot use type annotation in variable assignment"
+                            .into(),
+                    ));
                 }
-                DatexExpression::AssignmentOperation(
+                Ok(DatexExpression::AssignmentOperation(
                     op,
                     None,
                     var_name.to_string(),
                     Box::new(expr),
-                )
+                ))
             }
         })
+        .recover_invalid()
 }
