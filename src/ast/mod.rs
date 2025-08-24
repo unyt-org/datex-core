@@ -66,6 +66,37 @@ pub struct Statement {
     pub expression: DatexExpression,
     pub is_terminated: bool,
 }
+pub trait ParserRecoverExt<'a, I>:
+    DatexParserTrait<'a, Result<DatexExpression, I>>
+where
+    I: 'a + Into<ParseError>,
+{
+    fn recover_invalid(self) -> impl DatexParserTrait<'a, DatexExpression>
+    where
+        Self: Sized,
+    {
+        self.validate(
+            |item: Result<DatexExpression, I>,
+             _,
+             emitter: &mut chumsky::input::Emitter<ParseError>| {
+                match item {
+                    Ok(expr) => expr,
+                    Err(err) => {
+                        emitter.emit(err.into());
+                        DatexExpression::Invalid
+                    }
+                }
+            },
+        )
+    }
+}
+
+impl<'a, I, P> ParserRecoverExt<'a, I> for P
+where
+    I: 'a + Into<ParseError>,
+    P: DatexParserTrait<'a, Result<DatexExpression, I>>,
+{
+}
 
 // TODO TBD can we deprecate this?
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -401,7 +432,10 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::error::{error::ErrorKind, src::SrcId};
+    use crate::{
+        ast::error::{error::ErrorKind, src::SrcId},
+        values::core_values::endpoint::InvalidEndpointError,
+    };
 
     use super::*;
     use std::{assert_matches::assert_matches, io, str::FromStr};
@@ -495,13 +529,27 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error() {
+    fn test_parse_error_endpoint() {
+        let src = "@j0Onas";
+        let result = parse_print_error(src);
+        let errors = result.err().unwrap();
+        assert_eq!(errors.len(), 1);
+        let error = errors[0].clone();
+        assert_matches!(
+            error.kind(),
+            ErrorKind::InvalidEndpoint(InvalidEndpointError::InvalidCharacters)
+        );
+        assert_eq!(error.span(), Some(0..7));
+    }
+
+    #[test]
+    fn test_parse_error_syntax() {
         let src = r#"
         var x = 52; var y = ; 
         var y = 5
         "#;
-        let errors = parse_print_error(src);
-        let errors = errors.err().unwrap();
+        let result = parse_print_error(src);
+        let errors = result.err().unwrap();
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
         assert_matches!(

@@ -6,6 +6,7 @@ use crate::{
         error::{pattern::Pattern, src::SrcId},
     },
     compiler::lexer::Token,
+    values::core_values::endpoint::InvalidEndpointError,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +29,7 @@ impl From<usize> for SpanOrToken {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
     Custom(HashSet<String>),
+    InvalidEndpoint(InvalidEndpointError),
     UnexpectedEnd,
     Unexpected {
         found: Option<Token>,
@@ -47,47 +49,61 @@ pub struct ParseError {
     context: Option<(SpanOrToken, &'static str)>,
     note: Option<&'static str>,
 }
+impl From<InvalidEndpointError> for ParseError {
+    fn from(value: InvalidEndpointError) -> Self {
+        Self::new(ErrorKind::InvalidEndpoint(value))
+    }
+}
+impl From<&str> for ParseError {
+    fn from(value: &str) -> Self {
+        Self::new_custom(value.to_string())
+    }
+}
+impl From<String> for ParseError {
+    fn from(value: String) -> Self {
+        Self::new_custom(value)
+    }
+}
 
 impl ParseError {
-    pub fn new(kind: ErrorKind, span: SpanOrToken) -> Self {
+    pub fn new(kind: ErrorKind) -> Self {
         Self {
             kind,
-            span,
+            span: SpanOrToken::Token(0),
             context: None,
             note: None,
         }
     }
-    pub fn new_custom(message: String, span: SpanOrToken) -> Self {
-        Self::new(ErrorKind::Custom(HashSet::from([message])), span)
+    pub fn new_custom(message: String) -> Self {
+        Self::new(ErrorKind::Custom(HashSet::from([message])))
     }
     pub fn new_unexpected_end(span: SpanOrToken) -> Self {
-        Self::new(ErrorKind::UnexpectedEnd, span)
+        Self::new(ErrorKind::UnexpectedEnd)
     }
     pub fn new_unexpected<T: Into<SpanOrToken>>(
         found: Option<Token>,
         span: T,
     ) -> Self {
-        Self::new(
-            ErrorKind::Unexpected {
+        Self {
+            kind: ErrorKind::Unexpected {
                 found,
                 expected: Vec::new(),
             },
-            span.into(),
-        )
+            span: span.into(),
+            context: None,
+            note: None,
+        }
     }
     pub fn new_unclosed(
         start: Pattern,
         before_span: SpanOrToken,
         before: Option<Pattern>,
     ) -> Self {
-        Self::new(
-            ErrorKind::Unclosed {
-                start,
-                before_span: before_span.clone(),
-                before,
-            },
-            before_span,
-        )
+        Self::new(ErrorKind::Unclosed {
+            start,
+            before_span: before_span.clone(),
+            before,
+        })
     }
 
     pub fn with_context(
@@ -191,6 +207,9 @@ impl ParseError {
                 }
                 msg
             }
+            ErrorKind::InvalidEndpoint(e) => {
+                format!("Invalid endpoint: {}", e)
+            }
         }
     }
 
@@ -226,6 +245,9 @@ impl ParseError {
                         ),
                         ErrorKind::Custom(msg) => {
                             msg.iter().cloned().collect::<Vec<_>>().join(" | ")
+                        }
+                        ErrorKind::InvalidEndpoint(_) => {
+                            "Invalid endpoint".to_string()
                         }
                     })
                     .with_color(Color::Red),
