@@ -411,7 +411,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
         .spanned()
         .map(|(tok, span)| {
             tok.map(|t| (t, span.clone()))
-                .map_err(|_| ParseError::new_unexpected(None, span))
+                .map_err(|_| ParseError::new_unexpected_with_span(None, span))
         })
         .collect::<Result<_, _>>()
         .map_err(|e| vec![e])?;
@@ -599,6 +599,21 @@ mod tests {
             "Cannot use '+=' operator in variable declaration"
         );
         assert_eq!(error.span(), Some(12..17));
+    }
+
+    #[test]
+    fn test_parse_error_typed_decimal() {
+        let src: &'static str = "var x = 10000000000000000000000000000000000000000000000000.3f32";
+        let result = parse_print_error(src);
+
+        let errors = result.err().unwrap();
+        assert_eq!(errors.len(), 1);
+        let error = errors[0].clone();
+        assert_eq!(
+            error.message(),
+            "The number is out of range for the specified type."
+        );
+        assert_eq!(error.span(), Some(8..63));
     }
 
     #[test]

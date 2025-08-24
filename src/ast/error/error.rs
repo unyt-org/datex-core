@@ -6,7 +6,9 @@ use crate::{
         error::{pattern::Pattern, src::SrcId},
     },
     compiler::lexer::Token,
-    values::core_values::endpoint::InvalidEndpointError,
+    values::core_values::{
+        endpoint::InvalidEndpointError, error::NumberParseError,
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,11 +27,11 @@ impl From<usize> for SpanOrToken {
         SpanOrToken::Token(value)
     }
 }
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
     Custom(HashSet<String>),
     InvalidEndpoint(InvalidEndpointError),
+    NumberParseError(NumberParseError),
     UnexpectedEnd,
     Unexpected {
         found: Option<Pattern>,
@@ -48,6 +50,11 @@ pub struct ParseError {
     span: SpanOrToken,
     context: Option<(SpanOrToken, &'static str)>,
     note: Option<&'static str>,
+}
+impl From<NumberParseError> for ParseError {
+    fn from(value: NumberParseError) -> Self {
+        Self::new(ErrorKind::NumberParseError(value))
+    }
 }
 impl From<InvalidEndpointError> for ParseError {
     fn from(value: InvalidEndpointError) -> Self {
@@ -80,7 +87,18 @@ impl ParseError {
     pub fn new_unexpected_end(span: SpanOrToken) -> Self {
         Self::new(ErrorKind::UnexpectedEnd)
     }
-    pub fn new_unexpected<T: Into<SpanOrToken>>(
+    pub fn new_unexpected(found: Option<Pattern>) -> Self {
+        Self {
+            kind: ErrorKind::Unexpected {
+                found,
+                expected: Vec::new(),
+            },
+            span: SpanOrToken::Token(0),
+            context: None,
+            note: None,
+        }
+    }
+    pub(crate) fn new_unexpected_with_span<T: Into<SpanOrToken>>(
         found: Option<Pattern>,
         span: T,
     ) -> Self {
@@ -176,6 +194,7 @@ impl ParseError {
             ErrorKind::Custom(msg) => {
                 msg.iter().cloned().collect::<Vec<_>>().join(" | ")
             }
+            ErrorKind::NumberParseError(err) => err.to_string(),
             ErrorKind::UnexpectedEnd => "Unexpected end of input".to_string(),
             ErrorKind::Unexpected { found, expected } => {
                 let mut msg = String::new();
@@ -214,6 +233,7 @@ impl ParseError {
     pub fn label(&self) -> String {
         use ariadne::{Color, Fmt};
         match &self.kind {
+            ErrorKind::NumberParseError(_) => "Number parse error".to_string(),
             ErrorKind::UnexpectedEnd => "End of input".to_string(),
             ErrorKind::Unexpected { found, .. } => {
                 format!(
