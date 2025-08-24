@@ -1,9 +1,9 @@
-use crate::ast::{DatexExpression, ParserError};
+use crate::ast::{DatexExpression, error::error::ParseError};
 use std::fmt::Display;
 #[derive(Debug)]
 pub enum CompilerError {
     UnexpectedTerm(DatexExpression),
-    ParserErrors(Vec<ParserError>),
+    ParserErrors(Vec<ParseError>),
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
@@ -17,8 +17,8 @@ pub enum CompilerError {
     AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
 }
-impl From<Vec<ParserError>> for CompilerError {
-    fn from(value: Vec<ParserError>) -> Self {
+impl From<Vec<ParseError>> for CompilerError {
+    fn from(value: Vec<ParseError>) -> Self {
         CompilerError::ParserErrors(value)
     }
 }
