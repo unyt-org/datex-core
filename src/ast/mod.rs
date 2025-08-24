@@ -503,7 +503,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
         .spanned()
         .map(|(tok, span)| {
             tok.map(|t| (t, span.clone()))
-                .map_err(|_| ParseError::new_invalid_token(Token::Error, span))
+                .map_err(|_| ParseError::new_unexpected(None, span))
         })
         .collect::<Result<_, _>>()
         .map_err(|e| vec![e])?;
@@ -513,9 +513,10 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| {
-                let owned_error: ParseError = e.to_owned().clone();
+                let mut owned_error: ParseError = e.clone();
                 let range = owned_error.token_pos().unwrap();
                 let span = spans.get(range).unwrap();
+                owned_error.set_span(span.clone());
                 owned_error
                 //todo!("");
             })
@@ -525,13 +526,19 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::error::src::SrcId;
+
     use super::*;
-    use std::{assert_matches::assert_matches, str::FromStr};
+    use std::{assert_matches::assert_matches, io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
+        let src_id = SrcId::test();
         let res = parse(src);
         if let Err(errors) = res {
-            // ErrorCollector::new_with_errors(src.to_string(), errors).print();
+            errors.iter().for_each(|e| {
+                let cache = ariadne::sources(vec![(src_id, src)]);
+                e.clone().write(cache, io::stdout());
+            });
             panic!("Parsing errors found");
         }
         res.unwrap()
