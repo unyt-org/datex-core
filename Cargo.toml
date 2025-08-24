@@ -85,6 +85,7 @@ ariadne = "0.5.1"
 logos = "0.15.0"
 async-stream = "0.3.6"
 futures-core = "0.3.31"
+internment = "0.8.6"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
