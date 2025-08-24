@@ -30,7 +30,10 @@ impl Display for CompilerError {
                 write!(f, "Unexpected term: {rule:?}")
             }
             CompilerError::ParserErrors(error) => {
-                write!(f, "Syntax error") // TODO #153
+                for e in error {
+                    writeln!(f, "{}", e.message())?;
+                }
+                Ok(())
             }
             CompilerError::SerializationError(error) => {
                 write!(f, "Serialization error: {error}")
