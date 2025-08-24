@@ -6,6 +6,7 @@ pub mod chain;
 pub mod comparison_operation;
 pub mod decimal;
 pub mod endpoint;
+pub mod error;
 pub mod function;
 pub mod integer;
 pub mod key;
@@ -17,8 +18,6 @@ pub mod unary;
 pub mod unary_operation;
 pub mod utils;
 pub mod variable;
-use chumsky::error::RichReason;
-use chumsky::label::LabelError;
 
 use crate::ast::array::*;
 use crate::ast::assignment_operation::*;
@@ -34,6 +33,7 @@ use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 use crate::ast::variable::*;
+use chumsky::error::RichReason;
 
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
