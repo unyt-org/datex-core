@@ -27,7 +27,7 @@ impl Loc {
 fn extract_line_doc(lex: &mut Lexer<Token>) -> String {
     lex.slice()[3..].to_owned()
 }
-#[derive(Logos, Debug, Clone, PartialEq)]
+#[derive(Logos, Debug, Clone, PartialEq, Eq)]
 #[logos(error = Range<usize>)]
 // single line comments
 #[logos(skip r"//[^\n]*")]
@@ -277,7 +277,7 @@ impl Token {
 pub type IntegerLiteral = TypedLiteral<IntegerTypeVariant>;
 pub type DecimalLiteral = TypedLiteral<DecimalTypeVariant>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypedLiteral<T> {
     pub value: String,
     pub variant: Option<T>,
