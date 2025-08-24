@@ -1,8 +1,9 @@
+use std::fmt::Display;
+
+use crate::ast::DatexParserTrait;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexParserTrait, TokenInput};
 use crate::compiler::lexer::Token;
 use crate::global::binary_codes::InstructionCode;
-use chumsky::extra::Err;
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
@@ -12,6 +13,21 @@ pub enum AssignmentOperator {
     SubstractAssign, // -=
     MultiplyAssign,  // *=
     DivideAssign,    // /=
+}
+impl Display for AssignmentOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                AssignmentOperator::Assign => "=",
+                AssignmentOperator::AddAssign => "+=",
+                AssignmentOperator::SubstractAssign => "-=",
+                AssignmentOperator::MultiplyAssign => "*=",
+                AssignmentOperator::DivideAssign => "/=",
+            }
+        )
+    }
 }
 
 impl From<&AssignmentOperator> for InstructionCode {
