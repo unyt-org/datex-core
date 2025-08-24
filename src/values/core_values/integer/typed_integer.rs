@@ -1,8 +1,11 @@
 use crate::values::{
     core_value_trait::CoreValueTrait,
-    core_values::integer::{
-        integer::Integer,
-        utils::{smallest_fitting_signed, smallest_fitting_unsigned},
+    core_values::{
+        error::NumberParseError,
+        integer::{
+            integer::Integer,
+            utils::{smallest_fitting_signed, smallest_fitting_unsigned},
+        },
     },
     traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
@@ -75,50 +78,66 @@ impl TypedInteger {
     pub fn from_string_with_variant(
         s: &str,
         variant: IntegerTypeVariant,
-    ) -> Option<TypedInteger> {
+    ) -> Result<TypedInteger, NumberParseError> {
         Self::from_string_radix_with_variant(s, 10, variant)
     }
     pub fn from_string_radix_with_variant(
         s: &str,
         radix: u32,
         variant: IntegerTypeVariant,
-    ) -> Option<TypedInteger> {
+    ) -> Result<TypedInteger, NumberParseError> {
         let s = &s.replace('_', "");
-        Some(match variant {
-            IntegerTypeVariant::U8 => u8::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::U8(v)),
-            IntegerTypeVariant::U16 => u16::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::U16(v)),
-            IntegerTypeVariant::U32 => u32::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::U32(v)),
-            IntegerTypeVariant::U64 => u64::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::U64(v)),
-            IntegerTypeVariant::U128 => u128::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::U128(v)),
-            IntegerTypeVariant::I8 => i8::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::I8(v)),
-            IntegerTypeVariant::I16 => i16::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::I16(v)),
-            IntegerTypeVariant::I32 => i32::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::I32(v)),
-            IntegerTypeVariant::I64 => i64::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::I64(v)),
-            IntegerTypeVariant::I128 => i128::from_str_radix(&s, radix)
-                .ok()
-                .map(|v| TypedInteger::I128(v)),
-            IntegerTypeVariant::Big => Integer::from_string_radix(s, radix)
-                .ok()
-                .map(TypedInteger::Big),
-        }?)
+        if matches!(variant, IntegerTypeVariant::Big) {
+            return Ok(TypedInteger::Big(Integer::from_string_radix(
+                s, radix,
+            )?));
+        }
+
+        match variant {
+            IntegerTypeVariant::U8 => {
+                u8::from_str_radix(s, radix).map(TypedInteger::U8)
+            }
+            IntegerTypeVariant::U16 => {
+                u16::from_str_radix(s, radix).map(TypedInteger::U16)
+            }
+            IntegerTypeVariant::U32 => {
+                u32::from_str_radix(s, radix).map(TypedInteger::U32)
+            }
+            IntegerTypeVariant::U64 => {
+                u64::from_str_radix(s, radix).map(TypedInteger::U64)
+            }
+            IntegerTypeVariant::U128 => {
+                u128::from_str_radix(s, radix).map(TypedInteger::U128)
+            }
+            IntegerTypeVariant::I8 => {
+                i8::from_str_radix(s, radix).map(TypedInteger::I8)
+            }
+            IntegerTypeVariant::I16 => {
+                i16::from_str_radix(s, radix).map(TypedInteger::I16)
+            }
+            IntegerTypeVariant::I32 => {
+                i32::from_str_radix(s, radix).map(TypedInteger::I32)
+            }
+            IntegerTypeVariant::I64 => {
+                i64::from_str_radix(s, radix).map(TypedInteger::I64)
+            }
+            IntegerTypeVariant::I128 => {
+                i128::from_str_radix(s, radix).map(TypedInteger::I128)
+            }
+            _ => unreachable!(""),
+        }
+        .map_err(|e| match e.kind() {
+            std::num::IntErrorKind::Zero
+            | std::num::IntErrorKind::Empty
+            | std::num::IntErrorKind::InvalidDigit => {
+                NumberParseError::InvalidFormat
+            }
+            std::num::IntErrorKind::PosOverflow
+            | std::num::IntErrorKind::NegOverflow => {
+                NumberParseError::OutOfRange
+            }
+            _ => panic!("Unhandled integer parse error: {:?}", e.kind()),
+        })
     }
 
     pub fn to_smallest_fitting(&self) -> TypedInteger {

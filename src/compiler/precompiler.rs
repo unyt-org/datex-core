@@ -460,7 +460,9 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-        DatexExpression::Invalid => todo!(),
+        DatexExpression::Recover => {
+            unreachable!("Expression should have been caught during parsing")
+        }
         DatexExpression::Variable(_, _) => unreachable!(
             "Variable expressions should have been replaced with their IDs during precompilation"
         ),

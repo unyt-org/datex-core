@@ -82,7 +82,7 @@ where
                         let mut error: ParseError = err.into();
                         error.set_token_pos(span.start);
                         emitter.emit(error);
-                        DatexExpression::Invalid
+                        DatexExpression::Recover
                     }
                 }
             },
@@ -127,10 +127,9 @@ pub type VariableId = usize;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
-    // TODO deprecate this, we'll add NOOP, but invalid must be
-    // replaced with proper error handling in AST parsing logic
-    /// Invalid expression, e.g. syntax error
-    Invalid,
+    /// This is a marker for recovery from parse errors.
+    /// We should never use this manually.
+    Recover,
 
     /// null
     Null,
@@ -602,8 +601,23 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_error_u8() {
+        let src = "var x = 256u8;";
+        let result = parse_print_error(src);
+        let errors = result.err().unwrap();
+        assert_eq!(errors.len(), 1);
+        let error = errors[0].clone();
+        assert_eq!(
+            error.message(),
+            "The number is out of range for the specified type."
+        );
+        assert_eq!(error.span(), Some(8..13));
+    }
+
+    #[test]
     fn test_parse_error_typed_decimal() {
-        let src: &'static str = "var x = 10000000000000000000000000000000000000000000000000.3f32";
+        let src: &'static str =
+            "var x = 10000000000000000000000000000000000000000000000000.3f32";
         let result = parse_print_error(src);
 
         let errors = result.err().unwrap();
@@ -2474,7 +2488,6 @@ mod tests {
     fn test_invalid_add() {
         let src = "1+2";
         let res = parse(src);
-        println!("res: {res:?}");
         assert!(
             res.unwrap_err().len() == 1,
             "Expected error when parsing expression"

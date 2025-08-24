@@ -1,7 +1,10 @@
 use crate::values::{
-    core_values::integer::{
-        typed_integer::TypedInteger,
-        utils::{smallest_fitting_signed, smallest_fitting_unsigned},
+    core_values::{
+        error::NumberParseError,
+        integer::{
+            typed_integer::TypedInteger,
+            utils::{smallest_fitting_signed, smallest_fitting_unsigned},
+        },
     },
     traits::structural_eq::StructuralEq,
 };
@@ -17,29 +20,23 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum InvalidIntegerError {
-    ParseError(String),
-    OutOfBounds(String),
-}
-
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
 impl Integer {
-    pub fn from_string(s: &str) -> Result<Self, InvalidIntegerError> {
+    pub fn from_string(s: &str) -> Result<Self, NumberParseError> {
         BigInt::from_str(s)
             .map(Integer)
-            .map_err(|_| InvalidIntegerError::ParseError(s.into()))
+            .map_err(|_| NumberParseError::InvalidFormat)
     }
     pub fn from_string_radix(
         s: &str,
         radix: u32,
-    ) -> Result<Self, InvalidIntegerError> {
+    ) -> Result<Self, NumberParseError> {
         // remove all underscores
         let s = &s.replace('_', "");
         BigInt::from_str_radix(s, radix)
             .map(Integer)
-            .map_err(|_| InvalidIntegerError::ParseError(s.into()))
+            .map_err(|_| NumberParseError::InvalidFormat)
     }
 
     pub fn is_negative(&self) -> bool {
