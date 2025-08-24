@@ -34,7 +34,6 @@ use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 use crate::ast::variable::*;
-use chumsky::error::RichReason;
 
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -45,12 +44,9 @@ use crate::values::core_values::object::Object;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use crate::{compiler::lexer::Token, values::core_values::array::Array};
-use chumsky::error::RichPattern;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
-use chumsky::util::Maybe;
 use logos::Logos;
-use std::ops::Deref;
 use std::{collections::HashMap, ops::Range};
 
 pub type TokenInput<'a, X = Token> = &'a [X];
@@ -438,7 +434,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::error::{error::ErrorKind, src::SrcId},
+        ast::error::{error::ErrorKind, pattern::Pattern, src::SrcId},
         values::core_values::endpoint::InvalidEndpointError,
     };
 
@@ -560,11 +556,35 @@ mod tests {
         assert_matches!(
             error.kind(),
             ErrorKind::Unexpected {
-                found: Some(Token::Semicolon),
+                found: Some(Pattern::Token(Token::Semicolon)),
                 ..
             }
         );
         assert_eq!(error.span(), Some(29..30));
+    }
+
+    #[test]
+    fn test_parse_error_multiple() {
+        let src = r#"
+        var x = @j0Onas;
+        var z = 10;
+        var y = @b0Onas;
+        "#;
+        let result = parse_print_error(src);
+        let errors = result.err().unwrap();
+        assert_eq!(errors.len(), 2);
+        let error1 = errors[0].clone();
+        assert_matches!(
+            error1.kind(),
+            ErrorKind::InvalidEndpoint(InvalidEndpointError::InvalidCharacters)
+        );
+        assert_eq!(error1.span(), Some(17..24));
+        let error2 = errors[1].clone();
+        assert_matches!(
+            error2.kind(),
+            ErrorKind::InvalidEndpoint(InvalidEndpointError::InvalidCharacters)
+        );
+        assert_eq!(error2.span(), Some(62..69));
     }
 
     #[test]
@@ -576,7 +596,7 @@ mod tests {
         let error = errors[0].clone();
         assert_eq!(
             error.message(),
-            "Cannot use non assignment operator in variable declaration"
+            "Cannot use '+=' operator in variable declaration"
         );
         assert_eq!(error.span(), Some(12..17));
     }

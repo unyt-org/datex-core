@@ -132,7 +132,7 @@ impl TryFrom<CoreValue> for Endpoint {
     }
 }
 
-#[derive(PartialEq, Debug, Display, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
@@ -140,6 +140,31 @@ pub enum InvalidEndpointError {
     InvalidInstance,
     ReservedName,
 }
+impl Display for InvalidEndpointError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidEndpointError::InvalidCharacters => {
+                write!(f, "Endpoint contains invalid characters")
+            }
+            InvalidEndpointError::MaxLengthExceeded => {
+                write!(
+                    f,
+                    "Endpoint name exceeds maximum length of 18 characters"
+                )
+            }
+            InvalidEndpointError::MinLengthNotMet => {
+                write!(f, "Endpoint name must be at least 3 characters long")
+            }
+            InvalidEndpointError::InvalidInstance => {
+                write!(f, "Endpoint instance must be between 1 and 65534")
+            }
+            InvalidEndpointError::ReservedName => {
+                write!(f, "Endpoint name is reserved")
+            }
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct EndpointParsingError;
 

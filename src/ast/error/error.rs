@@ -32,8 +32,8 @@ pub enum ErrorKind {
     InvalidEndpoint(InvalidEndpointError),
     UnexpectedEnd,
     Unexpected {
-        found: Option<Token>,
-        expected: Vec<DefaultExpected<'static, Token>>,
+        found: Option<Pattern>,
+        expected: Vec<Pattern>,
     },
     Unclosed {
         start: Pattern,
@@ -81,7 +81,7 @@ impl ParseError {
         Self::new(ErrorKind::UnexpectedEnd)
     }
     pub fn new_unexpected<T: Into<SpanOrToken>>(
-        found: Option<Token>,
+        found: Option<Pattern>,
         span: T,
     ) -> Self {
         Self {
@@ -121,30 +121,21 @@ impl ParseError {
     }
 }
 
-fn expected_items_to_string(
-    expected: &[DefaultExpected<'static, Token>],
-) -> String {
+fn expected_items_to_string(expected: &[Pattern]) -> String {
     let mut normal_items = Vec::new();
     let mut has_something_else = false;
 
     for expected in expected {
         match expected {
-            DefaultExpected::Any => normal_items.push("any".to_string()),
-            DefaultExpected::Token(token) => {
-                normal_items.push(token.as_string())
-            }
-            DefaultExpected::EndOfInput => {
-                normal_items.push("end of input".to_string())
-            }
-            DefaultExpected::SomethingElse => has_something_else = true,
-            e => unreachable!("Unexpected expected variant: {:?}", e),
+            Pattern::SomethingElse => has_something_else = true,
+            _ => normal_items.push(expected.as_string()),
         }
     }
     if has_something_else {
-        normal_items.push("something else".to_string());
+        normal_items.push(Pattern::SomethingElse.to_string());
     }
     match normal_items.len() {
-        0 => "something else".to_string(),
+        0 => Pattern::SomethingElse.to_string(),
         1 => normal_items[0].clone(),
         2 => format!("{} or {}", normal_items[0], normal_items[1]),
         _ => {
@@ -189,7 +180,11 @@ impl ParseError {
             ErrorKind::Unexpected { found, expected } => {
                 let mut msg = String::new();
                 if let Some(found) = found {
-                    msg.push_str(&format!("Unexpected token: {}", found));
+                    msg.push_str(&format!(
+                        "Unexpected {}: {}",
+                        found.kind(),
+                        found
+                    ));
                 } else {
                     msg.push_str("Unexpected end of input");
                 }
@@ -211,8 +206,26 @@ impl ParseError {
                 msg
             }
             ErrorKind::InvalidEndpoint(e) => {
-                format!("Invalid endpoint: {}", e)
+                format!("Parsing error: {}", e)
             }
+        }
+    }
+
+    pub fn label(&self) -> String {
+        use ariadne::{Color, Fmt};
+        match &self.kind {
+            ErrorKind::UnexpectedEnd => "End of input".to_string(),
+            ErrorKind::Unexpected { found, .. } => {
+                format!(
+                    "Unexpected {}",
+                    found.clone().unwrap().to_string().fg(Color::Red)
+                )
+            }
+            ErrorKind::Unclosed { start, .. } => {
+                format!("Delimiter {} is never closed", start.fg(Color::Red))
+            }
+            ErrorKind::Custom(_) => "Invalid syntax".to_string(),
+            ErrorKind::InvalidEndpoint(_) => "Invalid endpoint".to_string(),
         }
     }
 
@@ -220,39 +233,20 @@ impl ParseError {
         use ariadne::{Color, Fmt, Label, Report, ReportKind};
 
         let span = (SrcId::test(), self.span().unwrap().clone());
-
+        let mut note: String = self
+            .note
+            .unwrap_or("Please check the syntax and try again.")
+            .to_string();
+        if !note.ends_with('.') {
+            note.push('.');
+        }
         let report = Report::build(ReportKind::Error, span.clone())
-            .with_code("Unexpected Token")
+            .with_code("Syntax")
             .with_message(self.message())
-            .with_note(
-                self.note
-                    .unwrap_or("Please check the syntax and try again."),
-            )
+            .with_note(note)
             .with_label(
                 Label::new(span)
-                    .with_message(match &self.kind {
-                        ErrorKind::UnexpectedEnd => "End of input".to_string(),
-                        ErrorKind::Unexpected { found, expected } => {
-                            format!(
-                                "Unexpected {}",
-                                found
-                                    .clone()
-                                    .unwrap()
-                                    .as_string()
-                                    .fg(Color::Red)
-                            )
-                        }
-                        ErrorKind::Unclosed { start, .. } => format!(
-                            "Delimiter {} is never closed",
-                            start.fg(Color::Red)
-                        ),
-                        ErrorKind::Custom(msg) => {
-                            msg.iter().cloned().collect::<Vec<_>>().join(" | ")
-                        }
-                        ErrorKind::InvalidEndpoint(_) => {
-                            "Invalid endpoint".to_string()
-                        }
-                    })
+                    .with_message(self.label())
                     .with_color(Color::Red),
             );
         report.finish().write(cache, writer).unwrap();
@@ -306,12 +300,22 @@ impl<'a> LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
         found: Option<MaybeRef<'a, Token>>,
         span: SimpleSpan<usize>,
     ) -> Self {
-        let expected: Vec<DefaultExpected<'static, Token>> =
-            expected.into_iter().map(|e| e.into_owned()).collect();
+        let expected: Vec<Pattern> = expected
+            .into_iter()
+            .map(|e| match e {
+                DefaultExpected::Any => Pattern::Any,
+                DefaultExpected::Token(token) => {
+                    Pattern::Token(token.into_inner().clone())
+                }
+                DefaultExpected::EndOfInput => Pattern::EndOfInput,
+                DefaultExpected::SomethingElse => Pattern::SomethingElse,
+                _ => unreachable!("Unexpected expected variant: {:?}", e),
+            })
+            .collect();
         // let context = span.context();
         ParseError {
             kind: ErrorKind::Unexpected {
-                found: found.as_deref().cloned(),
+                found: found.as_deref().cloned().map(Pattern::Token),
                 expected,
             },
             span: SpanOrToken::Token(span.start),
