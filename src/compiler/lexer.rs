@@ -185,6 +185,95 @@ pub enum Token {
     Error
 }
 
+impl Token {
+    pub fn as_string(&self) -> String {
+        let literal_token = match self {
+            Token::LeftParen => Some("("),
+            Token::RightParen => Some(")"),
+            Token::LeftBracket => Some("["),
+            Token::RightBracket => Some("]"),
+            Token::LeftCurly => Some("{"),
+            Token::RightCurly => Some("}"),
+            Token::LeftAngle => Some("<"),
+            Token::RightAngle => Some(">"),
+            Token::Percent => Some("%"),
+            Token::Plus => Some("+"),
+            Token::Minus => Some("-"),
+            Token::Slash => Some("/"),
+            Token::Colon => Some(":"),
+            Token::DoubleColon => Some("::"),
+            Token::TripleColon => Some(":::"),
+            Token::Semicolon => Some(";"),
+            Token::Dot => Some("."),
+            Token::Comma => Some(","),
+            Token::Assign => Some("="),
+            Token::Increment => Some("++"),
+            Token::Decrement => Some("--"),
+            Token::Conjunction => Some("&&"),
+            Token::Disjunction => Some("||"),
+            Token::AddAssign => Some("+="),
+            Token::SubAssign => Some("-="),
+            Token::MulAssign => Some("*="),
+            Token::DivAssign => Some("/="),
+            Token::ModAssign => Some("%="),
+            Token::Arrow => Some("->"),
+            Token::FatArrow => Some("=>"),
+            Token::Range => Some(".."),
+            Token::RangeInclusive => Some("..="),
+            Token::Spread => Some("..."),
+            Token::At => Some("@"),
+            Token::Ampersand => Some("&"),
+            Token::Pipe => Some("|"),
+            Token::Backtick => Some("`"),
+            Token::LessEqual => Some("<="),
+            Token::GreaterEqual => Some(">="),
+            Token::NotStructuralEqual => Some("!="),
+            Token::NotEqual => Some("!=="),
+            Token::StructuralEqual => Some("=="),
+            Token::Equal => Some("==="),
+            Token::Is => Some("is"),
+            Token::True => Some("true"),
+            Token::False => Some("false"),
+            Token::Null => Some("null"),
+            Token::Placeholder => Some("?"),
+            Token::Const => Some("const"),
+            Token::Variable => Some("var"),
+            Token::Mutable => Some("mut"),
+            Token::Type => Some("type"),
+            Token::Function => Some("function"),
+            Token::Whitespace => Some(" "),
+            Token::Error => Some("error"),
+            Token::InfinityLiteral(_) => Some("infinity"),
+            Token::NanLiteral => Some("nan"),
+            _ => None,
+        };
+        if let Some(token) = literal_token {
+            return format!("'{}'", token);
+        }
+
+        let identifier_token = match self {
+            Token::LineDoc(_) => "line doc",
+            Token::DecimalLiteral(_) => "decimal literal",
+            Token::DecimalIntegerLiteral(_) => "decimal integer literal",
+            Token::BinaryIntegerLiteral(_) => "binary integer literal",
+            Token::OctalIntegerLiteral(_) => "octal integer literal",
+            Token::HexadecimalIntegerLiteral(_) => {
+                "hexadecimal integer literal"
+            }
+            Token::FractionLiteral(_) => "fraction literal",
+            Token::StringLiteral(_) => "string literal",
+            Token::Endpoint(_) => "endpoint",
+            Token::Identifier(_) => "identifier",
+            Token::Slot(_) => "slot",
+            Token::NamedSlot(_) => "named slot",
+            Token::Error => "error",
+            e => todo!("Unhandled token in as_string: {:?}", e),
+        };
+
+        identifier_token.to_string()
+    }
+}
+
 pub type IntegerLiteral = TypedLiteral<IntegerTypeVariant>;
 pub type DecimalLiteral = TypedLiteral<DecimalTypeVariant>;
 
@@ -228,7 +317,7 @@ fn parse_typed_literal<T: TypeSuffix>(
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}") // Temporary
+        write!(f, "{self:?}")
     }
 }
 
