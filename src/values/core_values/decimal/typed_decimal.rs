@@ -1,4 +1,5 @@
 use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::error::NumberParseError;
 use crate::values::{
     core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
 };
@@ -6,6 +7,7 @@ use num::Signed;
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
+use std::num::ParseFloatError;
 use std::ops::Neg;
 use std::{
     fmt::Display,
@@ -101,20 +103,32 @@ impl PartialEq for TypedDecimal {
     }
 }
 
+fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
+    let v: f64 = s
+        .parse()
+        .map_err(|e: ParseFloatError| NumberParseError::InvalidFormat)?;
+    if v > f32::MAX as f64 || v < f32::MIN as f64 {
+        return Err(NumberParseError::OutOfRange);
+    }
+    Ok(v as f32)
+}
+
+fn parse_checked_f64(s: &str) -> Result<f64, NumberParseError> {
+    let v = Decimal::from_string(s);
+    let res = v.try_into_f64();
+    res.ok_or(NumberParseError::OutOfRange)
+}
+
 impl TypedDecimal {
     // FIXME add NaN and Infinity?
     pub fn from_string_with_variant(
         value: &str,
         variant: DecimalTypeVariant,
-    ) -> Option<Self> {
+    ) -> Result<Self, NumberParseError> {
         match variant {
-            DecimalTypeVariant::F32 => value
-                .parse::<f32>()
-                .ok()
+            DecimalTypeVariant::F32 => parse_checked_f32(value)
                 .map(|v| TypedDecimal::F32(OrderedFloat(v))),
-            DecimalTypeVariant::F64 => value
-                .parse::<f64>()
-                .ok()
+            DecimalTypeVariant::F64 => parse_checked_f64(value)
                 .map(|v| TypedDecimal::F64(OrderedFloat(v))),
         }
     }
