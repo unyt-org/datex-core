@@ -421,8 +421,12 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
         err.into_iter()
             .map(|e| {
                 let mut owned_error: ParseError = e.clone();
-                let range = owned_error.token_pos().unwrap();
-                let span = spans.get(range).unwrap();
+                let mut index = owned_error.token_pos().unwrap();
+                if index >= spans.len() {
+                    // FIXME how to show file end?
+                    index = spans.len() - 1;
+                }
+                let span = spans.get(index).unwrap();
                 owned_error.set_span(span.clone());
                 owned_error
             })
@@ -526,6 +530,47 @@ mod tests {
                 ),
             ])
         );
+    }
+
+    // WIP
+    #[test]
+    #[ignore = "WIP"]
+    fn test_parse_error_unclosed_delimiter() {
+        let src = r#"
+        var x = (5 + 3;
+        var y = 42;
+        "#;
+        let result = parse_print_error(src);
+        println!("{:?}", result);
+        // let errors = result.err().unwrap();
+        // assert_eq!(errors.len(), 3);
+        // let error1 = errors[0].clone();
+        // assert_matches!(
+        //     error1.kind(),
+        //     ErrorKind::Unexpected {
+        //         found: None,
+        //         expected: _,
+        //     }
+        // );
+        // assert_eq!(error1.span(), Some(17..18));
+        // let error2 = errors[1].clone();
+        // assert_matches!(
+        //     error2.kind(),
+        //     ErrorKind::Unexpected {
+        //         found: None,
+        //         expected: _,
+        //     }
+        // );
+        // assert_eq!(error2.span(), Some(45..46));
+        // let error3 = errors[2].clone();
+        // assert_matches!(
+        //     error3.kind(),
+        //     ErrorKind::Unexpected {
+        //         found: None,
+        //         expected: _,
+        //     }
+        // );
+        // assert_eq!(error3.span(), Some(73..74));
     }
 
     #[test]

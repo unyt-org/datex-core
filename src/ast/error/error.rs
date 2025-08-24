@@ -332,6 +332,11 @@ impl<'a> LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
                 _ => unreachable!("Unexpected expected variant: {:?}", e),
             })
             .collect();
+
+        if found.is_none() {
+            return ParseError::new_unexpected_end(span.start.into());
+        }
+
         // let context = span.context();
         ParseError {
             kind: ErrorKind::Unexpected {
