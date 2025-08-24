@@ -25,6 +25,7 @@ use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
 use crate::ast::chain::*;
 use crate::ast::comparison_operation::*;
+use crate::ast::error::error::ParseError;
 use crate::ast::function::*;
 use crate::ast::key::*;
 use crate::ast::object::*;
@@ -54,11 +55,11 @@ use std::{collections::HashMap, ops::Range};
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
-    Parser<'a, TokenInput<'a, X>, T, Err<Rich<'a, X>>> + Clone + 'a
+    Parser<'a, TokenInput<'a, Token>, T, Err<ParseError>> + Clone + 'a
     where X: PartialEq + 'a;
 
 pub type DatexScriptParser<'a> =
-    Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<Rich<'a, Token>>>;
+    Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<ParseError>>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement {
@@ -366,188 +367,131 @@ where
     ))
 }
 
-#[derive(PartialEq)]
-pub enum ParserError {
-    UnexpectedToken(DatexRich<'static, Token>),
-    InvalidToken(Range<usize>),
-}
-use ariadne::{Color, Label, Report, ReportKind, Source};
-use std::fmt::Debug;
+// fn report_from_rich(
+//     error: &DatexRich<'static, Token>,
+//     src_id: &str,
+//     src: &str,
+// ) {
+//     let msg = if let RichReason::Custom(msg) = error.reason() {
+//         msg.clone()
+//     } else {
+//         let mut normal_items = Vec::new();
+//         let mut has_something_else = false;
 
-impl Debug for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParserError::UnexpectedToken(rich) => {
-                write!(f, "Unexpected token: {:?}", rich.span)
-            }
-            ParserError::InvalidToken(range) => {
-                write!(f, "Invalid token at range: {:?}", range)
-            }
-        }
-    }
-}
+//         for expected in error.expected() {
+//             match expected {
+//                 RichPattern::Token(token) => {
+//                     normal_items.push(match token {
+//                         Maybe::Ref(token) => token.to_string().to_lowercase(),
+//                         Maybe::Val(token) => token.to_string().to_lowercase(),
+//                     });
+//                 }
+//                 RichPattern::Label(label) => {
+//                     normal_items.push(format!("label '{}'", label));
+//                 }
+//                 RichPattern::Identifier(id) => {
+//                     normal_items.push(format!("identifier '{}'", id));
+//                 }
+//                 RichPattern::Any => {
+//                     normal_items.push("anything".to_string());
+//                 }
+//                 RichPattern::EndOfInput => {
+//                     normal_items.push("end of input".to_string());
+//                 }
+//                 RichPattern::SomethingElse => {
+//                     has_something_else = true;
+//                 }
+//             }
+//         }
 
-fn report_from_rich(
-    error: &DatexRich<'static, Token>,
-    src_id: &str,
-    src: &str,
-) {
-    let msg = if let RichReason::Custom(msg) = error.reason() {
-        msg.clone()
-    } else {
-        let mut normal_items = Vec::new();
-        let mut has_something_else = false;
+//         // Build final list, putting `something else` at the end if needed
+//         if has_something_else {
+//             normal_items.push("something else".to_string());
+//         }
 
-        for expected in error.expected() {
-            match expected {
-                RichPattern::Token(token) => {
-                    normal_items.push(match token {
-                        Maybe::Ref(token) => token.to_string().to_lowercase(),
-                        Maybe::Val(token) => token.to_string().to_lowercase(),
-                    });
-                }
-                RichPattern::Label(label) => {
-                    normal_items.push(format!("label '{}'", label));
-                }
-                RichPattern::Identifier(id) => {
-                    normal_items.push(format!("identifier '{}'", id));
-                }
-                RichPattern::Any => {
-                    normal_items.push("anything".to_string());
-                }
-                RichPattern::EndOfInput => {
-                    normal_items.push("end of input".to_string());
-                }
-                RichPattern::SomethingElse => {
-                    has_something_else = true;
-                }
-            }
-        }
+//         // Format nicely with commas and "or"
+//         let expected_str = match normal_items.len() {
+//             0 => "something else".to_string(),
+//             1 => normal_items[0].clone(),
+//             2 => format!("{} or {}", normal_items[0], normal_items[1]),
+//             _ => {
+//                 let last = normal_items.pop().unwrap();
+//                 format!("{}, or {}", normal_items.join(", "), last)
+//             }
+//         };
 
-        // Build final list, putting `something else` at the end if needed
-        if has_something_else {
-            normal_items.push("something else".to_string());
-        }
+//         format!(
+//             "Unexpected {}, expected {}.",
+//             error
+//                 .found()
+//                 .map(|c| format!("token {}", c.to_string().to_lowercase()))
+//                 .unwrap_or_else(|| "end of input".to_string()),
+//             expected_str
+//         )
+//     };
+//     let report =
+//         Report::build(ReportKind::Error, (src_id, error.span().clone()))
+//             .with_code("Unexpected Token")
+//             .with_message(msg)
+//             .with_note("Please check the syntax and try again.")
+//             .with_label(
+//                 Label::new((src_id, error.span().clone()))
+//                     .with_message(match error.reason() {
+//                         RichReason::Custom(msg) => msg.clone(),
+//                         _ => format!(
+//                             "Unexpected {}",
+//                             error
+//                                 .found()
+//                                 .map(|c| format!("token {}", c))
+//                                 .unwrap_or_else(|| "end of input".to_string())
+//                         ),
+//                     })
+//                     .with_color(Color::Red),
+//             );
+//     report.finish().eprint((src_id, Source::from(src))).unwrap();
+// }
 
-        // Format nicely with commas and "or"
-        let expected_str = match normal_items.len() {
-            0 => "something else".to_string(),
-            1 => normal_items[0].clone(),
-            2 => format!("{} or {}", normal_items[0], normal_items[1]),
-            _ => {
-                let last = normal_items.pop().unwrap();
-                format!("{}, or {}", normal_items.join(", "), last)
-            }
-        };
+// pub struct ErrorCollector {
+//     pub errors: Vec<ParserError>,
+//     pub src: String,
+// }
+// impl ErrorCollector {
+//     pub fn new(src: String) -> Self {
+//         Self {
+//             errors: Vec::new(),
+//             src,
+//         }
+//     }
+//     pub fn new_with_errors(src: String, errors: Vec<ParserError>) -> Self {
+//         Self { errors, src }
+//     }
 
-        format!(
-            "Unexpected {}, expected {}.",
-            error
-                .found()
-                .map(|c| format!("token {}", c.to_string().to_lowercase()))
-                .unwrap_or_else(|| "end of input".to_string()),
-            expected_str
-        )
-    };
-    let report =
-        Report::build(ReportKind::Error, (src_id, error.span().clone()))
-            .with_code("Unexpected Token")
-            .with_message(msg)
-            .with_note("Please check the syntax and try again.")
-            .with_label(
-                Label::new((src_id, error.span().clone()))
-                    .with_message(match error.reason() {
-                        RichReason::Custom(msg) => msg.clone(),
-                        _ => format!(
-                            "Unexpected {}",
-                            error
-                                .found()
-                                .map(|c| format!("token {}", c))
-                                .unwrap_or_else(|| "end of input".to_string())
-                        ),
-                    })
-                    .with_color(Color::Red),
-            );
-    report.finish().eprint((src_id, Source::from(src))).unwrap();
-}
+//     pub fn add_error(&mut self, error: ParserError) {
+//         self.errors.push(error);
+//     }
 
-pub struct ErrorCollector {
-    pub errors: Vec<ParserError>,
-    pub src: String,
-}
-impl ErrorCollector {
-    pub fn new(src: String) -> Self {
-        Self {
-            errors: Vec::new(),
-            src,
-        }
-    }
-    pub fn new_with_errors(src: String, errors: Vec<ParserError>) -> Self {
-        Self { errors, src }
-    }
+//     pub fn print(&self) {
+//         let src = &self.src;
+//         for error in &self.errors {
+//             match error {
+//                 ParserError::UnexpectedToken(rich) => {
+//                     report_from_rich(rich, "datex", src);
+//                 }
+//                 ParserError::InvalidToken(range) => {
+//                     println!("Invalid token error: {:?}", range);
+//                 }
+//             }
+//         }
+//     }
+// }
 
-    pub fn add_error(&mut self, error: ParserError) {
-        self.errors.push(error);
-    }
+// impl From<Range<usize>> for ParserError {
+//     fn from(range: Range<usize>) -> Self {
+//         ParserError::InvalidToken(range)
+//     }
+// }
 
-    pub fn print(&self) {
-        let src = &self.src;
-        for error in &self.errors {
-            match error {
-                ParserError::UnexpectedToken(rich) => {
-                    report_from_rich(rich, "datex", src);
-                }
-                ParserError::InvalidToken(range) => {
-                    println!("Invalid token error: {:?}", range);
-                }
-            }
-        }
-    }
-}
-
-impl From<Range<usize>> for ParserError {
-    fn from(range: Range<usize>) -> Self {
-        ParserError::InvalidToken(range)
-    }
-}
-
-#[derive(Clone, PartialEq)]
-pub struct DatexRich<'a, T> {
-    span: Range<usize>,
-    rich: Rich<'a, T>,
-}
-impl Deref for DatexRich<'static, Token> {
-    type Target = Rich<'static, Token>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.rich
-    }
-}
-impl<'a, T> DatexRich<'a, T> {
-    pub fn new(span: Range<usize>, rich: Rich<'a, T>) -> Self {
-        Self { span, rich }
-    }
-
-    pub fn span(&self) -> &Range<usize> {
-        &self.span
-    }
-
-    pub fn into_owned<'b>(self) -> DatexRich<'b, T>
-    where
-        T: Clone,
-    {
-        DatexRich::new(self.span().clone(), self.rich.into_owned())
-    }
-}
-
-impl<'a, T> From<Rich<'a, T>> for DatexRich<'a, T> {
-    fn from(rich: Rich<'a, T>) -> Self {
-        let span = rich.span().into_range();
-        DatexRich::new(span, rich)
-    }
-}
-
-pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
+pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
         let end_of_line = src.find('\n').unwrap_or(src.len());
@@ -559,7 +503,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
         .spanned()
         .map(|(tok, span)| {
             tok.map(|t| (t, span.clone()))
-                .map_err(|_| ParserError::InvalidToken(span))
+                .map_err(|_| ParseError::new_invalid_token(Token::Error, span))
         })
         .collect::<Result<_, _>>()
         .map_err(|e| vec![e])?;
@@ -569,11 +513,11 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParserError>> {
     parser.parse(&tokens).into_result().map_err(|err| {
         err.into_iter()
             .map(|e| {
-                let owned_rich = e.to_owned().clone();
-                let range = owned_rich.span().into_range();
-                let span = spans.get(range.start).unwrap();
-                let rich = DatexRich::new(span.clone(), owned_rich);
-                ParserError::UnexpectedToken(rich.into_owned())
+                let owned_error: ParseError = e.to_owned().clone();
+                let range = owned_error.token_pos().unwrap();
+                let span = spans.get(range).unwrap();
+                owned_error
+                //todo!("");
             })
             .collect()
     })
@@ -587,7 +531,7 @@ mod tests {
     fn parse_unwrap(src: &str) -> DatexExpression {
         let res = parse(src);
         if let Err(errors) = res {
-            ErrorCollector::new_with_errors(src.to_string(), errors).print();
+            // ErrorCollector::new_with_errors(src.to_string(), errors).print();
             panic!("Parsing errors found");
         }
         res.unwrap()
@@ -655,6 +599,7 @@ mod tests {
         );
     }
 
+    // WIP
     #[test]
     #[ignore = "Only demonstration"]
     fn test_parse_error() {
