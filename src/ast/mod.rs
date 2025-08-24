@@ -367,130 +367,6 @@ where
     ))
 }
 
-// fn report_from_rich(
-//     error: &DatexRich<'static, Token>,
-//     src_id: &str,
-//     src: &str,
-// ) {
-//     let msg = if let RichReason::Custom(msg) = error.reason() {
-//         msg.clone()
-//     } else {
-//         let mut normal_items = Vec::new();
-//         let mut has_something_else = false;
-
-//         for expected in error.expected() {
-//             match expected {
-//                 RichPattern::Token(token) => {
-//                     normal_items.push(match token {
-//                         Maybe::Ref(token) => token.to_string().to_lowercase(),
-//                         Maybe::Val(token) => token.to_string().to_lowercase(),
-//                     });
-//                 }
-//                 RichPattern::Label(label) => {
-//                     normal_items.push(format!("label '{}'", label));
-//                 }
-//                 RichPattern::Identifier(id) => {
-//                     normal_items.push(format!("identifier '{}'", id));
-//                 }
-//                 RichPattern::Any => {
-//                     normal_items.push("anything".to_string());
-//                 }
-//                 RichPattern::EndOfInput => {
-//                     normal_items.push("end of input".to_string());
-//                 }
-//                 RichPattern::SomethingElse => {
-//                     has_something_else = true;
-//                 }
-//             }
-//         }
-
-//         // Build final list, putting `something else` at the end if needed
-//         if has_something_else {
-//             normal_items.push("something else".to_string());
-//         }
-
-//         // Format nicely with commas and "or"
-//         let expected_str = match normal_items.len() {
-//             0 => "something else".to_string(),
-//             1 => normal_items[0].clone(),
-//             2 => format!("{} or {}", normal_items[0], normal_items[1]),
-//             _ => {
-//                 let last = normal_items.pop().unwrap();
-//                 format!("{}, or {}", normal_items.join(", "), last)
-//             }
-//         };
-
-//         format!(
-//             "Unexpected {}, expected {}.",
-//             error
-//                 .found()
-//                 .map(|c| format!("token {}", c.to_string().to_lowercase()))
-//                 .unwrap_or_else(|| "end of input".to_string()),
-//             expected_str
-//         )
-//     };
-//     let report =
-//         Report::build(ReportKind::Error, (src_id, error.span().clone()))
-//             .with_code("Unexpected Token")
-//             .with_message(msg)
-//             .with_note("Please check the syntax and try again.")
-//             .with_label(
-//                 Label::new((src_id, error.span().clone()))
-//                     .with_message(match error.reason() {
-//                         RichReason::Custom(msg) => msg.clone(),
-//                         _ => format!(
-//                             "Unexpected {}",
-//                             error
-//                                 .found()
-//                                 .map(|c| format!("token {}", c))
-//                                 .unwrap_or_else(|| "end of input".to_string())
-//                         ),
-//                     })
-//                     .with_color(Color::Red),
-//             );
-//     report.finish().eprint((src_id, Source::from(src))).unwrap();
-// }
-
-// pub struct ErrorCollector {
-//     pub errors: Vec<ParserError>,
-//     pub src: String,
-// }
-// impl ErrorCollector {
-//     pub fn new(src: String) -> Self {
-//         Self {
-//             errors: Vec::new(),
-//             src,
-//         }
-//     }
-//     pub fn new_with_errors(src: String, errors: Vec<ParserError>) -> Self {
-//         Self { errors, src }
-//     }
-
-//     pub fn add_error(&mut self, error: ParserError) {
-//         self.errors.push(error);
-//     }
-
-//     pub fn print(&self) {
-//         let src = &self.src;
-//         for error in &self.errors {
-//             match error {
-//                 ParserError::UnexpectedToken(rich) => {
-//                     report_from_rich(rich, "datex", src);
-//                 }
-//                 ParserError::InvalidToken(range) => {
-//                     println!("Invalid token error: {:?}", range);
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// impl From<Range<usize>> for ParserError {
-//     fn from(range: Range<usize>) -> Self {
-//         ParserError::InvalidToken(range)
-//     }
-// }
-
 pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
@@ -526,7 +402,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::error::src::SrcId;
+    use crate::ast::error::{error::ErrorKind, src::SrcId};
 
     use super::*;
     use std::{assert_matches::assert_matches, io, str::FromStr};
@@ -542,6 +418,19 @@ mod tests {
             panic!("Parsing errors found");
         }
         res.unwrap()
+    }
+    fn parse_print_error(
+        src: &str,
+    ) -> Result<DatexExpression, Vec<ParseError>> {
+        let src_id = SrcId::test();
+        let res = parse(src);
+        if let Err(errors) = &res {
+            errors.iter().for_each(|e| {
+                let cache = ariadne::sources(vec![(src_id, src)]);
+                e.clone().write(cache, io::stdout());
+            });
+        }
+        res
     }
 
     fn try_parse_to_value_container(src: &str) -> ValueContainer {
@@ -606,15 +495,24 @@ mod tests {
         );
     }
 
-    // WIP
     #[test]
-    #[ignore = "Only demonstration"]
     fn test_parse_error() {
         let src = r#"
         var x = 52; var y = ; 
         var y = 5
         "#;
-        parse_unwrap(src);
+        let errors = parse_print_error(src);
+        let errors = errors.err().unwrap();
+        assert_eq!(errors.len(), 1);
+        let error = errors[0].clone();
+        assert_matches!(
+            error.kind(),
+            ErrorKind::Unexpected {
+                found: Some(Token::Semicolon),
+                ..
+            }
+        );
+        assert_eq!(error.span(), Some(29..30));
     }
 
     #[test]

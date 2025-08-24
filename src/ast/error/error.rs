@@ -1,4 +1,4 @@
-use std::{io::Write, ops::Range};
+use std::{collections::HashSet, io::Write, ops::Range};
 
 use crate::{
     ast::{
@@ -27,7 +27,7 @@ impl From<usize> for SpanOrToken {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
-    Custom(String),
+    Custom(HashSet<String>),
     UnexpectedEnd,
     Unexpected {
         found: Option<Token>,
@@ -58,7 +58,7 @@ impl ParseError {
         }
     }
     pub fn new_custom(message: String, span: SpanOrToken) -> Self {
-        Self::new(ErrorKind::Custom(message), span)
+        Self::new(ErrorKind::Custom(HashSet::from([message])), span)
     }
     pub fn new_unexpected_end(span: SpanOrToken) -> Self {
         Self::new(ErrorKind::UnexpectedEnd, span)
@@ -105,13 +105,52 @@ impl ParseError {
     }
 }
 
+fn expected_items_to_string(
+    expected: &[DefaultExpected<'static, Token>],
+) -> String {
+    let mut normal_items = Vec::new();
+    let mut has_something_else = false;
+
+    for expected in expected {
+        match expected {
+            DefaultExpected::Any => normal_items.push("any".to_string()),
+            DefaultExpected::Token(token) => {
+                normal_items.push(token.as_string())
+            }
+            DefaultExpected::EndOfInput => {
+                normal_items.push("end of input".to_string())
+            }
+            DefaultExpected::SomethingElse => has_something_else = true,
+            e => unreachable!("Unexpected expected variant: {:?}", e),
+        }
+    }
+    if has_something_else {
+        normal_items.push("something else".to_string());
+    }
+    match normal_items.len() {
+        0 => "something else".to_string(),
+        1 => normal_items[0].clone(),
+        2 => format!("{} or {}", normal_items[0], normal_items[1]),
+        _ => {
+            let last = normal_items.pop().unwrap();
+            format!("{}, or {}", normal_items.join(", "), last)
+        }
+    }
+}
+
 impl ParseError {
     pub(crate) fn set_span(&mut self, span: Range<usize>) {
         self.span = span.into();
     }
-    pub fn span(&self) -> Option<&Range<usize>> {
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+    pub fn label(&self) -> Option<&'static str> {
+        self.label
+    }
+    pub fn span(&self) -> Option<Range<usize>> {
         match &self.span {
-            SpanOrToken::Span(span) => Some(span),
+            SpanOrToken::Span(span) => Some(span.clone()),
             SpanOrToken::Token(_) => None,
         }
     }
@@ -124,7 +163,9 @@ impl ParseError {
 
     pub fn message(&self) -> String {
         match &self.kind {
-            ErrorKind::Custom(msg) => msg.clone(),
+            ErrorKind::Custom(msg) => {
+                msg.iter().cloned().collect::<Vec<_>>().join(" | ")
+            }
             ErrorKind::UnexpectedEnd => "Unexpected end of input".to_string(),
             ErrorKind::Unexpected { found, expected } => {
                 let mut msg = String::new();
@@ -135,24 +176,7 @@ impl ParseError {
                 }
                 if !expected.is_empty() {
                     msg.push_str(", expected one of: ");
-                    let expected_strs: Vec<String> = expected
-                        .iter()
-                        .map(|e| match e {
-                            DefaultExpected::Any => "any".to_string(),
-                            DefaultExpected::Token(token) => token.as_string(),
-                            DefaultExpected::EndOfInput => {
-                                "end of input".to_string()
-                            }
-                            DefaultExpected::SomethingElse => {
-                                "something else".to_string()
-                            }
-                            e => unreachable!(
-                                "Unexpected expected variant: {:?}",
-                                e
-                            ),
-                        })
-                        .collect();
-                    msg.push_str(&expected_strs.join(", "));
+                    msg.push_str(&expected_items_to_string(expected));
                 }
                 msg
             }
@@ -197,7 +221,9 @@ impl ParseError {
                             "Delimiter {} is never closed",
                             start.fg(Color::Red)
                         ),
-                        ErrorKind::Custom(msg) => msg.clone(),
+                        ErrorKind::Custom(msg) => {
+                            msg.iter().cloned().collect::<Vec<_>>().join(" | ")
+                        }
                     })
                     .with_color(Color::Red),
             );
@@ -216,8 +242,7 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
     fn merge(mut self, mut other: Self) -> Self {
         match (&mut self.kind, &mut other.kind) {
             (ErrorKind::Custom(msg1), ErrorKind::Custom(msg2)) => {
-                msg1.push_str(" | ");
-                msg1.push_str(msg2);
+                msg1.extend(msg2.drain());
             }
             (ErrorKind::UnexpectedEnd, ErrorKind::UnexpectedEnd) => {}
             (
@@ -233,7 +258,11 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
                 if found1.is_none() {
                     *found1 = found2.take();
                 }
-                expected1.append(expected2);
+                for exp in expected2.drain(..) {
+                    if !expected1.contains(&exp) {
+                        expected1.push(exp);
+                    }
+                }
             }
             _ => {}
         };
@@ -249,16 +278,8 @@ impl<'a> LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
         found: Option<MaybeRef<'a, Token>>,
         span: SimpleSpan<usize>,
     ) -> Self {
-        let mut expected: Vec<DefaultExpected<'static, Token>> =
+        let expected: Vec<DefaultExpected<'static, Token>> =
             expected.into_iter().map(|e| e.into_owned()).collect();
-        expected.sort_by(|a, b| {
-            use DefaultExpected::*;
-            match (a, b) {
-                (SomethingElse, _) => std::cmp::Ordering::Greater,
-                (_, SomethingElse) => std::cmp::Ordering::Less,
-                _ => std::cmp::Ordering::Equal,
-            }
-        });
         // let context = span.context();
         ParseError {
             kind: ErrorKind::Unexpected {
