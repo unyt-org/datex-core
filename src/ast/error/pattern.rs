@@ -17,16 +17,16 @@ impl From<char> for Pattern {
         Self::Char(c)
     }
 }
-impl From<Token> for Pattern {
-    fn from(tok: Token) -> Self {
-        Self::Token(tok)
-    }
-}
-impl From<&Token> for Pattern {
-    fn from(tok: &Token) -> Self {
-        Self::Token(tok.clone())
-    }
-}
+// impl From<Token> for Pattern {
+//     fn from(tok: Token) -> Self {
+//         Self::Token(tok)
+//     }
+// }
+// impl From<&Token> for Pattern {
+//     fn from(tok: &Token) -> Self {
+//         Self::Token(tok.clone())
+//     }
+// }
 
 impl fmt::Display for Pattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -1,33 +1,20 @@
-use crate::ast::error::error::ParseError;
+use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait, ParserRecoverExt};
+use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 use chumsky::util::Maybe;
-use chumsky::{DefaultExpected, prelude::*, recovery};
+use chumsky::{DefaultExpected, prelude::*};
 
 pub fn array<'a>(
     expression_without_tuple: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    let items = expression_without_tuple
-        .clone()
+    expression_without_tuple
         .separated_by(just(Token::Comma).padded_by(whitespace()))
+        .at_least(0)
         .allow_trailing()
         .collect::<Vec<_>>()
-        .padded_by(whitespace());
-
-    // Expect the closing ']' but recover if it's missing
-    let close = just(Token::RightBracket)
-        .to(()) // make the output `()`, simpler to fake on recovery
-        .recover_with(recovery::via_parser(recovery::nested_delimiters(
-            Token::LeftBracket,
-            Token::RightBracket,
-            [(Token::LeftParen, Token::RightParen)],
-            |_| (), // fallback value when we had to recover
-        )))
-        .or_not(); // still succeed so we can build the Array node
-
-    just(Token::LeftBracket)
-        .ignore_then(items)
-        .then(close)
-        .map(|(elems, _)| DatexExpression::Array(elems))
+        .padded_by(whitespace())
+        .labelled(Pattern::Literal)
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .map(DatexExpression::Array)
 }

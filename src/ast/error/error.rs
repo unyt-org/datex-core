@@ -48,7 +48,7 @@ pub enum ErrorKind {
 pub struct ParseError {
     kind: ErrorKind,
     span: SpanOrToken,
-    context: Option<(SpanOrToken, &'static str)>,
+    context: Option<(SpanOrToken, String)>,
     note: Option<&'static str>,
 }
 impl From<NumberParseError> for ParseError {
@@ -129,7 +129,7 @@ impl ParseError {
         span: SpanOrToken,
         context: &'static str,
     ) -> Self {
-        self.context = Some((span, context));
+        self.context = Some((span, context.to_string()));
         self
     }
 
@@ -260,7 +260,7 @@ impl ParseError {
         if !note.ends_with('.') {
             note.push('.');
         }
-        let report = Report::build(ReportKind::Error, span.clone())
+        let mut report = Report::build(ReportKind::Error, span.clone())
             .with_code("Syntax")
             .with_message(self.message())
             .with_note(note)
@@ -269,6 +269,9 @@ impl ParseError {
                     .with_message(self.label())
                     .with_color(Color::Red),
             );
+        if let Some((_, context)) = self.context {
+            report = report.with_help(context);
+        }
         report.finish().write(cache, writer).unwrap();
     }
 }
@@ -312,20 +315,21 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
     }
 }
 
-impl<'a> LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
+impl<'a>
+    chumsky::error::LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
     for ParseError
 {
     fn expected_found<Iter: IntoIterator<Item = DefaultExpected<'a, Token>>>(
         expected: Iter,
-        found: Option<MaybeRef<'a, Token>>,
-        span: SimpleSpan<usize>,
+        found: Option<chumsky::util::MaybeRef<'a, Token>>,
+        span: chumsky::span::SimpleSpan<usize>,
     ) -> Self {
         let expected: Vec<Pattern> = expected
             .into_iter()
             .map(|e| match e {
                 DefaultExpected::Any => Pattern::Any,
                 DefaultExpected::Token(token) => {
-                    Pattern::Token(token.into_inner().clone())
+                    Pattern::from(token.into_inner().clone())
                 }
                 DefaultExpected::EndOfInput => Pattern::EndOfInput,
                 DefaultExpected::SomethingElse => Pattern::SomethingElse,
@@ -333,6 +337,44 @@ impl<'a> LabelError<'a, TokenInput<'a>, DefaultExpected<'a, Token>>
             })
             .collect();
 
+        if found.is_none() {
+            return ParseError::new_unexpected_end(span.start.into());
+        }
+
+        ParseError {
+            kind: ErrorKind::Unexpected {
+                found: found.as_deref().cloned().map(Pattern::from),
+                expected,
+            },
+            span: SpanOrToken::Token(span.start),
+            context: None,
+            note: None,
+        }
+    }
+}
+
+// impl Pattern into token
+impl From<&Token> for Pattern {
+    fn from(value: &Token) -> Self {
+        Pattern::Any
+    }
+}
+impl From<Token> for Pattern {
+    fn from(value: Token) -> Self {
+        Pattern::Any
+    }
+}
+
+impl<'a> LabelError<'a, TokenInput<'a>, Pattern> for ParseError {
+    fn label_with(&mut self, label: Pattern) {
+        self.context = Some((self.span.clone(), label.to_string()));
+    }
+    fn expected_found<Iter: IntoIterator<Item = Pattern>>(
+        expected: Iter,
+        found: Option<MaybeRef<'a, Token>>,
+        span: SimpleSpan<usize>,
+    ) -> Self {
+        let expected: Vec<Pattern> = expected.into_iter().collect();
         if found.is_none() {
             return ParseError::new_unexpected_end(span.start.into());
         }

@@ -536,6 +536,12 @@ mod tests {
     #[test]
     #[ignore = "WIP"]
     fn test_parse_error_unclosed_delimiter() {
+        let src = r#"[1,[]"#;
+        let result = parse_print_error(src);
+        println!("{:?}", result);
+
+        panic!("WIP");
+
         let src = r#"
         var x = (5 + 3;
         var y = 42;
