@@ -55,7 +55,7 @@ fn generate_pseudo_uuid() -> String {
 }
 
 // HKDF (hash)
-pub fn hkdf(ikm: &[u8], salt: &[u8], info: &[u8], out_len: usize) -> Result<Vec<u8>, CryptoError> {
+pub fn hkdf(ikm: &[u8], salt: &[u8], out_len: usize) -> Result<Vec<u8>, CryptoError> {
     let mut ctx = PkeyCtx::new_id(Id::HKDF).map_err(|_| CryptoError::KeyDerivationFailed)?;
     ctx.derive_init()
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
@@ -67,8 +67,10 @@ pub fn hkdf(ikm: &[u8], salt: &[u8], info: &[u8], out_len: usize) -> Result<Vec<
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
     ctx.set_hkdf_key(ikm)
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    /*
     ctx.add_hkdf_info(info)
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
+    */
     let mut okm = vec![0u8; out_len];
     ctx.derive(Some(&mut okm))
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
@@ -331,7 +333,7 @@ impl CryptoTrait for CryptoNative {
             let mut salt = [0u8; SALT_LEN];
             rand_bytes(&mut salt) // random salt?
                 .map_err(|_| CryptoError::KeyDerivationFailed)?;
-            let key: [u8; KEY_LEN] = hkdf(&shared, &salt, aad, KEY_LEN)?
+            let key: [u8; KEY_LEN] = hkdf(&shared, &salt, KEY_LEN)?
                 .try_into()
                 .map_err(|_| CryptoError::KeyDerivationFailed)?;
 
@@ -361,7 +363,7 @@ impl CryptoTrait for CryptoNative {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>> {
         Box::pin(async move {
             let shared = derive_x25519(rec_pri_raw, &msg.pub_key)?;
-            let key: [u8; KEY_LEN] = hkdf(&shared, &msg.salt, aad, KEY_LEN)?
+            let key: [u8; KEY_LEN] = hkdf(&shared, &msg.salt, KEY_LEN)?
                 .try_into()
                 .map_err(|_| CryptoError::DecryptionError)?;
 
@@ -403,11 +405,10 @@ mod tests {
 
     #[test]
     fn test_hkdf() {
-        let aad: &[u8] = b"Some additionally verified data by tag.";
         let ikm = vec![0u8; 32];
         let salt = vec![0u8; 16];
 
-        let hash = hkdf(&ikm, &salt, &aad, 32).unwrap();
+        let hash = hkdf(&ikm, &salt, 32).unwrap();
 
         assert_eq!(hash.len(), 32);
     }
