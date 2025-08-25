@@ -25,7 +25,6 @@ static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 pub const KEY_LEN: usize = 32;
 pub const IV_LEN: usize = 12;
 pub const TAG_LEN: usize = 16;
-const INFO: &[u8] = b"ECIES|X25519|HKDF-SHA256|AES-256-GCM";
 pub const SALT_LEN: usize = 16;
 pub const SIG_LEN: usize = 64;
 
@@ -332,7 +331,7 @@ impl CryptoTrait for CryptoNative {
             let mut salt = [0u8; SALT_LEN];
             rand_bytes(&mut salt) // random salt?
                 .map_err(|_| CryptoError::KeyDerivationFailed)?;
-            let key: [u8; KEY_LEN] = hkdf(&shared, &salt, &INFO, KEY_LEN)?
+            let key: [u8; KEY_LEN] = hkdf(&shared, &salt, aad, KEY_LEN)?
                 .try_into()
                 .map_err(|_| CryptoError::KeyDerivationFailed)?;
 
@@ -362,7 +361,7 @@ impl CryptoTrait for CryptoNative {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>> {
         Box::pin(async move {
             let shared = derive_x25519(rec_pri_raw, &msg.pub_key)?;
-            let key: [u8; KEY_LEN] = hkdf(&shared, &msg.salt, &INFO, KEY_LEN)?
+            let key: [u8; KEY_LEN] = hkdf(&shared, &msg.salt, aad, KEY_LEN)?
                 .try_into()
                 .map_err(|_| CryptoError::DecryptionError)?;
 
@@ -404,11 +403,11 @@ mod tests {
 
     #[test]
     fn test_hkdf() {
-        const INFO: &[u8] = b"ECIES|X25519|HKDF-SHA256|AES-256-GCM";
+        let aad: &[u8] = b"Some additionally verified data by tag.";
         let ikm = vec![0u8; 32];
         let salt = vec![0u8; 16];
 
-        let hash = hkdf(&ikm, &salt, &INFO, 32).unwrap();
+        let hash = hkdf(&ikm, &salt, &aad, 32).unwrap();
 
         assert_eq!(hash.len(), 32);
     }
@@ -447,14 +446,14 @@ mod tests {
     }
     #[test]
     fn aes_gcm_roundtrip() {
-        const INFO: &[u8] = b"Some additionally verified data by tag.";
+        let aad: &[u8] = b"Some additionally verified data by tag.";
         let key = [0u8; 32];
         let iv = [0u8; 12];
 
         let data = b"Some message to encrypt".to_vec();
 
-        let (ciphered, tag) = aes_gcm_encrypt(&key, &iv, &INFO, &data).unwrap();
-        let deciphered = aes_gcm_decrypt(&key, &iv, &INFO, &ciphered, &tag).unwrap();
+        let (ciphered, tag) = aes_gcm_encrypt(&key, &iv, &aad, &data).unwrap();
+        let deciphered = aes_gcm_decrypt(&key, &iv, &aad , &ciphered, &tag).unwrap();
 
         assert_ne!(ciphered, data);
         assert_eq!(data, deciphered.to_vec());
@@ -473,15 +472,14 @@ mod tests {
     #[tokio::test]
     async fn ecies_roundtrip() {
         static CRYPTO: CryptoNative = CryptoNative {};
-        const INFO: &[u8] = b"ECIES|X25519|HKDF-SHA256|AES-256-GCM";
         let data = b"Some message to encrypt".to_vec();
         let (rec_pub_key, rec_pri_key) = CRYPTO.gen_x25519().unwrap();
         let ciphered = CRYPTO
-            .ecies_encrypt(&rec_pub_key, &data, INFO)
+            .ecies_encrypt(&rec_pub_key, &data, &rec_pub_key)
             .await
             .unwrap();
         let deciphered = CRYPTO
-            .ecies_decrypt(&rec_pri_key, &ciphered, INFO)
+            .ecies_decrypt(&rec_pri_key, &ciphered, &rec_pub_key)
             .await
             .unwrap();
 
