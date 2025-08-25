@@ -532,22 +532,24 @@ mod tests {
         );
     }
 
-    // WIP
+    /// # WIP
+    /// This test is a WIP item, that should allow us to provide context to the grammar error recovery.
     #[test]
     #[ignore = "WIP"]
     fn test_parse_error_unclosed_delimiter() {
-        let src = r#"[1,[]"#;
+        let src = r#"[1,,]"#;
+        let result = parse_print_error(src);
+
+        let src = r#"var x: 123;"#;
         let result = parse_print_error(src);
         println!("{:?}", result);
 
-        panic!("WIP");
-
-        let src = r#"
-        var x = (5 + 3;
-        var y = 42;
-        "#;
-        let result = parse_print_error(src);
-        println!("{:?}", result);
+        // let src = r#"
+        // var x = (5 + 3;
+        // var y = 42;
+        // "#;
+        // let result = parse_print_error(src);
+        // println!("{:?}", result);
         // let errors = result.err().unwrap();
         // assert_eq!(errors.len(), 3);
         // let error1 = errors[0].clone();

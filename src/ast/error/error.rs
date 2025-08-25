@@ -282,6 +282,7 @@ use chumsky::{
     span::SimpleSpan,
     util::MaybeRef,
 };
+use rsa::rand_core::le;
 
 impl<'a> Error<'a, TokenInput<'a>> for ParseError {
     fn merge(mut self, mut other: Self) -> Self {
@@ -311,6 +312,19 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
             }
             _ => {}
         };
+
+        //
+
+        if let Some((_, ctx)) = &other.context {
+            let new_ctx = self
+                .context
+                .as_ref()
+                .map(|(_, c)| c.clone())
+                .unwrap_or_default();
+            let ctx = format!("{}; {}", new_ctx, ctx);
+            self.context = Some((self.span.clone(), ctx.clone()));
+        }
+
         self
     }
 }
@@ -321,7 +335,7 @@ impl<'a>
 {
     fn expected_found<Iter: IntoIterator<Item = DefaultExpected<'a, Token>>>(
         expected: Iter,
-        found: Option<chumsky::util::MaybeRef<'a, Token>>,
+        found: Option<MaybeRef<'a, Token>>,
         span: chumsky::span::SimpleSpan<usize>,
     ) -> Self {
         let expected: Vec<Pattern> = expected
@@ -350,18 +364,6 @@ impl<'a>
             context: None,
             note: None,
         }
-    }
-}
-
-// impl Pattern into token
-impl From<&Token> for Pattern {
-    fn from(value: &Token) -> Self {
-        Pattern::Any
-    }
-}
-impl From<Token> for Pattern {
-    fn from(value: Token) -> Self {
-        Pattern::Any
     }
 }
 

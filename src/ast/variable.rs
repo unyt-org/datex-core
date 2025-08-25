@@ -3,6 +3,7 @@ use crate::ast::assignment_operation::{
 };
 use crate::ast::comparison_operation::comparison_operation;
 use crate::ast::error::error::ParseError;
+use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{
     BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
@@ -74,6 +75,7 @@ pub fn variable_assignment_or_declaration<'a>(
         .then(select! {
             Token::Identifier(s) => s
         })
+        .labelled(Pattern::Declaration)
         .then(type_annotation.clone())
         .then(assignment_op)
         .then(comparison.clone())
