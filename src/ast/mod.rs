@@ -317,8 +317,9 @@ where
     // expression wrapped in parentheses
     let wrapped_expression = statements
         .clone()
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-        .labelled(Pattern::Custom("wrapped"));
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
+    //.labelled(Pattern::Custom("wrapped"))
+    //.as_context();
 
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
@@ -327,23 +328,19 @@ where
     // array
     // 1,2,3
     // [1,2,3,4,13434,(1),4,5,7,8]
-    let array = array(expression_without_tuple.clone())
-        .labelled(Pattern::Custom("array"));
+    let array = array(expression_without_tuple.clone());
 
     // object
-    let object = object(key.clone(), expression_without_tuple.clone())
-        .labelled(Pattern::Custom("object"));
+    let object = object(key.clone(), expression_without_tuple.clone());
 
     // tuple
     // Key-value pair
-    let tuple = tuple(key.clone(), expression_without_tuple.clone())
-        .labelled(Pattern::Custom("tuple"));
+    let tuple = tuple(key.clone(), expression_without_tuple.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
-    let atom = atom(array.clone(), object.clone(), wrapped_expression.clone())
-        .labelled(Pattern::Custom("atom"));
+    let atom = atom(array.clone(), object.clone(), wrapped_expression.clone());
 
-    let unary = unary(atom.clone()).labelled(Pattern::Custom("unary"));
+    let unary = unary(atom.clone());
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
@@ -354,23 +351,20 @@ where
         wrapped_expression.clone(),
         atom.clone(),
     );
-    let union = binary_operation(chain).labelled(Pattern::Custom("union"));
+    let union = binary_operation(chain);
 
     // FIXME WIP
     let function_declaration = function(
         statements.clone(),
         tuple.clone(),
         expression_without_tuple.clone(),
-    )
-    .labelled(Pattern::Custom("function_declaration"));
+    );
 
     // comparison (==, !=, is, …)
-    let comparison = comparison_operation(union.clone())
-        .labelled(Pattern::Custom("comparison"));
+    let comparison = comparison_operation(union.clone());
 
     // variable declarations or assignments
-    let variable_assignment = variable_assignment_or_declaration(union.clone())
-        .labelled(Pattern::Custom("variable_assignment"));
+    let variable_assignment = variable_assignment_or_declaration(union.clone());
 
     expression_without_tuple.define(choice((
         variable_assignment,
@@ -566,6 +560,9 @@ mod tests {
         let result = parse_print_error(src);
 
         let src = r#"{x: 1 + +}"#;
+        let result = parse_print_error(src);
+
+        let src = r#"(1: x, 2: 1 + +)"#;
         let result = parse_print_error(src);
 
         // let src = r#"

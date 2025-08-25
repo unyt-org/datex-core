@@ -320,6 +320,17 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
         //
 
         if other.context.is_some() {
+            // TODO, if Pattern::Reset, clear context, otherwise keep
+            /*
+            let self_ctx_str = self.context.as_ref().map(|(_, s)| s.clone());
+            let other_ctx_str = other.context.unwrap().1;
+            let new_ctx = format!(
+                "{} {}",
+                self_ctx_str.unwrap_or_default(),
+                other_ctx_str
+            );
+            self.context = Some((self.span.clone(), new_ctx));
+            */
             self.context = other.context.take();
         }
 

@@ -1,3 +1,4 @@
+use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
@@ -42,7 +43,7 @@ fn tuple_with_commas<'a>(
     entry
         .separated_by(just(Token::Comma).padded_by(whitespace()))
         .at_least(2)
-        .collect::<Vec<_>>()
+        .collect::<Vec<TupleEntry>>()
         .map(DatexExpression::Tuple)
 }
 
@@ -87,4 +88,6 @@ pub fn tuple<'a>(
         single_value_tuple,
         single_keyed_tuple_entry,
     ))
+    .labelled(Pattern::Custom("tuple"))
+    .as_context()
 }
