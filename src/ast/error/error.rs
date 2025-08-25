@@ -1,3 +1,4 @@
+use core::panic;
 use std::{collections::HashSet, io::Write, ops::Range};
 
 use crate::{
@@ -238,7 +239,7 @@ impl ParseError {
             ErrorKind::Unexpected { found, .. } => {
                 format!(
                     "Unexpected {}",
-                    found.clone().unwrap().to_string().fg(Color::Red)
+                    found.clone().unwrap().as_string().fg(Color::Red)
                 )
             }
             ErrorKind::Unclosed { start, .. } => {
@@ -318,15 +319,6 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
 
         //
 
-        // if let Some((span, ctx)) = &other.context {
-        //     // let new_ctx = self
-        //     //     .context
-        //     //     .as_ref()
-        //     //     .map(|(_, c)| c.clone())
-        //     //     .unwrap_or_default();
-        //     // let ctx = format!("{}; {}", new_ctx, ctx);
-        //     // self.context = Some((self.span.clone(), ctx.clone()));
-        // }
         if other.context.is_some() {
             self.context = other.context.take();
         }
@@ -360,6 +352,9 @@ impl<'a>
         if found.is_none() {
             return ParseError::new_unexpected_end(span.start.into());
         }
+        if span.end - span.start > 1 {
+            panic!("Span too large: {:?}", span);
+        }
 
         ParseError {
             kind: ErrorKind::Unexpected {
@@ -375,8 +370,12 @@ impl<'a>
 
 impl<'a> LabelError<'a, TokenInput<'a>, Pattern> for ParseError {
     fn label_with(&mut self, label: Pattern) {
-        self.context = Some((self.span.clone(), label.to_string()));
+        //self.context = Some((self.span.clone(), label.to_string()));
     }
+    fn in_context(&mut self, label: Pattern, span: SimpleSpan<usize>) {
+        self.context = Some((span.start.into(), label.to_string()));
+    }
+
     fn expected_found<Iter: IntoIterator<Item = Pattern>>(
         expected: Iter,
         found: Option<MaybeRef<'a, Token>>,

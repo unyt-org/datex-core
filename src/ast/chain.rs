@@ -1,3 +1,4 @@
+use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
@@ -51,6 +52,7 @@ pub fn chain<'a>(
             .repeated()
             .collect::<Vec<_>>(),
         )
+        .labelled(Pattern::Custom("chain"))
         .map(|(val, args)| {
             // if only single value, return it directly
             if args.is_empty() {

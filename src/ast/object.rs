@@ -1,3 +1,4 @@
+use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
@@ -17,4 +18,6 @@ pub fn object<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
         .map(DatexExpression::Object)
+        .labelled(Pattern::Custom("object"))
+        .as_context()
 }

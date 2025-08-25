@@ -75,8 +75,6 @@ pub fn variable_assignment_or_declaration<'a>(
         .then(select! {
             Token::Identifier(s) => s
         })
-        .labelled(Pattern::Declaration)
-        .as_context()
         .then(type_annotation.clone())
         .then(assignment_op)
         .then(comparison.clone())
@@ -127,4 +125,6 @@ pub fn variable_assignment_or_declaration<'a>(
             }
         })
         .recover_invalid()
+        .labelled(Pattern::Declaration)
+        .as_context()
 }

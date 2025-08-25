@@ -12,6 +12,8 @@ pub enum Pattern {
     Literal,
     EndOfInput,
     SomethingElse,
+
+    Custom(&'static str),
 }
 
 impl From<char> for Pattern {
@@ -33,6 +35,7 @@ impl From<&Token> for Pattern {
 impl fmt::Display for Pattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Pattern::Custom(name) => write!(f, "{}", name),
             Pattern::Declaration => write!(f, "declaration"),
             Pattern::Array => write!(f, "array"),
             Pattern::SomethingElse => write!(f, "something else"),
@@ -47,6 +50,7 @@ impl fmt::Display for Pattern {
 impl Pattern {
     pub fn kind(&self) -> &'static str {
         match self {
+            Pattern::Custom(name) => name,
             Pattern::Declaration => "declaration",
             Pattern::Array => "array",
             Pattern::SomethingElse => "token",
@@ -59,6 +63,7 @@ impl Pattern {
     }
     pub fn as_string(&self) -> String {
         match self {
+            Pattern::Custom(name) => name.to_string(),
             Pattern::Declaration => "declaration".to_string(),
             Pattern::Array => "array".to_string(),
             Pattern::SomethingElse => "something else".to_string(),

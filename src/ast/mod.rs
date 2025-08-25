@@ -26,6 +26,7 @@ use crate::ast::binary_operation::*;
 use crate::ast::chain::*;
 use crate::ast::comparison_operation::*;
 use crate::ast::error::error::ParseError;
+use crate::ast::error::pattern::Pattern;
 use crate::ast::function::*;
 use crate::ast::key::*;
 use crate::ast::object::*;
@@ -310,33 +311,39 @@ where
                 DatexExpression::Statements(statements)
             }
         })
-        .boxed();
+        .boxed()
+        .labelled(Pattern::Custom("statements"));
 
     // expression wrapped in parentheses
     let wrapped_expression = statements
         .clone()
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .labelled(Pattern::Custom("wrapped"));
 
     // a valid object/tuple key
     // (1: value), "key", 1, (("x"+"y"): 123)
-    let key = key(wrapped_expression.clone());
+    let key = key(wrapped_expression.clone()).labelled(Pattern::Custom("key"));
 
     // array
     // 1,2,3
     // [1,2,3,4,13434,(1),4,5,7,8]
-    let array = array(expression_without_tuple.clone());
+    let array = array(expression_without_tuple.clone())
+        .labelled(Pattern::Custom("array"));
 
     // object
-    let object = object(key.clone(), expression_without_tuple.clone());
+    let object = object(key.clone(), expression_without_tuple.clone())
+        .labelled(Pattern::Custom("object"));
 
     // tuple
     // Key-value pair
-    let tuple = tuple(key.clone(), expression_without_tuple.clone());
+    let tuple = tuple(key.clone(), expression_without_tuple.clone())
+        .labelled(Pattern::Custom("tuple"));
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
-    let atom = atom(array.clone(), object.clone(), wrapped_expression.clone());
+    let atom = atom(array.clone(), object.clone(), wrapped_expression.clone())
+        .labelled(Pattern::Custom("atom"));
 
-    let unary = unary(atom.clone());
+    let unary = unary(atom.clone()).labelled(Pattern::Custom("unary"));
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
@@ -347,20 +354,23 @@ where
         wrapped_expression.clone(),
         atom.clone(),
     );
-    let union = binary_operation(chain);
+    let union = binary_operation(chain).labelled(Pattern::Custom("union"));
 
     // FIXME WIP
     let function_declaration = function(
         statements.clone(),
         tuple.clone(),
         expression_without_tuple.clone(),
-    );
+    )
+    .labelled(Pattern::Custom("function_declaration"));
 
     // comparison (==, !=, is, …)
-    let comparison = comparison_operation(union.clone());
+    let comparison = comparison_operation(union.clone())
+        .labelled(Pattern::Custom("comparison"));
 
     // variable declarations or assignments
-    let variable_assignment = variable_assignment_or_declaration(union.clone());
+    let variable_assignment = variable_assignment_or_declaration(union.clone())
+        .labelled(Pattern::Custom("variable_assignment"));
 
     expression_without_tuple.define(choice((
         variable_assignment,
@@ -542,11 +552,21 @@ mod tests {
 
         let src = r#"var x"#;
         let result = parse_print_error(src);
-        println!("{:?}", result);
 
-        let src = r#"var x: 1"#;
+        let src = r#"var x = =1"#;
         let result = parse_print_error(src);
-        println!("{:?}", result);
+
+        let src = r#"var x = (1, 2, [10, 20, {1:2})] + 4"#;
+        let result = parse_print_error(src);
+
+        let src = r#"[1, )]"#;
+        let result = parse_print_error(src);
+
+        let src = r#"(1 + 2 + ])"#;
+        let result = parse_print_error(src);
+
+        let src = r#"{x: 1 + +}"#;
+        let result = parse_print_error(src);
 
         // let src = r#"
         // var x = (5 + 3;
@@ -655,15 +675,6 @@ mod tests {
             "Cannot use '+=' operator in variable declaration"
         );
         assert_eq!(error.span(), Some(12..17));
-    }
-
-    #[test]
-    fn test() {
-        let src = r#"
-        {endpoint: @@0DB821B9FBAC41CEF1CA0F47DB4DCA7FF10C, interfaces: [{type: "websocket-client", config: {address: "wss://example.unyt.land"}}], debug: null}
-        "#;
-        let val = parse_unwrap(src);
-        println!("{:#?}", val);
     }
 
     #[test]
