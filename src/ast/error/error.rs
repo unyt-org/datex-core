@@ -270,7 +270,10 @@ impl ParseError {
                     .with_color(Color::Red),
             );
         if let Some((_, context)) = self.context {
-            report = report.with_help(context);
+            report = report.with_help(format!(
+                "In the context of: {}",
+                context.fg(Color::Yellow)
+            ));
         }
         report.finish().write(cache, writer).unwrap();
     }
@@ -315,14 +318,17 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
 
         //
 
-        if let Some((_, ctx)) = &other.context {
-            let new_ctx = self
-                .context
-                .as_ref()
-                .map(|(_, c)| c.clone())
-                .unwrap_or_default();
-            let ctx = format!("{}; {}", new_ctx, ctx);
-            self.context = Some((self.span.clone(), ctx.clone()));
+        // if let Some((span, ctx)) = &other.context {
+        //     // let new_ctx = self
+        //     //     .context
+        //     //     .as_ref()
+        //     //     .map(|(_, c)| c.clone())
+        //     //     .unwrap_or_default();
+        //     // let ctx = format!("{}; {}", new_ctx, ctx);
+        //     // self.context = Some((self.span.clone(), ctx.clone()));
+        // }
+        if other.context.is_some() {
+            self.context = other.context.take();
         }
 
         self

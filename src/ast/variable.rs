@@ -76,6 +76,7 @@ pub fn variable_assignment_or_declaration<'a>(
             Token::Identifier(s) => s
         })
         .labelled(Pattern::Declaration)
+        .as_context()
         .then(type_annotation.clone())
         .then(assignment_op)
         .then(comparison.clone())

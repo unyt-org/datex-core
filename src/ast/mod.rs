@@ -540,7 +540,12 @@ mod tests {
         let src = r#"[1,,]"#;
         let result = parse_print_error(src);
 
-        let src = r#"var x: 123;"#;
+        let src = r#"var x"#;
+        let result = parse_print_error(src);
+        println!("{:?}", result);
+
+
+        let src = r#"var x: 1"#;
         let result = parse_print_error(src);
         println!("{:?}", result);
 

@@ -7,13 +7,22 @@ use chumsky::prelude::*;
 pub fn array<'a>(
     expression_without_tuple: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    expression_without_tuple
+    just(Token::LeftBracket)
         .labelled(Pattern::Array)
-        .separated_by(just(Token::Comma).padded_by(whitespace()))
-        .at_least(0)
-        .allow_trailing()
-        .collect::<Vec<_>>()
+        .as_context()
+        .ignore_then(
+            expression_without_tuple
+                .separated_by(just(Token::Comma).padded_by(whitespace()))
+                .at_least(0)
+                .allow_trailing()
+                .collect::<Vec<_>>(),
+        )
         .padded_by(whitespace())
-        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .then_ignore(just(Token::RightBracket))
         .map(DatexExpression::Array)
+
+    // .collect::<Vec<_>>()
+    // .padded_by(whitespace())
+    // .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+    // .map(DatexExpression::Array)
 }
