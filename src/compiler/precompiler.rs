@@ -243,7 +243,7 @@ fn visit_expression(
             metadata.variables.push(var_metadata);
         }
         DatexExpression::Literal { name, variant } => {
-            // if reserved core type
+            // FIXME showcase / demo if reserved core type
             let reserved_literals = [
                 DatexExpression::Literal {
                     name: "integer".to_string(),

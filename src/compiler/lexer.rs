@@ -100,7 +100,8 @@ pub enum Token {
     #[token("const")] Const,
     #[token("var")] Variable,
     #[token("mut")] Mutable,
-    #[token("type")] Type,
+    // FIXME do we want to allow {type: "websocket-client"} or {var: "websocket-client"}
+    #[token("_type")] Type,
     #[token("function")] Function,
 
     // decimal literals (infinity, nan)

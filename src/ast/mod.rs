@@ -544,7 +544,6 @@ mod tests {
         let result = parse_print_error(src);
         println!("{:?}", result);
 
-
         let src = r#"var x: 1"#;
         let result = parse_print_error(src);
         println!("{:?}", result);
@@ -656,6 +655,15 @@ mod tests {
             "Cannot use '+=' operator in variable declaration"
         );
         assert_eq!(error.span(), Some(12..17));
+    }
+
+    #[test]
+    fn test() {
+        let src = r#"
+        {endpoint: @@0DB821B9FBAC41CEF1CA0F47DB4DCA7FF10C, interfaces: [{type: "websocket-client", config: {address: "wss://example.unyt.land"}}], debug: null}
+        "#;
+        let val = parse_unwrap(src);
+        println!("{:#?}", val);
     }
 
     #[test]

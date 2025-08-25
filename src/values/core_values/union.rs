@@ -185,38 +185,6 @@ mod tests {
         assert!(!union.matches(Integer::from(42)));
         assert!(!union.matches(TypedInteger::from(1u16)));
     }
-    /**
-     * var x = &{x: 5}
-     * var y: x = {x: 5} // quatsch
-     *
-     * var x = union | password
-     * var x: union | password = {x: 5}
-     *
-     * var x: int[] = integer[0]
-     * var x: Array<u8> = integer[0]
-     *
-     * var y: (p: string) -> string = fun (p: string) -> string ( "" )
-     *
-     * var y: integer = 42;
-     *
-     *
-     * typeof y // integer
-     * typeof typeof y // type -> integer { cast: () -> string }
-     *
-     * += add
-     * += xxx
-     *
-     * u8[][]
-     *
-     * User { age() -> integer, setName(str: text)} -> User & { age(): integer}
-     * Type: User {Record<age: function>}
-     *
-     * type x = { x: number }
-     * import xx:User;
-     * type User = x & { x: 5 }
-     *
-     * User { x: 6} instanceof User
-     */
 
     #[test]
     fn test_type() {
