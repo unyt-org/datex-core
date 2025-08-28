@@ -1032,7 +1032,7 @@ mod tests {
 
     #[test]
     fn test_var_declaration_with_type_union() {
-        let src = "var x: 5 | 6 = 42";
+        let src = "var x: integer/u8 | text = 42";
         let val = parse_unwrap(src);
         assert_eq!(
             val,
@@ -1044,8 +1044,14 @@ mod tests {
                 type_annotation: Some(Box::new(
                     DatexExpression::BinaryOperation(
                         BinaryOperator::Union,
-                        Box::new(DatexExpression::Integer(Integer::from(5))),
-                        Box::new(DatexExpression::Integer(Integer::from(6)))
+                        Box::new(DatexExpression::BinaryOperation(
+                            BinaryOperator::VariantAccess,
+                            Box::new(DatexExpression::Literal(
+                                "integer".to_owned()
+                            )),
+                            Box::new(DatexExpression::Literal("u8".to_owned()))
+                        )),
+                        Box::new(DatexExpression::Literal("text".to_owned()))
                     )
                 )),
                 name: "x".to_string(),
