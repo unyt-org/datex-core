@@ -786,7 +786,7 @@ mod tests {
     #[ignore = "WIP"]
     fn test_function_with_return_type() {
         let src = r#"
-            function myFunction(x: integer) -> integer (
+            function myFunction(x: integer) -> (integer) (
                 42
             );
         "#;
@@ -2949,6 +2949,42 @@ mod tests {
                 type_annotation: None,
                 value: Box::new(DatexExpression::Integer(Integer::from(1))),
             }
+        );
+    }
+
+    #[test]
+    fn negation() {
+        let src = "!x";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Not,
+                Box::new(DatexExpression::Literal("x".to_string()))
+            )
+        );
+
+        let src = "!true";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Not,
+                Box::new(DatexExpression::Boolean(true))
+            )
+        );
+
+        let src = "!!(1, 2)";
+        let expr = parse_unwrap(src);
+        assert_matches!(
+            expr,
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Not,
+                box DatexExpression::UnaryOperation(
+                    UnaryOperator::Not,
+                    box DatexExpression::Tuple(_),
+                ),
+            )
         );
     }
 }

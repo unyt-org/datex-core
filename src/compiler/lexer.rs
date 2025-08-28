@@ -80,7 +80,7 @@ pub enum Token {
     #[token("@")] At,
     #[token("&")] Ampersand,
     #[token("|")] Pipe,
-    #[token("!")] Bang,
+    #[token("!")] Exclamation,
     #[token("`")] Backtick,
 
     #[token("<=")] LessEqual,
@@ -246,6 +246,8 @@ impl Token {
             Token::Error => Some("error"),
             Token::Infinity(_) => Some("infinity"),
             Token::Nan => Some("nan"),
+            Token::Star => Some("*"),
+            Token::Exclamation => Some("!"),
             _ => None,
         };
         if let Some(token) = literal_token {
