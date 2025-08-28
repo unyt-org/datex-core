@@ -153,7 +153,7 @@ fn iterate_test_cases<'a>() -> impl Iterator<Item = (PathBuf, PathBuf)> + 'a {
 }
 
 #[test]
-fn test_basic_json() {
+fn basic_json() {
     compare_datex_result_with_json("1");
     compare_datex_result_with_json("-42");
     compare_datex_result_with_json("true");
@@ -176,7 +176,7 @@ fn test_basic_json() {
 }
 
 #[test]
-fn test_json_test_cases() {
+fn json_test_cases() {
     for (path, _) in iterate_test_cases() {
         println!("Testing JSON file: {}", path.display());
         let file_content = std::fs::read_to_string(path).unwrap();
@@ -185,7 +185,7 @@ fn test_json_test_cases() {
 }
 
 #[test]
-fn test_compare_with_expected() {
+fn compare_with_expected() {
     for (input_path, output_path) in iterate_test_cases() {
         println!("Testing JSON file: {}", input_path.display());
         let file_content = std::fs::read_to_string(input_path.clone()).unwrap();

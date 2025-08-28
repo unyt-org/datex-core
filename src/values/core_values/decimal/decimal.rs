@@ -432,7 +432,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     #[test]
-    fn test_decimal_addition() {
+    fn decimal_addition() {
         let dec1 = Decimal::from_string("12.34");
         let dec2 = Decimal::from_string("56.78");
         let result = dec1 + dec2;
@@ -450,7 +450,7 @@ mod tests {
     }
 
     #[test]
-    fn test_formatting() {
+    fn formatting() {
         let dec1 = Decimal::from_string("12.34");
         assert_eq!(dec1.to_string(), "12.34");
 
@@ -495,7 +495,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero() {
+    fn zero() {
         let a = Decimal::from(0.0f32);
         assert!(matches!(a, Decimal::Zero));
         assert!(!matches!(a, Decimal::NegZero));
@@ -510,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn test_neg_zero() {
+    fn neg_zero() {
         let a = Decimal::from(-0.0f32);
         assert!(matches!(a, Decimal::NegZero));
         assert!(!matches!(a, Decimal::Zero));
@@ -525,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inf() {
+    fn inf() {
         let a = Decimal::from(f32::INFINITY);
         assert!(matches!(a, Decimal::Infinity));
 
@@ -537,7 +537,7 @@ mod tests {
     }
 
     #[test]
-    fn test_neg_inf() {
+    fn neg_inf() {
         let a = Decimal::from(f32::NEG_INFINITY);
         assert!(matches!(a, Decimal::NegInfinity));
 
@@ -549,7 +549,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nan() {
+    fn nan() {
         let a = Decimal::from(f32::NAN);
         assert!(matches!(a, Decimal::NaN));
 
@@ -570,7 +570,7 @@ mod tests {
     }
 
     #[test]
-    fn test_finite() {
+    fn finite() {
         let a = Decimal::from(1.23f32);
         assert!(matches!(a, Decimal::Finite(_)));
 
@@ -585,7 +585,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero_neg_zero() {
+    fn zero_neg_zero() {
         let a = Decimal::from_string("0.0");
         let b = Decimal::from_string("-0.0");
         assert_matches!(a, Decimal::Zero);
@@ -594,7 +594,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nan_eq() {
+    fn nan_eq() {
         // implicit big decimal NaN
         let a = Decimal::from_string("nan");
         let b = Decimal::from_string("nan");
@@ -663,7 +663,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero_eq() {
+    fn zero_eq() {
         let a = Decimal::from_string("0.0");
         let b = Decimal::from_string("0.0");
         let c = Decimal::from_string("-0.0");
@@ -673,7 +673,7 @@ mod tests {
     }
 
     #[test]
-    fn test_equality() {
+    fn equality() {
         let a = Decimal::from_string("1.0");
         let b = Decimal::from_string("1.0");
         let c = Decimal::from_string("2.0");
@@ -688,7 +688,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_addition_2() {
+    fn decimal_addition_2() {
         let a = Decimal::from_string("1.0");
         let b = Decimal::from_string("2.0");
         let result = a + b;
@@ -706,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    fn test_infinity_calculations() {
+    fn infinity_calculations() {
         let a = Decimal::from_string("1.0");
         let b = Decimal::from_string("infinity");
         let result = a + b;
@@ -759,7 +759,7 @@ mod tests {
     }
 
     #[test]
-    fn test_large_decimal_addition() {
+    fn large_decimal_addition() {
         let a =
             Decimal::from_string("100000000000000000000.00000000000000000001");
         let b =
@@ -772,7 +772,7 @@ mod tests {
     }
 
     #[test]
-    fn test_e_notation_decimal_addition() {
+    fn e_notation_decimal_addition() {
         let a = Decimal::from_string("1e10");
         let b = Decimal::from_string("2e10");
         let result = a + b;

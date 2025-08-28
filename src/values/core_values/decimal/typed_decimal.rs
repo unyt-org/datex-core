@@ -438,7 +438,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         let a = TypedDecimal::from(42.0f32);
         assert_matches!(a, TypedDecimal::F32(_));
         assert!(a.is_integer());
@@ -461,7 +461,7 @@ mod tests {
     }
 
     #[test]
-    fn test_f32() {
+    fn f32() {
         let c = TypedDecimal::from(1.5f32);
         assert_matches!(c, TypedDecimal::F32(OrderedFloat(1.5)));
         assert_eq!(c.as_f32(), 1.5);
@@ -469,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn test_f64() {
+    fn f64() {
         let c = TypedDecimal::from(1.5f64);
         assert_matches!(c, TypedDecimal::F64(OrderedFloat(1.5)));
         assert_eq!(c.as_f32(), 1.5);
@@ -477,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zero_and_neg_zero() {
+    fn zero_and_neg_zero() {
         let a = TypedDecimal::from(0.0f32);
         assert_matches!(a, TypedDecimal::F32(OrderedFloat(0.0)));
 
@@ -511,7 +511,7 @@ mod tests {
     }
 
     #[test]
-    fn test_addition() {
+    fn addition() {
         let a = TypedDecimal::F32(1.5.into());
         let b = TypedDecimal::F64(2.5.into());
         let result = a + b;

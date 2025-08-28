@@ -22,7 +22,7 @@ mod tests {
     struct TestTupleStruct(String, i32, bool);
 
     #[test]
-    fn test_tuplestruct_serde_value_container() {
+    fn tuplestruct_serde_value_container() {
         let original = TestTupleStruct("Hello".to_string(), 42, true);
         let serialized = to_value_container(&original).unwrap();
         let deserialized: TestTupleStruct =
@@ -31,7 +31,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tuplestruct_serde_bytes() {
+    fn tuplestruct_serde_bytes() {
         let original = TestTupleStruct("Hello".to_string(), 42, true);
         let serialized = to_bytes(&original).unwrap();
         let deserialized: TestTupleStruct = from_bytes(&serialized).unwrap();
@@ -46,7 +46,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_serde_value_container() {
+    fn struct_serde_value_container() {
         let original = TestStruct {
             field1: "Hello".to_string(),
             field2: 42,
@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_serde_bytes() {
+    fn struct_serde_bytes() {
         let data = to_bytes(&TestStruct {
             field1: "Hello".to_string(),
             field2: 42,
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_with_option_serde_bytes() {
+    fn struct_with_option_serde_bytes() {
         // struct with option
         let val = StructWithUSize { usize: Some(42) };
         let result = to_bytes(&val);
@@ -124,7 +124,7 @@ mod tests {
 
     // Core Value
     #[test]
-    fn test_core_value_serde_bytes() {
+    fn core_value_serde_bytes() {
         // string
         let val = "test string";
         let result = to_bytes(&val);
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_with_value_container_serde_bytes() {
+    fn struct_with_value_container_serde_bytes() {
         init_logger_debug();
         // struct with value container
         let val = StructWithValueContainer {

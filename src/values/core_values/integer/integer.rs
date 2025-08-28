@@ -293,7 +293,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_integer_addition() {
+    fn integer_addition() {
         let dec1 = Integer::from_string("12").unwrap();
         let dec2 = Integer::from_string("56").unwrap();
         let result = dec1 + dec2;
@@ -306,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    fn test_formatting() {
+    fn formatting() {
         let int1 = Integer::from_string("12").unwrap();
         assert_eq!(int1.to_string(), "12");
 

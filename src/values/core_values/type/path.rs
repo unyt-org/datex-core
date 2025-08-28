@@ -102,7 +102,7 @@ impl Display for TypePath {
 mod tests {
     use super::*;
     #[test]
-    fn test_type_path() {
+    fn type_path() {
         let path = TypePath::new("std", "integer", None);
         assert_eq!(path.namespace, "std");
         assert_eq!(path.name, "integer");
@@ -116,7 +116,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_path_parsing() {
+    fn type_path_parsing() {
         let parsed_path = TypePath::parse("std:integer/u8");
         assert_eq!(parsed_path.namespace, "std");
         assert_eq!(parsed_path.name, "integer");
@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_path_parent() {
+    fn type_path_parent() {
         let path = TypePath::new("std", "integer", Some("u8".to_string()));
         let parent = path.parent().unwrap();
         assert_eq!(parent.namespace, "std");
@@ -138,14 +138,14 @@ mod tests {
     }
 
     #[test]
-    fn test_type_path_is_parent_of() {
+    fn type_path_is_parent_of() {
         let parent = TypePath::new("std", "integer", None);
         let child = TypePath::new("std", "integer", Some("u8".to_string()));
         assert!(parent.is_parent_of(&child));
     }
 
     #[test]
-    fn test_type_path_display() {
+    fn type_path_display() {
         let path = TypePath::new("std", "integer", Some("u8".to_string()));
         assert_eq!(path.to_string(), "std:integer/u8");
     }

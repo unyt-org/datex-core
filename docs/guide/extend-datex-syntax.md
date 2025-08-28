@@ -1,11 +1,19 @@
 # Extend the DATEX syntax
-> *Attention: This guide is outdated due to heavy refactoring on the module structure and will be updated soon!*
 
-> This guide explains how to extend the DATEX syntax by giving a step-by-step approach to adding new syntax elements (such as keywords, operators or expressions) and their corresponding functionality.
+> _Attention: This guide is outdated due to heavy refactoring on the module
+> structure and will be updated soon!_
+
+> This guide explains how to extend the DATEX syntax by giving a step-by-step
+> approach to adding new syntax elements (such as keywords, operators or
+> expressions) and their corresponding functionality.
 
 ## Define the Token
-If you want to add a new keyword or operator, you need to define it in the `Token` enum. This is done in the [`datex-core/src/compiler/lexer.rs`](../../src/compiler/lexer.rs) file.
-Add a new entry to the `Token` enum. For example, if you want to add a new operator called `Is`, you would add:
+
+If you want to add a new keyword or operator, you need to define it in the
+`Token` enum. This is done in the
+[`datex-core/src/compiler/lexer.rs`](../../src/compiler/lexer.rs) file. Add a
+new entry to the `Token` enum. For example, if you want to add a new operator
+called `Is`, you would add:
 
 ```rust
 pub enum Token {
@@ -15,10 +23,12 @@ pub enum Token {
 }
 ```
 
-Make sure to add a new test for your new token in the `tests` section of the lexer to ensure it is recognized correctly by the lexer.
+Make sure to add a new test for your new token in the `tests` section of the
+lexer to ensure it is recognized correctly by the lexer.
+
 ```rust
 #[test]
-fn test_is_operator() {
+fn is_operator() {
     let mut lexer = Token::lexer("a is b");
     assert_eq!(
         lexer.next().unwrap(),
@@ -36,7 +46,12 @@ fn test_is_operator() {
 ```
 
 ## Introduce an Instruction Code
-Not all new tokens require a new instruction code, but if your new syntax element is a keyword and can not be represented by a set of existing instruction codes, you need to introduce a new instruction code in the [`datex-core/src/global/binary_codes.rs`](../../src/global/binary_codes.rs) file.
+
+Not all new tokens require a new instruction code, but if your new syntax
+element is a keyword and can not be represented by a set of existing instruction
+codes, you need to introduce a new instruction code in the
+[`datex-core/src/global/binary_codes.rs`](../../src/global/binary_codes.rs)
+file.
 
 ```rust
 pub enum InstructionCode {
@@ -46,7 +61,10 @@ pub enum InstructionCode {
 }
 ```
 
-To allow for serialization of the new instruction and it's potential payload, it might be necessary to add a new entry to the `Instruction` enum in the [`datex-core/src/global/protocol_structures/instructions.rs`](../../src/global/protocol_structures/instructions.rs) file:
+To allow for serialization of the new instruction and it's potential payload, it
+might be necessary to add a new entry to the `Instruction` enum in the
+[`datex-core/src/global/protocol_structures/instructions.rs`](../../src/global/protocol_structures/instructions.rs)
+file:
 
 ```rust
 pub enum Instruction {
@@ -58,9 +76,12 @@ pub enum Instruction {
     // other instructions...
 ```
 
-*Note that also the `Display for Instruction` must be updated to include the new instruction code.*
+_Note that also the `Display for Instruction` must be updated to include the new
+instruction code._
 
-To map `InstructionCode` to the `Instruction` holder, you need to add a new match arm in the `iterate_instruction` method in the [`datex-core/src/parser/body.rs`](../../src/parser/body.rs) file:
+To map `InstructionCode` to the `Instruction` holder, you need to add a new
+match arm in the `iterate_instruction` method in the
+[`datex-core/src/parser/body.rs`](../../src/parser/body.rs) file:
 
 ```rust
 yield match instruction_code {
@@ -71,11 +92,17 @@ yield match instruction_code {
 ```
 
 ## Update the Parser
-Next, you need to update the parser to recognize your new token. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/ast_parser) module. The parser is responsible for converting the sequence of tokens recognized by the lexer into an Abstract Syntax Tree (AST).
 
+Next, you need to update the parser to recognize your new token. This is done in
+the [`datex-core/src/compiler/parser.rs`](../../src/compiler/ast_parser) module.
+The parser is responsible for converting the sequence of tokens recognized by
+the lexer into an Abstract Syntax Tree (AST).
 
 ### Extend the Expression Grammar
-We have to extend the expression grammar to include our expression or operator. This is done by adding a new entry or modifying an existing one in the `DatexExpression` enum.
+
+We have to extend the expression grammar to include our expression or operator.
+This is done by adding a new entry or modifying an existing one in the
+`DatexExpression` enum.
 
 ```rust
 pub enum DatexExpression {
@@ -98,8 +125,12 @@ pub enum DatexExpression {
 }
 ```
 
-We have to declare an entry here that can hold all parts of our expression if it is more complex than a simple value. 
-In our case it's more easy, as we just want to add a new operator `is`, which can be represented as a binary operation, and the holder is already present in the `DatexExpression` enum as `BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>)`. So here we extend the `BinaryOperator` enum to include our new operator:
+We have to declare an entry here that can hold all parts of our expression if it
+is more complex than a simple value. In our case it's more easy, as we just want
+to add a new operator `is`, which can be represented as a binary operation, and
+the holder is already present in the `DatexExpression` enum as
+`BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>)`.
+So here we extend the `BinaryOperator` enum to include our new operator:
 
 ```rust
 pub enum BinaryOperator {
@@ -109,9 +140,14 @@ pub enum BinaryOperator {
 ```
 
 ### Extend the Parser Logic
-When extending the parser with new operators (e.g. `is`), **it's essential to add them at the correct precedence level**. Operator precedence determines **the order in which expressions are grouped and evaluated**, especially when multiple operators appear in a row.
 
-Without correct precedence, expressions can be **parsed incorrectly**, leading to **wrong evaluation or misleading decompilation**.
+When extending the parser with new operators (e.g. `is`), **it's essential to
+add them at the correct precedence level**. Operator precedence determines **the
+order in which expressions are grouped and evaluated**, especially when multiple
+operators appear in a row.
+
+Without correct precedence, expressions can be **parsed incorrectly**, leading
+to **wrong evaluation or misleading decompilation**.
 
 Take this example:
 
@@ -127,7 +163,8 @@ This should be understood as:
         → false
 ```
 
-…but if you place the `is` operator at the wrong precedence level (e.g. equal to or higher than `+`), the parser might instead treat it as:
+…but if you place the `is` operator at the wrong precedence level (e.g. equal to
+or higher than `+`), the parser might instead treat it as:
 
 ```text
 (2 is 4) + 4
@@ -138,14 +175,17 @@ This should be understood as:
 
 When you introduce a new operator:
 
-1. **Find the correct precedence level** in the parser (e.g., sum, product, comparison).
+1. **Find the correct precedence level** in the parser (e.g., sum, product,
+   comparison).
 2. **Add it to that layer** using `.foldl(...)` or `.foldr(...)` as needed.
-3. Make sure lower-precedence expressions (like comparisons) are parsed *after* higher-precedence ones (like addition/multiplication).
+3. Make sure lower-precedence expressions (like comparisons) are parsed _after_
+   higher-precedence ones (like addition/multiplication).
 
 #### Operator Precedence Table
+
 | Level                                  | What it recognises                                             | Key helpers used                                                      | Notes                                                                                                                                                                      |
 | -------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Script**                             | Whole input file                                               | `statements` or *empty*                                               | Either a non-empty sequence of statements **or** any number of stray semicolons (⇒ an empty script).                                                                       |
+| **Script**                             | Whole input file                                               | `statements` or _empty_                                               | Either a non-empty sequence of statements **or** any number of stray semicolons (⇒ an empty script).                                                                       |
 | **Statements**                         | `statement ;` … `statement [;]`                                | `expression`, `Semicolon`                                             | Builds a `Vec<Statement>` where every entry tracks whether its terminating semicolon was present. A lone unterminated expression collapses straight to an expression node. |
 | **Expression**                         | Top-level value                                                | `tuple` \| `expression_without_tuple`                                 | Wrapper that lets tuples sit beside the rest of the expression grammar.                                                                                                    |
 | **Expression (no-tuple)**              | All expressions except tuples                                  | `variable_assignment` \| `equality`                                   | Declared recursively so tuple sub-parses don’t accidentally nest ad infinitum.                                                                                             |
@@ -178,7 +218,9 @@ script
            │                    └─ literals / array / object / (expr)
 ```
 
-For the `is` operator, you would add it to the equality chain section of the `create_parser` method: 
+For the `is` operator, you would add it to the equality chain section of the
+`create_parser` method:
+
 ```rust
 let equality = sum.clone().foldl(
     choice((
@@ -195,7 +237,9 @@ let equality = sum.clone().foldl(
 );
 ```
 
-If you've introduced a new `DatexExpression` and not a simple operator, you need to extend the parser logic to account for it and map it to the corresponding `DatexExpression` variant and add the token branch handler to the correct level.
+If you've introduced a new `DatexExpression` and not a simple operator, you need
+to extend the parser logic to account for it and map it to the corresponding
+`DatexExpression` variant and add the token branch handler to the correct level.
 
 ```rust
 let custom_expression = select! {
@@ -211,7 +255,10 @@ let atom = choice((
 ```
 
 ### Add a Test
-Finally, you should add a test to ensure that your new syntax element is parsed correctly. This is done in the [`datex-core/src/compiler/parser.rs`](../../src/compiler/ast_parser) module.
+
+Finally, you should add a test to ensure that your new syntax element is parsed
+correctly. This is done in the
+[`datex-core/src/compiler/parser.rs`](../../src/compiler/ast_parser) module.
 
 ```rust
 #[cfg(test)]
@@ -219,7 +266,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_custom_expression() {
+    fn custom_expression() {
         let input = "whatever";
         let expected = DatexExpression::YourExpression("whatever");
         let result = parse(input);
@@ -232,7 +279,7 @@ In the case of the `is` operator, you would add a test like this:
 
 ```rust
 #[test]
-fn test_equal_operators() {
+fn equal_operators() {
     let src = "5 is 1 + 2";
     let val = parse_unwrap(src);
     assert_eq!(
@@ -251,9 +298,15 @@ fn test_equal_operators() {
 ```
 
 ## Extend the Compiler
-The next step is to extend the compiler to handle for the new syntax element. This is done in the [`datex-core/src/compiler/bytecode.rs`](../../src/compiler/bytecode.rs) module.
 
-First of all we have to design how we want to represent our new syntax element in the bytecode. For the `is` operator, we will do something similar as we do for addition and other binary operations. The operator will be the first instruction, followed by the (two) operands.
+The next step is to extend the compiler to handle for the new syntax element.
+This is done in the
+[`datex-core/src/compiler/bytecode.rs`](../../src/compiler/bytecode.rs) module.
+
+First of all we have to design how we want to represent our new syntax element
+in the bytecode. For the `is` operator, we will do something similar as we do
+for addition and other binary operations. The operator will be the first
+instruction, followed by the (two) operands.
 
 ```rust
 /// 1 is 2
@@ -287,11 +340,12 @@ vec![
 ];
 ```
 
-Let's start by creating a test case for our new `is` operator in the `tests` section of the bytecode compiler:
+Let's start by creating a test case for our new `is` operator in the `tests`
+section of the bytecode compiler:
 
 ```rust
 #[test]
-fn test_is_operator() {
+fn is_operator() {
     init_logger();
 
     let datex_script = format!("1 is 2");
@@ -309,9 +363,16 @@ fn test_is_operator() {
 }
 ```
 
-*Note that the syntax of the `compile_and_log` call must be valid DATEX syntax (except for now our new `is` operator, which is not yet implemented). Please also note that the `1 is 2` code snippet will most likely throw a compile error later, since the `is` operator will only be valid for reference identity checks and not for value equality, so the example of `1 is 2` is mainly to bring the point across with a not too complex example for this guide.*
+_Note that the syntax of the `compile_and_log` call must be valid DATEX syntax
+(except for now our new `is` operator, which is not yet implemented). Please
+also note that the `1 is 2` code snippet will most likely throw a compile error
+later, since the `is` operator will only be valid for reference identity checks
+and not for value equality, so the example of `1 is 2` is mainly to bring the
+point across with a not too complex example for this guide._
 
-To allow the `compile_expression` method to handle our new syntax, we have to add a new match arm for the `BinaryOperation` variant in the `compile_expression` method:
+To allow the `compile_expression` method to handle our new syntax, we have to
+add a new match arm for the `BinaryOperation` variant in the
+`compile_expression` method:
 
 ```rust
 match ast {
@@ -322,7 +383,11 @@ match ast {
     }
 }
 ```
-If your new syntax element requires special serialization, such as representation as multiple instruction codes you can implement it inside of the match by modifing the `compilation_scope` buffer using the utility methods provided by the `CompilationScope` struct:
+
+If your new syntax element requires special serialization, such as
+representation as multiple instruction codes you can implement it inside of the
+match by modifing the `compilation_scope` buffer using the utility methods
+provided by the `CompilationScope` struct:
 
 ```rust
 compilation_scope.append_binary_code(InstructionCode::WHATEVER);
@@ -331,17 +396,26 @@ compilation_scope.insert_decimal(...);
 // or similar
 ```
 
-Since the `is` operator is a binary operation, we don't have to do any modification since the `DatexExpression::BinaryOperation` is already handled in the `compile_expression` method and we've already added the `BinaryOperator::Is` to the `BinaryOperator` enum.
+Since the `is` operator is a binary operation, we don't have to do any
+modification since the `DatexExpression::BinaryOperation` is already handled in
+the `compile_expression` method and we've already added the `BinaryOperator::Is`
+to the `BinaryOperator` enum.
 
-Make sure that the test runs successfully and the bytecode is generated correctly.
+Make sure that the test runs successfully and the bytecode is generated
+correctly.
 
 ## Extend the Runtime
-Finally, you need to extend the runtime to handle the new syntax element. This is done in the [`datex-core/src/runtime/execution.rs`](../../src/runtime/execution.rs) module.
-We'll start by adding a new test that calls the `execute_datex_script_debug_with_result` helper method with a simple `is` expression:
+
+Finally, you need to extend the runtime to handle the new syntax element. This
+is done in the
+[`datex-core/src/runtime/execution.rs`](../../src/runtime/execution.rs) module.
+We'll start by adding a new test that calls the
+`execute_datex_script_debug_with_result` helper method with a simple `is`
+expression:
 
 ```rust
 #[test]
-fn test_is() {
+fn is() {
     let result = execute_datex_script_debug_with_result("1 is 1");
     assert_eq!(result, true.into());
     assert_structural_eq!(result, ValueContainer::from(true));
@@ -352,7 +426,12 @@ fn test_is() {
 }
 ```
 
-We have to add a new match arm for the `Instruction::Is` instruction holder in the `execute_loop` method. Since out Instruction::Is doesn't hold any payload, we can simply match it and set the active operation to `Instruction::Is` in the `context.scope_stack` as we did for addition and other binary operations. This will allow us to handle the `is` operation in the next iteration of the execution loop, where we will have two operands available.
+We have to add a new match arm for the `Instruction::Is` instruction holder in
+the `execute_loop` method. Since out Instruction::Is doesn't hold any payload,
+we can simply match it and set the active operation to `Instruction::Is` in the
+`context.scope_stack` as we did for addition and other binary operations. This
+will allow us to handle the `is` operation in the next iteration of the
+execution loop, where we will have two operands available.
 
 ```rust
 let value: ActiveValue = match instruction {
@@ -372,7 +451,12 @@ let value: ActiveValue = match instruction {
 };
 ```
 
-Since in this case we need two operands to perform the `is` operation, we will handle it in the next iteration of the execution loop. The `context.scope_stack` will hold the active operation and the operands will be available in the next iteration. So for operators we must also add a match arm for the `Instruction::Is` inside of the `handle_value` method, which will handle the actual operation:
+Since in this case we need two operands to perform the `is` operation, we will
+handle it in the next iteration of the execution loop. The `context.scope_stack`
+will hold the active operation and the operands will be available in the next
+iteration. So for operators we must also add a match arm for the
+`Instruction::Is` inside of the `handle_value` method, which will handle the
+actual operation:
 
 ```rust
 let res = match operation {
@@ -387,10 +471,13 @@ let res = match operation {
 ```
 
 ## Conclusion
-You have now successfully extended the DATEX syntax by adding a new keyword or operator, updating the parser, compiler, and runtime to handle it. Please make sure to run all tests to ensure that everything works as expected.
 
-Please run `cargo bench` to ensure that the performance is still acceptable and that no performance regressions have been introduced.
+You have now successfully extended the DATEX syntax by adding a new keyword or
+operator, updating the parser, compiler, and runtime to handle it. Please make
+sure to run all tests to ensure that everything works as expected.
 
+Please run `cargo bench` to ensure that the performance is still acceptable and
+that no performance regressions have been introduced.
 
 ---
 

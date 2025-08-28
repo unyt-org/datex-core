@@ -781,7 +781,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_typed_integer_addition() {
+    fn typed_integer_addition() {
         let a = TypedInteger::I8(10);
         let b = TypedInteger::I8(20);
 
@@ -803,7 +803,7 @@ mod tests {
     }
 
     #[test]
-    fn test_typed_integer_subtraction() {
+    fn typed_integer_subtraction() {
         let a = TypedInteger::I8(30);
         let b = TypedInteger::I8(20);
         let result = a - b;
@@ -834,7 +834,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer_addition() {
+    fn integer_addition() {
         let a = TypedInteger::from(10_i8);
         let b = TypedInteger::from(20_i8);
         let result = a + b;
@@ -842,7 +842,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         let a = TypedInteger::from(1_i8);
         assert_eq!(a, TypedInteger::I8(1));
 

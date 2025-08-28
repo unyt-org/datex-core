@@ -1174,17 +1174,17 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_script() {
+    fn empty_script() {
         assert_eq!(execute_datex_script_debug(""), None);
     }
 
     #[test]
-    fn test_empty_script_semicolon() {
+    fn empty_script_semicolon() {
         assert_eq!(execute_datex_script_debug(";;;"), None);
     }
 
     #[test]
-    fn test_single_value() {
+    fn single_value() {
         assert_eq!(
             execute_datex_script_debug_with_result("42"),
             Integer::from(42i8).into()
@@ -1192,19 +1192,19 @@ mod tests {
     }
 
     #[test]
-    fn test_single_value_semicolon() {
+    fn single_value_semicolon() {
         assert_eq!(execute_datex_script_debug("42;"), None)
     }
 
     #[test]
-    fn test_is() {
+    fn is() {
         let result = execute_datex_script_debug_with_result("1 is 1");
         assert_eq!(result, false.into());
         assert_structural_eq!(result, ValueContainer::from(false));
     }
 
     #[test]
-    fn test_equality() {
+    fn equality() {
         let result = execute_datex_script_debug_with_result("1 == 1");
         assert_eq!(result, true.into());
         assert_structural_eq!(result, ValueContainer::from(true));
@@ -1234,27 +1234,27 @@ mod tests {
     }
 
     #[test]
-    fn test_single_value_scope() {
+    fn single_value_scope() {
         let result = execute_datex_script_debug_with_result("(42)");
         assert_eq!(result, Integer::from(42i8).into());
         assert_structural_eq!(result, ValueContainer::from(42_u128));
     }
 
     #[test]
-    fn test_add() {
+    fn add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
         assert_eq!(result, Integer::from(3i8).into());
         assert_structural_eq!(result, ValueContainer::from(3i8));
     }
 
     #[test]
-    fn test_nested_scope() {
+    fn nested_scope() {
         let result = execute_datex_script_debug_with_result("1 + (2 + 3)");
         assert_eq!(result, Integer::from(6i8).into());
     }
 
     #[test]
-    fn test_invalid_scope_close() {
+    fn invalid_scope_close() {
         let result = execute_dxb_debug(&[
             InstructionCode::SCOPE_START.into(),
             InstructionCode::SCOPE_END.into(),
@@ -1269,7 +1269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_array() {
+    fn empty_array() {
         let result = execute_datex_script_debug_with_result("[]");
         let array: Array = result.to_value().borrow().cast_to_array().unwrap();
         assert_eq!(array.len(), 0);
@@ -1278,7 +1278,7 @@ mod tests {
     }
 
     #[test]
-    fn test_array() {
+    fn array() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
         let array: Array = result.to_value().borrow().cast_to_array().unwrap();
         let expected = datex_array![
@@ -1293,7 +1293,7 @@ mod tests {
     }
 
     #[test]
-    fn test_array_with_nested_scope() {
+    fn array_with_nested_scope() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
         let expected = datex_array![
@@ -1311,7 +1311,7 @@ mod tests {
     }
 
     #[test]
-    fn test_boolean() {
+    fn boolean() {
         let result = execute_datex_script_debug_with_result("true");
         assert_eq!(result, true.into());
         assert_structural_eq!(result, ValueContainer::from(true));
@@ -1322,21 +1322,21 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal() {
+    fn decimal() {
         let result = execute_datex_script_debug_with_result("1.5");
         assert_eq!(result, Decimal::from_string("1.5").into());
         assert_structural_eq!(result, ValueContainer::from(1.5));
     }
 
     #[test]
-    fn test_decimal_and_integer() {
+    fn decimal_and_integer() {
         let result = execute_datex_script_debug_with_result("-2341324.0");
         assert_eq!(result, Decimal::from_string("-2341324").into());
         assert!(!result.structural_eq(&ValueContainer::from(-2341324)));
     }
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
@@ -1347,7 +1347,7 @@ mod tests {
     // FIXME these shall produce TypedInteger values, not Integer
     // but this will only work once the compiler supports the type system
     #[test]
-    fn test_typed_integer() {
+    fn typed_integer() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("-2i16");
         assert_eq!(result, Integer::from(-2i16).into());
@@ -1391,7 +1391,7 @@ mod tests {
     }
 
     #[test]
-    fn test_null() {
+    fn null() {
         let result = execute_datex_script_debug_with_result("null");
         assert_eq!(result, ValueContainer::from(CoreValue::Null));
         assert_eq!(result, CoreValue::Null.into());
@@ -1399,7 +1399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple() {
+    fn tuple() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
         let tuple: CoreValue = result.clone().to_value().borrow().clone().inner;
@@ -1443,14 +1443,14 @@ mod tests {
     }
 
     #[test]
-    fn test_val_assignment() {
+    fn val_assignment() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("const x = 42; x");
         assert_eq!(result, Integer::from(42i8).into());
     }
 
     #[test]
-    fn test_val_assignment_with_addition() {
+    fn val_assignment_with_addition() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = 1 + 2; x");
@@ -1458,7 +1458,7 @@ mod tests {
     }
 
     #[test]
-    fn test_val_assignment_inside_scope() {
+    fn val_assignment_inside_scope() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
@@ -1471,7 +1471,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ref_assignment() {
+    fn ref_assignment() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x");
@@ -1480,7 +1480,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ref_add_assignment() {
+    fn ref_add_assignment() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x += 1");
@@ -1497,7 +1497,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ref_sub_assignment() {
+    fn ref_sub_assignment() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x -= 1");
@@ -1514,21 +1514,21 @@ mod tests {
     }
 
     #[test]
-    fn test_endpoint_slot() {
+    fn endpoint_slot() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_error("#endpoint");
         assert_matches!(result.unwrap_err(), ExecutionError::RequiresRuntime);
     }
 
     #[test]
-    fn test_shebang() {
+    fn shebang() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("#!datex\n42");
         assert_eq!(result, Integer::from(42i8).into());
     }
 
     #[test]
-    fn test_single_line_comment() {
+    fn single_line_comment() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("// this is a comment\n42");
@@ -1541,7 +1541,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multi_line_comment() {
+    fn multi_line_comment() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment */\n42",

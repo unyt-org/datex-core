@@ -344,7 +344,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_dif_value_serialization() {
+    fn dif_value_serialization() {
         let value = DIFValue {
             value: None,
             core_type: CoreValueType::Null,
@@ -358,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dif_property_serialization() {
+    fn dif_property_serialization() {
         let property = DIFProperty::Text("example".to_string());
         let serialized = serde_json::to_string(&property).unwrap();
         let deserialized: DIFProperty =
@@ -367,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_value_container_i32() {
+    fn from_value_container_i32() {
         let value_container = ValueContainer::from(42i32);
         let dif_value: DIFValue = DIFValue::from(&value_container);
         assert_eq!(dif_value.value, Some(DIFCoreValue::Number(42f64)));
@@ -379,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_value_container_text() {
+    fn from_value_container_text() {
         let value_container = ValueContainer::from("Hello, World!");
         let dif_value: DIFValue = DIFValue::from(&value_container);
         assert_eq!(
@@ -392,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_value_container_i32() {
+    fn to_value_container_i32() {
         let dif_value = DIFValue {
             value: Some(DIFCoreValue::Number(42f64)),
             core_type: CoreValueType::I32,
@@ -412,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_value_container_text() {
+    fn to_value_container_text() {
         let dif_value = DIFValue {
             value: Some(DIFCoreValue::String("Hello, World!".to_string())),
             core_type: CoreValueType::Text,

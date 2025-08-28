@@ -253,7 +253,7 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn test_endpoint() {
+    fn endpoint() {
         init_logger_debug();
         let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
         assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cast_type() {
+    fn cast_type() {
         init_logger_debug();
         let a = Value::from(42);
         let b = a.try_cast_to(CoreValueType::Text).unwrap();
@@ -373,7 +373,7 @@ mod tests {
     }
 
     #[test]
-    fn test_null() {
+    fn null() {
         init_logger_debug();
 
         let null_value = Value::null();
@@ -387,7 +387,7 @@ mod tests {
     }
 
     #[test]
-    fn test_addition() {
+    fn addition() {
         init_logger_debug();
         let a = Value::from(42i8);
         let b = Value::from(27i8);
@@ -404,7 +404,7 @@ mod tests {
     }
 
     #[test]
-    fn test_string_concatenation() {
+    fn string_concatenation() {
         init_logger_debug();
         let a = Value::from("Hello ");
         let b = Value::from(42i8);
@@ -426,7 +426,7 @@ mod tests {
     }
 
     #[test]
-    fn test_structural_equality() {
+    fn structural_equality() {
         let a = Value::from(42_i8);
         let b = Value::from(42_i32);
 

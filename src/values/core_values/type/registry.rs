@@ -55,7 +55,7 @@ mod tests {
     };
 
     #[test]
-    fn test_register() {
+    fn register() {
         let mut registry = super::TypeRegistry::default();
 
         // variant
@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn test_base_type_not_found() {
+    fn base_type_not_found() {
         let mut registry = super::TypeRegistry::default();
         let base_type_path = TypePath::parse("my:non_existing_base");
         let type_path = TypePath::parse("my:my_new_type/variant");

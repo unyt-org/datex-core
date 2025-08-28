@@ -289,7 +289,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     #[test]
-    fn test_reference_identity() {
+    fn reference_identity() {
         let value = 42;
         let reference1 = Reference::from(value);
         let reference2 = reference1.clone();
@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reference_value_equality() {
+    fn reference_value_equality() {
         let value = 42;
         let reference1 = ValueContainer::Reference(Reference::from(value));
         let reference2 = ValueContainer::Reference(Reference::from(value));
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reference_structural_equality() {
+    fn reference_structural_equality() {
         let reference1 = Reference::from(42.0);
         let reference2 = Reference::from(42);
 
@@ -331,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_references() {
+    fn nested_references() {
         let mut object_a = Object::new();
         object_a.set("number", ValueContainer::from(42));
         object_a.set("obj", ValueContainer::from(Object::new()));
@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn test_value_change_observe() {
+    fn value_change_observe() {
         let int_ref = Reference::from(42);
 
         let observer_dif: Rc<RefCell<Option<DIFUpdate>>> =

@@ -743,7 +743,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_addition() {
+    fn addition() {
         init_logger_debug();
         let a = CoreValue::from(42i32);
         let b = CoreValue::from(11i32);
@@ -760,14 +760,14 @@ mod tests {
     }
 
     #[test]
-    fn test_endpoint() {
+    fn endpoint() {
         let endpoint: Endpoint = CoreValue::from("@test").try_into().unwrap();
         debug!("Endpoint: {endpoint}");
         assert_eq!(endpoint.to_string(), "@test");
     }
 
     #[test]
-    fn test_integer_decimal_casting() {
+    fn integer_decimal_casting() {
         let int_value = CoreValue::from(42);
         assert_eq!(
             int_value.cast_to(CoreValueType::Decimal).unwrap(),
@@ -782,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    fn test_boolean_casting() {
+    fn boolean_casting() {
         let bool_value = CoreValue::from(true);
         assert_eq!(
             bool_value.cast_to(CoreValueType::Boolean).unwrap(),
@@ -809,7 +809,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_casting() {
+    fn invalid_casting() {
         let text_value = CoreValue::from("Hello, World!");
         assert_eq!(text_value.cast_to(CoreValueType::Integer), None);
         assert_eq!(text_value.cast_to(CoreValueType::I16), None);

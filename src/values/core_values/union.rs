@@ -120,7 +120,7 @@ mod tests {
     };
 
     #[test]
-    fn test_union_creation() {
+    fn union_creation() {
         let union = Union::new(
             datex_array![Integer::from(1), Text::from("test")].into(),
         );
@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn test_duplicate_union_options() {
+    fn duplicate_union_options() {
         let union = Union::new(vec![
             ValueContainer::from(1),
             ValueContainer::from(1),
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn test_union_matches() {
+    fn union_matches() {
         let union = Union::new(
             datex_array![Integer::from(1), Text::from("test")].into(),
         );
@@ -165,14 +165,14 @@ mod tests {
     }
 
     #[test]
-    fn test_union_display() {
+    fn union_display() {
         let union =
             Union::new(vec![ValueContainer::from(1), ValueContainer::from(2)]);
         assert_eq!(union.to_string(), "1 | 2");
     }
 
     #[test]
-    fn test_integer_and_typed_integer() {
+    fn integer_and_typed_integer() {
         let union = Union::new(
             datex_array![TypedInteger::from(1u8), Integer::from(1)].into(),
         );
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type() {
+    fn typed() {
         let union = Union::new(datex_array![integer()].into());
 
         assert_eq!(union.len(), 1);
@@ -199,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_and_value() {
+    fn type_and_value() {
         let union =
             Union::new(datex_array![Integer::from(1), integer()].into());
 

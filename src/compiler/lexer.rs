@@ -335,7 +335,7 @@ mod tests {
     use logos::Logos;
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         let mut lexer = Token::lexer("42");
         assert_eq!(
             lexer.next().unwrap(),
@@ -347,7 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer_type() {
+    fn integer_type() {
         let mut lexer = Token::lexer("42u8");
         let res = lexer.next().unwrap();
         if let Ok(Token::DecimalIntegerLiteral(literal)) = res {
@@ -370,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer_with_type() {
+    fn integer_with_type() {
         let mut lexer = Token::lexer("42u8");
         assert_eq!(
             lexer.next().unwrap(),
@@ -400,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal() {
+    fn decimal() {
         let mut lexer = Token::lexer("3.14");
         assert_eq!(
             lexer.next().unwrap(),
@@ -412,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_type() {
+    fn decimal_with_type() {
         let mut lexer = Token::lexer("3.14f32");
         assert_eq!(
             lexer.next().unwrap(),
@@ -433,7 +433,7 @@ mod tests {
     }
 
     #[test]
-    fn test_infinity() {
+    fn infinity() {
         let mut lexer = Token::lexer("Infinity");
         assert_eq!(
             lexer.next().unwrap(),
@@ -460,7 +460,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nan() {
+    fn nan() {
         let mut lexer = Token::lexer("NaN");
         assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
 
@@ -475,7 +475,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fraction() {
+    fn fraction() {
         let mut lexer = Token::lexer("1/2");
         assert_eq!(
             lexer.next().unwrap(),
@@ -496,7 +496,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hexadecimal_integer() {
+    fn hexadecimal_integer() {
         let mut lexer = Token::lexer("0x1A3F");
         assert_eq!(
             lexer.next().unwrap(),
@@ -517,7 +517,7 @@ mod tests {
     }
 
     #[test]
-    fn test_binary_integer() {
+    fn binary_integer() {
         let mut lexer = Token::lexer("0b1010");
         assert_eq!(
             lexer.next().unwrap(),
@@ -538,7 +538,7 @@ mod tests {
     }
 
     #[test]
-    fn test_octal_integer() {
+    fn octal_integer() {
         let mut lexer = Token::lexer("0o755");
         assert_eq!(
             lexer.next().unwrap(),
@@ -559,7 +559,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integers_with_underscores() {
+    fn integers_with_underscores() {
         let mut lexer = Token::lexer("1_000");
         assert_eq!(
             lexer.next().unwrap(),
@@ -589,7 +589,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimals_with_underscores() {
+    fn decimals_with_underscores() {
         let mut lexer = Token::lexer("1_000.123_456");
         assert_eq!(
             lexer.next().unwrap(),
@@ -619,7 +619,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add() {
+    fn add() {
         let mut lexer = Token::lexer("1 + 2");
         assert_eq!(
             lexer.next().unwrap(),
@@ -642,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_add() {
+    fn invalid_add() {
         let mut lexer = Token::lexer("1+2");
         assert_eq!(
             lexer.next().unwrap(),
@@ -661,7 +661,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_fraction() {
+    fn invalid_fraction() {
         let mut lexer = Token::lexer("42.4/3");
         assert_eq!(
             lexer.next().unwrap(),
@@ -681,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn test_equality() {
+    fn equality() {
         let mut lexer = Token::lexer("a == b");
         assert_eq!(
             lexer.next().unwrap(),
@@ -698,7 +698,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_operator() {
+    fn is_operator() {
         let mut lexer = Token::lexer("a is b");
         assert_eq!(
             lexer.next().unwrap(),
@@ -715,7 +715,7 @@ mod tests {
     }
 
     #[test]
-    fn test_line_doc() {
+    fn line_doc() {
         let mut lexer = Token::lexer("/// This is a line doc\n42");
         assert_eq!(
             lexer.next().unwrap(),
@@ -733,7 +733,7 @@ mod tests {
     }
 
     #[test]
-    fn test_divide() {
+    fn divide() {
         let mut lexer = Token::lexer("8 /2");
         assert_eq!(
             lexer.next().unwrap(),

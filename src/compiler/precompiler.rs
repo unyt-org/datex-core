@@ -589,14 +589,14 @@ mod tests {
     }
 
     #[test]
-    fn test_undeclared_variable() {
+    fn undeclared_variable() {
         let result = parse_and_precompile("x + 42");
         assert!(result.is_err());
         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "x");
     }
 
     #[test]
-    fn test_variant_access() {
+    fn variant_access() {
         // reserved type should work
         let result =
             parse_and_precompile("integer/u8").expect("Precompilation failed");

@@ -412,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_struct_serde() {
+    fn nested_struct_serde() {
         let script = r#"
             {
                 nested: {
@@ -437,7 +437,7 @@ mod tests {
 
     // WIP
     #[test]
-    fn test_from_bytes() {
+    fn struct_from_bytes() {
         let data = to_bytes(&TestStruct {
             field1: "Hello".to_string(),
             field2: 42,
@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_script() {
+    fn from_script() {
         init_logger();
         let script = r#"
             {
@@ -481,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enum_1() {
+    fn enum_1() {
         let script = r#""Variant1""#;
         let dxb = compile_script(script, CompileOptions::default())
             .expect("Failed to compile script")
@@ -494,7 +494,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enum_2() {
+    fn enum_2() {
         let script = r#""Variant2""#;
         let dxb = compile_script(script, CompileOptions::default())
             .expect("Failed to compile script")
@@ -507,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_with_enum() {
+    fn struct_with_enum() {
         let script = r#"
             {
                 test_enum: "Variant1"
@@ -524,7 +524,7 @@ mod tests {
     }
 
     #[test]
-    fn test_endpoint() {
+    fn endpoint() {
         let script = r#"
             {
                 endpoint: @jonas
@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optional_field() {
+    fn optional_field() {
         let script = r#"
             {
                 optional_field: "Optional Value"
@@ -561,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optional_field_empty() {
+    fn optional_field_empty() {
         let script = r#"
             {
                 optional_field: null
@@ -579,7 +579,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optional_endpoint() {
+    fn optional_endpoint() {
         let script = r#"
             {
                 endpoint: @jonas
@@ -604,7 +604,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map() {
+    fn map() {
         let script = r#"("Variant1", "xy")"#;
         let dxb = compile_script(script, CompileOptions::default())
             .expect("Failed to compile script")

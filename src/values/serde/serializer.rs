@@ -462,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_value_container() {
+    fn struct_to_value_container() {
         let test_struct = TestStruct {
             field1: "Hello".to_string(),
             field2: 42,
@@ -473,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes() {
+    fn struct_to_bytes() {
         let test_struct = TestStruct {
             field1: "Hello".to_string(),
             field2: 42,
@@ -484,7 +484,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes_with_struct_with_usize() {
+    fn to_bytes_with_struct_with_usize() {
         let test_struct = StructWithUSize { usize: Some(42) };
         let result = to_value_container(&test_struct);
         assert!(result.is_ok());
@@ -502,7 +502,7 @@ mod tests {
     }
 
     #[test]
-    fn test_datex_serializer() {
+    fn datex_serializer() {
         let mut serializer = DatexSerializer::new();
         let test_struct = TestStruct {
             field1: "Hello".to_string(),
@@ -520,7 +520,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enum() {
+    fn enum_value_container() {
         let test_enum = TestEnum::Variant1;
         let result = to_value_container(&test_enum);
         assert!(result.is_ok());
@@ -530,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn test_endpoint() {
+    fn endpoint() {
         let test_struct = TestStructWithEndpoint {
             endpoint: Endpoint::new("@test"),
         };

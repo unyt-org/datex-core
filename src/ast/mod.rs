@@ -484,7 +484,7 @@ mod tests {
     }
 
     #[test]
-    fn test_json() {
+    fn json() {
         let src = r#"
             {
                 "name": "Test",
@@ -605,7 +605,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_endpoint() {
+    fn parse_error_endpoint() {
         let src = "@j0Onas";
         let result = parse_print_error(src);
         let errors = result.err().unwrap();
@@ -619,7 +619,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_missing_token() {
+    fn parse_error_missing_token() {
         let src = r#"
         var x = 52; var y = ; 
         var y = 5
@@ -639,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_multiple() {
+    fn parse_error_multiple() {
         let src = r#"
         var x = @j0Onas;
         var z = 10;
@@ -663,7 +663,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_invalid_declaration() {
+    fn parse_error_invalid_declaration() {
         let src = "var x = 10; const x += 5;";
         let result = parse_print_error(src);
         let errors = result.err().unwrap();
@@ -677,7 +677,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_u8() {
+    fn parse_error_u8() {
         let src = "var x = 256u8;";
         let result = parse_print_error(src);
         let errors = result.err().unwrap();
@@ -691,7 +691,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_typed_decimal() {
+    fn parse_error_typed_decimal() {
         let src: &'static str =
             "var x = 10000000000000000000000000000000000000000000000000.3f32";
         let result = parse_print_error(src);
@@ -707,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn test_function_simple() {
+    fn function_simple() {
         let src = r#"
             function myFunction() (
                 42
@@ -726,7 +726,7 @@ mod tests {
     }
 
     #[test]
-    fn test_function_with_params() {
+    fn function_with_params() {
         let src = r#"
             function myFunction(x: integer) (
                 42
@@ -810,7 +810,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_var_declaration() {
+    fn type_var_declaration() {
         let src = "var x: 5 = 42";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -853,7 +853,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersection() {
+    fn intersection() {
         let src = "5 & 6";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -888,7 +888,7 @@ mod tests {
     }
 
     #[test]
-    fn test_union() {
+    fn union() {
         let src = "5 | 6";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -923,7 +923,7 @@ mod tests {
     }
 
     #[test]
-    fn test_binary_operator_precedence() {
+    fn binary_operator_precedence() {
         let src = "1 + 2 * 3";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -971,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    fn test_var_declaration_with_type_simple() {
+    fn var_declaration_with_type_simple() {
         let src = "var x: integer = 42";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -1031,7 +1031,7 @@ mod tests {
     }
 
     #[test]
-    fn test_var_declaration_with_type_union() {
+    fn var_declaration_with_type_union() {
         let src = "var x: integer/u8 | text = 42";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -1061,7 +1061,7 @@ mod tests {
     }
 
     #[test]
-    fn test_var_declaration_with_type_intersection() {
+    fn var_declaration_with_type_intersection() {
         let src = "var x: 5 & 6 = 42";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -1111,7 +1111,7 @@ mod tests {
     }
 
     #[test]
-    fn test_equal_operators() {
+    fn equal_operators() {
         let src = "3 == 1 + 2";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -1188,14 +1188,14 @@ mod tests {
     }
 
     #[test]
-    fn test_null() {
+    fn null() {
         let src = "null";
         let val = parse_unwrap(src);
         assert_eq!(val, DatexExpression::Null);
     }
 
     #[test]
-    fn test_boolean() {
+    fn boolean() {
         let src_true = "true";
         let val_true = parse_unwrap(src_true);
         assert_eq!(val_true, DatexExpression::Boolean(true));
@@ -1206,7 +1206,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         let src = "123456789123456789";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1218,7 +1218,7 @@ mod tests {
     }
 
     #[test]
-    fn test_negative_integer() {
+    fn negative_integer() {
         let src = "-123456789123456789";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1230,7 +1230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer_with_underscores() {
+    fn integer_with_underscores() {
         let src = "123_456";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1240,7 +1240,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hex_integer() {
+    fn hex_integer() {
         let src = "0x1A2B3C4D5E6F";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1252,7 +1252,7 @@ mod tests {
     }
 
     #[test]
-    fn test_octal_integer() {
+    fn octal_integer() {
         let src = "0o755";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1264,7 +1264,7 @@ mod tests {
     }
 
     #[test]
-    fn test_binary_integer() {
+    fn binary_integer() {
         let src = "0b101010";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1276,7 +1276,7 @@ mod tests {
     }
 
     #[test]
-    fn test_integer_with_exponent() {
+    fn integer_with_exponent() {
         let src = "2e10";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1286,7 +1286,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal() {
+    fn decimal() {
         let src = "123.456789123456";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1296,7 +1296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_separator() {
+    fn decimal_with_separator() {
         let cases = [
             ("123_45_6.789", "123456.789"),
             ("123.443_3434", "123.4433434"),
@@ -1317,7 +1317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_negative_decimal() {
+    fn negative_decimal() {
         let src = "-123.4";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1327,7 +1327,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_exponent() {
+    fn decimal_with_exponent() {
         let src = "1.23456789123456e2";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1337,7 +1337,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_negative_exponent() {
+    fn decimal_with_negative_exponent() {
         let src = "1.23456789123456e-2";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1349,7 +1349,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_positive_exponent() {
+    fn decimal_with_positive_exponent() {
         let src = "1.23456789123456E+2";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1359,7 +1359,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_trailing_point() {
+    fn decimal_with_trailing_point() {
         let src = "123.";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1369,7 +1369,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_with_leading_point() {
+    fn decimal_with_leading_point() {
         let src = ".456789123456";
         let num = parse_unwrap(src);
         assert_eq!(
@@ -1386,21 +1386,21 @@ mod tests {
     }
 
     #[test]
-    fn test_text_double_quotes() {
+    fn text_double_quotes() {
         let src = r#""Hello, world!""#;
         let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("Hello, world!".to_string()));
     }
 
     #[test]
-    fn test_text_single_quotes() {
+    fn text_single_quotes() {
         let src = r#"'Hello, world!'"#;
         let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("Hello, world!".to_string()));
     }
 
     #[test]
-    fn test_text_escape_sequences() {
+    fn text_escape_sequences() {
         let src =
             r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00 \u2764""#;
         let text = parse_unwrap(src);
@@ -1414,7 +1414,7 @@ mod tests {
     }
 
     #[test]
-    fn test_text_escape_sequences_2() {
+    fn text_escape_sequences_2() {
         let src =
             r#""\u0048\u0065\u006C\u006C\u006F, \u2764\uFE0F, \uD83D\uDE00""#;
         let text = parse_unwrap(src);
@@ -1422,28 +1422,28 @@ mod tests {
     }
 
     #[test]
-    fn test_text_nested_escape_sequences() {
+    fn text_nested_escape_sequences() {
         let src = r#""\\\\""#;
         let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("\\\\".to_string()));
     }
 
     #[test]
-    fn test_text_nested_escape_sequences_2() {
+    fn text_nested_escape_sequences_2() {
         let src = r#""\\\"""#;
         let text = parse_unwrap(src);
         assert_eq!(text, DatexExpression::Text("\\\"".to_string()));
     }
 
     #[test]
-    fn test_empty_array() {
+    fn empty_array() {
         let src = "[]";
         let arr = parse_unwrap(src);
         assert_eq!(arr, DatexExpression::Array(vec![]));
     }
 
     #[test]
-    fn test_array_with_values() {
+    fn array_with_values() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
         let arr = parse_unwrap(src);
 
@@ -1460,7 +1460,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_object() {
+    fn empty_object() {
         let src = "{}";
         let obj = parse_unwrap(src);
 
@@ -1468,7 +1468,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple() {
+    fn tuple() {
         let src = "1,2";
         let tuple = parse_unwrap(src);
 
@@ -1482,7 +1482,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scoped_tuple() {
+    fn scoped_tuple() {
         let src = "(1, 2)";
         let tuple = parse_unwrap(src);
 
@@ -1496,7 +1496,7 @@ mod tests {
     }
 
     #[test]
-    fn test_keyed_tuple() {
+    fn keyed_tuple() {
         let src = "1: 2, 3: 4, xy:2, 'a b c': 'd'";
         let tuple = parse_unwrap(src);
 
@@ -1524,7 +1524,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple_array() {
+    fn tuple_array() {
         let src = "[(1,2),3,(4,)]";
         let arr = parse_unwrap(src);
 
@@ -1548,7 +1548,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_value_tuple() {
+    fn single_value_tuple() {
         let src = "1,";
         let tuple = parse_unwrap(src);
 
@@ -1561,7 +1561,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_key_value_tuple() {
+    fn single_key_value_tuple() {
         let src = "x: 1";
         let tuple = parse_unwrap(src);
         assert_eq!(
@@ -1574,14 +1574,14 @@ mod tests {
     }
 
     #[test]
-    fn test_scoped_atom() {
+    fn scoped_atom() {
         let src = "(1)";
         let atom = parse_unwrap(src);
         assert_eq!(atom, DatexExpression::Integer(Integer::from(1)));
     }
 
     #[test]
-    fn test_scoped_array() {
+    fn scoped_array() {
         let src = "(([1, 2, 3]))";
         let arr = parse_unwrap(src);
 
@@ -1596,7 +1596,7 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_key_value_pairs() {
+    fn object_with_key_value_pairs() {
         let src = r#"{"key1": "value1", "key2": 42, "key3": true}"#;
         let obj = parse_unwrap(src);
 
@@ -1620,7 +1620,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dynamic_object_keys() {
+    fn dynamic_object_keys() {
         let src = r#"{(1): "value1", (2): 42, (3): true}"#;
         let obj = parse_unwrap(src);
         assert_eq!(
@@ -1643,7 +1643,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dynamic_tuple_keys() {
+    fn dynamic_tuple_keys() {
         let src = "(1): 1, ([]): 2";
         let tuple = parse_unwrap(src);
 
@@ -1663,7 +1663,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add() {
+    fn add() {
         // Test with escaped characters in text
         let src = "1 + 2";
         let expr = parse_unwrap(src);
@@ -1678,7 +1678,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_complex_values() {
+    fn add_complex_values() {
         // Test with escaped characters in text
         let src = "[] + x + (1 + 2)";
         let expr = parse_unwrap(src);
@@ -1701,7 +1701,7 @@ mod tests {
     }
 
     #[test]
-    fn test_subtract() {
+    fn subtract() {
         let src = "5 - 3";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1715,7 +1715,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiply() {
+    fn multiply() {
         let src = "4 * 2";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1729,7 +1729,7 @@ mod tests {
     }
 
     #[test]
-    fn test_divide() {
+    fn divide() {
         let src = "8 / 2";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1767,7 +1767,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complex_calculation() {
+    fn complex_calculation() {
         let src = "1 + 2 * 3 + 4";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1789,7 +1789,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_addition() {
+    fn nested_addition() {
         let src = "1 + (2 + 3)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1807,7 +1807,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_statements_1() {
+    fn add_statements_1() {
         // Test with escaped characters in text
         let src = "1 + (2;3)";
         let expr = parse_unwrap(src);
@@ -1831,7 +1831,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_statements_2() {
+    fn add_statements_2() {
         // Test with escaped characters in text
         let src = "(1;2) + 3";
         let expr = parse_unwrap(src);
@@ -1855,7 +1855,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_expressions() {
+    fn nested_expressions() {
         let src = "[1 + 2]";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1959,7 +1959,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_statement() {
+    fn single_statement() {
         let src = "1;";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -1972,28 +1972,28 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_statement() {
+    fn empty_statement() {
         let src = ";";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![]));
     }
 
     #[test]
-    fn test_empty_statement_multiple() {
+    fn empty_statement_multiple() {
         let src = ";;;";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Statements(vec![]));
     }
 
     #[test]
-    fn test_variable_expression() {
+    fn variable_expression() {
         let src = "myVar";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Literal("myVar".to_string()));
     }
 
     #[test]
-    fn test_variable_expression_with_operations() {
+    fn variable_expression_with_operations() {
         let src = "myVar + 1";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2007,7 +2007,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_expression() {
+    fn apply_expression() {
         let src = "myFunc(1, 2, 3)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2032,7 +2032,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_empty() {
+    fn apply_empty() {
         let src = "myFunc()";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2047,7 +2047,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_multiple() {
+    fn apply_multiple() {
         let src = "myFunc(1)(2, 3)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2072,7 +2072,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_atom() {
+    fn apply_atom() {
         let src = "print 'test'";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2087,7 +2087,7 @@ mod tests {
     }
 
     #[test]
-    fn test_property_access() {
+    fn property_access() {
         let src = "myObj.myProp";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2102,7 +2102,7 @@ mod tests {
     }
 
     #[test]
-    fn test_property_access_scoped() {
+    fn property_access_scoped() {
         let src = "myObj.(1)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2117,7 +2117,7 @@ mod tests {
     }
 
     #[test]
-    fn test_property_access_multiple() {
+    fn property_access_multiple() {
         let src = "myObj.myProp.anotherProp.(1 + 2).(x;y)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2164,7 +2164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_property_access_and_apply() {
+    fn property_access_and_apply() {
         let src = "myObj.myProp(1, 2)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2189,7 +2189,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_and_property_access() {
+    fn apply_and_property_access() {
         let src = "myFunc(1).myProp";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2413,7 +2413,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fraction() {
+    fn fraction() {
         // fraction
         let res = parse_unwrap("42/3");
         assert_eq!(res, DatexExpression::Decimal(Decimal::from_string("42/3")));
@@ -2457,7 +2457,7 @@ mod tests {
     }
 
     #[test]
-    fn test_endpoint() {
+    fn endpoint() {
         let src = "@jonas";
         let val = try_parse_to_value_container(src);
         assert_eq!(
@@ -2526,14 +2526,14 @@ mod tests {
     }
 
     #[test]
-    fn test_placeholder() {
+    fn placeholder() {
         let src = "?";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Placeholder);
     }
 
     #[test]
-    fn test_integer_to_value_container() {
+    fn integer_to_value_container() {
         let src = "123456789123456789";
         let val = try_parse_to_value_container(src);
         assert_eq!(
@@ -2545,7 +2545,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_to_value_container() {
+    fn decimal_to_value_container() {
         let src = "123.456789123456";
         let val = try_parse_to_value_container(src);
         assert_eq!(
@@ -2555,14 +2555,14 @@ mod tests {
     }
 
     #[test]
-    fn test_text_to_value_container() {
+    fn text_to_value_container() {
         let src = r#""Hello, world!""#;
         let val = try_parse_to_value_container(src);
         assert_eq!(val, ValueContainer::from("Hello, world!".to_string()));
     }
 
     #[test]
-    fn test_array_to_value_container() {
+    fn array_to_value_container() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
         let val = try_parse_to_value_container(src);
         let value_container_array: Vec<ValueContainer> = vec![
@@ -2576,7 +2576,7 @@ mod tests {
     }
 
     #[test]
-    fn test_json_to_value_container() {
+    fn json_to_value_container() {
         let src = r#"
             {
                 "name": "Test",
@@ -2617,7 +2617,7 @@ mod tests {
         assert_eq!(val, value_container_object);
     }
     #[test]
-    fn test_invalid_value_containers() {
+    fn invalid_value_containers() {
         let src = "1 + 2";
         let expr = parse_unwrap(src);
         assert!(
@@ -2641,7 +2641,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_add() {
+    fn invalid_add() {
         let src = "1+2";
         let res = parse(src);
         assert!(
@@ -2651,7 +2651,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_nan() {
+    fn decimal_nan() {
         let src = "NaN";
         let num = parse_unwrap(src);
         assert_matches!(num, DatexExpression::Decimal(Decimal::NaN));
@@ -2662,7 +2662,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal_infinity() {
+    fn decimal_infinity() {
         let src = "Infinity";
         let num = parse_unwrap(src);
         assert_eq!(num, DatexExpression::Decimal(Decimal::Infinity));
@@ -2681,7 +2681,7 @@ mod tests {
     }
 
     #[test]
-    fn test_comment() {
+    fn comment() {
         let src = "// This is a comment\n1 + 2";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2706,7 +2706,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiline_comment() {
+    fn multiline_comment() {
         let src = "/* This is a\nmultiline comment */\n1 + 2";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2731,7 +2731,7 @@ mod tests {
     }
 
     #[test]
-    fn test_shebang() {
+    fn shebang() {
         let src = "#!/usr/bin/env datex\n1 + 2";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2753,7 +2753,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remote_execution() {
+    fn remote_execution() {
         let src = "a :: b";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2765,7 +2765,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_remote_execution_no_space() {
+    fn remote_execution_no_space() {
         let src = "a::b";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2778,7 +2778,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remote_execution_complex() {
+    fn remote_execution_complex() {
         let src = "a :: b + c * 2";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2799,7 +2799,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remote_execution_statements() {
+    fn remote_execution_statements() {
         let src = "a :: b; 1";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2821,7 +2821,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remote_execution_inline_statements() {
+    fn remote_execution_inline_statements() {
         let src = "a :: (1; 2 + 3)";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2851,7 +2851,7 @@ mod tests {
     }
 
     #[test]
-    fn test_named_slot() {
+    fn named_slot() {
         let src = "#endpoint";
         let expr = parse_unwrap(src);
         assert_eq!(
@@ -2861,7 +2861,7 @@ mod tests {
     }
 
     #[test]
-    fn test_addressed_slot() {
+    fn addressed_slot() {
         let src = "#123";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Slot(Slot::Addressed(123)));
