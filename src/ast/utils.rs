@@ -1,6 +1,5 @@
-use crate::ast::{DatexParserTrait, TokenInput};
+use crate::ast::{DatexExpression, DatexParserTrait, TokenInput};
 use crate::compiler::lexer::Token;
-use chumsky::extra::Err;
 use chumsky::prelude::*;
 
 pub fn whitespace<'a>() -> impl DatexParserTrait<'a, ()> {
@@ -10,7 +9,12 @@ pub fn whitespace<'a>() -> impl DatexParserTrait<'a, ()> {
 pub fn operation<'a>(c: Token) -> impl DatexParserTrait<'a, Token> {
     just(Token::Whitespace)
         .repeated()
-        .at_least(0)
         .ignore_then(just(c))
-        .then_ignore(just(Token::Whitespace).repeated().at_least(0))
+        .then_ignore(just(Token::Whitespace).repeated())
+}
+pub fn is_literal(expr: &DatexExpression) -> bool {
+    match expr {
+        DatexExpression::Literal { .. } => true,
+        _ => false,
+    }
 }

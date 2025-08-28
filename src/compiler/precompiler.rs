@@ -242,52 +242,25 @@ fn visit_expression(
                 scope_stack.add_new_variable(name.clone(), new_id);
             metadata.variables.push(var_metadata);
         }
-        DatexExpression::Literal { name, variant } => {
+        DatexExpression::Literal(name) => {
             // FIXME showcase / demo if reserved core type
-            let reserved_literals = [
-                DatexExpression::Literal {
-                    name: "integer".to_string(),
-                    variant: None,
-                },
-                DatexExpression::Literal {
-                    name: "integer".to_string(),
-                    variant: Some("u8".to_string()),
-                },
-                DatexExpression::Literal {
-                    name: "integer".to_string(),
-                    variant: Some("u16".to_string()),
-                },
-                DatexExpression::Literal {
-                    name: "integer".to_string(),
-                    variant: Some("u32".to_string()),
-                },
-                DatexExpression::Literal {
-                    name: "text".to_string(),
-                    variant: None,
-                },
-            ];
-            if reserved_literals.contains(&DatexExpression::Literal {
-                name: name.clone(),
-                variant: variant.clone(),
-            }) {
+            let reserved_literals = ["integer", "text"];
+            if reserved_literals.contains(&name.as_str()) {
                 // do not visit reserved literals
                 return Ok(());
             }
 
             // If variable exist
             if let Some(id) = scope_stack.get_variable(name) {
-                // we can not use sub variant of a variable
-                if variant.is_some() {
-                    return Err(CompilerError::UndeclaredVariable(
-                        "Cannot use literal as variable".to_string(),
-                    ));
-                }
-
                 info!(
                     "Visiting variable: {name}, scope stack: {scope_stack:?}"
                 );
                 *expression = DatexExpression::Variable(Some(id), name.clone());
                 return Ok(());
+            } else {
+                return Err(CompilerError::UndeclaredVariable(
+                    "Unknown identifier ".to_string() + name,
+                ));
             }
         }
         DatexExpression::AssignmentOperation(operator, id, name, expr) => {
