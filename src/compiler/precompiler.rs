@@ -1,12 +1,14 @@
 use crate::ast::DatexExpression;
+use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tuple::TupleEntry;
 use crate::compiler::error::CompilerError;
 use log::info;
+use std::assert_matches;
+use std::assert_matches::assert_matches;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-
 #[derive(Clone, Debug, Default)]
 pub struct VariableMetadata {
     original_realm_index: usize,
@@ -153,6 +155,9 @@ impl PrecompilerScopeStack {
         }
         None
     }
+    pub fn has_variable(&self, name: &str) -> bool {
+        self.get_variable(name).is_some()
+    }
 }
 
 impl AstWithMetadata {
@@ -243,13 +248,6 @@ fn visit_expression(
             metadata.variables.push(var_metadata);
         }
         DatexExpression::Literal(name) => {
-            // FIXME showcase / demo if reserved core type
-            let reserved_literals = ["integer", "text"];
-            if reserved_literals.contains(&name.as_str()) {
-                // do not visit reserved literals
-                return Ok(());
-            }
-
             // If variable exist
             if let Some(id) = scope_stack.get_variable(name) {
                 info!(
@@ -258,9 +256,7 @@ fn visit_expression(
                 *expression = DatexExpression::Variable(Some(id), name.clone());
                 return Ok(());
             } else {
-                return Err(CompilerError::UndeclaredVariable(
-                    "Unknown identifier ".to_string() + name,
-                ));
+                return Err(CompilerError::UndeclaredVariable(name.clone()));
             }
         }
         DatexExpression::AssignmentOperation(operator, id, name, expr) => {
@@ -371,7 +367,75 @@ fn visit_expression(
                 NewScopeType::NewScopeWithNewRealm,
             )?;
         }
-        DatexExpression::BinaryOperation(_operator, left, right) => {
+        DatexExpression::BinaryOperation(operator, left, right) => {
+            if matches!(operator, BinaryOperator::VariantAccess) {
+                let lit_left = if let DatexExpression::Literal(name) = &**left {
+                    name.clone()
+                } else {
+                    unreachable!(
+                        "Left side of variant access must be a literal"
+                    );
+                };
+                // FIXME register core types + variants for global scope stack
+                let reserved_literals = ["integer", "text"];
+                let is_reserved =
+                    reserved_literals.contains(&lit_left.as_str());
+                if !is_reserved && !scope_stack.has_variable(&lit_left) {
+                    return Err(CompilerError::UndeclaredVariable(
+                        lit_left.clone(),
+                    ));
+                }
+
+                let lit_right = if let DatexExpression::Literal(name) = &**right
+                {
+                    name.clone()
+                } else {
+                    unreachable!(
+                        "Right side of variant access must be a literal"
+                    );
+                };
+
+                // If left is not of type "Type", the variant access is mapped to a division operation
+                // For this to work, we'll need to know the type of the expression
+                if let Some(id) = scope_stack.get_variable(&lit_left) {
+                    // TODO detect if left is of type "Type" for variant access
+                    // and make sure that the variant exists
+                    if lit_left == "fixme" {
+                        visit_expression(
+                            left,
+                            metadata,
+                            scope_stack,
+                            NewScopeType::NewScope,
+                        )?;
+                        visit_expression(
+                            right,
+                            metadata,
+                            scope_stack,
+                            NewScopeType::NewScope,
+                        )?;
+
+                        *expression = DatexExpression::BinaryOperation(
+                            BinaryOperator::Divide,
+                            left.to_owned(),
+                            right.to_owned(),
+                        );
+                        return Ok(());
+                    }
+                }
+
+                // convert left to variable (FIXME do for all, once reserved types are registered)
+                if !is_reserved {
+                    visit_expression(
+                        left,
+                        metadata,
+                        scope_stack,
+                        NewScopeType::NewScope,
+                    )?;
+                }
+                // no need to visit inner literals
+                return Ok(());
+            }
+
             visit_expression(
                 left,
                 metadata,
@@ -468,4 +532,121 @@ fn visit_expression(
     }
 
     Ok(())
+}
+
+mod tests {
+    use super::*;
+    use crate::{
+        ast::{
+            BindingMutability, ReferenceMutability, Statement, VariableKind,
+            error::src::SrcId, parse,
+        },
+        datex_array,
+        values::{
+            core_values::{
+                integer::{integer::Integer, typed_integer::TypedInteger},
+                text::Text,
+                r#type::core::integer,
+            },
+            value_container::ValueContainer,
+        },
+    };
+    use std::assert_matches::assert_matches;
+    use std::{assert_matches, io};
+
+    fn parse_unwrap(src: &str) -> DatexExpression {
+        let src_id = SrcId::test();
+        let res = parse(src);
+        if let Err(errors) = res {
+            errors.iter().for_each(|e| {
+                let cache = ariadne::sources(vec![(src_id, src)]);
+                e.clone().write(cache, io::stdout());
+            });
+            panic!("Parsing errors found");
+        }
+        res.unwrap()
+    }
+    fn parse_and_precompile(
+        src: &str,
+    ) -> Result<AstWithMetadata, CompilerError> {
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let expr = parse_unwrap(src);
+        precompile_ast(expr, ast_metadata.clone(), &mut scope_stack)
+    }
+
+    #[test]
+    fn test_undeclared_variable() {
+        let result = parse_and_precompile("x + 42");
+        assert!(result.is_err());
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "x");
+    }
+
+    #[test]
+    fn test_variant_access() {
+        // reserved type should work
+        let result =
+            parse_and_precompile("integer/u8").expect("Precompilation failed");
+        assert_eq!(
+            result.ast,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::VariantAccess,
+                Box::new(DatexExpression::Literal("integer".to_string())),
+                Box::new(DatexExpression::Literal("u8".to_string()))
+            )
+        );
+
+        // unknown type should error
+        let result = parse_and_precompile("unknown/u8");
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "unknown");
+
+        // declared type variable should work
+        let result = parse_and_precompile("var x = 42; x/u8")
+            .expect("Precompilation failed");
+        let statements = if let DatexExpression::Statements(stmts) = result.ast
+        {
+            stmts
+        } else {
+            panic!("Expected statements");
+        };
+        assert_eq!(
+            statements.get(1).unwrap().expression,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::VariantAccess,
+                Box::new(DatexExpression::Variable(Some(0), "x".to_string())),
+                Box::new(DatexExpression::Literal("u8".to_string()))
+            )
+        );
+
+        // declared variable of not type "Type" should be mapped to division, and whatever should not exist in scope
+        let result = parse_and_precompile("var fixme = 42; fixme/whatever");
+        assert!(result.is_err());
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "whatever");
+
+        let result = parse_and_precompile(
+            "var fixme = 42; var whatever = 69; fixme/whatever",
+        )
+        .expect("Precompilation failed");
+
+        let statements = if let DatexExpression::Statements(stmts) = result.ast
+        {
+            stmts
+        } else {
+            panic!("Expected statements");
+        };
+        assert_eq!(
+            statements.get(2).unwrap().expression,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Divide,
+                Box::new(DatexExpression::Variable(
+                    Some(0),
+                    "fixme".to_string()
+                )),
+                Box::new(DatexExpression::Variable(
+                    Some(1),
+                    "whatever".to_string()
+                ))
+            )
+        );
+    }
 }
