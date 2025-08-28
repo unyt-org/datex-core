@@ -1,27 +1,27 @@
 use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
-use crate::ast::TokenInput;
+use crate::ast::utils::is_literal;
 use crate::ast::utils::operation;
 use crate::compiler::lexer::Token;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
-use chumsky::extra::Err;
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOperator {
-    Intersection, // &
-    Union,        // |
-    Add,          // +
-    Subtract,     // -
-    Multiply,     // *
-    Divide,       // /
-    Modulo,       // %
-    Power,        // ^
-    And,          // &&
-    Or,           // ||
-    CompositeAnd, // TODO
-    CompositeOr,  // TODO
+    VariantAccess, // /<literal>
+    Intersection,  // &
+    Union,         // |
+    Add,           // +
+    Subtract,      // -
+    Multiply,      // *
+    Divide,        // /
+    Modulo,        // %
+    Power,         // ^
+    And,           // &&
+    Or,            // ||
+    CompositeAnd,  // TODO
+    CompositeOr,   // TODO
 }
 
 fn binary_op(
@@ -36,12 +36,23 @@ fn product<'a>(chain: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
         .clone()
         .foldl(
             choice((
-                operation(Token::Star).to(binary_op(BinaryOperator::Multiply)),
-                operation(Token::Slash).to(binary_op(BinaryOperator::Divide)),
+                operation(Token::Star).to(BinaryOperator::Multiply),
+                operation(Token::Slash).to(BinaryOperator::Divide),
             ))
             .then(chain)
             .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            |lhs, (op, rhs)| {
+                let effective_op = if matches!(op, BinaryOperator::Divide)
+                    && is_literal(&lhs)
+                    && is_literal(&rhs)
+                {
+                    BinaryOperator::VariantAccess
+                } else {
+                    op
+                };
+
+                binary_op(effective_op)(Box::new(lhs), Box::new(rhs))
+            },
         )
         .boxed()
 }
