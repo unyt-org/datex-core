@@ -2,6 +2,7 @@ pub mod array;
 pub mod assignment_operation;
 pub mod atom;
 pub mod binary_operation;
+pub mod binding;
 pub mod chain;
 pub mod comparison_operation;
 pub mod decimal;
@@ -17,12 +18,12 @@ pub mod tuple;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
-pub mod variable;
 
 use crate::ast::array::*;
 use crate::ast::assignment_operation::*;
 use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
+use crate::ast::binding::*;
 use crate::ast::chain::*;
 use crate::ast::comparison_operation::*;
 use crate::ast::error::error::ParseError;
@@ -34,7 +35,6 @@ use crate::ast::tuple::*;
 use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
-use crate::ast::variable::*;
 
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -124,8 +124,6 @@ pub enum Slot {
     Named(String),
 }
 
-pub type VariableId = usize;
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// This is a marker for recovery from parse errors.
@@ -173,6 +171,13 @@ pub enum DatexExpression {
         reference_mutability: ReferenceMutability,
         name: String,
         type_annotation: Option<Box<DatexExpression>>,
+        value: Box<DatexExpression>,
+    },
+
+    /// Type declaration, e.g. type MyType = { x: 42, y: "John" };
+    TypeDeclaration {
+        id: Option<VariableId>,
+        name: String,
         value: Box<DatexExpression>,
     },
 
@@ -360,11 +365,11 @@ where
     // comparison (==, !=, is, …)
     let comparison = comparison_operation(union.clone());
 
-    // variable declarations or assignments
-    let variable_assignment = variable_assignment_or_declaration(union.clone());
+    // declarations or assignments
+    let declaration_or_assignment = declaration_or_assignment(union.clone());
 
     expression_without_tuple.define(choice((
-        variable_assignment,
+        declaration_or_assignment,
         function_declaration,
         comparison,
     )));
@@ -2219,6 +2224,52 @@ mod tests {
                     "z".to_string()
                 ))],
             )
+        );
+    }
+
+    #[test]
+    fn type_declaration_statement() {
+        let src = "type User = { age: 42, name: \"John\" };";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Statements(vec![Statement {
+                expression: DatexExpression::TypeDeclaration {
+                    id: None,
+                    name: "User".to_string(),
+                    value: Box::new(DatexExpression::Object(vec![
+                        (
+                            DatexExpression::Text("age".to_string()),
+                            DatexExpression::Integer(Integer::from(42))
+                        ),
+                        (
+                            DatexExpression::Text("name".to_string()),
+                            DatexExpression::Text("John".to_string())
+                        ),
+                    ])),
+                },
+                is_terminated: true,
+            },])
+        );
+
+        // make sure { type: 42, name: "John" } is not parsed as type declaration
+        let src = r#"{ type: 42, name: "John" };"#;
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Statements(vec![Statement {
+                expression: DatexExpression::Object(vec![
+                    (
+                        DatexExpression::Text("type".to_string()),
+                        DatexExpression::Integer(Integer::from(42))
+                    ),
+                    (
+                        DatexExpression::Text("name".to_string()),
+                        DatexExpression::Text("John".to_string())
+                    ),
+                ]),
+                is_terminated: true,
+            },])
         );
     }
 

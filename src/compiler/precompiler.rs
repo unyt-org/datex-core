@@ -226,6 +226,19 @@ fn visit_expression(
 
     // Important: always make sure all expressions are visited recursively
     match expression {
+        DatexExpression::TypeDeclaration { id, name, value } => {
+            visit_expression(
+                value,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            let new_id = metadata.variables.len();
+            *id = Some(new_id);
+            let var_metadata =
+                scope_stack.add_new_variable(name.clone(), new_id);
+            metadata.variables.push(var_metadata);
+        }
         DatexExpression::VariableDeclaration {
             id,
             kind,

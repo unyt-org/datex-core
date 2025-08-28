@@ -1,4 +1,5 @@
 use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::binding::VariableId;
 use crate::ast::tuple::TupleEntry;
 use crate::compiler::error::CompilerError;
 use crate::global::dxb_block::DXBBlock;
@@ -9,7 +10,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::ast::{
     BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
-    VariableId, VariableKind, parse,
+    VariableKind, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
