@@ -1737,6 +1737,30 @@ mod tests {
                 Box::new(DatexExpression::Integer(Integer::from(2))),
             )
         );
+
+        let src = "8 /2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Divide,
+                Box::new(DatexExpression::Integer(Integer::from(8))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
+
+        let src = "8u8/2";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Divide,
+                Box::new(DatexExpression::TypedInteger(TypedInteger::from(
+                    8u8
+                ))),
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+            )
+        );
     }
 
     #[test]
@@ -2362,16 +2386,46 @@ mod tests {
 
     #[test]
     fn test_fraction() {
+        // fraction
+        let res = parse_unwrap("42/3");
+        assert_eq!(res, DatexExpression::Decimal(Decimal::from_string("42/3")));
+
         let src = "1/3";
         let val = try_parse_to_value_container(src);
         assert_eq!(val, ValueContainer::from(Decimal::from_string("1/3")));
 
-        let res = parse("42.4/3");
-        assert!(res.is_err());
-        let res = parse("42 /3");
-        assert!(res.is_err());
-        let res = parse("42/ 3");
-        assert!(res.is_err());
+        // divison
+        let res = parse_unwrap("42.4/3");
+        assert_eq!(
+            res,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Divide,
+                Box::new(DatexExpression::Decimal(Decimal::from_string(
+                    "42.4"
+                ))),
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+            )
+        );
+
+        let res = parse_unwrap("42 /3");
+        assert_eq!(
+            res,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Divide,
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+            )
+        );
+
+        let res = parse_unwrap("42/ 3");
+        assert_eq!(
+            res,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Divide,
+                Box::new(DatexExpression::Integer(Integer::from(42))),
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+            )
+        );
     }
 
     #[test]

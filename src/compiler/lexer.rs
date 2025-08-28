@@ -729,4 +729,26 @@ mod tests {
         );
         assert_eq!(lexer.next(), None);
     }
+
+    #[test]
+    fn test_divide() {
+        let mut lexer = Token::lexer("8 /2");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::DecimalIntegerLiteral(IntegerLiteral {
+                value: "8".to_string(),
+                variant: None
+            }))
+        );
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Slash));
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::DecimalIntegerLiteral(IntegerLiteral {
+                value: "2".to_string(),
+                variant: None
+            }))
+        );
+        assert_eq!(lexer.next(), None);
+    }
 }

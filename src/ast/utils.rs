@@ -10,7 +10,7 @@ pub fn whitespace<'a>() -> impl DatexParserTrait<'a, ()> {
 pub fn operation<'a>(c: Token) -> impl DatexParserTrait<'a, Token> {
     just(Token::Whitespace)
         .repeated()
-        .at_least(1)
+        .at_least(0)
         .ignore_then(just(c))
-        .then_ignore(just(Token::Whitespace).repeated().at_least(1))
+        .then_ignore(just(Token::Whitespace).repeated().at_least(0))
 }
