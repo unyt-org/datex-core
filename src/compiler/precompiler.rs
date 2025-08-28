@@ -600,8 +600,8 @@ mod tests {
         let result = parse_and_precompile("unknown/u8");
         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "unknown");
 
-        // declared type variable should work
-        let result = parse_and_precompile("var x = 42; x/u8")
+        // declared type variable should work (assuming x is of type "Type", TODO)
+        let result = parse_and_precompile("var User = {}; User/u8")
             .expect("Precompilation failed");
         let statements = if let DatexExpression::Statements(stmts) = result.ast
         {
@@ -613,7 +613,10 @@ mod tests {
             statements.get(1).unwrap().expression,
             DatexExpression::BinaryOperation(
                 BinaryOperator::VariantAccess,
-                Box::new(DatexExpression::Variable(Some(0), "x".to_string())),
+                Box::new(DatexExpression::Variable(
+                    Some(0),
+                    "User".to_string()
+                )),
                 Box::new(DatexExpression::Literal("u8".to_string()))
             )
         );
