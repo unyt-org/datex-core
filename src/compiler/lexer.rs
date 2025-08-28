@@ -105,8 +105,8 @@ pub enum Token {
     #[token("function")] Function,
 
     // decimal literals (infinity, nan)
-    #[regex(r"[+-]?[Ii]nfinity", allocated_string)] InfinityLiteral(String),
-    #[regex(r"[+-]?(?:nan|NaN)")] NanLiteral,
+    #[regex(r"[+-]?[Ii]nfinity", allocated_string)] Infinity(String),
+    #[regex(r"[+-]?(?:nan|NaN)")] Nan,
 
     // Value literals
     // decimal
@@ -244,8 +244,8 @@ impl Token {
             Token::Function => Some("function"),
             Token::Whitespace => Some(" "),
             Token::Error => Some("error"),
-            Token::InfinityLiteral(_) => Some("infinity"),
-            Token::NanLiteral => Some("nan"),
+            Token::Infinity(_) => Some("infinity"),
+            Token::Nan => Some("nan"),
             _ => None,
         };
         if let Some(token) = literal_token {
@@ -435,41 +435,41 @@ mod tests {
         let mut lexer = Token::lexer("Infinity");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::InfinityLiteral("Infinity".to_string()))
+            Ok(Token::Infinity("Infinity".to_string()))
         );
 
         let mut lexer = Token::lexer("infinity");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::InfinityLiteral("infinity".to_string()))
+            Ok(Token::Infinity("infinity".to_string()))
         );
 
         let mut lexer = Token::lexer("-Infinity");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::InfinityLiteral("-Infinity".to_string()))
+            Ok(Token::Infinity("-Infinity".to_string()))
         );
 
         let mut lexer = Token::lexer("+Infinity");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::InfinityLiteral("+Infinity".to_string()))
+            Ok(Token::Infinity("+Infinity".to_string()))
         );
     }
 
     #[test]
     fn test_nan() {
         let mut lexer = Token::lexer("NaN");
-        assert_eq!(lexer.next().unwrap(), Ok(Token::NanLiteral));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
 
         let mut lexer = Token::lexer("nan");
-        assert_eq!(lexer.next().unwrap(), Ok(Token::NanLiteral));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
 
         let mut lexer = Token::lexer("-NaN");
-        assert_eq!(lexer.next().unwrap(), Ok(Token::NanLiteral));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
 
         let mut lexer = Token::lexer("+NaN");
-        assert_eq!(lexer.next().unwrap(), Ok(Token::NanLiteral));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
     }
 
     #[test]

@@ -14,8 +14,8 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
                 None => Ok(DatexExpression::Decimal(Decimal::from_string(&value)))
             }
         },
-        Token::NanLiteral => Ok(DatexExpression::Decimal(Decimal::NaN)),
-        Token::InfinityLiteral(s) => Ok(DatexExpression::Decimal(
+        Token::Nan => Ok(DatexExpression::Decimal(Decimal::NaN)),
+        Token::Infinity(s) => Ok(DatexExpression::Decimal(
             if s.starts_with('-') {
                 Decimal::NegInfinity
             } else {
