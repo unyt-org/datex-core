@@ -511,7 +511,13 @@ fn decompile_loop(
             Instruction::CreateRef => {
                 handle_before_term(state, &mut output, false)?;
                 state.get_current_scope().skip_comma_for_next_item = true;
-                write!(output, "$")?;
+                write!(output, "& ")?;
+            }
+
+            Instruction::CreateRefMut => {
+                handle_before_term(state, &mut output, false)?;
+                state.get_current_scope().skip_comma_for_next_item = true;
+                write!(output, "&mut ")?;
             }
 
             Instruction::RemoteExecution => {

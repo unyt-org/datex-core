@@ -132,7 +132,7 @@ impl Default for RuntimeInternal {
         RuntimeInternal {
             endpoint: Endpoint::default(),
             config: RuntimeConfig::default(),
-            memory: RefCell::new(Memory::new()),
+            memory: RefCell::new(Memory::new(Endpoint::default())),
             com_hub: ComHub::default(),
             type_registry: create_core_registry(),
             update_loop_running: RefCell::new(false),
@@ -444,10 +444,12 @@ impl Runtime {
     pub fn new(config: RuntimeConfig) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
         let com_hub = ComHub::new(endpoint.clone());
+        let memory = RefCell::new(Memory::new_with_core_lib(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
             internal: Rc::new(RuntimeInternal {
                 endpoint,
+                memory,
                 config,
                 com_hub,
                 ..RuntimeInternal::default()

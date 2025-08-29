@@ -1,17 +1,10 @@
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Pointer {
-    pointer_id: u64,
-}
-
-impl Pointer {
-    pub fn create() -> Self {
-        Self { pointer_id: 42 } // FIXME #120
-    }
-    pub fn new(pointer_id: u64) -> Self {
-        Self { pointer_id }
-    }
-
-    pub fn pointer_id(&self) -> u64 {
-        self.pointer_id
-    }
+pub enum PointerAddress {
+    // pointer with the local endpoint as origin
+    // the full pointer id consists of the local endpoint id + this local id
+    Local([u8; 5]),
+    // pointer with a remote endpoint as origin, contains the full pointers address
+    Remote([u8; 26]),
+    // globally unique internal pointer, e.g. for #core, #std
+    Internal([u8; 3]),
 }

@@ -388,7 +388,7 @@ impl<'a> CompilationContext<'a> {
     }
     
     pub fn insert_type_tag(&self, tag: &TypeTag) {
-        let bytes = tag.0.as_bytes();
+        let bytes = tag.name.as_bytes();
         let len = bytes.len();
 
         self.append_binary_code(InstructionCode::TYPE_TAG);

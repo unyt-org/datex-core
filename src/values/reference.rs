@@ -1,8 +1,7 @@
-use super::datex_type::CoreValueType;
 use crate::dif::{DIFUpdate, DIFValue};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::r#type::Type;
-use crate::values::pointer::Pointer;
+use crate::values::pointer::{PointerAddress};
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
@@ -14,13 +13,23 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
+
 #[derive(Clone, Debug)]
-pub struct Reference(pub Rc<RefCell<ReferenceData>>);
+pub enum ReferenceMutability {
+    Mutable,
+    Immutable,
+}
+
+#[derive(Clone, Debug)]
+pub struct Reference {
+    pub data: Rc<RefCell<ReferenceData>>, 
+    pub mutability: ReferenceMutability
+}
 
 /// Two references are identical if they point to the same data
 impl Identity for Reference {
     fn identical(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+        Rc::ptr_eq(&self.data, &other.data)
     }
 }
 
@@ -55,7 +64,7 @@ impl ValueEq for Reference {
 
 impl Hash for Reference {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let ptr = Rc::as_ptr(&self.0); // gets *const RefCell<ReferenceData>
+        let ptr = Rc::as_ptr(&self.data); // gets *const RefCell<ReferenceData>
         ptr.hash(state); // hash the address
     }
 }
@@ -64,7 +73,7 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
         let allowed_type = value_container.to_value().borrow().r#type().clone();
-        Reference::new_from_value_container(value_container, allowed_type)
+        Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Mutable)
     }
 }
 
@@ -73,7 +82,7 @@ impl Deref for Reference {
     type Target = RefCell<ReferenceData>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.data
     }
 }
 
@@ -81,13 +90,18 @@ impl Reference {
     pub fn new_from_value_container(
         value_container: ValueContainer,
         allowed_type: Type,
+        maybe_pointer_id: Option<PointerAddress>,
+        mutability: ReferenceMutability,
     ) -> Self {
-        let reference = Reference(Rc::new(RefCell::new(ReferenceData {
-            value_container,
-            pointer: None,
-            allowed_type,
-            observers: Vec::new(),
-        })));
+        let reference = Reference {
+            data: Rc::new(RefCell::new(ReferenceData {
+                value_container,
+                pointer_id: maybe_pointer_id,
+                allowed_type,
+                observers: Vec::new(),
+            })),
+            mutability 
+        };
         reference.upgrade_inner_combined_values_to_references();
         reference
     }
@@ -239,9 +253,8 @@ type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 pub struct ReferenceData {
     /// the value that this reference points to
     pub value_container: ValueContainer,
-    /// pointer information
-    /// this can be None if only a local reference is needed
-    pointer: Option<Pointer>,
+    /// pointer id, can be initialized as None for local pointers
+    pointer_id: Option<PointerAddress>,
     /// custom type for the pointer that the Datex value is allowed to reference
     pub allowed_type: Type,
     /// list of observer callbacks
@@ -252,7 +265,7 @@ impl Debug for ReferenceData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReferenceData")
             .field("value_container", &self.value_container)
-            .field("pointer", &self.pointer)
+            .field("pointer", &self.pointer_id)
             .field("allowed_type", &self.allowed_type)
             .field("observers", &self.observers.len())
             .finish()
@@ -267,8 +280,8 @@ impl PartialEq for ReferenceData {
 }
 
 impl ReferenceData {
-    pub fn pointer_id(&self) -> Option<u64> {
-        self.pointer.as_ref().map(|p| p.pointer_id())
+    pub fn pointer_id(&self) -> &Option<PointerAddress> {
+        &self.pointer_id
     }
 
     pub fn current_value_container(&self) -> &ValueContainer {

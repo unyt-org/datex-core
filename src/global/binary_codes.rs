@@ -183,7 +183,8 @@ pub enum InstructionCode {
     POINTER,        // $x
     INIT_POINTER,   // $aa := ...
     POINTER_ACTION, // $aa += ...
-    CREATE_REF,     // $$ ()
+    CREATE_REF,     // &()
+    CREATE_REF_MUT, // &mut ()
     SET_REF,        // $aa = ...
 
     CHILD_GET,           // .y

@@ -70,11 +70,21 @@ pub enum Instruction {
     DivideAssign(SlotAddress),
 
     CreateRef,
+    CreateRefMut,
+
+    // &ABCDE
+    GetRef(RawEndpointPointerAddress),
+
+    // &ABCDE := ...
+    GetOrCreateRef(GetOrCreateRefData),
+    // &mut ABCDE := ...
+    GetOrCreateRefMut(GetOrCreateRefData),
 
     AllocateSlot(SlotAddress),
     GetSlot(SlotAddress),
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
+
 }
 
 impl Display for Instruction {
@@ -157,7 +167,17 @@ impl Display for Instruction {
             Instruction::SetSlot(address) => {
                 write!(f, "SET_SLOT {}", address.0)
             }
+            Instruction::GetRef(address) => {
+                write!(f, "GET_REF [{}:{}]", address.endpoint, hex::encode(address.id))
+            }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
+            Instruction::CreateRefMut => write!(f, "CREATE_REF_MUT"),
+            Instruction::GetOrCreateRef(data) => {
+                write!(f, "GET_OR_CREATE_REF [{}:{}, block_size: {}]", data.address.endpoint, hex::encode(data.address.id), data.create_block_size)
+            }
+            Instruction::GetOrCreateRefMut(data) => {
+                write!(f, "GET_OR_CREATE_REF_MUT [{}:{}, block_size: {}]", data.address.endpoint, hex::encode(data.address.id), data.create_block_size)
+            }
             Instruction::ExecutionBlock(block) => {
                 write!(
                     f,
@@ -277,6 +297,22 @@ pub struct InstructionCloseAndStore {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct SlotAddress(pub u32);
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct RawEndpointPointerAddress {
+    pub endpoint: Endpoint,
+    pub id: [u8; 5],
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct GetOrCreateRefData {
+    pub address: RawEndpointPointerAddress,
+    pub create_block_size: u64
+}
+
+
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

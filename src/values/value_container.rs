@@ -152,7 +152,7 @@ impl Display for ValueContainer {
             ValueContainer::Reference(pointer) => {
                 write!(
                     f,
-                    "$({})",
+                    "&({})",
                     pointer.borrow().resolve_current_value().borrow()
                 )
             }
@@ -167,7 +167,7 @@ impl ValueContainer {
                 Rc::new(RefCell::new(value.clone()))
             }
             ValueContainer::Reference(pointer) => {
-                let reference = pointer.0.clone();
+                let reference = pointer.data.clone();
 
                 reference.borrow().value_container.to_value()
             }

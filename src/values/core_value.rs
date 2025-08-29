@@ -22,7 +22,21 @@ use std::ops::{Add, AddAssign, Not, Sub};
 
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeTag(pub String);
+pub struct TypeTag {
+    // human-readable name of the type tag, e.g. "integer"
+    pub name: String,
+    // allowed variants for this type tag, e.g. ["i8", "i16", ...]
+    pub variants: Vec<String>
+}
+
+impl TypeTag {
+    pub fn new(name: &str, variants: &[&str]) -> Self {
+        TypeTag {
+            name: name.to_string(),
+            variants: variants.iter().map(|s| s.to_string()).collect()
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -39,7 +53,8 @@ pub enum CoreValue {
     Tuple(Tuple),
     Union(Union),
     Type(Box<Type>),
-    TypeTag(TypeTag), // named type tag, e.g. text, integer, etc.
+    /// named type tag, e.g. text, integer, etc.
+    TypeTag(TypeTag),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -247,7 +262,7 @@ impl CoreValue {
             CoreValue::Tuple(_) => tuple(),
             CoreValue::Integer(_) => integer(),
             CoreValue::Decimal(_) => decimal(),
-            CoreValue::TypeTag(e) => todo!(),
+            CoreValue::TypeTag(e) => null(),
             // e => todo!("get_default_type_new for {e:?}"),
         }
     }
@@ -285,7 +300,7 @@ impl CoreValue {
             CoreValue::Tuple(_) => CoreValueType::Tuple,
             CoreValue::Integer(_) => CoreValueType::Integer,
             CoreValue::Decimal(_) => CoreValueType::Decimal,
-            CoreValue::TypeTag(_) => todo!(),
+            CoreValue::TypeTag(_) => CoreValueType::Type,
         }
     }
 
@@ -734,7 +749,7 @@ impl Display for CoreValue {
             CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
-            CoreValue::TypeTag(tag) => write!(f, "{}", tag.0),
+            CoreValue::TypeTag(tag) => write!(f, "{}", tag.name),
         }
     }
 }
