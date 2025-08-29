@@ -100,8 +100,6 @@ pub enum Token {
     #[token("const")] Const,
     #[token("var")] Variable,
     #[token("mut")] Mutable,
-    // FIXME do we want to allow {type: "websocket-client"} or {var: "websocket-client"}
-    #[token("_type")] Type,
     #[token("function")] Function,
 
     // decimal literals (infinity, nan)
@@ -240,7 +238,6 @@ impl Token {
             Token::Const => Some("const"),
             Token::Variable => Some("var"),
             Token::Mutable => Some("mut"),
-            Token::Type => Some("type"),
             Token::Function => Some("function"),
             Token::Whitespace => Some(" "),
             Token::Error => Some("error"),
@@ -266,10 +263,10 @@ impl Token {
             Token::FractionLiteral(_) => "fraction literal",
             Token::StringLiteral(_) => "string literal",
             Token::Endpoint(_) => "endpoint",
-            Token::Identifier(_) => "identifier",
             Token::Slot(_) => "slot",
             Token::NamedSlot(_) => "named slot",
             Token::Error => "error",
+            Token::Identifier(s) => s,
             e => todo!("Unhandled token in as_string: {:?}", e),
         };
 
