@@ -995,7 +995,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_simple_multiplication() {
+    fn simple_multiplication() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -1015,7 +1015,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_simple_multiplication_close() {
+    fn simple_multiplication_close() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -1036,7 +1036,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_is_operator() {
+    fn is_operator() {
         init_logger_debug();
 
         // TODO #151: compare refs
@@ -1098,7 +1098,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_equality_operator() {
+    fn equality_operator() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -1156,7 +1156,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_simple_addition() {
+    fn simple_addition() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -1190,7 +1190,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_multi_addition() {
+    fn multi_addition() {
         init_logger_debug();
 
         let op1: u8 = 1;
@@ -1219,7 +1219,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_mixed_calculation() {
+    fn mixed_calculation() {
         init_logger_debug();
 
         let op1: u8 = 1;
@@ -1248,7 +1248,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_complex_addition() {
+    fn complex_addition() {
         init_logger_debug();
 
         let a: u8 = 1;
@@ -1276,7 +1276,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_complex_addition_and_subtraction() {
+    fn complex_addition_and_subtraction() {
         init_logger_debug();
 
         let a: u8 = 1;
@@ -1300,7 +1300,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_integer_u8() {
+    fn integer_u8() {
         init_logger_debug();
         let val = 42;
         let datex_script = format!("{val}"); // 42
@@ -1310,7 +1310,7 @@ pub mod tests {
 
     // Test for decimal
     #[test]
-    fn test_decimal() {
+    fn decimal() {
         init_logger_debug();
         let datex_script = "42.0";
         let result = compile_and_log(datex_script);
@@ -1325,7 +1325,7 @@ pub mod tests {
 
     /// Test for test that is less than 256 characters
     #[test]
-    fn test_short_text() {
+    fn short_text() {
         init_logger_debug();
         let val = "unyt";
         let datex_script = format!("\"{val}\""); // "42"
@@ -1338,7 +1338,7 @@ pub mod tests {
 
     // Test empty array
     #[test]
-    fn test_empty_array() {
+    fn empty_array() {
         init_logger_debug();
         let datex_script = "[]";
         let result = compile_and_log(datex_script);
@@ -1351,7 +1351,7 @@ pub mod tests {
 
     // Test array with single element
     #[test]
-    fn test_single_element_array() {
+    fn single_element_array() {
         init_logger_debug();
         let datex_script = "[42]";
         let result = compile_and_log(datex_script);
@@ -1368,7 +1368,7 @@ pub mod tests {
 
     // Test array with multiple elements
     #[test]
-    fn test_multi_element_array() {
+    fn multi_element_array() {
         init_logger_debug();
         let datex_script = "[1, 2, 3]";
         let result = compile_and_log(datex_script);
@@ -1389,7 +1389,7 @@ pub mod tests {
 
     // Test nested arrays
     #[test]
-    fn test_nested_arrays() {
+    fn nested_arrays() {
         init_logger_debug();
         let datex_script = "[1, [2, 3], 4]";
         let result = compile_and_log(datex_script);
@@ -1414,7 +1414,7 @@ pub mod tests {
 
     // Test array with expressions inside
     #[test]
-    fn test_array_with_expressions() {
+    fn array_with_expressions() {
         init_logger_debug();
         let datex_script = "[1 + 2, 3 * 4]";
         let result = compile_and_log(datex_script);
@@ -1439,7 +1439,7 @@ pub mod tests {
 
     // Test array with mixed expressions
     #[test]
-    fn test_array_with_mixed_expressions() {
+    fn array_with_mixed_expressions() {
         init_logger_debug();
         let datex_script = "[1, 2, 3 + 4]";
         let result = compile_and_log(datex_script);
@@ -1463,7 +1463,7 @@ pub mod tests {
 
     // Test tuple
     #[test]
-    fn test_tuple() {
+    fn tuple() {
         init_logger_debug();
         let datex_script = "(1, 2, 3)";
         let result = compile_and_log(datex_script);
@@ -1484,7 +1484,7 @@ pub mod tests {
 
     // Nested tuple
     #[test]
-    fn test_nested_tuple() {
+    fn nested_tuple() {
         init_logger_debug();
         let datex_script = "(1, (2, 3), 4)";
         let result = compile_and_log(datex_script);
@@ -1509,7 +1509,7 @@ pub mod tests {
 
     // Tuple without parentheses
     #[test]
-    fn test_tuple_without_parentheses() {
+    fn tuple_without_parentheses() {
         init_logger_debug();
         let datex_script = "1, 2, 3";
         let result = compile_and_log(datex_script);
@@ -1530,7 +1530,7 @@ pub mod tests {
 
     // key-value pair
     #[test]
-    fn test_key_value_tuple() {
+    fn key_value_tuple() {
         init_logger_debug();
         let datex_script = "key: 42";
         let result = compile_and_log(datex_script);
@@ -1550,7 +1550,7 @@ pub mod tests {
 
     // key-value pair with string key
     #[test]
-    fn test_key_value_string() {
+    fn key_value_string() {
         init_logger_debug();
         let datex_script = "\"key\": 42";
         let result = compile_and_log(datex_script);
@@ -1570,7 +1570,7 @@ pub mod tests {
 
     // key-value pair with integer key
     #[test]
-    fn test_key_value_integer() {
+    fn key_value_integer() {
         init_logger_debug();
         let datex_script = "10: 42";
         let result = compile_and_log(datex_script);
@@ -1588,7 +1588,7 @@ pub mod tests {
 
     // key-value pair with long text key (>255 bytes)
     #[test]
-    fn test_key_value_long_text() {
+    fn key_value_long_text() {
         init_logger_debug();
         let long_key = "a".repeat(300);
         let datex_script = format!("\"{long_key}\": 42");
@@ -1610,7 +1610,7 @@ pub mod tests {
 
     // dynamic key-value pair
     #[test]
-    fn test_dynamic_key_value() {
+    fn dynamic_key_value() {
         init_logger_debug();
         let datex_script = "(1 + 2): 42";
         let result = compile_and_log(datex_script);
@@ -1631,7 +1631,7 @@ pub mod tests {
 
     // multiple key-value pairs
     #[test]
-    fn test_multiple_key_value_pairs() {
+    fn multiple_key_value_pairs() {
         init_logger_debug();
         let datex_script = "key: 42, 4: 43, (1 + 2): 44";
         let result = compile_and_log(datex_script);
@@ -1664,7 +1664,7 @@ pub mod tests {
 
     // key value pair with parentheses
     #[test]
-    fn test_key_value_with_parentheses() {
+    fn key_value_with_parentheses() {
         init_logger_debug();
         let datex_script = "(key: 42)";
         let result = compile_and_log(datex_script);
@@ -1684,7 +1684,7 @@ pub mod tests {
 
     // empty object
     #[test]
-    fn test_empty_object() {
+    fn empty_object() {
         init_logger_debug();
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
@@ -1697,7 +1697,7 @@ pub mod tests {
 
     // object with single key-value pair
     #[test]
-    fn test_single_key_value_object() {
+    fn single_key_value_object() {
         init_logger_debug();
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
@@ -1717,7 +1717,7 @@ pub mod tests {
 
     // object with multiple key-value pairs
     #[test]
-    fn test_multi_key_value_object() {
+    fn multi_key_value_object() {
         init_logger_debug();
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
@@ -1753,7 +1753,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_slot() {
+    fn allocate_slot() {
         init_logger_debug();
         let script = "const a = 42";
         let result = compile_and_log(script);
@@ -1774,7 +1774,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_slot_with_value() {
+    fn allocate_slot_with_value() {
         init_logger_debug();
         let script = "const a = 42; a + 1";
         let result = compile_and_log(script);
@@ -1805,7 +1805,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_scoped_slots() {
+    fn allocate_scoped_slots() {
         init_logger_debug();
         let script = "const a = 42; (const a = 43; a); a";
         let result = compile_and_log(script);
@@ -1854,7 +1854,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_scoped_slots_with_parent_variables() {
+    fn allocate_scoped_slots_with_parent_variables() {
         init_logger_debug();
         let script = "const a = 42; const b = 41; (const a = 43; a; b); a";
         let result = compile_and_log(script);
@@ -1918,7 +1918,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_ref() {
+    fn allocate_ref() {
         init_logger_debug();
         let script = "const a = &mut 42";
         let result = compile_and_log(script);
@@ -1940,7 +1940,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_read_ref() {
+    fn read_ref() {
         init_logger_debug();
         let script = "const a = &mut 42; a";
         let result = compile_and_log(script);
@@ -1969,7 +1969,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_compile() {
+    fn compile() {
         init_logger_debug();
         let result = compile_template(
             "? + ?",
@@ -1989,7 +1989,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_compile_macro() {
+    fn compile_macro() {
         init_logger_debug();
         let a = 1;
         let result = compile!("?", a);
@@ -1997,7 +1997,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_compile_macro_multi() {
+    fn compile_macro_multi() {
         init_logger_debug();
         let result = compile!("? + ?", 1, 2);
         assert_eq!(
@@ -2027,7 +2027,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_json_to_dxb_large_file() {
+    fn json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
         println!("JSON file read");
         let (dxb, _) = compile_script(&json, CompileOptions::default())
@@ -2036,7 +2036,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_static_value_detection() {
+    fn static_value_detection() {
         init_logger_debug();
 
         // non-static
@@ -2079,7 +2079,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_compile_auto_static_value_detection() {
+    fn compile_auto_static_value_detection() {
         let script = "1";
         let (res, _) = compile_script_or_return_static_value(
             script,
@@ -2110,7 +2110,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution() {
+    fn remote_execution() {
         let script = "42 :: 43";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2141,7 +2141,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_expression() {
+    fn remote_execution_expression() {
         let script = "42 :: 1 + 2";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2175,7 +2175,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_const() {
+    fn remote_execution_injected_const() {
         init_logger_debug();
         let script = "const x = 42; 1 :: x";
         let (res, _) =
@@ -2226,7 +2226,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_var() {
+    fn remote_execution_injected_var() {
         init_logger_debug();
         // var x only refers to a value, not a ref, but since it is transferred to a
         // remote context, its state is synced via a ref (VariableReference model)
@@ -2308,7 +2308,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_consts() {
+    fn remote_execution_injected_consts() {
         let script = "const x = 42; const y = 69; 1 :: x + y";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2380,7 +2380,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_shadow_const() {
+    fn remote_execution_shadow_const() {
         let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2458,7 +2458,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_nested() {
+    fn remote_execution_nested() {
         let script = "const x = 42; (1 :: (2 :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2530,7 +2530,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_nested2() {
+    fn remote_execution_nested2() {
         let script = "const x = 42; (1 :: (x :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2605,7 +2605,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_assignment_to_const() {
+    fn assignment_to_const() {
         init_logger_debug();
         let script = "const a = 42; a = 43";
         let result = compile_script(script, CompileOptions::default());
@@ -2613,7 +2613,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_assignment_to_const_mut() {
+    fn assignment_to_const_mut() {
         init_logger_debug();
         let script = "const a = &mut 42; a = 43";
         let result = compile_script(script, CompileOptions::default());
@@ -2621,7 +2621,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_addition_to_const_ref() {
+    fn addition_to_const_ref() {
         init_logger_debug();
         let script = "const a = &mut 42; a += 1";
         let result = compile_script(script, CompileOptions::default());
@@ -2629,7 +2629,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_addition_to_immutable_value() {
+    fn addition_to_immutable_value() {
         init_logger_debug();
         let script = "var a = 42; a += 1";
         let result = compile_script(script, CompileOptions::default());
@@ -2640,7 +2640,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_addition_to_immutable_ref() {
+    fn addition_to_immutable_ref() {
         init_logger_debug();
         let script = "const a = &42; a += 1";
         let result = compile_script(script, CompileOptions::default());
@@ -2651,7 +2651,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_slot_endpoint() {
+    fn slot_endpoint() {
         let script = "#endpoint";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
