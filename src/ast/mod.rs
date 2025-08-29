@@ -199,7 +199,7 @@ pub enum DatexExpression {
     /// Slot assignment
     SlotAssignment(Slot, Box<DatexExpression>),
 
-    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>),
+    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>, Option<ValueContainer>),
     ComparisonOperation(
         ComparisonOperator,
         Box<DatexExpression>,
@@ -223,17 +223,17 @@ pub enum DatexExpression {
 }
 
 // directly convert DatexExpression to a ValueContainer
-impl TryFrom<DatexExpression> for ValueContainer {
+impl TryFrom<&DatexExpression> for ValueContainer {
     type Error = ();
 
-    fn try_from(expr: DatexExpression) -> Result<Self, Self::Error> {
+    fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
         Ok(match expr {
             DatexExpression::Null => ValueContainer::Value(Value::null()),
-            DatexExpression::Boolean(b) => ValueContainer::from(b),
-            DatexExpression::Text(s) => ValueContainer::from(s),
-            DatexExpression::Decimal(d) => ValueContainer::from(d),
-            DatexExpression::Integer(i) => ValueContainer::from(i),
-            DatexExpression::Endpoint(e) => ValueContainer::from(e),
+            DatexExpression::Boolean(b) => ValueContainer::from(*b),
+            DatexExpression::Text(s) => ValueContainer::from(s.clone()),
+            DatexExpression::Decimal(d) => ValueContainer::from(d.clone()),
+            DatexExpression::Integer(i) => ValueContainer::from(i.clone()),
+            DatexExpression::Endpoint(e) => ValueContainer::from(e.clone()),
             DatexExpression::Array(arr) => {
                 let entries = arr
                     .into_iter()
@@ -250,7 +250,7 @@ impl TryFrom<DatexExpression> for ValueContainer {
                             _ => Err(())?,
                         };
                         let value = ValueContainer::try_from(v)?;
-                        Ok((key, value))
+                        Ok((key.clone(), value))
                     })
                     .collect::<Result<HashMap<String, ValueContainer>, ()>>()?;
                 ValueContainer::from(Object::from(entries))
@@ -498,7 +498,7 @@ mod tests {
 
     fn try_parse_to_value_container(src: &str) -> ValueContainer {
         let expr = parse_unwrap(src);
-        ValueContainer::try_from(expr).unwrap_or_else(|_| {
+        ValueContainer::try_from(&expr).unwrap_or_else(|_| {
             panic!("Failed to convert expression to ValueContainer")
         })
     }
@@ -793,7 +793,8 @@ mod tests {
                     expression: DatexExpression::BinaryOperation(
                         BinaryOperator::Add,
                         Box::new(DatexExpression::Integer(Integer::from(1))),
-                        Box::new(DatexExpression::Integer(Integer::from(2)))
+                        Box::new(DatexExpression::Integer(Integer::from(2))),
+                        None
                     ),
                     is_terminated: true
                 }])),
@@ -863,7 +864,8 @@ mod tests {
                         Box::new(DatexExpression::Literal(
                             "integer".to_string()
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_string()))
+                        Box::new(DatexExpression::Literal("u8".to_string())),
+                        None
                     )
                 )),
                 name: "x".to_string(),
@@ -881,7 +883,8 @@ mod tests {
             DatexExpression::BinaryOperation(
                 BinaryOperator::Intersection,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
-                Box::new(DatexExpression::Integer(Integer::from(6)))
+                Box::new(DatexExpression::Integer(Integer::from(6))),
+                None
             )
         );
 
@@ -898,11 +901,14 @@ mod tests {
                         Box::new(DatexExpression::Literal(
                             "integer".to_owned()
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_owned()))
+                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                        None
                     )),
-                    Box::new(DatexExpression::Integer(Integer::from(6)))
+                    Box::new(DatexExpression::Integer(Integer::from(6))),
+                    None
                 )),
-                Box::new(DatexExpression::Integer(Integer::from(2)))
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -916,7 +922,8 @@ mod tests {
             DatexExpression::BinaryOperation(
                 BinaryOperator::Union,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
-                Box::new(DatexExpression::Integer(Integer::from(6)))
+                Box::new(DatexExpression::Integer(Integer::from(6))),
+                None
             )
         );
 
@@ -933,11 +940,14 @@ mod tests {
                         Box::new(DatexExpression::Literal(
                             "integer".to_owned()
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_owned()))
+                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                        None
                     )),
-                    Box::new(DatexExpression::Integer(Integer::from(6)))
+                    Box::new(DatexExpression::Integer(Integer::from(6))),
+                    None
                 )),
-                Box::new(DatexExpression::Integer(Integer::from(2)))
+                Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -954,8 +964,10 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Multiply,
                     Box::new(DatexExpression::Integer(Integer::from(2))),
-                    Box::new(DatexExpression::Integer(Integer::from(3)))
-                ))
+                    Box::new(DatexExpression::Integer(Integer::from(3))),
+                    None
+                )),
+                None
             )
         );
 
@@ -968,9 +980,11 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 )),
-                Box::new(DatexExpression::Integer(Integer::from(3)))
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
 
@@ -983,9 +997,11 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 )),
-                Box::new(DatexExpression::Integer(Integer::from(3)))
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
     }
@@ -1002,6 +1018,7 @@ mod tests {
                             "integer".to_owned(),
                         )),
                         Box::new(DatexExpression::Literal("u8".to_owned())),
+                        None
                     ),
                 ),
                 ApplyOperation::FunctionCall(DatexExpression::Object(vec![])),
@@ -1029,7 +1046,8 @@ mod tests {
                 value: Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Intersection,
                     Box::new(DatexExpression::Literal("T".to_string())),
-                    Box::new(DatexExpression::Literal("text".to_owned()))
+                    Box::new(DatexExpression::Literal("text".to_owned())),
+                    None
                 )),
             }
         );
@@ -1086,7 +1104,8 @@ mod tests {
                         Box::new(DatexExpression::Literal(
                             "integer".to_owned()
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_owned()))
+                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                        None
                     )
                 )),
                 name: "x".to_string(),
@@ -1114,9 +1133,11 @@ mod tests {
                             Box::new(DatexExpression::Literal(
                                 "integer".to_owned()
                             )),
-                            Box::new(DatexExpression::Literal("u8".to_owned()))
+                            Box::new(DatexExpression::Literal("u8".to_owned())),
+                            None
                         )),
-                        Box::new(DatexExpression::Literal("text".to_owned()))
+                        Box::new(DatexExpression::Literal("text".to_owned())),
+                        None
                     )
                 )),
                 name: "x".to_string(),
@@ -1140,7 +1161,8 @@ mod tests {
                     DatexExpression::BinaryOperation(
                         BinaryOperator::Intersection,
                         Box::new(DatexExpression::Integer(Integer::from(5))),
-                        Box::new(DatexExpression::Integer(Integer::from(6)))
+                        Box::new(DatexExpression::Integer(Integer::from(6))),
+                        None
                     )
                 )),
                 name: "x".to_string(),
@@ -1187,7 +1209,8 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 ))
             )
         );
@@ -1202,7 +1225,8 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 ))
             )
         );
@@ -1217,7 +1241,8 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 ))
             )
         );
@@ -1231,7 +1256,8 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 ))
             )
         );
@@ -1246,7 +1272,8 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
-                    Box::new(DatexExpression::Integer(Integer::from(2)))
+                    Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 ))
             )
         );
@@ -1738,6 +1765,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -1755,12 +1783,15 @@ mod tests {
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Array(vec![])),
                     Box::new(DatexExpression::Literal("x".to_string())),
+                    None
                 )),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
+                    None
                 )),
+                None
             )
         );
     }
@@ -1775,6 +1806,7 @@ mod tests {
                 BinaryOperator::Subtract,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
     }
@@ -1789,6 +1821,7 @@ mod tests {
                 BinaryOperator::Multiply,
                 Box::new(DatexExpression::Integer(Integer::from(4))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -1803,6 +1836,7 @@ mod tests {
                 BinaryOperator::Divide,
                 Box::new(DatexExpression::Integer(Integer::from(8))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
 
@@ -1814,6 +1848,7 @@ mod tests {
                 BinaryOperator::Divide,
                 Box::new(DatexExpression::Integer(Integer::from(8))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
 
@@ -1827,6 +1862,7 @@ mod tests {
                     8u8
                 ))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -1846,9 +1882,12 @@ mod tests {
                         BinaryOperator::Multiply,
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                         Box::new(DatexExpression::Integer(Integer::from(3))),
+                        None
                     )),
+                    None
                 )),
                 Box::new(DatexExpression::Integer(Integer::from(4))),
+                None
             )
         );
     }
@@ -1866,7 +1905,9 @@ mod tests {
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     Box::new(DatexExpression::Integer(Integer::from(3))),
+                    None
                 )),
+                None
             )
         );
     }
@@ -1891,6 +1932,7 @@ mod tests {
                         is_terminated: false,
                     },
                 ])),
+                None
             )
         );
     }
@@ -1915,6 +1957,7 @@ mod tests {
                     },
                 ])),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
     }
@@ -1929,7 +1972,8 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
-            ),])
+                None
+            )])
         );
     }
 
@@ -2067,6 +2111,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Literal("myVar".to_string())),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
+                None
             )
         );
     }
@@ -2205,6 +2250,7 @@ mod tests {
                             Box::new(DatexExpression::Integer(Integer::from(
                                 2
                             ))),
+                            None
                         )
                     ),
                     ApplyOperation::PropertyAccess(
@@ -2385,7 +2431,8 @@ mod tests {
                     BinaryOperator::Add,
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
-                )),
+                    None
+                ))
             }
         );
     }
@@ -2464,6 +2511,7 @@ mod tests {
                 BinaryOperator::VariantAccess,
                 Box::new(DatexExpression::Literal("integer".to_string())),
                 Box::new(DatexExpression::Literal("u8".to_string())),
+                None
             )
         );
 
@@ -2474,6 +2522,7 @@ mod tests {
                 BinaryOperator::VariantAccess,
                 Box::new(DatexExpression::Literal("undeclared".to_string())),
                 Box::new(DatexExpression::Literal("u8".to_string())),
+                None
             )
         );
     }
@@ -2498,6 +2547,7 @@ mod tests {
                     "42.4"
                 ))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
 
@@ -2508,6 +2558,7 @@ mod tests {
                 BinaryOperator::Divide,
                 Box::new(DatexExpression::Integer(Integer::from(42))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
 
@@ -2518,6 +2569,7 @@ mod tests {
                 BinaryOperator::Divide,
                 Box::new(DatexExpression::Integer(Integer::from(42))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
             )
         );
     }
@@ -2583,6 +2635,7 @@ mod tests {
                             Box::new(DatexExpression::Integer(Integer::from(
                                 10
                             ))),
+                            None
                         )),
                     ),
                     is_terminated: true,
@@ -2687,21 +2740,21 @@ mod tests {
         let src = "1 + 2";
         let expr = parse_unwrap(src);
         assert!(
-            ValueContainer::try_from(expr).is_err(),
+            ValueContainer::try_from(&expr).is_err(),
             "Expected error when converting expression to ValueContainer"
         );
 
         let src = "xy";
         let expr = parse_unwrap(src);
         assert!(
-            ValueContainer::try_from(expr).is_err(),
+            ValueContainer::try_from(&expr).is_err(),
             "Expected error when converting expression to ValueContainer"
         );
 
         let src = "x()";
         let expr = parse_unwrap(src);
         assert!(
-            ValueContainer::try_from(expr).is_err(),
+            ValueContainer::try_from(&expr).is_err(),
             "Expected error when converting expression to ValueContainer"
         );
     }
@@ -2756,6 +2809,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
 
@@ -2767,6 +2821,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -2781,6 +2836,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
 
@@ -2792,6 +2848,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
     }
@@ -2806,6 +2863,7 @@ mod tests {
                 BinaryOperator::Add,
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
+                None
             )
         );
 
@@ -2858,7 +2916,9 @@ mod tests {
                         BinaryOperator::Multiply,
                         Box::new(DatexExpression::Literal("c".to_string())),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
+                        None
                     )),
+                    None
                 )),
             )
         );
@@ -2908,6 +2968,7 @@ mod tests {
                             Box::new(DatexExpression::Integer(Integer::from(
                                 3
                             ))),
+                            None
                         ),
                         is_terminated: false,
                     },

@@ -9,6 +9,8 @@ use std::assert_matches::assert_matches;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::values::value_container::ValueContainer;
+
 #[derive(Clone, Debug, Default)]
 pub struct VariableMetadata {
     original_realm_index: usize,
@@ -207,6 +209,7 @@ enum NewScopeType {
     NewScopeWithNewRealm,
 }
 
+
 fn visit_expression(
     expression: &mut DatexExpression,
     metadata: &mut AstMetadata,
@@ -401,7 +404,7 @@ fn visit_expression(
                 NewScopeType::NewScopeWithNewRealm,
             )?;
         }
-        DatexExpression::BinaryOperation(operator, left, right) => {
+        DatexExpression::BinaryOperation(operator, left, right, _) => {
             if matches!(operator, BinaryOperator::VariantAccess) {
                 let lit_left = if let DatexExpression::Literal(name) = &**left {
                     name.clone()
@@ -452,6 +455,7 @@ fn visit_expression(
                             BinaryOperator::Divide,
                             left.to_owned(),
                             right.to_owned(),
+                            None
                         );
                         return Ok(());
                     }
@@ -626,7 +630,8 @@ mod tests {
             DatexExpression::BinaryOperation(
                 BinaryOperator::VariantAccess,
                 Box::new(DatexExpression::Literal("integer".to_string())),
-                Box::new(DatexExpression::Literal("u8".to_string()))
+                Box::new(DatexExpression::Literal("u8".to_string())),
+                None
             )
         );
 
@@ -651,7 +656,8 @@ mod tests {
                     Some(0),
                     "User".to_string()
                 )),
-                Box::new(DatexExpression::Literal("u8".to_string()))
+                Box::new(DatexExpression::Literal("u8".to_string())),
+                None
             )
         );
 
@@ -682,7 +688,8 @@ mod tests {
                 Box::new(DatexExpression::Variable(
                     Some(1),
                     "whatever".to_string()
-                ))
+                )),
+                None
             )
         );
     }

@@ -28,7 +28,7 @@ fn binary_op(
     op: BinaryOperator,
 ) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
 {
-    move |lhs, rhs| DatexExpression::BinaryOperation(op, lhs, rhs)
+    move |lhs, rhs| DatexExpression::BinaryOperation(op, lhs, rhs, None)
 }
 
 fn product<'a>(chain: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {

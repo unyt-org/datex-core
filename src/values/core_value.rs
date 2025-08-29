@@ -20,6 +20,10 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
 
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TypeTag(pub String);
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Null,
@@ -35,6 +39,7 @@ pub enum CoreValue {
     Tuple(Tuple),
     Union(Union),
     Type(Box<Type>),
+    TypeTag(TypeTag), // named type tag, e.g. text, integer, etc.
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -242,6 +247,7 @@ impl CoreValue {
             CoreValue::Tuple(_) => tuple(),
             CoreValue::Integer(_) => integer(),
             CoreValue::Decimal(_) => decimal(),
+            CoreValue::TypeTag(e) => todo!(),
             // e => todo!("get_default_type_new for {e:?}"),
         }
     }
@@ -279,6 +285,7 @@ impl CoreValue {
             CoreValue::Tuple(_) => CoreValueType::Tuple,
             CoreValue::Integer(_) => CoreValueType::Integer,
             CoreValue::Decimal(_) => CoreValueType::Decimal,
+            CoreValue::TypeTag(_) => todo!(),
         }
     }
 
@@ -727,6 +734,7 @@ impl Display for CoreValue {
             CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
+            CoreValue::TypeTag(tag) => write!(f, "{}", tag.0),
         }
     }
 }

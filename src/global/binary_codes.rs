@@ -22,6 +22,8 @@ pub enum InstructionCode {
     CACHE_POINT,     // cache dxb from this point on
     CACHE_RESET,     // reset dxb scope cache
 
+    TYPE_TAG, // e.g. Tag('integer')
+
     // primitive / fundamental types 0x10 - 0x2f
     STD_TYPE_TEXT,
     STD_TYPE_INT,
