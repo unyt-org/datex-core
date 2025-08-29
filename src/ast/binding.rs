@@ -112,13 +112,20 @@ pub fn variable_declaration<'a>(
 fn type_declaration<'a>(
     union: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
+    let generic = just(Token::LeftAngle)
+        .ignore_then(union.clone())
+        .then_ignore(just(Token::RightAngle))
+        .or_not();
+
     just(Token::Identifier("type".to_string()))
         .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
+        .then(generic)
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(union)
-        .map(|(name, expr)| DatexExpression::TypeDeclaration {
+        .map(|((name, generic), expr)| DatexExpression::TypeDeclaration {
             id: None,
+            generic: generic.map(Box::new),
             name: name.to_string(),
             value: Box::new(expr),
         })

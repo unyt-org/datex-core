@@ -179,6 +179,7 @@ pub enum DatexExpression {
         id: Option<VariableId>,
         name: String,
         value: Box<DatexExpression>,
+        generic: Option<Box<DatexExpression>>,
     },
 
     FunctionDeclaration {
@@ -1010,6 +1011,28 @@ mod tests {
         assert_eq!(parse_unwrap("User< integer/u8 > {}"), expected);
         assert_eq!(parse_unwrap("User<integer/u8 > {}"), expected);
         assert!(parse("User <integer/u8> {}").is_err());
+    }
+
+    #[test]
+    fn generic_type() {
+        let src = "type User<T> = T & text";
+
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::TypeDeclaration {
+                id: None,
+                generic: Some(Box::new(DatexExpression::Literal(
+                    "T".to_string()
+                ))),
+                name: "User".to_string(),
+                value: Box::new(DatexExpression::BinaryOperation(
+                    BinaryOperator::Intersection,
+                    Box::new(DatexExpression::Literal("T".to_string())),
+                    Box::new(DatexExpression::Literal("text".to_owned()))
+                )),
+            }
+        );
     }
 
     #[test]
@@ -2284,6 +2307,7 @@ mod tests {
             DatexExpression::Statements(vec![Statement {
                 expression: DatexExpression::TypeDeclaration {
                     id: None,
+                    generic: None,
                     name: "User".to_string(),
                     value: Box::new(DatexExpression::Object(vec![
                         (

@@ -240,7 +240,20 @@ fn visit_expression(
         //         NewScopeType::NewScope,
         //     )?;
         // }
-        DatexExpression::TypeDeclaration { id, name, value } => {
+        DatexExpression::TypeDeclaration {
+            id,
+            generic: generic_parameters,
+            name,
+            value,
+        } => {
+            if let Some(params) = generic_parameters {
+                visit_expression(
+                    params,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
             visit_expression(
                 value,
                 metadata,
