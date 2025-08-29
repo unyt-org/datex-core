@@ -84,7 +84,7 @@ pub enum Token {
     #[token("`")] Backtick,
 
     #[token("<=")] LessEqual,
-    #[token(">=")] GreaterEqual,
+    // #[token(">=")] GreaterEqual, // can not use because of generic overlap type X<test>= 4;
     #[token("!=")] NotStructuralEqual,
     #[token("!==")] NotEqual,
     #[token("==")] StructuralEqual,
@@ -227,7 +227,7 @@ impl Token {
             Token::Pipe => Some("|"),
             Token::Backtick => Some("`"),
             Token::LessEqual => Some("<="),
-            Token::GreaterEqual => Some(">="),
+            // Token::GreaterEqual => Some(">="),
             Token::NotStructuralEqual => Some("!="),
             Token::NotEqual => Some("!=="),
             Token::StructuralEqual => Some("=="),
