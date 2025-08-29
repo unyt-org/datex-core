@@ -214,6 +214,7 @@ pub enum DatexExpression {
 
     // apply (e.g. x (1)) or property access
     ApplyChain(Box<DatexExpression>, Vec<ApplyOperation>),
+
     // ?
     Placeholder,
     // @xy :: z
@@ -339,19 +340,37 @@ where
     // Key-value pair
     let tuple = tuple(key.clone(), expression_without_tuple.clone());
 
+    // let generic_assessor = literal::literal()
+    //     .or()
+    //     .then_ignore(just(Token::LeftAngle).padded_by(whitespace()))
+    //     .then(expression_without_tuple.clone())
+    //     .then_ignore(just(Token::RightAngle).padded_by(whitespace()))
+    //     .map(|(left, right)| {
+    //         DatexExpression::GenericAssessor(Box::new(left), Box::new(right))
+    //     });
+
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom = atom(array.clone(), object.clone(), wrapped_expression.clone());
-
     let unary = unary(atom.clone());
+
+    // let generic_access = unary_or_atom
+    //     .clone()
+    //     .then_ignore(just(Token::LeftAngle).then_ignore(whitespace()))
+    //     .then(expression.clone())
+    //     .then_ignore(just(Token::RightAngle).padded_by(whitespace()))
+    //     .map(|(base, arg)| {
+    //         DatexExpression::GenericAssessor(Box::new(base), Box::new(arg))
+    //     });
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
-        unary.clone(),
+        unary,
         key.clone(),
         array.clone(),
         object.clone(),
         wrapped_expression.clone(),
         atom.clone(),
+        expression.clone(),
     );
     let union = binary_operation(chain);
 
@@ -968,6 +987,29 @@ mod tests {
                 Box::new(DatexExpression::Integer(Integer::from(3)))
             )
         );
+    }
+
+    #[test]
+    fn generic_assessor() {
+        let expected = DatexExpression::ApplyChain(
+            Box::new(DatexExpression::Literal("User".to_string())),
+            vec![
+                ApplyOperation::GenericAccess(
+                    DatexExpression::BinaryOperation(
+                        BinaryOperator::VariantAccess,
+                        Box::new(DatexExpression::Literal(
+                            "integer".to_owned(),
+                        )),
+                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                    ),
+                ),
+                ApplyOperation::FunctionCall(DatexExpression::Object(vec![])),
+            ],
+        );
+        assert_eq!(parse_unwrap("User<integer/u8> {}"), expected);
+        assert_eq!(parse_unwrap("User< integer/u8 > {}"), expected);
+        assert_eq!(parse_unwrap("User<integer/u8 > {}"), expected);
+        assert!(parse("User <integer/u8> {}").is_err());
     }
 
     #[test]

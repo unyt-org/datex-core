@@ -226,6 +226,20 @@ fn visit_expression(
 
     // Important: always make sure all expressions are visited recursively
     match expression {
+        // DatexExpression::GenericAssessor(left, right) => {
+        //     visit_expression(
+        //         left,
+        //         metadata,
+        //         scope_stack,
+        //         NewScopeType::NewScope,
+        //     )?;
+        //     visit_expression(
+        //         right,
+        //         metadata,
+        //         scope_stack,
+        //         NewScopeType::NewScope,
+        //     )?;
+        // }
         DatexExpression::TypeDeclaration { id, name, value } => {
             visit_expression(
                 value,
@@ -290,15 +304,9 @@ fn visit_expression(
             )?;
             for apply in applies {
                 match apply {
-                    ApplyOperation::FunctionCall(expr) => {
-                        visit_expression(
-                            expr,
-                            metadata,
-                            scope_stack,
-                            NewScopeType::NewScope,
-                        )?;
-                    }
-                    ApplyOperation::PropertyAccess(expr) => {
+                    ApplyOperation::FunctionCall(expr)
+                    | ApplyOperation::GenericAccess(expr)
+                    | ApplyOperation::PropertyAccess(expr) => {
                         visit_expression(
                             expr,
                             metadata,

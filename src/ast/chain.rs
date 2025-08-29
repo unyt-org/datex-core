@@ -14,6 +14,9 @@ pub enum ApplyOperation {
     FunctionCall(DatexExpression),
     /// Apply a property access to an argument
     PropertyAccess(DatexExpression),
+
+    /// Generic property access, e.g. `a<b>`
+    GenericAccess(DatexExpression),
 }
 
 pub fn chain<'a>(
@@ -23,10 +26,17 @@ pub fn chain<'a>(
     object: impl DatexParserTrait<'a>,
     wrapped_expression: impl DatexParserTrait<'a>,
     atom: impl DatexParserTrait<'a>,
+    any: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     unary
+        .clone()
         .then(
             choice((
+                // generic access: a<b>
+                just(Token::LeftAngle)
+                    .ignore_then(any.clone())
+                    .then_ignore(just(Token::RightAngle))
+                    .map(ApplyOperation::GenericAccess),
                 // apply #1: a wrapped expression, array, or object - no whitespace required before
                 // x () x [] x {}
                 choice((wrapped_expression, array, object))
