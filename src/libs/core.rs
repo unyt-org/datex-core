@@ -13,10 +13,11 @@ pub enum CoreLibPointerId {
     Integer = 3, // #core.integer
     Decimal = 4, // #core.decimal
     Text = 5, // #core.text
-    Array = 6, // #core.Array
-    Tuple = 7, // #core.Tuple
-    Object = 8, // #core.Object
-    Function = 9, // #core.Function
+    Endpoint = 6, // #core.Endpoint
+    Array = 7, // #core.Array
+    Tuple = 8, // #core.Tuple
+    Object = 9, // #core.Object
+    Function = 10, // #core.Function
     // ...
 }
 
@@ -27,31 +28,46 @@ impl From<CoreLibPointerId> for PointerAddress {
     }
 }
 
+impl From<&PointerAddress> for CoreLibPointerId {
+    fn from(address: &PointerAddress) -> Self {
+        match address {
+            PointerAddress::Internal(id_bytes) => {
+                let mut id_array = [0u8; 8];
+                id_array[0..3].copy_from_slice(id_bytes);
+                let id = u64::from_le_bytes(id_array);
+                match id {
+                    0 => CoreLibPointerId::Core,
+                    1 => CoreLibPointerId::Null,
+                    2 => CoreLibPointerId::Boolean,
+                    3 => CoreLibPointerId::Integer,
+                    4 => CoreLibPointerId::Decimal,
+                    5 => CoreLibPointerId::Text,
+                    6 => CoreLibPointerId::Endpoint,
+                    7 => CoreLibPointerId::Array,
+                    8 => CoreLibPointerId::Tuple,
+                    9 => CoreLibPointerId::Object,
+                    10 => CoreLibPointerId::Function,
+                    _ => panic!("Invalid CoreLibPointerId"),
+                }
+            }
+            _ => panic!("CoreLibPointerId can only be created from Internal PointerAddress"),
+        }
+    }
+}
+
 /// Creates a new instance of the core library as a ValueContainer
 /// and registers it in the provided memory instance using fixed internal pointer IDs.
 pub fn load_core_lib(memory: &mut Memory) {
-    let null = create_core_type(TypeTag::new("null", &[]), CoreLibPointerId::Null, memory);
-    let boolean = create_core_type(TypeTag::new("boolean", &[]), CoreLibPointerId::Boolean, memory);
-
-    let integer = create_core_type(TypeTag::new(
-        "integer",
-        &["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128", "big"]
-    ), CoreLibPointerId::Integer, memory);
-
-    let decimal = create_core_type(TypeTag::new(
-        "decimal",
-        &["f32", "f64", "big"]
-    ), CoreLibPointerId::Decimal, memory);
-
-    let text = create_core_type(TypeTag::new(
-        "text",
-        &["plain", "markdown", "html"]
-    ), CoreLibPointerId::Text, memory);
-
-    let array = create_core_type(TypeTag::new("array", &[]), CoreLibPointerId::Array, memory);
-    let tuple = create_core_type(TypeTag::new("tuple", &[]), CoreLibPointerId::Tuple, memory);
-    let object = create_core_type(TypeTag::new("object", &[]), CoreLibPointerId::Object, memory);
-    let function = create_core_type(TypeTag::new("function", &[]), CoreLibPointerId::Function, memory);
+    let null = create_null_core_type(Some(memory));
+    let boolean = create_boolean_core_type(Some(memory));
+    let integer = create_integer_core_type(Some(memory));
+    let decimal = create_decimal_core_type(Some(memory));
+    let text = create_text_core_type(Some(memory));
+    let endpoint = create_endpoint_core_type(Some(memory));
+    let array = create_array_core_type(Some(memory));
+    let tuple = create_tuple_core_type(Some(memory));
+    let object = create_object_core_type(Some(memory));
+    let function = create_function_core_type(Some(memory));
 
     // create #core object with properties
     let value = ValueContainer::from(Object::from_iter(vec![
@@ -60,6 +76,7 @@ pub fn load_core_lib(memory: &mut Memory) {
         ("integer".to_string(), integer),
         ("decimal".to_string(), decimal),
         ("text".to_string(), text),
+        ("endpoint".to_string(), endpoint),
         ("Array".to_string(), array),
         ("Tuple".to_string(), tuple),
         ("Object".to_string(), object),
@@ -79,10 +96,81 @@ pub fn load_core_lib(memory: &mut Memory) {
     memory.register_reference(reference);
 }
 
+/// Creates a new 'integer' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_integer_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new(
+        "integer",
+        &["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128", "big"]
+    ), CoreLibPointerId::Integer, memory)
+}
+
+/// Creates a new 'text' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_text_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new(
+        "text",
+        &["plain", "markdown", "html"]
+    ), CoreLibPointerId::Text, memory)
+}
+
+
+/// Creates a new 'decimal' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_decimal_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new(
+        "decimal",
+        &["f32", "f64", "big"]
+    ), CoreLibPointerId::Decimal, memory)
+}
+
+/// Creates a new 'boolean' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_boolean_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("boolean", &[]), CoreLibPointerId::Boolean, memory)
+}
+
+/// Creates a new 'null' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_null_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("null", &[]), CoreLibPointerId::Null, memory)
+}
+
+/// Creates a new 'endpoint' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_endpoint_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("endpoint", &[]), CoreLibPointerId::Endpoint, memory)
+}
+
+/// Creates a new 'Object' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_object_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("Object", &[]), CoreLibPointerId::Object, memory)
+}
+
+/// Creates a new 'Array' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_array_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("Array", &[]), CoreLibPointerId::Array, memory)
+}
+
+/// Creates a new 'Tuple' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_tuple_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("Tuple", &[]), CoreLibPointerId::Tuple, memory)
+}
+
+/// Creates a new 'Function' core type reference.
+/// Note: this method should never be called directly, only use for testing purposes.
+pub fn create_function_core_type(memory: Option<&mut Memory>) -> ValueContainer {
+    create_core_type(TypeTag::new("Function", &[]), CoreLibPointerId::Function, memory)
+}
+
+
 /// Creates a new reference for a core type, similar to this DATEX script snippet:
 /// ref $0 = Tag('integer', ('i8', 'i16', 'i32', 'i64', 'i128', 'u8', 'u16', 'u32', 'u64', 'u128'));
 /// The reference is registered in the provided memory instance with a fixed internal pointer ID.
-fn create_core_type(tag: TypeTag, id: CoreLibPointerId, memory: &mut Memory) -> ValueContainer {
+fn create_core_type(tag: TypeTag, id: CoreLibPointerId, memory: Option<&mut Memory>) -> ValueContainer {
     let value = ValueContainer::from(tag);
     // TODO: better solution for allowed_type here:
     let allowed_type = value.to_value().borrow().r#type().clone();
@@ -92,7 +180,9 @@ fn create_core_type(tag: TypeTag, id: CoreLibPointerId, memory: &mut Memory) -> 
         Some(PointerAddress::from(id)),
         ReferenceMutability::Immutable
     );
-    // register reference in memory
-    memory.register_reference(reference.clone());
+    if let Some(memory) = memory {
+        // register reference in memory
+        memory.register_reference(reference.clone());
+    }
     ValueContainer::Reference(reference)
 }

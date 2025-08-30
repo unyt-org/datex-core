@@ -3,7 +3,6 @@ use std::fmt::Display;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::memory::Memory;
 use crate::values::core_value::CoreValue;
-use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,8 +91,131 @@ impl TypeNew {
         }
     }
 
+    /// Matches a value against self
+    /// Returns true if all possible realizations of the value match the type
+    /// Examples:
+    /// 1 matches 1 -> true
+    /// 1 matches 2 -> false
+    /// 1 matches 1 | 2 -> true
+    /// 1 matches "x" | 2 -> false
+    /// 1 | 2 matches integer -> true
+    /// integer matches 1 | 2 -> false
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
-        // TODO: implement matching logic here
-        false
+        TypeNew::value_matches_type(value, &self.definition)
+    }
+
+    /// Matches a value against a v_type ValueContainer, which must be guaranteed to by a valid type
+    fn value_matches_type(value: &ValueContainer, v_type: &ValueContainer) -> bool {
+        // TODO: handle value types here
+        match &value.to_value().borrow().inner {
+            // each possible value of a union type must match the type
+            CoreValue::Union(union) => {
+                union.options.iter().all(|option| TypeNew::value_matches_type(option, v_type))
+            }
+            _ => {
+                match &v_type.to_value().borrow().inner {
+                    // union type matches if any of its options match
+                    CoreValue::Union(union) => {
+                        union.options.iter().any(|option|
+                            Self::value_matches_type(value, option)
+                        )
+                    }
+                    _ => {
+                        // atomic types match if their ValueContainer types are the same
+                        TypeNew::value_matches_atomic_type(value, v_type)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Matches a value against an atomic type (no intersection or union type)
+    pub fn value_matches_atomic_type(value: &ValueContainer, atomic_type: &ValueContainer) -> bool {
+        if value == atomic_type {
+            true
+        }
+        // check if value matches type base (e.g. 1 matches integer)
+        else if let ValueContainer::Reference(reference) = atomic_type &&
+            let Some(pointer_id) = reference.pointer_id() {
+            match CoreLibPointerId::from(&pointer_id) {
+                CoreLibPointerId::Integer => matches!(value.to_value().borrow().inner, CoreValue::Integer(_)),
+                CoreLibPointerId::Decimal => matches!(value.to_value().borrow().inner, CoreValue::Decimal(_)),
+                CoreLibPointerId::Boolean => matches!(value.to_value().borrow().inner, CoreValue::Boolean(_)),
+                CoreLibPointerId::Text => matches!(value.to_value().borrow().inner, CoreValue::Text(_)),
+                CoreLibPointerId::Null => matches!(value.to_value().borrow().inner, CoreValue::Null),
+                CoreLibPointerId::Endpoint => matches!(value.to_value().borrow().inner, CoreValue::Endpoint(_)),
+                _ => false,
+            }
+        }
+        else {
+            false
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::libs::core::create_integer_core_type;
+    use crate::types::TypeNew;
+    use crate::values::core_values::integer::integer::Integer;
+    use crate::values::core_values::union::Union;
+    use crate::values::value_container::ValueContainer;
+
+    #[test]
+    fn test_match_equal_values() {
+        // 1 matches 1
+        assert!(
+            TypeNew::value_matches_type(
+                &ValueContainer::from(1),
+                &ValueContainer::from(1)
+            )
+        )
+    }
+
+    #[test]
+    fn test_match_union() {
+        // 1 matches 1 | 2 | 3
+        assert!(
+            TypeNew::value_matches_type(
+                &ValueContainer::from(Integer::from(1)),
+                &ValueContainer::from(
+                    Union::new(vec![
+                        ValueContainer::from(Integer::from(1)),
+                        ValueContainer::from(Integer::from(1)),
+                        ValueContainer::from(Integer::from(1))
+                    ])
+                )
+            )
+        )
+    }
+
+    #[test]
+    fn test_match_base_type() {
+        // 1 matches integer
+        let integer = create_integer_core_type(None);
+        assert!(
+            TypeNew::value_matches_type(
+                &ValueContainer::from(Integer::from(1)),
+                &integer
+            )
+        )
+    }
+    
+    #[test]
+    fn test_match_union_with_base_type() {
+        // 1 | 2 matches integer
+        let integer = create_integer_core_type(None);
+        assert!(
+            TypeNew::value_matches_type(
+                &ValueContainer::from(
+                    Union::new(vec![
+                        ValueContainer::from(Integer::from(1)),
+                        ValueContainer::from(Integer::from(2))
+                    ])
+                ),
+                &integer
+            )
+        );
     }
 }

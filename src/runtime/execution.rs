@@ -34,6 +34,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use crate::runtime::memory::Memory;
 use crate::types::{IllegalTypeError, TypeNew};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::union::Union;

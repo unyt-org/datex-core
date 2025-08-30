@@ -116,6 +116,10 @@ impl Reference {
         let allowed_type = value_container.to_value().borrow().r#type().clone();
         Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Mutable)
     }
+    
+    pub fn pointer_id(&self) -> Option<PointerAddress> {
+        self.borrow().pointer_id.clone()
+    }
 
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
