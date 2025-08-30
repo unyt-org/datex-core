@@ -1,5 +1,5 @@
 use datex_core::compiler::{compile_script, CompileOptions};
-use datex_core::decompiler::decompile_body;
+use datex_core::decompiler::{decompile_body, Formatting};
 use datex_core::decompiler::DecompileOptions;
 use datex_core::logger::init_logger_debug;
 use log::info;
@@ -26,7 +26,7 @@ fn compare_compiled(datex_script: &str, expected: &str) {
         &dxb_body,
         DecompileOptions {
             json_compat: false,
-            formatting: true,
+            formatting: Formatting::default_indent(),
             colorized: true,
             resolve_slots: true,
         },

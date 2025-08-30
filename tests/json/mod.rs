@@ -1,5 +1,5 @@
 use datex_core::compiler::{CompileOptions, compile_script};
-use datex_core::decompiler::{DecompileOptions, decompile_body};
+use datex_core::decompiler::{DecompileOptions, decompile_body, Formatting};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -94,7 +94,7 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
         &dxb,
         DecompileOptions {
             json_compat: true,
-            formatting: true,
+            formatting: Formatting::default_indent(),
             colorized: false,
             ..DecompileOptions::default()
         },
