@@ -90,6 +90,7 @@ pub enum Token {
     #[token("==")] StructuralEqual,
     #[token("===")] Equal,
     #[token("is")] Is,
+    #[token("matches")] Matches,
 
     // Keywords
     #[token("true")] True,
@@ -710,6 +711,24 @@ mod tests {
         );
         assert_eq!(lexer.next(), None);
     }
+
+    #[test]
+    fn matches_operator() {
+        let mut lexer = Token::lexer("a matches b");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::Identifier("a".to_string()))
+        );
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Matches));
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::Identifier("b".to_string()))
+        );
+        assert_eq!(lexer.next(), None);
+    }
+
 
     #[test]
     fn line_doc() {

@@ -678,6 +678,7 @@ fn get_result_value_from_instruction(
 
             // equality operations
             Instruction::Is
+            | Instruction::Matches
             | Instruction::StructuralEqual
             | Instruction::Equal
             | Instruction::NotStructuralEqual
@@ -1176,6 +1177,10 @@ fn handle_comparison_operation(
             // @benstre: or keep as always false ? - maybe a compiler check would be better
             let val = active_value_container.identical(&value_container);
             Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::Matches => {
+            // TODO #104 implement pattern matching
+            unreachable!("Instruction {:?} is not a valid operation", operator);
         }
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);

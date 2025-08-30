@@ -59,6 +59,7 @@ pub enum Instruction {
 
     // comparison operator
     Is,
+    Matches,
     StructuralEqual,
     Equal,
     NotStructuralEqual,
@@ -160,6 +161,7 @@ impl Display for Instruction {
             }
             Instruction::NotEqual => write!(f, "NOT_EQUAL"),
             Instruction::Is => write!(f, "IS"),
+            Instruction::Matches => write!(f, "MATCHES"),
 
             Instruction::AllocateSlot(address) => {
                 write!(f, "ALLOCATE_SLOT {}", address.0)

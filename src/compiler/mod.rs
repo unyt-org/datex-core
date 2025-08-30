@@ -777,6 +777,11 @@ fn compile_expression(
 
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
+        
+        DatexExpression::GetReference(address) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context.insert_get_ref(address);
+        }
 
         // assignment
         DatexExpression::AssignmentOperation(

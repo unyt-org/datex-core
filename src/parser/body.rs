@@ -380,6 +380,7 @@ pub fn iterate_instructions<'a>(
                     }
                     InstructionCode::NOT_EQUAL => Ok(Instruction::NotEqual),
                     InstructionCode::IS => Ok(Instruction::Is),
+                    InstructionCode::MATCHES => Ok(Instruction::Matches),
                     InstructionCode::CREATE_REF => Ok(Instruction::CreateRef),
                     InstructionCode::CREATE_REF_MUT =>  Ok(Instruction::CreateRefMut),
 

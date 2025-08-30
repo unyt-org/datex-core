@@ -19,6 +19,7 @@ pub enum ComparisonOperator {
     GreaterThan,        // >
     LessThanOrEqual,    // <=
     GreaterThanOrEqual, // >=
+    Matches,            // matches
 }
 
 fn comparison_op(
@@ -44,6 +45,7 @@ pub fn comparison_operation<'a>(
                 operation(Token::NotEqual)
                     .to(comparison_op(ComparisonOperator::NotEqual)),
                 operation(Token::Is).to(comparison_op(ComparisonOperator::Is)),
+                operation(Token::Matches).to(comparison_op(ComparisonOperator::Matches)),
             ))
             .then(union.clone())
             .repeated(),
@@ -64,6 +66,7 @@ impl From<&ComparisonOperator> for InstructionCode {
             ComparisonOperator::Equal => InstructionCode::EQUAL,
             ComparisonOperator::NotEqual => InstructionCode::NOT_EQUAL,
             ComparisonOperator::Is => InstructionCode::IS,
+            ComparisonOperator::Matches => InstructionCode::MATCHES,
             operator => todo!(
                 "Comparison operator {:?} not implemented for InstructionCode",
                 operator
@@ -87,6 +90,7 @@ impl From<&Instruction> for ComparisonOperator {
             }
             Instruction::NotEqual => ComparisonOperator::NotEqual,
             Instruction::Is => ComparisonOperator::Is,
+            Instruction::Matches => ComparisonOperator::Matches,
             _ => {
                 todo!(
                     "Comparison operator for instruction {:?} not implemented",

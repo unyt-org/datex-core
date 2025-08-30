@@ -313,7 +313,7 @@ fn visit_expression(
             }
             // try to resolve core variable
             else if let Some(core) = metadata.runtime.memory().borrow().get_reference(&CoreLibPointerId::Core.into())
-            && let core_variable = core.borrow().current_value_container().to_value().borrow().cast_to_object().unwrap().get(name)
+            && let Some(core_variable) = core.borrow().current_value_container().to_value().borrow().cast_to_object().unwrap().try_get(name)
             {
                 match core_variable {
                     ValueContainer::Reference(reference) => {
