@@ -574,21 +574,21 @@ fn decompile_loop(
                     .map(|b| format!("{:02x}", b))
                     .collect::<String>();
                 let address_hex = address.id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
-                write!(output, "&<{}:{}>", endpoint_hex, address_hex)?;
+                write!(output, "$<{}:{}>", endpoint_hex, address_hex)?;
                 handle_after_term(state, &mut output, false)?;
             }
 
             Instruction::GetInternalRef(address) => {
                 handle_before_term(state, &mut output, false, indentation_levels)?;
                 let address_hex = address.id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
-                write!(output, "&<internal:{}>", address_hex)?;
+                write!(output, "$<internal:{}>", address_hex)?;
                 handle_after_term(state, &mut output, false)?;
             }
 
             Instruction::GetOriginRef(address) => {
                 handle_before_term(state, &mut output, false, indentation_levels)?;
                 let address_hex = address.id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
-                write!(output, "&<origin:{}>", address_hex)?;
+                write!(output, "$<origin:{}>", address_hex)?;
                 handle_after_term(state, &mut output, false)?;
             }
 

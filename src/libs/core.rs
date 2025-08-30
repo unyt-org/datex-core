@@ -9,8 +9,14 @@ use crate::values::core_value::TypeTag;
 pub enum CoreLibPointerId {
     Core = 0, // #core
     Null = 1, // #core.null
-    Integer = 2, // #core.integer
-    Boolean = 3, // #core.boolean
+    Boolean = 2, // #core.boolean
+    Integer = 3, // #core.integer
+    Decimal = 4, // #core.decimal
+    Text = 5, // #core.text
+    Array = 6, // #core.Array
+    Tuple = 7, // #core.Tuple
+    Object = 8, // #core.Object
+    Function = 9, // #core.Function
     // ...
 }
 
@@ -29,14 +35,36 @@ pub fn load_core_lib(memory: &mut Memory) {
 
     let integer = create_core_type(TypeTag::new(
         "integer",
-        &["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"]
+        &["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128", "big"]
     ), CoreLibPointerId::Integer, memory);
+
+    let decimal = create_core_type(TypeTag::new(
+        "decimal",
+        &["f32", "f64", "big"]
+    ), CoreLibPointerId::Decimal, memory);
+
+    let text = create_core_type(TypeTag::new(
+        "text",
+        &["plain", "markdown", "html"]
+    ), CoreLibPointerId::Text, memory);
+
+    let array = create_core_type(TypeTag::new("array", &[]), CoreLibPointerId::Array, memory);
+    let tuple = create_core_type(TypeTag::new("tuple", &[]), CoreLibPointerId::Tuple, memory);
+    let object = create_core_type(TypeTag::new("object", &[]), CoreLibPointerId::Object, memory);
+    let function = create_core_type(TypeTag::new("function", &[]), CoreLibPointerId::Function, memory);
 
     // create #core object with properties
     let value = ValueContainer::from(Object::from_iter(vec![
         ("null".to_string(), null),
-        ("integer".to_string(), integer),
         ("boolean".to_string(), boolean),
+        ("integer".to_string(), integer),
+        ("decimal".to_string(), decimal),
+        ("text".to_string(), text),
+        ("Array".to_string(), array),
+        ("Tuple".to_string(), tuple),
+        ("Object".to_string(), object),
+        ("Function".to_string(), function),
+
         // TODO: add other core types here...
     ]));
     // TODO: better solution for allowed_type here:

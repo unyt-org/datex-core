@@ -34,7 +34,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use crate::types::{IllegalTypeError, TypeNew};
 use crate::values::core_values::endpoint::Endpoint;
+use crate::values::datex_type::CoreValueType::Type;
 use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, Default)]
@@ -378,6 +380,7 @@ pub enum ExecutionError {
     RequiresRuntime,
     ResponseError(ResponseError),
     CompilerError(CompilerError),
+    IllegalTypeError(IllegalTypeError)
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -389,6 +392,12 @@ impl From<DXBParserError> for ExecutionError {
 impl From<ValueError> for ExecutionError {
     fn from(error: ValueError) -> Self {
         ExecutionError::ValueError(error)
+    }
+}
+
+impl From<IllegalTypeError> for ExecutionError {
+    fn from(error: IllegalTypeError) -> Self {
+        ExecutionError::IllegalTypeError(error)
     }
 }
 
@@ -447,6 +456,9 @@ impl Display for ExecutionError {
             }
             ExecutionError::ResponseError(err) => {
                 write!(f, "Response error: {err}")
+            }
+            ExecutionError::IllegalTypeError(err) => {
+                write!(f, "Illegal type: {err}")
             }
         }
     }
@@ -1179,8 +1191,9 @@ fn handle_comparison_operation(
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Matches => {
-            // TODO #104 implement pattern matching
-            unreachable!("Instruction {:?} is not a valid operation", operator);
+            let v_type = TypeNew::try_from(value_container)?;
+            let val = v_type.value_matches(active_value_container);
+            Ok(ValueContainer::from(val))
         }
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);

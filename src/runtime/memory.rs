@@ -7,9 +7,11 @@ use datex_core::global::protocol_structures::instructions::RawFullPointerAddress
 use datex_core::runtime::global_context::get_global_context;
 use datex_core::values::core_values::endpoint::Endpoint;
 use crate::global::protocol_structures::instructions::RawInternalPointerAddress;
-use crate::libs::core::load_core_lib;
+use crate::libs::core::{load_core_lib, CoreLibPointerId};
+use crate::types::{IllegalTypeError, TypeNew};
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::Reference;
+use crate::values::value_container::ValueContainer;
 // FIXME #105 no-std
 
 #[derive(Debug)]
@@ -36,7 +38,7 @@ impl Memory {
         memory
     }
 
-
+    /// Registers a new reference in memory. If the reference has no PointerAddress, a new local one is generated.
     pub fn register_reference(&mut self, reference: Reference) {
         // auto-generate new local id if no id is set
         let pointer_id = reference.data.borrow().pointer_id().clone()
@@ -44,9 +46,30 @@ impl Memory {
         self.pointers.insert(pointer_id, reference);
     }
 
+    /// Returns a reference stored at the given PointerAddress, if it exists.
     pub fn get_reference(&self, pointer_address: &PointerAddress) -> Option<&Reference> {
         self.pointers.get(pointer_address)
     }
+
+    /// Helper function to get a core value directly from memory
+    pub fn get_core_reference(&self, pointer_id: CoreLibPointerId) -> &Reference {
+        self.get_reference(&pointer_id.into()).expect("core reference not found in memory")
+    }
+
+    /// Helper function to get a core type directly from memory if it can be used as a type
+    pub fn get_core_type(&self, pointer_id: CoreLibPointerId) -> Result<TypeNew, IllegalTypeError> {
+        // TODO: make this more efficient by also caching core types separately?
+        self.get_reference(&pointer_id.into()).map(
+            |r| TypeNew::try_from(ValueContainer::Reference(r.clone()))
+        ).expect("core type not found in memory")
+    }
+
+    /// Helper function to get a core type directly from memory, asserting that is can be used as a type
+    /// Panics if the core type is not found or cannot be used as a type.
+    pub fn get_core_type_unchecked(&self, pointer_id: CoreLibPointerId) -> TypeNew {
+        self.get_core_type(pointer_id).expect("core type not found or cannot be used as a type")
+    }
+
 
     /// Takes a RawFullPointerAddress and converts it to a PointerAddress::Local or PointerAddress::Remote,
     /// depending on whether the pointer origin id matches the local endpoint.

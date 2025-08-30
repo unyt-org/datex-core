@@ -49,6 +49,7 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
+use crate::types::TypeNew;
 use crate::values::pointer::PointerAddress;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
@@ -202,7 +203,7 @@ pub enum DatexExpression {
     /// Slot assignment
     SlotAssignment(Slot, Box<DatexExpression>),
 
-    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>, Option<ValueContainer>),
+    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>, Option<TypeNew>),
     ComparisonOperation(
         ComparisonOperator,
         Box<DatexExpression>,
