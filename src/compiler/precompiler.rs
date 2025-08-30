@@ -9,6 +9,8 @@ use std::assert_matches::assert_matches;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::libs::core::CoreLibPointerId;
+use crate::runtime::Runtime;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Clone, Debug, Default)]
@@ -21,9 +23,17 @@ pub struct VariableMetadata {
 #[derive(Default, Debug)]
 pub struct AstMetadata {
     pub variables: Vec<VariableMetadata>,
+    // TODO: move runtime somewhere else, not in AstMetadata?
+    pub runtime: Runtime,
 }
 
 impl AstMetadata {
+    pub fn new(runtime: Runtime) -> Self {
+        AstMetadata {
+            variables: Vec::new(),
+            runtime,
+        }
+    }
     pub fn variable_metadata(&self, id: usize) -> Option<&VariableMetadata> {
         self.variables.get(id)
     }
@@ -118,6 +128,7 @@ impl PrecompilerScopeStack {
         name: &str,
         metadata: &mut AstMetadata,
     ) -> Result<usize, CompilerError> {
+        // try to resolve local variable
         if let Some(var_id) = self.get_variable(name) {
             let var_metadata = metadata.variable_metadata_mut(var_id).unwrap();
             // if the original realm index is not the current realm index, mark it as cross-realm
@@ -130,7 +141,8 @@ impl PrecompilerScopeStack {
                 var_metadata.is_cross_realm = true;
             }
             Ok(var_id)
-        } else {
+        }
+        else {
             Err(CompilerError::UndeclaredVariable(name.to_string()))
         }
     }
@@ -292,14 +304,34 @@ fn visit_expression(
         }
         DatexExpression::Literal(name) => {
             // If variable exist
-            if let Some(id) = scope_stack.get_variable(name) {
+            return if let Some(id) = scope_stack.get_variable(name) {
                 info!(
                     "Visiting variable: {name}, scope stack: {scope_stack:?}"
                 );
                 *expression = DatexExpression::Variable(Some(id), name.clone());
-                return Ok(());
-            } else {
-                return Err(CompilerError::UndeclaredVariable(name.clone()));
+                Ok(())
+            }
+            // try to resolve core variable
+            else if let Some(core) = metadata.runtime.memory().borrow().get_reference(&CoreLibPointerId::Core.into())
+            && let core_variable = core.borrow().current_value_container().to_value().borrow().cast_to_object().unwrap().get(name)
+            {
+                match core_variable {
+                    ValueContainer::Reference(reference) => {
+                        if let Some(pointer_id) = reference.data.borrow().pointer_id() {
+                            *expression = DatexExpression::GetReference(pointer_id.clone());
+                        }
+                        else {
+                            unreachable!("Core variable reference must have a pointer ID");
+                        }
+                    }
+                    _ => {
+                        unreachable!("Core variable must be a reference");
+                    }
+                }
+                Ok(())
+            }
+            else {
+                Err(CompilerError::UndeclaredVariable(name.clone()))
             }
         }
         DatexExpression::AssignmentOperation(operator, id, name, expr) => {
@@ -503,6 +535,9 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
+        DatexExpression::GetReference(_pointer_id) => {
+            // nothing to do
+        }
         DatexExpression::Statements(stmts) => {
             for stmt in stmts {
                 visit_expression(
@@ -591,6 +626,7 @@ mod tests {
     };
     use std::assert_matches::assert_matches;
     use std::{assert_matches, io};
+    use crate::runtime::RuntimeConfig;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -607,8 +643,9 @@ mod tests {
     fn parse_and_precompile(
         src: &str,
     ) -> Result<AstWithMetadata, CompilerError> {
+        let runtime = Runtime::init_native(RuntimeConfig::default());
         let mut scope_stack = PrecompilerScopeStack::default();
-        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::new(runtime)));
         let expr = parse_unwrap(src);
         precompile_ast(expr, ast_metadata.clone(), &mut scope_stack)
     }
@@ -618,6 +655,32 @@ mod tests {
         let result = parse_and_precompile("x + 42");
         assert!(result.is_err());
         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "x");
+    }
+
+
+    #[test]
+    fn core_types() {
+        let result = parse_and_precompile("boolean");
+        assert_matches!(
+            result,
+            Ok(
+                AstWithMetadata {
+                    ast: DatexExpression::GetReference(pointer_id),
+                    ..
+                }
+            ) if pointer_id == CoreLibPointerId::Boolean.into()
+        );
+
+        let result = parse_and_precompile("integer");
+        assert_matches!(
+            result,
+            Ok(
+                AstWithMetadata {
+                    ast: DatexExpression::GetReference(pointer_id),
+                    ..
+                }
+            ) if pointer_id == CoreLibPointerId::Integer.into()
+        );
     }
 
     #[test]

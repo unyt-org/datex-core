@@ -49,6 +49,7 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
+use crate::values::pointer::PointerAddress;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
@@ -162,6 +163,8 @@ pub enum DatexExpression {
     Statements(Vec<Statement>),
     /// Identifier, e.g. a variable name. VariableId is always set to 0 by the ast parser.
     Variable(Option<VariableId>, String),
+    /// reference access, e.g. &<ABCDEF>
+    GetReference(PointerAddress),
 
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
     VariableDeclaration {
