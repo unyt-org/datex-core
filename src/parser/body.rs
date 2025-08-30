@@ -363,12 +363,10 @@ pub fn iterate_instructions<'a>(
 
                     // operations
                     InstructionCode::ADD => Ok(Instruction::Add),
-
                     InstructionCode::SUBTRACT => Ok(Instruction::Subtract),
-
                     InstructionCode::MULTIPLY => Ok(Instruction::Multiply),
-
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
+                    InstructionCode::UNION => Ok(Instruction::Union),
 
                     // equality
                     InstructionCode::STRUCTURAL_EQUAL => {

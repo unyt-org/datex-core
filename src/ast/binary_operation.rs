@@ -118,6 +118,7 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Power => InstructionCode::POWER,
             BinaryOperator::And => InstructionCode::AND,
             BinaryOperator::Or => InstructionCode::OR,
+            BinaryOperator::Union => InstructionCode::UNION,
             operator => todo!(
                 "Binary operator {:?} not implemented for InstructionCode",
                 operator
@@ -143,6 +144,7 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::POWER => BinaryOperator::Power,
             InstructionCode::AND => BinaryOperator::And,
             InstructionCode::OR => BinaryOperator::Or,
+            InstructionCode::UNION => BinaryOperator::Union,
             _ => todo!("#154 Binary operator for {:?} not implemented", code),
         }
     }
@@ -161,6 +163,7 @@ impl From<&Instruction> for BinaryOperator {
             Instruction::Subtract => BinaryOperator::Subtract,
             Instruction::Multiply => BinaryOperator::Multiply,
             Instruction::Divide => BinaryOperator::Divide,
+            Instruction::Union => BinaryOperator::Union,
             _ => {
                 todo!(
                     "#155 Binary operator for instruction {:?} not implemented",

@@ -20,6 +20,7 @@ use std::cell::{Cell, RefCell};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
+use crate::values::core_values::union::Union;
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::ReferenceMutability;
 
@@ -221,8 +222,8 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Type(ty) => {
                 todo!("Type value not supported in CompilationContext");
             }
-            CoreValue::Union(union_value) => {
-                todo!("Union type not supported in CompilationContext");
+            CoreValue::Union(union) => {
+                self.insert_union(union);
             }
             CoreValue::TypeTag(tag) => {
                 self.insert_type_tag(tag);
@@ -408,6 +409,34 @@ impl<'a> CompilationContext<'a> {
             let len = bytes.len();
             self.append_u8(len as u8);
             self.append_buffer(bytes);
+        }
+    }
+
+    // TODO: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
+    pub fn insert_union(&self, union: &Union) {
+        // insert values as nested UNION binary operations
+
+        self.append_binary_code(InstructionCode::UNION);
+        // insert first value
+        self.insert_value_container(&union.options[0]);
+        
+        // insert rest of values recursively
+        self.insert_union_options(union.options[1..].to_vec());
+    }
+    
+    fn insert_union_options(&self, options: Vec<ValueContainer>) {
+        // directly insert value if only one option left
+        if options.len() == 1 {
+            self.insert_value_container(&options[0]);
+        }
+        else {
+            self.append_binary_code(InstructionCode::SCOPE_START);
+            self.append_binary_code(InstructionCode::UNION);
+            // insert first value
+            self.insert_value_container(&options[0]);
+            // insert rest of values recursively
+            self.insert_union_options(options[1..].to_vec());
+            self.append_binary_code(InstructionCode::SCOPE_END);
         }
     }
 

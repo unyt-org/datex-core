@@ -156,6 +156,7 @@ pub enum InstructionCode {
     POWER,     // ^
     INCREMENT, // ++
     DECREMENT, // --
+    UNION, // | // TODO: maybe create a union collection of multiple values, instead of using this as a binary operator?
 
     // assignment operators
     ASSIGN,          // =

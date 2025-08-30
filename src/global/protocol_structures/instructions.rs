@@ -56,6 +56,7 @@ pub enum Instruction {
     Subtract,
     Multiply,
     Divide,
+    Union,
 
     // comparison operator
     Is,
@@ -152,6 +153,7 @@ impl Display for Instruction {
             Instruction::Subtract => write!(f, "SUBTRACT"),
             Instruction::Multiply => write!(f, "MULTIPLY"),
             Instruction::Divide => write!(f, "DIVIDE"),
+            Instruction::Union => write!(f, "UNION"),
 
             // equality checks
             Instruction::StructuralEqual => write!(f, "STRUCTURAL_EQUAL"),

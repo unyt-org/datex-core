@@ -36,6 +36,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 use crate::types::{IllegalTypeError, TypeNew};
 use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::union::Union;
 use crate::values::datex_type::CoreValueType::Type;
 use crate::values::pointer::PointerAddress;
 
@@ -679,7 +680,8 @@ fn get_result_value_from_instruction(
             Instruction::Add
             | Instruction::Subtract
             | Instruction::Multiply
-            | Instruction::Divide => {
+            | Instruction::Divide
+            | Instruction::Union => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::BinaryOperation {
                         operator: BinaryOperator::from(instruction),
@@ -1226,6 +1228,26 @@ fn handle_binary_operation(
         BinaryOperator::Add => Ok((active_value_container + &value_container)?),
         BinaryOperator::Subtract => {
             Ok((active_value_container - &value_container)?)
+        }
+        BinaryOperator::Union => {
+            // if right is already a union, prepend left value to options
+            if let ValueContainer::Value(Value {
+                inner: CoreValue::Union(right_union),
+                ..
+            }) = value_container
+            {
+                // TODO: no clone here
+                let mut new_options = right_union.options.clone();
+                new_options.insert(0, active_value_container.clone());
+                Ok(ValueContainer::from(Union::new(new_options)))
+            }
+            // else create new union with both values
+            else {
+                Ok(ValueContainer::from(Union::new(vec![
+                    active_value_container.clone(),
+                    value_container,
+                ])))
+            }
         }
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);

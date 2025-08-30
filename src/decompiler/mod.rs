@@ -296,8 +296,6 @@ fn decompile_loop(
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
-        info!("decompile instruction: {:?}, indentation_levels: {}", instruction, indentation_levels);
-
 
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
@@ -512,7 +510,8 @@ fn decompile_loop(
             Instruction::Add
             | Instruction::Subtract
             | Instruction::Multiply
-            | Instruction::Divide => {
+            | Instruction::Divide
+            | Instruction::Union => {
                 handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::Transparent);
                 state.get_current_scope().active_operator =
@@ -888,6 +887,10 @@ fn handle_before_operand(
             }
             (Instruction::Divide, false) => {
                 write_operator(state, output, "/")?;
+                state.get_current_scope().close_scope_after_term = true;
+            }
+            (Instruction::Union, false) => {
+                write_operator(state, output, "|")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::RemoteExecution, false) => {
