@@ -3,4 +3,5 @@ pub enum UnaryOperator {
     Not,
     Neg,
     CreateRef,
+    CreateRefMut
 }

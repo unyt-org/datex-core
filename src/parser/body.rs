@@ -1,18 +1,13 @@
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{
-    DecimalData, ExecutionBlockData, Float32Data, Float64Data,
-    FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
-    Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData,
-    ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data,
-    UInt16Data, UInt32Data, UInt64Data, UInt128Data,
-};
+use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, RawFullPointerAddress, RawInternalPointerAddress, TypeTagData};
 use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use std::fmt::Display;
 use std::io::Cursor;
+use datex_core::global::protocol_structures::instructions::RawOriginPointerAddress;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -316,6 +311,15 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::ENDPOINT => get_endpoint_data(&mut reader)
                         .map(Instruction::Endpoint),
 
+                    InstructionCode::TYPE_TAG => {
+                        let type_tag = TypeTagData::read(&mut reader);
+                        if let Err(err) = type_tag {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::TypeTag(type_tag.unwrap()))
+                        }
+                    }
+
                     InstructionCode::TEXT => {
                         let text_data = get_text_data(&mut reader);
                         if let Err(err) = text_data {
@@ -377,6 +381,7 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::NOT_EQUAL => Ok(Instruction::NotEqual),
                     InstructionCode::IS => Ok(Instruction::Is),
                     InstructionCode::CREATE_REF => Ok(Instruction::CreateRef),
+                    InstructionCode::CREATE_REF_MUT =>  Ok(Instruction::CreateRefMut),
 
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {
@@ -411,6 +416,34 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::SetSlot(address.unwrap()))
                         }
                     }
+
+                    InstructionCode::GET_REF => {
+                        let address = RawFullPointerAddress::read(&mut reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::GetRef(address.unwrap()))
+                        }
+                    }
+
+                    InstructionCode::GET_ORIGIN_REF => {
+                        let address = RawOriginPointerAddress::read(&mut reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::GetOriginRef(address.unwrap()))
+                        }
+                    }
+
+                    InstructionCode::GET_INTERNAL_REF => {
+                        let address = RawInternalPointerAddress::read(&mut reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::GetInternalRef(address.unwrap()))
+                        }
+                    }
+
 
                     InstructionCode::ADD_ASSIGN => {
                         let address = SlotAddress::read(&mut reader);

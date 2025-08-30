@@ -26,6 +26,7 @@ pub enum Instruction {
     BigInteger(IntegerData),
 
     Endpoint(Endpoint),
+    TypeTag(TypeTagData),
 
     DecimalF32(Float32Data),
     DecimalF64(Float64Data),
@@ -73,7 +74,9 @@ pub enum Instruction {
     CreateRefMut,
 
     // &ABCDE
-    GetRef(RawEndpointPointerAddress),
+    GetRef(RawFullPointerAddress),
+    GetOriginRef(RawOriginPointerAddress),
+    GetInternalRef(RawInternalPointerAddress),
 
     // &ABCDE := ...
     GetOrCreateRef(GetOrCreateRefData),
@@ -138,6 +141,9 @@ impl Display for Instruction {
             Instruction::KeyValueShortText(data) => {
                 write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
             }
+            Instruction::TypeTag(data) => {
+                write!(f, "TYPE_TAG {}/({})", data.name, data.variants.iter().map(|v| v.name.as_str()).collect::<Vec<&str>>().join("|"))
+            }
             Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
 
             // operations
@@ -169,6 +175,12 @@ impl Display for Instruction {
             }
             Instruction::GetRef(address) => {
                 write!(f, "GET_REF [{}:{}]", address.endpoint, hex::encode(address.id))
+            }
+            Instruction::GetOriginRef(address) => {
+                write!(f, "GET_ORIGIN_REF [origin_id: {}]", hex::encode(address.id))
+            }
+            Instruction::GetInternalRef(address) => {
+                write!(f, "GET_INTERNAL_REF [internal_id: {}]", hex::encode(address.id))
             }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
             Instruction::CreateRefMut => write!(f, "CREATE_REF_MUT"),
@@ -282,6 +294,31 @@ pub struct TextDataRaw {
     pub text: Vec<u8>,
 }
 
+
+#[derive(BinRead, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct TypeTagData {
+    pub name_length: u8,
+    pub variant_count: u32,
+    // name string
+    #[br(count = name_length)]
+    #[br(map = |bytes: Vec<u8>| String::from_utf8(bytes).unwrap())]
+    pub name: String,
+    // variant strings
+    #[br(count = variant_count)]
+    pub variants: Vec<TypeTagVariant>,
+}
+
+#[derive(BinRead, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct TypeTagVariant {
+    pub length: u8,
+    #[br(count = length)]
+    #[br(map = |bytes: Vec<u8>| String::from_utf8(bytes).unwrap())]
+    pub name: String,
+}
+
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ShortTextData(pub String);
 
@@ -300,15 +337,27 @@ pub struct SlotAddress(pub u32);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
-pub struct RawEndpointPointerAddress {
+pub struct RawFullPointerAddress {
     pub endpoint: Endpoint,
     pub id: [u8; 5],
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
+pub struct RawOriginPointerAddress {
+    pub id: [u8; 5],
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct RawInternalPointerAddress {
+    pub id: [u8; 3],
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
 pub struct GetOrCreateRefData {
-    pub address: RawEndpointPointerAddress,
+    pub address: RawFullPointerAddress,
     pub create_block_size: u64
 }
 

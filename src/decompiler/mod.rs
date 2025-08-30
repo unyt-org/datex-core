@@ -2,6 +2,7 @@ use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
+use log::info;
 // FIXME #223 no-std
 
 use crate::compiler::{CompileOptions, compile_template_with_refs};
@@ -84,9 +85,22 @@ fn int_to_label(n: i32) -> String {
     label
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub enum Formatting {
+    #[default]
+    Compact,
+    Indented { indent: usize },
+}
+
+impl Formatting {
+    pub fn default_indent() -> Self {
+        Formatting::Indented { indent: 4 }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DecompileOptions {
-    pub formatted: bool,
+    pub formatting: Formatting,
     pub colorized: bool,
     /// display slots with generated variable names
     pub resolve_slots: bool,
@@ -108,7 +122,7 @@ impl DecompileOptions {
     pub fn colorized() -> Self {
         DecompileOptions {
             colorized: true,
-            formatted: true,
+            formatting: Formatting::Indented { indent: 4 },
             resolve_slots: true,
             ..DecompileOptions::default()
         }
@@ -130,6 +144,8 @@ impl ScopeType {
     pub fn write_start(
         &self,
         output: &mut String,
+        formatting: &Formatting,
+        indentation_levels: usize,
     ) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default => write!(output, "(")?,
@@ -141,9 +157,42 @@ impl ScopeType {
             }
             ScopeType::Transparent => {}
         }
+        match self {
+            ScopeType::Default | ScopeType::Tuple | ScopeType::Array | ScopeType::Object => {
+                match formatting {
+                    Formatting::Indented { indent } => {
+                        write!(output, "\r\n")?;
+                        for _ in 0..(indentation_levels * indent) {
+                            write!(output, " ")?;
+                        }
+                    }
+                    Formatting::Compact => {}
+                }
+            },
+            _ => {}
+        }
         Ok(())
     }
-    pub fn write_end(&self, output: &mut String) -> Result<(), DXBParserError> {
+    pub fn write_end(
+        &self,
+        output: &mut String,
+        formatting: &Formatting,
+        indentation_levels: usize,
+    ) -> Result<(), DXBParserError> {
+        match self {
+            ScopeType::Default | ScopeType::Tuple | ScopeType::Array | ScopeType::Object => {
+                match formatting {
+                    Formatting::Indented { indent } => {
+                        write!(output, "\r\n")?;
+                        for _ in 0..(indentation_levels.saturating_sub(1) * indent) {
+                            write!(output, " ")?;
+                        }
+                    }
+                    Formatting::Compact => {}
+                }
+            },
+            _ => {}
+        }
         match self {
             ScopeType::Default => write!(output, ")")?,
             ScopeType::Tuple => write!(output, ")")?,
@@ -174,11 +223,11 @@ struct ScopeState {
 }
 
 impl ScopeState {
-    fn write_start(&self, output: &mut String) -> Result<(), DXBParserError> {
-        self.scope_type.0.write_start(output)
+    fn write_start(&self, output: &mut String, formatting: &Formatting, indentation_levels: usize) -> Result<(), DXBParserError> {
+        self.scope_type.0.write_start(output, formatting, indentation_levels)
     }
-    fn write_end(&self, output: &mut String) -> Result<(), DXBParserError> {
-        self.scope_type.0.write_end(output)
+    fn write_end(&self, output: &mut String, formatting: &Formatting, indentation_levels: usize) -> Result<(), DXBParserError> {
+        self.scope_type.0.write_end(output, formatting, indentation_levels)
     }
 }
 
@@ -240,71 +289,74 @@ fn decompile_loop(
     state: &mut DecompilerState,
 ) -> Result<String, DXBParserError> {
     let mut output = String::new();
+    let mut indentation_levels = 0;
+    let formatting = state.options.formatting;
 
     let instruction_iterator = body::iterate_instructions(state.dxb_body);
 
     for instruction in instruction_iterator {
         let instruction = instruction?;
-        //info!("decompile instruction: {:?}", instruction);
+        info!("decompile instruction: {:?}, indentation_levels: {}", instruction, indentation_levels);
+
 
         match instruction {
             Instruction::Int8(Int8Data(i8)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{i8}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int16(Int16Data(i16)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{i16}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int32(Int32Data(i32)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{i32}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int64(Int64Data(i64)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{i64}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Int128(Int128Data(i128)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{i128}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::UInt8(UInt8Data(u8)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{u8}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::UInt16(UInt16Data(u16)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{u16}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::UInt32(UInt32Data(u32)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{u32}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::UInt64(UInt64Data(u64)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{u64}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::UInt128(UInt128Data(u128)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{u128}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::BigInteger(IntegerData(big_int)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{big_int}n")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalF32(Float32Data(f32)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(
                     output,
                     "{}",
@@ -313,7 +365,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalF64(Float64Data(f64)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(
                     output,
                     "{}",
@@ -322,7 +374,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(
                     output,
                     "{}",
@@ -331,7 +383,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(
                     output,
                     "{}",
@@ -340,87 +392,119 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Decimal(DecimalData(big_decimal)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 write!(output, "{big_decimal}")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::ShortText(ShortTextData(text)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Text(TextData(text)) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 let text = escape_text(&text);
                 write!(output, "\"{text}\"")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::True => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 write!(output, "true")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::False => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 write!(output, "false")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Null => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 write!(output, "null")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Endpoint(endpoint) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 write!(output, "{endpoint}")?;
                 handle_after_term(state, &mut output, false)?;
             }
+            Instruction::TypeTag(tag_data) => {
+                handle_before_term(state, &mut output, false, indentation_levels)?;
+                write!(output, "Tag(")?;
+                // write tag name
+                write!(output, "'{}'", tag_data.name)?;
+                // write tag parameters if any
+                if !tag_data.variants.is_empty() {
+                    write!(output, ",")?;
+                    for (i, param) in tag_data.variants.iter().enumerate() {
+                        if i > 0 {
+                            write!(output, "|")?;
+                        }
+                        write!(output, "'{}'", param.name)?;
+                    }
+                }
+                write!(output, ")")?;
+                handle_after_term(state, &mut output, false)?;
+            }
             Instruction::ArrayStart => {
-                handle_before_term(state, &mut output, false)?;
+                indentation_levels += 1;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::Array);
-                state.get_current_scope().write_start(&mut output)?;
+                state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
             Instruction::ObjectStart => {
-                handle_before_term(state, &mut output, false)?;
+                indentation_levels += 1;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::Object);
-                state.get_current_scope().write_start(&mut output)?;
+                state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
             Instruction::TupleStart => {
-                handle_before_term(state, &mut output, true)?;
+                indentation_levels += 1;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 state.new_scope(ScopeType::Tuple);
-                state.get_current_scope().write_start(&mut output)?;
+                state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
             Instruction::ScopeStart => {
-                handle_before_term(state, &mut output, true)?;
+                indentation_levels += 1;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 state.new_scope(ScopeType::Default);
-                state.get_current_scope().write_start(&mut output)?;
+                state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
             Instruction::ScopeEnd => {
-                handle_scope_close(state, &mut output)?;
+                let current_scope_is_array_object_tuple = matches!(
+                    state.get_current_scope().scope_type.0,
+                    ScopeType::Array | ScopeType::Object | ScopeType::Tuple
+                );
+                handle_scope_close(state, &mut output, indentation_levels)?;
                 handle_after_term(state, &mut output, true)?;
+                if current_scope_is_array_object_tuple {
+                    indentation_levels = indentation_levels.saturating_sub(1);
+                }
             }
             Instruction::KeyValueShortText(text_data) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 // prevent redundant comma for value
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write_text_key(
                     state,
                     &text_data.0,
                     &mut output,
-                    state.options.formatted,
+                    state.options.formatting,
                 )?;
             }
             Instruction::KeyValueDynamic => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.get_current_scope().skip_comma_for_next_item = true;
                 state.get_current_scope().next_item_is_key = true;
             }
             Instruction::CloseAndStore => {
-                if state.options.formatted {
-                    write!(output, ";\r\n")?;
-                } else {
-                    write!(output, ";")?;
+                match state.options.formatting {
+                    Formatting::Indented { .. } => {
+                        write!(output, ";\r\n")?;
+                    }
+                    Formatting::Compact => {
+                        write!(output, ";")?;
+                    }
                 }
             }
 
@@ -429,7 +513,7 @@ fn decompile_loop(
             | Instruction::Subtract
             | Instruction::Multiply
             | Instruction::Divide => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::Transparent);
                 state.get_current_scope().active_operator =
                     Some((instruction, true));
@@ -437,7 +521,7 @@ fn decompile_loop(
 
             // slots
             Instruction::AllocateSlot(address) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
@@ -450,7 +534,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::GetSlot(address) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO #96: get variable name for slot
@@ -472,7 +556,7 @@ fn decompile_loop(
                 }
             }
             Instruction::SetSlot(address) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
@@ -484,8 +568,32 @@ fn decompile_loop(
                 }
             }
 
+            Instruction::GetRef(address) => {
+                handle_before_term(state, &mut output, false, indentation_levels)?;
+                let endpoint_hex = address.endpoint.to_binary().iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<String>();
+                let address_hex = address.id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+                write!(output, "&<{}:{}>", endpoint_hex, address_hex)?;
+                handle_after_term(state, &mut output, false)?;
+            }
+
+            Instruction::GetInternalRef(address) => {
+                handle_before_term(state, &mut output, false, indentation_levels)?;
+                let address_hex = address.id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+                write!(output, "&<internal:{}>", address_hex)?;
+                handle_after_term(state, &mut output, false)?;
+            }
+
+            Instruction::GetOriginRef(address) => {
+                handle_before_term(state, &mut output, false, indentation_levels)?;
+                let address_hex = address.id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+                write!(output, "&<origin:{}>", address_hex)?;
+                handle_after_term(state, &mut output, false)?;
+            }
+
             Instruction::AddAssign(address) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
@@ -497,7 +605,7 @@ fn decompile_loop(
             }
 
             Instruction::SubtractAssign(address) => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
@@ -509,25 +617,25 @@ fn decompile_loop(
             }
 
             Instruction::CreateRef => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.get_current_scope().skip_comma_for_next_item = true;
-                write!(output, "& ")?;
+                write!(output, "&")?;
             }
 
             Instruction::CreateRefMut => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write!(output, "&mut ")?;
             }
 
             Instruction::RemoteExecution => {
-                handle_before_term(state, &mut output, false)?;
+                handle_before_term(state, &mut output, false, indentation_levels)?;
                 state.get_current_scope().active_operator =
                     Some((instruction, true));
             }
 
             Instruction::ExecutionBlock(data) => {
-                handle_before_term(state, &mut output, true)?;
+                handle_before_term(state, &mut output, true, indentation_levels)?;
                 // decompile data.body
                 let decompiled_body =
                     decompile_body(&data.body, state.options.clone())?;
@@ -605,7 +713,7 @@ fn write_text_key(
     state: &mut DecompilerState,
     text: &str,
     output: &mut String,
-    formatted: bool,
+    formatting: Formatting
 ) -> Result<(), DXBParserError> {
     // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
     let text = if !state.options.json_compat && is_alphanumeric_identifier(text)
@@ -614,10 +722,13 @@ fn write_text_key(
     } else {
         format!("\"{}\"", escape_text(text))
     };
-    if formatted {
-        write!(output, "{text}: ")?;
-    } else {
-        write!(output, "{text}:")?;
+    match formatting {
+        Formatting::Indented { .. } => {
+            write!(output, "{text}: ")?;
+        }
+        Formatting::Compact => {
+            write!(output, "{text}:")?;
+        }
     }
     Ok(())
 }
@@ -642,9 +753,10 @@ fn handle_before_term(
     state: &mut DecompilerState,
     output: &mut String,
     is_standalone_key: bool,
+    indentation_levels: usize,
 ) -> Result<(), DXBParserError> {
     handle_before_operand(state, output)?;
-    handle_before_item(state, output, is_standalone_key)?;
+    handle_before_item(state, output, is_standalone_key, indentation_levels)?;
     Ok(())
 }
 
@@ -668,10 +780,13 @@ fn handle_after_term(
         }
         // set next_item_is_key to false
         state.get_current_scope().next_item_is_key = false;
-        if state.options.formatted {
-            write!(output, ": ")?;
-        } else {
-            write!(output, ":")?;
+        match state.options.formatting {
+            Formatting::Indented { .. } => {
+                write!(output, ": ")?;
+            }
+            Formatting::Compact => {
+                write!(output, ":")?;
+            }
         }
         // prevent redundant comma before value
         state.get_current_scope().skip_comma_for_next_item = true;
@@ -684,11 +799,13 @@ fn handle_after_term(
 fn handle_scope_close(
     state: &mut DecompilerState,
     output: &mut String,
+    indentation_levels: usize,
 ) -> Result<(), DXBParserError> {
+    let formatting = state.options.formatting;
     let scope = state.get_current_scope();
     // close only if not outer scope
     if !scope.is_outer_scope {
-        state.get_current_scope().write_end(output)?;
+        state.get_current_scope().write_end(output, &formatting, indentation_levels)?;
     }
     // close scope
     state.close_scope();
@@ -702,8 +819,9 @@ fn handle_before_item(
     state: &mut DecompilerState,
     output: &mut String,
     is_standalone_key: bool,
+    indentation_levels: usize,
 ) -> Result<(), DXBParserError> {
-    let formatted = state.options.formatted;
+    let formatted = state.options.formatting;
     let scope = state.get_current_scope();
 
     // if next_item_is_key, add opening parenthesis
@@ -719,10 +837,17 @@ fn handle_before_item(
         (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false)
             if !scope.skip_comma_for_next_item =>
         {
-            if formatted {
-                write!(output, ", ")?;
-            } else {
-                write!(output, ",")?;
+            match formatted {
+                Formatting::Indented { indent } => {
+                    write!(output, ",\r\n")?;
+                    let current_indent = indentation_levels * indent;
+                    for _ in 0..current_indent {
+                        write!(output, " ")?;
+                    }
+                }
+                Formatting::Compact => {
+                    write!(output, ",")?;
+                }
             }
         }
         _ => {

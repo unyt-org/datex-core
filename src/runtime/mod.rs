@@ -444,7 +444,7 @@ impl Runtime {
     pub fn new(config: RuntimeConfig) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
         let com_hub = ComHub::new(endpoint.clone());
-        let memory = RefCell::new(Memory::new_with_core_lib(endpoint.clone()));
+        let memory = RefCell::new(Memory::new(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
             internal: Rc::new(RuntimeInternal {

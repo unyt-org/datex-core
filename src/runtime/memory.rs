@@ -2,9 +2,11 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use binrw::BinWrite;
 use chumsky::primitive::End;
-use datex_core::global::protocol_structures::instructions::RawEndpointPointerAddress;
+use log::info;
+use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::runtime::global_context::get_global_context;
 use datex_core::values::core_values::endpoint::Endpoint;
+use crate::global::protocol_structures::instructions::RawInternalPointerAddress;
 use crate::libs::core::load_core_lib;
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::Reference;
@@ -21,23 +23,19 @@ pub struct Memory {
 
 impl Memory {
 
-    /// Creates a new, empty Memory instance.
+    /// Creates a new, Memory instance with the core library loaded.
     pub fn new(endpoint: Endpoint) -> Memory {
-       Memory {
+        let mut memory = Memory {
            local_endpoint: endpoint,
            local_counter: 0,
            last_timestamp: 0,
            pointers: HashMap::new(),
-       }
-    }
-
-    /// Creates a new Memory instance and loads the core library into it.
-    pub fn new_with_core_lib(endpoint: Endpoint) -> Memory {
-        let mut memory = Memory::new(endpoint);
+        };
         // load core library
         load_core_lib(&mut memory);
         memory
     }
+
 
     pub fn register_reference(&mut self, reference: Reference) {
         // auto-generate new local id if no id is set
@@ -50,9 +48,9 @@ impl Memory {
         self.pointers.get(pointer_address)
     }
 
-    /// Takes a RawEndpointPointerAddress and converts it to a PointerAddress::Local or PointerAddress::Remote,
+    /// Takes a RawFullPointerAddress and converts it to a PointerAddress::Local or PointerAddress::Remote,
     /// depending on whether the pointer origin id matches the local endpoint.
-    pub fn get_pointer_address_from_raw_endpoint_pointer_address(&self, raw_address: RawEndpointPointerAddress) -> PointerAddress {
+    pub fn get_pointer_address_from_raw_full_address(&self, raw_address: RawFullPointerAddress) -> PointerAddress {
         if raw_address.endpoint == self.local_endpoint {
             PointerAddress::Local(raw_address.id)
         } else {

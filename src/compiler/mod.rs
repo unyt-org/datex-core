@@ -26,6 +26,8 @@ use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::libs::core::CoreLibPointerId;
+use crate::values::pointer::PointerAddress;
 
 pub mod context;
 pub mod error;
@@ -694,9 +696,18 @@ fn compile_expression(
                 VirtualSlot::local(virtual_slot_addr),
             );
             // create reference if value marked with & or &mut
-            if reference_mutability != ReferenceMutability::None {
-                compilation_context
-                    .append_binary_code(InstructionCode::CREATE_REF);
+            match reference_mutability {
+                ReferenceMutability::Immutable => {
+                    compilation_context.append_binary_code(
+                        InstructionCode::CREATE_REF,
+                    );
+                }
+                ReferenceMutability::Mutable => {
+                    compilation_context.append_binary_code(
+                        InstructionCode::CREATE_REF_MUT,
+                    );
+                }
+                ReferenceMutability::None => {}
             }
             // compile expression
             scope = compile_expression(
@@ -902,6 +913,10 @@ fn compile_expression(
                         .append_binary_code(InstructionCode::GET_SLOT);
                     compilation_context
                         .append_u32(InternalSlot::ENDPOINT as u32);
+                }
+                "core" => {
+                    compilation_context
+                        .insert_get_ref(PointerAddress::from(CoreLibPointerId::Core))
                 }
                 _ => {
                     // invalid slot name

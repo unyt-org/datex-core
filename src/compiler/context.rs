@@ -17,8 +17,11 @@ use datex_core::decompiler::decompile_body;
 use itertools::Itertools;
 use log::info;
 use std::cell::{Cell, RefCell};
+use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
+use crate::values::pointer::PointerAddress;
+use crate::values::reference::ReferenceMutability;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -200,8 +203,12 @@ impl<'a> CompilationContext<'a> {
             ValueContainer::Value(value) => self.insert_value(value),
             ValueContainer::Reference(reference) => {
                 // TODO #160: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
-                // add CREATE_REF instruction
-                self.append_binary_code(InstructionCode::CREATE_REF);
+                // add CREATE_REF/CREATE_REF_MUT instruction
+                if reference.mutability == ReferenceMutability::Mutable {
+                    self.append_binary_code(InstructionCode::CREATE_REF_MUT);
+                } else {
+                    self.append_binary_code(InstructionCode::CREATE_REF);
+                }
                 self.insert_value(
                     &reference.borrow().resolve_current_value().borrow(),
                 )
@@ -390,10 +397,18 @@ impl<'a> CompilationContext<'a> {
     pub fn insert_type_tag(&self, tag: &TypeTag) {
         let bytes = tag.name.as_bytes();
         let len = bytes.len();
+        let variant_count = tag.variants.len();
 
         self.append_binary_code(InstructionCode::TYPE_TAG);
         self.append_u8(len as u8);
+        self.append_u32(variant_count as u32);
         self.append_buffer(bytes);
+        for variant in &tag.variants {
+            let bytes = variant.as_bytes();
+            let len = bytes.len();
+            self.append_u8(len as u8);
+            self.append_buffer(bytes);
+        }
     }
 
     pub fn insert_big_integer(&self, integer: &Integer) {
@@ -583,6 +598,23 @@ impl<'a> CompilationContext<'a> {
     pub fn append_buffer(&self, buffer: &[u8]) {
         (*self.buffer.borrow_mut()).extend_from_slice(buffer);
         self.index.update(|x| x + buffer.len());
+    }
+    
+    pub fn insert_get_ref(&self, address: PointerAddress) {
+        match address {
+            PointerAddress::Internal(id) => {
+                self.append_binary_code(InstructionCode::GET_INTERNAL_REF);
+                self.append_buffer(&id);
+            }
+            PointerAddress::Local(id) => {
+                self.append_binary_code(InstructionCode::GET_ORIGIN_REF);
+                self.append_buffer(&id);
+            }
+            PointerAddress::Remote(id) => {
+                self.append_binary_code(InstructionCode::GET_REF);
+                self.append_buffer(&id);
+            }
+        }
     }
 
     pub fn mark_has_non_static_value(&self) {

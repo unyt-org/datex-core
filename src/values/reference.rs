@@ -14,7 +14,7 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReferenceMutability {
     Mutable,
     Immutable,
@@ -69,11 +69,13 @@ impl Hash for Reference {
     }
 }
 
+
 impl<T: Into<ValueContainer>> From<T> for Reference {
+    /// Creates a new immutable reference from a value container.
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
         let allowed_type = value_container.to_value().borrow().r#type().clone();
-        Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Mutable)
+        Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Immutable)
     }
 }
 
@@ -104,6 +106,15 @@ impl Reference {
         };
         reference.upgrade_inner_combined_values_to_references();
         reference
+    }
+    
+    /// Creates a new mutable reference from a value container.
+    pub fn mut_from<T: Into<ValueContainer>>(
+        value_container: T,
+    ) -> Self {
+        let value_container = value_container.into();
+        let allowed_type = value_container.to_value().borrow().r#type().clone();
+        Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Mutable)
     }
 
     /// Collapses the reference chain to most inner reference to which this reference points.

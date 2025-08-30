@@ -34,6 +34,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -181,10 +183,22 @@ pub fn execute_dxb_sync(
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(_pointer_id) => {
+            ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::Result(Some(ValueContainer::from(42))),
-                );
+                    InterruptProvider::Result(get_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
+            }
+            ExecutionStep::ResolveOriginPointer(address) => {
+                todo!("block origin is needed here to resolve the pointer address")
+            }
+            ExecutionStep::ResolveInternalPointer(address) => {
+                *interrupt_provider.borrow_mut() = Some(
+                    InterruptProvider::Result(get_internal_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
@@ -200,27 +214,6 @@ pub fn execute_dxb_sync(
     Err(ExecutionError::RequiresAsyncExecution)
 }
 
-fn get_internal_slot_value(
-    runtime_internal: &Option<Rc<RuntimeInternal>>,
-    slot: u32,
-) -> Result<Option<ValueContainer>, ExecutionError> {
-    if let Some(runtime) = &runtime_internal {
-        // convert slot to InternalSlot enum
-        let slot = InternalSlot::try_from_primitive(slot)
-            .map_err(|_| ExecutionError::SlotNotAllocated(slot))?;
-        let res = match slot {
-            InternalSlot::ENDPOINT => {
-                Some(ValueContainer::from(runtime.endpoint.clone()))
-            }
-        };
-        Ok(res)
-    } else {
-        Err(ExecutionError::RequiresRuntime)
-    }
-}
-
-pub async fn get_pointer_test() {}
-
 pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
@@ -231,11 +224,22 @@ pub async fn execute_dxb(
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(_pointer_id) => {
-                get_pointer_test().await;
+            ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::Result(Some(ValueContainer::from(42))),
-                );
+                    InterruptProvider::Result(get_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
+            }
+            ExecutionStep::ResolveOriginPointer(address) => {
+                todo!("block origin is needed here to resolve the pointer address")
+            }
+            ExecutionStep::ResolveInternalPointer(address) => {
+                *interrupt_provider.borrow_mut() = Some(
+                    InterruptProvider::Result(get_internal_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
             }
             ExecutionStep::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
@@ -273,6 +277,65 @@ pub async fn execute_dxb(
 
     unreachable!("Execution loop should always return a result");
 }
+
+
+
+fn get_internal_slot_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    slot: u32,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        let slot = InternalSlot::try_from_primitive(slot)
+            .map_err(|_| ExecutionError::SlotNotAllocated(slot))?;
+        let res = match slot {
+            InternalSlot::ENDPOINT => {
+                Some(ValueContainer::from(runtime.endpoint.clone()))
+            }
+        };
+        Ok(res)
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
+fn get_pointer_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    address: RawFullPointerAddress,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        let memory = runtime
+            .memory
+            .borrow();
+        let resolved_address = memory
+            .get_pointer_address_from_raw_full_address(address);
+        // convert slot to InternalSlot enum
+        Ok(
+            memory
+                .get_reference(&resolved_address)
+                .map(|r| ValueContainer::Reference(r.clone()))
+        )
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
+fn get_internal_pointer_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    address: RawInternalPointerAddress,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        Ok(
+            runtime.memory.borrow()
+                .get_reference(&PointerAddress::Internal(address.id))
+                .map(|r| ValueContainer::Reference(r.clone()))
+        )
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {
@@ -393,7 +456,9 @@ impl Display for ExecutionError {
 pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
     Return(Option<ValueContainer>),
-    ResolvePointer(u64),
+    ResolvePointer(RawFullPointerAddress),
+    ResolveOriginPointer(RawOriginPointerAddress),
+    ResolveInternalPointer(RawInternalPointerAddress),
     GetInternalSlot(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Pause,
@@ -776,6 +841,27 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::GetRef(address) => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::ResolvePointer(address)
+                )
+            }
+
+            Instruction::GetOriginRef(address) => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::ResolveOriginPointer(address)
+                )
+            }
+
+            Instruction::GetInternalRef(address) => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::ResolveInternalPointer(address)
+                )
+            }
+
             Instruction::AddAssign(SlotAddress(address)) => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::AssignmentOperation {
@@ -801,6 +887,15 @@ fn get_result_value_from_instruction(
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
                         operator: UnaryOperator::CreateRef,
+                    },
+                );
+                None
+            }
+
+            Instruction::CreateRefMut => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::CreateRefMut,
                     },
                 );
                 None
@@ -1043,6 +1138,9 @@ fn handle_unary_operation(
     match operator {
         UnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
+        }
+        UnaryOperator::CreateRefMut => {
+            ValueContainer::Reference(Reference::mut_from(value_container))
         }
         _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }

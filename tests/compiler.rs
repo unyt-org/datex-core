@@ -26,7 +26,7 @@ fn compare_compiled(datex_script: &str, expected: &str) {
         &dxb_body,
         DecompileOptions {
             json_compat: false,
-            formatted: true,
+            formatting: true,
             colorized: true,
             resolve_slots: true,
         },
