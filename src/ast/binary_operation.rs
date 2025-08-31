@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
 use crate::ast::utils::is_literal;
@@ -18,11 +19,33 @@ pub enum BinaryOperator {
     Divide,        // /
     Modulo,        // %
     Power,         // ^
-    And,           // &&
-    Or,            // ||
+    And,           // and
+    Or,            // or
     CompositeAnd,  // TODO
     CompositeOr,   // TODO
 }
+
+impl Display for BinaryOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            BinaryOperator::VariantAccess => "/",
+            BinaryOperator::Intersection => "&",
+            BinaryOperator::Union => "|",
+            BinaryOperator::Add => "+",
+            BinaryOperator::Subtract => "-",
+            BinaryOperator::Multiply => "*",
+            BinaryOperator::Divide => "/",
+            BinaryOperator::Modulo => "%",
+            BinaryOperator::Power => "^",
+            BinaryOperator::And => "and",
+            BinaryOperator::Or => "or",
+            BinaryOperator::CompositeAnd => "COMPOSITE_AND",
+            BinaryOperator::CompositeOr => "COMPOSITE_OR",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 
 fn binary_op(
     op: BinaryOperator,

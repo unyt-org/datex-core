@@ -30,6 +30,7 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 use syntect::util::{LinesWithEndings, as_24_bit_terminal_escaped};
+use crate::ast::DatexExpression;
 
 /// Decompiles a DXB bytecode body into a human-readable string representation.
 pub fn decompile_body(
@@ -59,10 +60,15 @@ pub fn decompile_value(
     value: &ValueContainer,
     options: DecompileOptions,
 ) -> String {
-    let (compiled_value, _) =
-        compile_template_with_refs("?", &[value], CompileOptions::default())
-            .unwrap();
-    decompile_body(&compiled_value, options).unwrap()
+    let ast = DatexExpression::from(value);
+    let source_code = ast_to_source_code::ast_to_source_code(&ast, &options);
+    // add syntax highlighting
+    if options.colorized {
+        apply_syntax_highlighting(source_code).unwrap()
+    }
+    else {
+        source_code
+    }
 }
 
 fn int_to_label(n: i32) -> String {
@@ -89,16 +95,17 @@ fn int_to_label(n: i32) -> String {
     label
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Formatting {
     #[default]
     Compact,
-    Indented { indent: usize },
+    Multiline { indent: usize },
 }
 
 impl Formatting {
-    pub fn default_indent() -> Self {
-        Formatting::Indented { indent: 4 }
+    /// Default multiline formatting with 4 spaces indentation
+    pub fn multiline() -> Self {
+        Formatting::Multiline { indent: 4 }
     }
 }
 
@@ -126,7 +133,7 @@ impl DecompileOptions {
     pub fn colorized() -> Self {
         DecompileOptions {
             colorized: true,
-            formatting: Formatting::Indented { indent: 4 },
+            formatting: Formatting::Multiline { indent: 4 },
             resolve_slots: true,
             ..DecompileOptions::default()
         }
@@ -164,7 +171,7 @@ impl ScopeType {
         match self {
             ScopeType::Default | ScopeType::Tuple | ScopeType::Array | ScopeType::Object => {
                 match formatting {
-                    Formatting::Indented { indent } => {
+                    Formatting::Multiline { indent } => {
                         write!(output, "\r\n")?;
                         for _ in 0..(indentation_levels * indent) {
                             write!(output, " ")?;
@@ -186,7 +193,7 @@ impl ScopeType {
         match self {
             ScopeType::Default | ScopeType::Tuple | ScopeType::Array | ScopeType::Object => {
                 match formatting {
-                    Formatting::Indented { indent } => {
+                    Formatting::Multiline { indent } => {
                         write!(output, "\r\n")?;
                         for _ in 0..(indentation_levels.saturating_sub(1) * indent) {
                             write!(output, " ")?;
@@ -289,6 +296,7 @@ impl DecompilerState<'_> {
     }
 }
 
+#[deprecated]
 fn decompile_loop(
     state: &mut DecompilerState,
 ) -> Result<String, DXBParserError> {
@@ -501,7 +509,7 @@ fn decompile_loop(
             }
             Instruction::CloseAndStore => {
                 match state.options.formatting {
-                    Formatting::Indented { .. } => {
+                    Formatting::Multiline { .. } => {
                         write!(output, ";\r\n")?;
                     }
                     Formatting::Compact => {
@@ -726,7 +734,7 @@ fn write_text_key(
         format!("\"{}\"", escape_text(text))
     };
     match formatting {
-        Formatting::Indented { .. } => {
+        Formatting::Multiline { .. } => {
             write!(output, "{text}: ")?;
         }
         Formatting::Compact => {
@@ -784,7 +792,7 @@ fn handle_after_term(
         // set next_item_is_key to false
         state.get_current_scope().next_item_is_key = false;
         match state.options.formatting {
-            Formatting::Indented { .. } => {
+            Formatting::Multiline { .. } => {
                 write!(output, ": ")?;
             }
             Formatting::Compact => {
@@ -841,7 +849,7 @@ fn handle_before_item(
             if !scope.skip_comma_for_next_item =>
         {
             match formatted {
-                Formatting::Indented { indent } => {
+                Formatting::Multiline { indent } => {
                     write!(output, ",\r\n")?;
                     let current_indent = indentation_levels * indent;
                     for _ in 0..current_indent {

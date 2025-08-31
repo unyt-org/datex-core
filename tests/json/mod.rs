@@ -94,7 +94,7 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
         &dxb,
         DecompileOptions {
             json_compat: true,
-            formatting: Formatting::default_indent(),
+            formatting: Formatting::multiline(),
             colorized: false,
             ..DecompileOptions::default()
         },
