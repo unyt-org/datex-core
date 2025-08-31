@@ -91,6 +91,8 @@ impl TypeNew {
         }
     }
 
+    // NOTE: this function currently operates in type space (type matches type, not value matches type)
+    // cannot be directly used for x matches y checks in runtime, but is currently used there nevertheless
     /// Matches a value against self
     /// Returns true if all possible realizations of the value match the type
     /// Examples:
@@ -201,7 +203,7 @@ mod tests {
             )
         )
     }
-    
+
     #[test]
     fn test_match_union_with_base_type() {
         // 1 | 2 matches integer
