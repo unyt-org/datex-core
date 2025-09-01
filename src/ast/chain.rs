@@ -19,6 +19,42 @@ pub enum ApplyOperation {
     GenericAccess(DatexExpression),
 }
 
+pub fn chain_without_whitespace_apply<'a>(
+    unary: impl DatexParserTrait<'a>,
+    key: impl DatexParserTrait<'a>,
+    any: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    unary
+        .clone()
+        .then(
+            choice((
+                // generic access: a<b>
+                just(Token::LeftAngle)
+                    .ignore_then(any.clone())
+                    .then_ignore(just(Token::RightAngle))
+                    .map(ApplyOperation::GenericAccess),
+                // property access
+                just(Token::Dot)
+                    .padded_by(whitespace())
+                    .ignore_then(key)
+                    .map(ApplyOperation::PropertyAccess),
+                just(Token::LeftBracket)
+                    .ignore_then(just(Token::RightBracket))
+                    .map(|_| ApplyOperation::ArrayType),
+            ))
+            .repeated()
+            .collect::<Vec<_>>(),
+        )
+        .labelled(Pattern::Custom("chain_no_whitespace_atom"))
+        .map(|(val, args)| {
+            if args.is_empty() {
+                val
+            } else {
+                DatexExpression::ApplyChain(Box::new(val), args)
+            }
+        })
+}
+
 pub fn chain<'a>(
     unary: impl DatexParserTrait<'a>,
     key: impl DatexParserTrait<'a>,
