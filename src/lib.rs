@@ -9,6 +9,7 @@
 #![feature(trait_alias)]
 #![feature(box_patterns)]
 // FIXME #228: remove in the future, not required in edition 2024, but RustRover complains
+#![allow(unused_parens)]
 
 #[macro_use]
 extern crate mopa;
@@ -22,15 +23,15 @@ pub mod decompiler;
 pub mod dif;
 pub mod generator;
 pub mod global;
+mod libs;
 pub mod logger;
 pub mod network;
 pub mod parser;
 pub mod runtime;
 pub mod task;
+pub mod types;
 pub mod utils;
 pub mod values;
-pub mod types;
-mod libs;
 
 // reexport macros
 pub use datex_macros as macros;
