@@ -4,7 +4,6 @@ use crate::ast::DatexExpression;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
 use crate::types::TypeNew;
-use crate::values::core_value::CoreValue;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::object::Object;
 use crate::values::value_container::ValueContainer;
@@ -57,7 +56,7 @@ fn infer_expression_type(
         }
         DatexExpression::Array(arr) => {
             let entries = arr
-                .into_iter()
+                .iter_mut()
                 .map(|v| {
                     // TODO: is unwrap safe here?
                     infer_expression_type(v, runtime).unwrap().unwrap().definition

@@ -252,14 +252,14 @@ impl TryFrom<&DatexExpression> for ValueContainer {
             DatexExpression::Endpoint(e) => ValueContainer::from(e.clone()),
             DatexExpression::Array(arr) => {
                 let entries = arr
-                    .into_iter()
+                    .iter()
                     .map(ValueContainer::try_from)
                     .collect::<Result<Vec<ValueContainer>, ()>>()?;
                 ValueContainer::from(Array::from(entries))
             }
             DatexExpression::Object(obj) => {
                 let entries = obj
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
                         let key = match k {
                             DatexExpression::Text(s) => s,

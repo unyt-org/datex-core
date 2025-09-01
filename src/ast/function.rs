@@ -1,7 +1,6 @@
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
-use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
 
 fn return_type<'a>(

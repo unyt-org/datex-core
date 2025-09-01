@@ -6,10 +6,8 @@ use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::io::Cursor;
-use log::info;
 // FIXME #223 no-std
 
-use crate::compiler::{CompileOptions, compile_template_with_refs};
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;
 use crate::global::protocol_structures::instructions::UInt8Data;

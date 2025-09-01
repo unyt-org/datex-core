@@ -4,7 +4,6 @@ use crate::ast::integer::integer;
 use crate::ast::text::text;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
-use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
 
 /// A valid object / tuple key

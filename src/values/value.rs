@@ -4,7 +4,7 @@ use crate::values::core_values::r#type::descriptor::TypeDescriptor;
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
-use crate::values::value_container::{ValueContainer, ValueError};
+use crate::values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Deref, Not, Sub};

@@ -106,7 +106,7 @@ fn array_to_source_code(
     join_elements(elements, &decompile_options.formatting, BraceStyle::Square)
 }
 
-//// Converts the contents of a DatexExpression::Tuple into source code
+/// Converts the contents of a DatexExpression::Tuple into source code
 fn tuple_to_source_code(
     tuple: &[TupleEntry],
     decompile_options: &DecompileOptions

@@ -481,22 +481,18 @@ impl Add for CoreValue {
             // integer
             CoreValue::Integer(lhs) => match &rhs {
                 CoreValue::TypedInteger(rhs) => Ok(CoreValue::Integer(
-                    Integer::from(lhs.clone() + rhs.as_integer()),
+                    (lhs.clone() + rhs.as_integer()),
                 )),
                 CoreValue::Decimal(_) => {
                     let integer = rhs
                         .cast_to_integer()
                         .ok_or(ValueError::InvalidOperation)?;
-                    Ok(CoreValue::Integer(Integer::from(
-                        lhs.clone() + integer.as_integer(),
-                    )))
+                    Ok(CoreValue::Integer((lhs.clone() + integer.as_integer())))
                 }
                 CoreValue::TypedDecimal(rhs) => {
                     let decimal = rhs.as_f64();
                     let integer = TypedInteger::from(decimal as i128);
-                    Ok(CoreValue::Integer(Integer::from(
-                        lhs.clone() + integer.as_integer(),
-                    )))
+                    Ok(CoreValue::Integer((lhs.clone() + integer.as_integer())))
                 }
                 _ => Err(ValueError::InvalidOperation),
             },
@@ -609,22 +605,18 @@ impl Sub for CoreValue {
             // integer
             CoreValue::Integer(lhs) => match &rhs {
                 CoreValue::TypedInteger(rhs) => Ok(CoreValue::Integer(
-                    Integer::from(lhs - &rhs.as_integer()),
+                    (lhs - &rhs.as_integer()),
                 )),
                 CoreValue::Decimal(_) => {
                     let integer = rhs
                         .cast_to_integer()
                         .ok_or(ValueError::InvalidOperation)?;
-                    Ok(CoreValue::Integer(Integer::from(
-                        lhs - &integer.as_integer(),
-                    )))
+                    Ok(CoreValue::Integer((lhs - &integer.as_integer())))
                 }
                 CoreValue::TypedDecimal(rhs) => {
                     let decimal = rhs.as_f64();
                     let integer = TypedInteger::from(decimal as i128);
-                    Ok(CoreValue::Integer(Integer::from(
-                        lhs - &integer.as_integer(),
-                    )))
+                    Ok(CoreValue::Integer((lhs - &integer.as_integer())))
                 }
                 _ => Err(ValueError::InvalidOperation),
             },

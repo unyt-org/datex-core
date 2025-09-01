@@ -7,7 +7,6 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::r#type::descriptor::TypeDescriptor;
 use crate::values::core_values::r#type::path::TypePath;
-use crate::values::datex_type::CoreValueType;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 

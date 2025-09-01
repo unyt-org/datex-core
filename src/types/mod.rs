@@ -86,9 +86,7 @@ impl TypeNew {
 
     /// Converts a specific  type (e.g. 42u8) to its base variant type (e.g. integer/u8)
     pub fn get_base_variant_type(&self, memory: &Memory) -> TypeNew {
-        match &self.definition {
-            _ => todo!(),
-        }
+        todo!()
     }
 
     // NOTE: this function currently operates in type space (type matches type, not value matches type)

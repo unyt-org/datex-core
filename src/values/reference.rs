@@ -7,11 +7,11 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -240,8 +240,8 @@ impl Reference {
     /// Binds a child value to this reference, ensuring the child is a reference if it is a combined value
     fn bind_child(&self, child: ValueContainer) -> ValueContainer {
         // Ensure the child is a reference if it is a combined value
-        let child = child.upgrade_combined_value_to_reference();
-        child
+        
+        child.upgrade_combined_value_to_reference()
     }
 
     pub fn observe<F: Fn(&DIFUpdate) + 'static>(&self, observer: F) {

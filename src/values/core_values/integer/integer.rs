@@ -1,17 +1,13 @@
 use crate::values::{
     core_values::{
         error::NumberParseError,
-        integer::{
-            typed_integer::TypedInteger,
-            utils::{smallest_fitting_signed, smallest_fitting_unsigned},
-        },
+        integer::typed_integer::TypedInteger,
     },
     traits::structural_eq::StructuralEq,
 };
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::{BigInt, Num};
 use num_traits::ToPrimitive;
-use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     hash::Hash,
@@ -124,7 +120,7 @@ impl Neg for Integer {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        return Integer(-self.0);
+        Integer(-self.0)
     }
 }
 

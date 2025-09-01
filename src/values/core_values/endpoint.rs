@@ -13,7 +13,6 @@ use crate::stdlib::str;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::str::FromStr;
-use strum::Display;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,

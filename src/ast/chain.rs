@@ -2,7 +2,6 @@ use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
-use chumsky::extra::{Err, Full};
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq)]

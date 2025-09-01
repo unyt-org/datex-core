@@ -1,5 +1,4 @@
 use crate::values::core_values::r#type::r#type::Type;
-use crate::values::datex_type::CoreValueType;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;

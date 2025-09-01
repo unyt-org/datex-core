@@ -1,6 +1,5 @@
 use crate::{
     crypto::crypto::CryptoTrait, utils::time::TimeTrait,
-    values::core_values::r#type::registry::TypeRegistry,
 };
 use std::{
     cell::RefCell,

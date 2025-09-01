@@ -5,13 +5,12 @@ use crate::{
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
     values::{
         core_value::CoreValue,
-        core_values::integer::{integer::Integer, typed_integer::TypedInteger},
+        core_values::integer::typed_integer::TypedInteger,
         serde::error::SerializationError,
         value,
         value_container::ValueContainer,
     },
 };
-use log::info;
 use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
 use serde::{
     Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,

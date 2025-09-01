@@ -1,4 +1,4 @@
-use crate::ast::{DatexExpression, DatexParserTrait, TokenInput};
+use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 use chumsky::prelude::*;
 

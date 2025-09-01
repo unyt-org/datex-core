@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 use std::io::Cursor;
-use binrw::BinWrite;
-use chumsky::primitive::End;
-use log::info;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::runtime::global_context::get_global_context;
 use datex_core::values::core_values::endpoint::Endpoint;
-use crate::global::protocol_structures::instructions::RawInternalPointerAddress;
 use crate::libs::core::{load_core_lib, CoreLibPointerId};
 use crate::types::{IllegalTypeError, TypeNew};
 use crate::values::pointer::PointerAddress;

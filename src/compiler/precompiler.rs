@@ -7,8 +7,6 @@ use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
 use crate::values::value_container::ValueContainer;
 use log::info;
-use std::assert_matches;
-use std::assert_matches::assert_matches;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -649,23 +647,11 @@ fn visit_expression(
 mod tests {
     use super::*;
     use crate::runtime::RuntimeConfig;
-    use crate::{
-        ast::{
-            BindingMutability, ReferenceMutability, Statement, VariableKind,
+    use crate::ast::{
             error::src::SrcId, parse,
-        },
-        datex_array,
-        values::{
-            core_values::{
-                integer::{integer::Integer, typed_integer::TypedInteger},
-                text::Text,
-                r#type::core::integer,
-            },
-            value_container::ValueContainer,
-        },
-    };
-    use std::assert_matches::assert_matches;
-    use std::{assert_matches, io};
+        };
+    
+    use std::io;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();

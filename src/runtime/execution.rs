@@ -19,7 +19,6 @@ use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
-use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::reference::Reference;
@@ -34,11 +33,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use crate::runtime::memory::Memory;
 use crate::types::{IllegalTypeError, TypeNew};
-use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::union::Union;
-use crate::values::datex_type::CoreValueType::Type;
 use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, Default)]
