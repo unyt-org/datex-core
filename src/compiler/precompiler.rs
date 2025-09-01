@@ -646,11 +646,10 @@ fn visit_expression(
 
 mod tests {
     use super::*;
+    use crate::ast::{error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
-    use crate::ast::{
-            error::src::SrcId, parse,
-        };
-    
+
+    use std::assert_matches::assert_matches;
     use std::io;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
