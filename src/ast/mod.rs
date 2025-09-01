@@ -36,12 +36,14 @@ use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 
+use crate::types::TypeNew;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
+use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use crate::{compiler::lexer::Token, values::core_values::array::Array};
@@ -49,8 +51,6 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
-use crate::types::TypeNew;
-use crate::values::pointer::PointerAddress;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
@@ -167,6 +167,13 @@ pub enum DatexExpression {
     /// reference access, e.g. &<ABCDEF>
     GetReference(PointerAddress),
 
+    /// Conditional expression, e.g. if (true) { 1 } else { 2 }
+    Conditional {
+        condition: Box<DatexExpression>,
+        then_branch: Box<DatexExpression>,
+        else_branch: Option<Box<DatexExpression>>,
+    },
+
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
     VariableDeclaration {
         id: Option<VariableId>,
@@ -203,7 +210,12 @@ pub enum DatexExpression {
     /// Slot assignment
     SlotAssignment(Slot, Box<DatexExpression>),
 
-    BinaryOperation(BinaryOperator, Box<DatexExpression>, Box<DatexExpression>, Option<TypeNew>),
+    BinaryOperation(
+        BinaryOperator,
+        Box<DatexExpression>,
+        Box<DatexExpression>,
+        Option<TypeNew>,
+    ),
     ComparisonOperation(
         ComparisonOperator,
         Box<DatexExpression>,
@@ -345,31 +357,13 @@ where
     // Key-value pair
     let tuple = tuple(key.clone(), expression_without_tuple.clone());
 
-    // let generic_assessor = literal::literal()
-    //     .or()
-    //     .then_ignore(just(Token::LeftAngle).padded_by(whitespace()))
-    //     .then(expression_without_tuple.clone())
-    //     .then_ignore(just(Token::RightAngle).padded_by(whitespace()))
-    //     .map(|(left, right)| {
-    //         DatexExpression::GenericAssessor(Box::new(left), Box::new(right))
-    //     });
-
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom = atom(array.clone(), object.clone(), wrapped_expression.clone());
     let unary = unary(atom.clone());
 
-    // let generic_access = unary_or_atom
-    //     .clone()
-    //     .then_ignore(just(Token::LeftAngle).then_ignore(whitespace()))
-    //     .then(expression.clone())
-    //     .then_ignore(just(Token::RightAngle).padded_by(whitespace()))
-    //     .map(|(base, arg)| {
-    //         DatexExpression::GenericAssessor(Box::new(base), Box::new(arg))
-    //     });
-
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
-        unary,
+        unary.clone(),
         key.clone(),
         array.clone(),
         object.clone(),
@@ -392,7 +386,54 @@ where
     // declarations or assignments
     let declaration_or_assignment = declaration_or_assignment(union.clone());
 
+    let condition_union = binary_operation(chain_without_whitespace_apply(
+        unary.clone(),
+        key.clone(),
+        expression.clone(),
+    ));
+    let condition = comparison_operation(condition_union);
+
+    let if_expression = recursive(|if_rec| {
+        just(Token::If)
+            .padded_by(whitespace())
+            .ignore_then(condition.clone())
+            .then(
+                choice((
+                    wrapped_expression.clone(),
+                    array.clone(),
+                    object.clone(),
+                    statements.clone(),
+                    unary.clone(),
+                ))
+                .padded_by(whitespace()),
+            )
+            .then(
+                just(Token::Else)
+                    .padded_by(whitespace())
+                    .ignore_then(choice((
+                        if_rec.clone(),
+                        wrapped_expression.clone(),
+                        array.clone(),
+                        object.clone(),
+                        statements.clone(),
+                        unary.clone(),
+                    )))
+                    .or_not(),
+            )
+            .map(|((cond, then_branch), else_opt)| {
+                DatexExpression::Conditional {
+                    condition: Box::new(cond),
+                    then_branch: Box::new(unwrap_single_statement(then_branch)),
+                    else_branch: else_opt
+                        .map(unwrap_single_statement)
+                        .map(Box::new),
+                }
+            })
+            .boxed()
+    });
+
     expression_without_tuple.define(choice((
+        if_expression,
         declaration_or_assignment,
         function_declaration,
         comparison,
@@ -1022,7 +1063,7 @@ mod tests {
                             "integer".to_owned(),
                         )),
                         Box::new(DatexExpression::Literal("u8".to_owned())),
-                        None
+                        None,
                     ),
                 ),
                 ApplyOperation::FunctionCall(DatexExpression::Object(vec![])),
@@ -1032,6 +1073,142 @@ mod tests {
         assert_eq!(parse_unwrap("User< integer/u8 > {}"), expected);
         assert_eq!(parse_unwrap("User<integer/u8 > {}"), expected);
         assert!(parse("User <integer/u8> {}").is_err());
+    }
+
+    #[test]
+    fn if_else() {
+        let src = vec![
+            "if true (1) else (2)",
+            "if true 1 else 2",
+            "if (true) (1) else (2)",
+            "if (true) 1 else 2",
+            "if true (1) else 2",
+            "if (true) 1 else (2)",
+            "if true 1 else (2)",
+        ];
+        for s in src {
+            let val = parse_unwrap(s);
+            assert_eq!(
+                val,
+                DatexExpression::Conditional {
+                    condition: Box::new(DatexExpression::Boolean(true)),
+                    then_branch: Box::new(DatexExpression::Integer(
+                        Integer::from(1)
+                    )),
+                    else_branch: Some(Box::new(DatexExpression::Integer(
+                        Integer::from(2)
+                    ))),
+                }
+            );
+        }
+
+        let src = vec![
+            "if true + 1 == 2 (4) else 2",
+            "if (true + 1) == 2 4 else 2",
+            "if true + 1 == 2 (4) else (2)",
+            "if (true + 1) == 2 (4) else (2)",
+            "if true + 1 == 2 (4) else 2",
+            "if (true + 1) == 2 4 else (2)",
+        ];
+        for s in src {
+            println!("{}", s);
+            let val = parse_unwrap(s);
+            assert_eq!(
+                val,
+                DatexExpression::Conditional {
+                    condition: Box::new(DatexExpression::ComparisonOperation(
+                        ComparisonOperator::StructuralEqual,
+                        Box::new(DatexExpression::BinaryOperation(
+                            BinaryOperator::Add,
+                            Box::new(DatexExpression::Boolean(true)),
+                            Box::new(DatexExpression::Integer(Integer::from(
+                                1
+                            ))),
+                            None
+                        )),
+                        Box::new(DatexExpression::Integer(Integer::from(2)))
+                    )),
+                    then_branch: Box::new(DatexExpression::Integer(
+                        Integer::from(4)
+                    )),
+                    else_branch: Some(Box::new(DatexExpression::Integer(
+                        Integer::from(2)
+                    ))),
+                }
+            );
+        }
+
+        // make sure apply chains still work
+        let src = vec![
+            "if true + 1 == 2 test [1,2,3]",
+            "if true + 1 == 2 (test [1,2,3])",
+        ];
+        for s in src {
+            let val = parse_unwrap(s);
+            assert_eq!(
+                val,
+                DatexExpression::Conditional {
+                    condition: Box::new(DatexExpression::ComparisonOperation(
+                        ComparisonOperator::StructuralEqual,
+                        Box::new(DatexExpression::BinaryOperation(
+                            BinaryOperator::Add,
+                            Box::new(DatexExpression::Boolean(true)),
+                            Box::new(DatexExpression::Integer(Integer::from(
+                                1
+                            ))),
+                            None
+                        )),
+                        Box::new(DatexExpression::Integer(Integer::from(2)))
+                    )),
+                    then_branch: Box::new(DatexExpression::ApplyChain(
+                        Box::new(DatexExpression::Literal("test".to_string())),
+                        vec![ApplyOperation::FunctionCall(
+                            DatexExpression::Array(vec![
+                                DatexExpression::Integer(Integer::from(1)),
+                                DatexExpression::Integer(Integer::from(2)),
+                                DatexExpression::Integer(Integer::from(3)),
+                            ])
+                        )]
+                    )),
+                    else_branch: None,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn if_else_if_else() {
+        let src = r#"
+            if x == 4 (
+                "4"
+            ) else if x == 'hello' (
+                "42" 
+            ) else null;
+        "#;
+
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::Conditional {
+                condition: Box::new(DatexExpression::ComparisonOperation(
+                    ComparisonOperator::StructuralEqual,
+                    Box::new(DatexExpression::Literal("x".to_string())),
+                    Box::new(DatexExpression::Integer(Integer::from(4)))
+                )),
+                then_branch: Box::new(DatexExpression::Text("4".to_string())),
+                else_branch: Some(Box::new(DatexExpression::Conditional {
+                    condition: Box::new(DatexExpression::ComparisonOperation(
+                        ComparisonOperator::StructuralEqual,
+                        Box::new(DatexExpression::Literal("x".to_string())),
+                        Box::new(DatexExpression::Text("hello".to_string()))
+                    )),
+                    then_branch: Box::new(DatexExpression::Text(
+                        "42".to_string()
+                    )),
+                    else_branch: Some(Box::new(DatexExpression::Null))
+                })),
+            }
+        );
     }
 
     #[test]

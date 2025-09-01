@@ -3,15 +3,15 @@ use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tuple::TupleEntry;
 use crate::compiler::error::CompilerError;
+use crate::libs::core::CoreLibPointerId;
+use crate::runtime::Runtime;
+use crate::values::value_container::ValueContainer;
 use log::info;
 use std::assert_matches;
 use std::assert_matches::assert_matches;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::libs::core::CoreLibPointerId;
-use crate::runtime::Runtime;
-use crate::values::value_container::ValueContainer;
 
 #[derive(Clone, Debug, Default)]
 pub struct VariableMetadata {
@@ -141,8 +141,7 @@ impl PrecompilerScopeStack {
                 var_metadata.is_cross_realm = true;
             }
             Ok(var_id)
-        }
-        else {
+        } else {
             Err(CompilerError::UndeclaredVariable(name.to_string()))
         }
     }
@@ -221,7 +220,6 @@ enum NewScopeType {
     NewScopeWithNewRealm,
 }
 
-
 fn visit_expression(
     expression: &mut DatexExpression,
     metadata: &mut AstMetadata,
@@ -255,6 +253,32 @@ fn visit_expression(
         //         NewScopeType::NewScope,
         //     )?;
         // }
+        DatexExpression::Conditional {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            visit_expression(
+                condition,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            visit_expression(
+                then_branch,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            if let Some(else_branch) = else_branch {
+                visit_expression(
+                    else_branch,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
+        }
         DatexExpression::TypeDeclaration {
             id,
             generic: generic_parameters,
@@ -312,16 +336,32 @@ fn visit_expression(
                 Ok(())
             }
             // try to resolve core variable
-            else if let Some(core) = metadata.runtime.memory().borrow().get_reference(&CoreLibPointerId::Core.into())
-            && let Some(core_variable) = core.borrow().current_value_container().to_value().borrow().cast_to_object().unwrap().try_get(name)
+            else if let Some(core) = metadata
+                .runtime
+                .memory()
+                .borrow()
+                .get_reference(&CoreLibPointerId::Core.into())
+                && let Some(core_variable) = core
+                    .borrow()
+                    .current_value_container()
+                    .to_value()
+                    .borrow()
+                    .cast_to_object()
+                    .unwrap()
+                    .try_get(name)
             {
                 match core_variable {
                     ValueContainer::Reference(reference) => {
-                        if let Some(pointer_id) = reference.data.borrow().pointer_id() {
-                            *expression = DatexExpression::GetReference(pointer_id.clone());
-                        }
-                        else {
-                            unreachable!("Core variable reference must have a pointer ID");
+                        if let Some(pointer_id) =
+                            reference.data.borrow().pointer_id()
+                        {
+                            *expression = DatexExpression::GetReference(
+                                pointer_id.clone(),
+                            );
+                        } else {
+                            unreachable!(
+                                "Core variable reference must have a pointer ID"
+                            );
                         }
                     }
                     _ => {
@@ -329,10 +369,9 @@ fn visit_expression(
                     }
                 }
                 Ok(())
-            }
-            else {
+            } else {
                 Err(CompilerError::UndeclaredVariable(name.clone()))
-            }
+            };
         }
         DatexExpression::AssignmentOperation(operator, id, name, expr) => {
             visit_expression(
@@ -487,7 +526,7 @@ fn visit_expression(
                             BinaryOperator::Divide,
                             left.to_owned(),
                             right.to_owned(),
-                            None
+                            None,
                         );
                         return Ok(());
                     }
@@ -609,6 +648,7 @@ fn visit_expression(
 
 mod tests {
     use super::*;
+    use crate::runtime::RuntimeConfig;
     use crate::{
         ast::{
             BindingMutability, ReferenceMutability, Statement, VariableKind,
@@ -626,7 +666,6 @@ mod tests {
     };
     use std::assert_matches::assert_matches;
     use std::{assert_matches, io};
-    use crate::runtime::RuntimeConfig;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -656,7 +695,6 @@ mod tests {
         assert!(result.is_err());
         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "x");
     }
-
 
     #[test]
     fn core_types() {

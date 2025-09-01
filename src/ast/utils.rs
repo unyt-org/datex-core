@@ -18,3 +18,15 @@ pub fn is_literal(expr: &DatexExpression) -> bool {
         _ => false,
     }
 }
+pub fn unwrap_single_statement(expr: DatexExpression) -> DatexExpression {
+    match expr {
+        DatexExpression::Statements(mut stmts) => {
+            if stmts.len() == 1 && stmts[0].is_terminated {
+                stmts.remove(0).expression
+            } else {
+                DatexExpression::Statements(stmts)
+            }
+        }
+        other => other,
+    }
+}

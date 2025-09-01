@@ -102,6 +102,8 @@ pub enum Token {
     #[token("var")] Variable,
     #[token("mut")] Mutable,
     #[token("function")] Function,
+    #[token("if")] If,
+    #[token("else")] Else,
 
     // decimal literals (infinity, nan)
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] Infinity(String),
@@ -268,6 +270,9 @@ impl Token {
             Token::NamedSlot(_) => "named slot",
             Token::Error => "error",
             Token::Identifier(s) => s,
+            Token::Matches => "matches",
+            Token::If => "if",
+            Token::Else => "else",
             e => todo!("Unhandled token in as_string: {:?}", e),
         };
 
@@ -728,7 +733,6 @@ mod tests {
         );
         assert_eq!(lexer.next(), None);
     }
-
 
     #[test]
     fn line_doc() {
