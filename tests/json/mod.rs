@@ -1,5 +1,5 @@
 use datex_core::compiler::{CompileOptions, compile_script};
-use datex_core::decompiler::{DecompileOptions, decompile_body, Formatting};
+use datex_core::decompiler::{DecompileOptions, Formatting, decompile_body};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -118,8 +118,8 @@ fn compare_datex_result_with_expected(
     // println!(" Expected: {expected}");
     // println!(" Decompiled: {datex_decompiled}");
     assert_eq!(
-        datex_decompiled,
-        expected,
+        normalize_newlines(&datex_decompiled),
+        normalize_newlines(expected),
         "Decompiled output does not match expected output for file: {}",
         path.display()
     );
@@ -182,6 +182,10 @@ fn json_test_cases() {
         let file_content = std::fs::read_to_string(path).unwrap();
         compare_datex_result_with_json(&file_content);
     }
+}
+
+fn normalize_newlines(s: &str) -> String {
+    s.replace("\r\n", "\n")
 }
 
 #[test]
