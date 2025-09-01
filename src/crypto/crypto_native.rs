@@ -77,6 +77,32 @@ pub fn hkdf(ikm: &[u8], salt: &[u8], out_len: usize) -> Result<Vec<u8>, CryptoEr
     Ok(okm)
 }
 
+// AES CTR
+pub fn aes_ctr_encrypt(
+    key: &[u8; KEY_LEN],
+    iv: &[u8; 16],
+    plaintext: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    let cipher = Cipher::aes_256_ctr();
+    let mut enc = Crypter::new(cipher, Mode::Encrypt, key, Some(iv))
+        .map_err(|_| CryptoError::EncryptionError)?;
+
+    let mut out = vec![0u8; plaintext.len()];
+    let count = enc
+        .update(plaintext, &mut out)
+        .map_err(|_| CryptoError::EncryptionError)?;
+    out.truncate(count);
+    Ok(out)
+}
+
+pub fn aes_ctr_decrypt(
+    key: &[u8; KEY_LEN],
+    iv: &[u8; 16],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    Ok(aes_ctr_encrypt(key, iv, ciphertext).unwrap())
+}
+
 // AES GCM
 pub fn aes_gcm_encrypt(
     key: &[u8; KEY_LEN],
@@ -428,6 +454,19 @@ mod tests {
         assert_eq!(sig.len(), 64);
 
         assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
+    }
+    #[test]
+    fn aes_ctr_roundtrip() {
+        let key = [0u8; 32];
+        let iv = [0u8; 16];
+
+        let data = b"Some message to encrypt".to_vec();
+
+        let ciphered = aes_ctr_encrypt(&key, &iv, &data).unwrap();
+        let deciphered = aes_ctr_decrypt(&key, &iv, &ciphered).unwrap();
+
+        assert_ne!(ciphered, data);
+        assert_eq!(data, deciphered.to_vec());
     }
     #[test]
     fn aes_gcm_roundtrip() {
