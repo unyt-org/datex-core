@@ -34,7 +34,7 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
-    println!("Value container: {value_container}");
+    // println!("Value container: {value_container}");
     compile_value(&value_container).map_err(|e| {
         SerializationError(format!("Failed to compile value: {e}"))
     })
@@ -891,7 +891,7 @@ mod tests {
     enum MyTaggedEnum {
         Variant1 { x: i32, y: String },
         Variant2(i32, String),
-        Empty
+        Empty,
     }
 
     #[test]
@@ -901,7 +901,10 @@ mod tests {
             y: "test".to_string(),
         };
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#"{"Variant1": {"x": 42, "y": "test"}}"#);
+        assert_eq!(
+            result.to_string(),
+            r#"{"Variant1": {"x": 42, "y": "test"}}"#
+        );
 
         let e = MyTaggedEnum::Variant2(100, "hello".to_string());
         let result = to_value_container(&e).unwrap();
