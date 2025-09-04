@@ -6,7 +6,7 @@ use crate::{
     values::{
         core_value::CoreValue,
         core_values::{
-            decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
+            decimal::typed_decimal::TypedDecimal,
             integer::typed_integer::TypedInteger,
             tuple::Tuple,
         },
@@ -167,15 +167,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                 }
-                CoreValue::Decimal(d) => match d {
-                    // Decimal::Finite(v) => visitor.visit_str(&v.to_string()),
-                    // Decimal::Infinity => visitor.visit_str("Infinity"),
-                    // Decimal::NegInfinity => visitor.visit_str("-Infinity"),
-                    // Decimal::NaN => visitor.visit_str("NaN"),
-                    // Decimal::NegZero => visitor.visit_str("-0"),
-                    // Decimal::Zero => visitor.visit_str("0"),
-                    _ => todo!("Unsupported decimal: {:?}", d),
-                },
+                CoreValue::Decimal(d) => todo!("Unsupported decimal: {:?}", d),
                 CoreValue::TypedDecimal(d) => match d {
                     TypedDecimal::F32(v) => visitor.visit_f32(v.0),
                     TypedDecimal::F64(v) => visitor.visit_f64(v.0),
