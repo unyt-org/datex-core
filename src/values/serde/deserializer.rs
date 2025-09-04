@@ -5,7 +5,10 @@ use crate::{
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
     values::{
         core_value::CoreValue,
-        core_values::integer::typed_integer::TypedInteger,
+        core_values::{
+            decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
+            integer::typed_integer::TypedInteger,
+        },
         serde::error::SerializationError,
         value,
         value_container::ValueContainer,
@@ -29,10 +32,10 @@ impl<'de> DatexDeserializer {
             ExecutionOptions { verbose: true },
         );
         let value = execute_dxb_sync(context)
-            .unwrap_or_else(|err| {
-                panic!("Execution failed: {err}");
-            })
-            .unwrap();
+            .map_err(|err| {
+                SerializationError(format!("Failed to execute DXB: {}", err))
+            })?
+            .expect("DXB execution returned no value");
         Ok(Self { value })
     }
 
@@ -118,6 +121,22 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                 }
+                CoreValue::Decimal(d) => match d {
+                    Decimal::Finite(v) => visitor.visit_str(&v.to_string()),
+                    Decimal::Infinity => visitor.visit_str("Infinity"),
+                    Decimal::NegInfinity => visitor.visit_str("-Infinity"),
+                    // Decimal::NaN => visitor.visit_f32(f32::NAN),
+                    Decimal::NaN => visitor.visit_str("NaN"),
+                    Decimal::NegZero => visitor.visit_str("-0"),
+                    Decimal::Zero => visitor.visit_str("0"),
+                },
+                CoreValue::TypedDecimal(d) => match d {
+                    TypedDecimal::F32(v) => visitor.visit_f32(v.0),
+                    TypedDecimal::F64(v) => visitor.visit_f64(v.0),
+                    TypedDecimal::Decimal(v) => {
+                        visitor.visit_str(&v.to_string())
+                    }
+                },
                 CoreValue::Text(s) => visitor.visit_string(s.0),
                 CoreValue::Endpoint(endpoint) => {
                     let endpoint_str = endpoint.to_string();
@@ -221,6 +240,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     {
         todo!("#235 map")
     }
+
     fn deserialize_identifier<V>(
         self,
         visitor: V,
