@@ -407,7 +407,17 @@ impl Serializer for &mut DatexSerializer {
         V: Serialize,
         I: IntoIterator<Item = (K, V)>,
     {
-        todo!("#145 Undescribed by author.")
+        let mut map = Object::new();
+        for (key, value) in iter {
+            let key_str = key
+                .serialize(&mut *self)?
+                .to_value()
+                .borrow()
+                .cast_to_text();
+            let value_container = value.serialize(&mut *self)?;
+            map.set(key_str.as_str(), value_container);
+        }
+        Ok(map.into())
     }
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
