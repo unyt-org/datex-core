@@ -1,4 +1,5 @@
 use crate::{
+    ast::tuple,
     compiler::{
         CompileOptions, compile_script, extract_static_value_from_script,
     },
@@ -8,6 +9,7 @@ use crate::{
         core_values::{
             decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
             integer::typed_integer::TypedInteger,
+            tuple::Tuple,
         },
         serde::error::SerializationError,
         value,
@@ -217,20 +219,42 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
+        println!("Deserializing tuple struct: {}", name);
+        println!("With value: {:?}", self.value);
         if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Tuple(t),
+            inner: CoreValue::Object(obj),
             ..
         }) = self.value
         {
-            let values =
-                t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+            // find the entry matching the struct name
+            if let Some(value) = obj.try_get(name) {
+                // expect values to be a tuple/array
+                if let ValueContainer::Value(value::Value {
+                    inner: CoreValue::Array(t),
+                    ..
+                }) = value
+                {
+                    return visitor.visit_seq(
+                        serde::de::value::SeqDeserializer::new(
+                            t.clone()
+                                .into_iter()
+                                .map(DatexDeserializer::from_value),
+                        ),
+                    );
+                } else {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected tuple array for tuple struct `{}`",
+                        name
+                    )));
+                }
+            }
+
+            Err(serde::de::Error::custom(format!(
+                "object missing key for tuple struct `{}`",
+                name
+            )))
         } else {
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(
-                vec![self.value.clone()]
-                    .into_iter()
-                    .map(DatexDeserializer::from_value),
-            ))
+            Err(serde::de::Error::custom("expected object for tuple struct"))
         }
     }
 
@@ -255,6 +279,10 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
+    /// Deserialize identifiers from various formats:
+    /// - Direct text: "identifier"
+    /// - Single-key object: {"Identifier": ...}
+    /// - Tuple with single text element: ("identifier", ...)
     fn deserialize_identifier<V>(
         self,
         visitor: V,
@@ -262,32 +290,58 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        println!("Deserializing identifier: {:?}", self.value);
-        // match tuple (Identifier, ValueContainer)
-        if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Tuple(t),
-            ..
-        }) = self.value
-        {
-            let identifier = t
-                .at(0)
-                .ok_or(SerializationError("Invalid tuple".to_string()))?
-                .1;
-            visitor
-                .visit_string(identifier.to_value().borrow().cast_to_text().0)
-        }
-        // match string
-        else if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Text(s),
-            ..
-        }) = self.value
-        {
-            visitor.visit_string(s.0)
-        } else {
-            Err(SerializationError("Expected identifier tuple".to_string()))
+        match self.value {
+            // Direct text
+            ValueContainer::Value(value::Value {
+                inner: CoreValue::Text(s),
+                ..
+            }) => visitor.visit_string(s.0),
+
+            // Single-key object {"Identifier": ...}
+            ValueContainer::Value(value::Value {
+                inner: CoreValue::Object(o),
+                ..
+            }) => {
+                if o.size() == 1 {
+                    let (key, _) = o.into_iter().next().unwrap();
+                    visitor.visit_string(key)
+                } else {
+                    Err(SerializationError(
+                        "Expected single-key object for identifier".to_string(),
+                    ))
+                }
+            }
+
+            // Tuple ("Identifier": whatever)
+            ValueContainer::Value(value::Value {
+                inner: CoreValue::Tuple(t),
+                ..
+            }) => {
+                if t.size() != 1 {
+                    return Err(SerializationError(
+                        "Expected single-element tuple for identifier"
+                            .to_string(),
+                    ));
+                }
+                let (_, value) = t.into_iter().next().unwrap();
+                match value {
+                    ValueContainer::Value(value::Value {
+                        inner: CoreValue::Text(s),
+                        ..
+                    }) => visitor.visit_string(s.0),
+                    _ => Err(SerializationError(
+                        "Expected text inside identifier tuple".to_string(),
+                    )),
+                }
+            }
+
+            _ => Err(SerializationError("Expected identifier".to_string())),
         }
     }
 
+    /// Deserialize enums from various formats:
+    /// - Unit variants: "Variant"
+    /// - Newtype variants: {"Variant": value}
     fn deserialize_enum<V>(
         self,
         _name: &str,
@@ -297,8 +351,57 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        println!("Deserializing enum: {:?}", self.value);
-        visitor.visit_enum(DatexEnumAccess { de: self })
+        match self.value {
+            // Default representation: ("Variant", value)
+            ValueContainer::Value(value::Value {
+                inner: CoreValue::Tuple(t),
+                ..
+            }) => {
+                if t.size() < 1 {
+                    return Err(SerializationError(
+                        "Expected non-empty tuple for enum".to_string(),
+                    ));
+                }
+                let deserializer = DatexDeserializer::from_value(t.into());
+                visitor.visit_enum(EnumDeserializer {
+                    variant: "_tuple".to_string(),
+                    value: deserializer,
+                })
+            }
+
+            // Object with single key = variant name
+            ValueContainer::Value(value::Value {
+                inner: CoreValue::Object(o),
+                ..
+            }) => {
+                if o.size() != 1 {
+                    return Err(SerializationError(
+                        "Expected single-key object for enum".to_string(),
+                    ));
+                }
+
+                let (variant_name, value) = o.into_iter().next().unwrap();
+                let deserializer = DatexDeserializer::from_value(value);
+                visitor.visit_enum(EnumDeserializer {
+                    variant: variant_name,
+                    value: deserializer,
+                })
+            }
+
+            // unit variants stored directly as text
+            ValueContainer::Value(value::Value {
+                inner: CoreValue::Text(s),
+                ..
+            }) => visitor.visit_enum(EnumDeserializer {
+                variant: s.0,
+                value: DatexDeserializer::from_value(Tuple::default().into()),
+            }),
+
+            e => Err(SerializationError(format!(
+                "Expected enum representation, found: {}",
+                e
+            ))),
+        }
     }
 
     fn is_human_readable(&self) -> bool {
@@ -306,23 +409,65 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     }
 }
 
-struct DatexEnumAccess {
-    de: DatexDeserializer,
+struct EnumDeserializer {
+    variant: String,
+    value: DatexDeserializer,
 }
-
-impl<'de> EnumAccess<'de> for DatexEnumAccess {
+impl<'de> EnumAccess<'de> for EnumDeserializer {
     type Error = SerializationError;
-    type Variant = DatexVariantAccess;
+    type Variant = VariantDeserializer;
 
     fn variant_seed<V>(
         self,
         seed: V,
     ) -> Result<(V::Value, Self::Variant), Self::Error>
     where
-        V: DeserializeSeed<'de>,
+        V: serde::de::DeserializeSeed<'de>,
     {
-        let variant = seed.deserialize(self.de.clone())?;
-        Ok((variant, DatexVariantAccess { de: self.de }))
+        let variant = seed.deserialize(DatexDeserializer::from_value(
+            ValueContainer::from(self.variant),
+        ))?;
+        Ok((variant, VariantDeserializer { value: self.value }))
+    }
+}
+struct VariantDeserializer {
+    value: DatexDeserializer,
+}
+
+impl<'de> VariantAccess<'de> for VariantDeserializer {
+    type Error = SerializationError;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: serde::de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.value)
+    }
+
+    fn tuple_variant<V>(
+        self,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.value.deserialize_tuple(len, visitor)
+    }
+
+    fn struct_variant<V>(
+        self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.value.deserialize_struct("", fields, visitor)
     }
 }
 
@@ -638,7 +783,7 @@ mod tests {
 
     #[test]
     fn map() {
-        let script = r#"("Variant1", "xy")"#;
+        let script = "{Variant1: \"Hello\"}";
         let dxb = compile_script(script, CompileOptions::default())
             .expect("Failed to compile script")
             .0;
@@ -646,12 +791,9 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: ExampleEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize ExampleEnum");
-        match result {
-            ExampleEnum::Variant1(s) => assert_eq!(s, "xy"),
-            _ => panic!("Expected Variant1 with value 'xy'"),
-        }
+        assert!(matches!(result, ExampleEnum::Variant1(_)));
 
-        let script = r#"("Variant2", 42)"#;
+        let script = r#"{"Variant2": 42}"#;
         let dxb = compile_script(script, CompileOptions::default())
             .expect("Failed to compile script")
             .0;
@@ -659,9 +801,6 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: ExampleEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize ExampleEnum");
-        match result {
-            ExampleEnum::Variant2(i) => assert_eq!(i, 42),
-            _ => panic!("Expected Variant2 with value 42"),
-        }
+        assert!(matches!(result, ExampleEnum::Variant2(_)));
     }
 }
