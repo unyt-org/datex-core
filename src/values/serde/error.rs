@@ -8,8 +8,6 @@ use std::io;
 use crate::compiler::error::CompilerError;
 use crate::runtime::execution::ExecutionError;
 
-// TODO #147: Add deserialization error and wrap compiler error and execution error into it
-
 #[derive(Debug)]
 pub enum SerializationError {
     Custom(String),
