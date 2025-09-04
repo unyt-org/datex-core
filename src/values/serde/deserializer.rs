@@ -155,7 +155,6 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     e => todo!("Unsupported typed integer: {:?}", e),
                 },
                 CoreValue::Integer(i) => {
-                    println!("Deserializing integer: {:?}", i);
                     if let Some(v) = i.as_i8() {
                         visitor.visit_i8(v)
                     } else if let Some(v) = i.as_i16() {
@@ -269,6 +268,13 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             let values =
                 t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+        } else if let ValueContainer::Value(value::Value {
+            inner: CoreValue::Object(o),
+            ..
+        }) = self.value
+        {
+            let inner = o.into_iter().next().unwrap().1;
+            visitor.visit_newtype_struct(DatexDeserializer::from_value(inner))
         } else {
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(
                 vec![self.value.clone()]
