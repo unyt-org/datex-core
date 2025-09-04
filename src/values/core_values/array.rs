@@ -9,6 +9,9 @@ use std::{fmt, ops::Index};
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Array(pub Vec<ValueContainer>);
 impl Array {
+    pub fn new() -> Self {
+        Array(Vec::new())
+    }
     pub fn len(&self) -> usize {
         self.0.len()
     }
