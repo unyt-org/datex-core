@@ -16,7 +16,6 @@ use serde::ser::{
 };
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::panic;
 pub struct DatexSerializer {
     container: ValueContainer,
 }
@@ -64,12 +63,13 @@ where
 /// }
 /// will be serialized as:
 /// {"field1": String, "field2": i32}
+#[derive(Default)]
 pub struct StructSerializer {
     fields: Vec<(String, ValueContainer)>,
 }
 impl StructSerializer {
     pub fn new() -> Self {
-        Self { fields: Vec::new() }
+        Self::default()
     }
 }
 impl SerializeStruct for StructSerializer {
@@ -90,11 +90,11 @@ impl SerializeStruct for StructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let obj = self
-            .fields
-            .into_iter()
-            .collect::<HashMap<String, ValueContainer>>();
-        Ok(ValueContainer::from(CoreValue::Object(Object::from(obj))))
+        let mut object = Object::default();
+        for (key, value) in self.fields.into_iter() {
+            object.set(&key, value);
+        }
+        Ok(ValueContainer::from(CoreValue::Object(object)))
     }
 }
 
@@ -103,7 +103,18 @@ impl SerializeStruct for StructSerializer {
 /// (i32, String)
 /// will be serialized as:
 /// (i32, String)
-impl SerializeTuple for &mut DatexSerializer {
+#[derive(Default)]
+pub struct TupleSerializer {
+    elements: Vec<ValueContainer>,
+}
+impl TupleSerializer {
+    pub fn new() -> Self {
+        Self {
+            elements: Vec::new(),
+        }
+    }
+}
+impl SerializeTuple for TupleSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
@@ -112,28 +123,19 @@ impl SerializeTuple for &mut DatexSerializer {
         value: &T,
     ) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: serde::Serialize,
     {
-        let value_container = value.serialize(&mut **self)?;
-        match self.container {
-            ValueContainer::Value(Value {
-                inner: CoreValue::Tuple(ref mut tuple),
-                ..
-            }) => {
-                tuple.insert(value_container);
-            }
-            _ => {
-                return Err(SerializationError(
-                    "Cannot serialize element into non-tuple container"
-                        .to_string(),
-                ));
-            }
-        }
+        let vc = value.serialize(&mut DatexSerializer::new())?;
+        self.elements.push(vc);
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(self.container.clone())
+        let mut tuple = Tuple::default();
+        for element in self.elements.into_iter() {
+            tuple.insert(element);
+        }
+        Ok(ValueContainer::from(CoreValue::Tuple(tuple)))
     }
 }
 
@@ -172,10 +174,7 @@ impl SerializeTupleStruct for TupleStructSerializer {
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(CoreValue::Object(Object::from(
-            std::collections::HashMap::from([(
-                self.name.to_string(),
-                self.fields,
-            )]),
+            HashMap::from([(self.name.to_string(), self.fields)]),
         ))))
     }
 }
@@ -218,14 +217,19 @@ impl SerializeTupleVariant for TupleVariantSerializer {
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(CoreValue::Object(Object::from(
-            std::collections::HashMap::from([(
-                self.variant.to_string(),
-                self.fields,
-            )]),
+            HashMap::from([(self.variant.to_string(), self.fields)]),
         ))))
     }
 }
 
+/// Serializer for enum variants with struct fields
+/// For example:
+/// enum MyEnum {
+///     Variant1 { x: i32, y: String },
+///     Variant2 { a: bool },
+/// }
+/// will be serialized as:
+/// {"Variant1": {"x": i32, "y": String}}
 pub struct StructVariantSerializer {
     variant: &'static str,
     fields: Vec<(String, ValueContainer)>,
@@ -256,14 +260,12 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let obj = self
-            .fields
-            .into_iter()
-            .collect::<HashMap<String, ValueContainer>>();
-
-        let inner = ValueContainer::from(CoreValue::Object(Object::from(obj)));
+        let mut obj = Object::default();
+        for (key, value) in self.fields.into_iter() {
+            obj.set(&key, value);
+        }
         Ok(ValueContainer::from(CoreValue::Object(Object::from(
-            HashMap::from([(self.variant.to_string(), inner.clone())]),
+            HashMap::from([(self.variant.to_string(), obj)]),
         ))))
     }
 }
@@ -279,7 +281,7 @@ impl Serializer for &mut DatexSerializer {
 
     // Implemented types
     type SerializeStruct = StructSerializer;
-    type SerializeTuple = Self;
+    type SerializeTuple = TupleSerializer;
     type SerializeTupleStruct = TupleStructSerializer;
     type SerializeTupleVariant = TupleVariantSerializer;
     type SerializeStructVariant = StructVariantSerializer;
@@ -455,8 +457,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         len: usize,
     ) -> Result<Self::SerializeTuple, Self::Error> {
-        self.container = Tuple::default().into();
-        Ok(self)
+        Ok(TupleSerializer::new())
     }
 
     fn serialize_tuple_struct(
