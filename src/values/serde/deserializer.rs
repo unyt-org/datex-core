@@ -238,7 +238,21 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        todo!("#235 map")
+        if let ValueContainer::Value(value::Value {
+            inner: CoreValue::Tuple(t),
+            ..
+        }) = self.value
+        {
+            let entries = t.into_iter().map(|(k, v)| {
+                (
+                    DatexDeserializer::from_value(k),
+                    DatexDeserializer::from_value(v),
+                )
+            });
+            visitor.visit_map(serde::de::value::MapDeserializer::new(entries))
+        } else {
+            Err(serde::de::Error::custom("expected map"))
+        }
     }
 
     fn deserialize_identifier<V>(
