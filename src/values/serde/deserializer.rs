@@ -1,5 +1,4 @@
 use crate::{
-    ast::tuple,
     compiler::{
         CompileOptions, compile_script, extract_static_value_from_script,
     },
