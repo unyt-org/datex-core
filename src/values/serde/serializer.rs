@@ -59,6 +59,14 @@ where
     Ok(container)
 }
 
+/// Serializer for structs
+/// For example:
+/// struct MyStruct {
+///     field1: String,
+///     field2: i32,
+/// }
+/// will be serialized as:
+/// {"field1": String, "field2": i32}
 impl SerializeStruct for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
@@ -95,6 +103,11 @@ impl SerializeStruct for &mut DatexSerializer {
     }
 }
 
+/// Serializer for tuples
+/// For example:
+/// (i32, String)
+/// will be serialized as:
+/// (i32, String)
 impl SerializeTuple for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
@@ -113,40 +126,6 @@ impl SerializeTuple for &mut DatexSerializer {
                 ..
             }) => {
                 tuple.insert(value_container);
-            }
-            _ => {
-                return Err(SerializationError(
-                    "Cannot serialize element into non-tuple container"
-                        .to_string(),
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(self.container.clone())
-    }
-}
-
-impl SerializeTupleVariant for &mut DatexSerializer {
-    type Ok = ValueContainer;
-    type Error = SerializationError;
-
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        value: &T,
-    ) -> Result<(), Self::Error>
-    where
-        T: Serialize,
-    {
-        let value_container = value.serialize(&mut **self)?;
-        match self.container {
-            ValueContainer::Value(Value {
-                inner: CoreValue::Object(ref mut object),
-                ..
-            }) => {
-                object.set("value", value_container);
             }
             _ => {
                 return Err(SerializationError(
@@ -226,7 +205,7 @@ impl TupleVariantSerializer {
         }
     }
 }
-impl serde::ser::SerializeTupleVariant for TupleVariantSerializer {
+impl SerializeTupleVariant for TupleVariantSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
@@ -251,6 +230,8 @@ impl serde::ser::SerializeTupleVariant for TupleVariantSerializer {
         ))))
     }
 }
+
+/// Main serializer implementation
 impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
@@ -311,6 +292,14 @@ impl Serializer for &mut DatexSerializer {
         Ok(ValueContainer::from(v))
     }
 
+    fn serialize_i128(self, v: i128) -> Result<Self::Ok, Self::Error> {
+        Ok(ValueContainer::from(v))
+    }
+
+    fn serialize_u128(self, v: u128) -> Result<Self::Ok, Self::Error> {
+        Ok(ValueContainer::from(v))
+    }
+
     fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(v))
     }
@@ -352,7 +341,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Null))
+        Ok(ValueContainer::from(Object::new()))
     }
 
     fn serialize_unit_variant(
@@ -469,14 +458,6 @@ impl Serializer for &mut DatexSerializer {
         todo!("#144 Undescribed by author.")
     }
 
-    fn serialize_i128(self, v: i128) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(v))
-    }
-
-    fn serialize_u128(self, v: u128) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(v))
-    }
-
     fn collect_seq<I>(self, iter: I) -> Result<Self::Ok, Self::Error>
     where
         I: IntoIterator,
@@ -520,6 +501,7 @@ impl Serializer for &mut DatexSerializer {
 
 #[cfg(test)]
 mod tests {
+    use crate::assert_structural_eq;
     use crate::values::core_values::endpoint::Endpoint;
     use crate::values::core_values::object::Object;
     use crate::values::traits::structural_eq::StructuralEq;
@@ -529,7 +511,6 @@ mod tests {
         value::Value,
         value_container::ValueContainer,
     };
-    use crate::{assert_structural_eq, assert_value_eq};
     use serde::{Deserialize, Serialize};
     use std::assert_matches::assert_matches;
     use std::collections::HashMap;
@@ -541,9 +522,32 @@ mod tests {
     }
 
     #[derive(Serialize)]
+    struct TestTupleStruct(String, i32);
+
+    #[derive(Serialize)]
+    struct UnitStruct;
+
+    #[derive(Serialize)]
     enum TestEnum {
-        Variant1,
-        Variant2,
+        Unit,
+        Tuple(i32, String),
+        Struct { x: bool, y: f64 },
+    }
+
+    #[derive(Serialize)]
+    struct NestedStruct {
+        nested: TestStruct,
+        value: i32,
+    }
+
+    #[derive(Serialize)]
+    struct StructWithOption {
+        value: Option<i32>,
+    }
+
+    #[derive(Serialize)]
+    struct StructWithVec {
+        values: Vec<i32>,
     }
 
     #[derive(Serialize)]
@@ -557,14 +561,159 @@ mod tests {
     }
 
     #[test]
-    fn struct_to_value_container() {
+    fn datex_serializer() {
+        let mut serializer = DatexSerializer::new();
         let test_struct = TestStruct {
             field1: "Hello".to_string(),
             field2: 42,
         };
-        let result = to_value_container(&test_struct);
-        assert!(result.is_ok());
-        println!("{:?}", result.unwrap());
+        let _ = test_struct.serialize(&mut serializer);
+        let result = serializer.into_inner();
+        assert_matches!(
+            result,
+            ValueContainer::Value(Value {
+                inner: CoreValue::Object(_),
+                ..
+            })
+        );
+    }
+
+    #[test]
+    fn r#struct() {
+        let test_struct = TestStruct {
+            field1: "Hello".to_string(),
+            field2: 42,
+        };
+        let result = to_value_container(&test_struct).unwrap();
+        assert_eq!(result.to_string(), r#"{"field1": "Hello", "field2": 42}"#);
+    }
+
+    #[test]
+    fn tuple_struct() {
+        let ts = TestTupleStruct("hi".to_string(), 99);
+        let result = to_value_container(&ts).unwrap();
+        assert_eq!(result.to_string(), r#"{"TestTupleStruct": ["hi", 99]}"#);
+    }
+
+    #[test]
+    fn unit_struct() {
+        let us = UnitStruct;
+        let result = to_value_container(&us).unwrap();
+        // Unit structs serialize as empty object
+        assert_eq!(result.to_string(), r#"{}"#);
+    }
+
+    #[test]
+    fn enum_unit_variant() {
+        let e = TestEnum::Unit;
+        let result = to_value_container(&e).unwrap();
+        assert_eq!(result.to_string(), r#""UnitVariant""#);
+    }
+
+    #[test]
+    fn enum_tuple_variant() {
+        let e = TestEnum::Tuple(42, "hello".to_string());
+        let result = to_value_container(&e).unwrap();
+        assert_eq!(result.to_string(), r#"{"TupleVariant": [42, "hello"]}"#);
+    }
+
+    #[test]
+    #[ignore = "WIP"]
+    fn enum_struct_variant() {
+        let e = TestEnum::Struct { x: true, y: 3.5 };
+        let result = to_value_container(&e).unwrap();
+        assert_eq!(
+            result.to_string(),
+            r#"{"StructVariant": {"x": true, "y": 3.5}}"#
+        );
+    }
+
+    #[test]
+    fn nested_struct() {
+        let nested = NestedStruct {
+            nested: TestStruct {
+                field1: "A".to_string(),
+                field2: 1,
+            },
+            value: 99,
+        };
+        let result = to_value_container(&nested).unwrap();
+        assert_eq!(
+            result.to_string(),
+            r#"{"nested": {"field1": "A", "field2": 1}, "value": 99}"#
+        );
+    }
+
+    #[test]
+    fn struct_with_option_some() {
+        let s = StructWithOption { value: Some(42) };
+        let result = to_value_container(&s).unwrap();
+        assert_eq!(result.to_string(), r#"{"value": 42}"#);
+    }
+
+    #[test]
+    fn struct_with_option_none() {
+        let s = StructWithOption { value: None };
+        let result = to_value_container(&s).unwrap();
+        // None can serialize as null
+        assert_eq!(result.to_string(), r#"{"value": null}"#);
+    }
+
+    #[test]
+    fn struct_with_vec() {
+        let s = StructWithVec {
+            values: vec![1, 2, 3],
+        };
+        let result = to_value_container(&s).unwrap();
+        assert_eq!(result.to_string(), r#"{"values": [1, 2, 3]}"#);
+    }
+
+    #[test]
+    fn primitive_values() {
+        // integer
+        let i = 42;
+        let vc = to_value_container(&i).unwrap();
+        assert_eq!(vc.to_string(), "42");
+
+        // float
+        let f = 3.4;
+        let vc = to_value_container(&f).unwrap();
+        assert_eq!(vc.to_string(), "3.4");
+
+        // boolean
+        let b = true;
+        let vc = to_value_container(&b).unwrap();
+        assert_eq!(vc.to_string(), "true");
+
+        // string
+        let s = "test";
+        let vc = to_value_container(&s).unwrap();
+        assert_eq!(vc.to_string(), r#""test""#);
+    }
+
+    #[test]
+    fn array_serialization() {
+        let arr = vec![1, 2, 3];
+        let vc = to_value_container(&arr).unwrap();
+        assert_eq!(vc.to_string(), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn serializer_into_inner_object() {
+        let mut serializer = DatexSerializer::new();
+        let s = TestStruct {
+            field1: "Hello".to_string(),
+            field2: 42,
+        };
+        let _ = s.serialize(&mut serializer);
+        let result = serializer.into_inner();
+        assert_matches!(
+            result,
+            ValueContainer::Value(Value {
+                inner: CoreValue::Object(_),
+                ..
+            })
+        );
     }
 
     #[test]
@@ -594,34 +743,6 @@ mod tests {
                 .clone(),
             ValueContainer::from(42)
         );
-    }
-
-    #[test]
-    fn datex_serializer() {
-        let mut serializer = DatexSerializer::new();
-        let test_struct = TestStruct {
-            field1: "Hello".to_string(),
-            field2: 42,
-        };
-        let _ = test_struct.serialize(&mut serializer);
-        let result = serializer.into_inner();
-        assert_matches!(
-            result,
-            ValueContainer::Value(Value {
-                inner: CoreValue::Object(_),
-                ..
-            })
-        );
-    }
-
-    #[test]
-    fn enum_value_container() {
-        let test_enum = TestEnum::Variant1;
-        let result = to_value_container(&test_enum);
-        assert!(result.is_ok());
-        let result = result.unwrap();
-
-        assert_eq!(result, ValueContainer::from("Variant1"));
     }
 
     #[test]
