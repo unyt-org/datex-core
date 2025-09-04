@@ -11,9 +11,10 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use log::info;
 use serde::ser::{
-    Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
-    SerializeTupleVariant, Serializer,
+    Serialize, SerializeStruct, SerializeStructVariant, SerializeTuple,
+    SerializeTupleStruct, SerializeTupleVariant, Serializer,
 };
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::panic;
 pub struct DatexSerializer {
@@ -231,6 +232,48 @@ impl SerializeTupleVariant for TupleVariantSerializer {
     }
 }
 
+pub struct StructVariantSerializer {
+    variant: &'static str,
+    fields: Vec<(String, ValueContainer)>,
+}
+impl StructVariantSerializer {
+    pub fn new(variant: &'static str) -> Self {
+        Self {
+            variant,
+            fields: Vec::new(),
+        }
+    }
+}
+impl SerializeStructVariant for StructVariantSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_field<T: ?Sized>(
+        &mut self,
+        key: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: serde::Serialize,
+    {
+        let field = value.serialize(&mut DatexSerializer::new())?;
+        self.fields.push((key.to_string(), field));
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        let obj = self
+            .fields
+            .into_iter()
+            .collect::<HashMap<String, ValueContainer>>();
+
+        let inner = ValueContainer::from(CoreValue::Object(Object::from(obj)));
+        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+            HashMap::from([(self.variant.to_string(), inner.clone())]),
+        ))))
+    }
+}
+
 /// Main serializer implementation
 impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
@@ -239,13 +282,13 @@ impl Serializer for &mut DatexSerializer {
     // Non implemented types
     type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
     type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeStructVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
 
     // Implemented types
     type SerializeStruct = Self;
     type SerializeTuple = Self;
     type SerializeTupleStruct = TupleStructSerializer;
     type SerializeTupleVariant = TupleVariantSerializer;
+    type SerializeStructVariant = StructVariantSerializer;
 
     fn serialize_struct(
         self,
@@ -455,7 +498,7 @@ impl Serializer for &mut DatexSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        todo!("#144 Undescribed by author.")
+        Ok(StructVariantSerializer::new(variant))
     }
 
     fn collect_seq<I>(self, iter: I) -> Result<Self::Ok, Self::Error>
@@ -607,14 +650,14 @@ mod tests {
     fn enum_unit_variant() {
         let e = TestEnum::Unit;
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#""UnitVariant""#);
+        assert_eq!(result.to_string(), r#""Unit""#);
     }
 
     #[test]
     fn enum_tuple_variant() {
         let e = TestEnum::Tuple(42, "hello".to_string());
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#"{"TupleVariant": [42, "hello"]}"#);
+        assert_eq!(result.to_string(), r#"{"Tuple": [42, "hello"]}"#);
     }
 
     #[test]
@@ -622,10 +665,7 @@ mod tests {
     fn enum_struct_variant() {
         let e = TestEnum::Struct { x: true, y: 3.5 };
         let result = to_value_container(&e).unwrap();
-        assert_eq!(
-            result.to_string(),
-            r#"{"StructVariant": {"x": true, "y": 3.5}}"#
-        );
+        assert_eq!(result.to_string(), r#"{"Struct": {"x": true, "y": 3.5}}"#);
     }
 
     #[test]
