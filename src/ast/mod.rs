@@ -15,6 +15,7 @@ pub mod literal;
 pub mod object;
 pub mod text;
 pub mod tuple;
+pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
@@ -371,7 +372,22 @@ where
         atom.clone(),
         expression.clone(),
     );
-    let union = binary_operation(chain);
+
+    let reference = just(Token::Ampersand)
+        .ignore_then(just(Token::Mutable).or_not().padded_by(whitespace()))
+        .then(chain.clone())
+        .map(|(mut_kw, expr)| {
+            if mut_kw.is_some() {
+                DatexExpression::RefMut(Box::new(expr))
+            } else {
+                DatexExpression::Ref(Box::new(expr))
+            }
+        });
+
+    let unary = reference.clone().or(unary);
+    let reference_or_chain = reference.or(chain.clone());
+
+    let union = binary_operation(reference_or_chain);
 
     // FIXME WIP
     let function_declaration = function(
@@ -1230,6 +1246,46 @@ mod tests {
                     Box::new(DatexExpression::Literal("text".to_owned())),
                     None
                 )),
+            }
+        );
+    }
+
+    #[test]
+    fn type_declaration_complex() {
+        let src = r#"
+            type User = {
+                name: text,
+                friends: &mut Array<User>
+            }
+        "#;
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::TypeDeclaration {
+                id: None,
+                generic: None,
+                name: "User".to_string(),
+                value: Box::new(DatexExpression::Object(vec![
+                    (
+                        DatexExpression::Text("name".to_string()),
+                        DatexExpression::Literal("text".to_owned())
+                    ),
+                    (
+                        DatexExpression::Text("friends".to_string()),
+                        DatexExpression::RefMut(Box::new(
+                            DatexExpression::ApplyChain(
+                                Box::new(DatexExpression::Literal(
+                                    "Array".to_string()
+                                )),
+                                vec![ApplyOperation::GenericAccess(
+                                    DatexExpression::Literal(
+                                        "User".to_string()
+                                    )
+                                )]
+                            )
+                        ))
+                    )
+                ]))
             }
         );
     }

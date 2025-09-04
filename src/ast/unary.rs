@@ -1,23 +1,10 @@
 use crate::ast::unary_operation::UnaryOperator;
-use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 use chumsky::prelude::*;
 
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     recursive(|unary| {
-        // & or &mut reference
-        let reference = just(Token::Ampersand)
-            .ignore_then(just(Token::Mutable).or_not().padded_by(whitespace()))
-            .then(unary.clone())
-            .map(|(mut_kw, expr)| {
-                if mut_kw.is_some() {
-                    DatexExpression::RefMut(Box::new(expr))
-                } else {
-                    DatexExpression::Ref(Box::new(expr))
-                }
-            });
-
         // unary minus
         let negation =
             just(Token::Minus).then(unary.clone()).map(|(_, expr)| {
@@ -38,6 +25,6 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
                     )
                 });
 
-        choice((reference, negation, logical_not, atom))
+        choice((negation, logical_not, atom))
     })
 }
