@@ -9,9 +9,10 @@ use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use log::info;
+use serde::de::value::SeqDeserializer;
 use serde::ser::{
-    Serialize, SerializeStruct, SerializeStructVariant, SerializeTuple,
-    SerializeTupleStruct, SerializeTupleVariant, Serializer,
+    Serialize, SerializeSeq, SerializeStruct, SerializeStructVariant,
+    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant, Serializer,
 };
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -269,13 +270,51 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 }
 
+/// Serializer for sequences
+/// Currently unused?
+/// FIXME: shall we use array or tuple?
+#[derive(Default)]
+pub struct SeqSerializer {
+    elements: Vec<ValueContainer>,
+}
+impl SeqSerializer {
+    pub fn new() -> Self {
+        Self {
+            elements: Vec::new(),
+        }
+    }
+}
+impl SerializeSeq for SeqSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_element<T: ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: serde::Serialize,
+    {
+        let vc = value.serialize(&mut DatexSerializer::new())?;
+        self.elements.push(vc);
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        let mut tuple = Tuple::default();
+        for element in self.elements.into_iter() {
+            tuple.insert(element);
+        }
+        Ok(ValueContainer::from(CoreValue::Tuple(tuple)))
+    }
+}
+
 /// Main serializer implementation
 impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
     // Non implemented types
-    type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
     type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
 
     // Implemented types
@@ -284,6 +323,7 @@ impl Serializer for &mut DatexSerializer {
     type SerializeTupleStruct = TupleStructSerializer;
     type SerializeTupleVariant = TupleVariantSerializer;
     type SerializeStructVariant = StructVariantSerializer;
+    type SerializeSeq = SeqSerializer;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(v))
@@ -378,7 +418,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(Object::new()))
+        Ok(Object::new().into())
     }
 
     fn serialize_unit_variant(
@@ -387,7 +427,6 @@ impl Serializer for &mut DatexSerializer {
         variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        // convert enum variant name to text
         Ok(ValueContainer::from(variant))
     }
 
@@ -449,7 +488,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         len: Option<usize>,
     ) -> Result<Self::SerializeSeq, Self::Error> {
-        todo!("#141 Undescribed by author.")
+        Ok(SeqSerializer::new())
     }
 
     fn serialize_tuple(
@@ -652,11 +691,33 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn enum_struct_variant() {
         let e = TestEnum::Struct { x: true, y: 3.5 };
         let result = to_value_container(&e).unwrap();
         assert_eq!(result.to_string(), r#"{"Struct": {"x": true, "y": 3.5}}"#);
+    }
+
+    #[test]
+    fn serialize_vec() {
+        let data = vec![10, 20, 30];
+        let result = to_value_container(&data).unwrap();
+
+        // Expect CoreValue::Tuple with elements in order
+        // if let ValueContainer::Value(v) = &result {
+        //     if let CoreValue::Tuple(t) = &v.inner {
+        //         assert_eq!(t.size(), 3);
+        //         assert_eq!(t[0].1, ValueContainer::from(10));
+        //         assert_eq!(t[1].1, ValueContainer::from(20));
+        //         assert_eq!(t[2].1, ValueContainer::from(30));
+        //     } else {
+        //         panic!("Expected CoreValue::Tuple");
+        //     }
+        // } else {
+        //     panic!("Expected ValueContainer::Value");
+        // }
+
+        // Also check string output
+        assert_eq!(result.to_string(), "[10, 20, 30]");
     }
 
     #[test]
