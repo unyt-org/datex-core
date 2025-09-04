@@ -49,8 +49,10 @@ impl Serialize for ValueContainer {
     where
         S: serde::Serializer,
     {
-        serializer
-            .serialize_newtype_struct("value", &compile_value(self).unwrap())
+        serializer.serialize_newtype_struct(
+            "datex::value",
+            &compile_value(self).unwrap(),
+        )
     }
 }
 
