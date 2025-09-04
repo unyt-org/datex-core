@@ -33,10 +33,6 @@ impl DatexSerializer {
             container: CoreValue::Null.into(),
         }
     }
-
-    pub fn into_inner(self) -> ValueContainer {
-        self.container
-    }
 }
 
 pub fn to_bytes<T>(value: &T) -> Result<Vec<u8>, SerializationError>
@@ -68,7 +64,15 @@ where
 /// }
 /// will be serialized as:
 /// {"field1": String, "field2": i32}
-impl SerializeStruct for &mut DatexSerializer {
+pub struct StructSerializer {
+    fields: Vec<(String, ValueContainer)>,
+}
+impl StructSerializer {
+    pub fn new() -> Self {
+        Self { fields: Vec::new() }
+    }
+}
+impl SerializeStruct for StructSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
@@ -78,29 +82,19 @@ impl SerializeStruct for &mut DatexSerializer {
         value: &T,
     ) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: serde::Serialize,
     {
-        let mut serializer = DatexSerializer::new();
-        let value_container = value.serialize(&mut serializer)?;
-        match self.container {
-            ValueContainer::Value(Value {
-                inner: CoreValue::Object(ref mut obj),
-                ..
-            }) => {
-                obj.set(key, value_container);
-            }
-            _ => {
-                return Err(SerializationError(
-                    "Cannot serialize field into non-object container"
-                        .to_string(),
-                ));
-            }
-        }
+        let vc = value.serialize(&mut DatexSerializer::new())?;
+        self.fields.push((key.to_string(), vc));
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(self.container.clone())
+        let obj = self
+            .fields
+            .into_iter()
+            .collect::<HashMap<String, ValueContainer>>();
+        Ok(ValueContainer::from(CoreValue::Object(Object::from(obj))))
     }
 }
 
@@ -284,7 +278,7 @@ impl Serializer for &mut DatexSerializer {
     type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
 
     // Implemented types
-    type SerializeStruct = Self;
+    type SerializeStruct = StructSerializer;
     type SerializeTuple = Self;
     type SerializeTupleStruct = TupleStructSerializer;
     type SerializeTupleVariant = TupleVariantSerializer;
@@ -295,8 +289,7 @@ impl Serializer for &mut DatexSerializer {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
-        self.container = Object::new().into();
-        Ok(self)
+        Ok(StructSerializer::new())
     }
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
@@ -533,7 +526,6 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + Display,
     {
-        println!("Collecting str: {value}");
         self.serialize_str(&value.to_string())
     }
 
@@ -610,10 +602,9 @@ mod tests {
             field1: "Hello".to_string(),
             field2: 42,
         };
-        let _ = test_struct.serialize(&mut serializer);
-        let result = serializer.into_inner();
+        let value_container = test_struct.serialize(&mut serializer).unwrap();
         assert_matches!(
-            result,
+            value_container,
             ValueContainer::Value(Value {
                 inner: CoreValue::Object(_),
                 ..
@@ -745,10 +736,9 @@ mod tests {
             field1: "Hello".to_string(),
             field2: 42,
         };
-        let _ = s.serialize(&mut serializer);
-        let result = serializer.into_inner();
+        let value_container = s.serialize(&mut serializer).unwrap();
         assert_matches!(
-            result,
+            value_container,
             ValueContainer::Value(Value {
                 inner: CoreValue::Object(_),
                 ..
