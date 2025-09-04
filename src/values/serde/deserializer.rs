@@ -89,7 +89,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         match self.value {
             // TODO #148 implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
-                CoreValue::Null => visitor.visit_none(),
+                CoreValue::Null => visitor.visit_unit(),
                 CoreValue::Boolean(b) => visitor.visit_bool(b.0),
                 CoreValue::TypedInteger(i) => match i {
                     TypedInteger::I128(i) => visitor.visit_i128(i),
@@ -367,7 +367,7 @@ impl<'de> VariantAccess<'de> for DatexVariantAccess {
     where
         V: Visitor<'de>,
     {
-        todo!("#236 Undescribed by author.")
+        self.de.deserialize_tuple(len, visitor)
     }
 
     fn struct_variant<V>(

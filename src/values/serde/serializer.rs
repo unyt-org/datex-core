@@ -11,7 +11,7 @@ use crate::values::value_container::ValueContainer;
 use log::info;
 use serde::ser::{
     Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct,
-    Serializer,
+    SerializeTupleVariant, Serializer,
 };
 use std::fmt::Display;
 pub struct DatexSerializer {
@@ -127,6 +127,40 @@ impl SerializeTuple for &mut DatexSerializer {
     }
 }
 
+impl SerializeTupleVariant for &mut DatexSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_field<T: ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: Serialize,
+    {
+        let value_container = value.serialize(&mut **self)?;
+        match self.container {
+            ValueContainer::Value(Value {
+                inner: CoreValue::Tuple(ref mut tuple),
+                ..
+            }) => {
+                tuple.insert(value_container);
+            }
+            _ => {
+                return Err(SerializationError(
+                    "Cannot serialize element into non-tuple container"
+                        .to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(self.container.clone())
+    }
+}
+
 impl SerializeTupleStruct for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
@@ -167,7 +201,6 @@ impl Serializer for &mut DatexSerializer {
 
     // Non implemented types
     type SerializeSeq = serde::ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
     type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
     type SerializeStructVariant = serde::ser::Impossible<Self::Ok, Self::Error>;
 
@@ -175,6 +208,7 @@ impl Serializer for &mut DatexSerializer {
     type SerializeStruct = Self;
     type SerializeTuple = Self;
     type SerializeTupleStruct = Self;
+    type SerializeTupleVariant = Self;
 
     fn serialize_struct(
         self,
@@ -262,7 +296,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        todo!("#137 Undescribed by author.")
+        Ok(ValueContainer::from(CoreValue::Null))
     }
 
     fn serialize_unit_variant(
@@ -360,7 +394,10 @@ impl Serializer for &mut DatexSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        todo!("#142 Undescribed by author.")
+        let mut tuple = Tuple::default();
+        tuple.insert(ValueContainer::from(variant));
+        self.container = tuple.into();
+        Ok(self)
     }
 
     fn serialize_map(
