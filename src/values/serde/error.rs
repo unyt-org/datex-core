@@ -5,29 +5,112 @@ use serde::ser::{self};
 use std::fmt::Display;
 use std::io;
 
+use crate::compiler::error::CompilerError;
+use crate::runtime::execution::ExecutionError;
+
 // TODO #147: Add deserialization error and wrap compiler error and execution error into it
 
 #[derive(Debug)]
-pub struct SerializationError(pub String);
+pub enum SerializationError {
+    Custom(String),
+    CanNotSerialize(String),
+    CompilerError(CompilerError),
+}
 impl ser::Error for SerializationError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        SerializationError(msg.to_string())
+        SerializationError::Custom(msg.to_string())
     }
 }
 impl Error for SerializationError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        SerializationError(msg.to_string())
+        SerializationError::Custom(msg.to_string())
     }
 }
 
 impl From<io::Error> for SerializationError {
     fn from(e: io::Error) -> Self {
-        SerializationError(e.to_string())
+        SerializationError::Custom(e.to_string())
+    }
+}
+impl From<CompilerError> for SerializationError {
+    fn from(e: CompilerError) -> Self {
+        SerializationError::CompilerError(e)
     }
 }
 impl StdError for SerializationError {}
 impl Display for SerializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SerializationError: {}", self.0)
+        match self {
+            SerializationError::Custom(msg) => {
+                write!(f, "Serialization error: {}", msg)
+            }
+            SerializationError::CanNotSerialize(msg) => {
+                write!(f, "Can not serialize value: {}", msg)
+            }
+            SerializationError::CompilerError(err) => {
+                write!(f, "Compiler error: {}", err)
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum DeserializationError {
+    Custom(String),
+    CanNotDeserialize(String),
+    ExecutionError(ExecutionError),
+    CanNotReadFile(String),
+    CompilerError(CompilerError),
+    NoStaticValueFound,
+}
+impl ser::Error for DeserializationError {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        DeserializationError::Custom(msg.to_string())
+    }
+}
+impl Error for DeserializationError {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        DeserializationError::Custom(msg.to_string())
+    }
+}
+
+impl From<io::Error> for DeserializationError {
+    fn from(e: io::Error) -> Self {
+        DeserializationError::Custom(e.to_string())
+    }
+}
+impl From<ExecutionError> for DeserializationError {
+    fn from(e: ExecutionError) -> Self {
+        DeserializationError::ExecutionError(e)
+    }
+}
+impl From<CompilerError> for DeserializationError {
+    fn from(e: CompilerError) -> Self {
+        DeserializationError::CompilerError(e)
+    }
+}
+impl StdError for DeserializationError {}
+impl Display for DeserializationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DeserializationError::Custom(msg) => {
+                write!(f, "Deserialization error: {}", msg)
+            }
+            DeserializationError::CanNotDeserialize(msg) => {
+                write!(f, "Can not deserialize value: {}", msg)
+            }
+            DeserializationError::ExecutionError(err) => {
+                write!(f, "Execution error: {}", err)
+            }
+            DeserializationError::CanNotReadFile(msg) => {
+                write!(f, "Can not read file: {}", msg)
+            }
+            DeserializationError::CompilerError(err) => {
+                write!(f, "Compiler error: {}", err)
+            }
+            DeserializationError::NoStaticValueFound => {
+                write!(f, "No static value found in script")
+            }
+        }
     }
 }

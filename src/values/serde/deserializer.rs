@@ -7,10 +7,9 @@ use crate::{
         core_value::CoreValue,
         core_values::{
             decimal::typed_decimal::TypedDecimal,
-            integer::typed_integer::TypedInteger,
-            tuple::Tuple,
+            integer::typed_integer::TypedInteger, tuple::Tuple,
         },
-        serde::error::SerializationError,
+        serde::error::DeserializationError,
         value,
         value_container::ValueContainer,
     },
@@ -20,7 +19,7 @@ use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use std::path::PathBuf;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
-pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
+pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
 where
     T: serde::Deserialize<'de>,
 {
@@ -31,7 +30,7 @@ where
 /// Deserialize a value of type T from a ValueContainer
 pub fn from_value_container<'de, T>(
     value: ValueContainer,
-) -> Result<T, SerializationError>
+) -> Result<T, DeserializationError>
 where
     T: serde::Deserialize<'de>,
 {
@@ -47,40 +46,42 @@ pub struct DatexDeserializer {
 impl<'de> DatexDeserializer {
     /// Create a deserializer from a byte slice containing DXB data
     /// This will execute the DXB and extract the resulting value for deserialization
-    pub fn from_bytes(input: &'de [u8]) -> Result<Self, SerializationError> {
+    pub fn from_bytes(input: &'de [u8]) -> Result<Self, DeserializationError> {
         let context = ExecutionInput::new_with_dxb_and_options(
             input,
             ExecutionOptions { verbose: true },
         );
         let value = execute_dxb_sync(context)
-            .map_err(|err| {
-                SerializationError(format!("Failed to execute DXB: {}", err))
-            })?
+            .map_err(|err| DeserializationError::ExecutionError(err))?
             .expect("DXB execution returned no value");
         Ok(Self { value })
     }
 
     /// Create a deserializer from a DX file path
     /// This will read the file, compile it to DXB, execute it and extract the
-    pub fn from_dx_file(path: PathBuf) -> Result<Self, SerializationError> {
-        let input = std::fs::read_to_string(path)
-            .map_err(|err| SerializationError(err.to_string()))?;
+    pub fn from_dx_file(path: PathBuf) -> Result<Self, DeserializationError> {
+        let input = std::fs::read_to_string(path).map_err(|err| {
+            DeserializationError::CanNotReadFile(err.to_string())
+        })?;
         DatexDeserializer::from_script(&input)
     }
 
     /// Create a deserializer from a DXB file path
     /// This will read the file, execute it and extract the resulting value for deserialization
-    pub fn from_dxb_file(path: PathBuf) -> Result<Self, SerializationError> {
-        let input = std::fs::read(path)
-            .map_err(|err| SerializationError(err.to_string()))?;
+    pub fn from_dxb_file(path: PathBuf) -> Result<Self, DeserializationError> {
+        let input = std::fs::read(path).map_err(|err| {
+            DeserializationError::CanNotReadFile(err.to_string())
+        })?;
         DatexDeserializer::from_bytes(&input)
     }
 
     /// Create a deserializer from a DX script string
     /// This will compile the script to DXB, execute it and extract the resulting value for deserialization
-    pub fn from_script(script: &'de str) -> Result<Self, SerializationError> {
+    pub fn from_script(script: &'de str) -> Result<Self, DeserializationError> {
         let (dxb, _) = compile_script(script, CompileOptions::default())
-            .map_err(|err| SerializationError(err.to_string()))?;
+            .map_err(|err| {
+                DeserializationError::CanNotReadFile(err.to_string())
+            })?;
         DatexDeserializer::from_bytes(&dxb)
     }
 
@@ -96,13 +97,11 @@ impl<'de> DatexDeserializer {
     /// and extract the value
     pub fn from_static_script(
         script: &'de str,
-    ) -> Result<Self, SerializationError> {
+    ) -> Result<Self, DeserializationError> {
         let value = extract_static_value_from_script(script)
-            .map_err(|err| SerializationError(err.to_string()))?;
+            .map_err(|err| DeserializationError::CompilerError(err))?;
         if value.is_none() {
-            return Err(SerializationError(
-                "No static value found in script".to_string(),
-            ));
+            return Err(DeserializationError::NoStaticValueFound);
         }
         Ok(DatexDeserializer::from_value(value.unwrap()))
     }
@@ -112,7 +111,7 @@ impl<'de> DatexDeserializer {
     }
 }
 
-impl<'de> IntoDeserializer<'de, SerializationError> for DatexDeserializer {
+impl<'de> IntoDeserializer<'de, DeserializationError> for DatexDeserializer {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -120,7 +119,7 @@ impl<'de> IntoDeserializer<'de, SerializationError> for DatexDeserializer {
     }
 }
 impl<'de> Deserializer<'de> for DatexDeserializer {
-    type Error = SerializationError;
+    type Error = DeserializationError;
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
@@ -309,19 +308,21 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         ),
                     );
                 } else {
-                    return Err(serde::de::Error::custom(format!(
+                    return Err(DeserializationError::Custom(format!(
                         "expected tuple array for tuple struct `{}`",
                         name
                     )));
                 }
             }
 
-            Err(serde::de::Error::custom(format!(
+            Err(DeserializationError::Custom(format!(
                 "object missing key for tuple struct `{}`",
                 name
             )))
         } else {
-            Err(serde::de::Error::custom("expected object for tuple struct"))
+            Err(DeserializationError::Custom(
+                "expected object for tuple struct".to_string(),
+            ))
         }
     }
 
@@ -345,7 +346,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             });
             visitor.visit_map(serde::de::value::MapDeserializer::new(entries))
         } else {
-            Err(serde::de::Error::custom("expected map"))
+            Err(DeserializationError::Custom("expected map".to_string()))
         }
     }
 
@@ -376,7 +377,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     let (key, _) = o.into_iter().next().unwrap();
                     visitor.visit_string(key)
                 } else {
-                    Err(SerializationError(
+                    Err(DeserializationError::Custom(
                         "Expected single-key object for identifier".to_string(),
                     ))
                 }
@@ -388,7 +389,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 ..
             }) => {
                 if t.size() != 1 {
-                    return Err(SerializationError(
+                    return Err(DeserializationError::Custom(
                         "Expected single-element tuple for identifier"
                             .to_string(),
                     ));
@@ -399,13 +400,15 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         inner: CoreValue::Text(s),
                         ..
                     }) => visitor.visit_string(s.0),
-                    _ => Err(SerializationError(
+                    _ => Err(DeserializationError::Custom(
                         "Expected text inside identifier tuple".to_string(),
                     )),
                 }
             }
 
-            _ => Err(SerializationError("Expected identifier".to_string())),
+            _ => Err(DeserializationError::Custom(
+                "Expected identifier".to_string(),
+            )),
         }
     }
 
@@ -428,7 +431,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 ..
             }) => {
                 if t.size() < 1 {
-                    return Err(SerializationError(
+                    return Err(DeserializationError::Custom(
                         "Expected non-empty tuple for enum".to_string(),
                     ));
                 }
@@ -445,7 +448,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 ..
             }) => {
                 if o.size() != 1 {
-                    return Err(SerializationError(
+                    return Err(DeserializationError::Custom(
                         "Expected single-key object for enum".to_string(),
                     ));
                 }
@@ -467,7 +470,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 value: DatexDeserializer::from_value(Tuple::default().into()),
             }),
 
-            e => Err(SerializationError(format!(
+            e => Err(DeserializationError::Custom(format!(
                 "Expected enum representation, found: {}",
                 e
             ))),
@@ -493,7 +496,7 @@ struct EnumDeserializer {
     value: DatexDeserializer,
 }
 impl<'de> EnumAccess<'de> for EnumDeserializer {
-    type Error = SerializationError;
+    type Error = DeserializationError;
     type Variant = VariantDeserializer;
 
     fn variant_seed<V>(
@@ -524,7 +527,7 @@ struct VariantDeserializer {
 }
 
 impl<'de> VariantAccess<'de> for VariantDeserializer {
-    type Error = SerializationError;
+    type Error = DeserializationError;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
         Ok(())

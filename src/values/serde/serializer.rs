@@ -34,9 +34,7 @@ where
 {
     let value_container = to_value_container(value)?;
     // println!("Value container: {value_container}");
-    compile_value(&value_container).map_err(|e| {
-        SerializationError(format!("Failed to compile value: {e}"))
-    })
+    compile_value(&value_container).map_err(|e| e.into())
 }
 pub fn to_value_container<T>(
     value: &T,
@@ -343,7 +341,7 @@ impl SerializeMap for MapSerializer {
             last.1 = Some(vc);
             Ok(())
         } else {
-            Err(SerializationError(
+            Err(SerializationError::Custom(
                 "serialize_value called before serialize_key".to_string(),
             ))
         }
@@ -355,8 +353,8 @@ impl SerializeMap for MapSerializer {
             if let Some(value) = value {
                 tuple.set(key.clone(), value.clone());
             } else {
-                return Err(SerializationError(
-                    "Map entry missing value".to_string(),
+                return Err(SerializationError::Custom(
+                    "Map entry without value".to_string(),
                 ));
             }
         }
@@ -450,7 +448,9 @@ impl Serializer for &mut DatexSerializer {
         T: ?Sized + serde::Serialize,
     {
         value.serialize(&mut *self).map_err(|e| {
-            SerializationError(format!("Failed to serialize some: {e}"))
+            SerializationError::CanNotSerialize(format!(
+                "Failed to serialize Some value: {e}"
+            ))
         })
     }
 
@@ -492,12 +492,7 @@ impl Serializer for &mut DatexSerializer {
     {
         if name == "datex::endpoint" {
             let endpoint = value
-                .serialize(&mut *self)
-                .map_err(|e| {
-                    SerializationError(format!(
-                        "Failed to serialize endpoint: {e}"
-                    ))
-                })?
+                .serialize(&mut *self)?
                 .to_value()
                 .borrow()
                 .cast_to_endpoint()
@@ -529,11 +524,7 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + serde::Serialize,
     {
-        let field = value.serialize(&mut *self).map_err(|e| {
-            SerializationError(format!(
-                "Failed to serialize newtype variant: {e}"
-            ))
-        })?;
+        let field = value.serialize(&mut *self)?;
         Ok(ValueContainer::from(CoreValue::Object(Object::from(
             HashMap::from([(variant.to_string(), field)]),
         ))))
