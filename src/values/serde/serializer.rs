@@ -7,7 +7,6 @@ use crate::values::core_values::array::Array;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
-use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use log::info;
 use serde::ser::{
@@ -286,14 +285,6 @@ impl Serializer for &mut DatexSerializer {
     type SerializeTupleVariant = TupleVariantSerializer;
     type SerializeStructVariant = StructVariantSerializer;
 
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
-        Ok(StructSerializer::new())
-    }
-
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(v))
     }
@@ -372,7 +363,15 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        todo!("#136 Undescribed by author.")
+        Ok(Object::new().into())
+    }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        Ok(StructSerializer::new())
     }
 
     fn serialize_unit_struct(
