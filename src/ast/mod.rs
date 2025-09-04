@@ -1291,6 +1291,55 @@ mod tests {
     }
 
     #[test]
+    fn unary_operator() {
+        let src = "+(User {})";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Plus,
+                Box::new(DatexExpression::ApplyChain(
+                    Box::new(DatexExpression::Literal("User".to_string())),
+                    vec![ApplyOperation::FunctionCall(
+                        DatexExpression::Object(vec![])
+                    )]
+                )),
+            )
+        );
+
+        let src = "-(5)";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Minus,
+                Box::new(DatexExpression::Integer(Integer::from(5)))
+            )
+        );
+
+        let src = "+-+-myVal";
+        let val = parse_unwrap(src);
+        assert_eq!(
+            val,
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Plus,
+                Box::new(DatexExpression::UnaryOperation(
+                    UnaryOperator::Minus,
+                    Box::new(DatexExpression::UnaryOperation(
+                        UnaryOperator::Plus,
+                        Box::new(DatexExpression::UnaryOperation(
+                            UnaryOperator::Minus,
+                            Box::new(DatexExpression::Literal(
+                                "myVal".to_string()
+                            ))
+                        ))
+                    ))
+                ))
+            )
+        );
+    }
+
+    #[test]
     fn var_declaration_with_type_simple() {
         let src = "var x: integer = 42";
         let val = parse_unwrap(src);

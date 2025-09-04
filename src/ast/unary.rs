@@ -6,13 +6,16 @@ use chumsky::prelude::*;
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     recursive(|unary| {
         // unary minus
-        let negation =
-            just(Token::Minus).then(unary.clone()).map(|(_, expr)| {
-                DatexExpression::UnaryOperation(
-                    UnaryOperator::Neg,
-                    Box::new(expr),
-                )
-            });
+        let minus = just(Token::Minus).then(unary.clone()).map(|(_, expr)| {
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Minus,
+                Box::new(expr),
+            )
+        });
+        // unary plus
+        let plus = just(Token::Plus).then(unary.clone()).map(|(_, expr)| {
+            DatexExpression::UnaryOperation(UnaryOperator::Plus, Box::new(expr))
+        });
 
         // logical NOT
         let logical_not =
@@ -25,6 +28,6 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
                     )
                 });
 
-        choice((negation, logical_not, atom))
+        choice((minus, plus, logical_not, atom))
     })
 }

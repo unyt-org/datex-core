@@ -1,7 +1,8 @@
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
     Not,
-    Neg,
+    Minus,
+    Plus,
     CreateRef,
-    CreateRefMut
+    CreateRefMut,
 }
