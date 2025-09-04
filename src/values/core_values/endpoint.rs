@@ -608,7 +608,8 @@ impl Serialize for Endpoint {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_newtype_struct("endpoint", &self.to_string())
+        serializer
+            .serialize_newtype_struct("datex::endpoint", &self.to_string())
     }
 }
 
