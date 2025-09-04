@@ -52,7 +52,7 @@ impl<'de> DatexDeserializer {
             ExecutionOptions { verbose: true },
         );
         let value = execute_dxb_sync(context)
-            .map_err(|err| DeserializationError::ExecutionError(err))?
+            .map_err(DeserializationError::ExecutionError)?
             .expect("DXB execution returned no value");
         Ok(Self { value })
     }
@@ -99,7 +99,7 @@ impl<'de> DatexDeserializer {
         script: &'de str,
     ) -> Result<Self, DeserializationError> {
         let value = extract_static_value_from_script(script)
-            .map_err(|err| DeserializationError::CompilerError(err))?;
+            .map_err(DeserializationError::CompilerError)?;
         if value.is_none() {
             return Err(DeserializationError::NoStaticValueFound);
         }
