@@ -15,12 +15,11 @@ use crate::{
         value_container::ValueContainer,
     },
 };
-use serde::de::{DeserializeSeed, EnumAccess, VariantAccess, Visitor};
-use serde::{
-    Deserialize, Deserializer, de::IntoDeserializer, forward_to_deserialize_any,
-};
+use serde::de::{EnumAccess, VariantAccess, Visitor};
+use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use std::path::PathBuf;
 
+/// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
 where
     T: serde::Deserialize<'de>,
@@ -29,6 +28,7 @@ where
     T::deserialize(deserializer)
 }
 
+/// Deserialize a value of type T from a ValueContainer
 pub fn from_value_container<'de, T>(
     value: ValueContainer,
 ) -> Result<T, SerializationError>
@@ -45,6 +45,8 @@ pub struct DatexDeserializer {
 }
 
 impl<'de> DatexDeserializer {
+    /// Create a deserializer from a byte slice containing DXB data
+    /// This will execute the DXB and extract the resulting value for deserialization
     pub fn from_bytes(input: &'de [u8]) -> Result<Self, SerializationError> {
         let context = ExecutionInput::new_with_dxb_and_options(
             input,
@@ -58,22 +60,40 @@ impl<'de> DatexDeserializer {
         Ok(Self { value })
     }
 
+    /// Create a deserializer from a DX file path
+    /// This will read the file, compile it to DXB, execute it and extract the
     pub fn from_dx_file(path: PathBuf) -> Result<Self, SerializationError> {
         let input = std::fs::read_to_string(path)
             .map_err(|err| SerializationError(err.to_string()))?;
         DatexDeserializer::from_script(&input)
     }
+
+    /// Create a deserializer from a DXB file path
+    /// This will read the file, execute it and extract the resulting value for deserialization
     pub fn from_dxb_file(path: PathBuf) -> Result<Self, SerializationError> {
         let input = std::fs::read(path)
             .map_err(|err| SerializationError(err.to_string()))?;
         DatexDeserializer::from_bytes(&input)
     }
 
+    /// Create a deserializer from a DX script string
+    /// This will compile the script to DXB, execute it and extract the resulting value for deserialization
     pub fn from_script(script: &'de str) -> Result<Self, SerializationError> {
         let (dxb, _) = compile_script(script, CompileOptions::default())
             .map_err(|err| SerializationError(err.to_string()))?;
         DatexDeserializer::from_bytes(&dxb)
     }
+
+    /// Create a deserializer from a DX script string
+    /// This will extract a static value from the script without executing it
+    /// and use that value for deserialization
+    /// If no static value is found, an error is returned
+    /// This is useful for deserializing simple values like integers, strings, arrays, objects
+    /// without the need to execute the script
+    /// Note: This does not support expressions or computations in the script
+    /// For example, the script `{ "key": 42 }` will work, but the script `{ "key": 40 + 2 }` will not
+    /// because the latter requires execution to evaluate the expression
+    /// and extract the value
     pub fn from_static_script(
         script: &'de str,
     ) -> Result<Self, SerializationError> {
@@ -149,13 +169,13 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     }
                 }
                 CoreValue::Decimal(d) => match d {
-                    Decimal::Finite(v) => visitor.visit_str(&v.to_string()),
-                    Decimal::Infinity => visitor.visit_str("Infinity"),
-                    Decimal::NegInfinity => visitor.visit_str("-Infinity"),
-                    // Decimal::NaN => visitor.visit_f32(f32::NAN),
-                    Decimal::NaN => visitor.visit_str("NaN"),
-                    Decimal::NegZero => visitor.visit_str("-0"),
-                    Decimal::Zero => visitor.visit_str("0"),
+                    // Decimal::Finite(v) => visitor.visit_str(&v.to_string()),
+                    // Decimal::Infinity => visitor.visit_str("Infinity"),
+                    // Decimal::NegInfinity => visitor.visit_str("-Infinity"),
+                    // Decimal::NaN => visitor.visit_str("NaN"),
+                    // Decimal::NegZero => visitor.visit_str("-0"),
+                    // Decimal::Zero => visitor.visit_str("0"),
+                    _ => todo!("Unsupported decimal: {:?}", d),
                 },
                 CoreValue::TypedDecimal(d) => match d {
                     TypedDecimal::F32(v) => visitor.visit_f32(v.0),
