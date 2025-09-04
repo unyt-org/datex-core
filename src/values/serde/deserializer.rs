@@ -22,6 +22,24 @@ use serde::{
 };
 use std::path::PathBuf;
 
+pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
+where
+    T: serde::Deserialize<'de>,
+{
+    let deserializer = DatexDeserializer::from_bytes(input)?;
+    T::deserialize(deserializer)
+}
+
+pub fn from_value_container<'de, T>(
+    value: ValueContainer,
+) -> Result<T, SerializationError>
+where
+    T: serde::Deserialize<'de>,
+{
+    let deserializer = DatexDeserializer::from_value(value);
+    T::deserialize(deserializer)
+}
+
 #[derive(Clone)]
 pub struct DatexDeserializer {
     pub value: ValueContainer,
@@ -74,6 +92,7 @@ impl<'de> DatexDeserializer {
         Self { value }
     }
 }
+
 impl<'de> IntoDeserializer<'de, SerializationError> for DatexDeserializer {
     type Deserializer = Self;
 
@@ -84,6 +103,13 @@ impl<'de> IntoDeserializer<'de, SerializationError> for DatexDeserializer {
 impl<'de> Deserializer<'de> for DatexDeserializer {
     type Error = SerializationError;
 
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
+        tuple seq unit struct ignored_any
+    }
+
+    /// Deserialize any value from the value container
+    /// This is the main entry point for deserialization
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
@@ -91,7 +117,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         match self.value {
             // TODO #148 implement missing mapping
             ValueContainer::Value(value::Value { inner, .. }) => match inner {
-                CoreValue::Null => visitor.visit_unit(),
+                CoreValue::Null => visitor.visit_none(),
                 CoreValue::Boolean(b) => visitor.visit_bool(b.0),
                 CoreValue::TypedInteger(i) => match i {
                     TypedInteger::I128(i) => visitor.visit_i128(i),
@@ -170,6 +196,26 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
+    /// Deserialize unit structs from the value container
+    /// For example:
+    ///     struct MyUnitStruct;
+    /// will be deserialized from:
+    ///     ()
+    fn deserialize_unit_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_unit()
+    }
+
+    /// Deserialize options from null or some value in the value container
+    /// For example:
+    ///     Some(42) will be deserialized from 42
+    ///     None will be deserialized from null
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
@@ -181,11 +227,13 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf
-        tuple seq unit unit_struct struct ignored_any
-    }
-
+    /// Deserialize newtype structs from single values or tuples in the value container
+    /// For example:
+    ///     struct MyNewtypeStruct(i32);
+    /// will be deserialized from:
+    ///     42
+    /// or
+    ///     (42,)
     fn deserialize_newtype_struct<V>(
         self,
         name: &'static str,
@@ -210,6 +258,12 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             ))
         }
     }
+
+    /// Deserialize tuple structs from arrays in the value container
+    /// For example:
+    ///     struct MyTupleStruct(i32, String);
+    /// will be deserialized from:
+    ///     [42, "Hello"]
     fn deserialize_tuple_struct<V>(
         self,
         name: &'static str,
@@ -219,16 +273,12 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        println!("Deserializing tuple struct: {}", name);
-        println!("With value: {:?}", self.value);
         if let ValueContainer::Value(value::Value {
             inner: CoreValue::Object(obj),
             ..
         }) = self.value
         {
-            // find the entry matching the struct name
             if let Some(value) = obj.try_get(name) {
-                // expect values to be a tuple/array
                 if let ValueContainer::Value(value::Value {
                     inner: CoreValue::Array(t),
                     ..
@@ -258,6 +308,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
+    /// Deserialize maps from tuples of key-value pairs
+    /// For example:
+    ///     ("key1": value1, "key2": value2)
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -409,6 +462,15 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     }
 }
 
+/// Enum deserializer helper
+/// Used to deserialize enum variants
+/// For example:
+///     enum MyEnum {
+///         Variant1,
+///         Variant2(i32),
+///     }
+/// will be deserialized from:
+///     "Variant1" or {"Variant2": 42}
 struct EnumDeserializer {
     variant: String,
     value: DatexDeserializer,
@@ -430,6 +492,16 @@ impl<'de> EnumAccess<'de> for EnumDeserializer {
         Ok((variant, VariantDeserializer { value: self.value }))
     }
 }
+
+/// Variant deserializer helper
+/// Used to deserialize enum variant contents
+/// For example:
+///     enum MyEnum {
+///         Variant1,
+///         Variant2(i32),
+///     }
+/// will be deserialized from:
+///     "Variant1" or {"Variant2": 42}
 struct VariantDeserializer {
     value: DatexDeserializer,
 }
@@ -469,80 +541,6 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
     {
         self.value.deserialize_struct("", fields, visitor)
     }
-}
-
-struct DatexVariantAccess {
-    de: DatexDeserializer,
-}
-impl<'de> VariantAccess<'de> for DatexVariantAccess {
-    type Error = SerializationError;
-
-    fn unit_variant(self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn newtype_variant_seed<T>(
-        mut self,
-        seed: T,
-    ) -> Result<T::Value, Self::Error>
-    where
-        T: DeserializeSeed<'de>,
-    {
-        if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Tuple(t),
-            ..
-        }) = self.de.value
-        {
-            let value = t
-                .at(1)
-                .ok_or(SerializationError("Invalid tuple".to_string()))?
-                .1;
-            self.de.value = value.clone();
-            Ok(seed.deserialize(self.de)?)
-        } else {
-            Err(SerializationError("Expected identifier tuple".to_string()))
-        }
-    }
-
-    fn tuple_variant<V>(
-        self,
-        len: usize,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        self.de.deserialize_tuple(len, visitor)
-    }
-
-    fn struct_variant<V>(
-        self,
-        fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        todo!("#237 Undescribed by author.")
-    }
-}
-
-pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, SerializationError>
-where
-    T: serde::Deserialize<'de>,
-{
-    let deserializer = DatexDeserializer::from_bytes(input)?;
-    T::deserialize(deserializer)
-}
-
-pub fn from_value_container<'de, T>(
-    value: ValueContainer,
-) -> Result<T, SerializationError>
-where
-    T: serde::Deserialize<'de>,
-{
-    let deserializer = DatexDeserializer::from_value(value);
-    T::deserialize(deserializer)
 }
 
 #[cfg(test)]
