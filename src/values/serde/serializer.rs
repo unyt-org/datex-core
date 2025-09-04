@@ -3,6 +3,7 @@ use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::array::Array;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
@@ -14,6 +15,7 @@ use serde::ser::{
     SerializeTupleVariant, Serializer,
 };
 use std::fmt::Display;
+use std::panic;
 pub struct DatexSerializer {
     container: ValueContainer,
 }
@@ -41,7 +43,7 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
-    println!("Value container: {value_container:?}");
+    println!("Value container: {value_container}");
     compile_value(&value_container).map_err(|e| {
         SerializationError(format!("Failed to compile value: {e}"))
     })
@@ -141,10 +143,10 @@ impl SerializeTupleVariant for &mut DatexSerializer {
         let value_container = value.serialize(&mut **self)?;
         match self.container {
             ValueContainer::Value(Value {
-                inner: CoreValue::Tuple(ref mut tuple),
+                inner: CoreValue::Object(ref mut object),
                 ..
             }) => {
-                tuple.insert(value_container);
+                object.set("value", value_container);
             }
             _ => {
                 return Err(SerializationError(
@@ -161,7 +163,24 @@ impl SerializeTupleVariant for &mut DatexSerializer {
     }
 }
 
-impl SerializeTupleStruct for &mut DatexSerializer {
+/// Serializer for tuple structs
+/// For example:
+/// struct MyStruct(i32, String);
+/// will be serialized as:
+/// {"MyStruct": [i32, String]}
+pub struct TupleStructSerializer {
+    name: &'static str,
+    fields: Array,
+}
+impl TupleStructSerializer {
+    pub fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            fields: Array::new(),
+        }
+    }
+}
+impl SerializeTupleStruct for TupleStructSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
@@ -172,29 +191,66 @@ impl SerializeTupleStruct for &mut DatexSerializer {
     where
         T: Serialize,
     {
-        let value_container = value.serialize(&mut **self)?;
-        match self.container {
-            ValueContainer::Value(Value {
-                inner: CoreValue::Tuple(ref mut tuple),
-                ..
-            }) => {
-                tuple.insert(value_container);
-            }
-            _ => {
-                return Err(SerializationError(
-                    "Cannot serialize element into non-tuple container"
-                        .to_string(),
-                ));
-            }
-        }
+        let field = value.serialize(&mut DatexSerializer::new())?;
+        self.fields.push(field);
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(self.container.clone())
+        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+            std::collections::HashMap::from([(
+                self.name.to_string(),
+                self.fields,
+            )]),
+        ))))
     }
 }
 
+/// Serializer for enum variants with tuple fields
+/// For example:
+/// enum MyEnum {
+///     Variant1(i32, String),
+///     Variant2(bool),
+/// }
+/// will be serialized as:
+/// {"Variant1": [i32, String]}
+pub struct TupleVariantSerializer {
+    variant: &'static str,
+    fields: Array,
+}
+impl TupleVariantSerializer {
+    pub fn new(variant: &'static str) -> Self {
+        Self {
+            variant,
+            fields: Array::new(),
+        }
+    }
+}
+impl serde::ser::SerializeTupleVariant for TupleVariantSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_field<T: ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: Serialize,
+    {
+        let field = value.serialize(&mut DatexSerializer::new())?;
+        self.fields.push(field);
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+            std::collections::HashMap::from([(
+                self.variant.to_string(),
+                self.fields,
+            )]),
+        ))))
+    }
+}
 impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
@@ -207,8 +263,8 @@ impl Serializer for &mut DatexSerializer {
     // Implemented types
     type SerializeStruct = Self;
     type SerializeTuple = Self;
-    type SerializeTupleStruct = Self;
-    type SerializeTupleVariant = Self;
+    type SerializeTupleStruct = TupleStructSerializer;
+    type SerializeTupleVariant = TupleVariantSerializer;
 
     fn serialize_struct(
         self,
@@ -383,8 +439,7 @@ impl Serializer for &mut DatexSerializer {
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        self.container = Tuple::default().into();
-        Ok(self)
+        Ok(TupleStructSerializer::new(name))
     }
 
     fn serialize_tuple_variant(
@@ -394,10 +449,7 @@ impl Serializer for &mut DatexSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        let mut tuple = Tuple::default();
-        tuple.insert(ValueContainer::from(variant));
-        self.container = tuple.into();
-        Ok(self)
+        Ok(TupleVariantSerializer::new(variant))
     }
 
     fn serialize_map(
