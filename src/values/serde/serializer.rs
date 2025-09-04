@@ -9,7 +9,6 @@ use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use log::info;
-use serde::de::value::{self, SeqDeserializer};
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct,
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
@@ -724,10 +723,10 @@ mod tests {
     }
 
     #[test]
-    fn array() {
+    fn tuple_array() {
         let data = [1, 2, 3, 4];
         let result = to_value_container(&data).unwrap();
-        assert_eq!(result.to_string(), "[1, 2, 3, 4]");
+        assert_eq!(result.to_string(), "(0: 1, 1: 2, 2: 3, 3: 4)");
     }
 
     #[test]
