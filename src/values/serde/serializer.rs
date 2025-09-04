@@ -9,16 +9,14 @@ use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use log::info;
-use serde::de::value::SeqDeserializer;
+use serde::de::value::{self, SeqDeserializer};
 use serde::ser::{
-    Serialize, SerializeSeq, SerializeStruct, SerializeStructVariant,
-    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant, Serializer,
+    Serialize, SerializeMap, SerializeSeq, SerializeStruct,
+    SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
+    SerializeTupleVariant, Serializer,
 };
 use std::collections::HashMap;
-use std::fmt::Display;
-pub struct DatexSerializer {
-    container: ValueContainer,
-}
+pub struct DatexSerializer {}
 
 impl Default for DatexSerializer {
     fn default() -> Self {
@@ -28,9 +26,7 @@ impl Default for DatexSerializer {
 
 impl DatexSerializer {
     pub fn new() -> Self {
-        DatexSerializer {
-            container: CoreValue::Null.into(),
-        }
+        DatexSerializer {}
     }
 }
 
@@ -271,16 +267,18 @@ impl SerializeStructVariant for StructVariantSerializer {
 }
 
 /// Serializer for sequences
-/// Currently unused?
-/// FIXME: shall we use array or tuple?
+/// For example:
+/// vec![1, 2, 3]
+/// will be serialized as:
+/// [1, 2, 3]
 #[derive(Default)]
 pub struct SeqSerializer {
-    elements: Vec<ValueContainer>,
+    elements: Array,
 }
 impl SeqSerializer {
     pub fn new() -> Self {
         Self {
-            elements: Vec::new(),
+            elements: Array::new(),
         }
     }
 }
@@ -301,11 +299,70 @@ impl SerializeSeq for SeqSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut tuple = Tuple::default();
-        for element in self.elements.into_iter() {
-            tuple.insert(element);
+        Ok(ValueContainer::from(self.elements))
+    }
+}
+
+/// Serializer for maps
+/// For example:
+///     HashMap<String, i32>
+/// will be serialized as:
+///     {"key": 1, "key2": 2, "key3": 3}
+#[derive(Default)]
+pub struct MapSerializer {
+    entries: Vec<(ValueContainer, Option<ValueContainer>)>,
+}
+impl MapSerializer {
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
         }
-        Ok(ValueContainer::from(CoreValue::Tuple(tuple)))
+    }
+}
+
+impl SerializeMap for MapSerializer {
+    type Ok = ValueContainer;
+    type Error = SerializationError;
+
+    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
+    where
+        T: serde::Serialize,
+    {
+        let key = key.serialize(&mut DatexSerializer::new())?;
+        self.entries.push((key, None));
+        Ok(())
+    }
+
+    fn serialize_value<T: ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<(), Self::Error>
+    where
+        T: serde::Serialize,
+    {
+        let vc = value.serialize(&mut DatexSerializer::new())?;
+        if let Some(last) = self.entries.last_mut() {
+            last.1 = Some(vc);
+            Ok(())
+        } else {
+            Err(SerializationError(
+                "serialize_value called before serialize_key".to_string(),
+            ))
+        }
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        let mut tuple = Tuple::default();
+        for (key, value) in self.entries.iter() {
+            if let Some(value) = value {
+                tuple.set(key.clone(), value.clone());
+            } else {
+                return Err(SerializationError(
+                    "Map entry missing value".to_string(),
+                ));
+            }
+        }
+        Ok(tuple.into())
     }
 }
 
@@ -314,16 +371,13 @@ impl Serializer for &mut DatexSerializer {
     type Ok = ValueContainer;
     type Error = SerializationError;
 
-    // Non implemented types
-    type SerializeMap = serde::ser::Impossible<Self::Ok, Self::Error>;
-
-    // Implemented types
     type SerializeStruct = StructSerializer;
     type SerializeTuple = TupleSerializer;
     type SerializeTupleStruct = TupleStructSerializer;
     type SerializeTupleVariant = TupleVariantSerializer;
     type SerializeStructVariant = StructVariantSerializer;
     type SerializeSeq = SeqSerializer;
+    type SerializeMap = MapSerializer;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(v))
@@ -520,7 +574,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         len: Option<usize>,
     ) -> Result<Self::SerializeMap, Self::Error> {
-        todo!("#143 Undescribed by author.")
+        Ok(MapSerializer::new())
     }
 
     fn serialize_struct_variant(
@@ -531,41 +585,6 @@ impl Serializer for &mut DatexSerializer {
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Ok(StructVariantSerializer::new(variant))
-    }
-
-    fn collect_seq<I>(self, iter: I) -> Result<Self::Ok, Self::Error>
-    where
-        I: IntoIterator,
-        <I as IntoIterator>::Item: Serialize,
-    {
-        let mut seq = Vec::new();
-        for item in iter {
-            let value_container = item.serialize(&mut *self)?;
-            seq.push(value_container);
-        }
-        Ok(ValueContainer::from(seq))
-    }
-
-    fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok, Self::Error>
-    where
-        K: Serialize,
-        V: Serialize,
-        I: IntoIterator<Item = (K, V)>,
-    {
-        let mut map = Tuple::default();
-        for (key, value) in iter {
-            let key = key.serialize(&mut *self)?;
-            let value_container = value.serialize(&mut *self)?;
-            map.set(key, value_container);
-        }
-        Ok(ValueContainer::from(map))
-    }
-
-    fn collect_str<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
-    where
-        T: ?Sized + Display,
-    {
-        self.serialize_str(&value.to_string())
     }
 
     fn is_human_readable(&self) -> bool {
@@ -698,26 +717,17 @@ mod tests {
     }
 
     #[test]
-    fn serialize_vec() {
+    fn vec() {
         let data = vec![10, 20, 30];
         let result = to_value_container(&data).unwrap();
-
-        // Expect CoreValue::Tuple with elements in order
-        // if let ValueContainer::Value(v) = &result {
-        //     if let CoreValue::Tuple(t) = &v.inner {
-        //         assert_eq!(t.size(), 3);
-        //         assert_eq!(t[0].1, ValueContainer::from(10));
-        //         assert_eq!(t[1].1, ValueContainer::from(20));
-        //         assert_eq!(t[2].1, ValueContainer::from(30));
-        //     } else {
-        //         panic!("Expected CoreValue::Tuple");
-        //     }
-        // } else {
-        //     panic!("Expected ValueContainer::Value");
-        // }
-
-        // Also check string output
         assert_eq!(result.to_string(), "[10, 20, 30]");
+    }
+
+    #[test]
+    fn array() {
+        let data = [1, 2, 3, 4];
+        let result = to_value_container(&data).unwrap();
+        assert_eq!(result.to_string(), "[1, 2, 3, 4]");
     }
 
     #[test]
