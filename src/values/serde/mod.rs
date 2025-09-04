@@ -16,6 +16,7 @@ mod tests {
     use datex_core::decompiler::decompile_body;
     use log::info;
     use serde::{Deserialize, Serialize};
+    use std::collections::{HashMap, HashSet};
 
     // Tuple Struct
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
@@ -217,25 +218,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn enum_variants_serde() {
         let tuple = TestEnum::Tuple(42, "hello".to_string());
-        let serialized = to_bytes(&tuple).unwrap();
-        let deserialized: TestEnum = from_bytes(&serialized).unwrap();
-        assert_eq!(tuple, deserialized);
+        let unit = TestEnum::Unit;
+        let strukt = TestEnum::Struct { x: true, y: 3.5 };
 
-        // let unit = TestEnum::Unit;
-        // let strukt = TestEnum::Struct { x: true, y: 3.5 };
-
-        // for original in [unit, tuple, strukt] {
-        //     let serialized = to_bytes(&original).unwrap();
-        //     let deserialized: TestEnum = from_bytes(&serialized).unwrap();
-        //     assert_eq!(original, deserialized);
-        // }
+        for original in [unit, tuple, strukt] {
+            let serialized = to_bytes(&original).unwrap();
+            let deserialized: TestEnum = from_bytes(&serialized).unwrap();
+            assert_eq!(original, deserialized);
+        }
     }
-
-    // Collections
-    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn empty_and_nested_collections_serde() {
@@ -304,5 +297,61 @@ mod tests {
         let serialized = to_bytes(&original).unwrap();
         let result: Result<NestedStruct, _> = from_bytes(&serialized);
         assert!(result.is_err());
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag = "type", content = "content")]
+    enum TaggedEnum {
+        A { x: i32 },
+        B(String),
+    }
+
+    #[test]
+    fn enum_internal_tagged() {
+        let a = TaggedEnum::A { x: 1 };
+        let b = TaggedEnum::B("hello".into());
+
+        for val in [&a, &b] {
+            let bytes = to_bytes(val).unwrap();
+            let back: TaggedEnum = from_bytes(&bytes).unwrap();
+            assert_eq!(*val, back);
+        }
+    }
+
+    #[test]
+    fn float_special_values() {
+        for val in &[f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let b = to_bytes(val).unwrap();
+            let back: f64 = from_bytes(&b).unwrap();
+            if val.is_nan() {
+                assert!(back.is_nan());
+            } else {
+                assert_eq!(*val, back);
+            }
+        }
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Inner {
+        a: i32,
+        b: i32,
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct OuterFlatten {
+        x: String,
+        #[serde(flatten)]
+        inner: Inner,
+    }
+
+    #[test]
+    fn flatten_struct_fields() {
+        let val = OuterFlatten {
+            x: "X".to_string(),
+            inner: Inner { a: 1, b: 2 },
+        };
+        let b = to_bytes(&val).unwrap();
+        let d: OuterFlatten = from_bytes(&b).unwrap();
+        assert_eq!(val, d);
     }
 }
