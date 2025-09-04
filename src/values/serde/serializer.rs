@@ -491,7 +491,7 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + serde::Serialize,
     {
-        if name == "endpoint" {
+        if name == "datex::endpoint" {
             let endpoint = value
                 .serialize(&mut *self)
                 .map_err(|e| {
@@ -504,8 +504,7 @@ impl Serializer for &mut DatexSerializer {
                 .cast_to_endpoint()
                 .unwrap();
             Ok(ValueContainer::from(endpoint))
-        } else if name == "value" {
-            info!("Serializing value");
+        } else if name == "datex::value" {
             // unsafe cast value to ValueContainer
             let bytes = unsafe { &*(value as *const T as *const Vec<u8>) };
             Ok(execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
@@ -514,13 +513,10 @@ impl Serializer for &mut DatexSerializer {
             ))
             .unwrap()
             .unwrap())
-        } else if name == "object" {
-            let object = value.serialize(&mut *self);
-            Ok(object.map_err(|e| {
-                SerializationError(format!("Failed to serialize object: {e}"))
-            })?)
         } else {
-            unreachable!()
+            let mut a = StructSerializer::new();
+            a.serialize_field(name, value)?;
+            a.end()
         }
     }
 
@@ -534,7 +530,14 @@ impl Serializer for &mut DatexSerializer {
     where
         T: ?Sized + serde::Serialize,
     {
-        todo!("#140 Undescribed by author.")
+        let field = value.serialize(&mut *self).map_err(|e| {
+            SerializationError(format!(
+                "Failed to serialize newtype variant: {e}"
+            ))
+        })?;
+        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+            HashMap::from([(variant.to_string(), field)]),
+        ))))
     }
 
     fn serialize_seq(
@@ -847,6 +850,10 @@ mod tests {
 
     #[test]
     fn endpoint() {
+        let script = "@test";
+        let result = to_value_container(&script).unwrap();
+        assert_eq!(result.to_string(), "\"@test\"");
+
         let test_struct = TestStructWithEndpoint {
             endpoint: Endpoint::new("@test"),
         };
@@ -859,5 +866,49 @@ mod tests {
             ValueContainer::from(Endpoint::new("@test")),
         )]));
         assert_eq!(result, ValueContainer::from(object));
+    }
+
+    #[derive(Serialize)]
+    struct MyNewtype(i32);
+
+    #[test]
+    fn newtype_struct() {
+        let my_newtype = MyNewtype(100);
+        let result = to_value_container(&my_newtype).unwrap();
+        assert_eq!(result.to_string(), r#"{"MyNewtype": 100}"#);
+    }
+
+    #[derive(Serialize)]
+    struct StructType(i32, String, bool);
+    #[test]
+    fn newtype_struct_multiple_fields() {
+        let s = StructType(1, "test".to_string(), true);
+        let result = to_value_container(&s).unwrap();
+        assert_eq!(result.to_string(), r#"{"StructType": [1, "test", true]}"#);
+    }
+
+    #[derive(Serialize)]
+    enum MyTaggedEnum {
+        Variant1 { x: i32, y: String },
+        Variant2(i32, String),
+        Empty
+    }
+
+    #[test]
+    fn tagged_enum() {
+        let e = MyTaggedEnum::Variant1 {
+            x: 42,
+            y: "test".to_string(),
+        };
+        let result = to_value_container(&e).unwrap();
+        assert_eq!(result.to_string(), r#"{"Variant1": {"x": 42, "y": "test"}}"#);
+
+        let e = MyTaggedEnum::Variant2(100, "hello".to_string());
+        let result = to_value_container(&e).unwrap();
+        assert_eq!(result.to_string(), r#"{"Variant2": [100, "hello"]}"#);
+
+        let e = MyTaggedEnum::Empty;
+        let result = to_value_container(&e).unwrap();
+        assert_eq!(result.to_string(), r#""Empty""#);
     }
 }
