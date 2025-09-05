@@ -3,7 +3,6 @@ use crate::values::core_values::error::NumberParseError;
 use crate::values::{
     core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
 };
-use num::Signed;
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
@@ -173,7 +172,7 @@ impl TypedDecimal {
             DecimalTypeVariant::F64 => parse_checked_f64(value)
                 .map(|v| TypedDecimal::F64(OrderedFloat(v))),
             DecimalTypeVariant::Big => {
-                Decimal::from_string(value).map(|v| TypedDecimal::Decimal(v))
+                Decimal::from_string(value).map(TypedDecimal::Decimal)
             }
         }
     }
@@ -196,7 +195,7 @@ impl TypedDecimal {
                 .map(|v| TypedDecimal::F64(OrderedFloat(v)))
                 .map_err(|_: ParseFloatError| NumberParseError::InvalidFormat),
             DecimalTypeVariant::Big => {
-                Decimal::from_string(value).map(|v| TypedDecimal::Decimal(v))
+                Decimal::from_string(value).map(TypedDecimal::Decimal)
             }
         }
     }
