@@ -1,5 +1,6 @@
 use super::rational::Rational;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::error::NumberParseError;
 use crate::values::traits::structural_eq::StructuralEq;
 use bigdecimal::BigDecimal;
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
@@ -152,21 +153,21 @@ impl Decimal {
 
     /// Creates a Decimal from a string representation.
     /// TODO: Add error handling
-    pub fn from_string(s: &str) -> Self {
+    pub fn from_string(s: &str) -> Result<Self, NumberParseError> {
         // TODO #133 represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
-            "Infinity" | "infinity" => Decimal::Infinity,
-            "-Infinity" | "-infinity" => Decimal::NegInfinity,
-            "nan" | "NaN" | "-nan" | "-NaN" => Decimal::NaN,
+            "Infinity" | "infinity" => Ok(Decimal::Infinity),
+            "-Infinity" | "-infinity" => Ok(Decimal::NegInfinity),
+            "nan" | "NaN" | "-nan" | "-NaN" => Ok(Decimal::NaN),
             _ => {
                 let s = &s.trim().replace('_', "");
                 if s.contains("/") {
                     // If the string contains a fraction, parse it as a fraction
                     let parts: Vec<&str> = s.split('/').collect();
                     if parts.len() == 2 {
-                        Decimal::from_fraction(parts[0], parts[1])
+                        Ok(Decimal::from_fraction(parts[0], parts[1]))
                     } else {
-                        Decimal::NaN
+                        Err(NumberParseError::InvalidFormat)
                     }
                 } else {
                     let big_rational = Decimal::parse_decimal_to_rational(s);
@@ -174,17 +175,17 @@ impl Decimal {
                         Some(big_rational) => {
                             if big_rational.is_zero() {
                                 if s.starts_with('-') {
-                                    Decimal::NegZero
+                                    Ok(Decimal::NegZero)
                                 } else {
-                                    Decimal::Zero
+                                    Ok(Decimal::Zero)
                                 }
                             } else {
-                                Decimal::Finite(Rational::from_big_rational(
-                                    big_rational,
+                                Ok(Decimal::Finite(
+                                    Rational::from_big_rational(big_rational),
                                 ))
                             }
                         }
-                        None => Decimal::NaN,
+                        None => Err(NumberParseError::InvalidFormat),
                     }
                 }
             }
@@ -479,64 +480,64 @@ mod tests {
 
     #[test]
     fn decimal_addition() {
-        let dec1 = Decimal::from_string("12.34");
-        let dec2 = Decimal::from_string("56.78");
+        let dec1 = Decimal::from_string("12.34").unwrap();
+        let dec2 = Decimal::from_string("56.78").unwrap();
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "69.12");
 
-        let dec1 = Decimal::from_string("-12345.678901234536784");
-        let dec2 = Decimal::from_string("3");
+        let dec1 = Decimal::from_string("-12345.678901234536784").unwrap();
+        let dec2 = Decimal::from_string("3").unwrap();
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "-12342.678901234536784");
 
-        let dec1 = Decimal::from_string("1/3");
-        let dec2 = Decimal::from_string("1/3");
+        let dec1 = Decimal::from_string("1/3").unwrap();
+        let dec2 = Decimal::from_string("1/3").unwrap();
         let result = dec1 + dec2;
         assert_eq!(result.to_string(), "2/3");
     }
 
     #[test]
     fn formatting() {
-        let dec1 = Decimal::from_string("12.34");
+        let dec1 = Decimal::from_string("12.34").unwrap();
         assert_eq!(dec1.to_string(), "12.34");
 
-        let dec2 = Decimal::from_string("0.001");
+        let dec2 = Decimal::from_string("0.001").unwrap();
         assert_eq!(dec2.to_string(), "0.001");
 
-        let dec3 = Decimal::from_string("-0.001");
+        let dec3 = Decimal::from_string("-0.001").unwrap();
         assert_eq!(dec3.to_string(), "-0.001");
 
-        let dec4 = Decimal::from_string("Infinity");
+        let dec4 = Decimal::from_string("Infinity").unwrap();
         assert_eq!(dec4.to_string(), "infinity");
 
-        let dec5 = Decimal::from_string("-Infinity");
+        let dec5 = Decimal::from_string("-Infinity").unwrap();
         assert_eq!(dec5.to_string(), "-infinity");
 
-        let dec6 = Decimal::from_string("NaN");
+        let dec6 = Decimal::from_string("NaN").unwrap();
         assert_eq!(dec6.to_string(), "nan");
 
-        let dec7 = Decimal::from_string("1234567");
+        let dec7 = Decimal::from_string("1234567").unwrap();
         assert_eq!(dec7.to_string(), "1234567.0");
 
-        let dec8 = Decimal::from_string("-1234567");
+        let dec8 = Decimal::from_string("-1234567").unwrap();
         assert_eq!(dec8.to_string(), "-1234567.0");
 
-        let dec9 = Decimal::from_string("-0");
+        let dec9 = Decimal::from_string("-0").unwrap();
         assert_eq!(dec9.to_string(), "-0.0");
 
-        let dec10 = Decimal::from_string("0");
+        let dec10 = Decimal::from_string("0").unwrap();
         assert_eq!(dec10.to_string(), "0.0");
 
-        let dec11 = Decimal::from_string("1/3");
+        let dec11 = Decimal::from_string("1/3").unwrap();
         assert_eq!(dec11.to_string(), "1/3");
 
-        let dec12 = Decimal::from_string("-1/3");
+        let dec12 = Decimal::from_string("-1/3").unwrap();
         assert_eq!(dec12.to_string(), "-1/3");
 
-        let dec13 = Decimal::from_string("1/2");
+        let dec13 = Decimal::from_string("1/2").unwrap();
         assert_eq!(dec13.to_string(), "0.5");
 
-        let dec14 = Decimal::from_string("824/16");
+        let dec14 = Decimal::from_string("824/16").unwrap();
         assert_eq!(dec14.to_string(), "51.5");
     }
 
@@ -550,7 +551,7 @@ mod tests {
         assert!(matches!(b, Decimal::Zero));
         assert!(!matches!(b, Decimal::NegZero));
 
-        let c = Decimal::from_string("0.0");
+        let c = Decimal::from_string("0.0").unwrap();
         assert!(matches!(c, Decimal::Zero));
         assert!(!matches!(c, Decimal::NegZero));
     }
@@ -565,7 +566,7 @@ mod tests {
         assert!(matches!(b, Decimal::NegZero));
         assert!(!matches!(b, Decimal::Zero));
 
-        let c = Decimal::from_string("-0.0");
+        let c = Decimal::from_string("-0.0").unwrap();
         assert!(matches!(c, Decimal::NegZero));
         assert!(!matches!(c, Decimal::Zero));
     }
@@ -578,7 +579,7 @@ mod tests {
         let b = Decimal::from(f64::INFINITY);
         assert!(matches!(b, Decimal::Infinity));
 
-        let c = Decimal::from_string("infinity");
+        let c = Decimal::from_string("infinity").unwrap();
         assert!(matches!(c, Decimal::Infinity));
     }
 
@@ -590,7 +591,7 @@ mod tests {
         let b = Decimal::from(f64::NEG_INFINITY);
         assert!(matches!(b, Decimal::NegInfinity));
 
-        let c = Decimal::from_string("-infinity");
+        let c = Decimal::from_string("-infinity").unwrap();
         assert!(matches!(c, Decimal::NegInfinity));
     }
 
@@ -602,7 +603,7 @@ mod tests {
         let b = Decimal::from(f64::NAN);
         assert!(matches!(b, Decimal::NaN));
 
-        let c = Decimal::from_string("nan");
+        let c = Decimal::from_string("nan").unwrap();
         assert!(matches!(c, Decimal::NaN));
 
         let a = Decimal::from(-f32::NAN);
@@ -611,7 +612,7 @@ mod tests {
         let b = Decimal::from(-f64::NAN);
         assert!(matches!(b, Decimal::NaN));
 
-        let c = Decimal::from_string("-nan");
+        let c = Decimal::from_string("-nan").unwrap();
         assert!(matches!(c, Decimal::NaN));
     }
 
@@ -623,17 +624,17 @@ mod tests {
         let b = Decimal::from(4.56f64);
         assert!(matches!(b, Decimal::Finite(_)));
 
-        let c = Decimal::from_string("7.89");
+        let c = Decimal::from_string("7.89").unwrap();
         assert!(matches!(c, Decimal::Finite(_)));
 
-        let d = Decimal::from_string("-1.23");
+        let d = Decimal::from_string("-1.23").unwrap();
         assert!(matches!(d, Decimal::Finite(_)));
     }
 
     #[test]
     fn zero_neg_zero() {
-        let a = Decimal::from_string("0.0");
-        let b = Decimal::from_string("-0.0");
+        let a = Decimal::from_string("0.0").unwrap();
+        let b = Decimal::from_string("-0.0").unwrap();
         assert_matches!(a, Decimal::Zero);
         assert_matches!(b, Decimal::NegZero);
         assert_eq!(a, b);
@@ -642,8 +643,8 @@ mod tests {
     #[test]
     fn nan_eq() {
         // implicit big decimal NaN
-        let a = Decimal::from_string("nan");
-        let b = Decimal::from_string("nan");
+        let a = Decimal::from_string("nan").unwrap();
+        let b = Decimal::from_string("nan").unwrap();
         assert_ne!(a, b);
         assert!(!a.structural_eq(&b));
 
@@ -710,9 +711,9 @@ mod tests {
 
     #[test]
     fn zero_eq() {
-        let a = Decimal::from_string("0.0");
-        let b = Decimal::from_string("0.0");
-        let c = Decimal::from_string("-0.0");
+        let a = Decimal::from_string("0.0").unwrap();
+        let b = Decimal::from_string("0.0").unwrap();
+        let c = Decimal::from_string("-0.0").unwrap();
 
         assert_eq!(a, b);
         assert_eq!(a, c);
@@ -720,86 +721,86 @@ mod tests {
 
     #[test]
     fn equality() {
-        let a = Decimal::from_string("1.0");
-        let b = Decimal::from_string("1.0");
-        let c = Decimal::from_string("2.0");
+        let a = Decimal::from_string("1.0").unwrap();
+        let b = Decimal::from_string("1.0").unwrap();
+        let c = Decimal::from_string("2.0").unwrap();
         assert!(a.structural_eq(&b));
         assert!(!a.structural_eq(&c));
         assert!(!b.structural_eq(&c));
 
-        let d = Decimal::from_string("infinity");
-        let e = Decimal::from_string("-infinity");
-        assert!(d.structural_eq(&Decimal::from_string("infinity")));
-        assert!(e.structural_eq(&Decimal::from_string("-infinity")));
+        let d = Decimal::from_string("infinity").unwrap();
+        let e = Decimal::from_string("-infinity").unwrap();
+        assert!(d.structural_eq(&Decimal::from_string("infinity").unwrap()));
+        assert!(e.structural_eq(&Decimal::from_string("-infinity").unwrap()));
     }
 
     #[test]
     fn decimal_addition_2() {
-        let a = Decimal::from_string("1.0");
-        let b = Decimal::from_string("2.0");
+        let a = Decimal::from_string("1.0").unwrap();
+        let b = Decimal::from_string("2.0").unwrap();
         let result = a + b;
-        assert_eq!(result, Decimal::from_string("3.0"));
+        assert_eq!(result, Decimal::from_string("3.0").unwrap());
 
-        let c = Decimal::from_string("1.5");
-        let d = Decimal::from_string("2.5");
+        let c = Decimal::from_string("1.5").unwrap();
+        let d = Decimal::from_string("2.5").unwrap();
         let result2 = c + d;
         assert_eq!(result2, Decimal::from(4.0));
 
-        let e = Decimal::from_string("0.1");
-        let f = Decimal::from_string("0.2");
+        let e = Decimal::from_string("0.1").unwrap();
+        let f = Decimal::from_string("0.2").unwrap();
         let result3 = &e + &f;
-        assert_eq!(result3, Decimal::from_string("0.3"));
+        assert_eq!(result3, Decimal::from_string("0.3").unwrap());
     }
 
     #[test]
     fn infinity_calculations() {
-        let a = Decimal::from_string("1.0");
-        let b = Decimal::from_string("infinity");
+        let a = Decimal::from_string("1.0").unwrap();
+        let b = Decimal::from_string("infinity").unwrap();
         let result = a + b;
-        assert_eq!(result, Decimal::from_string("infinity"));
+        assert_eq!(result, Decimal::from_string("infinity").unwrap());
 
-        let a = Decimal::from_string("infinity");
-        let b = Decimal::from_string("-infinity");
-        let result = a + b;
-        assert!(result.is_nan());
-
-        let a = Decimal::from_string("infinity");
-        let b = Decimal::from_string("-0.0");
-        let result = a + b;
-        assert_eq!(result, Decimal::from_string("infinity"));
-
-        let a = Decimal::from_string("-infinity");
-        let b = Decimal::from_string("0.0");
-        let result = a + b;
-        assert_eq!(result, Decimal::from_string("-infinity"));
-
-        let a = Decimal::from_string("0.0");
-        let b = Decimal::from_string("-0.0");
-        let result = a + b;
-        assert_eq!(result, Decimal::from_string("0.0"));
-
-        let a = Decimal::from_string("-0.0");
-        let b = Decimal::from_string("0.0");
-        let result = a + b;
-        assert_eq!(result, Decimal::from_string("0.0"));
-
-        let a = Decimal::from_string("nan");
-        let b = Decimal::from_string("1.0");
+        let a = Decimal::from_string("infinity").unwrap();
+        let b = Decimal::from_string("-infinity").unwrap();
         let result = a + b;
         assert!(result.is_nan());
 
-        let a = Decimal::from_string("1.0");
-        let b = Decimal::from_string("nan");
+        let a = Decimal::from_string("infinity").unwrap();
+        let b = Decimal::from_string("-0.0").unwrap();
+        let result = a + b;
+        assert_eq!(result, Decimal::from_string("infinity").unwrap());
+
+        let a = Decimal::from_string("-infinity").unwrap();
+        let b = Decimal::from_string("0.0").unwrap();
+        let result = a + b;
+        assert_eq!(result, Decimal::from_string("-infinity").unwrap());
+
+        let a = Decimal::from_string("0.0").unwrap();
+        let b = Decimal::from_string("-0.0").unwrap();
+        let result = a + b;
+        assert_eq!(result, Decimal::from_string("0.0").unwrap());
+
+        let a = Decimal::from_string("-0.0").unwrap();
+        let b = Decimal::from_string("0.0").unwrap();
+        let result = a + b;
+        assert_eq!(result, Decimal::from_string("0.0").unwrap());
+
+        let a = Decimal::from_string("nan").unwrap();
+        let b = Decimal::from_string("1.0").unwrap();
         let result = a + b;
         assert!(result.is_nan());
 
-        let a = Decimal::from_string("nan");
-        let b = Decimal::from_string("nan");
+        let a = Decimal::from_string("1.0").unwrap();
+        let b = Decimal::from_string("nan").unwrap();
         let result = a + b;
         assert!(result.is_nan());
 
-        let a = Decimal::from_string("-nan");
-        let b = Decimal::from_string("1.0");
+        let a = Decimal::from_string("nan").unwrap();
+        let b = Decimal::from_string("nan").unwrap();
+        let result = a + b;
+        assert!(result.is_nan());
+
+        let a = Decimal::from_string("-nan").unwrap();
+        let b = Decimal::from_string("1.0").unwrap();
         let result = a + b;
         assert!(result.is_nan());
     }
@@ -807,26 +808,29 @@ mod tests {
     #[test]
     fn large_decimal_addition() {
         let a =
-            Decimal::from_string("100000000000000000000.00000000000000000001");
+            Decimal::from_string("100000000000000000000.00000000000000000001")
+                .unwrap();
         let b =
-            Decimal::from_string("100000000000000000000.00000000000000000001");
+            Decimal::from_string("100000000000000000000.00000000000000000001")
+                .unwrap();
         let result = a + b;
         assert_eq!(
             result,
             Decimal::from_string("200000000000000000000.00000000000000000002")
+                .unwrap()
         );
     }
 
     #[test]
     fn e_notation_decimal_addition() {
-        let a = Decimal::from_string("1e10");
-        let b = Decimal::from_string("2e10");
+        let a = Decimal::from_string("1e10").unwrap();
+        let b = Decimal::from_string("2e10").unwrap();
         let result = a + b;
-        assert_eq!(result, Decimal::from_string("3e10"));
+        assert_eq!(result, Decimal::from_string("3e10").unwrap());
 
-        let c = Decimal::from_string("1.5e10");
-        let d = Decimal::from_string("2.5e10");
+        let c = Decimal::from_string("1.5e10").unwrap();
+        let d = Decimal::from_string("2.5e10").unwrap();
         let result2 = c + d;
-        assert_eq!(result2, Decimal::from_string("4e10"));
+        assert_eq!(result2, Decimal::from_string("4e10").unwrap());
     }
 }
