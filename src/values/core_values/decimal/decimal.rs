@@ -76,6 +76,13 @@ impl Decimal {
         }
     }
 
+    pub fn is_finite(&self) -> bool {
+        matches!(self, Decimal::Finite(_))
+    }
+    pub fn is_infinite(&self) -> bool {
+        matches!(self, Decimal::Infinity | Decimal::NegInfinity)
+    }
+
     fn parse_decimal_to_rational(s: &str) -> Option<BigRational> {
         let decimal = BigDecimal::from_str(s).ok()?;
         let (bigint, scale) = decimal.as_bigint_and_exponent();
