@@ -9,13 +9,16 @@ use futures::channel::oneshot;
 use log::{error, info};
 
 use crate::{
-    values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::{
             ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
         },
         com_interface_properties::InterfaceDirection,
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
+    },
+    values::{
+        core_values::endpoint::Endpoint,
+        serde::{deserializer::from_bytes, serializer::to_bytes},
     },
 };
 
@@ -24,7 +27,7 @@ use super::{
     structures::{
         RTCIceCandidateInitDX, RTCIceServer, RTCSessionDescriptionDX,
     },
-    utils::{deserialize, serialize, WebRTCError},
+    utils::WebRTCError,
     webrtc_commons::WebRTCCommon,
 };
 
@@ -78,7 +81,7 @@ pub trait WebRTCTraitInternal<T: 'static> {
             commons.is_remote_description_set
         };
         if is_remote_description_set {
-            let candidate = deserialize::<RTCIceCandidateInitDX>(&candidate)
+            let candidate = from_bytes::<RTCIceCandidateInitDX>(&candidate)
                 .map_err(|_| WebRTCError::InvalidCandidate)?;
             self.handle_add_ice_candidate(candidate).await?;
         } else {
@@ -114,19 +117,19 @@ pub trait WebRTCTraitInternal<T: 'static> {
         &self,
         description: Vec<u8>,
     ) -> Result<(), WebRTCError> {
-        let description = deserialize::<RTCSessionDescriptionDX>(&description)
+        let description = from_bytes::<RTCSessionDescriptionDX>(&description)
             .map_err(|_| WebRTCError::InvalidSdp)?;
         self.handle_set_remote_description(description).await?;
         self.get_commons().lock().unwrap().is_remote_description_set = true;
         let candidates = {
             let commons = self.get_commons();
             let mut commons = commons.lock().unwrap();
-            
+
             commons.candidates.drain(..).collect::<Vec<_>>()
         };
         for candidate in candidates {
             if let Ok(candidate) =
-                deserialize::<RTCIceCandidateInitDX>(&candidate)
+                from_bytes::<RTCIceCandidateInitDX>(&candidate)
             {
                 self.handle_add_ice_candidate(candidate).await?;
             } else {
@@ -233,7 +236,7 @@ pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
         }
         let offer = self.handle_create_offer().await?;
         self.handle_set_local_description(offer.clone()).await?;
-        let offer = serialize(&offer).unwrap();
+        let offer = to_bytes(&offer).unwrap();
         Ok(offer)
     }
     async fn create_answer(
@@ -243,7 +246,7 @@ pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
         self.set_remote_description(offer).await?;
         let answer = self.handle_create_answer().await?;
         self.handle_set_local_description(answer.clone()).await?;
-        let answer = serialize(&answer).unwrap();
+        let answer = to_bytes(&answer).unwrap();
         Ok(answer)
     }
     async fn wait_for_connection(&self) -> Result<(), WebRTCError> {

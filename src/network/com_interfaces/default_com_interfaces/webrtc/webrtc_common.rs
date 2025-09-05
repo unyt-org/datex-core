@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use strum::Display;
 use thiserror::Error;
 
@@ -27,23 +27,6 @@ pub trait WebRTCInterfaceTrait {
         candidate: Vec<u8>,
     ) -> Result<(), WebRTCError>;
     async fn create_answer(&self) -> Vec<u8>;
-}
-
-// FIXME #200 this will later be replaced with a proper implementation
-// of Datex Values
-pub fn serialize<T: Serialize>(
-    value: &T,
-) -> Result<Vec<u8>, serde_json::Error> {
-    serde_json::to_string(value).map(|s| s.into_bytes())
-}
-
-// FIXME #201 this will later be replaced with a proper implementation
-// of Datex Values
-pub fn deserialize<T: DeserializeOwned>(
-    value: &[u8],
-) -> Result<T, serde_json::Error> {
-    let string = std::str::from_utf8(value).unwrap();
-    serde_json::from_str(string)
 }
 
 #[derive(Debug, Display, Error)]

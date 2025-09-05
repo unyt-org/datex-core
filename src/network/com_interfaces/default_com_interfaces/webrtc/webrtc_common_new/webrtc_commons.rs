@@ -2,12 +2,11 @@ use std::collections::VecDeque;
 
 use log::error;
 
-use crate::values::core_values::endpoint::Endpoint;
-
-use super::{
-    structures::{RTCIceCandidateInitDX, RTCIceServer},
-    utils::serialize,
+use crate::values::{
+    core_values::endpoint::Endpoint, serde::serializer::to_bytes,
 };
+
+use super::structures::{RTCIceCandidateInitDX, RTCIceServer};
 
 pub struct WebRTCCommon {
     pub endpoint: Endpoint,
@@ -40,7 +39,7 @@ impl WebRTCCommon {
     }
     pub fn on_ice_candidate(&self, candidate: RTCIceCandidateInitDX) {
         if let Some(ref on_ice_candidate) = self.on_ice_candidate {
-            if let Ok(candidate) = serialize(&candidate) {
+            if let Ok(candidate) = to_bytes(&candidate) {
                 on_ice_candidate(candidate);
             } else {
                 error!("Failed to serialize candidate");
