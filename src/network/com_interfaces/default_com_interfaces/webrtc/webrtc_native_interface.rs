@@ -8,7 +8,6 @@ use std::{
 };
 
 use crate::{
-    values::core_values::endpoint::Endpoint,
     delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
@@ -17,17 +16,18 @@ use crate::{
         },
         com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocketUUID,
-        default_com_interfaces::webrtc::webrtc_common_new::structures::RTCSdpTypeDX,
+        default_com_interfaces::webrtc::webrtc_common::structures::RTCSdpTypeDX,
         socket_provider::SingleSocketProvider,
     },
     set_opener,
     task::spawn_local,
+    values::core_values::endpoint::Endpoint,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use futures::{channel::mpsc, StreamExt};
+use futures::{StreamExt, channel::mpsc};
 
-use super::webrtc_common_new::{
+use super::webrtc_common::{
     data_channels::{DataChannel, DataChannels},
     structures::{
         RTCIceCandidateInitDX, RTCIceServer, RTCSessionDescriptionDX,
@@ -40,18 +40,18 @@ use datex_macros::{com_interface, create_opener};
 use log::error;
 use webrtc::{
     api::{
-        interceptor_registry::register_default_interceptors,
-        media_engine::MediaEngine, APIBuilder,
+        APIBuilder, interceptor_registry::register_default_interceptors,
+        media_engine::MediaEngine,
     },
     data_channel::{
-        data_channel_init::RTCDataChannelInit, OnMessageHdlrFn, OnOpenHdlrFn,
-        RTCDataChannel,
+        OnMessageHdlrFn, OnOpenHdlrFn, RTCDataChannel,
+        data_channel_init::RTCDataChannelInit,
     },
     ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit},
     interceptor::registry::Registry,
     peer_connection::{
-        configuration::RTCConfiguration,
-        sdp::session_description::RTCSessionDescription, RTCPeerConnection,
+        RTCPeerConnection, configuration::RTCConfiguration,
+        sdp::session_description::RTCSessionDescription,
     },
 };
 
@@ -409,16 +409,16 @@ impl ComInterface for WebRTCNativeInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        match self.data_channels.borrow().get_data_channel("DATEX")
-        { Some(channel) => {
-            Box::pin(async move {
+        match self.data_channels.borrow().get_data_channel("DATEX") {
+            Some(channel) => Box::pin(async move {
                 let bytes = Bytes::from(block.to_vec());
                 channel.borrow().data_channel.send(&bytes).await.is_ok()
-            })
-        } _ => {
-            error!("Failed to send message, data channel not found");
-            Box::pin(async move { false })
-        }}
+            }),
+            _ => {
+                error!("Failed to send message, data channel not found");
+                Box::pin(async move { false })
+            }
+        }
     }
 
     fn init_properties(&self) -> InterfaceProperties {

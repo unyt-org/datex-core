@@ -5,9 +5,7 @@ use datex_core::{
         com_interface::ComInterface,
         com_interface_socket::ComInterfaceSocketUUID,
         default_com_interfaces::webrtc::{
-            webrtc_common_new::webrtc_trait::{
-                WebRTCTrait, WebRTCTraitInternal,
-            },
+            webrtc_common::webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
             webrtc_native_interface::WebRTCNativeInterface,
         },
         socket_provider::SingleSocketProvider,
