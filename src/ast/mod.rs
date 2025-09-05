@@ -601,7 +601,9 @@ mod tests {
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
-                        DatexExpression::Decimal(Decimal::from_string("0.5"))
+                        DatexExpression::Decimal(
+                            Decimal::from_string("0.5").unwrap()
+                        )
                     ])
                 ),
                 (
@@ -1659,7 +1661,9 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("20000000000"))
+            DatexExpression::Decimal(
+                Decimal::from_string("20000000000").unwrap()
+            )
         );
     }
 
@@ -1669,7 +1673,9 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("123.456789123456"))
+            DatexExpression::Decimal(
+                Decimal::from_string("123.456789123456").unwrap()
+            )
         );
     }
 
@@ -1688,7 +1694,9 @@ mod tests {
             let num = parse_unwrap(src);
             assert_eq!(
                 num,
-                DatexExpression::Decimal(Decimal::from_string(expected_str)),
+                DatexExpression::Decimal(
+                    Decimal::from_string(expected_str).unwrap()
+                ),
                 "Failed to parse: {src}"
             );
         }
@@ -1700,7 +1708,7 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("-123.4"))
+            DatexExpression::Decimal(Decimal::from_string("-123.4").unwrap())
         );
     }
 
@@ -1710,7 +1718,9 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("123.456789123456"))
+            DatexExpression::Decimal(
+                Decimal::from_string("123.456789123456").unwrap()
+            )
         );
     }
 
@@ -1720,9 +1730,9 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string(
-                "0.0123456789123456"
-            ))
+            DatexExpression::Decimal(
+                Decimal::from_string("0.0123456789123456").unwrap()
+            )
         );
     }
 
@@ -1732,7 +1742,9 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("123.456789123456"))
+            DatexExpression::Decimal(
+                Decimal::from_string("123.456789123456").unwrap()
+            )
         );
     }
 
@@ -1742,7 +1754,7 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("123.0"))
+            DatexExpression::Decimal(Decimal::from_string("123.0").unwrap())
         );
     }
 
@@ -1752,14 +1764,16 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("0.456789123456"))
+            DatexExpression::Decimal(
+                Decimal::from_string("0.456789123456").unwrap()
+            )
         );
 
         let src = ".423e-2";
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("0.00423"))
+            DatexExpression::Decimal(Decimal::from_string("0.00423").unwrap())
         );
     }
 
@@ -1831,7 +1845,7 @@ mod tests {
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
                 DatexExpression::Integer(Integer::from(3)),
-                DatexExpression::Decimal(Decimal::from_string("4.5")),
+                DatexExpression::Decimal(Decimal::from_string("4.5").unwrap()),
                 DatexExpression::Text("text".to_string()),
             ])
         );
@@ -2817,11 +2831,17 @@ mod tests {
     fn fraction() {
         // fraction
         let res = parse_unwrap("42/3");
-        assert_eq!(res, DatexExpression::Decimal(Decimal::from_string("42/3")));
+        assert_eq!(
+            res,
+            DatexExpression::Decimal(Decimal::from_string("42/3").unwrap())
+        );
 
         let src = "1/3";
         let val = try_parse_to_value_container(src);
-        assert_eq!(val, ValueContainer::from(Decimal::from_string("1/3")));
+        assert_eq!(
+            val,
+            ValueContainer::from(Decimal::from_string("1/3").unwrap())
+        );
 
         // divison
         let res = parse_unwrap("42.4/3");
@@ -2829,9 +2849,9 @@ mod tests {
             res,
             DatexExpression::BinaryOperation(
                 BinaryOperator::Divide,
-                Box::new(DatexExpression::Decimal(Decimal::from_string(
-                    "42.4"
-                ))),
+                Box::new(DatexExpression::Decimal(
+                    Decimal::from_string("42.4").unwrap()
+                )),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 None
             )
@@ -2955,7 +2975,9 @@ mod tests {
         let val = try_parse_to_value_container(src);
         assert_eq!(
             val,
-            ValueContainer::from(Decimal::from_string("123.456789123456"))
+            ValueContainer::from(
+                Decimal::from_string("123.456789123456").unwrap()
+            )
         );
     }
 
@@ -2974,7 +2996,7 @@ mod tests {
             Integer::from(1).into(),
             Integer::from(2).into(),
             Integer::from(3).into(),
-            Decimal::from_string("4.5").into(),
+            Decimal::from_string("4.5").unwrap().into(),
             "text".to_string().into(),
         ];
         assert_eq!(val, ValueContainer::from(value_container_array));
@@ -2999,7 +3021,7 @@ mod tests {
             Integer::from(1).into(),
             Integer::from(2).into(),
             Integer::from(3).into(),
-            Decimal::from_string("0.5").into(),
+            Decimal::from_string("0.5").unwrap().into(),
         ];
         let value_container_inner_object: ValueContainer =
             ValueContainer::from(Object::from(
