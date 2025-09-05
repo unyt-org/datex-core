@@ -658,8 +658,6 @@ mod tests {
         assert!(!result.field1.is_empty());
     }
 
-    // FIXME #149 we are loosing the type information for integers here (i128 instead of i32 as in structure)
-    // what causes a invalid type: integer error on the serde deserialization
     #[test]
     #[ignore = "This test is currently failing due to type mismatch (i128 instead of i32)"]
     fn test_from_static_script() {
