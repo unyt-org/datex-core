@@ -1,7 +1,6 @@
 use crate::values::{
     core_values::{
-        error::NumberParseError,
-        integer::typed_integer::TypedInteger,
+        error::NumberParseError, integer::typed_integer::TypedInteger,
     },
     traits::structural_eq::StructuralEq,
 };
@@ -19,11 +18,16 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
 impl Integer {
+    /// Parse an integer from a string in base 10.
+    /// Returns an error if the string is not a valid integer.
     pub fn from_string(s: &str) -> Result<Self, NumberParseError> {
         BigInt::from_str(s)
             .map(Integer)
             .map_err(|_| NumberParseError::InvalidFormat)
     }
+
+    /// Parse an integer from a string in the given radix (base).
+    /// Returns an error if the string is not a valid integer in the given radix.
     pub fn from_string_radix(
         s: &str,
         radix: u32,
@@ -35,44 +39,74 @@ impl Integer {
             .map_err(|_| NumberParseError::InvalidFormat)
     }
 
+    /// Returns true if the integer is zero.
+    pub fn is_zero(&self) -> bool {
+        self.0 == BigInt::ZERO
+    }
+
+    /// Returns true if the integer is negative.
+    /// Note that zero is neither positive nor negative.
     pub fn is_negative(&self) -> bool {
         self.0.sign() == num::bigint::Sign::Minus
     }
+    /// Returns true if the integer is positive.
+    /// Note that zero is neither positive nor negative.
     pub fn is_positive(&self) -> bool {
         self.0.sign() == num::bigint::Sign::Plus
     }
 
+    /// Converts the integer to an i8 if it fits, otherwise returns None.
     pub fn as_i8(&self) -> Option<i8> {
         self.0.to_i8()
     }
+
+    /// Converts the integer to a u8 if it fits, otherwise returns None.
     pub fn as_u8(&self) -> Option<u8> {
         self.0.to_u8()
     }
+
+    /// Converts the integer to an i16 if it fits, otherwise returns None.
     pub fn as_i16(&self) -> Option<i16> {
         self.0.to_i16()
     }
+
+    /// Converts the integer to a u16 if it fits, otherwise returns None.
     pub fn as_u16(&self) -> Option<u16> {
         self.0.to_u16()
     }
+
+    /// Converts the integer to an i32 if it fits, otherwise returns None.
     pub fn as_i32(&self) -> Option<i32> {
         self.0.to_i32()
     }
+
+    /// Converts the integer to a u32 if it fits, otherwise returns None.
     pub fn as_u32(&self) -> Option<u32> {
         self.0.to_u32()
     }
+
+    /// Converts the integer to an i64 if it fits, otherwise returns None.
     pub fn as_i64(&self) -> Option<i64> {
         self.0.to_i64()
     }
+
+    /// Converts the integer to a u64 if it fits, otherwise returns None.
     pub fn as_u64(&self) -> Option<u64> {
         self.0.to_u64()
     }
+
+    /// Converts the integer to an i128 if it fits, otherwise returns None.
     pub fn as_i128(&self) -> Option<i128> {
         self.0.to_i128()
     }
+
+    /// Converts the integer to a u128 if it fits, otherwise returns None.
     pub fn as_u128(&self) -> Option<u128> {
         self.0.to_u128()
     }
 
+    /// Converts the integer to the smallest fitting TypedInteger variant.
+    /// If it doesn't fit in any smaller type, returns TypedInteger::Big.
     pub fn to_smallest_fitting(&self) -> TypedInteger {
         if let Some(i) = self.as_i8() {
             return TypedInteger::I8(i);
