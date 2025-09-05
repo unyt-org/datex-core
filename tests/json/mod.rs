@@ -33,7 +33,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
                 )
             } else {
                 // Parse as big decimal
-                Value::from(Decimal::from_string(num_str))
+                Value::from(Decimal::from_string(num_str).unwrap())
             }
         }
         json_syntax::Value::Boolean(b) => Value::from(*b),
