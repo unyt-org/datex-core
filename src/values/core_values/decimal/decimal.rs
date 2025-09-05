@@ -6,7 +6,7 @@ use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::BigInt;
 use num::BigRational;
 use num_enum::TryFromPrimitive;
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Zero};
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::hash::Hash;
@@ -40,12 +40,11 @@ impl Hash for Decimal {
 
 impl PartialEq for Decimal {
     fn eq(&self, other: &Self) -> bool {
+        if self.is_zero() && other.is_zero() {
+            return true; // +0.0 == -0.0
+        }
         match (self, other) {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
-            (Decimal::Zero, Decimal::Zero)
-            | (Decimal::NegZero, Decimal::NegZero)
-            | (Decimal::Zero, Decimal::NegZero)
-            | (Decimal::NegZero, Decimal::Zero) => true,
             (Decimal::Infinity, Decimal::Infinity) => true,
             (Decimal::NegInfinity, Decimal::NegInfinity) => true,
             (Decimal::NaN, Decimal::NaN) => false,
@@ -55,6 +54,9 @@ impl PartialEq for Decimal {
 }
 
 impl Decimal {
+    /// Attempts to convert the Decimal to an f32.
+    /// Returns None if the value cannot be represented as f32.
+    /// If an overflow occurs, returns Some(infinity) or Some(-infinity).
     pub fn try_into_f32(&self) -> Option<f32> {
         match self {
             Decimal::Finite(value) => value.to_f32(),
@@ -62,9 +64,13 @@ impl Decimal {
             Decimal::NegZero => Some(-0.0),
             Decimal::Infinity => Some(f32::INFINITY),
             Decimal::NegInfinity => Some(f32::NEG_INFINITY),
-            Decimal::NaN => None,
+            Decimal::NaN => Some(f32::NAN),
         }
     }
+
+    /// Attempts to convert the Decimal to an f64.
+    /// Returns None if the value cannot be represented as f64.
+    /// If an overflow occurs, returns Some(infinity) or Some(-infinity).
     pub fn try_into_f64(&self) -> Option<f64> {
         match self {
             Decimal::Finite(value) => value.to_f64(),
@@ -72,17 +78,51 @@ impl Decimal {
             Decimal::NegZero => Some(-0.0),
             Decimal::Infinity => Some(f64::INFINITY),
             Decimal::NegInfinity => Some(f64::NEG_INFINITY),
-            Decimal::NaN => None,
+            Decimal::NaN => Some(f64::NAN),
         }
     }
 
+    /// Returns true if the value is finite (not NaN or Infinity).
     pub fn is_finite(&self) -> bool {
         matches!(self, Decimal::Finite(_))
     }
+
+    /// Returns true if the value is infinite (positive or negative).
     pub fn is_infinite(&self) -> bool {
         matches!(self, Decimal::Infinity | Decimal::NegInfinity)
     }
 
+    /// Returns true if the value is zero (positive or negative).
+    pub fn is_nan(&self) -> bool {
+        matches!(self, Decimal::NaN)
+    }
+
+    /// Returns true if the value is zero (positive or negative).
+    pub fn is_zero(&self) -> bool {
+        matches!(self, Decimal::Zero | Decimal::NegZero)
+    }
+
+    /// Returns true if the value has a positive sign.
+    /// Positive values are greater than or equal to zero. So -0.0 is not positive.
+    pub fn is_sign_positive(&self) -> bool {
+        match self {
+            Decimal::Finite(value) => value.is_positive(),
+            Decimal::Infinity | Decimal::Zero => true,
+            Decimal::NegZero | Decimal::NaN | Decimal::NegInfinity => false,
+        }
+    }
+
+    /// Returns true if the value has a negative sign.
+    /// Negative values are less than zero. So +0.0 is not negative.
+    pub fn is_sign_negative(&self) -> bool {
+        match self {
+            Decimal::Finite(value) => value.is_negative(),
+            Decimal::NegZero | Decimal::NegInfinity => true,
+            Decimal::Zero | Decimal::Infinity | Decimal::NaN => false,
+        }
+    }
+
+    /// Parses a decimal string into a BigRational.
     fn parse_decimal_to_rational(s: &str) -> Option<BigRational> {
         let decimal = BigDecimal::from_str(s).ok()?;
         let (bigint, scale) = decimal.as_bigint_and_exponent();
@@ -101,6 +141,7 @@ impl Decimal {
         }
     }
 
+    /// Creates a Decimal from a fraction represented by numerator and denominator strings.
     pub fn from_fraction(numerator: &str, denominator: &str) -> Self {
         let rational = BigRational::new(
             BigInt::from_str(numerator).unwrap(),
@@ -109,6 +150,8 @@ impl Decimal {
         Decimal::from(Rational::from_big_rational(rational))
     }
 
+    /// Creates a Decimal from a string representation.
+    /// TODO: Add error handling
     pub fn from_string(s: &str) -> Self {
         // TODO #133 represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
@@ -146,10 +189,6 @@ impl Decimal {
                 }
             }
         }
-    }
-
-    pub fn is_nan(&self) -> bool {
-        matches!(self, Decimal::NaN)
     }
 }
 
