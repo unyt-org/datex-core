@@ -1,15 +1,17 @@
+use crate::network::com_hub::ComHubError;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use thiserror::Error;
 use url::Url;
-use crate::network::com_hub::ComHubError;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct WebSocketClientInterfaceSetupData {
     pub address: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct WebSocketServerInterfaceSetupData {
     pub port: u16,
     /// if true, the server will use wss (secure WebSocket). Defaults to true.
@@ -43,7 +45,6 @@ impl From<ComHubError> for WebSocketServerError {
         WebSocketServerError::ComHubError(err)
     }
 }
-
 
 /// Parses a WebSocket URL and returns a `Url` object.
 /// If no protocol is specified, it defaults to `ws` or `wss` based on the `secure` parameter.

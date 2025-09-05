@@ -186,6 +186,7 @@ impl ComInterface for BaseInterface {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct BaseInterfaceSetupData(pub InterfaceProperties);
 
 impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
