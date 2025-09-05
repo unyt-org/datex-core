@@ -74,12 +74,17 @@ impl Hash for TypedInteger {
 }
 
 impl TypedInteger {
+    /// Parses a string into a TypedInteger with the given variant.
+    /// If the string is not a valid integer, returns an error.
     pub fn from_string_with_variant(
         s: &str,
         variant: IntegerTypeVariant,
     ) -> Result<TypedInteger, NumberParseError> {
         Self::from_string_radix_with_variant(s, 10, variant)
     }
+
+    /// Parses a string into a TypedInteger with the given variant and radix.
+    /// If the string is not a valid integer, returns an error.
     pub fn from_string_radix_with_variant(
         s: &str,
         radix: u32,
@@ -139,6 +144,7 @@ impl TypedInteger {
         })
     }
 
+    /// Converts the integer to the smallest fitting TypedInteger variant.
     pub fn to_smallest_fitting(&self) -> TypedInteger {
         if self.is_unsigned()
             && let Some(u128) = self.as_u128()
@@ -151,20 +157,7 @@ impl TypedInteger {
         }
     }
 
-    // fn subtype(&self) -> &'static str {
-    //     match self {
-    //         TypedInteger::I8(_) => "/i8",
-    //         TypedInteger::I16(_) => "/i16",
-    //         TypedInteger::I32(_) => "/i32",
-    //         TypedInteger::I64(_) => "/i64",
-    //         TypedInteger::I128(_) => "/i128",
-    //         TypedInteger::U8(_) => "/u8",
-    //         TypedInteger::U16(_) => "/u16",
-    //         TypedInteger::U32(_) => "/u32",
-    //         TypedInteger::U64(_) => "/u64",
-    //         TypedInteger::U128(_) => "/u128",
-    //     }
-    // }
+    /// Converts the TypedInteger to an Integer (big).
     pub fn as_integer(&self) -> Integer {
         match self {
             TypedInteger::Big(v) => v.clone(),
@@ -180,6 +173,8 @@ impl TypedInteger {
             TypedInteger::U128(v) => Integer::from(*v),
         }
     }
+
+    /// Converts the integer to an i8 if it fits, otherwise returns None.
     pub fn as_i8(&self) -> Option<i8> {
         match self {
             TypedInteger::I8(v) => i8::try_from(*v).ok(),
@@ -197,6 +192,8 @@ impl TypedInteger {
             TypedInteger::Big(v) => v.as_i8(),
         }
     }
+
+    /// Converts the integer to an i16 if it fits, otherwise returns None.
     pub fn as_i16(&self) -> Option<i16> {
         match self {
             TypedInteger::I8(v) => i16::try_from(*v).ok(),
@@ -213,6 +210,8 @@ impl TypedInteger {
             TypedInteger::Big(v) => v.as_i16(),
         }
     }
+
+    /// Converts the integer to an i32 if it fits, otherwise returns None.
     pub fn as_i32(&self) -> Option<i32> {
         match self {
             TypedInteger::I8(v) => i32::try_from(*v).ok(),
@@ -229,6 +228,8 @@ impl TypedInteger {
             TypedInteger::Big(v) => v.as_i32(),
         }
     }
+
+    /// Converts the integer to a i64 if it fits, otherwise returns None.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
             TypedInteger::I8(v) => i64::try_from(*v).ok(),
@@ -259,6 +260,7 @@ impl TypedInteger {
         }
     }
 
+    /// Converts the integer to an i128 if it fits, otherwise returns None.
     pub fn as_i128(&self) -> Option<i128> {
         match self {
             TypedInteger::I8(v) => Some(*v as i128),
@@ -274,6 +276,8 @@ impl TypedInteger {
             TypedInteger::Big(v) => v.as_i128(),
         }
     }
+
+    /// Returns true if the integer is of a signed type.
     pub fn is_signed(&self) -> bool {
         if let TypedInteger::Big(v) = self {
             return true;
@@ -287,10 +291,13 @@ impl TypedInteger {
                 | TypedInteger::I128(_)
         )
     }
+
+    /// Returns true if the integer is of an unsigned type.
     pub fn is_unsigned(&self) -> bool {
         !self.is_signed()
     }
 
+    /// Returns true if the integer is positive.
     pub fn is_positive(&self) -> bool {
         if let TypedInteger::Big(v) = self {
             return v.is_positive();
@@ -298,6 +305,8 @@ impl TypedInteger {
         let v = self.as_i128().unwrap();
         v > 0
     }
+
+    /// Returns true if the integer is negative.
     pub fn is_negative(&self) -> bool {
         if let TypedInteger::Big(v) = self {
             return v.is_negative();
