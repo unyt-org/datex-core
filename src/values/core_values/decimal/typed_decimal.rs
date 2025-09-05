@@ -104,6 +104,8 @@ impl PartialEq for TypedDecimal {
     }
 }
 
+/// Parses a string into an f32, ensuring the value is finite and within the range of f32.
+/// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
     let v: f64 = s
         .parse()
@@ -114,8 +116,10 @@ fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
     Ok(v as f32)
 }
 
+/// Parses a string into an f64, ensuring the value is finite and within the range of f64.
+/// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f64(s: &str) -> Result<f64, NumberParseError> {
-    let v = Decimal::from_string(s);
+    let v: Decimal = Decimal::from_string(s)?;
     let res = v.try_into_f64();
     if let Some(v) = res {
         if v.is_finite() {
@@ -129,6 +133,32 @@ fn parse_checked_f64(s: &str) -> Result<f64, NumberParseError> {
 }
 
 impl TypedDecimal {
+    /// Creates a TypedDecimal from a string representation.
+    /// Tries f32, then f64, then Big.
+    pub fn from_string(value: &str) -> Result<Self, NumberParseError> {
+        match value {
+            "Infinity" | "infinity" => Ok(f32::INFINITY.into()),
+            "-Infinity" | "-infinity" => Ok(f32::NEG_INFINITY.into()),
+            "nan" | "NaN" | "-nan" | "-NaN" => Ok(f32::NAN.into()),
+            _ => TypedDecimal::from_string_and_variant(
+                value,
+                DecimalTypeVariant::F32,
+            )
+            .or_else(|_| {
+                TypedDecimal::from_string_and_variant(
+                    value,
+                    DecimalTypeVariant::F64,
+                )
+            })
+            .or_else(|_| {
+                TypedDecimal::from_string_and_variant(
+                    value,
+                    DecimalTypeVariant::Big,
+                )
+            }),
+        }
+    }
+
     /// Creates a TypedDecimal from a string and a variant, ensuring the value is within the valid range.
     /// Returns an error if the value is out of range or cannot be parsed.
     /// Note: This function does not support Decimal syntax, as it can represent any valid decimal
@@ -143,7 +173,7 @@ impl TypedDecimal {
             DecimalTypeVariant::F64 => parse_checked_f64(value)
                 .map(|v| TypedDecimal::F64(OrderedFloat(v))),
             DecimalTypeVariant::Big => {
-                Ok(TypedDecimal::Decimal(Decimal::from_string(value)))
+                Decimal::from_string(value).map(|v| TypedDecimal::Decimal(v))
             }
         }
     }
@@ -166,7 +196,7 @@ impl TypedDecimal {
                 .map(|v| TypedDecimal::F64(OrderedFloat(v)))
                 .map_err(|_: ParseFloatError| NumberParseError::InvalidFormat),
             DecimalTypeVariant::Big => {
-                Ok(TypedDecimal::Decimal(Decimal::from_string(value)))
+                Decimal::from_string(value).map(|v| TypedDecimal::Decimal(v))
             }
         }
     }
@@ -281,44 +311,30 @@ impl TypedDecimal {
         matches!(self, TypedDecimal::F64(_))
     }
 
-    /// Returns true if the TypedDecimal is of variant Decimal.
-    pub fn is_positive(&self) -> bool {
-        match self {
-            TypedDecimal::F32(value) => value.is_positive(),
-            TypedDecimal::F64(value) => value.is_positive(),
-            TypedDecimal::Decimal(value) => match value {
-                Decimal::Finite(big_value) => big_value.is_positive(),
-                Decimal::Zero => true,
-                Decimal::NegZero => false,
-                Decimal::Infinity => true,
-                Decimal::NegInfinity => false,
-                Decimal::NaN => false,
-            },
-        }
-    }
-
-    /// Returns true if the value is negative (strictly less than zero).
-    pub fn is_negative(&self) -> bool {
-        match self {
-            TypedDecimal::F32(value) => value.is_negative(),
-            TypedDecimal::F64(value) => value.is_negative(),
-            TypedDecimal::Decimal(value) => match value {
-                Decimal::Finite(big_value) => big_value.is_negative(),
-                Decimal::Zero => false,
-                Decimal::NegZero => true,
-                Decimal::Infinity => false,
-                Decimal::NegInfinity => true,
-                Decimal::NaN => false,
-            },
-        }
-    }
-
     /// Returns true if the value is NaN (Not a Number).
     pub fn is_nan(&self) -> bool {
         match self {
             TypedDecimal::F32(value) => value.is_nan(),
             TypedDecimal::F64(value) => value.is_nan(),
             TypedDecimal::Decimal(value) => matches!(value, Decimal::NaN),
+        }
+    }
+
+    /// Returns true if the value has a positive sign.
+    pub fn is_sign_positive(&self) -> bool {
+        match self {
+            TypedDecimal::F32(value) => value.into_inner().is_sign_positive(),
+            TypedDecimal::F64(value) => value.into_inner().is_sign_positive(),
+            TypedDecimal::Decimal(value) => value.is_sign_positive(),
+        }
+    }
+
+    /// Returns true if the value has a negative sign.
+    pub fn is_sign_negative(&self) -> bool {
+        match self {
+            TypedDecimal::F32(value) => value.into_inner().is_sign_negative(),
+            TypedDecimal::F64(value) => value.into_inner().is_sign_negative(),
+            TypedDecimal::Decimal(value) => value.is_sign_negative(),
         }
     }
 }
@@ -434,79 +450,79 @@ mod tests {
     fn zero_sign() {
         let c = TypedDecimal::from(0.0f32);
         assert_matches!(c, TypedDecimal::F32(_));
-        assert!(c.is_positive());
-        assert!(!c.is_negative());
+        assert!(c.is_sign_positive());
+        assert!(!c.is_sign_negative());
 
         let e = TypedDecimal::from(-0.0f32);
         assert_matches!(e, TypedDecimal::F32(_));
-        assert!(!e.is_positive());
-        assert!(e.is_negative());
+        assert!(!e.is_sign_positive());
+        assert!(e.is_sign_negative());
 
         let f = TypedDecimal::from(0.0f64);
         assert_matches!(f, TypedDecimal::F64(_));
-        assert!(f.is_positive());
-        assert!(!f.is_negative());
+        assert!(f.is_sign_positive());
+        assert!(!f.is_sign_negative());
 
         let g = TypedDecimal::from(-0.0f64);
         assert_matches!(g, TypedDecimal::F64(_));
-        assert!(!g.is_positive());
-        assert!(g.is_negative());
+        assert!(!g.is_sign_positive());
+        assert!(g.is_sign_negative());
 
         let h = TypedDecimal::Decimal(Decimal::from(0.0));
         assert_matches!(h, TypedDecimal::Decimal(Decimal::Zero));
-        assert!(h.is_positive());
-        assert!(!h.is_negative());
+        assert!(h.is_sign_positive());
+        assert!(!h.is_sign_negative());
 
         let i = TypedDecimal::Decimal(Decimal::from(-0.0));
         assert_matches!(i, TypedDecimal::Decimal(Decimal::NegZero));
-        assert!(!i.is_positive());
-        assert!(i.is_negative());
+        assert!(!i.is_sign_positive());
+        assert!(i.is_sign_negative());
     }
 
     #[test]
     fn is_positive() {
         let a = TypedDecimal::from(42.0f32);
         assert_matches!(a, TypedDecimal::F32(_));
-        assert!(a.is_positive());
+        assert!(a.is_sign_positive());
 
         let b = TypedDecimal::from(-42.0f64);
         assert_matches!(b, TypedDecimal::F64(_));
-        assert!(!b.is_positive());
+        assert!(!b.is_sign_positive());
 
         let d = TypedDecimal::from(0.01f64);
         assert_matches!(d, TypedDecimal::F64(_));
-        assert!(d.is_positive());
+        assert!(d.is_sign_positive());
 
         let e = TypedDecimal::Decimal(0.0.into());
         assert_matches!(e, TypedDecimal::Decimal(Decimal::Zero));
-        assert!(e.is_positive());
+        assert!(e.is_sign_positive());
     }
 
     #[test]
     fn is_negative() {
         let a = TypedDecimal::from(-42.0f32);
         assert_matches!(a, TypedDecimal::F32(_));
-        assert!(a.is_negative());
+        assert!(a.is_sign_negative());
 
         let b = TypedDecimal::from(42.0f64);
         assert_matches!(b, TypedDecimal::F64(_));
-        assert!(!b.is_negative());
+        assert!(!b.is_sign_negative());
 
         let c = TypedDecimal::from(0.0f32);
         assert_matches!(c, TypedDecimal::F32(_));
-        assert!(!c.is_negative());
+        assert!(!c.is_sign_negative());
 
         let d = TypedDecimal::from(-0.01f64);
         assert_matches!(d, TypedDecimal::F64(_));
-        assert!(d.is_negative());
+        assert!(d.is_sign_negative());
 
         let e = TypedDecimal::from(-0.0f32);
         assert_matches!(e, TypedDecimal::F32(_));
-        assert!(e.is_negative());
+        assert!(e.is_sign_negative());
 
         let f = TypedDecimal::Decimal((-0.0).into());
         assert_matches!(f, TypedDecimal::Decimal(Decimal::NegZero));
-        assert!(f.is_negative());
+        assert!(f.is_sign_negative());
     }
 
     #[test]
@@ -592,6 +608,35 @@ mod tests {
     }
 
     #[test]
+    fn from_string() {
+        let a = TypedDecimal::from_string("42.0").unwrap();
+        assert_matches!(a, TypedDecimal::F32(OrderedFloat(42.0)));
+
+        let b = TypedDecimal::from_string("42.0").unwrap();
+        assert_matches!(b, TypedDecimal::F32(OrderedFloat(42.0)));
+
+        let c = TypedDecimal::from_string("12345678901234567890.123456789")
+            .unwrap();
+        assert_matches!(c, TypedDecimal::F32(_));
+        assert_eq!(c.as_f32(), 12345678901234567890.123456789);
+
+        let d = TypedDecimal::from_string("not_a_number");
+        assert!(d.is_err());
+
+        let e = TypedDecimal::from_string("NaN").unwrap();
+        assert!(e.is_nan());
+
+        let f = TypedDecimal::from_string("nan").unwrap();
+        assert!(f.is_nan());
+
+        let g = TypedDecimal::from_string("Infinity").unwrap();
+        assert!(g.is_infinite() && g.is_sign_positive());
+
+        let h = TypedDecimal::from_string("-infinity").unwrap();
+        assert!(h.is_infinite() && h.is_sign_negative());
+    }
+
+    #[test]
     fn from_string_and_variant() {
         let a = TypedDecimal::from_string_and_variant(
             "42.0",
@@ -655,14 +700,14 @@ mod tests {
             DecimalTypeVariant::F32,
         )
         .unwrap();
-        assert!(i.is_infinite() && i.is_positive());
+        assert!(i.is_infinite() && i.is_sign_positive());
 
         let j = TypedDecimal::from_string_and_variant(
             "-infinity",
             DecimalTypeVariant::F64,
         )
         .unwrap();
-        assert!(j.is_infinite() && j.is_negative());
+        assert!(j.is_infinite() && j.is_sign_negative());
 
         let k = TypedDecimal::from_string_and_variant(
             "12345678901234567890.123456789",
