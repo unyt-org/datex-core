@@ -364,7 +364,7 @@ mod tests {
         let vc = to_value_container(&val).unwrap();
         let deserialized: MyNewtype = from_value_container(vc.clone()).unwrap();
         assert_eq!(val, deserialized);
-        assert_eq!(vc.to_string(), "{\"MyNewtype\": 123}");
+        assert_eq!(vc.to_string(), "123");
     }
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]

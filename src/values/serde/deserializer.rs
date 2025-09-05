@@ -262,10 +262,18 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         } else if let ValueContainer::Value(value::Value {
             inner: CoreValue::Object(o),
             ..
-        }) = self.value
+        }) = &self.value
         {
-            let inner = o.into_iter().next().unwrap().1;
-            visitor.visit_newtype_struct(DatexDeserializer::from_value(inner))
+            if o.size() > 0 {
+                let entry = o.into_iter().next().unwrap();
+                if entry.0.starts_with("datex::") {
+                    return visitor.visit_newtype_struct(
+                        DatexDeserializer::from_value(entry.1.clone()),
+                    );
+                }
+            }
+            visitor
+                .visit_newtype_struct(DatexDeserializer::from_value(self.value))
         } else {
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(
                 vec![self.value.clone()]

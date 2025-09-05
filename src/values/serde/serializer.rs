@@ -507,10 +507,16 @@ impl Serializer for &mut DatexSerializer {
             ))
             .unwrap()
             .unwrap())
-        } else {
+        } else if name.starts_with("datex::") {
+            // Serialize internal new type structs as normal structs
+            // {"datex::field": value}
+            // instead of
+            // value
             let mut a = StructSerializer::new();
             a.serialize_field(name, value)?;
             a.end()
+        } else {
+            Ok(value.serialize(&mut *self)?)
         }
     }
 
@@ -865,7 +871,7 @@ mod tests {
     fn newtype_struct() {
         let my_newtype = MyNewtype(100);
         let result = to_value_container(&my_newtype).unwrap();
-        assert_eq!(result.to_string(), r#"{"MyNewtype": 100}"#);
+        assert_eq!(result.to_string(), r#"100"#);
     }
 
     #[derive(Serialize)]
