@@ -20,20 +20,19 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
 
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TypeTag {
     // human-readable name of the type tag, e.g. "integer"
     pub name: String,
     // allowed variants for this type tag, e.g. ["i8", "i16", ...]
-    pub variants: Vec<String>
+    pub variants: Vec<String>,
 }
 
 impl TypeTag {
     pub fn new(name: &str, variants: &[&str]) -> Self {
         TypeTag {
             name: name.to_string(),
-            variants: variants.iter().map(|s| s.to_string()).collect()
+            variants: variants.iter().map(|s| s.to_string()).collect(),
         }
     }
 }
@@ -341,9 +340,11 @@ impl CoreValue {
             CoreValueType::Integer => {
                 Some(CoreValue::Integer(self.cast_to_integer()?.into()))
             }
-            CoreValueType::Decimal => Some(CoreValue::Decimal(
-                Decimal::from_string(self.cast_to_text().as_str()),
-            )),
+            CoreValueType::Decimal => {
+                Decimal::from_string(self.cast_to_text().as_str())
+                    .map(CoreValue::Decimal)
+                    .ok()
+            }
             _ => todo!("#116 Undescribed by author."),
         }
     }
@@ -480,9 +481,9 @@ impl Add for CoreValue {
         match &self {
             // integer
             CoreValue::Integer(lhs) => match &rhs {
-                CoreValue::TypedInteger(rhs) => Ok(CoreValue::Integer(
-                    (lhs.clone() + rhs.as_integer()),
-                )),
+                CoreValue::TypedInteger(rhs) => {
+                    Ok(CoreValue::Integer((lhs.clone() + rhs.as_integer())))
+                }
                 CoreValue::Decimal(_) => {
                     let integer = rhs
                         .cast_to_integer()
@@ -604,9 +605,9 @@ impl Sub for CoreValue {
         match &self {
             // integer
             CoreValue::Integer(lhs) => match &rhs {
-                CoreValue::TypedInteger(rhs) => Ok(CoreValue::Integer(
-                    (lhs - &rhs.as_integer()),
-                )),
+                CoreValue::TypedInteger(rhs) => {
+                    Ok(CoreValue::Integer((lhs - &rhs.as_integer())))
+                }
                 CoreValue::Decimal(_) => {
                     let integer = rhs
                         .cast_to_integer()
