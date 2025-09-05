@@ -145,6 +145,7 @@ default = [
     "wasm_webrtc",
     "flexi_logger",
     "tokio_runtime",
+    "serde",
     # "debug", # temporary to fix linting and allow tests to run
 ] # default to nostd
 
@@ -173,3 +174,4 @@ wasm_runtime = ["dep:wasm-bindgen-futures"]
 # utils
 std = []   # use std
 debug = []
+serde = []
