@@ -11,7 +11,7 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
         Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(DatexExpression::TypedDecimal),
-                None => Ok(DatexExpression::Decimal(Decimal::from_string(&value)))
+                None => Decimal::from_string(&value).map(DatexExpression::Decimal)
             }
         },
         Token::Nan => Ok(DatexExpression::Decimal(Decimal::NaN)),
@@ -22,6 +22,6 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
                 Decimal::Infinity
             }
         )),
-        Token::FractionLiteral(s) => Ok(DatexExpression::Decimal(Decimal::from_string(&s))),
+        Token::FractionLiteral(s) => Decimal::from_string(&s).map(DatexExpression::Decimal),
     }.recover_invalid()
 }
