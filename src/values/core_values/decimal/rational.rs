@@ -1,10 +1,10 @@
-use std::fmt::Display;
-use std::ops::{Add, Neg};
 use num::BigRational;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{Signed, ToPrimitive, Zero};
 use pad::PadStr;
+use std::fmt::Display;
+use std::ops::{Add, Neg};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {
@@ -12,7 +12,6 @@ pub struct Rational {
 }
 
 impl Rational {
-
     pub(crate) fn is_integer(&self) -> bool {
         self.big_rational.is_integer()
     }
@@ -40,7 +39,6 @@ impl Rational {
     pub(crate) fn to_f64(&self) -> Option<f64> {
         self.big_rational.to_f64()
     }
-
 
     pub(crate) fn from_big_rational(big_rational: BigRational) -> Self {
         Rational { big_rational }
@@ -110,9 +108,13 @@ impl Rational {
         format!(
             "{}{p1}{}{p2}",
             if numerator_is_neg { "-" } else { "" },
-            if p2.is_empty() { ".0" }
-            else if p1.is_empty() { "0." }
-            else { "." }
+            if p2.is_empty() {
+                ".0"
+            } else if p1.is_empty() {
+                "0."
+            } else {
+                "."
+            }
         )
     }
 
@@ -127,8 +129,7 @@ impl Rational {
         while i.pow(2) <= denominator {
             while denominator.mod_floor(i).eq(&BigInt::from(0u8)) {
                 denominator /= BigInt::clone(i);
-                if (*i).ne(&BigInt::from(2u8)) && (*i).ne(&BigInt::from(5u8))
-                {
+                if (*i).ne(&BigInt::from(2u8)) && (*i).ne(&BigInt::from(5u8)) {
                     return false; // not allowed
                 }
             }
@@ -167,7 +168,10 @@ impl Rational {
 
         if Rational::has_finite_decimal_rep(denominator.clone()) {
             // finite decimal representation
-            Rational::finite_fraction_to_decimal_string(numerator.clone(), denominator.clone())
+            Rational::finite_fraction_to_decimal_string(
+                numerator.clone(),
+                denominator.clone(),
+            )
         } else {
             // fractional representation
             rational.to_string()
