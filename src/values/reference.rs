@@ -1,7 +1,7 @@
 use crate::dif::{DIFUpdate, DIFValue};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::r#type::Type;
-use crate::values::pointer::{PointerAddress};
+use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
@@ -13,7 +13,6 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReferenceMutability {
     Mutable,
@@ -22,8 +21,8 @@ pub enum ReferenceMutability {
 
 #[derive(Clone, Debug)]
 pub struct Reference {
-    pub data: Rc<RefCell<ReferenceData>>, 
-    pub mutability: ReferenceMutability
+    pub data: Rc<RefCell<ReferenceData>>,
+    pub mutability: ReferenceMutability,
 }
 
 /// Two references are identical if they point to the same data
@@ -69,13 +68,17 @@ impl Hash for Reference {
     }
 }
 
-
 impl<T: Into<ValueContainer>> From<T> for Reference {
     /// Creates a new immutable reference from a value container.
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
         let allowed_type = value_container.to_value().borrow().r#type().clone();
-        Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Immutable)
+        Reference::new_from_value_container(
+            value_container,
+            allowed_type,
+            None,
+            ReferenceMutability::Immutable,
+        )
     }
 }
 
@@ -102,21 +105,24 @@ impl Reference {
                 allowed_type,
                 observers: Vec::new(),
             })),
-            mutability 
+            mutability,
         };
         reference.upgrade_inner_combined_values_to_references();
         reference
     }
-    
+
     /// Creates a new mutable reference from a value container.
-    pub fn mut_from<T: Into<ValueContainer>>(
-        value_container: T,
-    ) -> Self {
+    pub fn mut_from<T: Into<ValueContainer>>(value_container: T) -> Self {
         let value_container = value_container.into();
         let allowed_type = value_container.to_value().borrow().r#type().clone();
-        Reference::new_from_value_container(value_container, allowed_type, None, ReferenceMutability::Mutable)
+        Reference::new_from_value_container(
+            value_container,
+            allowed_type,
+            None,
+            ReferenceMutability::Mutable,
+        )
     }
-    
+
     pub fn pointer_id(&self) -> Option<PointerAddress> {
         self.borrow().pointer_id.clone()
     }
@@ -240,7 +246,7 @@ impl Reference {
     /// Binds a child value to this reference, ensuring the child is a reference if it is a combined value
     fn bind_child(&self, child: ValueContainer) -> ValueContainer {
         // Ensure the child is a reference if it is a combined value
-        
+
         child.upgrade_combined_value_to_reference()
     }
 
@@ -406,23 +412,21 @@ mod tests {
     fn value_change_observe() {
         let int_ref = Reference::from(42);
 
-        let observer_dif: Rc<RefCell<Option<DIFUpdate>>> =
+        let observed_update: Rc<RefCell<Option<DIFUpdate>>> =
             Rc::new(RefCell::new(None));
-        let observer_dif_clone = observer_dif.clone();
-        // add observer to the reference
-        int_ref.observe(move |dif| {
-            println!("Observed change: {:?}", dif);
-            observer_dif_clone.borrow_mut().replace(dif.clone());
+        let observed_update_clone = Rc::clone(&observed_update);
+
+        // Attach an observer to the reference
+        int_ref.observe(move |update| {
+            *observed_update_clone.borrow_mut() = Some(update.clone());
         });
 
-        // update the value of the reference
+        // Update the value of the reference
         int_ref.try_set_value(43).expect("Failed to set value");
 
-        assert_eq!(
-            *observer_dif.borrow(),
-            Some(DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(
-                43
-            ))))
-        );
+        // Verify the observed update matches the expected change
+        let expected_update =
+            DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(43)));
+        assert_eq!(*observed_update.borrow(), Some(expected_update));
     }
 }
