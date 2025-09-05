@@ -10,7 +10,7 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
             match variant {
-                Some(var) => TypedDecimal::from_string_with_variant(&value, var).map(DatexExpression::TypedDecimal),
+                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(DatexExpression::TypedDecimal),
                 None => Ok(DatexExpression::Decimal(Decimal::from_string(&value)))
             }
         },
