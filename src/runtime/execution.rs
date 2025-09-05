@@ -13,6 +13,7 @@ use crate::parser::body;
 use crate::parser::body::DXBParserError;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
+use crate::types::{IllegalTypeError, TypeNew};
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::array::Array;
@@ -21,6 +22,8 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
+use crate::values::core_values::union::Union;
+use crate::values::pointer::PointerAddress;
 use crate::values::reference::Reference;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
@@ -33,9 +36,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use crate::types::{IllegalTypeError, TypeNew};
-use crate::values::core_values::union::Union;
-use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -184,21 +184,22 @@ pub fn execute_dxb_sync(
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(address) => {
-                *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::Result(get_pointer_value(
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
             ExecutionStep::ResolveOriginPointer(address) => {
-                todo!("block origin is needed here to resolve the pointer address")
+                todo!(
+                    "block origin is needed here to resolve the pointer address"
+                )
             }
             ExecutionStep::ResolveInternalPointer(address) => {
-                *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::Result(get_internal_pointer_value(
-                        &runtime_internal,
-                        address,
-                    )?));
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(
+                        get_internal_pointer_value(&runtime_internal, address)?,
+                    ));
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
@@ -225,21 +226,22 @@ pub async fn execute_dxb(
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(address) => {
-                *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::Result(get_pointer_value(
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
             ExecutionStep::ResolveOriginPointer(address) => {
-                todo!("block origin is needed here to resolve the pointer address")
+                todo!(
+                    "block origin is needed here to resolve the pointer address"
+                )
             }
             ExecutionStep::ResolveInternalPointer(address) => {
-                *interrupt_provider.borrow_mut() = Some(
-                    InterruptProvider::Result(get_internal_pointer_value(
-                        &runtime_internal,
-                        address,
-                    )?));
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(
+                        get_internal_pointer_value(&runtime_internal, address)?,
+                    ));
             }
             ExecutionStep::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
@@ -278,8 +280,6 @@ pub async fn execute_dxb(
     unreachable!("Execution loop should always return a result");
 }
 
-
-
 fn get_internal_slot_value(
     runtime_internal: &Option<Rc<RuntimeInternal>>,
     slot: u32,
@@ -304,17 +304,13 @@ fn get_pointer_value(
     address: RawFullPointerAddress,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     if let Some(runtime) = &runtime_internal {
-        let memory = runtime
-            .memory
-            .borrow();
-        let resolved_address = memory
-            .get_pointer_address_from_raw_full_address(address);
+        let memory = runtime.memory.borrow();
+        let resolved_address =
+            memory.get_pointer_address_from_raw_full_address(address);
         // convert slot to InternalSlot enum
-        Ok(
-            memory
-                .get_reference(&resolved_address)
-                .map(|r| ValueContainer::Reference(r.clone()))
-        )
+        Ok(memory
+            .get_reference(&resolved_address)
+            .map(|r| ValueContainer::Reference(r.clone())))
     } else {
         Err(ExecutionError::RequiresRuntime)
     }
@@ -326,16 +322,15 @@ fn get_internal_pointer_value(
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     if let Some(runtime) = &runtime_internal {
         // convert slot to InternalSlot enum
-        Ok(
-            runtime.memory.borrow()
-                .get_reference(&PointerAddress::Internal(address.id))
-                .map(|r| ValueContainer::Reference(r.clone()))
-        )
+        Ok(runtime
+            .memory
+            .borrow()
+            .get_reference(&PointerAddress::Internal(address.id))
+            .map(|r| ValueContainer::Reference(r.clone())))
     } else {
         Err(ExecutionError::RequiresRuntime)
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {
@@ -378,7 +373,7 @@ pub enum ExecutionError {
     RequiresRuntime,
     ResponseError(ResponseError),
     CompilerError(CompilerError),
-    IllegalTypeError(IllegalTypeError)
+    IllegalTypeError(IllegalTypeError),
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -1459,14 +1454,14 @@ mod tests {
     #[test]
     fn decimal() {
         let result = execute_datex_script_debug_with_result("1.5");
-        assert_eq!(result, Decimal::from_string("1.5").into());
+        assert_eq!(result, Decimal::from_string("1.5").unwrap().into());
         assert_structural_eq!(result, ValueContainer::from(1.5));
     }
 
     #[test]
     fn decimal_and_integer() {
         let result = execute_datex_script_debug_with_result("-2341324.0");
-        assert_eq!(result, Decimal::from_string("-2341324").into());
+        assert_eq!(result, Decimal::from_string("-2341324").unwrap().into());
         assert!(!result.structural_eq(&ValueContainer::from(-2341324)));
     }
 
