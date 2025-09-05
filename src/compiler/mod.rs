@@ -19,15 +19,15 @@ use crate::compiler::precompiler::{
 };
 use crate::compiler::scope::CompilationScope;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
+use crate::libs::core::CoreLibPointerId;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::endpoint::Endpoint;
+use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::libs::core::CoreLibPointerId;
-use crate::values::pointer::PointerAddress;
 
 pub mod context;
 pub mod error;
@@ -468,10 +468,8 @@ fn compile_expression(
     let metadata = ast_with_metadata.metadata;
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
-            // FIXME is a loose integer conversion okay here?
             compilation_context
                 .insert_typed_integer(&int.to_smallest_fitting());
-            // compilation_context.insert_big_integer(&int);
         }
         DatexExpression::TypedInteger(typed_int) => {
             compilation_context.insert_typed_integer(&typed_int);
@@ -698,14 +696,12 @@ fn compile_expression(
             // create reference if value marked with & or &mut
             match reference_mutability {
                 ReferenceMutability::Immutable => {
-                    compilation_context.append_binary_code(
-                        InstructionCode::CREATE_REF,
-                    );
+                    compilation_context
+                        .append_binary_code(InstructionCode::CREATE_REF);
                 }
                 ReferenceMutability::Mutable => {
-                    compilation_context.append_binary_code(
-                        InstructionCode::CREATE_REF_MUT,
-                    );
+                    compilation_context
+                        .append_binary_code(InstructionCode::CREATE_REF_MUT);
                 }
                 ReferenceMutability::None => {}
             }
@@ -777,7 +773,7 @@ fn compile_expression(
 
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
-        
+
         DatexExpression::GetReference(address) => {
             compilation_context.mark_has_non_static_value();
             compilation_context.insert_get_ref(address);
@@ -919,10 +915,9 @@ fn compile_expression(
                     compilation_context
                         .append_u32(InternalSlot::ENDPOINT as u32);
                 }
-                "core" => {
-                    compilation_context
-                        .insert_get_ref(PointerAddress::from(CoreLibPointerId::Core))
-                }
+                "core" => compilation_context.insert_get_ref(
+                    PointerAddress::from(CoreLibPointerId::Core),
+                ),
                 _ => {
                     // invalid slot name
                     return Err(CompilerError::InvalidSlotName(name.clone()));
