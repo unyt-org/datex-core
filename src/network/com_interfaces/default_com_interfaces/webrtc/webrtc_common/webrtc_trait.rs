@@ -7,7 +7,6 @@ use std::{
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{error, info};
-use webrtc::media;
 
 use crate::{
     network::com_interfaces::{
