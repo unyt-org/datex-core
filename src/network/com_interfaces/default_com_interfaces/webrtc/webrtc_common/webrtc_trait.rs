@@ -16,7 +16,7 @@ use crate::{
         com_interface_properties::InterfaceDirection,
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         default_com_interfaces::webrtc::webrtc_common::media_tracks::{
-            self, MediaKind, MediaTrack, MediaTracks,
+            MediaKind, MediaTrack, MediaTracks,
         },
     },
     values::{

@@ -58,18 +58,11 @@ use webrtc::{
         RTCPeerConnection, configuration::RTCConfiguration,
         sdp::session_description::RTCSessionDescription,
     },
-    rtp_transceiver::{
-        RTCRtpEncodingParameters, RTCRtpTransceiverInit,
-        rtp_codec::{
+    rtp_transceiver::rtp_codec::{
             RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
         },
-        rtp_transceiver_direction::RTCRtpTransceiverDirection,
-    },
     track::{
-        track_local::{
-            track_local_static_rtp::TrackLocalStaticRTP,
-            track_local_static_sample::TrackLocalStaticSample,
-        },
+        track_local::track_local_static_rtp::TrackLocalStaticRTP,
         track_remote::{OnMuteHdlrFn, TrackRemote},
     },
 };
@@ -515,8 +508,8 @@ impl WebRTCNativeInterface {
             let data_channel_tx_clone = tx_data_channel.clone();
 
             peer_connection.on_data_channel(Box::new(move |data_channel| {
-                print!(
-                    "New data channel received: label={:?}\n",
+                println!(
+                    "New data channel received: label={:?}",
                     data_channel.label()
                 );
                 let mut res = data_channel_tx_clone.clone();
