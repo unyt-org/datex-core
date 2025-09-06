@@ -59,8 +59,8 @@ use webrtc::{
         sdp::session_description::RTCSessionDescription,
     },
     rtp_transceiver::rtp_codec::{
-            RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
-        },
+        RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
+    },
     track::{
         track_local::track_local_static_rtp::TrackLocalStaticRTP,
         track_remote::{OnMuteHdlrFn, TrackRemote},
@@ -261,7 +261,7 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
             spawn_local(async move {
                 let mut rtcp_buf = vec![0u8; 1500];
                 while let Ok((_, _)) = rtp_sender.read(&mut rtcp_buf).await {
-                    println!("Received RTCP packet: {:?}", &rtcp_buf.len());
+                    println!("Received RTCP packet");
                 }
             });
             println!("Added media track: {:?}", kind);
@@ -549,7 +549,10 @@ impl WebRTCNativeInterface {
             //     )
             //     .await
             //     .unwrap();
-
+            peer_connection
+                .add_transceiver_from_kind(RTPCodecType::Audio, None)
+                .await
+                .unwrap();
             peer_connection.on_track(Box::new(move |track, a, c| {
                 println!(
                     "New track received: id={:?}, kind={:?}",
