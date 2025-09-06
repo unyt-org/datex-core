@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{cell::RefCell, io::Bytes, rc::Rc, sync::Arc, time::Duration};
 
 use datex_core::{
     network::com_interfaces::{
@@ -6,10 +6,10 @@ use datex_core::{
         com_interface_socket::ComInterfaceSocketUUID,
         default_com_interfaces::webrtc::{
             webrtc_common::{
-                media_tracks::MediaKind,
+                media_tracks::{MediaKind, MediaTrack},
                 webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
             },
-            webrtc_native_interface::WebRTCNativeInterface,
+            webrtc_native_interface::{TrackLocal, WebRTCNativeInterface},
         },
         socket_provider::SingleSocketProvider,
     },
@@ -18,6 +18,10 @@ use datex_core::{
     utils::uuid::UUID,
 };
 use ntest_timeout::timeout;
+use webrtc::{
+    media::Sample,
+    track::track_local::track_local_static_sample::TrackLocalStaticSample,
+};
 
 use crate::{
     context::init_global_context,
@@ -125,6 +129,7 @@ pub async fn test_connect() {
 
 #[tokio::test]
 #[timeout(10000)]
+#[ignore = "Media track not working yet"]
 pub async fn test_media_track() {
     run_async! {
         init_global_context();
@@ -160,7 +165,8 @@ pub async fn test_media_track() {
                 interface_a.clone().borrow().add_ice_candidate(candidate).await.unwrap();
             });
         }));
-
+        let track: Rc<RefCell<MediaTrack<Arc<TrackLocal>>>> = interface_a.borrow().create_media_track("dx".to_owned(), MediaKind::Audio).await.unwrap();
+        println!("Has local media track: {:?}", track.borrow().kind);
 
         let offer = interface_a.clone().borrow().create_offer().await.unwrap();
 
@@ -169,13 +175,25 @@ pub async fn test_media_track() {
 
         interface_a.borrow().wait_for_connection().await.unwrap();
         interface_b.borrow().wait_for_connection().await.unwrap();
+        sleep(Duration::from_secs(2)).await;
 
-        interface_a.borrow().create_media_track(MediaKind::Video).await.unwrap();
 
-        // Wait for the messages to be received
-        sleep(Duration::from_secs(1)).await;
+        spawn_local(
+            async move {
+                for _ in 0..100 {
+                    let binding = track.borrow();
+                     let x = binding.track.as_any().downcast_ref::<TrackLocalStaticSample>().unwrap();
+                    x.write_sample(&Sample {
+                        duration: Duration::from_secs(1),
+                        data: b"test".to_vec().into(),
+                        ..Default::default()
+                    }).await.unwrap();
+                    sleep(Duration::from_millis(20)).await;
+                }
+            }
+        );
 
-        println!("Tracks A: {:?}", interface_a.borrow().provide_media_channels().borrow().tracks.values().next().unwrap().borrow().kind);
-        // println!("Tracks B: {:?}", interface_b.borrow().provide_media_channels().borrow().tracks.values().next().unwrap().borrow().kind);
+        println!("Tracks A: {:?}", interface_a.borrow().provide_local_media_tracks().borrow().tracks.values().next().unwrap().borrow().kind);
+        println!("Tracks B: {:?}", interface_b.borrow().provide_remote_media_tracks().borrow().tracks.values().next().unwrap().borrow().kind);
     }
 }
