@@ -19,11 +19,11 @@ mod tests {
         let mut input_stream = QueuingStream::<u8>::default();
 
         // dxb output
-        let output_stream = QueuingStream::<DXBBlock>::default();
+        let mut output_stream = QueuingStream::<DXBBlock>::default();
 
         // transform
         let mut transformer = BinaryToDATEXBlockTransformer::new(4);
-        transformer.add_output(output_stream);
+        transformer.add_output(&mut output_stream);
         transformer.add_input(&mut input_stream);
 
         spawn_local(async move {

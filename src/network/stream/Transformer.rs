@@ -49,11 +49,12 @@ pub struct StreamTransformer {
 //     }
 // }
 
-struct IOHolder<'a, I, O> {
-    inputs: Vec<Box<dyn Stream<I> + 'a>>,
-    outputs: Vec<Box<dyn Stream<O> + 'a>>,
+struct IOHolder<'a, I: 'static, O: 'static> {
+    inputs: Vec<&'a mut dyn Stream<I>>,
+    outputs: Vec<&'a mut dyn Stream<O>>,
 }
-impl<'a, I, O> IOHolder<'a, I, O> {
+
+impl<'a, I: 'static, O: 'static> IOHolder<'a, I, O> {
     pub fn new() -> Self {
         Self {
             inputs: Vec::new(),
@@ -62,11 +63,11 @@ impl<'a, I, O> IOHolder<'a, I, O> {
     }
 }
 
-pub trait Transform<'a, I: 'a, O: 'a>
+pub trait Transform<'a, I: 'static, O: 'static>
 where
     Self: Sized,
 {
-    fn process<InStream>(&'static mut self, input: &mut InStream)
+    fn process<InStream>(&'a mut self, input: &mut InStream)
     where
         InStream: Stream<I>,
     {
@@ -78,19 +79,41 @@ where
             self.close();
         }
     }
+    fn holder(&'a mut self) -> &mut IOHolder<'a, I, O>;
 
-    fn get_holder(&'a mut self) -> &mut IOHolder<'a, I, O>;
-
-    fn add_output<S: Stream<O> + 'a>(&'a mut self, output: S) {
-        self.get_holder().outputs.push(Box::new(output));
+    // fn holder<'a>(&'a mut self) -> &'a mut IOHolder<'a, I, O>;
+    fn add_input(&'a mut self, input: &'a mut dyn Stream<I>) {
+        self.holder().inputs.push(input);
     }
 
-    fn outputs(&'a mut self) -> &mut Vec<Box<dyn Stream<O> + 'a>> {
-        &mut self.get_holder().outputs
+    // add_output ohne Ownership zu übernehmen
+    fn add_output(&'a mut self, output: &'a mut dyn Stream<O>) {
+        self.holder().outputs.push(output);
     }
-    fn inputs(&'a mut self) -> &mut Vec<Box<dyn Stream<I> + 'a>> {
-        &mut self.get_holder().inputs
+
+    fn inputs(&'a mut self) -> &'a mut Vec<&'a mut dyn Stream<I>> {
+        &mut self.holder().inputs
     }
+
+    fn outputs(&'a mut self) -> &'a mut Vec<&'a mut dyn Stream<O>> {
+        &mut self.holder().outputs
+    }
+    // fn holder(&mut self) -> &mut IOHolder<I, O>;
+
+    // fn add_output<S: Stream<O> + 'static>(&mut self, output: S) {
+    //     self.holder().outputs.push(Box::new(output));
+    // }
+    // fn add_input<S: Stream<I> + 'static>(&mut self, input: S) {
+    //     self.holder().inputs.push(Box::new(input));
+    // }
+
+    // fn outputs(&mut self) -> &mut Vec<Box<dyn Stream<O>>> {
+    //     &mut self.holder().outputs
+    // }
+
+    // fn inputs(&mut self) -> &mut Vec<Box<dyn Stream<I>>> {
+    //     &mut self.holder().inputs
+    // }
 
     fn emit(&'a mut self, item: O)
     where
@@ -158,7 +181,7 @@ impl<'a> BinaryToDATEXBlockTransformer<'a> {
         // drop(buffer);
         for block in blocks.drain(..) {
             // moves blocks out
-            self.emit(block);
+            // self.emit(block);
         }
     }
 }
@@ -173,10 +196,10 @@ impl<'a> Transform<'a, u8, DXBBlock> for BinaryToDATEXBlockTransformer<'a> {
         if !self.buffer.is_empty() {
             self.collect();
         }
-        self.end_all();
+        // self.end_all();
     }
 
-    fn get_holder(&'a mut self) -> &mut IOHolder<u8, DXBBlock> {
+    fn holder(&'a mut self) -> &mut IOHolder<'a, u8, DXBBlock> {
         &mut self.holder
     }
 }
