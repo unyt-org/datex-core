@@ -1,3 +1,5 @@
+use tungstenite::buffer;
+
 use crate::{
     global::dxb_block::DXBBlock,
     network::stream::Stream::{QueuingStream, Stream},
@@ -47,16 +49,24 @@ pub struct StreamTransformer {
 //     }
 // }
 
-struct IOHolder<I, O> {
-    inputs: Vec<Box<dyn Stream<I>>>,
-    outputs: Vec<Box<dyn Stream<O>>>,
+struct IOHolder<'a, I, O> {
+    inputs: Vec<Box<dyn Stream<I> + 'a>>,
+    outputs: Vec<Box<dyn Stream<O> + 'a>>,
+}
+impl<'a, I, O> IOHolder<'a, I, O> {
+    pub fn new() -> Self {
+        Self {
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }
+    }
 }
 
-pub trait Transform<I, O>
+pub trait Transform<'a, I: 'a, O: 'a>
 where
     Self: Sized,
 {
-    fn process<InStream>(&mut self, input: &mut InStream)
+    fn process<InStream>(&'static mut self, input: &mut InStream)
     where
         InStream: Stream<I>,
     {
@@ -69,13 +79,20 @@ where
         }
     }
 
-    fn outputs(&mut self) -> &mut Vec<Box<dyn Stream<O>>>;
+    fn get_holder(&'a mut self) -> &mut IOHolder<'a, I, O>;
 
-    fn add_output<S: Stream<O> + 'static>(&mut self, output: S) {
-        self.outputs().push(Box::new(output));
+    fn add_output<S: Stream<O> + 'a>(&'a mut self, output: S) {
+        self.get_holder().outputs.push(Box::new(output));
     }
 
-    fn emit(&mut self, item: O)
+    fn outputs(&'a mut self) -> &mut Vec<Box<dyn Stream<O> + 'a>> {
+        &mut self.get_holder().outputs
+    }
+    fn inputs(&'a mut self) -> &mut Vec<Box<dyn Stream<I> + 'a>> {
+        &mut self.get_holder().inputs
+    }
+
+    fn emit(&'a mut self, item: O)
     where
         O: Clone,
     {
@@ -84,7 +101,7 @@ where
         }
     }
 
-    fn emit_owned(&mut self, item: O)
+    fn emit_owned(&'a mut self, item: O)
     where
         O: Clone,
     {
@@ -99,100 +116,67 @@ where
         }
     }
 
-    fn end_all(&mut self) {
+    fn end_all(&'a mut self) {
         for out in self.outputs().iter_mut() {
             out.end();
         }
     }
 
-    fn ingest(&mut self, input: I);
+    fn ingest(&'a mut self, input: I);
 
-    fn close(&mut self);
+    fn close(&'a mut self);
 }
 
-// pub struct BaseTransformer<O> {
-//     outputs: Vec<Box<dyn Stream<O>>>,
-// }
-
-// impl<O> BaseTransformer<O>
-// where
-//     O: Clone,
-// {
-//     pub fn new() -> Self {
-//         Self {
-//             outputs: Vec::new(),
-//         }
-//     }
-
-//     fn outputs(&mut self) -> &mut Vec<Box<dyn Stream<O>>>;
-
-//     /// Add an output stream
-//     fn add_output<S: Stream<O> + 'static>(&mut self, output: S) {
-//         self.outputs().push(Box::new(output));
-//     }
-
-//     pub fn emit(&mut self, item: O)
-//     where
-//         O: Clone,
-//     {
-//         for out in self.outputs.iter_mut() {
-//             out.push(item.clone());
-//         }
-//     }
-
-//     pub fn emit_owned(&mut self, item: O) {
-//         let mut first = true;
-//         for out in self.outputs.iter_mut() {
-//             if first {
-//                 out.push(item.clone());
-//                 first = false;
-//             } else {
-//                 out.push(item.clone());
-//             }
-//         }
-//     }
-// }
-
-pub struct BinaryToDATEXBlockTransformer {
+pub struct BinaryToDATEXBlockTransformer<'a> {
     buffer: Vec<u8>,
     slice_size: usize,
-    outputs: Vec<Box<dyn Stream<DXBBlock>>>,
+    holder: IOHolder<'a, u8, DXBBlock>,
 }
-impl BinaryToDATEXBlockTransformer {
+impl<'a> BinaryToDATEXBlockTransformer<'a> {
     pub fn new(slice_size: usize) -> Self {
         Self {
             buffer: Vec::new(),
             slice_size,
-            outputs: Vec::new(),
+            holder: IOHolder::new(),
         }
     }
-    fn collect(&mut self) {
-        while self.buffer.len() >= self.slice_size {
-            let data: Vec<u8> = self.buffer.drain(..self.slice_size).collect();
-            let mut block = DXBBlock {
-                body: data,
-                ..Default::default()
-            };
-            block.recalculate_struct();
+    fn collect(&'a mut self) {
+        let mut blocks = vec![];
+        {
+            let size = self.slice_size;
+            let buffer = &mut self.buffer;
+            while buffer.len() >= size {
+                let data: Vec<u8> = buffer.drain(..size).collect();
+                let mut block = DXBBlock {
+                    body: data,
+                    ..Default::default()
+                };
+                block.recalculate_struct();
+                blocks.push(block);
+            }
+        }
+        // drop(buffer);
+        for block in blocks.drain(..) {
+            // moves blocks out
             self.emit(block);
         }
     }
 }
 
-impl Transform<u8, DXBBlock> for BinaryToDATEXBlockTransformer {
-    fn ingest(&mut self, byte: u8) {
+impl<'a> Transform<'a, u8, DXBBlock> for BinaryToDATEXBlockTransformer<'a> {
+    fn ingest(&'a mut self, byte: u8) {
         self.buffer.push(byte);
         self.collect();
     }
 
-    fn close(&mut self) {
+    fn close(&'a mut self) {
         if !self.buffer.is_empty() {
             self.collect();
         }
         self.end_all();
     }
 
-    fn outputs(&mut self) -> &mut Vec<Box<dyn Stream<DXBBlock>>> {
-        &mut self.outputs
+    fn get_holder(&'a mut self) -> &mut IOHolder<u8, DXBBlock> {
+        &mut self.holder
     }
 }

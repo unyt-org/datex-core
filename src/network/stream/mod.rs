@@ -24,13 +24,12 @@ mod tests {
         // transform
         let mut transformer = BinaryToDATEXBlockTransformer::new(4);
         transformer.add_output(output_stream);
+        transformer.add_input(&mut input_stream);
 
         spawn_local(async move {
             input_stream.push(1);
             input_stream.push(2);
             input_stream.push(3);
         });
-
-        transformer.process(&mut input_stream);
     }
 }
