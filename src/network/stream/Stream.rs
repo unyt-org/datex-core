@@ -4,6 +4,9 @@ pub trait Stream<T> {
     fn push(&mut self, item: T);
     fn next(&mut self) -> Option<T>;
     fn is_empty(&self) -> bool;
+    fn has_next(&self) -> bool {
+        !self.is_empty()
+    }
     fn len(&self) -> usize;
     fn end(&mut self);
     fn is_ended(&self) -> bool;
@@ -23,6 +26,17 @@ impl<T> Default for QueuingStream<T> {
     fn default() -> Self {
         Self {
             buffer: VecDeque::new(),
+            ended: false,
+        }
+    }
+}
+impl<T> QueuingStream<T> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn from_vec(vec: Vec<T>) -> Self {
+        Self {
+            buffer: VecDeque::from(vec),
             ended: false,
         }
     }
@@ -65,6 +79,21 @@ impl<T> Default for SamplingStream<T> {
             ended: false,
             counter: 0,
         }
+    }
+}
+impl<T> SamplingStream<T> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn new_with_value(value: T) -> Self {
+        Self {
+            buffer: Some(value),
+            ended: false,
+            counter: 1,
+        }
+    }
+    pub fn counter(&self) -> usize {
+        self.counter
     }
 }
 impl<T> Stream<T> for SamplingStream<T> {

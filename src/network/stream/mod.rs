@@ -1,6 +1,6 @@
 pub mod Stream;
+pub mod Stream2;
 pub mod Transformer;
-
 #[cfg(test)]
 mod tests {
     use ntest_timeout::timeout;
