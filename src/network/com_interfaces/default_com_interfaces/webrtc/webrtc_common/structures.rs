@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct RTCIceServer {
     pub urls: Vec<String>,
     pub username: Option<String>,
