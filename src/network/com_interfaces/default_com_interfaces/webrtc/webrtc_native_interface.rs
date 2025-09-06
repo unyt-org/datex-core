@@ -44,8 +44,9 @@ use datex_macros::{com_interface, create_opener};
 use log::error;
 use webrtc::{
     api::{
-        APIBuilder, interceptor_registry::register_default_interceptors,
-        media_engine::MediaEngine,
+        APIBuilder,
+        interceptor_registry::register_default_interceptors,
+        media_engine::{MIME_TYPE_OPUS, MediaEngine},
     },
     data_channel::{
         OnMessageHdlrFn, OnOpenHdlrFn, RTCDataChannel,
@@ -57,12 +58,22 @@ use webrtc::{
         RTCPeerConnection, configuration::RTCConfiguration,
         sdp::session_description::RTCSessionDescription,
     },
-    rtp_transceiver::rtp_codec::RTPCodecType,
+    rtp_transceiver::{
+        RTCRtpEncodingParameters, RTCRtpTransceiverInit,
+        rtp_codec::{
+            RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
+        },
+        rtp_transceiver_direction::RTCRtpTransceiverDirection,
+    },
     track::{
-        track_local::track_local_static_rtp::TrackLocalStaticRTP,
+        track_local::{
+            track_local_static_rtp::TrackLocalStaticRTP,
+            track_local_static_sample::TrackLocalStaticSample,
+        },
         track_remote::{OnMuteHdlrFn, TrackRemote},
     },
 };
+pub type TrackLocal = dyn webrtc::track::track_local::TrackLocal + Send + Sync;
 
 enum DataChannelEvent {
     Open,
@@ -79,7 +90,8 @@ pub struct WebRTCNativeInterface {
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Option<Arc<RTCPeerConnection>>,
     data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
-    media_tracks: Rc<RefCell<MediaTracks<Arc<TrackRemote>>>>,
+    remote_media_tracks: Rc<RefCell<MediaTracks<Arc<TrackRemote>>>>,
+    local_media_tracks: Rc<RefCell<MediaTracks<Arc<TrackLocal>>>>,
     rtc_configuration: RTCConfiguration,
 }
 impl SingleSocketProvider for WebRTCNativeInterface {
@@ -87,7 +99,7 @@ impl SingleSocketProvider for WebRTCNativeInterface {
         self.get_sockets()
     }
 }
-impl WebRTCTrait<Arc<RTCDataChannel>, Arc<TrackRemote>>
+impl WebRTCTrait<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
     for WebRTCNativeInterface
 {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self {
@@ -97,7 +109,8 @@ impl WebRTCTrait<Arc<RTCDataChannel>, Arc<TrackRemote>>
             commons: Arc::new(Mutex::new(commons)),
             peer_connection: None,
             data_channels: Rc::new(RefCell::new(DataChannels::default())),
-            media_tracks: Rc::new(RefCell::new(MediaTracks::default())),
+            remote_media_tracks: Rc::new(RefCell::new(MediaTracks::default())),
+            local_media_tracks: Rc::new(RefCell::new(MediaTracks::default())),
             rtc_configuration: RTCConfiguration {
                 ..Default::default()
             },
@@ -114,7 +127,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>, Arc<TrackRemote>>
 }
 
 #[async_trait(?Send)]
-impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>>
+impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
     for WebRTCNativeInterface
 {
     fn provide_data_channels(
@@ -123,11 +136,18 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>>
         self.data_channels.clone()
     }
 
-    fn provide_media_channels(
+    fn provide_remote_media_tracks(
         &self,
     ) -> Rc<RefCell<MediaTracks<Arc<TrackRemote>>>> {
-        self.media_tracks.clone()
+        self.remote_media_tracks.clone()
     }
+
+    fn provide_local_media_tracks(
+        &self,
+    ) -> Rc<RefCell<MediaTracks<Arc<TrackLocal>>>> {
+        self.local_media_tracks.clone()
+    }
+
     fn provide_info(&self) -> &ComInterfaceInfo {
         &self.info
     }
@@ -204,39 +224,59 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>>
 
     async fn handle_create_media_channel(
         &self,
+        id: String,
         kind: MediaKind,
-    ) -> Result<MediaTrack<Arc<TrackRemote>>, WebRTCError> {
-        todo!("Should be local track")
-        // if let Some(peer_connection) = self.peer_connection.as_ref() {
-        //     use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
-        //     let track = Arc::new(TrackLocalStaticRTP::new(
-        //         RTCRtpCodecCapability {
-        //             mime_type: "video/VP8".to_string(),
-        //             clock_rate: 90000,
-        //             channels: 0,
-        //             sdp_fmtp_line: "".to_string(),
-        //             rtcp_feedback: vec![],
-        //         },
-        //         "video".to_string(),
-        //         "datex".to_string(),
-        //     ));
-        //     peer_connection
-        //         .add_track(track.clone()
-        //             as Arc<
-        //                 dyn webrtc::track::track_local::TrackLocal
-        //                     + Send
-        //                     + Sync,
-        //             >)
-        //         .await
-        //         .map_err(|e| {
-        //             error!("Failed to add media track: {e:?}");
-        //             WebRTCError::ConnectionError
-        //         })?;
-        //     Ok(MediaTrack::new("video".to_string(), kind, track))
-        // } else {
-        //     error!("Peer connection is not initialized");
-        //     return Err(WebRTCError::ConnectionError);
-        // }
+    ) -> Result<MediaTrack<Arc<TrackLocal>>, WebRTCError> {
+        if let Some(peer_connection) = self.peer_connection.as_ref() {
+            use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
+            // let track = Arc::new(TrackLocalStaticSample::new(
+            //     RTCRtpCodecCapability {
+            //         mime_type: "audio/opus".to_string(),
+            //         ..Default::default()
+            //     },
+            //     "audio".into(),
+            //     "datex".into(),
+            // ));
+
+            let track = Arc::new(TrackLocalStaticRTP::new(
+                RTCRtpCodecCapability {
+                    mime_type: MIME_TYPE_OPUS.to_owned(),
+                    ..Default::default()
+                },
+                id.clone(),
+                "datex".to_owned(),
+            ));
+
+            // Arc::new(TrackLocalStaticRTP::new(
+            //     RTCRtpCodecCapability {
+            //         mime_type: "video/VP8".to_string(),
+            //         clock_rate: 90000,
+            //         channels: 0,
+            //         sdp_fmtp_line: "".to_string(),
+            //         rtcp_feedback: vec![],
+            //     },
+            //     "video".to_string(),
+            //     "datex".to_string(),
+            // ));
+            let rtp_sender = peer_connection
+                .add_track(track.clone() as Arc<TrackLocal>)
+                .await
+                .map_err(|e| {
+                    error!("Failed to add media track: {e:?}");
+                    WebRTCError::ConnectionError
+                })?;
+            spawn_local(async move {
+                let mut rtcp_buf = vec![0u8; 1500];
+                while let Ok((_, _)) = rtp_sender.read(&mut rtcp_buf).await {
+                    println!("Received RTCP packet: {:?}", &rtcp_buf.len());
+                }
+            });
+            println!("Added media track: {:?}", kind);
+            Ok(MediaTrack::new(id, kind, track))
+        } else {
+            error!("Peer connection is not initialized");
+            return Err(WebRTCError::ConnectionError);
+        }
     }
 
     async fn handle_setup_media_channel(
@@ -415,6 +455,21 @@ impl WebRTCNativeInterface {
             media_engine
                 .register_default_codecs()
                 .map_err(|_| WebRTCError::MediaEngineError)?;
+
+            media_engine
+                .register_codec(
+                    RTCRtpCodecParameters {
+                        capability: RTCRtpCodecCapability {
+                            mime_type: MIME_TYPE_OPUS.to_owned(),
+                            ..Default::default()
+                        },
+                        payload_type: 120,
+                        ..Default::default()
+                    },
+                    RTPCodecType::Audio,
+                )
+                .unwrap();
+
             let mut registry = Registry::new();
             registry =
                 register_default_interceptors(registry, &mut media_engine)
@@ -460,6 +515,10 @@ impl WebRTCNativeInterface {
             let data_channel_tx_clone = tx_data_channel.clone();
 
             peer_connection.on_data_channel(Box::new(move |data_channel| {
+                print!(
+                    "New data channel received: label={:?}\n",
+                    data_channel.label()
+                );
                 let mut res = data_channel_tx_clone.clone();
                 let _ = res.start_send(data_channel);
                 Box::pin(async {})
@@ -477,19 +536,40 @@ impl WebRTCNativeInterface {
                         .await;
                 }
             });
-
+        }
+        {
             // Media tracks
-            let media_tracks = self.media_tracks.clone();
+            let media_tracks = self.remote_media_tracks.clone();
             let (tx_media_track, mut rx_media_track) =
                 mpsc::unbounded::<Arc<TrackRemote>>();
             let media_track_tx_clone = tx_media_track.clone();
+
+            // peer_connection
+            //     .add_transceiver_from_kind(
+            //         RTPCodecType::Audio,
+            //         Some(RTCRtpTransceiverInit {
+            //             direction: RTCRtpTransceiverDirection::Sendrecv,
+            //             send_encodings: vec![
+            //                 RTCRtpEncodingParameters::default(),
+            //             ],
+            //         }),
+            //     )
+            //     .await
+            //     .unwrap();
+
             peer_connection.on_track(Box::new(move |track, a, c| {
+                println!(
+                    "New track received: id={:?}, kind={:?}",
+                    track.id(),
+                    track.kind()
+                );
                 let mut res = media_track_tx_clone.clone();
                 let _ = res.start_send(track);
                 Box::pin(async {})
             }));
             spawn_local(async move {
                 while let Some(track) = rx_media_track.next().await {
+                    println!("New remote track received: {:?}", track.kind());
                     let kind = match track.kind() {
                         RTPCodecType::Audio => MediaKind::Audio,
                         RTPCodecType::Video => MediaKind::Video,
