@@ -35,8 +35,6 @@ impl From<&ValueContainer> for DIFValue {
 
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => todo!("Type value not supported in DIF"),
-            CoreValue::Union(union) => todo!("Union type not supported in DIF"),
-            CoreValue::TypeTag(tag) => todo!("TypeTag not supported in DIF"),
             CoreValue::Null => Some(DIFCoreValue::Null),
             CoreValue::Boolean(bool) => Some(DIFCoreValue::Boolean(bool.0)),
             CoreValue::Integer(integer) => {

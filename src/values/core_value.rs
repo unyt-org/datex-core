@@ -50,10 +50,7 @@ pub enum CoreValue {
     Array(Array),
     Object(Object),
     Tuple(Tuple),
-    Union(Union),
-    Type(Box<Type>),
-    /// named type tag, e.g. text, integer, etc.
-    TypeTag(TypeTag),
+    Type(Type),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -232,8 +229,7 @@ impl CoreValue {
 
     pub fn get_default_type_new(&self) -> Type {
         match self {
-            CoreValue::Type(ty) => ty.as_ref().clone(), // what is the type of type?
-            CoreValue::Union(_) => union(),
+            CoreValue::Type(ty) => todo!("add core type Type"), // what is the type of type?
             CoreValue::Boolean(_) => boolean(),
             CoreValue::TypedInteger(int) => match int {
                 TypedInteger::I8(_) => i8(),
@@ -261,15 +257,13 @@ impl CoreValue {
             CoreValue::Tuple(_) => tuple(),
             CoreValue::Integer(_) => integer(),
             CoreValue::Decimal(_) => decimal(),
-            CoreValue::TypeTag(e) => null(),
-            // e => todo!("get_default_type_new for {e:?}"),
         }
     }
 
+    #[deprecated]
     pub fn get_default_type(&self) -> CoreValueType {
         match self {
             CoreValue::Type(_) => CoreValueType::Type,
-            CoreValue::Union(_) => CoreValueType::Union,
             CoreValue::Boolean(_) => CoreValueType::Boolean,
             CoreValue::TypedInteger(int) => match int {
                 TypedInteger::I8(_) => CoreValueType::I8,
@@ -299,7 +293,6 @@ impl CoreValue {
             CoreValue::Tuple(_) => CoreValueType::Tuple,
             CoreValue::Integer(_) => CoreValueType::Integer,
             CoreValue::Decimal(_) => CoreValueType::Decimal,
-            CoreValue::TypeTag(_) => CoreValueType::Type,
         }
     }
 
@@ -349,9 +342,9 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_type(&self) -> Option<Type> {
+    pub fn cast_to_type(&self) -> Option<&Type> {
         match self {
-            CoreValue::Type(ty) => Some(ty.as_ref().clone()),
+            CoreValue::Type(ty) => Some(&ty),
             _ => None,
         }
     }
@@ -730,7 +723,6 @@ impl Display for CoreValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             CoreValue::Type(ty) => write!(f, "{ty}"),
-            CoreValue::Union(union) => write!(f, "{union}"),
             CoreValue::Boolean(bool) => write!(f, "{bool}"),
             CoreValue::TypedInteger(int) => write!(f, "{int}"),
             CoreValue::TypedDecimal(decimal) => write!(f, "{decimal}"),
@@ -742,7 +734,6 @@ impl Display for CoreValue {
             CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
-            CoreValue::TypeTag(tag) => write!(f, "{}", tag.name),
         }
     }
 }

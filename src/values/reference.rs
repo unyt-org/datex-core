@@ -8,15 +8,24 @@ use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ReferenceMutability {
     Mutable,
     Immutable,
+}
+
+impl Display for ReferenceMutability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReferenceMutability::Mutable => write!(f, "&mut"),
+            ReferenceMutability::Immutable => write!(f, "&"),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -72,7 +81,7 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
     /// Creates a new immutable reference from a value container.
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
-        let allowed_type = value_container.to_value().borrow().r#type().clone();
+        let allowed_type = value_container.to_value().borrow().actual_type().clone();
         Reference::new_from_value_container(
             value_container,
             allowed_type,
@@ -114,7 +123,7 @@ impl Reference {
     /// Creates a new mutable reference from a value container.
     pub fn mut_from<T: Into<ValueContainer>>(value_container: T) -> Self {
         let value_container = value_container.into();
-        let allowed_type = value_container.to_value().borrow().r#type().clone();
+        let allowed_type = value_container.to_value().borrow().actual_type().clone();
         Reference::new_from_value_container(
             value_container,
             allowed_type,

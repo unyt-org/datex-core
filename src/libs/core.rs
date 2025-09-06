@@ -85,7 +85,7 @@ pub fn load_core_lib(memory: &mut Memory) {
         // TODO: add other core types here...
     ]));
     // TODO: better solution for allowed_type here:
-    let allowed_type = value.to_value().borrow().r#type().clone();
+    let allowed_type = value.to_value().borrow().actual_type().clone();
     let reference = Reference::new_from_value_container(
         value,
         allowed_type,
@@ -173,7 +173,7 @@ pub fn create_function_core_type(memory: Option<&mut Memory>) -> ValueContainer 
 fn create_core_type(tag: TypeTag, id: CoreLibPointerId, memory: Option<&mut Memory>) -> ValueContainer {
     let value = ValueContainer::from(tag);
     // TODO: better solution for allowed_type here:
-    let allowed_type = value.to_value().borrow().r#type().clone();
+    let allowed_type = value.to_value().borrow().actual_type().clone();
     let reference = Reference::new_from_value_container(
         value,
         allowed_type,

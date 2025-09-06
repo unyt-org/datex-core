@@ -1,6 +1,5 @@
 use super::datex_type::CoreValueType;
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::descriptor::TypeDescriptor;
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
@@ -75,7 +74,7 @@ impl Value {
         self.is_of_type(CoreValueType::Boolean)
     }
 
-    pub fn r#type(&self) -> Type {
+    pub fn actual_type(&self) -> Type {
         self.actual_type.as_ref().clone()
     }
 
@@ -153,10 +152,7 @@ impl Value {
     // FIXME deprecate
     pub fn get_type(&self) -> CoreValueType {
         // self.actual_type.clone()
-        match self.r#type().descriptor {
-            TypeDescriptor::Core(core_type) => core_type,
-            _ => unreachable!("Value should always have a core type"),
-        }
+        todo!()
     }
 
     pub fn null() -> Self {

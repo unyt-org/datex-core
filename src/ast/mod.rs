@@ -114,6 +114,7 @@ pub enum BindingMutability {
     Mutable,   // e.g. `var x = ...`
 }
 
+#[deprecated(note = "Use other ReferenceMutability instead")]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReferenceMutability {
     Mutable,

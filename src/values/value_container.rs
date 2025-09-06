@@ -184,11 +184,22 @@ impl ValueContainer {
         }
     }
 
-    pub fn r#type(&self) -> Type {
+    /// Returns the allowed type of the value container
+    pub fn allowed_type(&self) -> Type {
         match self {
-            ValueContainer::Value(value) => value.r#type(),
+            ValueContainer::Value(value) => value.actual_type(),
             ValueContainer::Reference(reference) => {
                 reference.borrow().allowed_type.clone()
+            }
+        }
+    }
+
+    /// Returns the actual type of the contained value, resolving references if necessary.
+    pub fn actual_type(&self) -> Type {
+        match self {
+            ValueContainer::Value(value) => value.actual_type(),
+            ValueContainer::Reference(reference) => {
+                reference.borrow().value_container.to_value().borrow().actual_type()
             }
         }
     }

@@ -11,7 +11,7 @@ pub struct Union {
 }
 fn is_instance_of(value: &ValueContainer, parent: &ValueContainer) -> bool {
     if parent.is_type() && !value.is_type() {
-        let value_type = value.r#type();
+        let value_type = value.allowed_type();
         let parent_type = parent.to_value().borrow().cast_to_type().unwrap();
         return value_type.is_typeof(&parent_type);
     } else if parent.is_type() && value.is_type() {
