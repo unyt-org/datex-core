@@ -133,7 +133,6 @@ pub async fn test_connect() {
 
 #[tokio::test]
 #[timeout(10000)]
-#[ignore = "Media track not working yet"]
 pub async fn test_media_track() {
     run_async! {
         init_global_context();
@@ -169,11 +168,11 @@ pub async fn test_media_track() {
                 interface_a.clone().borrow().add_ice_candidate(candidate).await.unwrap();
             });
         }));
-        let track: Rc<RefCell<MediaTrack<Arc<TrackLocal>>>> = interface_a.borrow().create_media_track(
+        let txTrack: Rc<RefCell<MediaTrack<Arc<TrackLocal>>>> = interface_a.borrow().create_media_track(
             "dx".to_owned(),
             MediaKind::Audio
         ).await.unwrap();
-        println!("Has local media track: {:?}", track.borrow().kind);
+        println!("Has local media track: {:?}", txTrack.borrow().kind);
 
         let offer = interface_a.clone().borrow().create_offer().await.unwrap();
 
@@ -185,30 +184,46 @@ pub async fn test_media_track() {
 
         spawn_local(
             async move {
-                let binding = track.borrow();
-                let track = binding.track.as_any().downcast_ref::<TrackLocalStaticRTP>().unwrap();
-                let mut sequence_number = 0u16;
-                loop {
-                    let packet = Packet {
-                        header: Header {
-                            version: 2,
-                            sequence_number,
-                            payload_type: 96,
-                            ..Default::default()
-                        },
-                        payload: vec![0u8; 2].into(),
-                    };
-                    sequence_number = sequence_number.wrapping_add(1);
-                    track
-                        .write_rtp_with_extensions(&packet, &[])
-                        .await
-                        .unwrap();
-                }
+                let binding = txTrack.borrow();
+                let track = binding.track.as_any().downcast_ref::<TrackLocalStaticSample>().unwrap();
+                track.write_sample(&webrtc::media::Sample {
+                    data: vec![0u8; 960].into(),
+                    duration: Duration::from_millis(20),
+                    ..Default::default()
+                }).await;
+
+
+                // let track = binding.track.as_any().downcast_ref::<TrackLocalStaticRTP>().unwrap();
+                // let mut sequence_number = 0u16;
+                // loop {
+                //     let packet = Packet {
+                //         header: Header {
+                //             version: 2,
+                //             sequence_number,
+                //             payload_type: 96,
+                //             ..Default::default()
+                //         },
+                //         payload: vec![0u8; 2].into(),
+                //     };
+                //     sequence_number = sequence_number.wrapping_add(1);
+                //     track
+                //         .write_rtp_with_extensions(&packet, &[])
+                //         .await
+                //         .unwrap();
+                // }
             }
         );
         sleep(Duration::from_secs(2)).await;
 
-        println!("Tracks A: {:?}", interface_a.borrow().provide_local_media_tracks().borrow().tracks.values().next().unwrap().borrow().kind);
-        println!("Tracks B: {:?}", interface_b.borrow().provide_remote_media_tracks().borrow().tracks.values().next().unwrap().borrow().kind);
+        let rx_track = &interface_b.borrow();
+        let tracks = &rx_track.provide_remote_media_tracks();
+        let tracks = &tracks.borrow();
+        let track = tracks.tracks.values().next().unwrap();
+        let track = track.borrow();
+        println!("Received track id: {:?}", track.id());
+        let mut buf = vec![0u8; 1600];
+        let n = track.track.read_rtp().await.unwrap().0.to_string();
+        println!("Read {} bytes from track", n);
+        println!("Tracks B: {:?}", track.kind());
     }
 }

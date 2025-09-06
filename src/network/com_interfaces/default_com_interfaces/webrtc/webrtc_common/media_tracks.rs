@@ -1,6 +1,15 @@
 use std::{cell::RefCell, collections::HashMap, pin::Pin, rc::Rc};
 
-#[derive(Clone, Debug)]
+use serde::{Deserialize, Serialize};
+// use webrtc::{
+//     api::media_engine::{MIME_TYPE_OPUS, MIME_TYPE_VP8},
+//     rtp_transceiver::{
+//         RTCPFeedback,
+//         rtp_codec::{RTCRtpCodecCapability, RTCRtpCodecParameters},
+//     },
+// };
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MediaKind {
     Audio,
     Video,
@@ -120,3 +129,83 @@ impl<T> MediaTracks<T> {
         }
     }
 }
+
+// FIXME: Add a subset allowed list of RTCRtpCodecParameters
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// pub struct MediaTrackConfig {
+//     pub kind: MediaKind,
+//     pub clock_rate: u32,
+//     pub channels: u16,
+// }
+// pub struct MimeType {
+//     pub kind: String,
+// }
+
+// impl MimeType {
+//     pub fn new(kind: &str) -> Self {
+//         MimeType {
+//             kind: kind.to_string(),
+//         }
+//     }
+// }
+pub enum MediaTrackCodec {
+    Opus, // Audio
+    VP8,  // Video
+    H264, // Video
+}
+impl MediaTrackCodec {
+    pub fn to_mime_type(&self) -> String {
+        match self {
+            MediaTrackCodec::Opus => "audio/opus".to_string(),
+            MediaTrackCodec::VP8 => "video/VP8".to_string(),
+            MediaTrackCodec::H264 => "video/H264".to_string(),
+        }
+    }
+}
+// const FEEDBACK: Vec<RTCPFeedback> = vec![
+//     RTCPFeedback {
+//         typ: "goog-remb".to_owned(),
+//         parameter: "".to_owned(),
+//     },
+//     RTCPFeedback {
+//         typ: "ccm".to_owned(),
+//         parameter: "fir".to_owned(),
+//     },
+//     RTCPFeedback {
+//         typ: "nack".to_owned(),
+//         parameter: "".to_owned(),
+//     },
+//     RTCPFeedback {
+//         typ: "nack".to_owned(),
+//         parameter: "pli".to_owned(),
+//     },
+// ];
+// impl Into<RTCRtpCodecParameters> for MediaTrackCodec {
+//     fn into(self) -> RTCRtpCodecParameters {
+//         match self {
+//             MediaTrackCodec::Opus => RTCRtpCodecParameters {
+//                 capability: RTCRtpCodecCapability {
+//                     mime_type: MIME_TYPE_OPUS.to_owned(),
+//                     clock_rate: 48000,
+//                     channels: 2,
+//                     sdp_fmtp_line: "minptime=10;useinbandfec=1".to_owned(),
+//                     rtcp_feedback: vec![],
+//                 },
+//                 payload_type: 111,
+//                 ..Default::default()
+//             },
+//             MediaTrackCodec::VP8 => RTCRtpCodecParameters {
+//                 capability: RTCRtpCodecCapability {
+//                     mime_type: MIME_TYPE_VP8.to_owned(),
+//                     clock_rate: 90000,
+//                     channels: 0,
+//                     sdp_fmtp_line: "".to_owned(),
+//                     rtcp_feedback: video_rtcp_feedback.clone(),
+//                 },
+//                 payload_type: 96,
+//                 ..Default::default()
+//             },
+//             MediaTrackCodec::H264 => RTCRtpCodecParameters::new("video/H264"),
+//         }
+//     }
+// }

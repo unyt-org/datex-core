@@ -332,23 +332,16 @@ pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
             }));
 
         let media_tracks = self.provide_remote_media_tracks();
-        let media_tracks_clone = media_tracks.clone();
         media_tracks.borrow_mut().on_add = Some(Box::new(move |media_track| {
-            println!(
-                "New remote media track added: {:?}",
-                media_track.borrow().kind
-            );
             let media_track = media_track.clone();
             Box::pin(async move {
                 Self::handle_setup_media_channel(media_track.clone())
                     .await
                     .unwrap();
-                // media_tracks_clone
-                //     .borrow_mut()
-                //     .add_track(media_track.clone());
             })
         }));
     }
+
     fn set_ice_servers(&self, ice_servers: Vec<RTCIceServer>) {
         let commons = self.get_commons();
         let mut commons = commons.lock().unwrap();
