@@ -11,12 +11,14 @@ use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
         com_interface::{
-            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
-            ComInterfaceState,
+            ComInterface, ComInterfaceError, ComInterfaceFactory,
+            ComInterfaceInfo, ComInterfaceSockets, ComInterfaceState,
         },
         com_interface_properties::InterfaceProperties,
         com_interface_socket::ComInterfaceSocketUUID,
-        default_com_interfaces::webrtc::webrtc_common::structures::RTCSdpTypeDX,
+        default_com_interfaces::webrtc::webrtc_common::{
+            structures::RTCSdpTypeDX, webrtc_commons::WebRTCInterfaceSetupData,
+        },
         socket_provider::SingleSocketProvider,
     },
     set_opener,
@@ -26,6 +28,8 @@ use crate::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::{StreamExt, channel::mpsc};
+use rsa::rand_core::le;
+use serde::{Deserialize, Serialize};
 
 use super::webrtc_common::{
     data_channels::{DataChannel, DataChannels},
@@ -438,4 +442,30 @@ impl ComInterface for WebRTCNativeInterface {
     }
     delegate_com_interface_info!();
     set_opener!(open);
+}
+
+impl ComInterfaceFactory<WebRTCInterfaceSetupData> for WebRTCNativeInterface {
+    fn create(
+        setup_data: WebRTCInterfaceSetupData,
+    ) -> Result<WebRTCNativeInterface, ComInterfaceError> {
+        if let Some(ice_servers) = setup_data.ice_servers.as_ref() {
+            if ice_servers.is_empty() {
+                error!(
+                    "Ice servers list is empty, at least one ice server is required"
+                );
+                Err(ComInterfaceError::InvalidSetupData)
+            } else {
+                Ok(WebRTCNativeInterface::new_with_ice_servers(
+                    setup_data.peer_endpoint,
+                    ice_servers.to_owned(),
+                ))
+            }
+        } else {
+            Ok(WebRTCNativeInterface::new(setup_data.peer_endpoint))
+        }
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties::default()
+    }
 }
