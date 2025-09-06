@@ -1,6 +1,8 @@
 use strum::Display;
 use thiserror::Error;
 
+use crate::network::com_hub::ComHubError;
+
 #[derive(Debug, Display, Error)]
 pub enum WebRTCError {
     Unsupported,
@@ -13,4 +15,5 @@ pub enum WebRTCError {
     InvalidCandidate,
     InvalidSdp,
     MediaEngineError,
+    ComHubError(ComHubError),
 }
