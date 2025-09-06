@@ -7,6 +7,7 @@ use std::{
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{error, info};
+use webrtc::media;
 
 use crate::{
     network::com_interfaces::{
@@ -15,6 +16,9 @@ use crate::{
         },
         com_interface_properties::InterfaceDirection,
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
+        default_com_interfaces::webrtc::webrtc_common::media_tracks::{
+            self, MediaKind, MediaTrack, MediaTracks,
+        },
     },
     values::{
         core_values::endpoint::Endpoint,
@@ -32,18 +36,28 @@ use super::{
 };
 
 #[async_trait(?Send)]
-pub trait WebRTCTraitInternal<T: 'static> {
+pub trait WebRTCTraitInternal<DC: 'static, MC: 'static> {
     // These method must be implemented in the interface
-    fn provide_data_channels(&self) -> Rc<RefCell<DataChannels<T>>>;
+    fn provide_data_channels(&self) -> Rc<RefCell<DataChannels<DC>>>;
+    fn provide_media_channels(&self) -> Rc<RefCell<MediaTracks<MC>>>;
     fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>>;
     fn provide_info(&self) -> &ComInterfaceInfo;
-
     async fn handle_create_data_channel(
         &self,
-    ) -> Result<DataChannel<T>, WebRTCError>;
+    ) -> Result<DataChannel<DC>, WebRTCError>;
+    async fn handle_create_media_channel(
+        &self,
+        kind: MediaKind,
+    ) -> Result<MediaTrack<MC>, WebRTCError>;
+
     async fn handle_setup_data_channel(
-        channel: Rc<RefCell<DataChannel<T>>>,
+        channel: Rc<RefCell<DataChannel<DC>>>,
     ) -> Result<(), WebRTCError>;
+
+    async fn handle_setup_media_channel(
+        channel: Rc<RefCell<MediaTrack<MC>>>,
+    ) -> Result<(), WebRTCError>;
+
     async fn handle_create_offer(
         &self,
     ) -> Result<RTCSessionDescriptionDX, WebRTCError>;
@@ -143,8 +157,8 @@ pub trait WebRTCTraitInternal<T: 'static> {
         endpoint: Endpoint,
         interface_uuid: ComInterfaceUUID,
         sockets: Arc<Mutex<ComInterfaceSockets>>,
-        data_channels: Rc<RefCell<DataChannels<T>>>,
-        channel: Rc<RefCell<DataChannel<T>>>,
+        data_channels: Rc<RefCell<DataChannels<DC>>>,
+        channel: Rc<RefCell<DataChannel<DC>>>,
     ) -> Result<(), WebRTCError> {
         let channel_clone = channel.clone();
         let channel_clone2 = channel.clone();
@@ -210,7 +224,9 @@ pub trait WebRTCTraitInternal<T: 'static> {
 }
 
 #[async_trait(?Send)]
-pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
+pub trait WebRTCTrait<DC: 'static, MC: 'static>:
+    WebRTCTraitInternal<DC, MC>
+{
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self;
     fn new_with_ice_servers(
         peer_endpoint: impl Into<Endpoint>,
@@ -313,6 +329,20 @@ pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
                     .unwrap()
                 })
             }));
+
+        let media_tracks = self.provide_media_channels();
+        let media_tracks_clone = media_tracks.clone();
+        media_tracks.borrow_mut().on_add = Some(Box::new(move |media_track| {
+            let media_track = media_track.clone();
+            Box::pin(async move {
+                Self::handle_setup_media_channel(media_track.clone())
+                    .await
+                    .unwrap();
+                // media_tracks_clone
+                //     .borrow_mut()
+                //     .add_track(media_track.clone());
+            })
+        }));
     }
     fn set_ice_servers(&self, ice_servers: Vec<RTCIceServer>) {
         let commons = self.get_commons();
@@ -321,5 +351,19 @@ pub trait WebRTCTrait<T: 'static>: WebRTCTraitInternal<T> {
     }
     fn remote_endpoint(&self) -> Endpoint {
         self._remote_endpoint()
+    }
+
+    async fn create_media_track(
+        &self,
+        kind: MediaKind,
+    ) -> Result<Rc<RefCell<MediaTrack<MC>>>, WebRTCError> {
+        let channel = self.handle_create_media_channel(kind).await?;
+        let channel_rc = Rc::new(RefCell::new(channel));
+        let media_channels = self.provide_media_channels();
+        media_channels
+            .borrow_mut()
+            .tracks
+            .insert(channel_rc.borrow().id(), channel_rc.clone());
+        Ok(channel_rc)
     }
 }
