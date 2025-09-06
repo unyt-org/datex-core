@@ -36,10 +36,11 @@ use super::{
 };
 
 #[async_trait(?Send)]
-pub trait WebRTCTraitInternal<DC: 'static, MC: 'static> {
+pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
     // These method must be implemented in the interface
     fn provide_data_channels(&self) -> Rc<RefCell<DataChannels<DC>>>;
-    fn provide_media_channels(&self) -> Rc<RefCell<MediaTracks<MC>>>;
+    fn provide_remote_media_tracks(&self) -> Rc<RefCell<MediaTracks<MR>>>;
+    fn provide_local_media_tracks(&self) -> Rc<RefCell<MediaTracks<ML>>>;
     fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>>;
     fn provide_info(&self) -> &ComInterfaceInfo;
     async fn handle_create_data_channel(
@@ -47,15 +48,16 @@ pub trait WebRTCTraitInternal<DC: 'static, MC: 'static> {
     ) -> Result<DataChannel<DC>, WebRTCError>;
     async fn handle_create_media_channel(
         &self,
+        id: String,
         kind: MediaKind,
-    ) -> Result<MediaTrack<MC>, WebRTCError>;
+    ) -> Result<MediaTrack<ML>, WebRTCError>;
 
     async fn handle_setup_data_channel(
         channel: Rc<RefCell<DataChannel<DC>>>,
     ) -> Result<(), WebRTCError>;
 
     async fn handle_setup_media_channel(
-        channel: Rc<RefCell<MediaTrack<MC>>>,
+        channel: Rc<RefCell<MediaTrack<MR>>>,
     ) -> Result<(), WebRTCError>;
 
     async fn handle_create_offer(
@@ -224,8 +226,8 @@ pub trait WebRTCTraitInternal<DC: 'static, MC: 'static> {
 }
 
 #[async_trait(?Send)]
-pub trait WebRTCTrait<DC: 'static, MC: 'static>:
-    WebRTCTraitInternal<DC, MC>
+pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
+    WebRTCTraitInternal<DC, MR, ML>
 {
     fn new(peer_endpoint: impl Into<Endpoint>) -> Self;
     fn new_with_ice_servers(
@@ -330,9 +332,13 @@ pub trait WebRTCTrait<DC: 'static, MC: 'static>:
                 })
             }));
 
-        let media_tracks = self.provide_media_channels();
+        let media_tracks = self.provide_remote_media_tracks();
         let media_tracks_clone = media_tracks.clone();
         media_tracks.borrow_mut().on_add = Some(Box::new(move |media_track| {
+            println!(
+                "New remote media track added: {:?}",
+                media_track.borrow().kind
+            );
             let media_track = media_track.clone();
             Box::pin(async move {
                 Self::handle_setup_media_channel(media_track.clone())
@@ -355,11 +361,12 @@ pub trait WebRTCTrait<DC: 'static, MC: 'static>:
 
     async fn create_media_track(
         &self,
+        id: String,
         kind: MediaKind,
-    ) -> Result<Rc<RefCell<MediaTrack<MC>>>, WebRTCError> {
-        let channel = self.handle_create_media_channel(kind).await?;
+    ) -> Result<Rc<RefCell<MediaTrack<ML>>>, WebRTCError> {
+        let channel = self.handle_create_media_channel(id, kind).await?;
         let channel_rc = Rc::new(RefCell::new(channel));
-        let media_channels = self.provide_media_channels();
+        let media_channels = self.provide_local_media_tracks();
         media_channels
             .borrow_mut()
             .tracks
