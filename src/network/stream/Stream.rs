@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 pub trait Stream<T> {
     fn push(&mut self, item: T);
@@ -7,6 +7,12 @@ pub trait Stream<T> {
     fn len(&self) -> usize;
     fn end(&mut self);
     fn is_ended(&self) -> bool;
+    fn to_ref_cell(self) -> Rc<RefCell<Self>>
+    where
+        Self: Sized + 'static,
+    {
+        Rc::new(RefCell::new(self))
+    }
 }
 
 pub struct QueuingStream<T> {
