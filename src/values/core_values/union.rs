@@ -1,25 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::values::{
-    core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
-    value_container::ValueContainer,
+    core_value_trait::CoreValueTrait, core_values::r#type::r#type::Type,
+    traits::structural_eq::StructuralEq, value_container::ValueContainer,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Union {
-    pub options: Vec<ValueContainer>,
-}
-fn is_instance_of(value: &ValueContainer, parent: &ValueContainer) -> bool {
-    if parent.is_type() && !value.is_type() {
-        let value_type = value.allowed_type();
-        let parent_type = parent.to_value().borrow().cast_to_type().unwrap();
-        return value_type.is_typeof(&parent_type);
-    } else if parent.is_type() && value.is_type() {
-        let value_type = value.to_value().borrow().cast_to_type().unwrap();
-        let parent_type = parent.to_value().borrow().cast_to_type().unwrap();
-        return value_type.is_typeof(&parent_type);
-    }
-    false
+    pub options: Vec<Type>,
 }
 
 fn normalize_union(options: &mut Vec<ValueContainer>) {
@@ -58,7 +46,7 @@ impl Union {
         let v = v.into();
         self.options.iter().any(|opt| {
             if opt.is_type() {
-                is_instance_of(&v, opt)
+                TypeNew::value_matches(&v, opt)
             } else {
                 opt == &v
             }
