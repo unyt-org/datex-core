@@ -43,6 +43,7 @@ impl<T: Into<CoreValue>> From<T> for Value {
         let inner = inner.into();
         let actual_type = inner.get_default_type();
         let new_type = inner.get_default_type_new();
+
         Value {
             inner,
             actual_type: Box::new(new_type), // Box::new(Type::new(
