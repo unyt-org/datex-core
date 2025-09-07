@@ -1,27 +1,37 @@
-use datex_core::ast::chain::ApplyOperation;
-use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::DatexExpression;
+use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::tuple::TupleEntry;
 use crate::values::core_value::CoreValue;
 use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use datex_core::ast::chain::ApplyOperation;
 
 impl From<&ValueContainer> for DatexExpression {
     /// Converts a ValueContainer into a DatexExpression AST.
     /// This AST can then be further processed or decompiled into human-readable DATEX code.
     fn from(value: &ValueContainer) -> Self {
         match value {
-            ValueContainer::Value(value) => {
-                value_to_datex_expression(value)
-            },
+            ValueContainer::Value(value) => value_to_datex_expression(value),
             ValueContainer::Reference(reference) => {
                 match reference.mutability {
                     ReferenceMutability::Mutable => DatexExpression::RefMut(
-                        Box::new(value_to_datex_expression(&reference.data.borrow().resolve_current_value().borrow()))
+                        Box::new(value_to_datex_expression(
+                            &reference
+                                .data
+                                .borrow()
+                                .resolve_current_value()
+                                .borrow(),
+                        )),
                     ),
                     ReferenceMutability::Immutable => DatexExpression::Ref(
-                        Box::new(value_to_datex_expression(&reference.data.borrow().resolve_current_value().borrow()))
+                        Box::new(value_to_datex_expression(
+                            &reference
+                                .data
+                                .borrow()
+                                .resolve_current_value()
+                                .borrow(),
+                        )),
                     ),
                 }
             }
@@ -31,63 +41,96 @@ impl From<&ValueContainer> for DatexExpression {
 
 fn value_to_datex_expression(value: &Value) -> DatexExpression {
     match &value.inner {
-        CoreValue::Integer(integer) => DatexExpression::Integer(integer.clone()),
-        CoreValue::TypedInteger(typed_integer) => DatexExpression::TypedInteger(typed_integer.clone()),
-        CoreValue::Decimal(decimal) => DatexExpression::Decimal(decimal.clone()),
-        CoreValue::TypedDecimal(typed_decimal) => DatexExpression::TypedDecimal(typed_decimal.clone()),
+        CoreValue::Integer(integer) => {
+            DatexExpression::Integer(integer.clone())
+        }
+        CoreValue::TypedInteger(typed_integer) => {
+            DatexExpression::TypedInteger(typed_integer.clone())
+        }
+        CoreValue::Decimal(decimal) => {
+            DatexExpression::Decimal(decimal.clone())
+        }
+        CoreValue::TypedDecimal(typed_decimal) => {
+            DatexExpression::TypedDecimal(typed_decimal.clone())
+        }
         CoreValue::Boolean(boolean) => DatexExpression::Boolean(boolean.0),
         CoreValue::Text(text) => DatexExpression::Text(text.0.clone()),
-        CoreValue::Endpoint(endpoint) => DatexExpression::Endpoint(endpoint.clone()),
-        CoreValue::Null => DatexExpression::Null,
-        CoreValue::Array(array) => DatexExpression::Array(array.into_iter().map(DatexExpression::from).collect()),
-        CoreValue::Tuple(tuple) => {
-            DatexExpression::Tuple(tuple.into_iter().enumerate().map(|(index, (key, value))| {
-                // if key is integer and matches the index, use TupleEntry::Value
-                if let ValueContainer::Value(Value { inner: CoreValue::Integer(integer), .. }) = key
-                    && let Some(int) = integer.as_i64()
-                    && int == index as i64 {
-                    TupleEntry::Value(DatexExpression::from(value))
-                } else {
-                    // otherwise, use TupleEntry::KeyValue
-                    TupleEntry::KeyValue(DatexExpression::from(key), DatexExpression::from(value))
-                }
-            }).collect())
-        },
-        CoreValue::Object(object) => DatexExpression::Object(object.into_iter().map(|(key, value)| {
-            (DatexExpression::Text(key.clone()), DatexExpression::from(value))
-        }).collect()),
-        CoreValue::Union(union) => {
-            // create nested binary unary operators to combine all entries
-            let mut iter = union.options.iter();
-            let first = iter.next().expect("union must have at least one entry");
-            let mut expr = DatexExpression::from(first);
-            for entry in iter {
-                expr = DatexExpression::BinaryOperation(
-                    BinaryOperator::Union,
-                    Box::new(expr),
-                    Box::new(DatexExpression::from(entry)),
-                    None
-                );
-            }
-            expr
+        CoreValue::Endpoint(endpoint) => {
+            DatexExpression::Endpoint(endpoint.clone())
         }
-        // TODO: only temporary impl to represent the TypeTag as AST, this is not final
-        CoreValue::TypeTag(tag) => {
-            let content = if !tag.variants.is_empty() {
-                DatexExpression::Tuple(vec![
-                    TupleEntry::Value(DatexExpression::Text(tag.name.clone())),
-                    TupleEntry::Value(DatexExpression::Tuple(tag.variants.iter().map(|v| TupleEntry::Value(DatexExpression::Text(v.clone()))).collect())),
-                ])
-            }
-            else {
-                DatexExpression::Text(tag.name.clone())
-            };
-            DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("NominalType".to_string())),
-                vec![ApplyOperation::FunctionCall(content)],
+        CoreValue::Null => DatexExpression::Null,
+        CoreValue::Array(array) => DatexExpression::Array(
+            array.into_iter().map(DatexExpression::from).collect(),
+        ),
+        CoreValue::Tuple(tuple) => {
+            DatexExpression::Tuple(
+                tuple
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (key, value))| {
+                        // if key is integer and matches the index, use TupleEntry::Value
+                        if let ValueContainer::Value(Value {
+                            inner: CoreValue::Integer(integer),
+                            ..
+                        }) = key
+                            && let Some(int) = integer.as_i64()
+                            && int == index as i64
+                        {
+                            TupleEntry::Value(DatexExpression::from(value))
+                        } else {
+                            // otherwise, use TupleEntry::KeyValue
+                            TupleEntry::KeyValue(
+                                DatexExpression::from(key),
+                                DatexExpression::from(value),
+                            )
+                        }
+                    })
+                    .collect(),
             )
         }
-        _ => todo!()
+        CoreValue::Object(object) => DatexExpression::Object(
+            object
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        DatexExpression::Text(key.clone()),
+                        DatexExpression::from(value),
+                    )
+                })
+                .collect(),
+        ),
+        // CoreValue::Union(union) => {
+        //     // create nested binary unary operators to combine all entries
+        //     let mut iter = union.options.iter();
+        //     let first = iter.next().expect("union must have at least one entry");
+        //     let mut expr = DatexExpression::from(first);
+        //     for entry in iter {
+        //         expr = DatexExpression::BinaryOperation(
+        //             BinaryOperator::Union,
+        //             Box::new(expr),
+        //             Box::new(DatexExpression::from(entry)),
+        //             None
+        //         );
+        //     }
+        //     expr
+        // }
+        // // TODO: only temporary impl to represent the TypeTag as AST, this is not final
+        // CoreValue::TypeTag(tag) => {
+        //     let content = if !tag.variants.is_empty() {
+        //         DatexExpression::Tuple(vec![
+        //             TupleEntry::Value(DatexExpression::Text(tag.name.clone())),
+        //             TupleEntry::Value(DatexExpression::Tuple(tag.variants.iter().map(|v| TupleEntry::Value(DatexExpression::Text(v.clone()))).collect())),
+        //         ])
+        //     }
+        //     else {
+        //         DatexExpression::Text(tag.name.clone())
+        //     };
+        //     DatexExpression::ApplyChain(
+        //         Box::new(DatexExpression::Literal("NominalType".to_string())),
+        //         vec![ApplyOperation::FunctionCall(content)],
+        //     )
+        // }
+        _ => todo!(),
     }
 }
 
@@ -112,7 +155,10 @@ mod tests {
     fn test_typed_integer_to_ast() {
         let value = ValueContainer::from(TypedInteger::from(42i8));
         let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::TypedInteger(TypedInteger::from(42i8)));
+        assert_eq!(
+            ast,
+            DatexExpression::TypedInteger(TypedInteger::from(42i8))
+        );
     }
 
     #[test]
@@ -126,7 +172,10 @@ mod tests {
     fn test_typed_decimal_to_ast() {
         let value = ValueContainer::from(TypedDecimal::from(2.71f32));
         let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::TypedDecimal(TypedDecimal::from(2.71f32)));
+        assert_eq!(
+            ast,
+            DatexExpression::TypedDecimal(TypedDecimal::from(2.71f32))
+        );
     }
 
     #[test]
@@ -158,10 +207,13 @@ mod tests {
             Integer::from(3),
         ]);
         let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::Array(vec![
-            DatexExpression::Integer(Integer::from(1)),
-            DatexExpression::Integer(Integer::from(2)),
-            DatexExpression::Integer(Integer::from(3)),
-        ]));
+        assert_eq!(
+            ast,
+            DatexExpression::Array(vec![
+                DatexExpression::Integer(Integer::from(1)),
+                DatexExpression::Integer(Integer::from(2)),
+                DatexExpression::Integer(Integer::from(3)),
+            ])
+        );
     }
 }
