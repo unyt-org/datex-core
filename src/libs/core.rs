@@ -160,9 +160,9 @@ pub fn base_type() -> Reference {
         Type::nominal(
             "Type",
             Reference::new_from_value_container(
-                ValueContainer::from(Object::default()),
-                Type::structural(Object::default()),
-                None,
+                ValueContainer::from(Type::BASE.clone()),
+                Type::BASE,
+                Some(PointerAddress::from(CoreLibPointerId::Type)),
                 ReferenceMutability::Immutable,
             ),
             None,
@@ -194,7 +194,6 @@ pub fn create_core_lib() -> ValueContainer {
 }
 
 pub fn null() -> Reference {
-    println!("Creating core type: null");
     type_as_reference(
         create_core_type("null", base_type()),
         CoreLibPointerId::Null,
@@ -242,12 +241,47 @@ fn register_core_type(
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::values::core_value::CoreValue;
+
     use super::*;
 
     #[test]
-    fn basic() {
+    fn base_type_construct() {
+        let base = base_type();
+        print!("{:#?}", base.borrow().value_container);
+    }
+
+    #[test]
+    fn null_construct() {
         let null = null();
-        print!("{:?}", null);
+        assert_matches!(
+            &null.borrow().value_container,
+            ValueContainer::Value(_)
+        );
+
+        let inner = &null.borrow().value_container;
+        assert_matches!(inner, ValueContainer::Value(_));
+
+        let core_value = &inner.to_value().borrow().inner.clone();
+        assert_matches!(core_value, CoreValue::Type(t) if matches!(t.type_definition, TypeDefinition::Nominal(_)));
+
+        let nominal = match core_value {
+            CoreValue::Type(Type {
+                type_definition: TypeDefinition::Nominal(d),
+                ..
+            }) => d,
+            _ => unreachable!(),
+        };
+        assert_eq!(nominal.name, "null");
+        assert_eq!(nominal.variant, None);
+        assert_eq!(nominal.definition, Box::new(base_type()));
+
+        assert_eq!(
+            null.borrow().value_container.actual_type().to_string(),
+            "null"
+        );
     }
 
     #[test]

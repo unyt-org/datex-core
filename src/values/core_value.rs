@@ -229,10 +229,15 @@ impl CoreValue {
     }
 
     pub fn get_default_type_new(&self) -> Type {
-        Type::structural(ValueContainer::Value(Value {
-            inner: CoreValue::Object(Object::new()),
-            actual_type: Box::new(Type::union(vec![])),
-        }))
+        match self {
+            CoreValue::Type(ty) => ty.clone(),
+            _ => unreachable!("get_default_type_new is not implemented"),
+        }
+
+        // Type::structural(ValueContainer::Value(Value {
+        //     inner: CoreValue::Object(Object::new()),
+        //     actual_type: Box::new(Type::union(vec![])),
+        // }))
 
         // let reference = match self {
         //     _ => null(), // CoreValue::Type(ty) => todo!("add core type Type"), // what is the type of type?
