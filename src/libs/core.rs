@@ -121,8 +121,8 @@ pub fn get_core_lib_value(id: impl Into<CoreLibPointerId>) -> TypeContainer {
 pub fn load_core_lib(memory: &mut Memory) {
     CORE_LIB_TYPES.with(|core| {
         let object = core
-            .iter()
-            .map(|(_id, def)| match def {
+            .values()
+            .map(|def| match def {
                 TypeContainer::TypeReference(def) => {
                     let name = def
                         .borrow()
@@ -137,9 +137,8 @@ pub fn load_core_lib(memory: &mut Memory) {
                 _ => panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
-        let core_object = Reference::from(ValueContainer::from(
-            Object::from_iter(object.into_iter()),
-        ));
+        let core_object =
+            Reference::from(ValueContainer::from(Object::from_iter(object)));
         core_object.set_pointer_address(CoreLibPointerId::Core.into());
         memory.register_reference(core_object);
     });
@@ -227,7 +226,6 @@ fn create_core_type(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::core_value::CoreValue;
     use std::assert_matches::assert_matches;
 
     #[test]
