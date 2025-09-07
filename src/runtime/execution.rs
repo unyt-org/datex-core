@@ -13,7 +13,6 @@ use crate::parser::body;
 use crate::parser::body::DXBParserError;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
-use crate::types::{IllegalTypeError, TypeNew};
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::array::Array;
@@ -22,7 +21,8 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
-use crate::values::core_values::union::Union;
+use crate::values::core_values::r#type::error::IllegalTypeError;
+use crate::values::core_values::r#type::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::Reference;
 use crate::values::traits::identity::Identity;
@@ -1185,7 +1185,7 @@ fn handle_comparison_operation(
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Matches => {
-            let v_type = TypeNew::try_from(value_container)?;
+            let v_type = value_container.actual_type(); // Type::try_from(value_container)?;
             let val = v_type.value_matches(active_value_container);
             Ok(ValueContainer::from(val))
         }
@@ -1223,23 +1223,25 @@ fn handle_binary_operation(
         }
         BinaryOperator::Union => {
             // if right is already a union, prepend left value to options
-            if let ValueContainer::Value(Value {
-                inner: CoreValue::Union(right_union),
-                ..
-            }) = value_container
-            {
-                // TODO: no clone here
-                let mut new_options = right_union.options.clone();
-                new_options.insert(0, active_value_container.clone());
-                Ok(ValueContainer::from(Union::new(new_options)))
-            }
-            // else create new union with both values
-            else {
-                Ok(ValueContainer::from(Union::new(vec![
-                    active_value_container.clone(),
-                    value_container,
-                ])))
-            }
+
+            todo!("implement union operation");
+            // if let ValueContainer::Value(Value {
+            //     inner: CoreValue::Union(right_union),
+            //     ..
+            // }) = value_container
+            // {
+            //     // TODO: no clone here
+            //     let mut new_options = right_union.options.clone();
+            //     new_options.insert(0, active_value_container.clone());
+            //     Ok(ValueContainer::from(Union::new(new_options)))
+            // }
+            // // else create new union with both values
+            // else {
+            //     Ok(ValueContainer::from(Union::new(vec![
+            //         active_value_container.clone(),
+            //         value_container,
+            //     ])))
+            // }
         }
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);

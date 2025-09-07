@@ -16,8 +16,6 @@ use crate::runtime::execution_context::{
 };
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::r#type::core::*;
-use crate::values::core_values::r#type::registry::TypeRegistry;
 use crate::values::serde::serializer::to_value_container;
 use crate::values::value_container::ValueContainer;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
@@ -71,7 +69,6 @@ pub struct RuntimeInternal {
     pub com_hub: ComHub,
     pub endpoint: Endpoint,
     pub config: RuntimeConfig,
-    pub type_registry: TypeRegistry,
     /// set to true if the update loop should be running
     /// when set to false, the update loop will stop
     update_loop_running: RefCell<bool>,
@@ -82,48 +79,6 @@ pub struct RuntimeInternal {
         RefCell<HashMap<IncomingEndpointContextSectionId, ExecutionContext>>,
 }
 
-fn create_core_registry() -> TypeRegistry {
-    let mut registry = TypeRegistry::default();
-
-    // register core types
-    registry
-        .insert(integer())
-        .expect("Failed to register core integer type");
-    registry
-        .insert(text())
-        .expect("Failed to register core text type");
-    registry
-        .insert(boolean())
-        .expect("Failed to register core boolean type");
-    registry
-        .insert(i8())
-        .expect("Failed to register core i8 type");
-    registry
-        .insert(i16())
-        .expect("Failed to register core i16 type");
-    registry
-        .insert(i32())
-        .expect("Failed to register core i32 type");
-    registry
-        .insert(i64())
-        .expect("Failed to register core i64 type");
-    registry
-        .insert(u8())
-        .expect("Failed to register core u8 type");
-    registry
-        .insert(u16())
-        .expect("Failed to register core u16 type");
-    registry
-        .insert(u32())
-        .expect("Failed to register core u32 type");
-    registry
-        .insert(u64())
-        .expect("Failed to register core u64 type");
-    // FIXME registering all
-
-    registry
-}
-
 impl Default for RuntimeInternal {
     fn default() -> Self {
         RuntimeInternal {
@@ -131,7 +86,6 @@ impl Default for RuntimeInternal {
             config: RuntimeConfig::default(),
             memory: RefCell::new(Memory::new(Endpoint::default())),
             com_hub: ComHub::default(),
-            type_registry: create_core_registry(),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
             execution_contexts: RefCell::new(HashMap::new()),
@@ -452,10 +406,6 @@ impl Runtime {
                 ..RuntimeInternal::default()
             }),
         }
-    }
-
-    pub fn type_registry(&self) -> &TypeRegistry {
-        &self.internal.type_registry
     }
 
     pub fn init(

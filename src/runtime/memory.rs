@@ -1,33 +1,32 @@
-use std::collections::HashMap;
-use std::io::Cursor;
-use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
-use datex_core::runtime::global_context::get_global_context;
-use datex_core::values::core_values::endpoint::Endpoint;
-use crate::libs::core::{load_core_lib, CoreLibPointerId};
-use crate::types::{IllegalTypeError, TypeNew};
+use crate::libs::core::{CoreLibPointerId, load_core_lib};
+use crate::values::core_values::r#type::error::IllegalTypeError;
+use crate::values::core_values::r#type::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::Reference;
 use crate::values::value_container::ValueContainer;
+use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
+use datex_core::runtime::global_context::get_global_context;
+use datex_core::values::core_values::endpoint::Endpoint;
+use std::collections::HashMap;
+use std::io::Cursor;
 // FIXME #105 no-std
 
 #[derive(Debug)]
 pub struct Memory {
     local_endpoint: Endpoint,
-    local_counter: u64, // counter for local pointer ids
+    local_counter: u64,  // counter for local pointer ids
     last_timestamp: u64, // last timestamp used for a new local pointer id
     pointers: HashMap<PointerAddress, Reference>, // all pointers
 }
 
-
 impl Memory {
-
     /// Creates a new, Memory instance with the core library loaded.
     pub fn new(endpoint: Endpoint) -> Memory {
         let mut memory = Memory {
-           local_endpoint: endpoint,
-           local_counter: 0,
-           last_timestamp: 0,
-           pointers: HashMap::new(),
+            local_endpoint: endpoint,
+            local_counter: 0,
+            last_timestamp: 0,
+            pointers: HashMap::new(),
         };
         // load core library
         load_core_lib(&mut memory);
@@ -37,39 +36,65 @@ impl Memory {
     /// Registers a new reference in memory. If the reference has no PointerAddress, a new local one is generated.
     pub fn register_reference(&mut self, reference: Reference) {
         // auto-generate new local id if no id is set
-        let pointer_id = reference.data.borrow().pointer_id().clone()
+        let pointer_id = reference
+            .data
+            .borrow()
+            .pointer_id()
+            .clone()
             .unwrap_or_else(|| self.get_new_local_address());
         self.pointers.insert(pointer_id, reference);
     }
 
     /// Returns a reference stored at the given PointerAddress, if it exists.
-    pub fn get_reference(&self, pointer_address: &PointerAddress) -> Option<&Reference> {
+    pub fn get_reference(
+        &self,
+        pointer_address: &PointerAddress,
+    ) -> Option<&Reference> {
         self.pointers.get(pointer_address)
     }
 
     /// Helper function to get a core value directly from memory
-    pub fn get_core_reference(&self, pointer_id: CoreLibPointerId) -> &Reference {
-        self.get_reference(&pointer_id.into()).expect("core reference not found in memory")
+    pub fn get_core_reference(
+        &self,
+        pointer_id: CoreLibPointerId,
+    ) -> &Reference {
+        self.get_reference(&pointer_id.into())
+            .expect("core reference not found in memory")
     }
 
     /// Helper function to get a core type directly from memory if it can be used as a type
-    pub fn get_core_type(&self, pointer_id: CoreLibPointerId) -> Result<TypeNew, IllegalTypeError> {
+    pub fn get_core_type(
+        &self,
+        pointer_id: CoreLibPointerId,
+    ) -> Result<Type, IllegalTypeError> {
         // TODO: make this more efficient by also caching core types separately?
-        self.get_reference(&pointer_id.into()).map(
-            |r| TypeNew::try_from(ValueContainer::Reference(r.clone()))
-        ).expect("core type not found in memory")
+        // self.get_reference(&pointer_id.into())
+        //     .map(|r| Type::try_from(ValueContainer::Reference(r.clone())))
+        //     .expect("core type not found in memory")
+        // self.get_reference(&pointer_id.into())
+        //     .ok_or(IllegalTypeError::TypeNotFound)?
+        //     .borrow()
+        //     .current_value_container()
+        //     .r#type()
+        todo!("implement get_core_type")
     }
 
     /// Helper function to get a core type directly from memory, asserting that is can be used as a type
     /// Panics if the core type is not found or cannot be used as a type.
-    pub fn get_core_type_unchecked(&self, pointer_id: CoreLibPointerId) -> TypeNew {
-        self.get_core_type(pointer_id).expect("core type not found or cannot be used as a type")
+    pub fn get_core_type_unchecked(
+        &self,
+        pointer_id: CoreLibPointerId,
+    ) -> Type {
+        self.get_core_type(pointer_id)
+            .expect("core type not found or cannot be used as a type")
     }
-
 
     /// Takes a RawFullPointerAddress and converts it to a PointerAddress::Local or PointerAddress::Remote,
     /// depending on whether the pointer origin id matches the local endpoint.
-    pub fn get_pointer_address_from_raw_full_address(&self, raw_address: RawFullPointerAddress) -> PointerAddress {
+    pub fn get_pointer_address_from_raw_full_address(
+        &self,
+        raw_address: RawFullPointerAddress,
+    ) -> PointerAddress {
         if raw_address.endpoint == self.local_endpoint {
             PointerAddress::Local(raw_address.id)
         } else {
