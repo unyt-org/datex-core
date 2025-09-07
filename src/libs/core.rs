@@ -261,21 +261,37 @@ mod tests {
     }
 
     #[test]
-    fn base_type() {
+    fn base_type_simple() {
+        // integer -> integer -> integer ...
         let integer_type = get_core_lib_value(CoreLibPointerId::Integer(None));
         let integer_base = integer_type.base_type();
+        assert_matches!(integer_base, TypeContainer::TypeReference(_));
         assert_eq!(integer_base.to_string(), "integer");
+
         let base = integer_base.base_type();
+        assert_matches!(base, TypeContainer::TypeReference(_));
         assert_eq!(base.to_string(), "integer");
 
-        let integer_u8_type =
-            get_core_lib_value(CoreLibPointerId::Integer(Some(
-                IntegerTypeVariant::U8,
-            )));
+        assert_eq!(integer_base, base);
+    }
+
+    #[test]
+    fn base_type_complex() {
+        // integer/u8 -> integer -> integer -> integer ...
+        let integer_u8_type = get_core_lib_value(CoreLibPointerId::Integer(
+            Some(IntegerTypeVariant::U8),
+        ));
+        assert_matches!(integer_u8_type, TypeContainer::TypeReference(_));
         assert_eq!(integer_u8_type.to_string(), "integer/u8");
-        let integer_u8_base = integer_u8_type.base_type();
-        assert_eq!(integer_u8_base.to_string(), "integer");
-        let base = integer_u8_base.base_type();
-        assert_eq!(base.to_string(), "integer");
+
+        let integer = integer_u8_type.base_type();
+        assert_matches!(integer, TypeContainer::TypeReference(_));
+        assert_eq!(integer.to_string(), "integer");
+        assert_ne!(integer, integer_u8_type);
+
+        let integer_again = integer.base_type();
+        assert_matches!(integer_again, TypeContainer::TypeReference(_));
+        assert_eq!(integer_again.to_string(), "integer");
+        assert_eq!(integer_again, integer);
     }
 }
