@@ -1,17 +1,17 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-use datex_core::values::core_values::object::Object;
 use crate::runtime::memory::Memory;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
-use crate::values::core_values::r#type::r#type::{Type, TypeDefinition};
-use datex_core::values::pointer::PointerAddress;
-use datex_core::values::value_reference::{ValueReference};
-use datex_core::values::value_container::ValueContainer;
+use crate::values::core_values::r#type::Type;
+use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::reference::Reference;
 use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
+use datex_core::values::core_values::object::Object;
+use datex_core::values::pointer::PointerAddress;
+use datex_core::values::value_container::ValueContainer;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 thread_local! {
     pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
@@ -112,35 +112,38 @@ impl From<&PointerAddress> for CoreLibPointerId {
     }
 }
 
-
 pub fn get_core_lib_value(id: CoreLibPointerId) -> TypeContainer {
-    CORE_LIB_TYPES.with(|core| {
-        core.get(&id)
-            .expect("Core type not found")
-            .clone()
-    })
+    CORE_LIB_TYPES
+        .with(|core| core.get(&id).expect("Core type not found").clone())
 }
 
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
     CORE_LIB_TYPES.with(|core| {
-        let object = core.iter().map(|(_id, def)| {
-            match def { 
+        let object = core
+            .iter()
+            .map(|(_id, def)| match def {
                 TypeContainer::TypeReference(def) => {
-                    let name = def.borrow().nominal_type_declaration.as_ref().unwrap().to_string();
+                    let name = def
+                        .borrow()
+                        .nominal_type_declaration
+                        .as_ref()
+                        .unwrap()
+                        .to_string();
                     let reference = Reference::TypeReference(def.clone());
                     memory.register_reference(reference.clone());
                     (name, ValueContainer::Reference(reference))
-                },
+                }
                 _ => panic!("Core lib type is not a TypeReference"),
-            }
-        }).collect::<Vec<(String, ValueContainer)>>();
-        let core_object = Reference::from(ValueContainer::from(Object::from_iter(object.into_iter())));
+            })
+            .collect::<Vec<(String, ValueContainer)>>();
+        let core_object = Reference::from(ValueContainer::from(
+            Object::from_iter(object.into_iter()),
+        ));
         core_object.set_pointer_address(CoreLibPointerId::Core.into());
         memory.register_reference(core_object);
     });
 }
-
 
 /// Creates a new instance of the core library as a ValueContainer
 /// including all core types as properties.
@@ -150,7 +153,6 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
     [
         null(),
         object(),
-
         // integers
         integer.clone(),
         integer_variant(integer.1.clone(), IntegerTypeVariant::U8),
@@ -161,7 +163,9 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         integer_variant(integer.1.clone(), IntegerTypeVariant::I16),
         integer_variant(integer.1.clone(), IntegerTypeVariant::I32),
         integer_variant(integer.1.clone(), IntegerTypeVariant::I64),
-    ].into_iter().collect::<HashMap<CoreLibPointerId, TypeContainer>>()
+    ]
+    .into_iter()
+    .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
 
 type CoreLibTypeDefinition = (CoreLibPointerId, TypeContainer);
@@ -170,22 +174,24 @@ pub fn null() -> CoreLibTypeDefinition {
     create_core_type("null", None, None, CoreLibPointerId::Null)
 }
 pub fn object() -> CoreLibTypeDefinition {
-    create_core_type(
-        "Object",
-        None,
-        None,
-        CoreLibPointerId::Object
-    )
+    create_core_type("Object", None, None, CoreLibPointerId::Object)
 }
 
 pub fn integer() -> CoreLibTypeDefinition {
     create_core_type("integer", None, None, CoreLibPointerId::Integer(None))
 }
-pub fn integer_variant(base_type: TypeContainer, variant: IntegerTypeVariant) -> CoreLibTypeDefinition {
+pub fn integer_variant(
+    base_type: TypeContainer,
+    variant: IntegerTypeVariant,
+) -> CoreLibTypeDefinition {
     let variant_name = variant.as_ref().to_string();
-    create_core_type("integer", Some(variant_name), Some(base_type), CoreLibPointerId::Integer(Some(variant)))
+    create_core_type(
+        "integer",
+        Some(variant_name),
+        Some(base_type),
+        CoreLibPointerId::Integer(Some(variant)),
+    )
 }
-
 
 // pub fn nullType() -> Type {
 //     null().borrow().value_container.actual_type().clone()
@@ -200,8 +206,10 @@ fn create_core_type(
 ) -> CoreLibTypeDefinition {
     let base_type_ref = match base_type {
         Some(TypeContainer::TypeReference(reference)) => Some(reference),
-        Some(TypeContainer::Type(_)) => panic!("Base type must be a TypeReference"),
-        None => None
+        Some(TypeContainer::Type(_)) => {
+            panic!("Base type must be a TypeReference")
+        }
+        None => None,
     };
     (
         pointer_id.clone(),
@@ -216,165 +224,15 @@ fn create_core_type(
                 type_definition: TypeDefinition::Unit,
             },
             pointer_address: Some(PointerAddress::from(pointer_id)),
-        })))
+        }))),
     )
-}
-
-
-/// Converts a core type into a Reference with the given internal pointer ID.
-fn type_as_reference(r#type: Type, id: CoreLibPointerId) -> ValueReference {
-    let value = ValueContainer::from(r#type.clone());
-    ValueReference::new_from_value_container(
-        value,
-        r#type,
-        Some(PointerAddress::from(id)),
-        ReferenceMutability::Immutable,
-    )
-}
-
-/// Registers a core type in memory and returns it as a ValueContainer.
-fn register_core_type(
-    r#type: Type,
-    id: CoreLibPointerId,
-    memory: &mut Memory,
-) -> ValueContainer {
-    let reference = type_as_reference(r#type, id);
-    memory.register_reference(reference.clone());
-    ValueContainer::Reference(reference)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
-    use crate::values::core_value::CoreValue;
     use super::*;
-
-    #[test]
-    fn base_type_construct() {
-        let base1 = base_type();
-        let base2 = base_type();
-        assert_eq!(base1.pointer_id(), base2.pointer_id());
-        assert_eq!(base1.pointer_id(), Some(CoreLibPointerId::Type.into()));
-    }
-
-    #[test]
-    fn integer_construct() {
-        let integer = integer(None);
-        assert_matches!(
-            &integer.borrow().value_container,
-            ValueContainer::Value(_)
-        );
-
-        let inner = &integer.borrow().value_container;
-        assert_matches!(inner, ValueContainer::Value(_));
-
-        let core_value = &inner.to_value().borrow().inner.clone();
-        assert_matches!(core_value, CoreValue::Type(t) if matches!(t.type_definition, TypeDefinition::Nominal(_)));
-
-        let nominal = match core_value {
-            CoreValue::Type(Type {
-                type_definition: TypeDefinition::Nominal(d),
-                ..
-            }) => d,
-            _ => unreachable!(),
-        };
-        assert_eq!(nominal.name, "integer");
-        assert_eq!(nominal.variant, None);
-        assert_eq!(
-            nominal.definition.pointer_id(),
-            Some(CoreLibPointerId::Type.into())
-        );
-
-        assert_eq!(
-            integer.borrow().value_container.actual_type().to_string(),
-            "integer"
-        );
-    }
-
-    #[test]
-    fn integer_variant_construct() {
-        let integer_i32 = integer(Some(IntegerTypeVariant::I32));
-        assert_matches!(
-            &integer_i32.borrow().value_container,
-            ValueContainer::Value(_)
-        );
-
-        let inner = &integer_i32.borrow().value_container;
-        assert_matches!(inner, ValueContainer::Value(_));
-
-        let core_value = &inner.to_value().borrow().inner.clone();
-        assert_matches!(core_value, CoreValue::Type(t) if matches!(t.type_definition, TypeDefinition::Nominal(_)));
-
-        let nominal = match core_value {
-            CoreValue::Type(Type {
-                type_definition: TypeDefinition::Nominal(d),
-                ..
-            }) => d,
-            _ => unreachable!(),
-        };
-        assert_eq!(nominal.name, "integer");
-        assert_eq!(nominal.variant, Some("i32".to_string()));
-        assert_eq!(
-            nominal.definition.pointer_id(),
-            Some(CoreLibPointerId::Integer(None).into())
-        );
-
-        assert_eq!(
-            integer_i32
-                .borrow()
-                .value_container
-                .actual_type()
-                .to_string(),
-            "integer/i32"
-        );
-    }
-
-    #[test]
-    fn null_construct() {
-        let null = null();
-        assert_matches!(
-            &null.borrow().value_container,
-            ValueContainer::Value(_)
-        );
-
-        let inner = &null.borrow().value_container;
-        assert_matches!(inner, ValueContainer::Value(_));
-
-        let core_value = &inner.to_value().borrow().inner.clone();
-        assert_matches!(core_value, CoreValue::Type(t) if matches!(t.type_definition, TypeDefinition::Nominal(_)));
-
-        let nominal = match core_value {
-            CoreValue::Type(Type {
-                type_definition: TypeDefinition::Nominal(d),
-                ..
-            }) => d,
-            _ => unreachable!(),
-        };
-        assert_eq!(nominal.name, "null");
-        assert_eq!(nominal.variant, None);
-        assert_eq!(
-            nominal.definition.pointer_id(),
-            Some(CoreLibPointerId::Type.into())
-        );
-
-        assert_eq!(
-            null.borrow().value_container.actual_type().to_string(),
-            "null"
-        );
-    }
-
-    #[test]
-    fn construct_core_lib() {
-        let core = create_core_lib();
-        let object = match core {
-            ValueContainer::Value(Value {
-                inner: CoreValue::Object(o),
-                ..
-            }) => o,
-            _ => panic!("Expected ValueContainer::Value"),
-        };
-        print!("{}", object);
-    }
+    use crate::values::core_value::CoreValue;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn test_core_lib_pointer_id_conversion() {

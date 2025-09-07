@@ -22,7 +22,7 @@ use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::core_values::r#type::error::IllegalTypeError;
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_reference::ValueReference;
 use crate::values::traits::identity::Identity;
