@@ -43,6 +43,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
+use crate::values::core_values::r#type::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -215,7 +216,7 @@ pub enum DatexExpression {
         BinaryOperator,
         Box<DatexExpression>,
         Box<DatexExpression>,
-        Option<TypeNew>,
+        Option<Type>,
     ),
     ComparisonOperation(
         ComparisonOperator,
