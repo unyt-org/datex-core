@@ -185,7 +185,11 @@ impl Display for Type {
             .reference_mutability
             .as_ref()
             .map_or("".to_string(), |m| m.to_string());
-        write!(f, "{}{}", mutability, self.type_definition)
+        let base = self
+            .base_type
+            .as_ref()
+            .map_or("".to_string(), |b| format!(": {}", b.borrow()));
+        write!(f, "{}{}{}", mutability, self.type_definition, base)
     }
 }
 
