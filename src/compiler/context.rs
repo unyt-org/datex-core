@@ -10,6 +10,8 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::integer::utils::smallest_fitting_signed;
+use crate::values::pointer::PointerAddress;
+use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
@@ -20,9 +22,6 @@ use std::cell::{Cell, RefCell};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
-use crate::values::core_values::union::Union;
-use crate::values::pointer::PointerAddress;
-use crate::values::reference::ReferenceMutability;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -222,12 +221,6 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Type(ty) => {
                 todo!("Type value not supported in CompilationContext");
             }
-            CoreValue::Union(union) => {
-                self.insert_union(union);
-            }
-            CoreValue::TypeTag(tag) => {
-                self.insert_type_tag(tag);
-            }
             CoreValue::Integer(integer) => {
                 let integer = integer.to_smallest_fitting();
                 self.insert_typed_integer(&integer);
@@ -394,7 +387,7 @@ impl<'a> CompilationContext<'a> {
         self.append_binary_code(InstructionCode::ENDPOINT);
         self.append_buffer(&endpoint.to_binary());
     }
-    
+
     pub fn insert_type_tag(&self, tag: &TypeTag) {
         let bytes = tag.name.as_bytes();
         let len = bytes.len();
@@ -419,17 +412,16 @@ impl<'a> CompilationContext<'a> {
         self.append_binary_code(InstructionCode::UNION);
         // insert first value
         self.insert_value_container(&union.options[0]);
-        
+
         // insert rest of values recursively
         self.insert_union_options(union.options[1..].to_vec());
     }
-    
+
     fn insert_union_options(&self, options: Vec<ValueContainer>) {
         // directly insert value if only one option left
         if options.len() == 1 {
             self.insert_value_container(&options[0]);
-        }
-        else {
+        } else {
             self.append_binary_code(InstructionCode::SCOPE_START);
             self.append_binary_code(InstructionCode::UNION);
             // insert first value
@@ -628,7 +620,7 @@ impl<'a> CompilationContext<'a> {
         (*self.buffer.borrow_mut()).extend_from_slice(buffer);
         self.index.update(|x| x + buffer.len());
     }
-    
+
     pub fn insert_get_ref(&self, address: PointerAddress) {
         match address {
             PointerAddress::Internal(id) => {
