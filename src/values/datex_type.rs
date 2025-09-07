@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
+// TODO: deprecate this in favor of type system
 #[derive(
     Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize, Hash,
 )]

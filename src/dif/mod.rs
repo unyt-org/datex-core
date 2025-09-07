@@ -34,7 +34,7 @@ impl From<&ValueContainer> for DIFValue {
         let val = val_rc.borrow();
         let core_value = &val.inner;
         let actual_type = val.actual_type().clone();
-        let core_type = core_value.get_default_type_new();
+        let core_type = core_value.get_default_type();
 
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => todo!("Type value not supported in DIF"),

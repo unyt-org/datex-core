@@ -220,8 +220,12 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Tuple(_) => todo!(),
             CoreValue::Text(_) => CoreLibPointerId::Text,
             CoreValue::Boolean(_) => CoreLibPointerId::Boolean,
-            CoreValue::TypedInteger(_) => todo!(),
-            CoreValue::TypedDecimal(_) => todo!(),
+            CoreValue::TypedInteger(i) => {
+                CoreLibPointerId::Integer(Some(i.variant()))
+            }
+            CoreValue::TypedDecimal(d) => {
+                CoreLibPointerId::Decimal(Some(d.variant()))
+            }
             CoreValue::Integer(int) => CoreLibPointerId::Integer(None),
             CoreValue::Decimal(decimal) => CoreLibPointerId::Decimal(None),
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
@@ -248,12 +252,16 @@ impl CoreValue {
         )
     }
 
-    pub fn get_default_type_new(&self) -> TypeContainer {
+    /// Get the default type of the CoreValue as a TypeContainer.
+    /// This method uses the CoreLibPointerId to retrieve the corresponding
+    /// type reference from the core library.
+    /// For example, a CoreValue::TypedInteger(i32) will return the type ref integer/i32
+    pub fn get_default_type(&self) -> TypeContainer {
         get_core_lib_value(CoreLibPointerId::from(self))
     }
 
     #[deprecated]
-    pub fn get_default_type(&self) -> CoreValueType {
+    pub fn get_default_type_old(&self) -> CoreValueType {
         match self {
             CoreValue::Type(_) => CoreValueType::Type,
             CoreValue::Boolean(_) => CoreValueType::Boolean,
@@ -742,18 +750,27 @@ mod tests {
     use super::*;
 
     #[test]
+    // WIP
+    fn type_construct() {
+        init_logger_debug();
+        let a = CoreValue::from(42i32);
+        assert_eq!(a.get_default_type().to_string(), "integer/i32");
+        assert_eq!(a.get_default_type().base_type().to_string(), "integer");
+    }
+
+    #[test]
     fn addition() {
         init_logger_debug();
         let a = CoreValue::from(42i32);
         let b = CoreValue::from(11i32);
         let c = CoreValue::from("11");
 
-        assert_eq!(a.get_default_type(), CoreValueType::I32);
-        assert_eq!(b.get_default_type(), CoreValueType::I32);
-        assert_eq!(c.get_default_type(), CoreValueType::Text);
+        assert_eq!(a.get_default_type_old(), CoreValueType::I32);
+        assert_eq!(b.get_default_type_old(), CoreValueType::I32);
+        assert_eq!(c.get_default_type_old(), CoreValueType::Text);
 
         let a_plus_b = (a.clone() + b.clone()).unwrap();
-        assert_eq!(a_plus_b.clone().get_default_type(), CoreValueType::I32);
+        assert_eq!(a_plus_b.clone().get_default_type_old(), CoreValueType::I32);
         assert_eq!(a_plus_b.clone(), CoreValue::from(53));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }

@@ -112,9 +112,9 @@ impl From<&PointerAddress> for CoreLibPointerId {
     }
 }
 
-pub fn get_core_lib_value(id: CoreLibPointerId) -> TypeContainer {
+pub fn get_core_lib_value(id: impl Into<CoreLibPointerId>) -> TypeContainer {
     CORE_LIB_TYPES
-        .with(|core| core.get(&id).expect("Core type not found").clone())
+        .with(|core| core.get(&id.into()).expect("Core type not found").clone())
 }
 
 /// Loads the core library into the provided memory instance.
@@ -193,10 +193,6 @@ pub fn integer_variant(
     )
 }
 
-// pub fn nullType() -> Type {
-//     null().borrow().value_container.actual_type().clone()
-// }
-
 /// Creates a core type with the given parameters.
 fn create_core_type(
     name: &str,
@@ -262,5 +258,24 @@ mod tests {
         let pointer_address: PointerAddress = type_id.clone().into();
         let converted_id: CoreLibPointerId = (&pointer_address).into();
         assert_eq!(type_id, converted_id);
+    }
+
+    #[test]
+    fn base_type() {
+        let integer_type = get_core_lib_value(CoreLibPointerId::Integer(None));
+        let integer_base = integer_type.base_type();
+        assert_eq!(integer_base.to_string(), "integer");
+        let base = integer_base.base_type();
+        assert_eq!(base.to_string(), "integer");
+
+        let integer_u8_type =
+            get_core_lib_value(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8,
+            )));
+        assert_eq!(integer_u8_type.to_string(), "integer/u8");
+        let integer_u8_base = integer_u8_type.base_type();
+        assert_eq!(integer_u8_base.to_string(), "integer");
+        let base = integer_u8_base.base_type();
+        assert_eq!(base.to_string(), "integer");
     }
 }
