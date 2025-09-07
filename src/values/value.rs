@@ -42,7 +42,7 @@ impl Deref for Value {
 impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
-        let new_type = inner.get_default_type_new();
+        let new_type = inner.get_default_type();
 
         Value {
             inner,
@@ -98,7 +98,7 @@ impl Value {
     /// ```
     pub fn try_cast_to(&self, target_type: CoreValueType) -> Option<Value> {
         self.inner.cast_to(target_type.clone()).map(|inner| Value {
-            actual_type: Box::new(inner.get_default_type_new()),
+            actual_type: Box::new(inner.get_default_type()),
             inner, // Box::new(Type::new(
                    //     "core:fixme",
                    //     TypeDescriptor::Core(target_type),

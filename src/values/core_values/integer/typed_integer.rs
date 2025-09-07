@@ -326,6 +326,22 @@ impl TypedInteger {
         let v = self.as_i128().unwrap();
         v < 0
     }
+
+    pub fn variant(&self) -> IntegerTypeVariant {
+        match self {
+            TypedInteger::Big(_) => IntegerTypeVariant::Big,
+            TypedInteger::I8(_) => IntegerTypeVariant::I8,
+            TypedInteger::I16(_) => IntegerTypeVariant::I16,
+            TypedInteger::I32(_) => IntegerTypeVariant::I32,
+            TypedInteger::I64(_) => IntegerTypeVariant::I64,
+            TypedInteger::I128(_) => IntegerTypeVariant::I128,
+            TypedInteger::U8(_) => IntegerTypeVariant::U8,
+            TypedInteger::U16(_) => IntegerTypeVariant::U16,
+            TypedInteger::U32(_) => IntegerTypeVariant::U32,
+            TypedInteger::U64(_) => IntegerTypeVariant::U64,
+            TypedInteger::U128(_) => IntegerTypeVariant::U128,
+        }
+    }
 }
 
 impl Display for TypedInteger {

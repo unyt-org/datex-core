@@ -1,5 +1,6 @@
 use strum::Display;
 
+use crate::libs::core::get_core_lib_value;
 use crate::values::core_values::r#type::Type;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
@@ -9,10 +10,22 @@ use std::hash::Hash;
 use std::rc::Rc;
 
 // TODO: move match logic and other type stuff here
-#[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeContainer {
     Type(Type),
     TypeReference(Rc<RefCell<TypeReference>>),
+}
+
+impl Display for TypeContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeContainer::Type(t) => write!(f, "{}", t),
+            TypeContainer::TypeReference(tr) => {
+                let tr = tr.borrow();
+                write!(f, "{}", tr)
+            }
+        }
+    }
 }
 
 impl TypeContainer {
@@ -23,10 +36,23 @@ impl TypeContainer {
         }
     }
 
-    pub fn get_base_type(&self) -> Rc<RefCell<TypeReference>> {
+    // FIXME also TypeContainer
+    pub fn base_type(&self) -> TypeContainer {
         match self {
-            TypeContainer::Type(t) => t.get_base_type(),
-            TypeContainer::TypeReference(tr) => tr.clone(),
+            TypeContainer::Type(t) => {
+                if let Some(base) = t.base_type() {
+                    TypeContainer::TypeReference(base)
+                } else {
+                    TypeContainer::Type(t.clone())
+                }
+            }
+            TypeContainer::TypeReference(tr) => {
+                if let Some(base) = tr.borrow().base_type() {
+                    TypeContainer::TypeReference(base)
+                } else {
+                    TypeContainer::TypeReference(tr.clone())
+                }
+            }
         }
     }
 }

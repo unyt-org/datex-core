@@ -348,6 +348,13 @@ impl TypedDecimal {
             TypedDecimal::Decimal(value) => value.is_sign_negative(),
         }
     }
+    pub fn variant(&self) -> DecimalTypeVariant {
+        match self {
+            TypedDecimal::F32(_) => DecimalTypeVariant::F32,
+            TypedDecimal::F64(_) => DecimalTypeVariant::F64,
+            TypedDecimal::Decimal(_) => DecimalTypeVariant::Big,
+        }
+    }
 }
 
 impl Display for TypedDecimal {

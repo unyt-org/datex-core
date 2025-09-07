@@ -1,6 +1,10 @@
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use std::fmt::{Display, Formatter};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NominalTypeDeclaration {
@@ -30,6 +34,10 @@ pub struct TypeReference {
 impl TypeReference {
     pub fn as_type(&self) -> Option<&Type> {
         Some(&self.type_value)
+    }
+
+    pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
+        self.type_value.base_type()
     }
 }
 impl Display for TypeReference {

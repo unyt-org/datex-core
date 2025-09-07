@@ -102,12 +102,16 @@ impl Type {
 
 impl Type {
     /// Converts a specific type (e.g. 42u8) to its base type (e.g. integer/u8)
-    pub fn get_base_type(&self) -> Rc<RefCell<TypeReference>> {
+    pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
         // has direct base type (e.g. integer/u8 -> integer)
         if let Some(base_type) = &self.base_type {
-            return base_type.clone();
+            return Some(base_type.clone());
         }
-        match &self.type_definition {
+        // unit type has no base type
+        if self.is_unit() {
+            return None;
+        }
+        Some(match &self.type_definition {
             TypeDefinition::Structural(value) => {
                 todo!("handle structural base type");
             }
@@ -124,11 +128,8 @@ impl Type {
                 todo!("handle reference base type");
                 // return reference.collapse_to_value().borrow()
             }
-            TypeDefinition::Unit => {
-                todo!("handle unit base type");
-                // return Rc::new(RefCell::new(self.type_definition));
-            }
-        }
+            _ => panic!("Unhandled type definition for base type"),
+        })
     }
 
     // NOTE: this function currently operates in type space (type matches type, not value matches type)
