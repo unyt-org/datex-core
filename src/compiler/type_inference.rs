@@ -2,7 +2,6 @@ use crate::ast::DatexExpression;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
-use crate::types::TypeNew;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::object::Object;
 use crate::values::value_container::ValueContainer;
