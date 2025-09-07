@@ -103,8 +103,8 @@ fn infer_binary_expression_type(
         BinaryOperator::Subtract
         | BinaryOperator::Multiply
         | BinaryOperator::Divide => {
-            let lhs_base_type = lhs_type.get_base_type();
-            let rhs_base_type = rhs_type.get_base_type();
+            let lhs_base_type = lhs_type.base_type();
+            let rhs_base_type = rhs_type.base_type();
 
             todo!("handle core type");
 
