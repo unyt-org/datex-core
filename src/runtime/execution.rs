@@ -21,22 +21,22 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::tuple::Tuple;
-use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::core_values::r#type::Type;
+use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::pointer::PointerAddress;
-use crate::values::value_reference::ValueReference;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
+use crate::values::value_reference::ValueReference;
+use datex_core::values::reference::Reference;
 use log::info;
 use num_enum::TryFromPrimitive;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use datex_core::values::reference::Reference;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -1148,7 +1148,8 @@ fn handle_unary_operation(
             ValueContainer::Reference(Reference::from(value_container))
         }
         UnaryOperator::CreateRefMut => {
-            ValueContainer::Reference(Reference::try_mut_from(value_container).expect("Could not create mutable reference"))
+            todo!("mutable references are not yet supported");
+            // ValueContainer::Reference(Reference::try_mut_from(value_container).expect("Could not create mutable reference"))
         }
         _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }

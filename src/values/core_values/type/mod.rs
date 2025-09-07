@@ -42,6 +42,11 @@ impl Hash for Type {
 }
 
 impl Type {
+    pub const UNIT: Type = Type {
+        type_definition: TypeDefinition::Unit,
+        base_type: None,
+        reference_mutability: None,
+    };
     pub fn is_structural(&self) -> bool {
         matches!(self.type_definition, TypeDefinition::Structural(_))
     }
@@ -53,6 +58,13 @@ impl Type {
     }
     pub fn is_reference(&self) -> bool {
         matches!(self.type_definition, TypeDefinition::Reference(_))
+    }
+    pub fn structural_type(&self) -> Option<&StructuralType> {
+        if let TypeDefinition::Structural(s) = &self.type_definition {
+            Some(s)
+        } else {
+            None
+        }
     }
 }
 
