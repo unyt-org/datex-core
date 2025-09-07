@@ -3,10 +3,13 @@ pub mod core_value_trait;
 pub mod core_values;
 pub mod datex_type;
 pub mod pointer;
-pub mod reference;
+pub mod value_reference;
 pub mod traits;
 pub mod value;
 pub mod value_container;
 
 #[cfg(feature = "serde")]
 pub mod serde;
+pub mod reference;
+pub mod type_reference;
+pub mod type_container;

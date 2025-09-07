@@ -14,12 +14,13 @@ use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serializer, de};
 use serde_with::serde_derive::Serialize;
 use std::fmt;
+use crate::values::type_container::TypeContainer;
 
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFValue {
     pub value: Option<DIFCoreValue>,
-    pub core_type: CoreValueType,
+    pub core_type: TypeContainer,
     // TODO: handle more complex types here
     pub r#type: String,
     pub ptr_id: Option<String>,
@@ -31,7 +32,7 @@ impl From<&ValueContainer> for DIFValue {
         let val = val_rc.borrow();
         let core_value = &val.inner;
         let actual_type: Type = *val.actual_type.clone();
-        let core_type = core_value.get_default_type();
+        let core_type = core_value.get_default_type_new();
 
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => todo!("Type value not supported in DIF"),

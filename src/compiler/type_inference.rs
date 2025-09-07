@@ -7,6 +7,7 @@ use crate::values::core_values::object::Object;
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use std::collections::HashMap;
+use crate::values::type_container::TypeContainer;
 
 #[derive(Debug)]
 pub enum TypeError {
@@ -18,7 +19,7 @@ pub enum TypeError {
 fn infer_expression_type(
     expression: &mut DatexExpression,
     runtime: &Runtime,
-) -> Result<Option<Type>, TypeError> {
+) -> Result<Option<TypeContainer>, TypeError> {
     Ok(match expression {
         DatexExpression::Null
         | DatexExpression::Boolean(_)
@@ -88,7 +89,7 @@ fn infer_binary_expression_type(
     lhs: &mut Box<DatexExpression>,
     rhs: &mut Box<DatexExpression>,
     runtime: &Runtime,
-) -> Result<Option<Type>, TypeError> {
+) -> Result<Option<TypeContainer>, TypeError> {
     let lhs_type = infer_expression_type(lhs, runtime)?;
     let rhs_type = infer_expression_type(rhs, runtime)?;
 

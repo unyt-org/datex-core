@@ -1,11 +1,9 @@
 use crate::ast::DatexExpression;
-use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::tuple::TupleEntry;
 use crate::values::core_value::CoreValue;
-use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use datex_core::ast::chain::ApplyOperation;
+use crate::values::reference::ReferenceMutability;
 
 impl From<&ValueContainer> for DatexExpression {
     /// Converts a ValueContainer into a DatexExpression AST.
@@ -14,22 +12,18 @@ impl From<&ValueContainer> for DatexExpression {
         match value {
             ValueContainer::Value(value) => value_to_datex_expression(value),
             ValueContainer::Reference(reference) => {
-                match reference.mutability {
+                match reference.mutability() {
                     ReferenceMutability::Mutable => DatexExpression::RefMut(
                         Box::new(value_to_datex_expression(
                             &reference
-                                .data
-                                .borrow()
-                                .resolve_current_value()
+                                .collapse_to_value()
                                 .borrow(),
                         )),
                     ),
                     ReferenceMutability::Immutable => DatexExpression::Ref(
                         Box::new(value_to_datex_expression(
                             &reference
-                                .data
-                                .borrow()
-                                .resolve_current_value()
+                                .collapse_to_value()
                                 .borrow(),
                         )),
                     ),

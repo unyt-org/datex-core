@@ -3,7 +3,7 @@ use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;
 
-use super::{reference::Reference, value::Value};
+use super::{value::Value};
 use crate::compiler::compile_value;
 use crate::values::serde::deserializer::DatexDeserializer;
 use crate::values::traits::value_eq::ValueEq;
@@ -12,6 +12,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
+use datex_core::values::reference::Reference;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -106,7 +107,7 @@ impl StructuralEq for ValueContainer {
             }
             (ValueContainer::Value(a), ValueContainer::Reference(b))
             | (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
-                a.structural_eq(&b.borrow().resolve_current_value().borrow())
+                a.structural_eq(&b.collapse_to_value().borrow())
             }
         }
     }
@@ -125,7 +126,7 @@ impl ValueEq for ValueContainer {
             }
             (ValueContainer::Value(a), ValueContainer::Reference(b))
             | (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
-                a.value_eq(&b.borrow().resolve_current_value().borrow())
+                a.value_eq(&b.collapse_to_value().borrow())
             }
         }
     }
@@ -150,11 +151,11 @@ impl Display for ValueContainer {
         match self {
             ValueContainer::Value(value) => write!(f, "{value}"),
             // TODO #118: only simple temporary way to distinguish between Value and Pointer
-            ValueContainer::Reference(pointer) => {
+            ValueContainer::Reference(reference) => {
                 write!(
                     f,
                     "&({})",
-                    pointer.borrow().resolve_current_value().borrow()
+                    reference.collapse_to_value().borrow()
                 )
             }
         }
@@ -168,9 +169,7 @@ impl ValueContainer {
                 Rc::new(RefCell::new(value.clone()))
             }
             ValueContainer::Reference(pointer) => {
-                let reference = pointer.data.clone();
-
-                reference.borrow().value_container.to_value()
+                pointer.collapse_to_value()
             }
         }
     }
@@ -178,9 +177,7 @@ impl ValueContainer {
     pub fn is_type(&self) -> bool {
         match self {
             ValueContainer::Value(value) => value.is_type(),
-            ValueContainer::Reference(reference) => {
-                reference.borrow().current_value_container().is_type()
-            }
+            ValueContainer::Reference(reference) => reference.is_type()
         }
     }
 
@@ -189,7 +186,7 @@ impl ValueContainer {
         match self {
             ValueContainer::Value(value) => value.actual_type(),
             ValueContainer::Reference(reference) => {
-                reference.borrow().allowed_type.clone()
+                reference.allowed_type().clone()
             }
         }
     }
@@ -198,9 +195,7 @@ impl ValueContainer {
     pub fn actual_type(&self) -> Type {
         match self {
             ValueContainer::Value(value) => value.actual_type(),
-            ValueContainer::Reference(reference) => {
-                reference.borrow().value_container.to_value().borrow().actual_type()
-            }
+            ValueContainer::Reference(reference) => reference.actual_type()
         }
     }
 
@@ -279,19 +274,19 @@ impl Add<ValueContainer> for ValueContainer {
                 ValueContainer::Reference(rhs),
             ) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs).map(ValueContainer::Value)
             }
         }
@@ -311,19 +306,19 @@ impl Add<&ValueContainer> for &ValueContainer {
                 ValueContainer::Reference(rhs),
             ) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs + &rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 (&lhs_value + rhs).map(ValueContainer::Value)
             }
         }
@@ -343,19 +338,19 @@ impl Sub<ValueContainer> for ValueContainer {
                 ValueContainer::Reference(rhs),
             ) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs).map(ValueContainer::Value)
             }
         }
@@ -375,19 +370,19 @@ impl Sub<&ValueContainer> for &ValueContainer {
                 ValueContainer::Reference(rhs),
             ) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
                 let rhs_value =
-                    rhs.borrow().resolve_current_value().borrow().clone();
+                    rhs.collapse_to_value().borrow().clone();
                 (lhs - &rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
                 let lhs_value =
-                    lhs.borrow().resolve_current_value().borrow().clone();
+                    lhs.collapse_to_value().borrow().clone();
                 (&lhs_value - rhs).map(ValueContainer::Value)
             }
         }

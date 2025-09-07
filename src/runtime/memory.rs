@@ -2,13 +2,12 @@ use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use crate::values::reference::Reference;
-use crate::values::value_container::ValueContainer;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::runtime::global_context::get_global_context;
 use datex_core::values::core_values::endpoint::Endpoint;
 use std::collections::HashMap;
 use std::io::Cursor;
+use crate::values::reference::Reference;
 // FIXME #105 no-std
 
 #[derive(Debug)]
@@ -36,13 +35,15 @@ impl Memory {
     /// Registers a new reference in memory. If the reference has no PointerAddress, a new local one is generated.
     pub fn register_reference(&mut self, reference: Reference) {
         // auto-generate new local id if no id is set
-        let pointer_id = reference
-            .data
-            .borrow()
-            .pointer_id()
+        let pointer_address = reference
+            .pointer_address()
             .clone()
             .unwrap_or_else(|| self.get_new_local_address());
-        self.pointers.insert(pointer_id, reference);
+        // update address in reference if it was None
+        if reference.pointer_address().is_none() {
+            reference.set_pointer_address(pointer_address.clone());
+        }
+        self.pointers.insert(pointer_address, reference);
     }
 
     /// Returns a reference stored at the given PointerAddress, if it exists.

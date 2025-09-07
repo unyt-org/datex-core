@@ -7,11 +7,12 @@ use crate::values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Deref, Not, Sub};
+use crate::values::type_container::TypeContainer;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
     pub inner: CoreValue,
-    pub actual_type: Box<Type>,
+    pub actual_type: Box<TypeContainer>,
 }
 
 /// Two values are structurally equal, if their inner values are structurally equal, regardless
@@ -41,7 +42,6 @@ impl Deref for Value {
 impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
-        let actual_type = inner.get_default_type();
         let new_type = inner.get_default_type_new();
 
         Value {

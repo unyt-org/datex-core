@@ -11,7 +11,6 @@ use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::pointer::PointerAddress;
-use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
@@ -22,6 +21,7 @@ use std::cell::{Cell, RefCell};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
+use crate::values::reference::ReferenceMutability;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -204,13 +204,13 @@ impl<'a> CompilationContext<'a> {
             ValueContainer::Reference(reference) => {
                 // TODO #160: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
                 // add CREATE_REF/CREATE_REF_MUT instruction
-                if reference.mutability == ReferenceMutability::Mutable {
+                if reference.mutability() == ReferenceMutability::Mutable {
                     self.append_binary_code(InstructionCode::CREATE_REF_MUT);
                 } else {
                     self.append_binary_code(InstructionCode::CREATE_REF);
                 }
                 self.insert_value(
-                    &reference.borrow().resolve_current_value().borrow(),
+                    &reference.collapse_to_value().borrow(),
                 )
             }
         }

@@ -1,59 +1,107 @@
+use std::cell::RefCell;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
-use crate::values::reference::{Reference, ReferenceMutability};
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
+use datex_core::values::core_values::endpoint::Endpoint;
+use datex_core::values::core_values::integer::integer::Integer;
+use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::text::Text;
+use crate::values::reference::{Reference, ReferenceMutability};
+use crate::values::type_reference::TypeReference;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct NominalTypeDeclaration {
-    pub name: String,
-    pub variant: Option<String>,
-    pub definition: Box<Reference>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Type {
+    pub type_definition: TypeDefinition,
+    pub base_type: Option<Rc<RefCell<TypeReference>>>,
+    pub reference_mutability: Option<ReferenceMutability>,
 }
 
-impl Display for NominalTypeDeclaration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(variant) = &self.variant {
-            write!(f, "{}/{}", self.name, variant)
-        } else {
-            write!(f, "{}", self.name)
+impl Hash for Type {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.type_definition.hash(state);
+        self.reference_mutability.hash(state);
+        if let Some(ptr) = &self.base_type {
+            let ptr = Rc::as_ptr(ptr);
+            ptr.hash(state); // hash the address
         }
     }
 }
 
-impl StructuralEq for NominalTypeDeclaration {
-    fn structural_eq(&self, other: &Self) -> bool {
-        self.name == other.name
-            && self.variant == other.variant
-            && self.definition.structural_eq(&other.definition)
-    }
-}
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
-pub struct Type {
-    pub type_definition: TypeDefinition,
-    pub reference_mutability: Option<ReferenceMutability>,
-}
+// type integer2 = integer; <- $0101010|"integer2"
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum TypeDefinition {
     // {x: integer, y: text}
-    Structural(Box<ValueContainer>),
-    // integer or integer/u8
-    Nominal(NominalTypeDeclaration),
+    Structural(StructuralType),
+    Reference(Box<Reference>),
+
     // e.g. A | B | C
     Union(Vec<Type>),
+    // ()
+    Unit,
+}
 
-    Base,
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub enum StructuralType {
+    Integer(Integer),
+    TypedInteger(TypedInteger),
+    Decimal(Decimal),
+    TypedDecimal(TypedDecimal),
+    Text(Text),
+    Boolean(Boolean),
+    Endpoint(Endpoint),
+    Null,
+    Array(Vec<Type>),
+    Tuple(Vec<(Type, Type)>),
+    Object(Vec<(Type, Type)>),
+}
+
+impl Display for StructuralType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StructuralType::Integer(integer) => write!(f, "{}", integer),
+            StructuralType::TypedInteger(typed_integer) => write!(f, "{}", typed_integer),
+            StructuralType::Decimal(decimal) => write!(f, "{}", decimal),
+            StructuralType::TypedDecimal(typed_decimal) => write!(f, "{}", typed_decimal),
+            StructuralType::Text(text) => write!(f, "{}", text),
+            StructuralType::Boolean(boolean) => write!(f, "{}", boolean),
+            StructuralType::Endpoint(endpoint) => write!(f, "{}", endpoint),
+            StructuralType::Null => write!(f, "null"),
+            StructuralType::Array(types) => {
+                let types_str: Vec<String> = types.iter().map(|t| t.to_string()).collect();
+                write!(f, "[{}]", types_str.join(", "))
+            }
+            StructuralType::Tuple(elements) => {
+                let elements_str: Vec<String> = elements
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect();
+                write!(f, "({})", elements_str.join(", "))
+            }
+            StructuralType::Object(fields) => {
+                let fields_str: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect();
+                write!(f, "{{{}}}", fields_str.join(", "))
+            }
+        }
+    }
 }
 
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeDefinition::Base => write!(f, "Base"),
             TypeDefinition::Structural(value) => write!(f, "{}", value),
-            TypeDefinition::Nominal(nominal) => write!(f, "{}", nominal),
+            TypeDefinition::Reference(reference) => write!(f, "{:?}", reference),
             TypeDefinition::Union(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
@@ -67,9 +115,6 @@ impl StructuralEq for TypeDefinition {
     fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (TypeDefinition::Structural(a), TypeDefinition::Structural(b)) => {
-                a.structural_eq(b)
-            }
-            (TypeDefinition::Nominal(a), TypeDefinition::Nominal(b)) => {
                 a.structural_eq(b)
             }
             (TypeDefinition::Union(a), TypeDefinition::Union(b)) => {
@@ -88,71 +133,9 @@ impl StructuralEq for TypeDefinition {
     }
 }
 
-impl From<ValueContainer> for Type {
-    fn from(value: ValueContainer) -> Self {
-        Type {
-            type_definition: TypeDefinition::Structural(Box::new(value)),
-            reference_mutability: None,
-        }
-    }
-}
-
-impl Type {
-    pub const BASE: Type = Type {
-        type_definition: TypeDefinition::Base,
-        reference_mutability: None,
-    };
-
-    /// Creates a nominal type
-    /// The mutability is set to None
-    pub fn nominal(
-        name: &str,
-        definition: Reference,
-        variant: Option<&str>,
-    ) -> Self {
-        Type {
-            type_definition: TypeDefinition::Nominal(NominalTypeDeclaration {
-                name: name.to_string(),
-                variant: variant.map(|v| v.to_string()),
-                definition: Box::new(definition),
-            }),
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a structural type
-    /// The mutability is set to None
-    pub fn structural<T>(value: T) -> Self
-    where
-        T: Into<ValueContainer>,
-    {
-        Type {
-            type_definition: TypeDefinition::Structural(Box::new(value.into())),
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a union type
-    /// The mutability is set to None
-    pub fn union(types: Vec<Type>) -> Self {
-        Type {
-            type_definition: TypeDefinition::Union(types),
-            reference_mutability: None,
-        }
-    }
-
-    pub fn with_mutability(mut self, mutability: ReferenceMutability) -> Self {
-        self.reference_mutability = Some(mutability);
-        self
-    }
-}
-
 impl Type {
     pub fn is_structural(&self) -> bool {
         matches!(self.type_definition, TypeDefinition::Structural(_))
-    }
-    pub fn is_nominal(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Nominal(_))
     }
     pub fn is_union(&self) -> bool {
         matches!(self.type_definition, TypeDefinition::Union(_))
@@ -161,10 +144,15 @@ impl Type {
 
 impl Type {
     /// Converts a specific type (e.g. 42u8) to its base type (e.g. integer/u8)
-    pub fn get_base_type(&self) -> Type {
+    pub fn get_base_type(&self) -> Rc<RefCell<TypeReference>> {
+        // has direct base type (e.g. integer/u8 -> integer)
+        if let Some(base_type) = &self.base_type {
+            return base_type.clone();
+        }
         match &self.type_definition {
-            TypeDefinition::Structural(value) => value.allowed_type(),
-            TypeDefinition::Nominal(_) => self.clone(), // nominal types are already base types
+            TypeDefinition::Structural(value) => {
+                
+            }
             TypeDefinition::Union(types) => {
                 let base_types: Vec<Type> =
                     types.iter().map(|t| t.get_base_type()).collect();
@@ -173,7 +161,6 @@ impl Type {
                     reference_mutability: self.reference_mutability.clone(),
                 }
             }
-            TypeDefinition::Base => self.clone(),
         }
     }
 

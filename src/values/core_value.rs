@@ -1,6 +1,6 @@
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{base_type, null, object};
+use crate::libs::core::{get_core_lib_value, null, object, CoreLibPointerId, CORE_LIB_TYPES};
 use crate::values::core_values::array::Array;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -13,13 +13,12 @@ use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::core_values::r#type::r#type::Type;
 use crate::values::datex_type::CoreValueType;
-use crate::values::reference::{self, Reference};
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
-use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
+use crate::values::type_container::TypeContainer;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TypeTag {
@@ -211,6 +210,24 @@ impl From<f64> for CoreValue {
     }
 }
 
+impl From<&CoreValue> for CoreLibPointerId {
+    fn from(value: &CoreValue) -> Self {
+        match value {
+            CoreValue::Object(_) => CoreLibPointerId::Object,
+            CoreValue::Array(_) => CoreLibPointerId::Array,
+            CoreValue::Tuple(_) => todo!(),
+            CoreValue::Text(_) => CoreLibPointerId::Text,
+            CoreValue::Boolean(_) => CoreLibPointerId::Boolean,
+            CoreValue::TypedInteger(_) => todo!(),
+            CoreValue::TypedDecimal(_) => todo!(),
+            CoreValue::Integer(int) => CoreLibPointerId::Integer(None),
+            CoreValue::Decimal(decimal) => CoreLibPointerId::Decimal(None),
+            CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
+            CoreValue::Null => CoreLibPointerId::Null,
+            CoreValue::Type(_) => CoreLibPointerId::Type,
+        }
+    }}
+
 impl CoreValue {
     pub fn new<T>(value: T) -> CoreValue
     where
@@ -228,52 +245,8 @@ impl CoreValue {
         )
     }
 
-    // FIXME
-    pub fn get_default_type_new(&self) -> Type {
-        match self {
-            CoreValue::Type(ty) => ty.clone(),
-            CoreValue::Object(_) => {
-                object().borrow().value_container.actual_type()
-            }
-            _ => unreachable!("get_default_type_new is not implemented"),
-        }
-
-        // Type::structural(ValueContainer::Value(Value {
-        //     inner: CoreValue::Object(Object::new()),
-        //     actual_type: Box::new(Type::union(vec![])),
-        // }))
-
-        // let reference = match self {
-        //     _ => null(), // CoreValue::Type(ty) => todo!("add core type Type"), // what is the type of type?
-        //                  // CoreValue::Boolean(_) => boolean(),
-        //                  // CoreValue::TypedInteger(int) => match int {
-        //                  //     TypedInteger::I8(_) => i8(),
-        //                  //     TypedInteger::I16(_) => i16(),
-        //                  //     TypedInteger::I32(_) => i32(),
-        //                  //     TypedInteger::I64(_) => i64(),
-        //                  //     TypedInteger::I128(_) => i128(),
-        //                  //     TypedInteger::U8(_) => u8(),
-        //                  //     TypedInteger::U16(_) => u16(),
-        //                  //     TypedInteger::U32(_) => u32(),
-        //                  //     TypedInteger::U64(_) => u64(),
-        //                  //     TypedInteger::U128(_) => u128(),
-        //                  //     TypedInteger::Big(_) => big(),
-        //                  // },
-        //                  // CoreValue::TypedDecimal(dec) => match dec {
-        //                  //     TypedDecimal::F32(_) => f32(),
-        //                  //     TypedDecimal::F64(_) => f64(),
-        //                  //     TypedDecimal::Decimal(_) => decimal(),
-        //                  // },
-        //                  // CoreValue::Text(_) => text(),
-        //                  // CoreValue::Null => null(),
-        //                  // CoreValue::Endpoint(_) => endpoint(),
-        //                  // CoreValue::Array(_) => array(),
-        //                  // CoreValue::Object(_) => object(),
-        //                  // CoreValue::Tuple(_) => tuple(),
-        //                  // CoreValue::Integer(_) => integer(),
-        //                  // CoreValue::Decimal(_) => decimal(),
-        // };
-        // reference.borrow().value_container.actual_type()
+    pub fn get_default_type_new(&self) -> TypeContainer {
+        get_core_lib_value(CoreLibPointerId::from(self))
     }
 
     #[deprecated]

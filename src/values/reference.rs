@@ -1,17 +1,31 @@
+use std::cell::RefCell;
+use std::fmt::Display;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use crate::dif::{DIFUpdate, DIFValue};
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::r#type::{Type, TypeDefinition};
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
+use crate::values::value_reference::{ValueReference};
+use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::{Debug, Display};
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::rc::Rc;
+
+
+#[derive(Debug)]
+pub enum ObserveError {
+    ImmutableReference,
+}
+
+#[derive(Debug)]
+pub enum AccessError {
+    ImmutableReference,
+    InvalidOperation(String),
+}
+
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ReferenceMutability {
@@ -28,16 +42,38 @@ impl Display for ReferenceMutability {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Reference {
-    pub data: Rc<RefCell<ReferenceData>>,
-    pub mutability: ReferenceMutability,
+/*
+
+x = x.try_set_property();
+
+*/
+
+#[derive(Debug, Clone)]
+pub enum Reference {
+    ValueReference(Rc<RefCell<ValueReference>>),
+    TypeReference(Rc<RefCell<TypeReference>>),
 }
+
+impl From<ValueReference> for Reference {
+    fn from(reference: ValueReference) -> Self {
+        Reference::ValueReference(Rc::new(RefCell::new(reference)))
+    }
+}
+impl From<TypeReference> for Reference {
+    fn from(reference: TypeReference) -> Self {
+        Reference::TypeReference(Rc::new(RefCell::new(reference)))
+    }
+}
+
 
 /// Two references are identical if they point to the same data
 impl Identity for Reference {
     fn identical(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.data, &other.data)
+        match (self, other) {
+            (Reference::ValueReference(a), Reference::ValueReference(b)) => Rc::ptr_eq(a, b),
+            (Reference::TypeReference(a), Reference::TypeReference(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
     }
 }
 
@@ -52,28 +88,48 @@ impl PartialEq for Reference {
 
 impl StructuralEq for Reference {
     fn structural_eq(&self, other: &Self) -> bool {
-        // Two references are structurally equal if their current resolved values are equal
-        self.borrow()
-            .resolve_current_value()
-            .borrow()
-            .structural_eq(&other.borrow().resolve_current_value().borrow())
+        match (self, other) {
+            (Reference::TypeReference(a), Reference::TypeReference(b)) => {
+                a.borrow().type_value.structural_eq(&b.borrow().type_value)
+            }
+            (Reference::ValueReference(a), Reference::ValueReference(b)) => {
+                a.borrow().value_container.structural_eq(&b.borrow().value_container)
+            }
+            _ => {
+                false
+            }
+        }
     }
 }
 
 impl ValueEq for Reference {
     fn value_eq(&self, other: &Self) -> bool {
-        // Two references are value-equal if their current resolved values are equal
-        self.borrow()
-            .resolve_current_value()
-            .borrow()
-            .value_eq(&other.borrow().resolve_current_value().borrow())
+        match (self, other) {
+            (Reference::TypeReference(a), Reference::TypeReference(b)) => {
+                a.borrow().type_value.structural_eq(&b.borrow().type_value)
+            }
+            (Reference::ValueReference(a), Reference::ValueReference(b)) => {
+                a.borrow().value_container.value_eq(&b.borrow().value_container)
+            }
+            _ => {
+                false
+            }
+        }
     }
 }
 
 impl Hash for Reference {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let ptr = Rc::as_ptr(&self.data); // gets *const RefCell<ReferenceData>
-        ptr.hash(state); // hash the address
+        match self {
+            Reference::TypeReference(tr) => {
+                let ptr = Rc::as_ptr(tr);
+                ptr.hash(state); // hash the address
+            }
+            Reference::ValueReference(vr) => {
+                let ptr = Rc::as_ptr(vr);
+                ptr.hash(state); // hash the address
+            }
+        }
     }
 }
 
@@ -81,86 +137,188 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
     /// Creates a new immutable reference from a value container.
     fn from(value_container: T) -> Self {
         let value_container = value_container.into();
-        let allowed_type = value_container.to_value().borrow().actual_type().clone();
-        Reference::new_from_value_container(
+        Reference::try_new_from_value_container(
             value_container,
-            allowed_type,
+            None,
             None,
             ReferenceMutability::Immutable,
-        )
+        ).unwrap()
     }
 }
 
-// Implement Deref to allow access to ReferenceData directly
-impl Deref for Reference {
-    type Target = RefCell<ReferenceData>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum ReferenceFromValueContainerError {
+    InvalidType,
+    MutableTypeReference
 }
+
 
 impl Reference {
-    pub fn new_from_value_container(
-        value_container: ValueContainer,
-        allowed_type: Type,
-        maybe_pointer_id: Option<PointerAddress>,
-        mutability: ReferenceMutability,
-    ) -> Self {
-        let reference = Reference {
-            data: Rc::new(RefCell::new(ReferenceData {
-                value_container,
-                pointer_id: maybe_pointer_id,
-                allowed_type,
-                observers: Vec::new(),
-            })),
-            mutability,
-        };
-        reference.upgrade_inner_combined_values_to_references();
-        reference
+
+    pub fn pointer_address(&self) -> Option<PointerAddress> {
+        match self {
+            Reference::ValueReference(vr) => vr.borrow().pointer_address().clone(),
+            Reference::TypeReference(tr) => tr.borrow().pointer_address.clone(),
+        }
+    }
+    
+    pub fn set_pointer_address(&self, pointer_address: PointerAddress) {
+        if self.pointer_address().is_some() {
+            panic!("Cannot set pointer address on reference that already has one");
+        }
+        match self {
+            Reference::ValueReference(vr) => vr.borrow_mut().pointer_address = Some(pointer_address),
+            Reference::TypeReference(tr) => tr.borrow_mut().pointer_address = Some(pointer_address),
+        }
     }
 
-    /// Creates a new mutable reference from a value container.
-    pub fn mut_from<T: Into<ValueContainer>>(value_container: T) -> Self {
-        let value_container = value_container.into();
-        let allowed_type = value_container.to_value().borrow().actual_type().clone();
-        Reference::new_from_value_container(
+    pub(crate) fn mutability(&self) -> ReferenceMutability {
+        match self {
+            Reference::ValueReference(vr) => vr.borrow().mutability.clone(),
+            Reference::TypeReference(_) => ReferenceMutability::Immutable,
+        }
+    }
+
+    /// Creates a new reference from a value container
+    pub fn try_new_from_value_container(
+        value_container: ValueContainer,
+        allowed_type: Option<Type>,
+        maybe_pointer_id: Option<PointerAddress>,
+        mutability: ReferenceMutability,
+    ) -> Result<Self, ReferenceFromValueContainerError> {
+        Ok(match value_container {
+            ValueContainer::Reference(ref reference) => {
+                let allowed_type = allowed_type.unwrap_or_else(|| {
+                    reference.allowed_type()
+                });
+                // TODO: make sure allowed type is superset of reference's allowed type
+                Reference::ValueReference(Rc::new(RefCell::new(
+                    ValueReference {
+                        value_container,
+                        pointer_address: maybe_pointer_id,
+                        allowed_type,
+                        observers: Vec::new(),
+                        mutability,
+                    }
+                )))
+            }
+            ValueContainer::Value(value) => {
+                match value.inner {
+                    // create TypeReference if the value is a Type
+                    CoreValue::Type(type_value) => {
+                        // TODO: allowed_type "Type" is also allowed
+                        if !allowed_type.is_none() {
+                            return Err(ReferenceFromValueContainerError::InvalidType);
+                        }
+                        if mutability != ReferenceMutability::Immutable {
+                            return Err(ReferenceFromValueContainerError::MutableTypeReference);
+                        }
+                        Reference::new_from_type(type_value, maybe_pointer_id, None)
+                    }
+                    // otherwise create ValueReference
+                    _ => {
+                        let allowed_type = allowed_type.unwrap_or_else(|| {
+                            value.actual_type.as_ref().clone()
+                        });
+                        Reference::ValueReference(Rc::new(RefCell::new(
+                            ValueReference {
+                                value_container: ValueContainer::Value(value),
+                                pointer_address: maybe_pointer_id,
+                                allowed_type,
+                                observers: Vec::new(),
+                                mutability,
+                            }
+                        )))
+                    }
+                }
+            }
+        })
+    }
+
+    pub fn new_from_type(
+        type_value: Type,
+        maybe_pointer_address: Option<PointerAddress>,
+        maybe_nominal_type_declaration: Option<NominalTypeDeclaration>,
+    ) -> Self {
+        let type_reference = TypeReference {
+            pointer_address: maybe_pointer_address,
+            nominal_type_declaration: maybe_nominal_type_declaration,
+            type_value,
+        };
+        Reference::TypeReference(Rc::new(RefCell::new(type_reference)))
+    }
+
+    pub fn try_mut_from(value_container: ValueContainer) -> Result<Self, ReferenceFromValueContainerError> {
+        Reference::try_new_from_value_container(
             value_container,
-            allowed_type,
+            None,
             None,
             ReferenceMutability::Mutable,
         )
     }
 
-    pub fn pointer_id(&self) -> Option<PointerAddress> {
-        self.borrow().pointer_id.clone()
-    }
-
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
-        match &self.borrow().value_container {
-            ValueContainer::Reference(reference) => {
-                // If this is a reference, resolve it to its current value
-                reference.collapse_reference_chain()
+        match self {
+            Reference::TypeReference(tr) => {
+                match &tr.borrow().type_value.type_definition {
+                    TypeDefinition::Reference(reference) => {
+                        // If this is a reference type, resolve it to its current reference
+                        reference.collapse_reference_chain()
+                    }
+                    _ => {
+                        // If this is not a reference type, return it directly
+                        self.clone()
+                    }
+                }
             }
-            ValueContainer::Value(_) => {
-                // If this is a value, return it directly
-                self.clone()
+            Reference::ValueReference(vr) => {
+                match &vr.borrow().value_container {
+                    ValueContainer::Reference(reference) => {
+                        // If this is a reference, resolve it to its current value
+                        reference.collapse_reference_chain()
+                    }
+                    ValueContainer::Value(_) => {
+                        // If this is a value, return it directly
+                        self.clone()
+                    }
+                }
+            }
+        }
+
+    }
+
+    /// Converts a reference to its current value, collapsing any reference chains and converting type references to type values.
+    pub fn collapse_to_value(&self) -> Rc<RefCell<Value>> {
+        let reference = self.collapse_reference_chain();
+        match reference {
+            Reference::ValueReference(vr) => match &vr.borrow().value_container {
+                ValueContainer::Value(_) => vr.borrow().value_container.to_value(),
+                ValueContainer::Reference(_) =>  unreachable!(
+                    "Expected a ValueContainer::Value, but found a Reference"
+                )
+            },
+            // TODO: can we optimize this to avoid cloning the type value?
+            Reference::TypeReference(tr) => {
+                Rc::new(RefCell::new(Value::from(CoreValue::Type(tr.borrow().type_value.clone()))))
             }
         }
     }
 
     /// Runs a closure with the current value of this reference.
-    pub fn with_value<R, F: FnOnce(&mut Value) -> R>(&self, f: F) -> R {
+    pub fn with_value<R, F: FnOnce(&mut Value) -> R>(&self, f: F) -> Option<R> {
         let reference = self.collapse_reference_chain();
-        let mut ref_value = reference.borrow_mut();
-        match &mut ref_value.value_container {
-            ValueContainer::Value(value) => f(value),
-            ValueContainer::Reference(_) => {
-                unreachable!(
-                    "Expected a ValueContainer::Value, but found a Reference"
-                )
-            }
+
+        match reference {
+            Reference::ValueReference(vr) => match &mut vr.borrow_mut().value_container {
+                ValueContainer::Value(value) => Some(f(value)),
+                ValueContainer::Reference(_) => {
+                    unreachable!(
+                        "Expected a ValueContainer::Value, but found a Reference"
+                    )
+                }
+            },
+            Reference::TypeReference(_) => None
         }
     }
 
@@ -169,7 +327,7 @@ impl Reference {
         &self,
         key: &str,
         mut val: ValueContainer,
-    ) -> Result<(), String> {
+    ) -> Result<(), AccessError> {
         // Ensure the value is a reference if it is a combined value (e.g. an object)
         val = val.upgrade_combined_value_to_reference();
 
@@ -181,20 +339,20 @@ impl Reference {
                 }
                 _ => {
                     // If the value is not an object, we cannot set a property
-                    return Err(format!(
+                    return Err(AccessError::InvalidOperation(format!(
                         "Cannot set property '{}' on non-object value: {:?}",
                         key, value
-                    ));
+                    )));
                 }
             }
             Ok(())
-        })
+        }).unwrap_or_else(|| Err(AccessError::ImmutableReference))
     }
 
     pub fn try_get_text_property(
         &self,
         key: &str,
-    ) -> Result<Option<ValueContainer>, String> {
+    ) -> Result<Option<ValueContainer>, AccessError> {
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Object(ref mut obj) => {
@@ -203,13 +361,13 @@ impl Reference {
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
-                    Err(format!(
+                    return Err(AccessError::InvalidOperation(format!(
                         "Cannot get property '{}' on non-object value: {:?}",
                         key, value
-                    ))
+                    )));
                 }
             }
-        })
+        }).expect("todo: implement property access for types")
     }
 
     pub fn try_set_value<T: Into<ValueContainer>>(
@@ -259,69 +417,72 @@ impl Reference {
         child.upgrade_combined_value_to_reference()
     }
 
-    pub fn observe<F: Fn(&DIFUpdate) + 'static>(&self, observer: F) {
+    /// Adds an observer to this reference that will be notified on value changes.
+    /// Returns an error if the reference is immutable
+    pub fn observe<F: Fn(&DIFUpdate) + 'static>(&self, observer: F) -> Result<(), ObserveError> {
         // Add the observer to the list of observers
-        self.borrow_mut().observers.push(Box::new(observer));
+        match self {
+            Reference::TypeReference(_) => {
+                // Type references do not have observers
+                Err(ObserveError::ImmutableReference)
+            }
+            Reference::ValueReference(vr) => {
+                vr.borrow_mut().observers.push(Box::new(observer));
+                Ok(())
+            },
+        }
         // TODO: also set observers on child references if not yet active, keep track of active observers
     }
 
     fn notify_observers(&self, dif: &DIFUpdate) {
-        // Notify all observers of the update
-        for observer in &self.borrow().observers {
-            observer(dif);
+        match self {
+            Reference::TypeReference(_) => {
+                // Type references do not have observers
+                return;
+            }
+            Reference::ValueReference(vr) => {
+                /// Notify all observers of the update
+                for observer in &vr.borrow().observers {
+                    observer(dif);
+                }
+            }
         }
     }
 
     fn has_observers(&self) -> bool {
         // Check if there are any observers registered
-        !self.borrow().observers.is_empty()
+        match self {
+            Reference::TypeReference(_) => false,
+            Reference::ValueReference(vr) => !vr.borrow().observers.is_empty(),
+        }
+    }
+
+
+    pub fn allowed_type(&self) -> Type {
+        match self {
+            Reference::ValueReference(vr) => vr.borrow().allowed_type.clone(),
+            Reference::TypeReference(_) => todo!("type Type"),
+        }
+    }
+
+    pub fn actual_type(&self) -> Type {
+        match self {
+            Reference::ValueReference(vr) => vr.borrow().value_container.to_value().borrow().actual_type().clone(),
+            Reference::TypeReference(tr) => todo!("type Type"),
+        }
+    }
+
+    pub fn is_type(&self) -> bool {
+        match self {
+            Reference::TypeReference(_) => true,
+            Reference::ValueReference(vr) => {
+                vr.borrow().resolve_current_value().borrow().is_type()
+            }
+        }
     }
 }
 
-type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 
-pub struct ReferenceData {
-    /// the value that this reference points to
-    pub value_container: ValueContainer,
-    /// pointer id, can be initialized as None for local pointers
-    pointer_id: Option<PointerAddress>,
-    /// custom type for the pointer that the Datex value is allowed to reference
-    pub allowed_type: Type,
-    /// list of observer callbacks
-    pub observers: Vec<ReferenceObserver>,
-}
-
-impl Debug for ReferenceData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ReferenceData")
-            .field("value_container", &self.value_container)
-            .field("pointer", &self.pointer_id)
-            .field("allowed_type", &self.allowed_type)
-            .field("observers", &self.observers.len())
-            .finish()
-    }
-}
-
-impl PartialEq for ReferenceData {
-    fn eq(&self, other: &Self) -> bool {
-        // Two ReferenceData are equal if their value containers are equal
-        self.value_container.value_eq(&other.value_container)
-    }
-}
-
-impl ReferenceData {
-    pub fn pointer_id(&self) -> &Option<PointerAddress> {
-        &self.pointer_id
-    }
-
-    pub fn current_value_container(&self) -> &ValueContainer {
-        &self.value_container
-    }
-
-    pub fn resolve_current_value(&self) -> Rc<RefCell<Value>> {
-        self.value_container.to_value()
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -330,6 +491,7 @@ mod tests {
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::object::Object;
     use std::assert_matches::assert_matches;
+    use crate::ast::DatexExpression::Ref;
 
     #[test]
     fn reference_identity() {
@@ -428,7 +590,7 @@ mod tests {
         // Attach an observer to the reference
         int_ref.observe(move |update| {
             *observed_update_clone.borrow_mut() = Some(update.clone());
-        });
+        }).expect("Failed to attach observer");
 
         // Update the value of the reference
         int_ref.try_set_value(43).expect("Failed to set value");

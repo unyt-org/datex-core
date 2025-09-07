@@ -1,16 +1,21 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use datex_core::values::core_values::object::Object;
 use crate::runtime::memory::Memory;
-use crate::values::core_value::TypeTag;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::r#type::{Type, TypeDefinition};
-use crate::values::value::Value;
-use datex_core::values::core_values::object::Object;
 use datex_core::values::pointer::PointerAddress;
-use datex_core::values::reference::{Reference, ReferenceMutability};
+use datex_core::values::value_reference::{ValueReference};
 use datex_core::values::value_container::ValueContainer;
-use webrtc::mdns::message::name;
+use crate::values::reference::Reference;
+use crate::values::type_container::TypeContainer;
+use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
 
-/// Fixed mapping of internal pointer IDs for core library values.
+thread_local! {
+    pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CoreLibPointerId {
@@ -107,106 +112,119 @@ impl From<&PointerAddress> for CoreLibPointerId {
     }
 }
 
-/// Loads the core library into the provided memory instance.
-pub fn load_core_lib(memory: &mut Memory) {
-    let core = create_core_lib();
-    let reference = Reference::new_from_value_container(
-        core.clone(),
-        core.actual_type(),
-        Some(PointerAddress::from(CoreLibPointerId::Core)),
-        ReferenceMutability::Immutable,
-    );
-    memory.register_reference(reference);
+
+pub fn get_core_lib_value(id: CoreLibPointerId) -> TypeContainer {
+    CORE_LIB_TYPES.with(|core| {
+        core.get(&id)
+            .expect("Core type not found")
+            .clone()
+    })
 }
 
-pub fn base_type() -> Reference {
-    type_as_reference(
-        Type::nominal(
-            "Type",
-            Reference::new_from_value_container(
-                ValueContainer::from(Type::BASE.clone()),
-                Type::BASE,
-                Some(PointerAddress::from(CoreLibPointerId::Type)),
-                ReferenceMutability::Immutable,
-            ),
-            None,
-        ),
-        CoreLibPointerId::Type,
-    )
+/// Loads the core library into the provided memory instance.
+pub fn load_core_lib(memory: &mut Memory) {
+    CORE_LIB_TYPES.with(|core| {
+        let object = core.iter().map(|(_id, def)| {
+            match def { 
+                TypeContainer::TypeReference(def) => {
+                    let name = def.borrow().nominal_type_declaration.as_ref().unwrap().to_string();
+                    let reference = Reference::TypeReference(def.clone());
+                    memory.register_reference(reference.clone());
+                    (name, ValueContainer::Reference(reference))
+                },
+                _ => panic!("Core lib type is not a TypeReference"),
+            }
+        }).collect::<Vec<(String, ValueContainer)>>();
+        let core_object = Reference::from(ValueContainer::from(Object::from_iter(object.into_iter())));
+        core_object.set_pointer_address(CoreLibPointerId::Core.into());
+        memory.register_reference(core_object);
+    });
 }
+
 
 /// Creates a new instance of the core library as a ValueContainer
 /// including all core types as properties.
-pub fn create_core_lib() -> ValueContainer {
-    let mut core = Object::default();
-    let types = vec![
+pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
+    let integer = integer();
+
+    [
         null(),
         object(),
-        integer(None),
-        integer(Some(IntegerTypeVariant::I32)),
-        integer(Some(IntegerTypeVariant::I64)),
-    ];
-    for r#type in types {
-        if let Type {
-            type_definition: TypeDefinition::Nominal(e),
-            ..
-        } = &r#type.borrow().value_container.actual_type()
-        {
-            core.set(
-                &format!("{}", e),
-                ValueContainer::Reference(r#type.clone()),
-            );
-        }
-    }
 
-    ValueContainer::from(core)
+        // integers
+        integer.clone(),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::U8),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::U16),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::U32),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::U64),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::I8),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::I16),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::I32),
+        integer_variant(integer.1.clone(), IntegerTypeVariant::I64),
+    ].into_iter().collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
 
-pub fn null() -> Reference {
-    type_as_reference(
-        create_core_type("null", base_type()),
-        CoreLibPointerId::Null,
+type CoreLibTypeDefinition = (CoreLibPointerId, TypeContainer);
+
+pub fn null() -> CoreLibTypeDefinition {
+    create_core_type("null", None, None, CoreLibPointerId::Null)
+}
+pub fn object() -> CoreLibTypeDefinition {
+    create_core_type(
+        "Object",
+        None,
+        None,
+        CoreLibPointerId::Object
     )
 }
-pub fn object() -> Reference {
-    type_as_reference(
-        create_core_type("object", base_type()),
-        CoreLibPointerId::Object,
-    )
+
+pub fn integer() -> CoreLibTypeDefinition {
+    create_core_type("integer", None, None, CoreLibPointerId::Integer(None))
 }
-pub fn integer(variant: Option<IntegerTypeVariant>) -> Reference {
-    let id = CoreLibPointerId::Integer(variant);
-    let inner = match variant {
-        Some(v) => {
-            create_core_type_with_variant("integer", integer(None), v.as_ref())
-        }
-        None => create_core_type("integer", base_type()),
-    };
-    type_as_reference(inner, id)
+pub fn integer_variant(base_type: TypeContainer, variant: IntegerTypeVariant) -> CoreLibTypeDefinition {
+    let variant_name = variant.as_ref().to_string();
+    create_core_type("integer", Some(variant_name), Some(base_type), CoreLibPointerId::Integer(Some(variant)))
 }
+
 
 // pub fn nullType() -> Type {
 //     null().borrow().value_container.actual_type().clone()
 // }
 
-/// Creates a core type without a specific variant, e.g., 'integer' without variant.
-fn create_core_type(name: &str, definition: Reference) -> Type {
-    Type::nominal(name, definition, None)
+/// Creates a core type with the given parameters.
+fn create_core_type(
+    name: &str,
+    variant: Option<String>,
+    base_type: Option<TypeContainer>,
+    pointer_id: CoreLibPointerId,
+) -> CoreLibTypeDefinition {
+    let base_type_ref = match base_type {
+        Some(TypeContainer::TypeReference(reference)) => Some(reference),
+        Some(TypeContainer::Type(_)) => panic!("Base type must be a TypeReference"),
+        None => None
+    };
+    (
+        pointer_id.clone(),
+        TypeContainer::TypeReference(Rc::new(RefCell::new(TypeReference {
+            nominal_type_declaration: Some(NominalTypeDeclaration {
+                name: name.to_string(),
+                variant,
+            }),
+            type_value: Type {
+                base_type: base_type_ref,
+                reference_mutability: None,
+                type_definition: TypeDefinition::Unit,
+            },
+            pointer_address: Some(PointerAddress::from(pointer_id)),
+        })))
+    )
 }
 
-/// Creates a core type with a specific variant, e.g., 'integer' with variant 'i32'.
-fn create_core_type_with_variant(
-    name: &str,
-    definition: Reference,
-    variant: &str,
-) -> Type {
-    Type::nominal(name, definition, Some(variant))
-}
 
 /// Converts a core type into a Reference with the given internal pointer ID.
-fn type_as_reference(r#type: Type, id: CoreLibPointerId) -> Reference {
+fn type_as_reference(r#type: Type, id: CoreLibPointerId) -> ValueReference {
     let value = ValueContainer::from(r#type.clone());
-    Reference::new_from_value_container(
+    ValueReference::new_from_value_container(
         value,
         r#type,
         Some(PointerAddress::from(id)),
@@ -228,9 +246,7 @@ fn register_core_type(
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-
     use crate::values::core_value::CoreValue;
-
     use super::*;
 
     #[test]

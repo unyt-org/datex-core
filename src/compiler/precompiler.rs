@@ -340,9 +340,7 @@ fn visit_expression(
                 .borrow()
                 .get_reference(&CoreLibPointerId::Core.into())
                 && let Some(core_variable) = core
-                    .borrow()
-                    .current_value_container()
-                    .to_value()
+                    .collapse_to_value()
                     .borrow()
                     .cast_to_object()
                     .unwrap()
@@ -351,7 +349,7 @@ fn visit_expression(
                 match core_variable {
                     ValueContainer::Reference(reference) => {
                         if let Some(pointer_id) =
-                            reference.data.borrow().pointer_id()
+                            reference.pointer_address()
                         {
                             *expression = DatexExpression::GetReference(
                                 pointer_id.clone(),
