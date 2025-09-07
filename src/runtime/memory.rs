@@ -1,6 +1,6 @@
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::values::core_values::r#type::error::IllegalTypeError;
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::runtime::global_context::get_global_context;

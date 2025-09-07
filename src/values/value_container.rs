@@ -1,18 +1,19 @@
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::Type;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::type_container::TypeContainer;
 use std::cell::RefCell;
 
-use super::{value::Value};
+use super::value::Value;
 use crate::compiler::compile_value;
 use crate::values::serde::deserializer::DatexDeserializer;
 use crate::values::traits::value_eq::ValueEq;
+use datex_core::values::reference::Reference;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
-use datex_core::values::reference::Reference;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -152,11 +153,7 @@ impl Display for ValueContainer {
             ValueContainer::Value(value) => write!(f, "{value}"),
             // TODO #118: only simple temporary way to distinguish between Value and Pointer
             ValueContainer::Reference(reference) => {
-                write!(
-                    f,
-                    "&({})",
-                    reference.collapse_to_value().borrow()
-                )
+                write!(f, "&({})", reference.collapse_to_value().borrow())
             }
         }
     }
@@ -168,23 +165,22 @@ impl ValueContainer {
             ValueContainer::Value(value) => {
                 Rc::new(RefCell::new(value.clone()))
             }
-            ValueContainer::Reference(pointer) => {
-                pointer.collapse_to_value()
-            }
+            ValueContainer::Reference(pointer) => pointer.collapse_to_value(),
         }
     }
 
     pub fn is_type(&self) -> bool {
         match self {
             ValueContainer::Value(value) => value.is_type(),
-            ValueContainer::Reference(reference) => reference.is_type()
+            ValueContainer::Reference(reference) => reference.is_type(),
         }
     }
 
     /// Returns the allowed type of the value container
-    pub fn allowed_type(&self) -> Type {
+    pub fn allowed_type(&self) -> TypeContainer {
         match self {
-            ValueContainer::Value(value) => value.actual_type(),
+            // If it's a Value, return its actual type
+            ValueContainer::Value(value) => value.actual_type().clone(),
             ValueContainer::Reference(reference) => {
                 reference.allowed_type().clone()
             }
@@ -192,10 +188,12 @@ impl ValueContainer {
     }
 
     /// Returns the actual type of the contained value, resolving references if necessary.
-    pub fn actual_type(&self) -> Type {
+    pub fn actual_type(&self) -> TypeContainer {
         match self {
-            ValueContainer::Value(value) => value.actual_type(),
-            ValueContainer::Reference(reference) => reference.actual_type()
+            ValueContainer::Value(value) => value.actual_type().clone(),
+            ValueContainer::Reference(reference) => {
+                reference.actual_type().clone()
+            }
         }
     }
 
@@ -273,20 +271,16 @@ impl Add<ValueContainer> for ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs).map(ValueContainer::Value)
             }
         }
@@ -305,20 +299,16 @@ impl Add<&ValueContainer> for &ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs + &rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (&lhs_value + rhs).map(ValueContainer::Value)
             }
         }
@@ -337,20 +327,16 @@ impl Sub<ValueContainer> for ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs).map(ValueContainer::Value)
             }
         }
@@ -369,20 +355,16 @@ impl Sub<&ValueContainer> for &ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs - &rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.collapse_to_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (&lhs_value - rhs).map(ValueContainer::Value)
             }
         }

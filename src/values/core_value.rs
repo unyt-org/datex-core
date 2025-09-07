@@ -1,6 +1,8 @@
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{get_core_lib_value, null, object, CoreLibPointerId, CORE_LIB_TYPES};
+use crate::libs::core::{
+    CORE_LIB_TYPES, CoreLibPointerId, get_core_lib_value, null, object,
+};
 use crate::values::core_values::array::Array;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -11,14 +13,14 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::object::Object;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::Type;
 use crate::values::datex_type::CoreValueType;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
+use crate::values::type_container::TypeContainer;
 use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
-use crate::values::type_container::TypeContainer;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TypeTag {
@@ -226,7 +228,8 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
         }
-    }}
+    }
+}
 
 impl CoreValue {
     pub fn new<T>(value: T) -> CoreValue

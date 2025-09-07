@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NominalTypeDeclaration {
@@ -26,4 +26,18 @@ pub struct TypeReference {
     pub nominal_type_declaration: Option<NominalTypeDeclaration>,
     /// pointer id, can be initialized as None for local pointers
     pub pointer_address: Option<PointerAddress>,
+}
+impl TypeReference {
+    pub fn as_type(&self) -> Option<&Type> {
+        Some(&self.type_value)
+    }
+}
+impl Display for TypeReference {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(nominal) = &self.nominal_type_declaration {
+            write!(f, "{}", nominal)
+        } else {
+            write!(f, "{}", self.type_value)
+        }
+    }
 }

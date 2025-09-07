@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::values::{
-    core_value_trait::CoreValueTrait, core_values::r#type::r#type::Type,
+    core_value_trait::CoreValueTrait, core_values::r#type::Type,
     traits::structural_eq::StructuralEq, value_container::ValueContainer,
 };
 

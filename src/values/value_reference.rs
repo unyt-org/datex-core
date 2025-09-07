@@ -1,21 +1,20 @@
 use crate::dif::{DIFUpdate, DIFValue};
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::r#type::Type;
+use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
+use crate::values::reference::ReferenceMutability;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
+use crate::values::type_container::TypeContainer;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::values::reference::ReferenceMutability;
 
-impl ValueReference {
-
-}
+impl ValueReference {}
 
 type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 
@@ -25,11 +24,10 @@ pub struct ValueReference {
     /// pointer id, can be initialized as None for local pointers
     pub pointer_address: Option<PointerAddress>,
     /// custom type for the pointer that the Datex value is allowed to reference
-    pub allowed_type: Type,
+    pub allowed_type: TypeContainer,
     /// list of observer callbacks
     pub observers: Vec<ReferenceObserver>,
     pub mutability: ReferenceMutability,
-
 }
 
 impl Debug for ValueReference {
