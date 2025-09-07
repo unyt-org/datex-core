@@ -1,6 +1,6 @@
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{base_type, null};
+use crate::libs::core::{base_type, null, object};
 use crate::values::core_values::array::Array;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -228,9 +228,13 @@ impl CoreValue {
         )
     }
 
+    // FIXME
     pub fn get_default_type_new(&self) -> Type {
         match self {
             CoreValue::Type(ty) => ty.clone(),
+            CoreValue::Object(_) => {
+                object().borrow().value_container.actual_type()
+            }
             _ => unreachable!("get_default_type_new is not implemented"),
         }
 
