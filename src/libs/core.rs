@@ -37,6 +37,8 @@ impl CoreLibPointerId {
             CoreLibPointerId::Null => 1,
             CoreLibPointerId::Type => 2,
             CoreLibPointerId::Boolean => 3,
+            CoreLibPointerId::Object => 4,
+            CoreLibPointerId::Function => 5,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -47,7 +49,7 @@ impl CoreLibPointerId {
                 let v: u8 = (*v).into();
                 CoreLibPointerId::Decimal(None).to_u16() + v as u16
             }
-            _ => panic!("Unsupported CoreLibPointerId variant for to_u64"),
+            _ => panic!("Unsupported CoreLibPointerId"),
         }
     }
     pub fn from_u16(id: u16) -> Option<Self> {
@@ -56,6 +58,8 @@ impl CoreLibPointerId {
             1 => Some(CoreLibPointerId::Null),
             2 => Some(CoreLibPointerId::Type),
             3 => Some(CoreLibPointerId::Boolean),
+            4 => Some(CoreLibPointerId::Object),
+            5 => Some(CoreLibPointerId::Function),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -103,46 +107,6 @@ impl From<&PointerAddress> for CoreLibPointerId {
     }
 }
 
-/// Creates a new instance of the core library as a ValueContainer
-/// and registers it in the provided memory instance using fixed internal pointer IDs.
-// pub fn load_core_lib(memory: &mut Memory) {
-//     let null = create_null_core_type(Some(memory));
-//     let boolean = create_boolean_core_type(Some(memory));
-//     let integer = create_integer_core_type(Some(memory));
-//     let decimal = create_decimal_core_type(Some(memory));
-//     let text = create_text_core_type(Some(memory));
-//     let endpoint = create_endpoint_core_type(Some(memory));
-//     let array = create_array_core_type(Some(memory));
-//     let tuple = create_tuple_core_type(Some(memory));
-//     let object = create_object_core_type(Some(memory));
-//     let function = create_function_core_type(Some(memory));
-
-//     // create #core object with properties
-//     let value = ValueContainer::from(Object::from_iter(vec![
-//         ("null".to_string(), null),
-//         ("boolean".to_string(), boolean),
-//         ("integer".to_string(), integer),
-//         ("decimal".to_string(), decimal),
-//         ("text".to_string(), text),
-//         ("endpoint".to_string(), endpoint),
-//         ("Array".to_string(), array),
-//         ("Tuple".to_string(), tuple),
-//         ("Object".to_string(), object),
-//         ("Function".to_string(), function),
-//         // TODO: add other core types here...
-//     ]));
-//     // TODO: better solution for allowed_type here:
-//     let allowed_type = value.to_value().borrow().actual_type().clone();
-//     let reference = Reference::new_from_value_container(
-//         value,
-//         allowed_type,
-//         Some(PointerAddress::from(CoreLibPointerId::Core)),
-//         ReferenceMutability::Immutable,
-//     );
-//     // register reference to #core in memory
-//     memory.register_reference(reference);
-// }
-
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
     let core = create_core_lib();
@@ -175,16 +139,21 @@ pub fn base_type() -> Reference {
 /// including all core types as properties.
 pub fn create_core_lib() -> ValueContainer {
     let mut core = Object::default();
-    let types = vec![null()];
+    let types = vec![
+        null(),
+        object(),
+        integer(None),
+        integer(Some(IntegerTypeVariant::I32)),
+        integer(Some(IntegerTypeVariant::I64)),
+    ];
     for r#type in types {
         if let Type {
             type_definition: TypeDefinition::Nominal(e),
             ..
         } = &r#type.borrow().value_container.actual_type()
         {
-            let type_name = e.name.clone();
             core.set(
-                type_name.as_str(),
+                &format!("{}", e),
                 ValueContainer::Reference(r#type.clone()),
             );
         }
@@ -199,9 +168,26 @@ pub fn null() -> Reference {
         CoreLibPointerId::Null,
     )
 }
-pub fn nullType() -> Type {
-    null().borrow().value_container.actual_type().clone()
+pub fn object() -> Reference {
+    type_as_reference(
+        create_core_type("object", base_type()),
+        CoreLibPointerId::Object,
+    )
 }
+pub fn integer(variant: Option<IntegerTypeVariant>) -> Reference {
+    let id = CoreLibPointerId::Integer(variant);
+    let inner = match variant {
+        Some(v) => {
+            create_core_type_with_variant("integer", integer(None), v.as_ref())
+        }
+        None => create_core_type("integer", base_type()),
+    };
+    type_as_reference(inner, id)
+}
+
+// pub fn nullType() -> Type {
+//     null().borrow().value_container.actual_type().clone()
+// }
 
 /// Creates a core type without a specific variant, e.g., 'integer' without variant.
 fn create_core_type(name: &str, definition: Reference) -> Type {
@@ -249,8 +235,82 @@ mod tests {
 
     #[test]
     fn base_type_construct() {
-        let base = base_type();
-        print!("{:#?}", base.borrow().value_container);
+        let base1 = base_type();
+        let base2 = base_type();
+        assert_eq!(base1.pointer_id(), base2.pointer_id());
+        assert_eq!(base1.pointer_id(), Some(CoreLibPointerId::Type.into()));
+    }
+
+    #[test]
+    fn integer_construct() {
+        let integer = integer(None);
+        assert_matches!(
+            &integer.borrow().value_container,
+            ValueContainer::Value(_)
+        );
+
+        let inner = &integer.borrow().value_container;
+        assert_matches!(inner, ValueContainer::Value(_));
+
+        let core_value = &inner.to_value().borrow().inner.clone();
+        assert_matches!(core_value, CoreValue::Type(t) if matches!(t.type_definition, TypeDefinition::Nominal(_)));
+
+        let nominal = match core_value {
+            CoreValue::Type(Type {
+                type_definition: TypeDefinition::Nominal(d),
+                ..
+            }) => d,
+            _ => unreachable!(),
+        };
+        assert_eq!(nominal.name, "integer");
+        assert_eq!(nominal.variant, None);
+        assert_eq!(
+            nominal.definition.pointer_id(),
+            Some(CoreLibPointerId::Type.into())
+        );
+
+        assert_eq!(
+            integer.borrow().value_container.actual_type().to_string(),
+            "integer"
+        );
+    }
+
+    #[test]
+    fn integer_variant_construct() {
+        let integer_i32 = integer(Some(IntegerTypeVariant::I32));
+        assert_matches!(
+            &integer_i32.borrow().value_container,
+            ValueContainer::Value(_)
+        );
+
+        let inner = &integer_i32.borrow().value_container;
+        assert_matches!(inner, ValueContainer::Value(_));
+
+        let core_value = &inner.to_value().borrow().inner.clone();
+        assert_matches!(core_value, CoreValue::Type(t) if matches!(t.type_definition, TypeDefinition::Nominal(_)));
+
+        let nominal = match core_value {
+            CoreValue::Type(Type {
+                type_definition: TypeDefinition::Nominal(d),
+                ..
+            }) => d,
+            _ => unreachable!(),
+        };
+        assert_eq!(nominal.name, "integer");
+        assert_eq!(nominal.variant, Some("i32".to_string()));
+        assert_eq!(
+            nominal.definition.pointer_id(),
+            Some(CoreLibPointerId::Integer(None).into())
+        );
+
+        assert_eq!(
+            integer_i32
+                .borrow()
+                .value_container
+                .actual_type()
+                .to_string(),
+            "integer/i32"
+        );
     }
 
     #[test]
@@ -276,7 +336,10 @@ mod tests {
         };
         assert_eq!(nominal.name, "null");
         assert_eq!(nominal.variant, None);
-        assert_eq!(nominal.definition, Box::new(base_type()));
+        assert_eq!(
+            nominal.definition.pointer_id(),
+            Some(CoreLibPointerId::Type.into())
+        );
 
         assert_eq!(
             null.borrow().value_container.actual_type().to_string(),
@@ -285,9 +348,16 @@ mod tests {
     }
 
     #[test]
-    fn create_core_lib_success() {
+    fn construct_core_lib() {
         let core = create_core_lib();
-        print!("{:#?}", core);
+        let object = match core {
+            ValueContainer::Value(Value {
+                inner: CoreValue::Object(o),
+                ..
+            }) => o,
+            _ => panic!("Expected ValueContainer::Value"),
+        };
+        print!("{}", object);
     }
 
     #[test]
@@ -313,5 +383,10 @@ mod tests {
         let pointer_address: PointerAddress = decimal_id.clone().into();
         let converted_id: CoreLibPointerId = (&pointer_address).into();
         assert_eq!(decimal_id, converted_id);
+
+        let type_id = CoreLibPointerId::Type;
+        let pointer_address: PointerAddress = type_id.clone().into();
+        let converted_id: CoreLibPointerId = (&pointer_address).into();
+        assert_eq!(type_id, converted_id);
     }
 }
