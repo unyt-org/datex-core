@@ -1,9 +1,9 @@
-
-use std::fmt::Display;
+// deprecated - use Type in types instead
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::memory::Memory;
 use crate::values::core_value::CoreValue;
 use crate::values::value_container::ValueContainer;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NominalTypeIdentifier {
@@ -30,7 +30,9 @@ pub enum IllegalTypeError {
 impl Display for IllegalTypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IllegalTypeError::MutableRef(val) => write!(f, "Cannot use mutable reference as type: {}", val),
+            IllegalTypeError::MutableRef(val) => {
+                write!(f, "Cannot use mutable reference as type: {}", val)
+            }
         }
     }
 }
@@ -41,16 +43,21 @@ impl TryFrom<ValueContainer> for TypeNew {
     // TODO: for now, we accept any ValueContainer as a TypeNew. This might be restricted later.
     // For example, mutable references should not be allowed as types.
     fn try_from(value: ValueContainer) -> Result<Self, Self::Error> {
-
         // if value is a TypeTag and value is a reference, this is a nominal type - assign nominal_identifier
-        let nominal_identifier = if let ValueContainer::Reference(reference) = &value
-            && let CoreValue::TypeTag(tag) = &reference.data.borrow().resolve_current_value().borrow().inner {
-                Some(NominalTypeIdentifier {
-                    name: tag.name.clone(),
-                    path: None, // TODO: add path to TypeTag
-                })
-        }
-        else {
+        let nominal_identifier = if let ValueContainer::Reference(reference) =
+            &value
+            && let CoreValue::TypeTag(tag) = &reference
+                .data
+                .borrow()
+                .resolve_current_value()
+                .borrow()
+                .inner
+        {
+            Some(NominalTypeIdentifier {
+                name: tag.name.clone(),
+                path: None, // TODO: add path to TypeTag
+            })
+        } else {
             None
         };
 
@@ -105,21 +112,24 @@ impl TypeNew {
     }
 
     /// Matches a value against a v_type ValueContainer, which must be guaranteed to by a valid type
-    fn value_matches_type(value: &ValueContainer, v_type: &ValueContainer) -> bool {
+    fn value_matches_type(
+        value: &ValueContainer,
+        v_type: &ValueContainer,
+    ) -> bool {
         // TODO: handle value types here
         match &value.to_value().borrow().inner {
             // each possible value of a union type must match the type
-            CoreValue::Union(union) => {
-                union.options.iter().all(|option| TypeNew::value_matches_type(option, v_type))
-            }
+            CoreValue::Union(union) => union
+                .options
+                .iter()
+                .all(|option| TypeNew::value_matches_type(option, v_type)),
             _ => {
                 match &v_type.to_value().borrow().inner {
                     // union type matches if any of its options match
-                    CoreValue::Union(union) => {
-                        union.options.iter().any(|option|
-                            Self::value_matches_type(value, option)
-                        )
-                    }
+                    CoreValue::Union(union) => union
+                        .options
+                        .iter()
+                        .any(|option| Self::value_matches_type(value, option)),
                     _ => {
                         // atomic types match if their ValueContainer types are the same
                         TypeNew::value_matches_atomic_type(value, v_type)
@@ -130,26 +140,45 @@ impl TypeNew {
     }
 
     /// Matches a value against an atomic type (no intersection or union type)
-    pub fn value_matches_atomic_type(value: &ValueContainer, atomic_type: &ValueContainer) -> bool {
+    pub fn value_matches_atomic_type(
+        value: &ValueContainer,
+        atomic_type: &ValueContainer,
+    ) -> bool {
         if value == atomic_type {
             true
         }
         // check if value matches type base (e.g. 1 matches integer)
-        else if let ValueContainer::Reference(reference) = atomic_type &&
-            let Some(pointer_id) = reference.pointer_id() {
+        else if let ValueContainer::Reference(reference) = atomic_type
+            && let Some(pointer_id) = reference.pointer_id()
+        {
             match CoreLibPointerId::from(&pointer_id) {
-                CoreLibPointerId::Integer => matches!(value.to_value().borrow().inner, CoreValue::Integer(_)),
-                CoreLibPointerId::Decimal => matches!(value.to_value().borrow().inner, CoreValue::Decimal(_)),
-                CoreLibPointerId::Boolean => matches!(value.to_value().borrow().inner, CoreValue::Boolean(_)),
-                CoreLibPointerId::Text => matches!(value.to_value().borrow().inner, CoreValue::Text(_)),
-                CoreLibPointerId::Null => matches!(value.to_value().borrow().inner, CoreValue::Null),
-                CoreLibPointerId::Endpoint => matches!(value.to_value().borrow().inner, CoreValue::Endpoint(_)),
+                CoreLibPointerId::Integer => matches!(
+                    value.to_value().borrow().inner,
+                    CoreValue::Integer(_)
+                ),
+                CoreLibPointerId::Decimal => matches!(
+                    value.to_value().borrow().inner,
+                    CoreValue::Decimal(_)
+                ),
+                CoreLibPointerId::Boolean => matches!(
+                    value.to_value().borrow().inner,
+                    CoreValue::Boolean(_)
+                ),
+                CoreLibPointerId::Text => matches!(
+                    value.to_value().borrow().inner,
+                    CoreValue::Text(_)
+                ),
+                CoreLibPointerId::Null => {
+                    matches!(value.to_value().borrow().inner, CoreValue::Null)
+                }
+                CoreLibPointerId::Endpoint => matches!(
+                    value.to_value().borrow().inner,
+                    CoreValue::Endpoint(_)
+                ),
                 _ => false,
             }
-        }
-        else {
+        } else {
             false
         }
     }
 }
-
