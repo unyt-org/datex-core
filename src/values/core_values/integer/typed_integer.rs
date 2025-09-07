@@ -11,6 +11,7 @@ use crate::values::{
     value_container::{ValueContainer, ValueError},
 };
 use core::panic;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::{
     fmt::Display,
     hash::Hash,
@@ -23,11 +24,22 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
 /// Note that changing the enum variants will change
 /// the way integers are parsed in DATEX scripts.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    EnumString,
+    EnumIter,
+    AsRefStr,
+    IntoPrimitive,
+    TryFromPrimitive,
 )]
+#[repr(u8)]
 #[strum(serialize_all = "lowercase")]
 pub enum IntegerTypeVariant {
-    U8,
+    U8 = 1,
     U16,
     U32,
     U64,

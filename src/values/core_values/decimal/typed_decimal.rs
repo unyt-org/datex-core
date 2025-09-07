@@ -3,6 +3,7 @@ use crate::values::core_values::error::NumberParseError;
 use crate::values::{
     core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
 };
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
@@ -20,11 +21,22 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
 /// Note that changing the enum variants will change
 /// the way decimals are parsed in DATEX scripts.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    EnumString,
+    EnumIter,
+    AsRefStr,
+    IntoPrimitive,
+    TryFromPrimitive,
 )]
 #[strum(serialize_all = "lowercase")]
+#[repr(u8)]
 pub enum DecimalTypeVariant {
-    F32,
+    F32 = 1,
     F64,
     Big,
 }
