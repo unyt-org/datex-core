@@ -406,16 +406,16 @@ impl<'a> CompilationContext<'a> {
     }
 
     // TODO: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
-    pub fn insert_union(&self, union: &Union) {
-        // insert values as nested UNION binary operations
+    // pub fn insert_union(&self, union: &Union) {
+    //     // insert values as nested UNION binary operations
 
-        self.append_binary_code(InstructionCode::UNION);
-        // insert first value
-        self.insert_value_container(&union.options[0]);
+    //     self.append_binary_code(InstructionCode::UNION);
+    //     // insert first value
+    //     self.insert_value_container(&union.options[0]);
 
-        // insert rest of values recursively
-        self.insert_union_options(union.options[1..].to_vec());
-    }
+    //     // insert rest of values recursively
+    //     self.insert_union_options(union.options[1..].to_vec());
+    // }
 
     fn insert_union_options(&self, options: Vec<ValueContainer>) {
         // directly insert value if only one option left
