@@ -1,4 +1,5 @@
 pub mod array;
+pub mod list;
 pub mod assignment_operation;
 pub mod atom;
 pub mod binary_operation;
@@ -42,16 +43,17 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::object::Object;
+use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::{compiler::lexer::Token, values::core_values::array::Array};
+use crate::{compiler::lexer::Token, values::core_values::list::List};
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
+use crate::ast::list::list;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
@@ -158,8 +160,12 @@ pub enum DatexExpression {
     Endpoint(Endpoint),
     /// Array, e.g  `[1, 2, 3, "text"]`
     Array(Vec<DatexExpression>),
-    /// Object, e.g {"key": "value", key2: 2}
-    Object(Vec<(DatexExpression, DatexExpression)>),
+    /// List, e.g  `List [1, 2, 3, "text"]`
+    List(Vec<DatexExpression>),
+    /// Struct, e.g {"key": "value", key2: 2, xy: 10}
+    Struct(Vec<(String, DatexExpression)>),
+    /// Map, e.g Map {"key": "value", (10): 2, (y): 20}
+    Map(Vec<(DatexExpression, DatexExpression)>),
     /// Tuple, e.g (1: 2, 3: 4, "xy") or without brackets: 1,2,a:3
     Tuple(Vec<TupleEntry>),
     /// One or more statements, e.g (1; 2; 3)
@@ -252,26 +258,22 @@ impl TryFrom<&DatexExpression> for ValueContainer {
             DatexExpression::Decimal(d) => ValueContainer::from(d.clone()),
             DatexExpression::Integer(i) => ValueContainer::from(i.clone()),
             DatexExpression::Endpoint(e) => ValueContainer::from(e.clone()),
-            DatexExpression::Array(arr) => {
+            DatexExpression::List(arr) => {
                 let entries = arr
                     .iter()
                     .map(ValueContainer::try_from)
                     .collect::<Result<Vec<ValueContainer>, ()>>()?;
-                ValueContainer::from(Array::from(entries))
+                ValueContainer::from(List::from(entries))
             }
-            DatexExpression::Object(obj) => {
+            DatexExpression::Struct(obj) => {
                 let entries = obj
                     .iter()
                     .map(|(k, v)| {
-                        let key = match k {
-                            DatexExpression::Text(s) => s,
-                            _ => Err(())?,
-                        };
                         let value = ValueContainer::try_from(v)?;
-                        Ok((key.clone(), value))
+                        Ok((k.clone(), value))
                     })
                     .collect::<Result<HashMap<String, ValueContainer>, ()>>()?;
-                ValueContainer::from(Object::from(entries))
+                ValueContainer::from(Map::from(entries))
             }
             _ => Err(())?,
         })
@@ -352,8 +354,10 @@ where
     // [1,2,3,4,13434,(1),4,5,7,8]
     let array = array(expression_without_tuple.clone());
 
+    let list = list(expression_without_tuple.clone());
+
     // object
-    let object = object(key.clone(), expression_without_tuple.clone());
+    let object = object(expression_without_tuple.clone());
 
     // tuple
     // Key-value pair
@@ -367,6 +371,7 @@ where
     let chain = chain(
         unary.clone(),
         key.clone(),
+        list.clone(),
         array.clone(),
         object.clone(),
         wrapped_expression.clone(),
@@ -583,21 +588,21 @@ mod tests {
 
         assert_eq!(
             json,
-            DatexExpression::Object(vec![
+            DatexExpression::Struct(vec![
                 (
-                    DatexExpression::Text("name".to_string()),
+                    "name".to_string(),
                     DatexExpression::Text("Test".to_string())
                 ),
                 (
-                    DatexExpression::Text("value".to_string()),
+                    "value".to_string(),
                     DatexExpression::Integer(Integer::from(42))
                 ),
                 (
-                    DatexExpression::Text("active".to_string()),
+                    "active".to_string(),
                     DatexExpression::Boolean(true)
                 ),
                 (
-                    DatexExpression::Text("items".to_string()),
+                    "items".to_string(),
                     DatexExpression::Array(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
@@ -608,10 +613,10 @@ mod tests {
                     ])
                 ),
                 (
-                    DatexExpression::Text("nested".to_string()),
-                    DatexExpression::Object(
+                    "nested".to_string(),
+                    DatexExpression::Struct(
                         vec![(
-                            DatexExpression::Text("key".to_string()),
+                            "key".to_string(),
                             DatexExpression::Text("value".to_string())
                         )]
                         .into_iter()
@@ -1085,7 +1090,7 @@ mod tests {
                         None,
                     ),
                 ),
-                ApplyOperation::FunctionCall(DatexExpression::Object(vec![])),
+                ApplyOperation::FunctionCall(DatexExpression::Struct(vec![])),
             ],
         );
         assert_eq!(parse_unwrap("User<integer/u8> {}"), expected);
@@ -1268,13 +1273,13 @@ mod tests {
                 id: None,
                 generic: None,
                 name: "User".to_string(),
-                value: Box::new(DatexExpression::Object(vec![
+                value: Box::new(DatexExpression::Struct(vec![
                     (
-                        DatexExpression::Text("name".to_string()),
+                        "name".to_string(),
                         DatexExpression::Literal("text".to_owned())
                     ),
                     (
-                        DatexExpression::Text("friends".to_string()),
+                        "friends".to_string(),
                         DatexExpression::RefMut(Box::new(
                             DatexExpression::ApplyChain(
                                 Box::new(DatexExpression::Literal(
@@ -1304,7 +1309,7 @@ mod tests {
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::Literal("User".to_string())),
                     vec![ApplyOperation::FunctionCall(
-                        DatexExpression::Object(vec![])
+                        DatexExpression::Struct(vec![])
                     )]
                 )),
             )
@@ -1857,7 +1862,7 @@ mod tests {
         let src = "{}";
         let obj = parse_unwrap(src);
 
-        assert_eq!(obj, DatexExpression::Object(vec![]));
+        assert_eq!(obj, DatexExpression::Struct(vec![]));
     }
 
     #[test]
@@ -1995,17 +2000,17 @@ mod tests {
 
         assert_eq!(
             obj,
-            DatexExpression::Object(vec![
+            DatexExpression::Struct(vec![
                 (
-                    DatexExpression::Text("key1".to_string()),
+                    "key1".to_string(),
                     DatexExpression::Text("value1".to_string())
                 ),
                 (
-                    DatexExpression::Text("key2".to_string()),
+                    "key2".to_string(),
                     DatexExpression::Integer(Integer::from(42))
                 ),
                 (
-                    DatexExpression::Text("key3".to_string()),
+                    "key3".to_string(),
                     DatexExpression::Boolean(true)
                 ),
             ])
@@ -2013,12 +2018,12 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_object_keys() {
-        let src = r#"{(1): "value1", (2): 42, (3): true}"#;
+    fn dynamic_map_keys() {
+        let src = r#"Map {(1): "value1", (2): 42, (3): true}"#;
         let obj = parse_unwrap(src);
         assert_eq!(
             obj,
-            DatexExpression::Object(vec![
+            DatexExpression::Map(vec![
                 (
                     DatexExpression::Integer(Integer::from(1)),
                     DatexExpression::Text("value1".to_string())
@@ -2348,8 +2353,8 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Object(vec![(
-                DatexExpression::Text("key".to_string()),
+            DatexExpression::Struct(vec![(
+                "key".to_string(),
                 DatexExpression::Statements(vec![
                     Statement {
                         expression: DatexExpression::Integer(Integer::from(1)),
@@ -2656,13 +2661,13 @@ mod tests {
                     id: None,
                     generic: None,
                     name: "User".to_string(),
-                    value: Box::new(DatexExpression::Object(vec![
+                    value: Box::new(DatexExpression::Struct(vec![
                         (
-                            DatexExpression::Text("age".to_string()),
+                            "age".to_string(),
                             DatexExpression::Integer(Integer::from(42))
                         ),
                         (
-                            DatexExpression::Text("name".to_string()),
+                            "name".to_string(),
                             DatexExpression::Text("John".to_string())
                         ),
                     ])),
@@ -2677,13 +2682,13 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Statements(vec![Statement {
-                expression: DatexExpression::Object(vec![
+                expression: DatexExpression::Struct(vec![
                     (
-                        DatexExpression::Text("type".to_string()),
+                        "type".to_string(),
                         DatexExpression::Integer(Integer::from(42))
                     ),
                     (
-                        DatexExpression::Text("name".to_string()),
+                        "name".to_string(),
                         DatexExpression::Text("John".to_string())
                     ),
                 ]),
@@ -3025,13 +3030,13 @@ mod tests {
             Decimal::from_string("0.5").unwrap().into(),
         ];
         let value_container_inner_object: ValueContainer =
-            ValueContainer::from(Object::from(
+            ValueContainer::from(Map::from(
                 vec![("key".to_string(), "value".to_string().into())]
                     .into_iter()
                     .collect::<HashMap<String, ValueContainer>>(),
             ));
         let value_container_object: ValueContainer =
-            ValueContainer::from(Object::from(
+            ValueContainer::from(Map::from(
                 vec![
                     ("name".to_string(), "Test".to_string().into()),
                     ("value".to_string(), Integer::from(42).into()),

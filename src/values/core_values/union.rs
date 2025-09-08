@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn union_creation() {
         let union = Union::new(
-            datex_array![Integer::from(1), Text::from("test")].into(),
+            datex_list![Integer::from(1), Text::from("test")].into(),
         );
         assert_eq!(union.len(), 2);
 
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn union_matches() {
         let union = Union::new(
-            datex_array![Integer::from(1), Text::from("test")].into(),
+            datex_list![Integer::from(1), Text::from("test")].into(),
         );
 
         // Positive tests
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn integer_and_typed_integer() {
         let union = Union::new(
-            datex_array![TypedInteger::from(1u8), Integer::from(1)].into(),
+            datex_list![TypedInteger::from(1u8), Integer::from(1)].into(),
         );
 
         assert_eq!(union.len(), 2);
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn typed() {
-        let union = Union::new(datex_array![integer()].into());
+        let union = Union::new(datex_list![integer()].into());
 
         assert_eq!(union.len(), 1);
         assert_eq!(union.to_string(), "integer");
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn type_and_value() {
         let union =
-            Union::new(datex_array![Integer::from(1), integer()].into());
+            Union::new(datex_list![Integer::from(1), integer()].into());
 
         assert_eq!(union.len(), 1);
 

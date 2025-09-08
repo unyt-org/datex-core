@@ -1,16 +1,16 @@
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{
-    CORE_LIB_TYPES, CoreLibPointerId, get_core_lib_value, null, object,
+    CoreLibPointerId, get_core_lib_value,
 };
-use crate::values::core_values::array::Array;
+use crate::values::core_values::list::List;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::object::Object;
+use crate::values::core_values::map::Map;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::core_values::r#type::Type;
@@ -49,8 +49,8 @@ pub enum CoreValue {
     TypedDecimal(TypedDecimal),
     Text(Text),
     Endpoint(Endpoint),
-    Array(Array),
-    Object(Object),
+    List(List),
+    Map(Map),
     Tuple(Tuple),
     Type(Type),
 }
@@ -98,8 +98,8 @@ impl StructuralEq for CoreValue {
             (CoreValue::Endpoint(a), CoreValue::Endpoint(b)) => {
                 a.structural_eq(b)
             }
-            (CoreValue::Array(a), CoreValue::Array(b)) => a.structural_eq(b),
-            (CoreValue::Object(a), CoreValue::Object(b)) => a.structural_eq(b),
+            (CoreValue::List(a), CoreValue::List(b)) => a.structural_eq(b),
+            (CoreValue::Map(a), CoreValue::Map(b)) => a.structural_eq(b),
             (CoreValue::Tuple(a), CoreValue::Tuple(b)) => a.structural_eq(b),
 
             _ => false,
@@ -130,7 +130,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
-        CoreValue::Array(vec.into())
+        CoreValue::List(vec.into())
     }
 }
 
@@ -139,7 +139,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        CoreValue::Array(Array(iter.into_iter().map(Into::into).collect()))
+        CoreValue::List(List(iter.into_iter().map(Into::into).collect()))
     }
 }
 
@@ -215,8 +215,8 @@ impl From<f64> for CoreValue {
 impl From<&CoreValue> for CoreLibPointerId {
     fn from(value: &CoreValue) -> Self {
         match value {
-            CoreValue::Object(_) => CoreLibPointerId::Object,
-            CoreValue::Array(_) => CoreLibPointerId::Array,
+            CoreValue::Map(_) => CoreLibPointerId::Struct,
+            CoreValue::List(_) => CoreLibPointerId::Array,
             CoreValue::Tuple(_) => todo!(),
             CoreValue::Text(_) => CoreLibPointerId::Text,
             CoreValue::Boolean(_) => CoreLibPointerId::Boolean,
@@ -248,7 +248,7 @@ impl CoreValue {
     pub fn is_combined_value(&self) -> bool {
         matches!(
             self,
-            CoreValue::Array(_) | CoreValue::Object(_) | CoreValue::Tuple(_)
+            CoreValue::List(_) | CoreValue::Map(_) | CoreValue::Tuple(_)
         )
     }
 
@@ -288,8 +288,8 @@ impl CoreValue {
             CoreValue::Text(_) => CoreValueType::Text,
             CoreValue::Null => CoreValueType::Null,
             CoreValue::Endpoint(_) => CoreValueType::Endpoint,
-            CoreValue::Array(_) => CoreValueType::Array,
-            CoreValue::Object(_) => CoreValueType::Object,
+            CoreValue::List(_) => CoreValueType::Array,
+            CoreValue::Map(_) => CoreValueType::Object,
             CoreValue::Tuple(_) => CoreValueType::Tuple,
             CoreValue::Integer(_) => CoreValueType::Integer,
             CoreValue::Decimal(_) => CoreValueType::Decimal,
@@ -322,10 +322,10 @@ impl CoreValue {
                 Some(CoreValue::Endpoint(self.cast_to_endpoint()?))
             }
             CoreValueType::Array => {
-                Some(CoreValue::Array(self.cast_to_array()?))
+                Some(CoreValue::List(self.cast_to_list()?))
             }
             CoreValueType::Object => {
-                Some(CoreValue::Object(self.cast_to_object()?))
+                Some(CoreValue::Map(self.cast_to_map()?))
             }
             CoreValueType::Tuple => {
                 Some(CoreValue::Tuple(self.cast_to_tuple()?))
@@ -411,26 +411,26 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_array(&self) -> Option<Array> {
+    pub fn cast_to_list(&self) -> Option<List> {
         match self {
-            CoreValue::Array(array) => Some(array.clone()),
+            CoreValue::List(list) => Some(list.clone()),
             _ => None,
         }
     }
 
-    pub fn cast_to_object(&self) -> Option<Object> {
+    pub fn cast_to_map(&self) -> Option<Map> {
         match self {
             CoreValue::Tuple(tuple) => {
-                Some(Object::from(tuple.entries.clone()))
+                Some(Map::from(tuple.entries.clone()))
             }
-            CoreValue::Object(object) => Some(object.clone()),
+            CoreValue::Map(map) => Some(map.clone()),
             _ => None,
         }
     }
 
     pub fn cast_to_tuple(&self) -> Option<Tuple> {
         match self {
-            CoreValue::Object(object) => Some(Tuple::from(object.0.clone())),
+            CoreValue::Map(map) => Some(Tuple::from(map.0.clone())),
             CoreValue::Tuple(tuple) => Some(tuple.clone()),
             _ => None,
         }
@@ -729,8 +729,8 @@ impl Display for CoreValue {
             CoreValue::Text(text) => write!(f, "{text}"),
             CoreValue::Null => write!(f, "null"),
             CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
-            CoreValue::Array(array) => write!(f, "{array}"),
-            CoreValue::Object(object) => write!(f, "{object}"),
+            CoreValue::List(array) => write!(f, "{array}"),
+            CoreValue::Map(map) => write!(f, "{map}"),
             CoreValue::Tuple(tuple) => write!(f, "{tuple}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),

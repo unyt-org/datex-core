@@ -238,10 +238,10 @@ where
 mod tests {
     use super::*;
     use crate::{
-        assert_structural_eq, datex_array,
+        assert_structural_eq, datex_list,
         logger::init_logger_debug,
         values::core_values::{
-            array::Array,
+            list::List,
             endpoint::Endpoint,
             integer::{integer::Integer, typed_integer::TypedInteger},
         },
@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn array() {
         init_logger_debug();
-        let mut a: Array = CoreValue::from(vec![
+        let mut a: List = CoreValue::from(vec![
             Value::from("42"),
             Value::from(42),
             Value::from(true),
@@ -297,10 +297,10 @@ mod tests {
 
         assert_eq!(a.len(), 5);
 
-        let b = Array::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        let b = List::from(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         assert_eq!(b.len(), 11);
 
-        let c = datex_array![1, "test", 3, true, false];
+        let c = datex_list![1, "test", 3, true, false];
         assert_eq!(c.len(), 5);
         assert_eq!(c[0], 1.into());
         assert_eq!(c[1], "test".into());

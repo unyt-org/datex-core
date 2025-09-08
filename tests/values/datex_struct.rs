@@ -24,7 +24,7 @@ fn datex_struct_simple() {
     assert_matches!(
         value_container,
         ValueContainer::Value(Value {
-            inner: CoreValue::Object(_),
+            inner: CoreValue::Map(_),
             ..
         })
     );
@@ -32,7 +32,7 @@ fn datex_struct_simple() {
     assert_matches!(
         value_container,
         ValueContainer::Value(Value {
-            inner: CoreValue::Object(_),
+            inner: CoreValue::Map(_),
             ..
         })
     );

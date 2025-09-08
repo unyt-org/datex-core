@@ -6,7 +6,7 @@ use datex_core::runtime::execution::{
 use datex_core::values::core_value::CoreValue;
 use datex_core::values::core_values::decimal::decimal::Decimal;
 use datex_core::values::core_values::integer::integer::Integer;
-use datex_core::values::core_values::object::Object;
+use datex_core::values::core_values::map::Map;
 use datex_core::values::value::Value;
 use datex_core::values::value_container::ValueContainer;
 use itertools::Itertools;
@@ -54,7 +54,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
                     )),
                 );
             }
-            Value::from(Object::from(map))
+            Value::from(Map::from(map))
         }
     }
 }

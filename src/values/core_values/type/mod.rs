@@ -7,8 +7,6 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
-use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::core_values::r#type::structural_type::StructuralType;

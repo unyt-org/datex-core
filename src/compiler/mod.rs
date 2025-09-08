@@ -503,10 +503,10 @@ fn compile_expression(
         DatexExpression::Null => {
             compilation_context.append_binary_code(InstructionCode::NULL);
         }
-        DatexExpression::Array(array) => {
+        DatexExpression::List(list) => {
             compilation_context
-                .append_binary_code(InstructionCode::ARRAY_START);
-            for item in array {
+                .append_binary_code(InstructionCode::LIST_START);
+            for item in list {
                 scope = compile_expression(
                     compilation_context,
                     AstWithMetadata::new(item, &metadata),
@@ -542,14 +542,14 @@ fn compile_expression(
             }
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
-        DatexExpression::Object(object) => {
+        DatexExpression::Struct(object) => {
             compilation_context
-                .append_binary_code(InstructionCode::OBJECT_START);
+                .append_binary_code(InstructionCode::RECORD_START);
             for (key, value) in object {
                 // compile key and value
                 scope = compile_key_value_entry(
                     compilation_context,
-                    key,
+                    DatexExpression::Text(key),
                     value,
                     &metadata,
                     scope,
@@ -1352,29 +1352,29 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // Test empty array
+    // Test empty list
     #[test]
-    fn empty_array() {
+    fn empty_list() {
         init_logger_debug();
-        let datex_script = "[]";
+        let datex_script = "List[]";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::ARRAY_START.into(),
+            InstructionCode::LIST_START.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
 
-    // Test array with single element
+    // Test list with single element
     #[test]
-    fn single_element_array() {
+    fn single_element_list() {
         init_logger_debug();
-        let datex_script = "[42]";
+        let datex_script = "List[42]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1382,16 +1382,16 @@ pub mod tests {
         );
     }
 
-    // Test array with multiple elements
+    // Test list with multiple elements
     #[test]
-    fn multi_element_array() {
+    fn multi_element_list() {
         init_logger_debug();
-        let datex_script = "[1, 2, 3]";
+        let datex_script = "List[1, 2, 3]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1403,19 +1403,19 @@ pub mod tests {
         );
     }
 
-    // Test nested arrays
+    // Test nested lists
     #[test]
-    fn nested_arrays() {
+    fn nested_lists() {
         init_logger_debug();
-        let datex_script = "[1, [2, 3], 4]";
+        let datex_script = "List[1, [2, 3], 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
@@ -1428,16 +1428,16 @@ pub mod tests {
         );
     }
 
-    // Test array with expressions inside
+    // Test list with expressions inside
     #[test]
-    fn array_with_expressions() {
+    fn list_with_expressions() {
         init_logger_debug();
-        let datex_script = "[1 + 2, 3 * 4]";
+        let datex_script = "List[1 + 2, 3 * 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 1,
@@ -1453,16 +1453,16 @@ pub mod tests {
         );
     }
 
-    // Test array with mixed expressions
+    // Test list with mixed expressions
     #[test]
-    fn array_with_mixed_expressions() {
+    fn list_with_mixed_expressions() {
         init_logger_debug();
-        let datex_script = "[1, 2, 3 + 4]";
+        let datex_script = "List[1, 2, 3 + 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1705,7 +1705,7 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::OBJECT_START.into(),
+            InstructionCode::RECORD_START.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
@@ -1718,7 +1718,7 @@ pub mod tests {
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::OBJECT_START.into(),
+            InstructionCode::RECORD_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1738,7 +1738,7 @@ pub mod tests {
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::OBJECT_START.into(),
+            InstructionCode::RECORD_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             4, // length of "key1"
             b'k',

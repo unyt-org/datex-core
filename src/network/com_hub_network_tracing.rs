@@ -3,7 +3,7 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::object::Object;
+use crate::values::core_values::map::Map;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use crate::decompiler::{decompile_body, DecompileOptions};
@@ -518,14 +518,14 @@ impl ComHub {
             .unwrap()
             .unwrap();
         if let ValueContainer::Value(Value {
-            inner: CoreValue::Array(array),
+            inner: CoreValue::List(array),
             ..
         }) = hops_datex
         {
             let mut hops: Vec<NetworkTraceHop> = vec![];
             for value in array {
                 if let ValueContainer::Value(Value {
-                    inner: CoreValue::Object(obj),
+                    inner: CoreValue::Map(obj),
                     ..
                 }) = value
                 {
@@ -543,7 +543,7 @@ impl ComHub {
                     let socket = obj.try_get("socket").unwrap();
                     let (interface_type, interface_name, channel, socket_uuid) =
                         if let ValueContainer::Value(Value {
-                            inner: CoreValue::Object(socket_obj),
+                            inner: CoreValue::Map(socket_obj),
                             ..
                         }) = socket
                         {
@@ -669,12 +669,12 @@ impl ComHub {
         let mut hops_datex = Vec::<ValueContainer>::new();
 
         for hop in hops {
-            let mut data_obj = Object::default();
+            let mut data_obj = Map::default();
 
             data_obj.set("endpoint", hop.endpoint);
             data_obj.set("distance", hop.distance);
 
-            let mut socket_obj = Object::default();
+            let mut socket_obj = Map::default();
             socket_obj.set("interface_type", hop.socket.interface_type);
             socket_obj.set("interface_name", hop.socket.interface_name);
             socket_obj.set("channel", hop.socket.channel);

@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
 
+// FIXME: restrict tuple keys to Integer and String only
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Tuple {
     pub entries: IndexMap<ValueContainer, ValueContainer>,

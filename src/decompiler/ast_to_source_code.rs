@@ -54,8 +54,11 @@ pub fn ast_to_source_code(
         DatexExpression::Tuple(tuple) => {
             tuple_to_source_code(tuple, decompile_options)
         }
-        DatexExpression::Object(obj) => {
-            object_to_source_code(obj, decompile_options)
+        DatexExpression::Struct(structure) => {
+            todo!("struct_to_source_code not implemented")
+        }
+        DatexExpression::Map(map) => {
+            map_to_source_code(map, decompile_options)
         }
         DatexExpression::Ref(expr) => {
             format!("&{}", ast_to_source_code(expr, decompile_options))
@@ -168,7 +171,7 @@ fn tuple_to_source_code(
 }
 
 /// Converts the contents of a DatexExpression::Object into source code
-fn object_to_source_code(
+fn map_to_source_code(
     obj: &[(DatexExpression, DatexExpression)],
     decompile_options: &DecompileOptions,
 ) -> String {

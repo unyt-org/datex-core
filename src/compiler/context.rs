@@ -238,15 +238,15 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Text(val) => {
                 self.insert_text(&val.0.clone());
             }
-            CoreValue::Array(val) => {
-                self.append_binary_code(InstructionCode::ARRAY_START);
+            CoreValue::List(val) => {
+                self.append_binary_code(InstructionCode::LIST_START);
                 for item in val {
                     self.insert_value_container(item);
                 }
                 self.append_binary_code(InstructionCode::SCOPE_END);
             }
-            CoreValue::Object(val) => {
-                self.append_binary_code(InstructionCode::OBJECT_START);
+            CoreValue::Map(val) => {
+                self.append_binary_code(InstructionCode::RECORD_START);
                 // println!("Object: {val:?}");
                 for (key, value) in val {
                     self.insert_key_string(key);

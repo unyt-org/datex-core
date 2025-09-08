@@ -2,8 +2,8 @@ use crate::ast::DatexExpression;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
-use crate::values::core_values::array::Array;
-use crate::values::core_values::object::Object;
+use crate::values::core_values::list::List;
+use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::structural_type::StructuralType;
 use crate::values::type_container::TypeContainer;
@@ -33,26 +33,39 @@ fn infer_expression_type(
             Some(TypeContainer::Type(value))
         }
         // composite values
-        DatexExpression::Object(obj) => {
-            let entries = obj
+        DatexExpression::Map(map) => {
+            todo!()
+            // let entries = map
+            //     .iter_mut()
+            //     .map(|(k, v)| {
+            //         // TODO: is unwrap safe here?
+            //         let value =
+            //             infer_expression_type(v, runtime).unwrap().unwrap();
+            //         let key =
+            //             infer_expression_type(k, runtime).unwrap().unwrap();
+            //         Ok((key, value))
+            //     })
+            //     // TODO: is unwrap safe here?
+            //     .collect::<Result<Vec<(_, _)>, ()>>()
+            //     .unwrap();
+            // Some(TypeContainer::Type(Type::structural(
+            //     StructuralType::Map(entries),
+            // )))
+        }
+        DatexExpression::Struct(structure) => {
+            let entries = structure
                 .iter_mut()
                 .map(|(k, v)| {
-                    let key = match k {
-                        DatexExpression::Text(s) => s,
-                        _ => Err(())?,
-                    };
                     // TODO: is unwrap safe here?
                     let value =
                         infer_expression_type(v, runtime).unwrap().unwrap();
-                    let key =
-                        infer_expression_type(k, runtime).unwrap().unwrap();
-                    Ok((key, value))
+                    Ok((k.clone(), value))
                 })
                 // TODO: is unwrap safe here?
                 .collect::<Result<Vec<(_, _)>, ()>>()
                 .unwrap();
             Some(TypeContainer::Type(Type::structural(
-                StructuralType::Object(entries),
+                StructuralType::Struct(entries),
             )))
         }
         DatexExpression::Array(arr) => {
@@ -139,11 +152,11 @@ fn infer_binary_expression_type(
 mod tests {
     use super::*;
     use crate::values::core_value::CoreValue;
-    use crate::values::core_values::array::Array;
+    use crate::values::core_values::list::List;
     use crate::values::core_values::integer::integer::Integer;
     use datex_core::runtime::RuntimeConfig;
     use datex_core::values::core_values::decimal::decimal::Decimal;
-    use datex_core::values::core_values::object::Object;
+    use datex_core::values::core_values::map::Map;
 
     fn infer_get_type(expr: &mut DatexExpression, runtime: &Runtime) -> Type {
         infer_expression_type(expr, runtime)
@@ -204,7 +217,7 @@ mod tests {
                 ]),
                 &runtime
             ),
-            Type::from(CoreValue::from(Array::from_iter([
+            Type::from(CoreValue::from(List::from_iter([
                 ValueContainer::from(Integer::from(1)),
                 ValueContainer::from(Integer::from(2)),
                 ValueContainer::from(Integer::from(3))
@@ -213,13 +226,13 @@ mod tests {
 
         assert_eq!(
             infer_get_type(
-                &mut DatexExpression::Object(vec![(
-                    DatexExpression::Text("a".to_string()),
+                &mut DatexExpression::Struct(vec![(
+                    "a".to_string(),
                     DatexExpression::Integer(Integer::from(1))
                 )]),
                 &runtime
             ),
-            Type::from(CoreValue::from(Object::from_iter(vec![(
+            Type::from(CoreValue::from(Map::from_iter(vec![(
                 "a".to_string(),
                 ValueContainer::from(Integer::from(1))
             )])))
@@ -280,7 +293,7 @@ mod tests {
                 ]),
                 &runtime
             ),
-            Type::from(CoreValue::from(Array::from_iter([
+            Type::from(CoreValue::from(List::from_iter([
                 ValueContainer::from(Integer::from(1)),
                 ValueContainer::from(Integer::from(2)),
                 ValueContainer::from(Integer::from(3))
@@ -289,13 +302,13 @@ mod tests {
 
         assert_eq!(
             infer_get_type(
-                &mut DatexExpression::Object(vec![(
-                    DatexExpression::Text("a".to_string()),
+                &mut DatexExpression::Struct(vec![(
+                    "a".to_string(),
                     DatexExpression::Integer(Integer::from(1))
                 )]),
                 &runtime
             ),
-            Type::from(CoreValue::from(Object::from_iter(vec![(
+            Type::from(CoreValue::from(Map::from_iter(vec![(
                 "a".to_string(),
                 ValueContainer::from(Integer::from(1))
             )])))

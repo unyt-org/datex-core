@@ -7,7 +7,7 @@ use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::reference::Reference;
 use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
-use datex_core::values::core_values::object::Object;
+use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
 use std::cell::RefCell;
@@ -31,7 +31,7 @@ pub enum CoreLibPointerId {
     Text,                                // #core.text
     Endpoint,                            // #core.Endpoint
     Array,                               // #core.Array
-    Object,                              // #core.Object
+    Struct,                              // #core.Struct
     Function,                            // #core.Function
 }
 
@@ -45,7 +45,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Null => 1,
             CoreLibPointerId::Type => 2,
             CoreLibPointerId::Boolean => 3,
-            CoreLibPointerId::Object => 4,
+            CoreLibPointerId::Struct => 4,
             CoreLibPointerId::Function => 5,
             CoreLibPointerId::Array => 6,
             CoreLibPointerId::Endpoint => 7,
@@ -69,7 +69,7 @@ impl CoreLibPointerId {
             1 => Some(CoreLibPointerId::Null),
             2 => Some(CoreLibPointerId::Type),
             3 => Some(CoreLibPointerId::Boolean),
-            4 => Some(CoreLibPointerId::Object),
+            4 => Some(CoreLibPointerId::Struct),
             5 => Some(CoreLibPointerId::Function),
             6 => Some(CoreLibPointerId::Array),
             7 => Some(CoreLibPointerId::Endpoint),
@@ -138,7 +138,7 @@ where
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
     CORE_LIB_TYPES.with(|core| {
-        let object = core
+        let structure = core
             .values()
             .map(|def| match def {
                 TypeContainer::TypeReference(def) => {
@@ -155,10 +155,10 @@ pub fn load_core_lib(memory: &mut Memory) {
                 _ => panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
-        let core_object =
-            Reference::from(ValueContainer::from(Object::from_iter(object)));
-        core_object.set_pointer_address(CoreLibPointerId::Core.into());
-        memory.register_reference(core_object);
+        let core_struct =
+            Reference::from(ValueContainer::from(Map::from_iter(structure)));
+        core_struct.set_pointer_address(CoreLibPointerId::Core.into());
+        memory.register_reference(core_struct);
     });
 }
 
@@ -178,7 +178,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
             DecimalTypeVariant::iter()
                 .map(|variant| decimal_variant(decimal.1.clone(), variant)),
         )
-        .chain(vec![r#type(), object(), object(), boolean(), endpoint()])
+        .chain(vec![r#type(), structure(), structure(), boolean(), endpoint()])
         .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
 
@@ -189,8 +189,8 @@ pub fn r#type() -> CoreLibTypeDefinition {
 pub fn null() -> CoreLibTypeDefinition {
     create_core_type("null", None, None, CoreLibPointerId::Null)
 }
-pub fn object() -> CoreLibTypeDefinition {
-    create_core_type("object", None, None, CoreLibPointerId::Object)
+pub fn structure() -> CoreLibTypeDefinition {
+    create_core_type("Struct", None, None, CoreLibPointerId::Struct)
 }
 
 pub fn boolean() -> CoreLibTypeDefinition {
@@ -274,7 +274,7 @@ mod tests {
         assert!(has_core_lib_value(CoreLibPointerId::Endpoint));
         assert!(has_core_lib_value(CoreLibPointerId::Null));
         assert!(has_core_lib_value(CoreLibPointerId::Boolean));
-        assert!(has_core_lib_value(CoreLibPointerId::Object));
+        assert!(has_core_lib_value(CoreLibPointerId::Struct));
         assert!(has_core_lib_value(CoreLibPointerId::Integer(None)));
         assert!(has_core_lib_value(CoreLibPointerId::Decimal(None)));
         for variant in IntegerTypeVariant::iter() {

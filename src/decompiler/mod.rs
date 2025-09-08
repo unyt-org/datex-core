@@ -143,8 +143,8 @@ pub enum ScopeType {
     #[default]
     Default,
     Tuple,
-    Array,
-    Object,
+    List,
+    Record,
     SlotAssignment,
     Transparent,
 }
@@ -159,15 +159,15 @@ impl ScopeType {
         match self {
             ScopeType::Default => write!(output, "(")?,
             ScopeType::Tuple => write!(output, "(")?,
-            ScopeType::Array => write!(output, "[")?,
-            ScopeType::Object => write!(output, "{{")?,
+            ScopeType::List => write!(output, "[")?,
+            ScopeType::Record => write!(output, "{{")?,
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have a start
             }
             ScopeType::Transparent => {}
         }
         match self {
-            ScopeType::Default | ScopeType::Tuple | ScopeType::Array | ScopeType::Object => {
+            ScopeType::Default | ScopeType::Tuple | ScopeType::List | ScopeType::Record => {
                 match formatting {
                     Formatting::Multiline { indent } => {
                         write!(output, "\r\n")?;
@@ -189,7 +189,7 @@ impl ScopeType {
         indentation_levels: usize,
     ) -> Result<(), DXBParserError> {
         match self {
-            ScopeType::Default | ScopeType::Tuple | ScopeType::Array | ScopeType::Object => {
+            ScopeType::Default | ScopeType::Tuple | ScopeType::List | ScopeType::Record => {
                 match formatting {
                     Formatting::Multiline { indent } => {
                         write!(output, "\r\n")?;
@@ -205,8 +205,8 @@ impl ScopeType {
         match self {
             ScopeType::Default => write!(output, ")")?,
             ScopeType::Tuple => write!(output, ")")?,
-            ScopeType::Array => write!(output, "]")?,
-            ScopeType::Object => write!(output, "}}")?,
+            ScopeType::List => write!(output, "]")?,
+            ScopeType::Record => write!(output, "}}")?,
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have an end
             }
@@ -225,7 +225,7 @@ struct ScopeState {
     scope_type: (ScopeType, bool),
     /// skip inserted comma for next item (already inserted before key)
     skip_comma_for_next_item: bool,
-    /// set to true if next item is a key (e.g. in object)
+    /// set to true if next item is a key (e.g. in map)
     next_item_is_key: bool,
     /// set to true if the current active scope should be closed after the next term
     close_scope_after_term: bool,
@@ -454,16 +454,16 @@ fn decompile_loop(
                 write!(output, ")")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::ArrayStart => {
+            Instruction::ListStart => {
                 indentation_levels += 1;
                 handle_before_term(state, &mut output, false, indentation_levels)?;
-                state.new_scope(ScopeType::Array);
+                state.new_scope(ScopeType::List);
                 state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
-            Instruction::ObjectStart => {
+            Instruction::MapStart => {
                 indentation_levels += 1;
                 handle_before_term(state, &mut output, false, indentation_levels)?;
-                state.new_scope(ScopeType::Object);
+                state.new_scope(ScopeType::Record);
                 state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
             Instruction::TupleStart => {
@@ -479,13 +479,13 @@ fn decompile_loop(
                 state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
             Instruction::ScopeEnd => {
-                let current_scope_is_array_object_tuple = matches!(
+                let current_scope_is_list_record_tuple = matches!(
                     state.get_current_scope().scope_type.0,
-                    ScopeType::Array | ScopeType::Object | ScopeType::Tuple
+                    ScopeType::List | ScopeType::Record | ScopeType::Tuple
                 );
                 handle_scope_close(state, &mut output, indentation_levels)?;
                 handle_after_term(state, &mut output, true)?;
-                if current_scope_is_array_object_tuple {
+                if current_scope_is_list_record_tuple {
                     indentation_levels = indentation_levels.saturating_sub(1);
                 }
             }
@@ -843,7 +843,7 @@ fn handle_before_item(
             // if first is true, set to false
             scope.scope_type.1 = false;
         }
-        (ScopeType::Array | ScopeType::Object | ScopeType::Tuple, false)
+        (ScopeType::List | ScopeType::Record | ScopeType::Tuple, false)
             if !scope.skip_comma_for_next_item =>
         {
             match formatted {

@@ -53,8 +53,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
             DatexExpression::Endpoint(endpoint.clone())
         }
         CoreValue::Null => DatexExpression::Null,
-        CoreValue::Array(array) => DatexExpression::Array(
-            array.into_iter().map(DatexExpression::from).collect(),
+        CoreValue::List(list) => DatexExpression::Array(
+            list.into_iter().map(DatexExpression::from).collect(),
         ),
         CoreValue::Tuple(tuple) => {
             DatexExpression::Tuple(
@@ -82,12 +82,12 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
                     .collect(),
             )
         }
-        CoreValue::Object(object) => DatexExpression::Object(
-            object
+        CoreValue::Map(map) => DatexExpression::Struct(
+            map
                 .into_iter()
                 .map(|(key, value)| {
                     (
-                        DatexExpression::Text(key.clone()),
+                        key.clone(),
                         DatexExpression::from(value),
                     )
                 })

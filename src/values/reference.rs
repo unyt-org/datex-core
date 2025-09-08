@@ -353,7 +353,7 @@ impl Reference {
 
         self.with_value(|value| {
             match value.inner {
-                CoreValue::Object(ref mut obj) => {
+                CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
                     obj.set(key, self.bind_child(val));
                 }
@@ -376,7 +376,7 @@ impl Reference {
     ) -> Result<Option<ValueContainer>, AccessError> {
         self.with_value(|value| {
             match value.inner {
-                CoreValue::Object(ref mut obj) => {
+                CoreValue::Map(ref mut obj) => {
                     // If the value is an object, get the property
                     Ok(obj.try_get(key).cloned())
                 }
@@ -417,7 +417,7 @@ impl Reference {
     pub fn upgrade_inner_combined_values_to_references(&self) {
         self.with_value(|value| {
             match &mut value.inner {
-                CoreValue::Object(obj) => {
+                CoreValue::Map(obj) => {
                     // Iterate over all properties and upgrade them to references
                     for (_, prop) in obj.iter_mut() {
                         // TODO: no clone here, implement some sort of map
@@ -518,7 +518,7 @@ mod tests {
     use crate::ast::DatexExpression::Ref;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
-    use datex_core::values::core_values::object::Object;
+    use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;
 
     #[test]
@@ -565,15 +565,15 @@ mod tests {
 
     #[test]
     fn nested_references() {
-        let mut object_a = Object::new();
+        let mut object_a = Map::new();
         object_a.set("number", ValueContainer::from(42));
-        object_a.set("obj", ValueContainer::from(Object::new()));
+        object_a.set("obj", ValueContainer::from(Map::new()));
 
         // construct object_a as a value first
         let object_a_val = ValueContainer::new_value(object_a);
 
         // create object_b as a reference
-        let object_b_ref = ValueContainer::new_reference(Object::new());
+        let object_b_ref = ValueContainer::new_reference(Map::new());
 
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference

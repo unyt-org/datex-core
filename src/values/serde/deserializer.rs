@@ -179,14 +179,14 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     let endpoint_str = endpoint.to_string();
                     visitor.visit_string(endpoint_str)
                 }
-                CoreValue::Object(obj) => {
+                CoreValue::Map(obj) => {
                     let map = obj
                         .into_iter()
                         .map(|(k, v)| (k, DatexDeserializer::from_value(v)));
                     visitor
                         .visit_map(serde::de::value::MapDeserializer::new(map))
                 }
-                CoreValue::Array(arr) => {
+                CoreValue::List(arr) => {
                     let vec =
                         arr.into_iter().map(DatexDeserializer::from_value);
                     visitor
@@ -260,7 +260,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
         } else if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Object(o),
+            inner: CoreValue::Map(o),
             ..
         }) = &self.value
         {
@@ -298,13 +298,13 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         V: Visitor<'de>,
     {
         if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Object(obj),
+            inner: CoreValue::Map(obj),
             ..
         }) = self.value
         {
             if let Some(value) = obj.try_get(name) {
                 if let ValueContainer::Value(value::Value {
-                    inner: CoreValue::Array(t),
+                    inner: CoreValue::List(t),
                     ..
                 }) = value
                 {
@@ -378,7 +378,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
 
             // Single-key object {"Identifier": ...}
             ValueContainer::Value(value::Value {
-                inner: CoreValue::Object(o),
+                inner: CoreValue::Map(o),
                 ..
             }) => {
                 if o.size() == 1 {
@@ -452,7 +452,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
 
             // Object with single key = variant name
             ValueContainer::Value(value::Value {
-                inner: CoreValue::Object(o),
+                inner: CoreValue::Map(o),
                 ..
             }) => {
                 if o.size() != 1 {

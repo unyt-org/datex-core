@@ -4,11 +4,20 @@ use crate::ast::{DatexExpression, DatexParserTrait};
 use crate::compiler::lexer::Token;
 
 use chumsky::prelude::*;
+use crate::ast::text::{unescape_text};
 
 pub fn object<'a>(
-    key: impl DatexParserTrait<'a>,
     expression_without_tuple: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
+    let key = choice((
+        select! {
+            Token::StringLiteral(s) => unescape_text(&s)
+        },
+        // any valid identifiers (equivalent to variable names), mapped to a text
+        select! {
+            Token::Identifier(s) => s
+        },
+    ));
     key.then_ignore(just(Token::Colon).padded_by(whitespace()))
         .then(expression_without_tuple.clone())
         .separated_by(just(Token::Comma).padded_by(whitespace()))
@@ -17,7 +26,7 @@ pub fn object<'a>(
         .collect()
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
-        .map(DatexExpression::Object)
+        .map(DatexExpression::Struct)
         .labelled(Pattern::Custom("object"))
         .as_context()
 }

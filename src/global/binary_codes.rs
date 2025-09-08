@@ -249,9 +249,9 @@ pub enum InstructionCode {
 
     TIME, // ~2022-10-10~
 
-    // arrays, objects and tuples 0xe0 - 0xef
-    ARRAY_START,  // array / or array
-    OBJECT_START, // {}
+    // lists, records and tuples 0xe0 - 0xef
+    LIST_START,  // list []
+    RECORD_START, // record {}
     TUPLE_START,  // (a,b,c)
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key

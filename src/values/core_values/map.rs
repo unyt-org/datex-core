@@ -9,10 +9,10 @@ use std::hash::{Hash, Hasher};
 use std::iter::zip;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Object(pub IndexMap<String, ValueContainer>);
-impl Object {
+pub struct Map(pub IndexMap<String, ValueContainer>);
+impl Map {
     pub fn new() -> Self {
-        Object(IndexMap::new())
+        Map(IndexMap::new())
     }
     pub fn size(&self) -> usize {
         self.0.len()
@@ -73,7 +73,7 @@ impl Object {
     }
 }
 
-impl StructuralEq for Object {
+impl StructuralEq for Map {
     fn structural_eq(&self, other: &Self) -> bool {
         if self.size() != other.size() {
             return false;
@@ -88,7 +88,7 @@ impl StructuralEq for Object {
     }
 }
 
-impl Hash for Object {
+impl Hash for Map {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for (k, v) in &self.0 {
             // fixme #122: sort keys to ensure consistent hashing
@@ -98,9 +98,9 @@ impl Hash for Object {
     }
 }
 
-impl CoreValueTrait for Object {}
+impl CoreValueTrait for Map {}
 
-impl fmt::Display for Object {
+impl fmt::Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{")?;
         for (i, (key, value)) in self.0.iter().enumerate() {
@@ -113,25 +113,25 @@ impl fmt::Display for Object {
     }
 }
 
-impl<T> From<HashMap<String, T>> for Object
+impl<T> From<HashMap<String, T>> for Map
 where
     T: Into<ValueContainer>,
 {
     fn from(map: HashMap<String, T>) -> Self {
-        Object(map.into_iter().map(|(k, v)| (k, v.into())).collect())
+        Map(map.into_iter().map(|(k, v)| (k, v.into())).collect())
     }
 }
 
-impl<T> FromIterator<(String, T)> for Object
+impl<T> FromIterator<(String, T)> for Map
 where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = (String, T)>>(iter: I) -> Self {
-        Object(iter.into_iter().map(|(k, v)| (k, v.into())).collect())
+        Map(iter.into_iter().map(|(k, v)| (k, v.into())).collect())
     }
 }
 
-impl IntoIterator for Object {
+impl IntoIterator for Map {
     type Item = (String, ValueContainer);
     type IntoIter = IntoIter<String, ValueContainer>;
 
@@ -140,7 +140,7 @@ impl IntoIterator for Object {
     }
 }
 
-impl<'a> IntoIterator for &'a Object {
+impl<'a> IntoIterator for &'a Map {
     type Item = (&'a String, &'a ValueContainer);
     type IntoIter = Iter<'a, String, ValueContainer>;
 
@@ -149,8 +149,8 @@ impl<'a> IntoIterator for &'a Object {
     }
 }
 
-impl From<IndexMap<ValueContainer, ValueContainer>> for Object {
+impl From<IndexMap<ValueContainer, ValueContainer>> for Map {
     fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
-        Object(map.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+        Map(map.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
     }
 }

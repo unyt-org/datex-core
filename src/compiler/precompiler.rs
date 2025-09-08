@@ -342,7 +342,7 @@ fn visit_expression(
                 && let Some(core_variable) = core
                     .collapse_to_value()
                     .borrow()
-                    .cast_to_object()
+                    .cast_to_map()
                     .unwrap()
                     .try_get(name)
             {
@@ -403,7 +403,7 @@ fn visit_expression(
                 }
             }
         }
-        DatexExpression::Array(exprs) => {
+        DatexExpression::Array(exprs) | DatexExpression::List(exprs) => {
             for expr in exprs {
                 visit_expression(
                     expr,
@@ -413,7 +413,17 @@ fn visit_expression(
                 )?;
             }
         }
-        DatexExpression::Object(properties) => {
+        DatexExpression::Struct(properties) => {
+            for (_, val) in properties {
+                visit_expression(
+                    val,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
+        }
+        DatexExpression::Map(properties) => {
             for (key, val) in properties {
                 visit_expression(
                     key,

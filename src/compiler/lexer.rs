@@ -38,11 +38,13 @@ fn extract_line_doc(lex: &mut Lexer<Token>) -> String {
 pub enum Token {
     #[regex(r"///[^\n]*", extract_line_doc)]
     LineDoc(String),
-    
+
     // Operators & Separators
     #[token("(")] LeftParen,
     #[token(")")] RightParen,
     #[token("[")] LeftBracket,
+    #[regex(r"List *\[")] ListStart,
+    #[regex(r"Map *\{")] MapStart,
     #[token("]")] RightBracket,
     #[token("{")] LeftCurly,
     #[token("}")] RightCurly,

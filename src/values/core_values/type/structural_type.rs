@@ -17,8 +17,6 @@ use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-// type integer2 = integer; <- $0101010|"integer2"
-
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralType {
     Integer(Integer),
@@ -30,8 +28,10 @@ pub enum StructuralType {
     Endpoint(Endpoint),
     Null,
     Array(Vec<TypeContainer>),
+    List(Box<TypeContainer>),
     Tuple(Vec<(TypeContainer, TypeContainer)>),
-    Object(Vec<(TypeContainer, TypeContainer)>),
+    Struct(Vec<(String, TypeContainer)>),
+    Map(Box<(TypeContainer, TypeContainer)>)
 }
 
 impl From<Integer> for StructuralType {
@@ -135,7 +135,13 @@ impl Display for StructuralType {
                     .collect();
                 write!(f, "({})", elements_str.join(", "))
             }
-            StructuralType::Object(fields) => {
+            StructuralType::List(element_type) => {
+                write!(f, "List<{}>", element_type)
+            }
+            StructuralType::Map(box (key_type, value_type)) => {
+                write!(f, "Map<{}, {}>", key_type, value_type)
+            }
+            StructuralType::Struct(fields) => {
                 let fields_str: Vec<String> = fields
                     .iter()
                     .map(|(k, v)| format!("{}: {}", k, v))

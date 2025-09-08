@@ -7,10 +7,10 @@ use crate::values::{
 use std::{fmt, ops::Index};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Array(pub Vec<ValueContainer>);
-impl Array {
+pub struct List(pub Vec<ValueContainer>);
+impl List {
     pub fn new() -> Self {
-        Array(Vec::new())
+        List(Vec::new())
     }
     pub fn len(&self) -> usize {
         self.0.len()
@@ -26,9 +26,9 @@ impl Array {
         self.0.push(value.into());
     }
 }
-impl CoreValueTrait for Array {}
+impl CoreValueTrait for List {}
 
-impl StructuralEq for Array {
+impl StructuralEq for List {
     fn structural_eq(&self, other: &Self) -> bool {
         if self.len() != other.len() {
             return false;
@@ -42,7 +42,7 @@ impl StructuralEq for Array {
     }
 }
 
-impl fmt::Display for Array {
+impl fmt::Display for List {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         for (i, value) in self.0.iter().enumerate() {
@@ -55,25 +55,25 @@ impl fmt::Display for Array {
     }
 }
 
-impl<T> From<Vec<T>> for Array
+impl<T> From<Vec<T>> for List
 where
     T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
-        Array(vec.into_iter().map(Into::into).collect())
+        List(vec.into_iter().map(Into::into).collect())
     }
 }
 
-impl<T> FromIterator<T> for Array
+impl<T> FromIterator<T> for List
 where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Array(iter.into_iter().map(Into::into).collect())
+        List(iter.into_iter().map(Into::into).collect())
     }
 }
 
-impl Index<usize> for Array {
+impl Index<usize> for List {
     type Output = ValueContainer;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -81,7 +81,7 @@ impl Index<usize> for Array {
     }
 }
 
-impl IntoIterator for Array {
+impl IntoIterator for List {
     type Item = ValueContainer;
     type IntoIter = std::vec::IntoIter<ValueContainer>;
 
@@ -90,7 +90,7 @@ impl IntoIterator for Array {
     }
 }
 
-impl<'a> IntoIterator for &'a Array {
+impl<'a> IntoIterator for &'a List {
     type Item = &'a ValueContainer;
     type IntoIter = std::slice::Iter<'a, ValueContainer>;
 
@@ -100,27 +100,27 @@ impl<'a> IntoIterator for &'a Array {
 }
 
 #[macro_export]
-macro_rules! datex_array {
+macro_rules! datex_list {
     ( $( $x:expr ),* ) => {
         {
             let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
-            $crate::values::core_values::array::Array(arr)
+            $crate::values::core_values::list::List(arr)
         }
     };
 }
 
-impl TryFrom<CoreValue> for Array {
+impl TryFrom<CoreValue> for List {
     type Error = ValueError;
     fn try_from(value: CoreValue) -> Result<Self, Self::Error> {
-        if let Some(array) = value.cast_to_array() {
+        if let Some(array) = value.cast_to_list() {
             return Ok(array);
         }
         Err(ValueError::TypeConversionError)
     }
 }
 
-impl From<Array> for Vec<ValueContainer> {
-    fn from(array: Array) -> Self {
-        array.0
+impl From<List> for Vec<ValueContainer> {
+    fn from(list: List) -> Self {
+        list.0
     }
 }

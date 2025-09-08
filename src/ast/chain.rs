@@ -57,6 +57,7 @@ pub fn chain_without_whitespace_apply<'a>(
 pub fn chain<'a>(
     unary: impl DatexParserTrait<'a>,
     key: impl DatexParserTrait<'a>,
+    list: impl DatexParserTrait<'a>,
     array: impl DatexParserTrait<'a>,
     object: impl DatexParserTrait<'a>,
     wrapped_expression: impl DatexParserTrait<'a>,
@@ -74,7 +75,7 @@ pub fn chain<'a>(
                     .map(ApplyOperation::GenericAccess),
                 // apply #1: a wrapped expression, array, or object - no whitespace required before
                 // x () x [] x {}
-                choice((wrapped_expression, array, object))
+                choice((wrapped_expression, array, object, list))
                     .clone()
                     .padded_by(whitespace())
                     .map(ApplyOperation::FunctionCall),

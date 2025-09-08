@@ -98,11 +98,11 @@ impl From<&ValueContainer> for DIFValue {
             CoreValue::Endpoint(endpoint) => {
                 Some(DIFCoreValue::String(endpoint.to_string()))
             }
-            CoreValue::Array(array) => Some(DIFCoreValue::Array(
+            CoreValue::List(array) => Some(DIFCoreValue::Array(
                 array.0.iter().map(|v| v.into()).collect(),
             )),
-            CoreValue::Object(object) => Some(DIFCoreValue::Map(
-                object
+            CoreValue::Map(map) => Some(DIFCoreValue::Map(
+                map
                     .0
                     .iter()
                     .map(|(k, v)| (k.clone(), v.into()))
@@ -192,9 +192,9 @@ impl From<&DIFValue> for ValueContainer {
                 }
             },
             Some(DIFCoreValue::Array(arr)) => {
-                CoreValue::Array(arr.iter().map(ValueContainer::from).collect())
+                CoreValue::List(arr.iter().map(ValueContainer::from).collect())
             }
-            Some(DIFCoreValue::Map(entries)) => CoreValue::Object(
+            Some(DIFCoreValue::Map(entries)) => CoreValue::Map(
                 entries
                     .iter()
                     .map(|(k, v)| (k.clone(), ValueContainer::from(v)))

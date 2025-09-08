@@ -48,7 +48,7 @@ pub fn derive_datex_struct(input: DeriveInput) -> TokenStream {
                     quote! { obj.set(#fname_string, datex_core::values::value_container::ValueContainer::from(self.#fname_ident.clone())); }
                 });
                 quote! {
-                    let mut obj = datex_core::values::core_values::object::Object::new();
+                    let mut obj = datex_core::values::core_values::map::Map::new();
                     #(#setters)*
                     datex_core::values::value_container::ValueContainer::from(obj)
                 }

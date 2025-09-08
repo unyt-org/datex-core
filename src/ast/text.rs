@@ -11,7 +11,7 @@ pub fn text<'a>() -> impl DatexParserTrait<'a> {
 
 /// Takes a literal text string input, e.g. ""Hello, world!"" or "'Hello, world!' or ""x\"""
 /// and returns the unescaped text, e.g. "Hello, world!" or 'Hello, world!' or "x\""
-fn unescape_text(text: &str) -> String {
+pub fn unescape_text(text: &str) -> String {
     // remove first and last quote (double or single)
     let escaped = text[1..text.len() - 1]
         // Replace escape sequences with actual characters

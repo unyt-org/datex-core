@@ -3,8 +3,8 @@ use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::array::Array;
-use crate::values::core_values::object::Object;
+use crate::values::core_values::list::List;
+use crate::values::core_values::map::Map;
 use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
@@ -82,11 +82,11 @@ impl SerializeStruct for StructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut object = Object::default();
+        let mut map = Map::default();
         for (key, value) in self.fields.into_iter() {
-            object.set(&key, value);
+            map.set(&key, value);
         }
-        Ok(ValueContainer::from(CoreValue::Object(object)))
+        Ok(ValueContainer::from(CoreValue::Map(map)))
     }
 }
 
@@ -138,13 +138,13 @@ impl SerializeTuple for TupleSerializer {
 /// {"MyStruct": [i32, String]}
 pub struct TupleStructSerializer {
     name: &'static str,
-    fields: Array,
+    fields: List,
 }
 impl TupleStructSerializer {
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
-            fields: Array::new(),
+            fields: List::new(),
         }
     }
 }
@@ -165,7 +165,7 @@ impl SerializeTupleStruct for TupleStructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(
             HashMap::from([(self.name.to_string(), self.fields)]),
         ))))
     }
@@ -181,13 +181,13 @@ impl SerializeTupleStruct for TupleStructSerializer {
 /// {"Variant1": [i32, String]}
 pub struct TupleVariantSerializer {
     variant: &'static str,
-    fields: Array,
+    fields: List,
 }
 impl TupleVariantSerializer {
     pub fn new(variant: &'static str) -> Self {
         Self {
             variant,
-            fields: Array::new(),
+            fields: List::new(),
         }
     }
 }
@@ -208,7 +208,7 @@ impl SerializeTupleVariant for TupleVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(
             HashMap::from([(self.variant.to_string(), self.fields)]),
         ))))
     }
@@ -252,11 +252,11 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut obj = Object::default();
+        let mut obj = Map::default();
         for (key, value) in self.fields.into_iter() {
             obj.set(&key, value);
         }
-        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(
             HashMap::from([(self.variant.to_string(), obj)]),
         ))))
     }
@@ -269,12 +269,12 @@ impl SerializeStructVariant for StructVariantSerializer {
 /// [1, 2, 3]
 #[derive(Default)]
 pub struct SeqSerializer {
-    elements: Array,
+    elements: List,
 }
 impl SeqSerializer {
     pub fn new() -> Self {
         Self {
-            elements: Array::new(),
+            elements: List::new(),
         }
     }
 }
@@ -455,7 +455,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        Ok(Object::new().into())
+        Ok(Map::new().into())
     }
 
     fn serialize_struct(
@@ -470,7 +470,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(Object::new().into())
+        Ok(Map::new().into())
     }
 
     fn serialize_unit_variant(
@@ -531,7 +531,7 @@ impl Serializer for &mut DatexSerializer {
         T: ?Sized + serde::Serialize,
     {
         let field = value.serialize(&mut *self)?;
-        Ok(ValueContainer::from(CoreValue::Object(Object::from(
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(
             HashMap::from([(variant.to_string(), field)]),
         ))))
     }
@@ -594,7 +594,7 @@ impl Serializer for &mut DatexSerializer {
 mod tests {
     use crate::assert_structural_eq;
     use crate::values::core_values::endpoint::Endpoint;
-    use crate::values::core_values::object::Object;
+    use crate::values::core_values::map::Map;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::values::{
         core_value::CoreValue,
@@ -662,7 +662,7 @@ mod tests {
         assert_matches!(
             value_container,
             ValueContainer::Value(Value {
-                inner: CoreValue::Object(_),
+                inner: CoreValue::Map(_),
                 ..
             })
         );
@@ -689,7 +689,7 @@ mod tests {
     fn unit_struct() {
         let us = UnitStruct;
         let result = to_value_container(&us).unwrap();
-        // Unit structs serialize as empty object
+        // Unit structs serialize as empty map
         assert_eq!(result.to_string(), r#"{}"#);
     }
 
@@ -809,7 +809,7 @@ mod tests {
         assert_matches!(
             value_container,
             ValueContainer::Value(Value {
-                inner: CoreValue::Object(_),
+                inner: CoreValue::Map(_),
                 ..
             })
         );
@@ -836,7 +836,7 @@ mod tests {
             result
                 .to_value()
                 .borrow()
-                .cast_to_object()
+                .cast_to_map()
                 .unwrap()
                 .get("usize")
                 .clone(),
@@ -857,11 +857,11 @@ mod tests {
         let result = to_value_container(&test_struct);
         assert!(result.is_ok());
         let result = result.unwrap();
-        let object = Object::from(HashMap::from([(
+        let map = Map::from(HashMap::from([(
             "endpoint".to_string(),
             ValueContainer::from(Endpoint::new("@test")),
         )]));
-        assert_eq!(result, ValueContainer::from(object));
+        assert_eq!(result, ValueContainer::from(map));
     }
 
     #[derive(Serialize)]
