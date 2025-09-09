@@ -1,5 +1,4 @@
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
-use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::Reference;

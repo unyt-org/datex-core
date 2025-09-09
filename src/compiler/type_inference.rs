@@ -1,14 +1,10 @@
 use crate::ast::DatexExpression;
 use crate::ast::binary_operation::BinaryOperator;
-use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
-use crate::values::core_values::list::List;
-use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::type_container::TypeContainer;
 use crate::values::value_container::ValueContainer;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum TypeError {

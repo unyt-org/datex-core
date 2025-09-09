@@ -3,9 +3,7 @@ use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
-use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
-use crate::values::datex_type::CoreValueType;
 use crate::values::type_container::TypeContainer;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -14,7 +12,7 @@ use datex_core::values::core_values::integer::integer::Integer;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{
-    Deserialize, Deserializer, Serializer, de, forward_to_deserialize_any,
+    Deserialize, Deserializer, Serializer, de,
 };
 use serde_with::serde_derive::Serialize;
 use std::fmt;

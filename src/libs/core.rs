@@ -1,11 +1,10 @@
 use crate::runtime::memory::Memory;
-use crate::values::core_values::boolean;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::reference::Reference;
-use crate::values::type_container::{self, TypeContainer};
+use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;

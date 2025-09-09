@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     global::dxb_block::DXBBlock,
-    network::stream::Stream::{QueuingStream, Stream},
+    network::stream::Stream::Stream,
 };
 
 #[derive(Debug, Clone)]
@@ -29,6 +29,12 @@ pub struct TransformerConfig {
 pub struct IOHolder<I, O> {
     inputs: Vec<Rc<RefCell<dyn Stream<I>>>>,
     outputs: Vec<Rc<RefCell<dyn Stream<O>>>>,
+}
+
+impl<I, O> Default for IOHolder<I, O> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<I, O> IOHolder<I, O> {

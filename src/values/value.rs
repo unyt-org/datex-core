@@ -1,6 +1,5 @@
 use super::datex_type::CoreValueType;
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::type_container::TypeContainer;

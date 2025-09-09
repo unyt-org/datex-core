@@ -1,14 +1,9 @@
 use crate::values::core_value::CoreValue;
-use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::list::List;
 use crate::values::core_values::text::Text;
-use crate::values::core_values::r#type::Type;
-use crate::values::core_values::r#type::definition::TypeDefinition;
-use crate::values::reference::{Reference, ReferenceMutability};
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_container::TypeContainer;
 use crate::values::value_container::ValueContainer;

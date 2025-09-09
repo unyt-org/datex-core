@@ -62,10 +62,7 @@ use webrtc::{
         RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
     },
     track::{
-        track_local::{
-            track_local_static_rtp::TrackLocalStaticRTP,
-            track_local_static_sample::TrackLocalStaticSample,
-        },
+        track_local::track_local_static_sample::TrackLocalStaticSample,
         track_remote::{OnMuteHdlrFn, TrackRemote},
     },
 };

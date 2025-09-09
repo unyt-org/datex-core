@@ -1,4 +1,3 @@
-use crate::values::core_values::r#type::Type;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_container::TypeContainer;

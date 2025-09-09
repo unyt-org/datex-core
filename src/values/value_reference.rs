@@ -1,17 +1,13 @@
-use crate::dif::{DIFUpdate, DIFValue};
-use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::Type;
+use crate::dif::DIFUpdate;
 use crate::values::pointer::PointerAddress;
 use crate::values::reference::ReferenceMutability;
-use crate::values::traits::identity::Identity;
-use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::type_container::TypeContainer;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
-use std::fmt::{Debug, Display};
-use std::hash::{Hash, Hasher};
+use std::fmt::Debug;
+use std::hash::Hasher;
 use std::rc::Rc;
 
 impl ValueReference {}

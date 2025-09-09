@@ -215,7 +215,7 @@ impl Reference {
                     // create TypeReference if the value is a Type
                     CoreValue::Type(type_value) => {
                         // TODO: allowed_type "Type" is also allowed
-                        if !allowed_type.is_none() {
+                        if allowed_type.is_some() {
                             return Err(
                                 ReferenceFromValueContainerError::InvalidType,
                             );
@@ -367,7 +367,7 @@ impl Reference {
             }
             Ok(())
         })
-        .unwrap_or_else(|| Err(AccessError::ImmutableReference))
+        .unwrap_or(Err(AccessError::ImmutableReference))
     }
 
     pub fn try_get_text_property(
@@ -382,10 +382,10 @@ impl Reference {
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
-                    return Err(AccessError::InvalidOperation(format!(
+                    Err(AccessError::InvalidOperation(format!(
                         "Cannot get property '{}' on non-object value: {:?}",
                         key, value
-                    )));
+                    )))
                 }
             }
         })
@@ -463,7 +463,6 @@ impl Reference {
         match self {
             Reference::TypeReference(_) => {
                 // Type references do not have observers
-                return;
             }
             Reference::ValueReference(vr) => {
                 /// Notify all observers of the update

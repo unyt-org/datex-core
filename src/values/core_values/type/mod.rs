@@ -209,17 +209,17 @@ impl From<&CoreValue> for Type {
         match value {
             CoreValue::Null => Type::structural(StructuralTypeDefinition::Null),
             CoreValue::Boolean(b) => Type::structural(
-                StructuralTypeDefinition::Boolean(Boolean::from(b.clone())),
+                StructuralTypeDefinition::Boolean(b.clone()),
             ),
             CoreValue::Text(s) => Type::structural(s.clone()),
             CoreValue::Decimal(d) => Type::structural(
-                StructuralTypeDefinition::Decimal(Decimal::from(d.clone())),
+                StructuralTypeDefinition::Decimal(d.clone()),
             ),
             CoreValue::TypedDecimal(td) => Type::structural(
                 StructuralTypeDefinition::TypedDecimal(td.clone()),
             ),
             CoreValue::Integer(i) => Type::structural(
-                StructuralTypeDefinition::Integer(Integer::from(i.clone())),
+                StructuralTypeDefinition::Integer(i.clone()),
             ),
             CoreValue::TypedInteger(ti) => Type::structural(
                 StructuralTypeDefinition::TypedInteger(ti.clone()),
@@ -244,19 +244,19 @@ impl TryFrom<&DatexExpression> for StructuralTypeDefinition {
         Ok(match expr {
             DatexExpression::Null => StructuralTypeDefinition::Null,
             DatexExpression::Boolean(b) => {
-                StructuralTypeDefinition::Boolean(Boolean::from(b.clone()))
+                StructuralTypeDefinition::Boolean(Boolean::from(*b))
             }
             DatexExpression::Text(s) => {
                 StructuralTypeDefinition::Text(Text::from(s.clone()))
             }
             DatexExpression::Decimal(d) => {
-                StructuralTypeDefinition::Decimal(Decimal::from(d.clone()))
+                StructuralTypeDefinition::Decimal(d.clone())
             }
             DatexExpression::Integer(i) => {
-                StructuralTypeDefinition::Integer(Integer::from(i.clone()))
+                StructuralTypeDefinition::Integer(i.clone())
             }
             DatexExpression::Endpoint(e) => {
-                StructuralTypeDefinition::Endpoint(Endpoint::from(e.clone()))
+                StructuralTypeDefinition::Endpoint(e.clone())
             }
             _ => return Err(()),
         })

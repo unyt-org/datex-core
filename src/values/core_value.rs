@@ -338,7 +338,7 @@ impl CoreValue {
 
     pub fn cast_to_type(&self) -> Option<&Type> {
         match self {
-            CoreValue::Type(ty) => Some(&ty),
+            CoreValue::Type(ty) => Some(ty),
             _ => None,
         }
     }
