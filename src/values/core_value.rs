@@ -1,15 +1,13 @@
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{
-    CoreLibPointerId, get_core_lib_value,
-};
-use crate::values::core_values::list::List;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::tuple::Tuple;
@@ -216,7 +214,7 @@ impl From<&CoreValue> for CoreLibPointerId {
     fn from(value: &CoreValue) -> Self {
         match value {
             CoreValue::Map(_) => CoreLibPointerId::Struct,
-            CoreValue::List(_) => CoreLibPointerId::Array,
+            CoreValue::List(_) => CoreLibPointerId::List,
             CoreValue::Tuple(_) => todo!(),
             CoreValue::Text(_) => CoreLibPointerId::Text,
             CoreValue::Boolean(_) => CoreLibPointerId::Boolean,
@@ -226,8 +224,8 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::TypedDecimal(d) => {
                 CoreLibPointerId::Decimal(Some(d.variant()))
             }
-            CoreValue::Integer(int) => CoreLibPointerId::Integer(None),
-            CoreValue::Decimal(decimal) => CoreLibPointerId::Decimal(None),
+            CoreValue::Integer(_) => CoreLibPointerId::Integer(None),
+            CoreValue::Decimal(_) => CoreLibPointerId::Decimal(None),
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
@@ -257,7 +255,7 @@ impl CoreValue {
     /// type reference from the core library.
     /// For example, a CoreValue::TypedInteger(i32) will return the type ref integer/i32
     pub fn get_default_type(&self) -> TypeContainer {
-        get_core_lib_value(CoreLibPointerId::from(self))
+        get_core_lib_type(CoreLibPointerId::from(self))
     }
 
     #[deprecated]
@@ -321,12 +319,8 @@ impl CoreValue {
             CoreValueType::Endpoint => {
                 Some(CoreValue::Endpoint(self.cast_to_endpoint()?))
             }
-            CoreValueType::Array => {
-                Some(CoreValue::List(self.cast_to_list()?))
-            }
-            CoreValueType::Object => {
-                Some(CoreValue::Map(self.cast_to_map()?))
-            }
+            CoreValueType::Array => Some(CoreValue::List(self.cast_to_list()?)),
+            CoreValueType::Object => Some(CoreValue::Map(self.cast_to_map()?)),
             CoreValueType::Tuple => {
                 Some(CoreValue::Tuple(self.cast_to_tuple()?))
             }
@@ -420,9 +414,7 @@ impl CoreValue {
 
     pub fn cast_to_map(&self) -> Option<Map> {
         match self {
-            CoreValue::Tuple(tuple) => {
-                Some(Map::from(tuple.entries.clone()))
-            }
+            CoreValue::Tuple(tuple) => Some(Map::from(tuple.entries.clone())),
             CoreValue::Map(map) => Some(map.clone()),
             _ => None,
         }

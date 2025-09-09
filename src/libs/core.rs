@@ -5,7 +5,7 @@ use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::reference::Reference;
-use crate::values::type_container::TypeContainer;
+use crate::values::type_container::{self, TypeContainer};
 use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
@@ -31,6 +31,7 @@ pub enum CoreLibPointerId {
     Text,                                // #core.text
     Endpoint,                            // #core.Endpoint
     Array,                               // #core.Array
+    List,                                // #core.List
     Struct,                              // #core.Struct
     Function,                            // #core.Function
 }
@@ -50,6 +51,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Array => 6,
             CoreLibPointerId::Endpoint => 7,
             CoreLibPointerId::Text => 8,
+            CoreLibPointerId::List => 9,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -74,6 +76,7 @@ impl CoreLibPointerId {
             6 => Some(CoreLibPointerId::Array),
             7 => Some(CoreLibPointerId::Endpoint),
             8 => Some(CoreLibPointerId::Text),
+            9 => Some(CoreLibPointerId::List),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -121,14 +124,15 @@ impl From<&PointerAddress> for CoreLibPointerId {
     }
 }
 
-pub fn get_core_lib_value(id: impl Into<CoreLibPointerId>) -> TypeContainer {
+pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> TypeContainer {
     let id = id.into();
-    if !has_core_lib_value(id.clone()) {
+    if !has_core_lib_type(id.clone()) {
         panic!("Core lib type not found: {:?}", id);
     }
     CORE_LIB_TYPES.with(|core| core.get(&id).unwrap().clone())
 }
-fn has_core_lib_value<T>(id: T) -> bool
+
+fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
 {
@@ -180,7 +184,15 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
             DecimalTypeVariant::iter()
                 .map(|variant| decimal_variant(decimal.1.clone(), variant)),
         )
-        .chain(vec![r#type(), structure(), structure(), boolean(), endpoint()])
+        .chain(vec![
+            r#type(),
+            text(),
+            r#struct(),
+            array(),
+            list(),
+            boolean(),
+            endpoint(),
+        ])
         .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
 
@@ -191,16 +203,24 @@ pub fn r#type() -> CoreLibTypeDefinition {
 pub fn null() -> CoreLibTypeDefinition {
     create_core_type("null", None, None, CoreLibPointerId::Null)
 }
-pub fn structure() -> CoreLibTypeDefinition {
+pub fn r#struct() -> CoreLibTypeDefinition {
     create_core_type("Struct", None, None, CoreLibPointerId::Struct)
+}
+pub fn array() -> CoreLibTypeDefinition {
+    create_core_type("Array", None, None, CoreLibPointerId::Array)
+}
+pub fn list() -> CoreLibTypeDefinition {
+    create_core_type("List", None, None, CoreLibPointerId::List)
 }
 
 pub fn boolean() -> CoreLibTypeDefinition {
     create_core_type("boolean", None, None, CoreLibPointerId::Boolean)
 }
+
 pub fn decimal() -> CoreLibTypeDefinition {
     create_core_type("decimal", None, None, CoreLibPointerId::Decimal(None))
 }
+
 pub fn decimal_variant(
     base_type: TypeContainer,
     variant: DecimalTypeVariant,
@@ -215,6 +235,10 @@ pub fn decimal_variant(
 }
 pub fn endpoint() -> CoreLibTypeDefinition {
     create_core_type("endpoint", None, None, CoreLibPointerId::Endpoint)
+}
+
+pub fn text() -> CoreLibTypeDefinition {
+    create_core_type("text", None, None, CoreLibPointerId::Text)
 }
 
 pub fn integer() -> CoreLibTypeDefinition {
@@ -273,19 +297,19 @@ mod tests {
 
     #[test]
     fn core_lib() {
-        assert!(has_core_lib_value(CoreLibPointerId::Endpoint));
-        assert!(has_core_lib_value(CoreLibPointerId::Null));
-        assert!(has_core_lib_value(CoreLibPointerId::Boolean));
-        assert!(has_core_lib_value(CoreLibPointerId::Struct));
-        assert!(has_core_lib_value(CoreLibPointerId::Integer(None)));
-        assert!(has_core_lib_value(CoreLibPointerId::Decimal(None)));
+        assert!(has_core_lib_type(CoreLibPointerId::Endpoint));
+        assert!(has_core_lib_type(CoreLibPointerId::Null));
+        assert!(has_core_lib_type(CoreLibPointerId::Boolean));
+        assert!(has_core_lib_type(CoreLibPointerId::Struct));
+        assert!(has_core_lib_type(CoreLibPointerId::Integer(None)));
+        assert!(has_core_lib_type(CoreLibPointerId::Decimal(None)));
         for variant in IntegerTypeVariant::iter() {
-            assert!(has_core_lib_value(CoreLibPointerId::Integer(Some(
+            assert!(has_core_lib_type(CoreLibPointerId::Integer(Some(
                 variant
             ))));
         }
         for variant in DecimalTypeVariant::iter() {
-            assert!(has_core_lib_value(CoreLibPointerId::Decimal(Some(
+            assert!(has_core_lib_type(CoreLibPointerId::Decimal(Some(
                 variant
             ))));
         }
@@ -338,7 +362,7 @@ mod tests {
     #[test]
     fn base_type_simple() {
         // integer -> integer -> integer ...
-        let integer_type = get_core_lib_value(CoreLibPointerId::Integer(None));
+        let integer_type = get_core_lib_type(CoreLibPointerId::Integer(None));
         let integer_base = integer_type.base_type();
         assert_matches!(integer_base, TypeContainer::TypeReference(_));
         assert_eq!(integer_base.to_string(), "integer");
@@ -353,7 +377,7 @@ mod tests {
     #[test]
     fn base_type_complex() {
         // integer/u8 -> integer -> integer -> integer ...
-        let integer_u8_type = get_core_lib_value(CoreLibPointerId::Integer(
+        let integer_u8_type = get_core_lib_type(CoreLibPointerId::Integer(
             Some(IntegerTypeVariant::U8),
         ));
         assert_matches!(integer_u8_type, TypeContainer::TypeReference(_));
