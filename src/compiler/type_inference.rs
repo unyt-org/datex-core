@@ -5,7 +5,7 @@ use crate::runtime::Runtime;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
-use crate::values::core_values::r#type::structural_type::StructuralType;
+use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::type_container::TypeContainer;
 use crate::values::value_container::ValueContainer;
 use std::collections::HashMap;
@@ -65,7 +65,7 @@ fn infer_expression_type(
                 .collect::<Result<Vec<(_, _)>, ()>>()
                 .unwrap();
             Some(TypeContainer::Type(Type::structural(
-                StructuralType::Struct(entries),
+                StructuralTypeDefinition::Struct(entries),
             )))
         }
         DatexExpression::Array(arr) => {
@@ -77,7 +77,7 @@ fn infer_expression_type(
                 })
                 .collect::<Vec<_>>();
             Some(TypeContainer::Type(Type::structural(
-                StructuralType::Array(entries),
+                StructuralTypeDefinition::Array(entries),
             )))
         }
         // more complex expressions
@@ -152,8 +152,8 @@ fn infer_binary_expression_type(
 mod tests {
     use super::*;
     use crate::values::core_value::CoreValue;
-    use crate::values::core_values::list::List;
     use crate::values::core_values::integer::integer::Integer;
+    use crate::values::core_values::list::List;
     use datex_core::runtime::RuntimeConfig;
     use datex_core::values::core_values::decimal::decimal::Decimal;
     use datex_core::values::core_values::map::Map;
@@ -161,7 +161,7 @@ mod tests {
     fn infer_get_type(expr: &mut DatexExpression, runtime: &Runtime) -> Type {
         infer_expression_type(expr, runtime)
             .unwrap()
-            .and_then(|tc| tc.as_type())
+            .map(|tc| tc.as_type())
             .expect("TypeContainer should contain a Type")
     }
 
