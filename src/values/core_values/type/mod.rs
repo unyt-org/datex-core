@@ -1,6 +1,6 @@
 pub mod definition;
 pub mod error;
-pub mod structural_type;
+pub mod structural_type_definition;
 
 use crate::ast::DatexExpression;
 use crate::values::core_value::CoreValue;
@@ -9,9 +9,10 @@ use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::definition::TypeDefinition;
-use crate::values::core_values::r#type::structural_type::StructuralType;
+use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::reference::{Reference, ReferenceMutability};
 use crate::values::traits::structural_eq::StructuralEq;
+use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
@@ -57,7 +58,7 @@ impl Type {
     pub fn is_reference(&self) -> bool {
         matches!(self.type_definition, TypeDefinition::Reference(_))
     }
-    pub fn structural_type(&self) -> Option<&StructuralType> {
+    pub fn structural_type(&self) -> Option<&StructuralTypeDefinition> {
         if let TypeDefinition::Structural(s) = &self.type_definition {
             Some(s)
         } else {
@@ -68,13 +69,27 @@ impl Type {
 
 impl Type {
     /// Creates a new structural type.
-    pub fn structural(structural_type: impl Into<StructuralType>) -> Self {
+    pub fn structural(
+        structural_type: impl Into<StructuralTypeDefinition>,
+    ) -> Self {
         Type {
             type_definition: TypeDefinition::Structural(structural_type.into()),
             base_type: None,
             reference_mutability: None,
         }
     }
+
+    /// Creates a new structural list type.
+    pub fn list(element_type: impl Into<TypeContainer>) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::List(Box::new(element_type.into())),
+            ),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
     /// Creates a new union type.
     pub fn union(types: Vec<Type>) -> Self {
         Type {
@@ -130,19 +145,13 @@ impl Type {
         })
     }
 
-    // NOTE: this function currently operates in type space (type matches type, not value matches type)
-    // cannot be directly used for x matches y checks in runtime, but is currently used there nevertheless
-    /// Matches a value against self
-    /// Returns true if all possible realizations of the value match the type
-    /// Examples:
     /// 1 matches 1 -> true
     /// 1 matches 2 -> false
     /// 1 matches 1 | 2 -> true
     /// 1 matches "x" | 2 -> false
-    /// 1 | 2 matches integer -> true
     /// integer matches 1 | 2 -> false
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
-        Type::value_matches_type(value, &self)
+        Type::value_matches_type(value, self)
     }
 
     /// Matches a value against a type
@@ -150,6 +159,10 @@ impl Type {
         value: &ValueContainer,
         match_type: &Type,
     ) -> bool {
+        // if match_type == &value.actual_type().as_type() {
+        //     return true;
+        // }
+
         match &match_type.type_definition {
             // e.g. 1 matches 1 | 2
             TypeDefinition::Union(types) => {
@@ -194,25 +207,25 @@ impl Display for Type {
 impl From<&CoreValue> for Type {
     fn from(value: &CoreValue) -> Self {
         match value {
-            CoreValue::Null => Type::structural(StructuralType::Null),
-            CoreValue::Boolean(b) => Type::structural(StructuralType::Boolean(
-                Boolean::from(b.clone()),
-            )),
+            CoreValue::Null => Type::structural(StructuralTypeDefinition::Null),
+            CoreValue::Boolean(b) => Type::structural(
+                StructuralTypeDefinition::Boolean(Boolean::from(b.clone())),
+            ),
             CoreValue::Text(s) => Type::structural(s.clone()),
-            CoreValue::Decimal(d) => Type::structural(StructuralType::Decimal(
-                Decimal::from(d.clone()),
-            )),
-            CoreValue::TypedDecimal(td) => {
-                Type::structural(StructuralType::TypedDecimal(td.clone()))
-            }
-            CoreValue::Integer(i) => Type::structural(StructuralType::Integer(
-                Integer::from(i.clone()),
-            )),
-            CoreValue::TypedInteger(ti) => {
-                Type::structural(StructuralType::TypedInteger(ti.clone()))
-            }
+            CoreValue::Decimal(d) => Type::structural(
+                StructuralTypeDefinition::Decimal(Decimal::from(d.clone())),
+            ),
+            CoreValue::TypedDecimal(td) => Type::structural(
+                StructuralTypeDefinition::TypedDecimal(td.clone()),
+            ),
+            CoreValue::Integer(i) => Type::structural(
+                StructuralTypeDefinition::Integer(Integer::from(i.clone())),
+            ),
+            CoreValue::TypedInteger(ti) => Type::structural(
+                StructuralTypeDefinition::TypedInteger(ti.clone()),
+            ),
             CoreValue::Endpoint(e) => {
-                Type::structural(StructuralType::Endpoint(e.clone()))
+                Type::structural(StructuralTypeDefinition::Endpoint(e.clone()))
             }
             _ => unimplemented!("handle missing core value to type conversion"),
         }
@@ -224,26 +237,26 @@ impl From<CoreValue> for Type {
     }
 }
 
-impl TryFrom<&DatexExpression> for StructuralType {
+impl TryFrom<&DatexExpression> for StructuralTypeDefinition {
     type Error = ();
 
     fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
         Ok(match expr {
-            DatexExpression::Null => StructuralType::Null,
+            DatexExpression::Null => StructuralTypeDefinition::Null,
             DatexExpression::Boolean(b) => {
-                StructuralType::Boolean(Boolean::from(b.clone()))
+                StructuralTypeDefinition::Boolean(Boolean::from(b.clone()))
             }
             DatexExpression::Text(s) => {
-                StructuralType::Text(Text::from(s.clone()))
+                StructuralTypeDefinition::Text(Text::from(s.clone()))
             }
             DatexExpression::Decimal(d) => {
-                StructuralType::Decimal(Decimal::from(d.clone()))
+                StructuralTypeDefinition::Decimal(Decimal::from(d.clone()))
             }
             DatexExpression::Integer(i) => {
-                StructuralType::Integer(Integer::from(i.clone()))
+                StructuralTypeDefinition::Integer(Integer::from(i.clone()))
             }
             DatexExpression::Endpoint(e) => {
-                StructuralType::Endpoint(Endpoint::from(e.clone()))
+                StructuralTypeDefinition::Endpoint(Endpoint::from(e.clone()))
             }
             _ => return Err(()),
         })
@@ -254,44 +267,92 @@ impl TryFrom<&DatexExpression> for Type {
     type Error = ();
 
     fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
-        Ok(Type::structural(StructuralType::try_from(expr)?))
+        Ok(Type::structural(StructuralTypeDefinition::try_from(expr)?))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use datex_core::values::core_values::integer::integer::Integer;
+    use crate::values::{
+        core_values::{
+            integer::{integer::Integer, typed_integer::TypedInteger},
+            list::List,
+            text::Text,
+            r#type::Type,
+        },
+        value_container::ValueContainer,
+    };
+    #[test]
+    fn test_match_equal_values() {
+        // 1u8 matches 1u8
+        assert!(Type::value_matches_type(
+            &TypedInteger::from(1u8).into(),
+            &Type::structural(1u8)
+        ));
 
-    // #[test]
-    // fn test_match_equal_values() {
-    //     // 1 matches 1
-    //     assert!(Type::value_matches_type(
-    //         &ValueContainer::from(1),
-    //         &Type::structural(1)
-    //     ))
-    // }
+        // 1u16 matches 1u16
+        assert!(Type::value_matches_type(
+            &TypedInteger::from(1u16).into(),
+            &Type::structural(1u16)
+        ));
 
-    // #[test]
-    // fn test_match_union() {
-    //     // 1 matches 1 | 2 | 3
-    //     assert!(Type::value_matches_type(
-    //         &ValueContainer::from(Integer::from(1)),
-    //         &Type::union(vec![
-    //             Type::structural(Integer::from(1)),
-    //             Type::structural(Integer::from(2)),
-    //             Type::structural(Integer::from(3)),
-    //         ]),
-    //     ))
-    // }
+        // 1 matches 1
+        assert!(Type::value_matches_type(
+            &ValueContainer::from(Integer::from(1)),
+            &Type::structural(Integer::from(1))
+        ));
 
-    // #[test]
-    // fn test_match_base_type() {
-    //     // 1 matches integer
-    //     let integer = create_integer_core_type(None);
-    //     assert!(Type::value_matches_type(
-    //         &ValueContainer::from(Integer::from(1)),
-    //         &integer
-    //     ))
-    // }
+        // "test" matches "test"
+        assert!(Type::value_matches_type(
+            &ValueContainer::from(Text::from("test")),
+            &Type::structural(Text::from("test"))
+        ));
+    }
+
+    #[test]
+    fn test_match_union() {
+        // 1 matches (1 | 2 | 3)
+        assert!(Type::value_matches_type(
+            &ValueContainer::from(Integer::from(1)),
+            &Type::union(vec![
+                Type::structural(Integer::from(1)),
+                Type::structural(Integer::from(2)),
+                Type::structural(Integer::from(3)),
+            ]),
+        ))
+    }
+
+    #[test]
+    fn test_match_combined_type() {
+        // [1, 1] matches List<1>
+        assert!(Type::value_matches_type(
+            &ValueContainer::from(List::from(vec![1, 1])),
+            &Type::list(Type::structural(1))
+        ));
+
+        // [1, 2] matches List<(1 | 2)>
+        assert!(Type::value_matches_type(
+            &ValueContainer::from(List::from(vec![1, 2])),
+            &Type::list(Type::union(vec![
+                Type::structural(1),
+                Type::structural(2),
+            ])),
+        ));
+
+        // [1, 2] does not match List<1>
+        assert!(!Type::value_matches_type(
+            &ValueContainer::from(List::from(vec![1, 2])),
+            &Type::list(Type::structural(1))
+        ));
+
+        // ["test", "jonas"] matches List<("jonas" | "test" | 3)>
+        assert!(Type::value_matches_type(
+            &ValueContainer::from(List::from(vec!["test", "jonas"])),
+            &Type::list(Type::union(vec![
+                Type::structural("jonas"),
+                Type::structural("test"),
+                Type::structural(3),
+            ])),
+        ));
+    }
 }

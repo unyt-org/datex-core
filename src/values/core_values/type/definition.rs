@@ -1,7 +1,9 @@
 use std::fmt::Display;
 
 use crate::values::{
-    core_values::r#type::{Type, structural_type::StructuralType},
+    core_values::r#type::{
+        Type, structural_type_definition::StructuralTypeDefinition,
+    },
     reference::Reference,
     traits::structural_eq::StructuralEq,
 };
@@ -9,7 +11,7 @@ use crate::values::{
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum TypeDefinition {
     // {x: integer, y: text}
-    Structural(StructuralType),
+    Structural(StructuralTypeDefinition),
     Reference(Box<Reference>),
 
     // e.g. A | B | C
