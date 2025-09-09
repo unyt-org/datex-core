@@ -147,6 +147,7 @@ fn infer_binary_expression_type(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::libs::core::CoreLibPointerId;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::integer::integer::Integer;
     use crate::values::core_values::list::List;

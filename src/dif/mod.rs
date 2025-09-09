@@ -11,9 +11,7 @@ use datex_core::values::core_value::CoreValue;
 use datex_core::values::core_values::integer::integer::Integer;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::SerializeMap;
-use serde::{
-    Deserialize, Deserializer, Serializer, de,
-};
+use serde::{Deserialize, Deserializer, Serializer, de};
 use serde_with::serde_derive::Serialize;
 use std::fmt;
 
@@ -341,6 +339,8 @@ pub enum DIFUpdate {
 
 #[cfg(test)]
 mod tests {
+    use crate::values::datex_type::CoreValueType;
+
     use super::*;
     use serde_json::json;
 
