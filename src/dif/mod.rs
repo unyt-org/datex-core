@@ -4,7 +4,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
-use crate::values::core_values::r#type::structural_type::StructuralType;
+use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::datex_type::CoreValueType;
 use crate::values::type_container::TypeContainer;
 use crate::values::value::Value;
@@ -102,11 +102,7 @@ impl From<&ValueContainer> for DIFValue {
                 array.0.iter().map(|v| v.into()).collect(),
             )),
             CoreValue::Map(map) => Some(DIFCoreValue::Map(
-                map
-                    .0
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.into()))
-                    .collect(),
+                map.0.iter().map(|(k, v)| (k.clone(), v.into())).collect(),
             )),
             CoreValue::Tuple(tuple) => Some(DIFCoreValue::Array(
                 tuple
@@ -144,15 +140,17 @@ impl From<&DIFValue> for ValueContainer {
         let struct_type = value
             .r#type
             .clone()
-            .and_then(|t| t.as_type())
+            .map(|t| t.as_type())
             .and_then(|ty| ty.structural_type().cloned());
         let core_value = match &value.value {
             Some(DIFCoreValue::Null) => CoreValue::Null,
             Some(DIFCoreValue::Boolean(b)) => CoreValue::Boolean(Boolean(*b)),
             Some(DIFCoreValue::String(s)) => {
                 match struct_type.expect("") {
-                    StructuralType::Text(_) => CoreValue::Text(Text(s.clone())),
-                    StructuralType::Endpoint(_) => {
+                    StructuralTypeDefinition::Text(_) => {
+                        CoreValue::Text(Text(s.clone()))
+                    }
+                    StructuralTypeDefinition::Endpoint(_) => {
                         CoreValue::Endpoint(s.parse().unwrap())
                     }
                     // i64 and above are also serialized as strings in DIF
@@ -162,11 +160,11 @@ impl From<&DIFValue> for ValueContainer {
                     // StructuralType::U64(_) => CoreValue::TypedInteger(
                     //     TypedInteger::U64(s.parse().unwrap()),
                     // ),
-                    StructuralType::Integer(_) => CoreValue::Integer(
+                    StructuralTypeDefinition::Integer(_) => CoreValue::Integer(
                         Integer::from(s.parse::<i64>().unwrap()),
                     ),
                     // big decimal types are also serialized as strings in DIF
-                    StructuralType::Decimal(_) => CoreValue::Decimal(
+                    StructuralTypeDefinition::Decimal(_) => CoreValue::Decimal(
                         Decimal::from(s.parse::<f64>().unwrap()),
                     ),
                     _ => unreachable!(
