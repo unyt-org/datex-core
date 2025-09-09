@@ -1,6 +1,6 @@
 use strum::Display;
 
-use crate::libs::core::get_core_lib_value;
+use crate::libs::core::get_core_lib_type;
 use crate::values::core_values::r#type::Type;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
@@ -28,11 +28,27 @@ impl Display for TypeContainer {
     }
 }
 
+impl From<Type> for TypeContainer {
+    fn from(value: Type) -> Self {
+        TypeContainer::Type(value)
+    }
+}
+impl From<Rc<RefCell<TypeReference>>> for TypeContainer {
+    fn from(value: Rc<RefCell<TypeReference>>) -> Self {
+        TypeContainer::TypeReference(value)
+    }
+}
+impl From<TypeReference> for TypeContainer {
+    fn from(value: TypeReference) -> Self {
+        TypeContainer::TypeReference(Rc::new(RefCell::new(value)))
+    }
+}
+
 impl TypeContainer {
-    pub fn as_type(&self) -> Option<Type> {
+    pub fn as_type(&self) -> Type {
         match self {
-            TypeContainer::Type(t) => Some(t.clone()),
-            TypeContainer::TypeReference(tr) => tr.borrow().as_type().cloned(),
+            TypeContainer::Type(t) => t.clone(),
+            TypeContainer::TypeReference(tr) => tr.borrow().as_type().clone(),
         }
     }
 
@@ -83,7 +99,7 @@ ValueContainer           <----    TypeContainer
 */
 impl TypeContainer {
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
-        Self::value_matches_type(value, &self)
+        Self::value_matches_type(value, self)
     }
 
     /// Matches a value against a type
@@ -94,11 +110,7 @@ impl TypeContainer {
         match match_type {
             TypeContainer::Type(t) => t.value_matches(value),
             TypeContainer::TypeReference(tr) => {
-                if let Some(t) = tr.borrow().as_type() {
-                    t.value_matches(value)
-                } else {
-                    false
-                }
+                tr.borrow().as_type().value_matches(value)
             }
         }
     }

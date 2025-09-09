@@ -32,8 +32,8 @@ pub struct TypeReference {
     pub pointer_address: Option<PointerAddress>,
 }
 impl TypeReference {
-    pub fn as_type(&self) -> Option<&Type> {
-        Some(&self.type_value)
+    pub fn as_type(&self) -> &Type {
+        &self.type_value
     }
 
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
