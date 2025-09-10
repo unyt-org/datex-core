@@ -3,10 +3,9 @@ use std::{collections::HashSet, io::Write, ops::Range};
 
 use crate::{
     ast::{
-        TokenInput,
         error::{pattern::Pattern, src::SrcId},
+        TokenInput,
     },
-    compiler::lexer::Token,
     values::core_values::{
         endpoint::InvalidEndpointError, error::NumberParseError,
     },
@@ -281,11 +280,12 @@ impl ParseError {
 }
 
 use chumsky::{
-    DefaultExpected,
     error::{Error, LabelError},
     span::SimpleSpan,
     util::MaybeRef,
+    DefaultExpected,
 };
+use crate::ast::lexer::Token;
 
 impl<'a> Error<'a, TokenInput<'a>> for ParseError {
     fn merge(mut self, mut other: Self) -> Self {

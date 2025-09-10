@@ -1,7 +1,7 @@
 use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
 use crate::ast::utils::operation;
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;

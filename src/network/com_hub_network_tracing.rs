@@ -536,11 +536,11 @@ impl ComHub {
                     // let endpoint: Endpoint = obj.get("endpoint").cast_to_endpoint();
 
                     let endpoint: Endpoint =
-                        obj.get("endpoint").to_value().borrow().cast_to_endpoint().unwrap();
+                        obj.get_owned("endpoint").unwrap().to_value().borrow().cast_to_endpoint().unwrap();
                     let distance: TypedInteger =
-                        obj.try_get("distance").cloned().try_into().unwrap();
+                        obj.get_owned("distance").cloned().try_into().unwrap();
 
-                    let socket = obj.try_get("socket").unwrap();
+                    let socket = obj.get_owned("socket").unwrap();
                     let (interface_type, interface_name, channel, socket_uuid) =
                         if let ValueContainer::Value(Value {
                             inner: CoreValue::Map(socket_obj),
@@ -548,7 +548,7 @@ impl ComHub {
                         }) = socket
                         {
                             let interface_type = socket_obj
-                                .try_get("interface_type")
+                                .get_owned("interface_type")
                                 .unwrap()
                                 .to_value()
                                 .borrow()
@@ -558,21 +558,21 @@ impl ComHub {
                                 if let ValueContainer::Value(Value {
                                     inner: CoreValue::Text(name),
                                     ..
-                                }) = socket_obj.try_get("interface_name")?
+                                }) = socket_obj.get_owned("interface_name")?
                                 {
                                     Some(name.clone().0)
                                 } else {
                                     None
                                 };
                             let channel = socket_obj
-                                .try_get("channel")
+                                .get_owned("channel")
                                 .unwrap()
                                 .to_value()
                                 .borrow()
                                 .cast_to_text()
                                 .0;
                             let socket_uuid = socket_obj
-                                .try_get("socket_uuid")
+                                .get_owned("socket_uuid")
                                 .unwrap()
                                 .to_value()
                                 .borrow()
@@ -589,11 +589,11 @@ impl ComHub {
                             continue;
                         };
                     let direction =
-                        obj.try_get("direction").unwrap().to_value().borrow().cast_to_text().0;
+                        obj.get_owned("direction").unwrap().to_value().borrow().cast_to_text().0;
                     let fork_nr =
-                        obj.try_get("fork_nr").unwrap().to_value().borrow().cast_to_text().0;
+                        obj.get_owned("fork_nr").unwrap().to_value().borrow().cast_to_text().0;
                     let bounce_back: Boolean =
-                        obj.try_get("bounce_back").cloned().try_into().unwrap();
+                        obj.get_owned("bounce_back").cloned().try_into().unwrap();
 
                     hops.push(NetworkTraceHop {
                         endpoint,

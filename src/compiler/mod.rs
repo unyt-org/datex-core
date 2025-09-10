@@ -1,6 +1,5 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binding::VariableId;
-use crate::ast::tuple::TupleEntry;
 use crate::compiler::error::CompilerError;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
@@ -9,13 +8,13 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::ast::{
-    BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
-    VariableKind, parse,
+    parse, BindingMutability, DatexExpression, DatexScriptParser,
+    ReferenceMutability, VariableKind,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::precompiler::{
-    AstMetadata, AstWithMetadata, VariableMetadata, precompile_ast,
+    precompile_ast, AstMetadata, AstWithMetadata, VariableMetadata,
 };
 use crate::compiler::scope::CompilationScope;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
@@ -31,7 +30,6 @@ use std::rc::Rc;
 
 pub mod context;
 pub mod error;
-pub mod lexer;
 pub mod metadata;
 mod precompiler;
 pub mod scope;
@@ -516,46 +514,25 @@ fn compile_expression(
             }
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
-        DatexExpression::Tuple(tuple) => {
+        DatexExpression::Map(map) => {
             compilation_context
-                .append_binary_code(InstructionCode::TUPLE_START);
-            for entry in tuple {
-                match entry {
-                    TupleEntry::KeyValue(key, value) => {
-                        scope = compile_key_value_entry(
-                            compilation_context,
-                            key,
-                            value,
-                            &metadata,
-                            scope,
-                        )?;
-                    }
-                    TupleEntry::Value(value) => {
-                        scope = compile_expression(
-                            compilation_context,
-                            AstWithMetadata::new(value, &metadata),
-                            CompileMetadata::default(),
-                            scope,
-                        )?;
-                    }
-                }
-            }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
-        }
-        DatexExpression::Struct(object) => {
-            compilation_context
-                .append_binary_code(InstructionCode::RECORD_START);
-            for (key, value) in object {
-                // compile key and value
+                .append_binary_code(InstructionCode::MAP_START);
+            for (key, value) in map {
                 scope = compile_key_value_entry(
                     compilation_context,
-                    DatexExpression::Text(key),
+                    key,
                     value,
                     &metadata,
                     scope,
                 )?;
             }
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+        }
+        DatexExpression::Array(array) => {
+            todo!()
+        }
+        DatexExpression::Struct(structure) => {
+            todo!()
         }
 
         DatexExpression::Placeholder => {
@@ -968,9 +945,9 @@ fn compile_key_value_entry(
 #[cfg(test)]
 pub mod tests {
     use super::{
-        CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB,
-        compile_ast, compile_script, compile_script_or_return_static_value,
-        compile_template,
+        compile_ast, compile_script, compile_script_or_return_static_value, compile_template,
+        CompilationContext, CompilationScope, CompileOptions,
+        StaticValueOrDXB,
     };
     use std::assert_matches::assert_matches;
     use std::cell::RefCell;
@@ -1486,7 +1463,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::TUPLE_START.into(),
+                InstructionCode::MAP_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1507,10 +1484,10 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::TUPLE_START.into(),
+                InstructionCode::MAP_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::TUPLE_START.into(),
+                InstructionCode::MAP_START.into(),
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
@@ -1532,7 +1509,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::TUPLE_START.into(),
+                InstructionCode::MAP_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1551,7 +1528,7 @@ pub mod tests {
         let datex_script = "key: 42";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1571,7 +1548,7 @@ pub mod tests {
         let datex_script = "\"key\": 42";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1591,7 +1568,7 @@ pub mod tests {
         let datex_script = "10: 42";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::INT_8.into(),
             10,
@@ -1610,7 +1587,7 @@ pub mod tests {
         let datex_script = format!("\"{long_key}\": 42");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::TEXT.into(),
         ];
@@ -1631,7 +1608,7 @@ pub mod tests {
         let datex_script = "(1 + 2): 42";
         let result = compile_and_log(datex_script);
         let expected = [
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
@@ -1652,7 +1629,7 @@ pub mod tests {
         let datex_script = "key: 42, 4: 43, (1 + 2): 44";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1685,7 +1662,7 @@ pub mod tests {
         let datex_script = "(key: 42)";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1698,72 +1675,38 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // empty object
+    // empty struct
     #[test]
-    fn empty_object() {
+    fn empty_struct() {
         init_logger_debug();
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::RECORD_START.into(),
-            InstructionCode::SCOPE_END.into(),
+            // TODO
         ];
         assert_eq!(result, expected);
     }
 
-    // object with single key-value pair
+    // struct with single key-value pair
     #[test]
-    fn single_key_value_object() {
+    fn single_key_value_struct() {
         init_logger_debug();
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::RECORD_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
+        let expected: Vec<u8> = vec![
+            // TODO
         ];
         assert_eq!(result, expected);
     }
 
-    // object with multiple key-value pairs
+    // struct with multiple key-value pairs
     #[test]
-    fn multi_key_value_object() {
+    fn multi_key_value_struct() {
         init_logger_debug();
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::RECORD_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key1"
-            b'k',
-            b'e',
-            b'y',
-            b'1',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key2"
-            b'k',
-            b'e',
-            b'y',
-            b'2',
-            InstructionCode::INT_8.into(),
-            43,
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key3"
-            b'k',
-            b'e',
-            b'y',
-            b'3',
-            InstructionCode::INT_8.into(),
-            44,
-            InstructionCode::SCOPE_END.into(),
+        let expected: Vec<u8> = vec![
+              // TODO
         ];
         assert_eq!(result, expected);
     }

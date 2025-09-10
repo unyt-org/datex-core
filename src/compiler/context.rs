@@ -246,32 +246,15 @@ impl<'a> CompilationContext<'a> {
                 self.append_binary_code(InstructionCode::SCOPE_END);
             }
             CoreValue::Map(val) => {
-                self.append_binary_code(InstructionCode::RECORD_START);
-                // println!("Object: {val:?}");
+                self.append_binary_code(InstructionCode::MAP_START);
                 for (key, value) in val {
-                    self.insert_key_string(key);
+                    self.insert_value_container(key);
                     self.insert_value_container(value);
                 }
                 self.append_binary_code(InstructionCode::SCOPE_END);
-            }
-            CoreValue::Tuple(val) => {
-                self.append_binary_code(InstructionCode::TUPLE_START);
-                let mut next_expected_integer_key: i128 = 0;
-                for (key, value) in val {
-                    // if next expected integer key, ignore and just insert value
-                    if let ValueContainer::Value(key) = key
-                        && let CoreValue::Integer(integer) = &key.inner
-                        && let Some(int) = integer.as_i128()
-                        && int == next_expected_integer_key
-                    {
-                        next_expected_integer_key += 1;
-                        self.insert_value_container(value);
-                    } else {
-                        self.insert_key_value_pair(key, value);
-                    }
-                }
-                self.append_binary_code(InstructionCode::SCOPE_END);
-            }
+            },
+            CoreValue::Array(array) => {todo!()}
+            CoreValue::Struct(structure) => {todo!()}
         }
     }
 

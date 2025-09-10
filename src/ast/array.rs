@@ -1,7 +1,7 @@
 use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 pub fn array<'a>(

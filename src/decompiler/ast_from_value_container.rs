@@ -1,5 +1,5 @@
 use crate::ast::DatexExpression;
-use crate::ast::tuple::TupleEntry;
+use crate::ast::map::TupleEntry;
 use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -53,41 +53,29 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
             DatexExpression::Endpoint(endpoint.clone())
         }
         CoreValue::Null => DatexExpression::Null,
-        CoreValue::List(list) => DatexExpression::Array(
+        CoreValue::List(list) => DatexExpression::List(
             list.into_iter().map(DatexExpression::from).collect(),
         ),
-        CoreValue::Tuple(tuple) => {
-            DatexExpression::Tuple(
-                tuple
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (key, value))| {
-                        // if key is integer and matches the index, use TupleEntry::Value
-                        if let ValueContainer::Value(Value {
-                            inner: CoreValue::Integer(integer),
-                            ..
-                        }) = key
-                            && let Some(int) = integer.as_i64()
-                            && int == index as i64
-                        {
-                            TupleEntry::Value(DatexExpression::from(value))
-                        } else {
-                            // otherwise, use TupleEntry::KeyValue
-                            TupleEntry::KeyValue(
-                                DatexExpression::from(key),
-                                DatexExpression::from(value),
-                            )
-                        }
-                    })
-                    .collect(),
-            )
-        }
-        CoreValue::Map(map) => DatexExpression::Struct(
+        CoreValue::Array(list) => DatexExpression::Array(
+            list.into_iter().map(DatexExpression::from).collect(),
+        ),
+        CoreValue::Map(map) => DatexExpression::Map(
             map
                 .into_iter()
                 .map(|(key, value)| {
                     (
-                        key.clone(),
+                        DatexExpression::from(key),
+                        DatexExpression::from(value),
+                    )
+                })
+                .collect(),
+        ),
+        CoreValue::Struct(structure) => DatexExpression::Struct(
+            structure
+                .into_iter()
+                .map(|(value)| {
+                    (
+                        todo!("get field name from struct definition"),
                         DatexExpression::from(value),
                     )
                 })

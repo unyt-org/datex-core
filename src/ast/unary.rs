@@ -1,6 +1,6 @@
 use crate::ast::unary_operation::UnaryOperator;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {

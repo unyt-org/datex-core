@@ -3,7 +3,7 @@ use crate::ast::endpoint::endpoint;
 use crate::ast::integer::integer;
 use crate::ast::text::text;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 /// A valid object / tuple key

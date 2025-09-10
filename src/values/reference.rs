@@ -370,22 +370,19 @@ impl Reference {
         .unwrap_or(Err(AccessError::ImmutableReference))
     }
 
-    pub fn try_get_text_property(
+    pub fn try_get_value_for_key<T: Into<ValueContainer>>(
         &self,
-        key: &str,
+        key: T,
     ) -> Result<Option<ValueContainer>, AccessError> {
         self.with_value(|value| {
             match value.inner {
-                CoreValue::Map(ref mut obj) => {
+                CoreValue::Map(ref mut map) => {
                     // If the value is an object, get the property
-                    Ok(obj.try_get(key).cloned())
+                    Ok(map.get(&key.into()).cloned())
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
-                    Err(AccessError::InvalidOperation(format!(
-                        "Cannot get property '{}' on non-object value: {:?}",
-                        key, value
-                    )))
+                    Err(AccessError::InvalidOperation("Cannot get property".to_string()))
                 }
             }
         })
@@ -417,9 +414,9 @@ impl Reference {
     pub fn upgrade_inner_combined_values_to_references(&self) {
         self.with_value(|value| {
             match &mut value.inner {
-                CoreValue::Map(obj) => {
+                CoreValue::Map(map) => {
                     // Iterate over all properties and upgrade them to references
-                    for (_, prop) in obj.iter_mut() {
+                    for (_, prop) in map.iter_mut() {
                         // TODO: no clone here, implement some sort of map
                         *prop = self.bind_child(prop.clone());
                     }
@@ -564,15 +561,15 @@ mod tests {
 
     #[test]
     fn nested_references() {
-        let mut object_a = Map::new();
+        let mut object_a = Map::default();
         object_a.set("number", ValueContainer::from(42));
-        object_a.set("obj", ValueContainer::from(Map::new()));
+        object_a.set("obj", ValueContainer::from(Map::default()));
 
         // construct object_a as a value first
         let object_a_val = ValueContainer::new_value(object_a);
 
         // create object_b as a reference
-        let object_b_ref = ValueContainer::new_reference(Map::new());
+        let object_b_ref = ValueContainer::new_reference(Map::default());
 
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
@@ -586,19 +583,19 @@ mod tests {
         object_b_ref
             .with_maybe_reference(|b_ref| {
                 let object_a_ref =
-                    b_ref.try_get_text_property("a").unwrap().unwrap();
+                    b_ref.try_get_value_for_key("a").unwrap().unwrap();
                 assert_structural_eq!(object_a_ref, object_a_val);
                 // object_a_ref should be a reference
                 assert_matches!(object_a_ref, ValueContainer::Reference(_));
                 object_a_ref.with_maybe_reference(|a_ref| {
                     // object_a_ref.number should be a value
                     assert_matches!(
-                        a_ref.try_get_text_property("number"),
+                        a_ref.try_get_value_for_key("number"),
                         Ok(Some(ValueContainer::Value(_)))
                     );
                     // object_a_ref.obj should be a reference
                     assert_matches!(
-                        a_ref.try_get_text_property("obj"),
+                        a_ref.try_get_value_for_key("obj"),
                         Ok(Some(ValueContainer::Reference(_)))
                     );
                 });

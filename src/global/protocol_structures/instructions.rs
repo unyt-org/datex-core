@@ -45,7 +45,6 @@ pub enum Instruction {
     ScopeStart,
     ListStart,
     MapStart,
-    TupleStart,
     ScopeEnd,
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
@@ -137,7 +136,7 @@ impl Display for Instruction {
             Instruction::ScopeStart => write!(f, "SCOPE_START"),
             Instruction::ListStart => write!(f, "ARRAY_START"),
             Instruction::MapStart => write!(f, "OBJECT_START"),
-            Instruction::TupleStart => write!(f, "TUPLE_START"),
+            Instruction::MapStart => write!(f, "TUPLE_START"),
             Instruction::ScopeEnd => write!(f, "SCOPE_END"),
             Instruction::KeyValueDynamic => write!(f, "KEY_VALUE_DYNAMIC"),
             Instruction::KeyValueShortText(data) => {

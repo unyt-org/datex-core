@@ -98,21 +98,7 @@ impl From<&ValueContainer> for DIFValue {
                 array.0.iter().map(|v| v.into()).collect(),
             )),
             CoreValue::Map(map) => Some(DIFCoreValue::Map(
-                map.0.iter().map(|(k, v)| (k.clone(), v.into())).collect(),
-            )),
-            CoreValue::Tuple(tuple) => Some(DIFCoreValue::Array(
-                tuple
-                    .entries
-                    .iter()
-                    .map(|(k, v)| DIFValue {
-                        value: Some(DIFCoreValue::Array(vec![
-                            k.into(),
-                            v.into(),
-                        ])),
-                        r#type: None,
-                        ptr_id: None,
-                    })
-                    .collect(),
+                map.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
             )),
         };
 
@@ -191,7 +177,7 @@ impl From<&DIFValue> for ValueContainer {
             Some(DIFCoreValue::Map(entries)) => CoreValue::Map(
                 entries
                     .iter()
-                    .map(|(k, v)| (k.clone(), ValueContainer::from(v)))
+                    .map(|(k, v)| (ValueContainer::from(k), ValueContainer::from(v)))
                     .collect(),
             ),
             None => CoreValue::Null,
@@ -213,7 +199,7 @@ pub enum DIFCoreValue {
     /// Represents a list of DIF values.
     Array(Vec<DIFValue>),
     /// Represents a map of DIF values.
-    Map(Vec<(String, DIFValue)>),
+    Map(Vec<(DIFValue, DIFValue)>),
 }
 
 impl serde::Serialize for DIFCoreValue {
@@ -339,10 +325,8 @@ pub enum DIFUpdate {
 
 #[cfg(test)]
 mod tests {
-    use crate::values::datex_type::CoreValueType;
 
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn dif_value_serialization() {

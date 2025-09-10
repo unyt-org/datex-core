@@ -1,4 +1,3 @@
-use super::datex_type::CoreValueType;
 use crate::values::core_value::CoreValue;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;

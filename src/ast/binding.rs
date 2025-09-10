@@ -9,7 +9,7 @@ use crate::ast::{
     BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
     ReferenceMutability, VariableKind,
 };
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 pub type VariableId = usize;
 

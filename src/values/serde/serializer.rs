@@ -5,7 +5,6 @@ use crate::runtime::execution::{
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
-use crate::values::core_values::tuple::Tuple;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use serde::ser::{
@@ -82,7 +81,7 @@ impl SerializeStruct for StructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut map = Map::default();
+        let mut map = Struct::default();
         for (key, value) in self.fields.into_iter() {
             map.set(&key, value);
         }
@@ -123,11 +122,11 @@ impl SerializeTuple for TupleSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut tuple = Tuple::default();
+        let mut tuple = Array::default();
         for element in self.elements.into_iter() {
             tuple.insert(element);
         }
-        Ok(ValueContainer::from(CoreValue::Tuple(tuple)))
+        Ok(ValueContainer::from(CoreValue::Array(tuple)))
     }
 }
 
@@ -252,7 +251,7 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut obj = Map::default();
+        let mut obj = Struct::default();
         for (key, value) in self.fields.into_iter() {
             obj.set(&key, value);
         }

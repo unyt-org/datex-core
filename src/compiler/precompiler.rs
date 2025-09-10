@@ -1,7 +1,7 @@
 use crate::ast::DatexExpression;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::chain::ApplyOperation;
-use crate::ast::tuple::TupleEntry;
+use crate::ast::map::TupleEntry;
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
@@ -344,7 +344,7 @@ fn visit_expression(
                     .borrow()
                     .cast_to_map()
                     .unwrap()
-                    .try_get(name)
+                    .get_owned(name)
             {
                 match core_variable {
                     ValueContainer::Reference(reference) => {
@@ -439,32 +439,20 @@ fn visit_expression(
                 )?;
             }
         }
-        DatexExpression::Tuple(entries) => {
-            for entry in entries {
-                match entry {
-                    TupleEntry::Value(expr) => {
-                        visit_expression(
-                            expr,
-                            metadata,
-                            scope_stack,
-                            NewScopeType::NewScope,
-                        )?;
-                    }
-                    TupleEntry::KeyValue(key, value) => {
-                        visit_expression(
-                            key,
-                            metadata,
-                            scope_stack,
-                            NewScopeType::NewScope,
-                        )?;
-                        visit_expression(
-                            value,
-                            metadata,
-                            scope_stack,
-                            NewScopeType::NewScope,
-                        )?;
-                    }
-                }
+        DatexExpression::Map(entries) => {
+            for (key, value) in entries {
+                visit_expression(
+                    key,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+                visit_expression(
+                    value,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
             }
         }
         DatexExpression::RemoteExecution(callee, expr) => {

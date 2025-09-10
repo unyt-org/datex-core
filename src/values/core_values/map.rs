@@ -1,75 +1,50 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::values::core_value::CoreValue;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
-use indexmap::map::{IntoIter, Iter};
+use indexmap::map::{IntoIter, Iter, IterMut};
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
-use std::iter::zip;
 
+// FIXME: restrict tuple keys to Integer and String only
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Map(pub IndexMap<String, ValueContainer>);
+pub struct Map(IndexMap<ValueContainer, ValueContainer>);
+
 impl Map {
-    pub fn new() -> Self {
-        Map(IndexMap::new())
+    pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
+        Map(entries)
     }
+
     pub fn size(&self) -> usize {
         self.0.len()
     }
-    pub fn get(&self, key: &str) -> &ValueContainer {
-        self.try_get(key)
-            .unwrap_or_else(|| panic!("Key '{key}' not found in Object"))
-    }
-    pub fn try_get(&self, key: &str) -> Option<&ValueContainer> {
+
+    pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         self.0.get(key)
     }
-    pub fn try_get_mut(&mut self, key: &str) -> Option<&mut ValueContainer> {
-        self.0.get_mut(key)
+
+    pub fn get_owned<T: Into<ValueContainer>>(&self, key: T) -> Option<&ValueContainer> {
+        self.0.get(&key.into())
     }
-    pub fn get_or_insert_with<F>(
+
+    /// Set a key-value pair in the tuple. This method should only be used internal, since tuples
+    /// are immutable after creation as per DATEX specification.
+    pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
         &mut self,
-        key: &str,
-        default: F,
-    ) -> &mut ValueContainer
-    where
-        F: FnOnce() -> ValueContainer,
-    {
-        self.0.entry(key.to_string()).or_insert_with(default)
+        key: K,
+        value: V,
+    ) {
+        self.0.insert(key.into(), value.into());
     }
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut ValueContainer> {
-        self.0.get_mut(key)
-    }
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.0.contains_key(key)
-    }
-    pub fn keys(&self) -> impl Iterator<Item = &String> {
-        self.0.keys()
-    }
-    pub fn values(&self) -> impl Iterator<Item = &ValueContainer> {
-        self.0.values()
-    }
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &ValueContainer)> {
+
+    pub fn iter(&self) -> Iter<ValueContainer, ValueContainer> {
         self.0.iter()
     }
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = (&String, &mut ValueContainer)> {
+    
+    pub fn iter_mut(&mut self) -> IterMut<ValueContainer, ValueContainer> {
         self.0.iter_mut()
-    }
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn set<T: Into<ValueContainer>>(&mut self, key: &str, value: T) {
-        self.0.insert(key.to_string(), value.into());
-    }
-
-    pub fn remove(&mut self, key: &str) -> Option<ValueContainer> {
-        self.0.shift_remove(key)
     }
 }
 
@@ -78,9 +53,12 @@ impl StructuralEq for Map {
         if self.size() != other.size() {
             return false;
         }
-        // fixme #121: key order should not matter
-        for (key, value) in zip(self.0.iter(), other.0.iter()) {
-            if key.0 != value.0 || !key.1.structural_eq(value.1) {
+        for ((key, value), (other_key, other_value)) in
+            self.0.iter().zip(other.0.iter())
+        {
+            if !key.structural_eq(other_key)
+                || !value.structural_eq(other_value)
+            {
                 return false;
             }
         }
@@ -91,7 +69,6 @@ impl StructuralEq for Map {
 impl Hash for Map {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for (k, v) in &self.0 {
-            // fixme #122: sort keys to ensure consistent hashing
             k.hash(state);
             v.hash(state);
         }
@@ -100,40 +77,32 @@ impl Hash for Map {
 
 impl CoreValueTrait for Map {}
 
-impl fmt::Display for Map {
+impl Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{")?;
+        write!(f, "(")?;
         for (i, (key, value)) in self.0.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "\"{key}\": {value}")?;
+            write!(f, "{key}: {value}")?;
         }
-        write!(f, "}}")
+        write!(f, ")")
     }
 }
 
-impl<T> From<HashMap<String, T>> for Map
+impl<K, V> From<HashMap<K, V>> for Map
 where
-    T: Into<ValueContainer>,
+    K: Into<ValueContainer>,
+    V: Into<ValueContainer>,
 {
-    fn from(map: HashMap<String, T>) -> Self {
-        Map(map.into_iter().map(|(k, v)| (k, v.into())).collect())
-    }
-}
-
-impl<T> FromIterator<(String, T)> for Map
-where
-    T: Into<ValueContainer>,
-{
-    fn from_iter<I: IntoIterator<Item = (String, T)>>(iter: I) -> Self {
-        Map(iter.into_iter().map(|(k, v)| (k, v.into())).collect())
+    fn from(map: HashMap<K, V>) -> Self {
+        Map::new(map.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
     }
 }
 
 impl IntoIterator for Map {
-    type Item = (String, ValueContainer);
-    type IntoIter = IntoIter<String, ValueContainer>;
+    type Item = (ValueContainer, ValueContainer);
+    type IntoIter = IntoIter<ValueContainer, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -141,16 +110,53 @@ impl IntoIterator for Map {
 }
 
 impl<'a> IntoIterator for &'a Map {
-    type Item = (&'a String, &'a ValueContainer);
-    type IntoIter = Iter<'a, String, ValueContainer>;
+    type Item = (&'a ValueContainer, &'a ValueContainer);
+    type IntoIter = Iter<'a, ValueContainer, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
 }
 
+impl From<Vec<(ValueContainer, ValueContainer)>> for Map {
+    fn from(vec: Vec<(ValueContainer, ValueContainer)>) -> Self {
+        Map::new(vec.into_iter().collect())
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for Map
+where
+    K: Into<ValueContainer>,
+    V: Into<ValueContainer>,
+{
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        Map(iter.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+    }
+}
+
+
 impl From<IndexMap<ValueContainer, ValueContainer>> for Map {
     fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
-        Map(map.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+        Map::new(map)
+    }
+}
+impl From<IndexMap<String, ValueContainer>> for Map {
+    fn from(map: IndexMap<String, ValueContainer>) -> Self {
+        Map::new(
+            map.into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+        )
+    }
+}
+impl TryFrom<CoreValue> for Map {
+    type Error = String;
+
+    fn try_from(value: CoreValue) -> Result<Self, Self::Error> {
+        if let CoreValue::Map(map) = value {
+            Ok(map)
+        } else {
+            Err(format!("Expected CoreValue::Map, found {value:?}"))
+        }
     }
 }

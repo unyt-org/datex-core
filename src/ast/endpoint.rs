@@ -4,7 +4,7 @@ use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
 use crate::ast::error::error::ParseError;
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use crate::values::core_values::endpoint::Endpoint;
 use chumsky::prelude::*;
 

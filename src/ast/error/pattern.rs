@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::ast::DatexParserTrait;
 use crate::ast::utils::whitespace;
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
 

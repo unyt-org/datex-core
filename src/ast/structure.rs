@@ -1,12 +1,12 @@
 use crate::ast::error::pattern::Pattern;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 
 use chumsky::prelude::*;
 use crate::ast::text::{unescape_text};
 
-pub fn object<'a>(
+pub fn structure<'a>(
     expression_without_tuple: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let key = choice((
@@ -27,6 +27,6 @@ pub fn object<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
         .map(DatexExpression::Struct)
-        .labelled(Pattern::Custom("object"))
+        .labelled(Pattern::Custom("struct"))
         .as_context()
 }

@@ -6,6 +6,6 @@ pub mod error;
 pub mod integer;
 pub mod map;
 pub mod text;
-pub mod tuple;
 pub mod r#type;
-// pub mod union;
+pub mod array;
+pub mod r#struct;

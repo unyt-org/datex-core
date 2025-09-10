@@ -1,5 +1,5 @@
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 pub fn whitespace<'a>() -> impl DatexParserTrait<'a, ()> {

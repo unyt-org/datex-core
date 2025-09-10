@@ -1,6 +1,6 @@
 use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 pub fn text<'a>() -> impl DatexParserTrait<'a> {

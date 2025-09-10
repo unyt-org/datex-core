@@ -13,13 +13,14 @@ pub mod function;
 pub mod integer;
 pub mod key;
 pub mod literal;
-pub mod object;
+pub mod structure;
 pub mod text;
-pub mod tuple;
+pub mod map;
 pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
+pub mod lexer;
 
 use crate::ast::array::*;
 use crate::ast::assignment_operation::*;
@@ -32,8 +33,8 @@ use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::function::*;
 use crate::ast::key::*;
-use crate::ast::object::*;
-use crate::ast::tuple::*;
+use crate::ast::structure::*;
+use crate::ast::map::*;
 use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
@@ -48,11 +49,12 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::{compiler::lexer::Token, values::core_values::list::List};
+use crate::values::core_values::list::List;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use logos::Logos;
 use std::{collections::HashMap, ops::Range};
+use lexer::Token;
 use crate::ast::list::list;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
@@ -160,14 +162,12 @@ pub enum DatexExpression {
     Endpoint(Endpoint),
     /// Array, e.g  `[1, 2, 3, "text"]`
     Array(Vec<DatexExpression>),
-    /// List, e.g  `List [1, 2, 3, "text"]`
+    /// List, e.g  `(1, 2, 3, "text")`, or without brackets: 1, 2, 3, "text"
     List(Vec<DatexExpression>),
     /// Struct, e.g {"key": "value", key2: 2, xy: 10}
     Struct(Vec<(String, DatexExpression)>),
-    /// Map, e.g Map {"key": "value", (10): 2, (y): 20}
+    /// Map, e.g (1: 2, 3: 4, xy: "xy") or without brackets: a:3, b:4
     Map(Vec<(DatexExpression, DatexExpression)>),
-    /// Tuple, e.g (1: 2, 3: 4, "xy") or without brackets: 1,2,a:3
-    Tuple(Vec<TupleEntry>),
     /// One or more statements, e.g (1; 2; 3)
     Statements(Vec<Statement>),
     /// Identifier, e.g. a variable name. VariableId is always set to 0 by the ast parser.
@@ -357,11 +357,11 @@ where
     let list = list(expression_without_tuple.clone());
 
     // object
-    let object = object(expression_without_tuple.clone());
+    let object = structure(expression_without_tuple.clone());
 
-    // tuple
+    // map
     // Key-value pair
-    let tuple = tuple(key.clone(), expression_without_tuple.clone());
+    let tuple = map(key.clone(), expression_without_tuple.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom = atom(array.clone(), object.clone(), wrapped_expression.clone());
@@ -807,7 +807,7 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Tuple(vec![])),
+                parameters: Box::new(DatexExpression::Map(vec![])),
                 return_type: None,
                 body: Box::new(DatexExpression::Integer(Integer::from(42))),
             }
@@ -826,8 +826,8 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Tuple(vec![
-                    TupleEntry::KeyValue(
+                parameters: Box::new(DatexExpression::Map(vec![
+                    (
                         DatexExpression::Text("x".to_string()),
                         DatexExpression::Literal("integer".to_owned())
                     )
@@ -847,12 +847,12 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Tuple(vec![
-                    TupleEntry::KeyValue(
+                parameters: Box::new(DatexExpression::Map(vec![
+                    (
                         DatexExpression::Text("x".to_string()),
                         DatexExpression::Literal("integer".to_owned())
                     ),
-                    TupleEntry::KeyValue(
+                    (
                         DatexExpression::Text("y".to_string()),
                         DatexExpression::Literal("integer".to_owned())
                     )
@@ -885,8 +885,8 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Tuple(vec![
-                    TupleEntry::KeyValue(
+                parameters: Box::new(DatexExpression::Map(vec![
+                    (
                         DatexExpression::Text("x".to_string()),
                         DatexExpression::Literal("integer".to_owned())
                     )
@@ -1872,9 +1872,9 @@ mod tests {
 
         assert_eq!(
             tuple,
-            DatexExpression::Tuple(vec![
-                TupleEntry::Value(DatexExpression::Integer(Integer::from(1))),
-                TupleEntry::Value(DatexExpression::Integer(Integer::from(2))),
+            DatexExpression::List(vec![
+                DatexExpression::Integer(Integer::from(1)),
+                DatexExpression::Integer(Integer::from(2)),
             ])
         );
     }
@@ -1886,9 +1886,9 @@ mod tests {
 
         assert_eq!(
             tuple,
-            DatexExpression::Tuple(vec![
-                TupleEntry::Value(DatexExpression::Integer(Integer::from(1))),
-                TupleEntry::Value(DatexExpression::Integer(Integer::from(2))),
+            DatexExpression::List(vec![
+                DatexExpression::Integer(Integer::from(1)),
+                DatexExpression::Integer(Integer::from(2)),
             ])
         );
     }
@@ -1900,20 +1900,20 @@ mod tests {
 
         assert_eq!(
             tuple,
-            DatexExpression::Tuple(vec![
-                TupleEntry::KeyValue(
+            DatexExpression::Map(vec![
+                (
                     DatexExpression::Integer(Integer::from(1)),
                     DatexExpression::Integer(Integer::from(2))
                 ),
-                TupleEntry::KeyValue(
+                (
                     DatexExpression::Integer(Integer::from(3)),
                     DatexExpression::Integer(Integer::from(4))
                 ),
-                TupleEntry::KeyValue(
+                (
                     DatexExpression::Text("xy".to_string()),
                     DatexExpression::Integer(Integer::from(2))
                 ),
-                TupleEntry::KeyValue(
+                (
                     DatexExpression::Text("a b c".to_string()),
                     DatexExpression::Text("d".to_string())
                 ),
@@ -1929,18 +1929,18 @@ mod tests {
         assert_eq!(
             arr,
             DatexExpression::Array(vec![
-                DatexExpression::Tuple(vec![
-                    TupleEntry::Value(DatexExpression::Integer(Integer::from(
+                DatexExpression::List(vec![
+                    DatexExpression::Integer(Integer::from(
                         1
-                    ))),
-                    TupleEntry::Value(DatexExpression::Integer(Integer::from(
+                    )),
+                    DatexExpression::Integer(Integer::from(
                         2
-                    ))),
+                    )),
                 ]),
                 DatexExpression::Integer(Integer::from(3)),
-                DatexExpression::Tuple(vec![TupleEntry::Value(
+                DatexExpression::List(vec![
                     DatexExpression::Integer(Integer::from(4))
-                ),]),
+                ]),
             ])
         );
     }
@@ -1952,9 +1952,9 @@ mod tests {
 
         assert_eq!(
             tuple,
-            DatexExpression::Tuple(vec![TupleEntry::Value(
+            DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1))
-            ),])
+            ])
         );
     }
 
@@ -1964,10 +1964,10 @@ mod tests {
         let tuple = parse_unwrap(src);
         assert_eq!(
             tuple,
-            DatexExpression::Tuple(vec![TupleEntry::KeyValue(
+            DatexExpression::Map(vec![(
                 DatexExpression::Text("x".to_string()),
                 DatexExpression::Integer(Integer::from(1))
-            ),])
+            )])
         );
     }
 
@@ -2047,12 +2047,12 @@ mod tests {
 
         assert_eq!(
             tuple,
-            DatexExpression::Tuple(vec![
-                TupleEntry::KeyValue(
+            DatexExpression::Map(vec![
+                (
                     DatexExpression::Integer(Integer::from(1)),
                     DatexExpression::Integer(Integer::from(1))
                 ),
-                TupleEntry::KeyValue(
+                (
                     DatexExpression::Array(vec![]),
                     DatexExpression::Integer(Integer::from(2))
                 ),
@@ -2430,17 +2430,17 @@ mod tests {
             expr,
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
-                vec![ApplyOperation::FunctionCall(DatexExpression::Tuple(
+                vec![ApplyOperation::FunctionCall(DatexExpression::List(
                     vec![
-                        TupleEntry::Value(DatexExpression::Integer(
+                        DatexExpression::Integer(
                             Integer::from(1)
-                        )),
-                        TupleEntry::Value(DatexExpression::Integer(
+                        ),
+                        DatexExpression::Integer(
                             Integer::from(2)
-                        )),
-                        TupleEntry::Value(DatexExpression::Integer(
+                        ),
+                        DatexExpression::Integer(
                             Integer::from(3)
-                        )),
+                        ),
                     ]
                 ),)],
             )
@@ -2474,13 +2474,13 @@ mod tests {
                     ApplyOperation::FunctionCall(DatexExpression::Integer(
                         Integer::from(1)
                     ),),
-                    ApplyOperation::FunctionCall(DatexExpression::Tuple(vec![
-                        TupleEntry::Value(DatexExpression::Integer(
+                    ApplyOperation::FunctionCall(DatexExpression::List(vec![
+                        DatexExpression::Integer(
                             Integer::from(2)
-                        )),
-                        TupleEntry::Value(DatexExpression::Integer(
+                        ),
+                        DatexExpression::Integer(
                             Integer::from(3)
-                        )),
+                        ),
                     ]))
                 ],
             )
@@ -2592,13 +2592,13 @@ mod tests {
                     ApplyOperation::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
                     )),
-                    ApplyOperation::FunctionCall(DatexExpression::Tuple(vec![
-                        TupleEntry::Value(DatexExpression::Integer(
+                    ApplyOperation::FunctionCall(DatexExpression::List(vec![
+                        DatexExpression::Integer(
                             Integer::from(1)
-                        )),
-                        TupleEntry::Value(DatexExpression::Integer(
+                        ),
+                        DatexExpression::Integer(
                             Integer::from(2)
-                        )),
+                        ),
                     ])),
                 ],
             )
@@ -3429,7 +3429,7 @@ mod tests {
                 UnaryOperator::Not,
                 box DatexExpression::UnaryOperation(
                     UnaryOperator::Not,
-                    box DatexExpression::Tuple(_),
+                    box DatexExpression::Map(_),
                 ),
             )
         );

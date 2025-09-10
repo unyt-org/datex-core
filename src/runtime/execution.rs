@@ -20,7 +20,6 @@ use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::map::Map;
-use crate::values::core_values::tuple::Tuple;
 use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
@@ -774,17 +773,6 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::TupleStart => {
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope_with_active_value(
-                        Scope::Collection,
-                        Tuple::default().into(),
-                    );
-                None
-            }
-
             Instruction::KeyValueShortText(ShortTextData(key)) => {
                 context
                     .borrow_mut()
@@ -1074,13 +1062,10 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             list.push(value);
         }
         ValueContainer::Value(Value {
-            inner: CoreValue::Tuple(tuple),
+            inner: CoreValue::Array(array),
             ..
         }) => {
-            // FIXME shall we consider a special case for tuples indexing?
-            // automatic tuple keys are always default integer values
-            let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
-            tuple.set(index, value);
+            array._push(value);
         }
         _ => {
             unreachable!(
@@ -1098,33 +1083,14 @@ fn handle_key_value_pair(
 ) -> Result<(), ExecutionError> {
     // insert key value pair into active object/tuple
     match active_container {
-        // object
+        // Map
         ValueContainer::Value(Value {
             inner: CoreValue::Map(map),
             ..
         }) => {
             // make sure key is a string
-            match key {
-                ValueContainer::Value(Value {
-                    inner: CoreValue::Text(key_str),
-                    ..
-                }) => {
-                    map.set(&key_str.0, value);
-                }
-                _ => {
-                    return Err(ExecutionError::InvalidProgram(
-                        InvalidProgramError::InvalidKeyValuePair,
-                    ));
-                }
-            }
-        }
-        // tuple
-        ValueContainer::Value(Value {
-            inner: CoreValue::Tuple(tuple),
-            ..
-        }) => {
-            // set key-value pair in tuple
-            tuple.set(key, value);
+            map.set(key, value);
+
         }
         _ => {
             unreachable!(

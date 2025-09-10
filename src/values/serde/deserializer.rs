@@ -7,7 +7,7 @@ use crate::{
         core_value::CoreValue,
         core_values::{
             decimal::typed_decimal::TypedDecimal,
-            integer::typed_integer::TypedInteger, tuple::Tuple,
+            integer::typed_integer::TypedInteger,
         },
         serde::error::DeserializationError,
         value,
@@ -17,6 +17,8 @@ use crate::{
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use std::path::PathBuf;
+use crate::values::core_values::r#struct::Struct;
+use crate::values::value::Value;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -182,20 +184,25 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Map(obj) => {
                     let map = obj
                         .into_iter()
-                        .map(|(k, v)| (k, DatexDeserializer::from_value(v)));
+                        .map(|(k, v)| (DatexDeserializer::from_value(k), DatexDeserializer::from_value(v)));
                     visitor
                         .visit_map(serde::de::value::MapDeserializer::new(map))
                 }
-                CoreValue::List(arr) => {
+                CoreValue::Struct(structure) => {
                     let vec =
-                        arr.into_iter().map(DatexDeserializer::from_value);
+                        structure.values().cloned().map(DatexDeserializer::from_value);
                     visitor
                         .visit_seq(serde::de::value::SeqDeserializer::new(vec))
                 }
-                CoreValue::Tuple(tuple) => {
-                    let vec = tuple
-                        .into_iter()
-                        .map(|(_, v)| DatexDeserializer::from_value(v));
+                CoreValue::List(list) => {
+                    let vec =
+                        list.into_iter().map(DatexDeserializer::from_value);
+                    visitor
+                        .visit_seq(serde::de::value::SeqDeserializer::new(vec))
+                }
+                CoreValue::Array(array) => {
+                    let vec =
+                        array.into_iter().map(DatexDeserializer::from_value);
                     visitor
                         .visit_seq(serde::de::value::SeqDeserializer::new(vec))
                 }
@@ -251,24 +258,26 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Tuple(t),
+        if let ValueContainer::Value(Value {
+            inner: CoreValue::Array(array),
             ..
         }) = self.value
         {
             let values =
-                t.into_iter().map(|(_, v)| DatexDeserializer::from_value(v));
+                array.into_iter().map(|v| DatexDeserializer::from_value(v));
             visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
-        } else if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Map(o),
+        } else if let ValueContainer::Value(Value {
+            inner: CoreValue::Struct(structure),
             ..
         }) = &self.value
         {
-            if o.size() > 0 {
-                let entry = o.into_iter().next().unwrap();
-                if entry.0.starts_with("datex::") {
+            if structure.size() == 2 {
+                let first_entry = structure.at_unchecked(0);
+                if let ValueContainer::Value(Value {inner: CoreValue::Text(text), ..}) = first_entry
+                    && text.0.starts_with("datex::") {
+                    let second_entry = structure.at_unchecked(1);
                     return visitor.visit_newtype_struct(
-                        DatexDeserializer::from_value(entry.1.clone()),
+                        DatexDeserializer::from_value(second_entry.clone()),
                     );
                 }
             }
@@ -297,36 +306,17 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Map(obj),
+        if let ValueContainer::Value(Value {
+            inner: CoreValue::List(list),
             ..
         }) = self.value
         {
-            if let Some(value) = obj.try_get(name) {
-                if let ValueContainer::Value(value::Value {
-                    inner: CoreValue::List(t),
-                    ..
-                }) = value
-                {
-                    return visitor.visit_seq(
-                        serde::de::value::SeqDeserializer::new(
-                            t.clone()
-                                .into_iter()
-                                .map(DatexDeserializer::from_value),
-                        ),
-                    );
-                } else {
-                    return Err(DeserializationError::Custom(format!(
-                        "expected tuple array for tuple struct `{}`",
-                        name
-                    )));
-                }
-            }
-
-            Err(DeserializationError::Custom(format!(
-                "object missing key for tuple struct `{}`",
-                name
-            )))
+            visitor.visit_seq(
+                serde::de::value::SeqDeserializer::new(
+                    list.into_iter()
+                        .map(DatexDeserializer::from_value),
+                ),
+            )
         } else {
             Err(DeserializationError::Custom(
                 "expected object for tuple struct".to_string(),
@@ -341,12 +331,12 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        if let ValueContainer::Value(value::Value {
-            inner: CoreValue::Tuple(t),
+        if let ValueContainer::Value(Value {
+            inner: CoreValue::Map(map),
             ..
         }) = self.value
         {
-            let entries = t.into_iter().map(|(k, v)| {
+            let entries = map.into_iter().map(|(k, v)| {
                 (
                     DatexDeserializer::from_value(k),
                     DatexDeserializer::from_value(v),
@@ -371,46 +361,29 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     {
         match self.value {
             // Direct text
-            ValueContainer::Value(value::Value {
+            ValueContainer::Value(Value {
                 inner: CoreValue::Text(s),
                 ..
             }) => visitor.visit_string(s.0),
 
             // Single-key object {"Identifier": ...}
-            ValueContainer::Value(value::Value {
+            ValueContainer::Value(Value {
                 inner: CoreValue::Map(o),
                 ..
             }) => {
                 if o.size() == 1 {
                     let (key, _) = o.into_iter().next().unwrap();
-                    visitor.visit_string(key)
+                    if let ValueContainer::Value(Value {inner: CoreValue::Text(text), ..}) = key {
+                        visitor.visit_string(text.0)
+                    } else {
+                        Err(DeserializationError::Custom(
+                            "Expected text key for identifier".to_string(),
+                        ))
+                    }
                 } else {
                     Err(DeserializationError::Custom(
                         "Expected single-key object for identifier".to_string(),
                     ))
-                }
-            }
-
-            // Tuple ("Identifier": whatever)
-            ValueContainer::Value(value::Value {
-                inner: CoreValue::Tuple(t),
-                ..
-            }) => {
-                if t.size() != 1 {
-                    return Err(DeserializationError::Custom(
-                        "Expected single-element tuple for identifier"
-                            .to_string(),
-                    ));
-                }
-                let (_, value) = t.into_iter().next().unwrap();
-                match value {
-                    ValueContainer::Value(value::Value {
-                        inner: CoreValue::Text(s),
-                        ..
-                    }) => visitor.visit_string(s.0),
-                    _ => Err(DeserializationError::Custom(
-                        "Expected text inside identifier tuple".to_string(),
-                    )),
                 }
             }
 
@@ -430,15 +403,15 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
-        V: serde::de::Visitor<'de>,
+        V: Visitor<'de>,
     {
         match self.value {
             // Default representation: ("Variant", value)
-            ValueContainer::Value(value::Value {
-                inner: CoreValue::Tuple(t),
+            ValueContainer::Value(Value {
+                inner: CoreValue::List(t),
                 ..
             }) => {
-                if t.size() < 1 {
+                if t.is_empty() {
                     return Err(DeserializationError::Custom(
                         "Expected non-empty tuple for enum".to_string(),
                     ));
@@ -451,7 +424,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }
 
             // Object with single key = variant name
-            ValueContainer::Value(value::Value {
+            ValueContainer::Value(Value {
                 inner: CoreValue::Map(o),
                 ..
             }) => {
@@ -462,20 +435,31 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 }
 
                 let (variant_name, value) = o.into_iter().next().unwrap();
-                let deserializer = DatexDeserializer::from_value(value);
-                visitor.visit_enum(EnumDeserializer {
-                    variant: variant_name,
-                    value: deserializer,
-                })
+                if let ValueContainer::Value(Value {
+                    inner: CoreValue::Text(variant_text),
+                    ..
+                }) = variant_name
+                {
+                    let deserializer = DatexDeserializer::from_value(value);
+                    visitor.visit_enum(EnumDeserializer {
+                        variant: variant_text.0,
+                        value: deserializer,
+                    })
+                } else {
+                    Err(DeserializationError::Custom(
+                        "Expected text variant name".to_string(),
+                    ))
+                }
+                
             }
 
             // unit variants stored directly as text
-            ValueContainer::Value(value::Value {
+            ValueContainer::Value(Value {
                 inner: CoreValue::Text(s),
                 ..
             }) => visitor.visit_enum(EnumDeserializer {
                 variant: s.0,
-                value: DatexDeserializer::from_value(Tuple::default().into()),
+                value: DatexDeserializer::from_value(Struct::default().into()),
             }),
 
             e => Err(DeserializationError::Custom(format!(

@@ -1,5 +1,5 @@
 use crate::ast::chain::ApplyOperation;
-use crate::ast::tuple::TupleEntry;
+use crate::ast::map::TupleEntry;
 use crate::decompiler::DecompileOptions;
 use datex_core::ast::DatexExpression;
 use datex_core::decompiler::Formatting;
@@ -51,7 +51,7 @@ pub fn ast_to_source_code(
         DatexExpression::Array(arr) => {
             array_to_source_code(arr, decompile_options)
         }
-        DatexExpression::Tuple(tuple) => {
+        DatexExpression::Map(tuple) => {
             tuple_to_source_code(tuple, decompile_options)
         }
         DatexExpression::Struct(structure) => {
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_tuple() {
-        let tuple_ast = DatexExpression::Tuple(vec![
+        let tuple_ast = DatexExpression::Map(vec![
             TupleEntry::Value(DatexExpression::Integer(1.into())),
             TupleEntry::Value(DatexExpression::Text("two".to_string())),
             TupleEntry::Value(DatexExpression::Boolean(true)),

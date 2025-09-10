@@ -7,10 +7,10 @@ use crate::values::{
 use std::{fmt, ops::Index};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct List(pub Vec<ValueContainer>);
+pub struct List(Vec<ValueContainer>);
 impl List {
-    pub fn new() -> Self {
-        List(Vec::new())
+    pub fn new<T: Into<ValueContainer>>(values: Vec<T>) -> Self {
+        List(values.into_iter().map(Into::into).collect())
     }
     pub fn len(&self) -> usize {
         self.0.len()
@@ -104,7 +104,7 @@ macro_rules! datex_list {
     ( $( $x:expr ),* ) => {
         {
             let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
-            $crate::values::core_values::list::List(arr)
+            $crate::values::core_values::list::List::new(arr)
         }
     };
 }

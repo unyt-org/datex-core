@@ -1,6 +1,6 @@
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::compiler::lexer::Token;
+use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 fn return_type<'a>(
@@ -26,7 +26,7 @@ fn parameters<'a>(
     tuple
         .clone()
         .or_not()
-        .map(|e| e.unwrap_or(DatexExpression::Tuple(vec![])))
+        .map(|e| e.unwrap_or(DatexExpression::Map(vec![])))
         .delimited_by(
             just(Token::LeftParen).padded_by(whitespace()), // '(' with spaces/newlines after
             just(Token::RightParen).padded_by(whitespace()), // ')' with spaces/newlines before
