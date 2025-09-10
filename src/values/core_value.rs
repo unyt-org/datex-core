@@ -128,7 +128,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
-        CoreValue::List(vec.into())
+        CoreValue::Array(vec.into())
     }
 }
 
@@ -137,7 +137,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        CoreValue::List(List(iter.into_iter().map(Into::into).collect()))
+        CoreValue::Array(Array::new(iter.into_iter().map(Into::into).collect()))
     }
 }
 
