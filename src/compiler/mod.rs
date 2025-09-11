@@ -8,13 +8,13 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::ast::{
-    parse, BindingMutability, DatexExpression, DatexScriptParser,
-    ReferenceMutability, VariableKind,
+    BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
+    VariableKind, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::precompiler::{
-    precompile_ast, AstMetadata, AstWithMetadata, VariableMetadata,
+    AstMetadata, AstWithMetadata, VariableMetadata, precompile_ast,
 };
 use crate::compiler::scope::CompilationScope;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
@@ -502,8 +502,7 @@ fn compile_expression(
             compilation_context.append_binary_code(InstructionCode::NULL);
         }
         DatexExpression::List(list) => {
-            compilation_context
-                .append_binary_code(InstructionCode::LIST_START);
+            compilation_context.append_binary_code(InstructionCode::LIST_START);
             for item in list {
                 scope = compile_expression(
                     compilation_context,
@@ -515,8 +514,7 @@ fn compile_expression(
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Map(map) => {
-            compilation_context
-                .append_binary_code(InstructionCode::MAP_START);
+            compilation_context.append_binary_code(InstructionCode::MAP_START);
             for (key, value) in map {
                 scope = compile_key_value_entry(
                     compilation_context,
@@ -529,10 +527,10 @@ fn compile_expression(
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Array(array) => {
-            todo!()
+            todo!("compile array not implemented yet");
         }
         DatexExpression::Struct(structure) => {
-            todo!()
+            todo!("compile struct not implemented yet");
         }
 
         DatexExpression::Placeholder => {
@@ -945,9 +943,9 @@ fn compile_key_value_entry(
 #[cfg(test)]
 pub mod tests {
     use super::{
-        compile_ast, compile_script, compile_script_or_return_static_value, compile_template,
-        CompilationContext, CompilationScope, CompileOptions,
-        StaticValueOrDXB,
+        CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB,
+        compile_ast, compile_script, compile_script_or_return_static_value,
+        compile_template,
     };
     use std::assert_matches::assert_matches;
     use std::cell::RefCell;

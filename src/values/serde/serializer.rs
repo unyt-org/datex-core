@@ -14,6 +14,7 @@ use serde::ser::{
     SerializeTupleVariant, Serializer,
 };
 use std::collections::HashMap;
+use std::vec;
 pub struct DatexSerializer {}
 
 impl Default for DatexSerializer {
@@ -82,11 +83,15 @@ impl SerializeStruct for StructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut r#struct = Struct::default();
-        for (key, value) in self.fields.into_iter() {
-            r#struct.set(&key, value);
-        }
-        Ok(ValueContainer::from(CoreValue::Struct(r#struct)))
+        // rational: we want to map to json representation
+        // so other JSON serde still works. Otherwise we'd
+        // use a Struct here (see setup data transfer from JS)
+        // let mut map = Map::default();
+        // for (field, value) in self.fields.into_iter() {
+        //     map.set(ValueContainer::from(field), value);
+        // }
+        // Ok(ValueContainer::from(CoreValue::Map(map)))
+        Ok(Struct::new(self.fields).into())
     }
 }
 
@@ -250,13 +255,11 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut obj = Struct::default();
-        for (key, value) in self.fields.into_iter() {
-            obj.set(&key, value);
-        }
-        Ok(ValueContainer::from(CoreValue::Map(Map::from(
-            HashMap::from([(self.variant.to_string(), obj)]),
-        ))))
+        Ok(Struct::from(vec![(
+            self.variant.to_string(),
+            Struct::new(self.fields),
+        )])
+        .into())
     }
 }
 
@@ -468,7 +471,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(Map::default().into())
+        Ok(Struct::default().into())
     }
 
     fn serialize_unit_variant(
@@ -593,6 +596,7 @@ mod tests {
     use crate::assert_structural_eq;
     use crate::values::core_values::endpoint::Endpoint;
     use crate::values::core_values::map::Map;
+    use crate::values::core_values::r#struct::Struct;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::values::{
         core_value::CoreValue,
@@ -680,14 +684,13 @@ mod tests {
     fn tuple_struct() {
         let ts = TestTupleStruct("hi".to_string(), 99);
         let result = to_value_container(&ts).unwrap();
-        assert_eq!(result.to_string(), r#"{"TestTupleStruct": ["hi", 99]}"#);
+        assert_eq!(result.to_string(), r#"["hi", 99]"#);
     }
 
     #[test]
     fn unit_struct() {
         let us = UnitStruct;
         let result = to_value_container(&us).unwrap();
-        // Unit structs serialize as empty map
         assert_eq!(result.to_string(), r#"{}"#);
     }
 
@@ -702,10 +705,11 @@ mod tests {
     fn enum_tuple_variant() {
         let e = TestEnum::Tuple(42, "hello".to_string());
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#"{"Tuple": [42, "hello"]}"#);
+        assert_eq!(result.to_string(), r#"("Tuple": [42, "hello"])"#);
     }
 
     #[test]
+    // WIP
     fn enum_struct_variant() {
         let e = TestEnum::Struct { x: true, y: 3.5 };
         let result = to_value_container(&e).unwrap();
@@ -723,7 +727,7 @@ mod tests {
     fn tuple_array() {
         let data = [1, 2, 3, 4];
         let result = to_value_container(&data).unwrap();
-        assert_eq!(result.to_string(), "(0: 1, 1: 2, 2: 3, 3: 4)");
+        assert_eq!(result.to_string(), "[1, 2, 3, 4]");
     }
 
     #[test]
@@ -807,7 +811,7 @@ mod tests {
         assert_matches!(
             value_container,
             ValueContainer::Value(Value {
-                inner: CoreValue::Map(_),
+                inner: CoreValue::Struct(_),
                 ..
             })
         );
@@ -855,11 +859,11 @@ mod tests {
         let result = to_value_container(&test_struct);
         assert!(result.is_ok());
         let result = result.unwrap();
-        let map = Map::from(HashMap::from([(
+        let r#struct = Struct::from(vec![(
             "endpoint".to_string(),
             ValueContainer::from(Endpoint::new("@test")),
-        )]));
-        assert_eq!(result, ValueContainer::from(map));
+        )]);
+        assert_eq!(result, ValueContainer::from(r#struct));
     }
 
     #[derive(Serialize)]
@@ -878,7 +882,7 @@ mod tests {
     fn newtype_struct_multiple_fields() {
         let s = StructType(1, "test".to_string(), true);
         let result = to_value_container(&s).unwrap();
-        assert_eq!(result.to_string(), r#"{"StructType": [1, "test", true]}"#);
+        assert_eq!(result.to_string(), r#"[1, "test", true]"#);
     }
 
     #[derive(Serialize)]
@@ -902,7 +906,7 @@ mod tests {
 
         let e = MyTaggedEnum::Variant2(100, "hello".to_string());
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#"{"Variant2": [100, "hello"]}"#);
+        assert_eq!(result.to_string(), r#"("Variant2": [100, "hello"])"#);
 
         let e = MyTaggedEnum::Empty;
         let result = to_value_container(&e).unwrap();

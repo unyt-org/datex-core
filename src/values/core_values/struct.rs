@@ -10,7 +10,12 @@ use std::vec::IntoIter;
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Struct(Array, Vec<String>);
 impl Struct {
-    pub fn new<T: Into<ValueContainer>>(
+    pub fn new(fields: Vec<(String, ValueContainer)>) -> Self {
+        let (field_names, values): (Vec<_>, Vec<_>) =
+            fields.into_iter().unzip();
+        Self::new_with_fields(values, field_names)
+    }
+    pub fn new_with_fields<T: Into<ValueContainer>>(
         vec: Vec<T>,
         fields: Vec<String>,
     ) -> Self {
@@ -119,8 +124,13 @@ impl CoreValueTrait for Struct {}
 impl fmt::Display for Struct {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{")?;
-        for (index, value) in self.0.iter().enumerate() {
-            write!(f, "#{index}: {value}")?;
+        let mut first = true;
+        for (key, value) in self.iter() {
+            if !first {
+                write!(f, ", ")?;
+            }
+            write!(f, r#""{}": {}"#, key, value)?;
+            first = false;
         }
         write!(f, "}}")
     }
@@ -133,7 +143,7 @@ where
     fn from(map: IndexMap<String, T>) -> Self {
         let fields = map.keys().cloned().collect();
         let values = map.into_values().map(|v| v.into()).collect();
-        Struct::new(values, fields)
+        Struct::new_with_fields(values, fields)
     }
 }
 
@@ -151,6 +161,15 @@ impl IntoIterator for Struct {
     type Item = (String, ValueContainer);
     type IntoIter = std::iter::Zip<IntoIter<String>, IntoIter<ValueContainer>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.1.into_iter().zip(self.0.into_iter())
+        self.1.into_iter().zip(self.0)
+    }
+}
+
+impl<T> From<Vec<(String, T)>> for Struct
+where
+    T: Into<ValueContainer>,
+{
+    fn from(vec: Vec<(String, T)>) -> Self {
+        Struct::new(vec.into_iter().map(|(k, v)| (k, v.into())).collect())
     }
 }
