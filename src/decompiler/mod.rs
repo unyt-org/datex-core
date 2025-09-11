@@ -469,7 +469,7 @@ fn decompile_loop(
                 state.new_scope(ScopeType::Map);
                 state.get_current_scope().write_start(&mut output, &formatting, indentation_levels)?;
             }
-            Instruction::StructStart => {
+            Instruction::StructWithFieldNamesStart => {
                 indentation_levels += 1;
                 handle_before_term(state, &mut output, true, indentation_levels)?;
                 state.new_scope(ScopeType::Struct);

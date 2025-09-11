@@ -248,8 +248,7 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Map(val) => {
                 self.append_binary_code(InstructionCode::MAP_START);
                 for (key, value) in val {
-                    self.insert_value_container(key);
-                    self.insert_value_container(value);
+                    self.insert_key_value_pair(key, value);
                 }
                 self.append_binary_code(InstructionCode::SCOPE_END);
             },
@@ -261,9 +260,9 @@ impl<'a> CompilationContext<'a> {
                 self.append_binary_code(InstructionCode::SCOPE_END);
             }
             CoreValue::Struct(structure) => {
-                self.append_binary_code(InstructionCode::STRUCT_START);
-                for value in structure.values() {
-                    self.insert_value_container(value);
+                self.append_binary_code(InstructionCode::STRUCT_WITH_FIELDNAMES_START);
+                for (key, value) in structure.iter() {
+                    self.insert_struct_key_value_pair(key, value);
                 }
                 self.append_binary_code(InstructionCode::SCOPE_END);
             }
@@ -313,6 +312,17 @@ impl<'a> CompilationContext<'a> {
                 self.insert_value_container(key);
             }
         }
+        // insert value
+        self.insert_value_container(value);
+    }
+
+    pub fn insert_struct_key_value_pair(
+        &self,
+        key: String,
+        value: &ValueContainer,
+    ) {
+        // insert key
+        self.insert_key_string(&key);
         // insert value
         self.insert_value_container(value);
     }

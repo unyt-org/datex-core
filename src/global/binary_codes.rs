@@ -198,6 +198,13 @@ pub enum InstructionCode {
 
     WILDCARD, // *
 
+    /// type byte codes
+    TYPE_STRUCT,
+    TYPE_ARRAY,
+    TYPE_LITERAL_INT_8,
+    TYPE_LITERAL_INT_16,
+    // ...
+
     // values 0xc0 - 0xdf
     TEXT,
     INT_8, // byte
@@ -253,7 +260,9 @@ pub enum InstructionCode {
     LIST_START,  // (1,2,3)
     MAP_START,  // (a:1, b:2)
     ARRAY_START, // [1,2,3]
-    STRUCT_START, // {a:1, b:2}
+    STRUCT_WITH_FIELDNAMES_START, // {a:1, b:2}
+    STRUCT_START, // {a:1, b:2} - optimized, field names are inferred from struct type
+
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key
     KEY_PERMISSION,    // for object elements with permission prefix

@@ -518,7 +518,7 @@ impl ComHub {
             .unwrap()
             .unwrap();
         if let ValueContainer::Value(Value {
-            inner: CoreValue::List(array),
+            inner: CoreValue::Array(array),
             ..
         }) = hops_datex
         {
@@ -613,6 +613,10 @@ impl ComHub {
                         bounce_back: bounce_back.0,
                     });
                 }
+                else {
+                    error!("Invalid hop data in trace block");
+                    continue;
+                }
             }
             Some(hops)
         } else {
@@ -669,10 +673,10 @@ impl ComHub {
         let mut hops_datex = Vec::<ValueContainer>::new();
 
         for hop in hops {
-            let mut data_obj = Map::default();
+            let mut data_map = Map::default();
 
-            data_obj.set("endpoint", hop.endpoint);
-            data_obj.set("distance", hop.distance);
+            data_map.set("endpoint", hop.endpoint);
+            data_map.set("distance", hop.distance);
 
             let mut socket_obj = Map::default();
             socket_obj.set("interface_type", hop.socket.interface_type);
@@ -680,11 +684,11 @@ impl ComHub {
             socket_obj.set("channel", hop.socket.channel);
             socket_obj.set("socket_uuid", hop.socket.socket_uuid);
 
-            data_obj.set("socket", ValueContainer::from(socket_obj));
-            data_obj.set("direction", hop.direction.to_string());
-            data_obj.set("fork_nr", hop.fork_nr);
-            data_obj.set("bounce_back", hop.bounce_back);
-            hops_datex.push(ValueContainer::from(data_obj));
+            data_map.set("socket", ValueContainer::from(socket_obj));
+            data_map.set("direction", hop.direction.to_string());
+            data_map.set("fork_nr", hop.fork_nr);
+            data_map.set("bounce_back", hop.bounce_back);
+            hops_datex.push(ValueContainer::from(data_map));
         }
 
         let (dxb, _) = compile!("?", hops_datex).unwrap();

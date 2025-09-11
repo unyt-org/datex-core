@@ -193,7 +193,6 @@ fn normalize_newlines(s: &str) -> String {
 
 #[test]
 fn compare_with_expected() {
-    // FIXME: only works once field names are passed via DXB with struct type
     for (input_path, output_path) in iterate_test_cases() {
         println!("Testing JSON file: {}", input_path.display());
         let file_content = std::fs::read_to_string(input_path.clone()).unwrap();

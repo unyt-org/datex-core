@@ -106,6 +106,15 @@ impl Struct {
         }
     }
 
+    pub(crate) fn _set_new_field<T: Into<ValueContainer>>(
+        &mut self,
+        field: String,
+        value: T,
+    ) {
+        self.1.push(field);
+        self.0._push(value.into());
+    }
+
     // Add a new field to the struct at the end
     pub(crate) fn _push<T: Into<ValueContainer>>(&mut self, value: T) {
         self.0._push(value.into());

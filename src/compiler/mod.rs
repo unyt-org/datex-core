@@ -540,12 +540,13 @@ fn compile_expression(
         }
         DatexExpression::Struct(structure) => {
             compilation_context
-                .append_binary_code(InstructionCode::STRUCT_START);
-            for (_key, value) in structure {
-                scope = compile_expression(
+                .append_binary_code(InstructionCode::STRUCT_WITH_FIELDNAMES_START);
+            for (key, value) in structure {
+                scope = compile_struct_key_value_entry(
                     compilation_context,
-                    AstWithMetadata::new(value, &metadata),
-                    CompileMetadata::default(),
+                    key,
+                    value,
+                    &metadata,
                     scope,
                 )?;
             }
@@ -958,6 +959,25 @@ fn compile_key_value_entry(
     Ok(scope)
 }
 
+fn compile_struct_key_value_entry(
+    compilation_scope: &CompilationContext,
+    key: String,
+    value: DatexExpression,
+    metadata: &Rc<RefCell<AstMetadata>>,
+    mut scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    // insert key string
+    compilation_scope.insert_key_string(&key);
+    // insert value
+    scope = compile_expression(
+        compilation_scope,
+        AstWithMetadata::new(value, metadata),
+        CompileMetadata::default(),
+        scope,
+    )?;
+    Ok(scope)
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::{
@@ -1349,6 +1369,7 @@ pub mod tests {
     #[test]
     fn empty_list() {
         init_logger_debug();
+        // TODO: support list constructor (apply on type)
         let datex_script = "List()";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
@@ -1362,6 +1383,7 @@ pub mod tests {
     #[test]
     fn single_element_list() {
         init_logger_debug();
+        // TODO: support list constructor (apply on type)
         let datex_script = "List(42)";
         let result = compile_and_log(datex_script);
         assert_eq!(
@@ -1673,7 +1695,7 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::STRUCT_START.into(),
+            InstructionCode::STRUCT_WITH_FIELDNAMES_START.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
@@ -1686,7 +1708,12 @@ pub mod tests {
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::STRUCT_START.into(),
+            InstructionCode::STRUCT_WITH_FIELDNAMES_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            3, // length of "key"
+            b'k',
+            b'e',
+            b'y',
             InstructionCode::INT_8.into(),
             42,
             InstructionCode::SCOPE_END.into(),
@@ -1701,11 +1728,29 @@ pub mod tests {
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::STRUCT_START.into(),
+            InstructionCode::STRUCT_WITH_FIELDNAMES_START.into(),
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            4, // length of "key1"
+            b'k',
+            b'e',
+            b'y',
+            b'1',
             InstructionCode::INT_8.into(),
             42,
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            4, // length of "key2"
+            b'k',
+            b'e',
+            b'y',
+            b'2',
             InstructionCode::INT_8.into(),
             43,
+            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
+            4, // length of "key3"
+            b'k',
+            b'e',
+            b'y',
+            b'3',
             InstructionCode::INT_8.into(),
             44,
             InstructionCode::SCOPE_END.into(),

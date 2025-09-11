@@ -124,6 +124,12 @@ impl From<Vec<(ValueContainer, ValueContainer)>> for Map {
     }
 }
 
+impl From<Vec<(String, ValueContainer)>> for Map {
+    fn from(vec: Vec<(String, ValueContainer)>) -> Self {
+        Map::new(vec.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    }
+}
+
 impl<K, V> FromIterator<(K, V)> for Map
 where
     K: Into<ValueContainer>,

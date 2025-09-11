@@ -337,7 +337,7 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::LIST_START => Ok(Instruction::ListStart),
                     InstructionCode::MAP_START => Ok(Instruction::MapStart),
                     InstructionCode::ARRAY_START => Ok(Instruction::ArrayStart),
-                    InstructionCode::STRUCT_START => Ok(Instruction::StructStart),
+                    InstructionCode::STRUCT_WITH_FIELDNAMES_START => Ok(Instruction::StructWithFieldNamesStart),
                     InstructionCode::SCOPE_START => Ok(Instruction::ScopeStart),
                     InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
 

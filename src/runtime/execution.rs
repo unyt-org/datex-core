@@ -786,12 +786,12 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::StructStart => {
+            Instruction::StructWithFieldNamesStart => {
                 context
                     .borrow_mut()
                     .scope_stack
                     .create_scope_with_active_value(
-                        Scope::Collection,
+                        Scope::Default,
                         Struct::default().into(),
                     );
                 None
@@ -1124,6 +1124,24 @@ fn handle_key_value_pair(
         }) => {
             // make sure key is a string
             map.set(key, value);
+        }
+        // Struct
+        ValueContainer::Value(Value {
+                                  inner: CoreValue::Struct(strut),
+                                  ..
+                              }) => {
+            // make sure key is a string (TODO: optimize this)
+            if let ValueContainer::Value(Value {
+                inner: CoreValue::Text(text),
+                ..
+            }) = key
+            {
+                strut._set_new_field(text.0, value);
+            } else {
+                return Err(ExecutionError::InvalidProgram(
+                    InvalidProgramError::InvalidKeyValuePair,
+                ));
+            }
         }
         _ => {
             unreachable!(
@@ -1558,17 +1576,17 @@ mod tests {
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![
-            ("x".into(), 1.into()),
-            ("y".into(), 2.into()),
-            ("z".into(), 42.into()),
+            ("x".to_string(), 1.into()),
+            ("y".to_string(), 2.into()),
+            ("z".to_string(), 42.into()),
         ]);
         assert_structural_eq!(map, expected_se);
 
         // strict equality checks
         let expected_strict: Map = Map::from(vec![
-            ("x".into(), Integer::from(1_u32).into()),
-            ("y".into(), Integer::from(2_u32).into()),
-            ("z".into(), Integer::from(42_u32).into()),
+            ("x".to_string(), Integer::from(1_u32).into()),
+            ("y".to_string(), Integer::from(2_u32).into()),
+            ("z".to_string(), Integer::from(42_u32).into()),
         ]);
         debug!("Expected map: {expected_strict}");
         debug!("Map result: {map}");
