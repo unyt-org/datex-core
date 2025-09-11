@@ -1,5 +1,4 @@
 use crate::ast::chain::ApplyOperation;
-use crate::ast::map::TupleEntry;
 use crate::decompiler::DecompileOptions;
 use datex_core::ast::DatexExpression;
 use datex_core::decompiler::Formatting;
@@ -52,13 +51,10 @@ pub fn ast_to_source_code(
             array_to_source_code(arr, decompile_options)
         }
         DatexExpression::Map(tuple) => {
-            tuple_to_source_code(tuple, decompile_options)
+            map_to_source_code(tuple, decompile_options)
         }
         DatexExpression::Struct(structure) => {
-            todo!("struct_to_source_code not implemented")
-        }
-        DatexExpression::Map(map) => {
-            map_to_source_code(map, decompile_options)
+            struct_to_source_code(structure, decompile_options)
         }
         DatexExpression::Ref(expr) => {
             format!("&{}", ast_to_source_code(expr, decompile_options))
@@ -141,35 +137,6 @@ fn array_to_source_code(
     join_elements(elements, &decompile_options.formatting, BraceStyle::Square)
 }
 
-/// Converts the contents of a DatexExpression::Tuple into source code
-fn tuple_to_source_code(
-    tuple: &[TupleEntry],
-    decompile_options: &DecompileOptions,
-) -> String {
-    let elements: Vec<String> = tuple
-        .iter()
-        .map(|e| match e {
-            TupleEntry::Value(v) => ast_to_source_code(v, decompile_options),
-            TupleEntry::KeyValue(k, v) => {
-                format!(
-                    "{}:{}{}",
-                    key_to_source_code(k, decompile_options),
-                    if matches!(
-                        decompile_options.formatting,
-                        Formatting::Compact
-                    ) {
-                        ""
-                    } else {
-                        " "
-                    },
-                    ast_to_source_code(v, decompile_options)
-                )
-            }
-        })
-        .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
-}
-
 /// Converts the contents of a DatexExpression::Object into source code
 fn map_to_source_code(
     obj: &[(DatexExpression, DatexExpression)],
@@ -181,6 +148,28 @@ fn map_to_source_code(
             format!(
                 "{}:{}{}",
                 key_to_source_code(k, decompile_options),
+                if matches!(decompile_options.formatting, Formatting::Compact) {
+                    ""
+                } else {
+                    " "
+                },
+                ast_to_source_code(v, decompile_options)
+            )
+        })
+        .collect();
+    join_elements(elements, &decompile_options.formatting, BraceStyle::Curly)
+}
+
+fn struct_to_source_code(
+    structure: &[(String, DatexExpression)],
+    decompile_options: &DecompileOptions,
+) -> String {
+    let elements: Vec<String> = structure
+        .iter()
+        .map(|(k, v)| {
+            format!(
+                "{}:{}{}",
+                k,
                 if matches!(decompile_options.formatting, Formatting::Compact) {
                     ""
                 } else {
@@ -398,15 +387,50 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple() {
-        let tuple_ast = DatexExpression::Map(vec![
-            TupleEntry::Value(DatexExpression::Integer(1.into())),
-            TupleEntry::Value(DatexExpression::Text("two".to_string())),
-            TupleEntry::Value(DatexExpression::Boolean(true)),
+    fn test_list() {
+        let list_ast = DatexExpression::List(vec![
+            DatexExpression::Integer(1.into()),
+            DatexExpression::Text("two".to_string()),
+            DatexExpression::Boolean(true),
         ]);
         assert_eq!(
-            ast_to_source_code(&tuple_ast, &DecompileOptions::default()),
+            ast_to_source_code(&list_ast, &DecompileOptions::default()),
             "(1,\"two\",true)"
+        );
+    }
+
+    #[test]
+    fn test_struct() {
+        let struct_ast = DatexExpression::Struct(vec![
+            ("x".to_string(), DatexExpression::Integer(1.into())),
+            ("y".to_string(), DatexExpression::Text("two".to_string())),
+            ("z".to_string(), DatexExpression::Boolean(true)),
+        ]);
+        assert_eq!(
+            ast_to_source_code(&struct_ast, &DecompileOptions::default()),
+            "{x:1,y:\"two\",z:true}"
+        );
+    }
+
+    #[test]
+    fn test_map() {
+        let map_ast = DatexExpression::Map(vec![
+            (
+                DatexExpression::Text("key1".to_string()),
+                DatexExpression::Integer(1.into()),
+            ),
+            (
+                DatexExpression::Text("key2".to_string()),
+                DatexExpression::Text("two".to_string()),
+            ),
+            (
+                DatexExpression::Integer(42.into()),
+                DatexExpression::Boolean(true),
+            ),
+        ]);
+        assert_eq!(
+            ast_to_source_code(&map_ast, &DecompileOptions::default()),
+            "{key1:1,key2:\"two\",42:true}"
         );
     }
 }
