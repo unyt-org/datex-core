@@ -1,7 +1,6 @@
 use crate::ast::DatexExpression;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::chain::ApplyOperation;
-use crate::ast::map::TupleEntry;
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
@@ -344,13 +343,11 @@ fn visit_expression(
                     .borrow()
                     .cast_to_map()
                     .unwrap()
-                    .get_owned(name)
+                    .get_owned(name.to_string())
             {
                 match core_variable {
                     ValueContainer::Reference(reference) => {
-                        if let Some(pointer_id) =
-                            reference.pointer_address()
-                        {
+                        if let Some(pointer_id) = reference.pointer_address() {
                             *expression = DatexExpression::GetReference(
                                 pointer_id.clone(),
                             );
