@@ -76,11 +76,8 @@ pub fn json_to_runtime_value_datex<'a>(
         &dxb,
         ExecutionOptions::default(),
     );
-    let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
-    assert_eq!(
-        json_value.to_value().borrow().get_type(),
-        CoreValueType::Map
-    );
+    let val = execute_dxb_sync(exec_input).unwrap().unwrap();
+    assert!(val.to_value().borrow().is_struct());
 }
 
 pub fn json_to_runtime_value_datex_auto_static_detection<'a>(
@@ -131,10 +128,7 @@ pub fn dxb_to_runtime_value(dxb: &[u8]) {
         ExecutionOptions::default(),
     );
     let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
-    assert_eq!(
-        json_value.to_value().borrow().get_type(),
-        CoreValueType::Map
-    );
+    assert!(json_value.to_value().borrow().is_struct());
 }
 
 // value -> JSON
