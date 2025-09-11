@@ -13,14 +13,10 @@ impl From<&ValueContainer> for DatexExpression {
             ValueContainer::Reference(reference) => {
                 match reference.mutability() {
                     ReferenceMutability::Mutable => DatexExpression::RefMut(
-                        Box::new(value_to_datex_expression(
-                            &reference.collapse_to_value().borrow(),
-                        )),
+                        Box::new(DatexExpression::from(&reference.value_container())),
                     ),
                     ReferenceMutability::Immutable => DatexExpression::Ref(
-                        Box::new(value_to_datex_expression(
-                            &reference.collapse_to_value().borrow(),
-                        )),
+                        Box::new(DatexExpression::from(&reference.value_container()))
                     ),
                 }
             }

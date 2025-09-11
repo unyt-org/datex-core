@@ -323,6 +323,16 @@ impl Reference {
         }
     }
 
+    // TODO: no clone?
+    pub fn value_container(&self) -> ValueContainer {
+        match self {
+            Reference::ValueReference(vr) => vr.borrow().value_container.clone(),
+            Reference::TypeReference(tr) => ValueContainer::Value(Value::from(
+                CoreValue::Type(tr.borrow().type_value.clone()),
+            )),
+        }
+    }
+
     /// Runs a closure with the current value of this reference.
     pub fn with_value<R, F: FnOnce(&mut Value) -> R>(&self, f: F) -> Option<R> {
         let reference = self.collapse_reference_chain();
