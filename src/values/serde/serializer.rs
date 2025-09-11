@@ -5,6 +5,7 @@ use crate::runtime::execution::{
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
+use crate::values::core_values::r#struct::Struct;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use serde::ser::{
@@ -81,11 +82,11 @@ impl SerializeStruct for StructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut map = Struct::default();
+        let mut r#struct = Struct::default();
         for (key, value) in self.fields.into_iter() {
-            map.set(&key, value);
+            r#struct.set(&key, value);
         }
-        Ok(ValueContainer::from(CoreValue::Map(map)))
+        Ok(ValueContainer::from(CoreValue::Struct(r#struct)))
     }
 }
 
@@ -122,11 +123,11 @@ impl SerializeTuple for TupleSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut tuple = Array::default();
+        let mut list = List::default();
         for element in self.elements.into_iter() {
-            tuple.insert(element);
+            list.push(element);
         }
-        Ok(ValueContainer::from(CoreValue::Array(tuple)))
+        Ok(ValueContainer::from(CoreValue::List(list)))
     }
 }
 
@@ -143,7 +144,7 @@ impl TupleStructSerializer {
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
-            fields: List::new(),
+            fields: List::default(),
         }
     }
 }
@@ -164,9 +165,7 @@ impl SerializeTupleStruct for TupleStructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Map(Map::from(
-            HashMap::from([(self.name.to_string(), self.fields)]),
-        ))))
+        Ok(ValueContainer::from(self.fields))
     }
 }
 
@@ -186,7 +185,7 @@ impl TupleVariantSerializer {
     pub fn new(variant: &'static str) -> Self {
         Self {
             variant,
-            fields: List::new(),
+            fields: List::default(),
         }
     }
 }
@@ -273,7 +272,7 @@ pub struct SeqSerializer {
 impl SeqSerializer {
     pub fn new() -> Self {
         Self {
-            elements: List::new(),
+            elements: List::default(),
         }
     }
 }
@@ -347,17 +346,17 @@ impl SerializeMap for MapSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut tuple = Tuple::default();
+        let mut map = Map::default();
         for (key, value) in self.entries.iter() {
             if let Some(value) = value {
-                tuple.set(key.clone(), value.clone());
+                map.set(key.clone(), value.clone());
             } else {
                 return Err(SerializationError::Custom(
                     "Map entry without value".to_string(),
                 ));
             }
         }
-        Ok(tuple.into())
+        Ok(map.into())
     }
 }
 
@@ -454,7 +453,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        Ok(Map::new().into())
+        Ok(Struct::default().into())
     }
 
     fn serialize_struct(
@@ -469,7 +468,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(Map::new().into())
+        Ok(Map::default().into())
     }
 
     fn serialize_unit_variant(
@@ -837,8 +836,8 @@ mod tests {
                 .borrow()
                 .cast_to_map()
                 .unwrap()
-                .get("usize")
-                .clone(),
+                .get_owned("usize")
+                .unwrap(),
             ValueContainer::from(42)
         );
     }

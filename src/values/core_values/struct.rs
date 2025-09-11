@@ -1,16 +1,19 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::values::core_values::array::Array;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::value_container::{ValueContainer};
+use crate::values::value_container::ValueContainer;
+use indexmap::IndexMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::vec::IntoIter;
-use indexmap::IndexMap;
-use crate::values::core_values::array::Array;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Struct(Array, Vec<String>);
 impl Struct {
-    pub fn new<T: Into<ValueContainer>>(vec: Vec<T>, fields: Vec<String>) -> Self {
+    pub fn new<T: Into<ValueContainer>>(
+        vec: Vec<T>,
+        fields: Vec<String>,
+    ) -> Self {
         Struct(vec.into_iter().map(|v| v.into()).collect(), fields)
     }
     pub fn size(&self) -> usize {
@@ -61,7 +64,6 @@ impl Struct {
         self.0.has_index(index)
     }
 
-
     pub fn values(&self) -> impl Iterator<Item = &ValueContainer> {
         self.0.iter()
     }
@@ -82,8 +84,21 @@ impl Struct {
         self.0.is_empty()
     }
 
-    pub fn set<T: Into<ValueContainer>>(&mut self, index: u32, value: T) {
+    pub fn set_at<T: Into<ValueContainer>>(&mut self, index: u32, value: T) {
+        if index as usize >= self.1.len() {
+            panic!(
+                "Index '{index}' out of bounds for Struct of size {}",
+                self.1.len()
+            );
+        }
         self.0.set(index, value);
+    }
+    pub fn set<T: Into<ValueContainer>>(&mut self, field: &str, value: T) {
+        if let Some(pos) = self.1.iter().position(|f| f == field) {
+            self.0.set(pos as u32, value);
+        } else {
+            panic!("Field '{field}' not found in Struct");
+        }
     }
 }
 
