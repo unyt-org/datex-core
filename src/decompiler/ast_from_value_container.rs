@@ -1,9 +1,8 @@
 use crate::ast::DatexExpression;
-use crate::ast::map::TupleEntry;
 use crate::values::core_value::CoreValue;
+use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::values::reference::ReferenceMutability;
 
 impl From<&ValueContainer> for DatexExpression {
     /// Converts a ValueContainer into a DatexExpression AST.
@@ -15,16 +14,12 @@ impl From<&ValueContainer> for DatexExpression {
                 match reference.mutability() {
                     ReferenceMutability::Mutable => DatexExpression::RefMut(
                         Box::new(value_to_datex_expression(
-                            &reference
-                                .collapse_to_value()
-                                .borrow(),
+                            &reference.collapse_to_value().borrow(),
                         )),
                     ),
                     ReferenceMutability::Immutable => DatexExpression::Ref(
                         Box::new(value_to_datex_expression(
-                            &reference
-                                .collapse_to_value()
-                                .borrow(),
+                            &reference.collapse_to_value().borrow(),
                         )),
                     ),
                 }
@@ -60,25 +55,16 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
             list.into_iter().map(DatexExpression::from).collect(),
         ),
         CoreValue::Map(map) => DatexExpression::Map(
-            map
-                .into_iter()
+            map.into_iter()
                 .map(|(key, value)| {
-                    (
-                        DatexExpression::from(key),
-                        DatexExpression::from(value),
-                    )
+                    (DatexExpression::from(key), DatexExpression::from(value))
                 })
                 .collect(),
         ),
         CoreValue::Struct(structure) => DatexExpression::Struct(
             structure
-                .into_iter()
-                .map(|(value)| {
-                    (
-                        todo!("get field name from struct definition"),
-                        DatexExpression::from(value),
-                    )
-                })
+                .iter()
+                .map(|(key, value)| (key, DatexExpression::from(value)))
                 .collect(),
         ),
         // CoreValue::Union(union) => {
