@@ -18,9 +18,9 @@ fn map_key_value_pair<'a>(
 
 /// A collection of map entries with at least two entries, e.g. (a:1, b:2)
 fn map_with_commas<'a>(
-    entry: impl DatexParserTrait<'a, (DatexExpression, DatexExpression)>,
+    key_value_pair: impl DatexParserTrait<'a, (DatexExpression, DatexExpression)>,
 ) -> impl DatexParserTrait<'a> {
-    entry
+    key_value_pair
         .separated_by(just(Token::Comma).padded_by(whitespace()))
         .at_least(2)
         .collect::<Vec<(DatexExpression, DatexExpression)>>()

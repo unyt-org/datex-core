@@ -56,6 +56,7 @@ use logos::Logos;
 use std::{collections::HashMap, ops::Range};
 use lexer::Token;
 use crate::ast::list::list;
+use crate::values::core_values::array::Array;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
@@ -275,6 +276,24 @@ impl TryFrom<&DatexExpression> for ValueContainer {
                     .collect::<Result<HashMap<String, ValueContainer>, ()>>()?;
                 ValueContainer::from(Map::from(entries))
             }
+            DatexExpression::Array(arr) => {
+                let entries = arr
+                    .iter()
+                    .map(ValueContainer::try_from)
+                    .collect::<Result<Vec<ValueContainer>, ()>>()?;
+                ValueContainer::from(Array::from(entries))
+            }
+            DatexExpression::Map(pairs) => {
+                let entries = pairs
+                    .iter()
+                    .map(|(k, v)| {
+                        let key = ValueContainer::try_from(k)?;
+                        let value = ValueContainer::try_from(v)?;
+                        Ok((key, value))
+                    })
+                    .collect::<Result<HashMap<ValueContainer, ValueContainer>, ()>>()?;
+                ValueContainer::from(Map::from(entries))
+            }
             _ => Err(())?,
         })
     }
@@ -357,23 +376,22 @@ where
     let list = list(expression_without_tuple.clone());
 
     // object
-    let object = structure(expression_without_tuple.clone());
+    let structure = structure(expression_without_tuple.clone());
 
     // map
     // Key-value pair
-    let tuple = map(key.clone(), expression_without_tuple.clone());
+    let map = map(key.clone(), expression_without_tuple.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
-    let atom = atom(array.clone(), object.clone(), wrapped_expression.clone());
+    let atom = atom(array.clone(), structure.clone(), wrapped_expression.clone());
     let unary = unary(atom.clone());
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
         unary.clone(),
         key.clone(),
-        list.clone(),
         array.clone(),
-        object.clone(),
+        structure.clone(),
         wrapped_expression.clone(),
         atom.clone(),
         expression.clone(),
@@ -398,7 +416,7 @@ where
     // FIXME WIP
     let function_declaration = function(
         statements.clone(),
-        tuple.clone(),
+        map.clone(),
         expression_without_tuple.clone(),
     );
 
@@ -423,7 +441,7 @@ where
                 choice((
                     wrapped_expression.clone(),
                     array.clone(),
-                    object.clone(),
+                    structure.clone(),
                     statements.clone(),
                     unary.clone(),
                 ))
@@ -436,7 +454,7 @@ where
                         if_rec.clone(),
                         wrapped_expression.clone(),
                         array.clone(),
-                        object.clone(),
+                        structure.clone(),
                         statements.clone(),
                         unary.clone(),
                     )))
@@ -473,7 +491,8 @@ where
     expression.define(
         choice((
             remote_execution,
-            tuple.clone(),
+            list.clone(),
+            map.clone(),
             expression_without_tuple.clone(),
         ))
         .padded_by(whitespace()),
@@ -1866,12 +1885,12 @@ mod tests {
     }
 
     #[test]
-    fn tuple() {
+    fn list() {
         let src = "1,2";
-        let tuple = parse_unwrap(src);
+        let list = parse_unwrap(src);
 
         assert_eq!(
-            tuple,
+            list,
             DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
@@ -1882,10 +1901,10 @@ mod tests {
     #[test]
     fn scoped_tuple() {
         let src = "(1, 2)";
-        let tuple = parse_unwrap(src);
+        let list = parse_unwrap(src);
 
         assert_eq!(
-            tuple,
+            list,
             DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
@@ -1894,12 +1913,12 @@ mod tests {
     }
 
     #[test]
-    fn keyed_tuple() {
+    fn map_without_parentheses() {
         let src = "1: 2, 3: 4, xy:2, 'a b c': 'd'";
-        let tuple = parse_unwrap(src);
+        let map = parse_unwrap(src);
 
         assert_eq!(
-            tuple,
+            map,
             DatexExpression::Map(vec![
                 (
                     DatexExpression::Integer(Integer::from(1)),
@@ -1922,7 +1941,7 @@ mod tests {
     }
 
     #[test]
-    fn tuple_array() {
+    fn list_array() {
         let src = "[(1,2),3,(4,)]";
         let arr = parse_unwrap(src);
 
@@ -1946,12 +1965,12 @@ mod tests {
     }
 
     #[test]
-    fn single_value_tuple() {
+    fn single_value_list() {
         let src = "1,";
-        let tuple = parse_unwrap(src);
+        let list = parse_unwrap(src);
 
         assert_eq!(
-            tuple,
+            list,
             DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1))
             ])
@@ -1959,11 +1978,11 @@ mod tests {
     }
 
     #[test]
-    fn single_key_value_tuple() {
+    fn single_entry_map() {
         let src = "x: 1";
-        let tuple = parse_unwrap(src);
+        let map = parse_unwrap(src);
         assert_eq!(
-            tuple,
+            map,
             DatexExpression::Map(vec![(
                 DatexExpression::Text("x".to_string()),
                 DatexExpression::Integer(Integer::from(1))
@@ -2019,7 +2038,7 @@ mod tests {
 
     #[test]
     fn dynamic_map_keys() {
-        let src = r#"Map {(1): "value1", (2): 42, (3): true}"#;
+        let src = r#"((1): "value1", (2): 42, (3): true)"#;
         let obj = parse_unwrap(src);
         assert_eq!(
             obj,
@@ -2040,25 +2059,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn dynamic_tuple_keys() {
-        let src = "(1): 1, ([]): 2";
-        let tuple = parse_unwrap(src);
-
-        assert_eq!(
-            tuple,
-            DatexExpression::Map(vec![
-                (
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(1))
-                ),
-                (
-                    DatexExpression::Array(vec![]),
-                    DatexExpression::Integer(Integer::from(2))
-                ),
-            ])
-        );
-    }
 
     #[test]
     fn add() {
@@ -3429,7 +3429,7 @@ mod tests {
                 UnaryOperator::Not,
                 box DatexExpression::UnaryOperation(
                     UnaryOperator::Not,
-                    box DatexExpression::Map(_),
+                    box DatexExpression::List(_),
                 ),
             )
         );

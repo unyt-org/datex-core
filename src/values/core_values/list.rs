@@ -103,8 +103,8 @@ impl<'a> IntoIterator for &'a List {
 macro_rules! datex_list {
     ( $( $x:expr ),* ) => {
         {
-            let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
-            $crate::values::core_values::list::List::new(arr)
+            let list = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
+            $crate::values::core_values::list::List::new(list)
         }
     };
 }

@@ -336,6 +336,8 @@ pub fn iterate_instructions<'a>(
                     // complex terms
                     InstructionCode::LIST_START => Ok(Instruction::ListStart),
                     InstructionCode::MAP_START => Ok(Instruction::MapStart),
+                    InstructionCode::ARRAY_START => Ok(Instruction::ArrayStart),
+                    InstructionCode::STRUCT_START => Ok(Instruction::StructStart),
                     InstructionCode::SCOPE_START => Ok(Instruction::ScopeStart),
                     InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
 

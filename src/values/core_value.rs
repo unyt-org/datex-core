@@ -99,7 +99,8 @@ impl StructuralEq for CoreValue {
             }
             (CoreValue::List(a), CoreValue::List(b)) => a.structural_eq(b),
             (CoreValue::Map(a), CoreValue::Map(b)) => a.structural_eq(b),
-
+            (CoreValue::Array(a), CoreValue::Array(b)) => a.structural_eq(b),
+            (CoreValue::Struct(a), CoreValue::Struct(b)) => a.structural_eq(b),
             _ => false,
         }
     }
@@ -334,6 +335,13 @@ impl CoreValue {
     pub fn cast_to_list(&self) -> Option<List> {
         match self {
             CoreValue::List(list) => Some(list.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn cast_to_array(&self) -> Option<Array> {
+        match self {
+            CoreValue::Array(array) => Some(array.clone()),
             _ => None,
         }
     }

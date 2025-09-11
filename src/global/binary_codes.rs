@@ -250,8 +250,10 @@ pub enum InstructionCode {
     TIME, // ~2022-10-10~
 
     // lists, records and tuples 0xe0 - 0xef
-    LIST_START,  // list []
-    MAP_START,  // (a,b,c)
+    LIST_START,  // (1,2,3)
+    MAP_START,  // (a:1, b:2)
+    ARRAY_START, // [1,2,3]
+    STRUCT_START, // {a:1, b:2}
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key
     KEY_PERMISSION,    // for object elements with permission prefix

@@ -205,15 +205,13 @@ mod tests {
     }
 
     #[test]
-    fn array() {
+    fn list() {
         init_logger_debug();
-        let mut a: List = CoreValue::from(vec![
+        let mut a = List::from(vec![
             Value::from("42"),
             Value::from(42),
             Value::from(true),
-        ])
-        .try_into()
-        .unwrap();
+        ]);
 
         a.push(Value::from(42));
         a.push(4);

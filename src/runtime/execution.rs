@@ -34,6 +34,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use datex_core::values::core_values::array::Array;
+use crate::values::core_values::r#struct::Struct;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -767,8 +769,30 @@ fn get_result_value_from_instruction(
                     .borrow_mut()
                     .scope_stack
                     .create_scope_with_active_value(
-                        Scope::Collection,
+                        Scope::Default,
                         Map::default().into(),
+                    );
+                None
+            }
+
+            Instruction::ArrayStart => {
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope_with_active_value(
+                        Scope::Collection,
+                        Array::default().into(),
+                    );
+                None
+            }
+
+            Instruction::StructStart => {
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope_with_active_value(
+                        Scope::Collection,
+                        Struct::default().into(),
                     );
                 None
             }
@@ -1067,11 +1091,21 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
         }) => {
             array._push(value);
         }
+        ValueContainer::Value(Value {
+            inner: CoreValue::Struct(structure),
+            ..
+        }) => {
+            structure._push(value);
+        }
+        ValueContainer::Value(Value {
+            inner: CoreValue::Map(map),
+            ..
+        }) => {
+            // append value to array
+            panic!("append {:?}", value);
+        }
         _ => {
-            unreachable!(
-                "Expected active value in array scope to be an array, but got: {}",
-                collector
-            );
+            unreachable!("Unsupported collector for collection scope");
         }
     }
 }
@@ -1226,7 +1260,7 @@ mod tests {
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger_debug;
     use crate::values::traits::structural_eq::StructuralEq;
-    use crate::{assert_structural_eq, assert_value_eq, datex_list};
+    use crate::{assert_structural_eq, assert_value_eq, datex_array, datex_list};
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -1368,7 +1402,7 @@ mod tests {
     #[test]
     fn empty_array() {
         let result = execute_datex_script_debug_with_result("[]");
-        let array: List = result.to_value().borrow().cast_to_list().unwrap();
+        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
         assert_eq!(array.len(), 0);
         assert_eq!(result, Vec::<ValueContainer>::new().into());
         assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
@@ -1377,8 +1411,8 @@ mod tests {
     #[test]
     fn array() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
-        let array: List = result.to_value().borrow().cast_to_list().unwrap();
-        let expected = datex_list![
+        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
+        let expected = datex_array![
             Integer::from(1i8),
             Integer::from(2i8),
             Integer::from(3i8)
@@ -1386,14 +1420,14 @@ mod tests {
         assert_eq!(array.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
-        assert_structural_eq!(result, ValueContainer::from(vec![1, 2, 3]));
+        assert_structural_eq!(result, ValueContainer::from(vec![1,2,3]));
     }
 
     #[test]
     fn array_with_nested_scope() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
-        let expected = datex_list![
+        let expected = datex_array![
             Integer::from(1i8),
             Integer::from(5i8),
             Integer::from(4i8)
@@ -1498,40 +1532,43 @@ mod tests {
     #[test]
     fn map() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
+        let result = execute_datex_script_debug_with_result("(x: 1, y: 2, z: 42)");
         let map: CoreValue = result.clone().to_value().borrow().clone().inner;
         let map: Map = map.try_into().unwrap();
 
         // form and size
-        assert_eq!(map.to_string(), "(\"x\": 1, 0: 2, 1: 42)");
+        assert_eq!(map.to_string(), "(\"x\": 1, \"y\": 2, \"z\": 42)");
         assert_eq!(map.size(), 3);
 
-        info!("Tuple: {:?}", map);
+        info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(map.get(&"x".into()), Some(&Integer::from(1i8).into()));
         assert_eq!(
-            map.get(&Integer::from(0).into()),
+            map.get(&"x".into()),
+            Some(&Integer::from(1i8).into())
+        );
+        assert_eq!(
+            map.get(&"y".into()),
             Some(&Integer::from(2i8).into())
         );
         assert_eq!(
-            map.get(&Integer::from(1).into()),
+            map.get(&"z".into()),
             Some(&Integer::from(42i8).into())
         );
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![
             ("x".into(), 1.into()),
-            (0.into(), 2.into()),
-            (1.into(), 42.into()),
+            ("y".into(), 2.into()),
+            ("z".into(), 42.into()),
         ]);
         assert_structural_eq!(map, expected_se);
 
         // strict equality checks
         let expected_strict: Map = Map::from(vec![
             ("x".into(), Integer::from(1_u32).into()),
-            (0.into(), Integer::from(2_u32).into()),
-            (1.into(), Integer::from(42_u32).into()),
+            ("y".into(), Integer::from(2_u32).into()),
+            ("z".into(), Integer::from(42_u32).into()),
         ]);
         debug!("Expected map: {expected_strict}");
         debug!("Map result: {map}");
@@ -1559,7 +1596,7 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
-        let expected = datex_list![
+        let expected = datex_array![
             Integer::from(42i8),
             Integer::from(2i8),
             Integer::from(42i8)
@@ -1651,7 +1688,7 @@ mod tests {
         assert_eq!(result, Integer::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
-        let expected = datex_list![Integer::from(1i8), Integer::from(3i8)];
+        let expected = datex_array![Integer::from(1i8), Integer::from(3i8)];
         assert_eq!(result, expected.into());
     }
 }

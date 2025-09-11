@@ -50,11 +50,14 @@ pub fn ast_to_source_code(
         DatexExpression::Array(arr) => {
             array_to_source_code(arr, decompile_options)
         }
-        DatexExpression::Map(tuple) => {
-            map_to_source_code(tuple, decompile_options)
+        DatexExpression::Map(map) => {
+            map_to_source_code(map, decompile_options)
         }
         DatexExpression::Struct(structure) => {
             struct_to_source_code(structure, decompile_options)
+        }
+        DatexExpression::List(elements) => {
+            list_to_source_code(elements, decompile_options)
         }
         DatexExpression::Ref(expr) => {
             format!("&{}", ast_to_source_code(expr, decompile_options))
@@ -137,12 +140,25 @@ fn array_to_source_code(
     join_elements(elements, &decompile_options.formatting, BraceStyle::Square)
 }
 
-/// Converts the contents of a DatexExpression::Object into source code
-fn map_to_source_code(
-    obj: &[(DatexExpression, DatexExpression)],
+/// Converts the contents of a DatexExpression::List into source code
+fn list_to_source_code(
+    arr: &[DatexExpression],
     decompile_options: &DecompileOptions,
 ) -> String {
-    let elements: Vec<String> = obj
+    let elements: Vec<String> = arr
+        .iter()
+        .map(|e| ast_to_source_code(e, decompile_options))
+        .collect();
+    join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
+}
+
+
+/// Converts the contents of a DatexExpression::Map into source code
+fn map_to_source_code(
+    map: &[(DatexExpression, DatexExpression)],
+    decompile_options: &DecompileOptions,
+) -> String {
+    let elements: Vec<String> = map
         .iter()
         .map(|(k, v)| {
             format!(
@@ -157,7 +173,7 @@ fn map_to_source_code(
             )
         })
         .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Curly)
+    join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
 }
 
 fn struct_to_source_code(
@@ -430,7 +446,7 @@ mod tests {
         ]);
         assert_eq!(
             ast_to_source_code(&map_ast, &DecompileOptions::default()),
-            "{key1:1,key2:\"two\",42:true}"
+            "(key1:1,key2:\"two\",42:true)"
         );
     }
 }

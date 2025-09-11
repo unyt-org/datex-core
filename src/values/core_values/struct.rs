@@ -22,7 +22,7 @@ impl Struct {
         Struct(vec.into_iter().map(|v| v.into()).collect(), fields)
     }
     pub fn size(&self) -> usize {
-        self.0.size()
+        self.0.len()
     }
     pub fn at_unchecked(&self, index: u32) -> &ValueContainer {
         self.at(index)
@@ -105,11 +105,17 @@ impl Struct {
             panic!("Field '{field}' not found in Struct");
         }
     }
+
+    // Add a new field to the struct at the end
+    pub(crate) fn _push<T: Into<ValueContainer>>(&mut self, value: T) {
+        self.0._push(value.into());
+    }
 }
 
 impl StructuralEq for Struct {
-    fn structural_eq(&self, _other: &Self) -> bool {
-        unreachable!("Struct does not support StructuralEq")
+    fn structural_eq(&self, other: &Self) -> bool {
+        // TODO: also check keys once they are always ensured to exist? but maybe structural check for keys can be done on type level already
+        self.0.structural_eq(&other.0)
     }
 }
 

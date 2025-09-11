@@ -11,7 +11,7 @@ impl Array {
     pub fn new<T: Into<ValueContainer>>(vec: Vec<T>) -> Self {
         Array(vec.into_iter().map(|v| v.into()).collect())
     }
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
     pub fn get_unchecked(&self, index: u32) -> &ValueContainer {
@@ -67,7 +67,7 @@ impl Array {
 impl StructuralEq for Array {
     fn structural_eq(&self, other: &Self) -> bool {
         // check size first
-        if self.size() != other.size() {
+        if self.len() != other.len() {
             return false;
         }
         for (a, b) in self.0.iter().zip(other.0.iter()) {
@@ -132,4 +132,14 @@ impl<'a> IntoIterator for &'a Array {
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
+}
+
+#[macro_export]
+macro_rules! datex_array {
+    ( $( $x:expr ),* ) => {
+        {
+            let arr = vec![$( $crate::values::value_container::ValueContainer::from($x) ),*];
+            $crate::values::core_values::array::Array::new(arr)
+        }
+    };
 }

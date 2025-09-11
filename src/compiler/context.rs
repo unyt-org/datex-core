@@ -253,8 +253,20 @@ impl<'a> CompilationContext<'a> {
                 }
                 self.append_binary_code(InstructionCode::SCOPE_END);
             },
-            CoreValue::Array(array) => {todo!()}
-            CoreValue::Struct(structure) => {todo!()}
+            CoreValue::Array(array) => {
+                self.append_binary_code(InstructionCode::ARRAY_START);
+                for item in array {
+                    self.insert_value_container(item);
+                }
+                self.append_binary_code(InstructionCode::SCOPE_END);
+            }
+            CoreValue::Struct(structure) => {
+                self.append_binary_code(InstructionCode::STRUCT_START);
+                for value in structure.values() {
+                    self.insert_value_container(value);
+                }
+                self.append_binary_code(InstructionCode::SCOPE_END);
+            }
         }
     }
 

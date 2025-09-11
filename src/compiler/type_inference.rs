@@ -152,6 +152,7 @@ mod tests {
     use crate::values::core_values::integer::integer::Integer;
     use crate::values::core_values::list::List;
     use datex_core::runtime::RuntimeConfig;
+    use datex_core::values::core_values::array::Array;
     use datex_core::values::core_values::decimal::decimal::Decimal;
     use datex_core::values::core_values::map::Map;
 
@@ -214,7 +215,7 @@ mod tests {
                 ]),
                 &runtime
             ),
-            Type::from(CoreValue::from(List::from_iter([
+            Type::from(CoreValue::from(Array::from_iter([
                 ValueContainer::from(Integer::from(1)),
                 ValueContainer::from(Integer::from(2)),
                 ValueContainer::from(Integer::from(3))

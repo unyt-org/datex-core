@@ -527,12 +527,30 @@ fn compile_expression(
             compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Array(array) => {
-            todo!("compile array not implemented yet");
+            compilation_context.append_binary_code(InstructionCode::ARRAY_START);
+            for item in array {
+                scope = compile_expression(
+                    compilation_context,
+                    AstWithMetadata::new(item, &metadata),
+                    CompileMetadata::default(),
+                    scope,
+                )?;
+            }
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Struct(structure) => {
-            todo!("compile struct not implemented yet");
+            compilation_context
+                .append_binary_code(InstructionCode::STRUCT_START);
+            for (_key, value) in structure {
+                scope = compile_expression(
+                    compilation_context,
+                    AstWithMetadata::new(value, &metadata),
+                    CompileMetadata::default(),
+                    scope,
+                )?;
+            }
+            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
         }
-
         DatexExpression::Placeholder => {
             compilation_context.insert_value_container(
                 compilation_context
@@ -1331,7 +1349,7 @@ pub mod tests {
     #[test]
     fn empty_list() {
         init_logger_debug();
-        let datex_script = "List[]";
+        let datex_script = "List()";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
             InstructionCode::LIST_START.into(),
@@ -1344,7 +1362,7 @@ pub mod tests {
     #[test]
     fn single_element_list() {
         init_logger_debug();
-        let datex_script = "List[42]";
+        let datex_script = "List(42)";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1361,7 +1379,7 @@ pub mod tests {
     #[test]
     fn multi_element_list() {
         init_logger_debug();
-        let datex_script = "List[1, 2, 3]";
+        let datex_script = "(1, 2, 3)";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1373,31 +1391,6 @@ pub mod tests {
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
-    // Test nested lists
-    #[test]
-    fn nested_lists() {
-        init_logger_debug();
-        let datex_script = "List[1, [2, 3], 4]";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::INT_8.into(),
-                4,
                 InstructionCode::SCOPE_END.into(),
             ]
         );
@@ -1407,7 +1400,7 @@ pub mod tests {
     #[test]
     fn list_with_expressions() {
         init_logger_debug();
-        let datex_script = "List[1 + 2, 3 * 4]";
+        let datex_script = "(1 + 2, 3 * 4)";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1432,7 +1425,7 @@ pub mod tests {
     #[test]
     fn list_with_mixed_expressions() {
         init_logger_debug();
-        let datex_script = "List[1, 2, 3 + 4]";
+        let datex_script = "(1, 2, 3 + 4)";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1452,16 +1445,16 @@ pub mod tests {
         );
     }
 
-    // Test tuple
+    // Test list
     #[test]
-    fn tuple() {
+    fn list() {
         init_logger_debug();
         let datex_script = "(1, 2, 3)";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::MAP_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1473,19 +1466,19 @@ pub mod tests {
         );
     }
 
-    // Nested tuple
+    // Nested lists
     #[test]
-    fn nested_tuple() {
+    fn nested_lists() {
         init_logger_debug();
         let datex_script = "(1, (2, 3), 4)";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::MAP_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::MAP_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
@@ -1498,16 +1491,16 @@ pub mod tests {
         );
     }
 
-    // Tuple without parentheses
+    // List without parentheses
     #[test]
-    fn tuple_without_parentheses() {
+    fn list_without_parentheses() {
         init_logger_debug();
         let datex_script = "1, 2, 3";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::MAP_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1680,7 +1673,8 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            // TODO
+            InstructionCode::STRUCT_START.into(),
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1692,7 +1686,10 @@ pub mod tests {
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            // TODO
+            InstructionCode::STRUCT_START.into(),
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1704,7 +1701,14 @@ pub mod tests {
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-              // TODO
+            InstructionCode::STRUCT_START.into(),
+            InstructionCode::INT_8.into(),
+            42,
+            InstructionCode::INT_8.into(),
+            43,
+            InstructionCode::INT_8.into(),
+            44,
+            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -2009,7 +2013,7 @@ pub mod tests {
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
 
-        let script = r#"{("x" + "y"): 1}"#;
+        let script = r#"(("x" + "y"): 1)"#;
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
 

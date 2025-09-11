@@ -12,6 +12,10 @@ use datex_core::values::value_container::ValueContainer;
 use itertools::Itertools;
 use json_syntax::Parse;
 use std::path::PathBuf;
+use indexmap::IndexMap;
+use datex_core::assert_structural_eq;
+use datex_core::values::core_values::r#struct::Struct;
+use datex_core::values::traits::structural_eq::StructuralEq;
 
 fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
     match json {
@@ -45,7 +49,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
             Value::from(vec)
         }
         json_syntax::Value::Object(obj) => {
-            let mut map = std::collections::HashMap::new();
+            let mut map = IndexMap::new();
             for entry in obj {
                 map.insert(
                     entry.key.to_string(),
@@ -54,7 +58,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
                     )),
                 );
             }
-            Value::from(Map::from(map))
+            Value::from(Struct::from(map))
         }
     }
 }
@@ -83,8 +87,7 @@ fn compare_datex_result_with_json(json_string: &str) {
         " Converted JSON Value: {json_value_converted} ({})",
         json_value_converted.actual_type
     );
-
-    assert_eq!(json_value_converted, *datex_value.to_value().borrow());
+    assert_structural_eq!(json_value_converted, *datex_value.to_value().borrow());
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
@@ -190,6 +193,7 @@ fn normalize_newlines(s: &str) -> String {
 
 #[test]
 fn compare_with_expected() {
+    // FIXME: only works once field names are passed via DXB with struct type
     for (input_path, output_path) in iterate_test_cases() {
         println!("Testing JSON file: {}", input_path.display());
         let file_content = std::fs::read_to_string(input_path.clone()).unwrap();
