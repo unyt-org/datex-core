@@ -1,4 +1,5 @@
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::type_container::TypeContainer;
@@ -51,111 +52,31 @@ impl<T: Into<CoreValue>> From<T> for Value {
         }
     }
 }
+impl Value {
+    pub fn null() -> Self {
+        CoreValue::Null.into()
+    }
+}
 
 impl Value {
     pub fn is_type(&self) -> bool {
         matches!(self.inner, CoreValue::Type(_))
     }
-
-    pub fn is_of_type(&self, target: CoreValueType) -> bool {
-        self.get_type() == target
-    }
     pub fn is_null(&self) -> bool {
-        self.is_of_type(CoreValueType::Null)
+        matches!(self.inner, CoreValue::Null)
     }
     pub fn is_text(&self) -> bool {
-        self.is_of_type(CoreValueType::Text)
+        matches!(self.inner, CoreValue::Text(_))
     }
     pub fn is_i8(&self) -> bool {
-        self.is_of_type(CoreValueType::I8)
+        matches!(&self.inner, CoreValue::TypedInteger(TypedInteger::I8(_)))
     }
     pub fn is_bool(&self) -> bool {
-        self.is_of_type(CoreValueType::Boolean)
+        matches!(self.inner, CoreValue::Boolean(_))
     }
 
     pub fn actual_type(&self) -> &TypeContainer {
         self.actual_type.as_ref()
-    }
-
-    /// Attempts to cast the value to the target type, returning an Option<Value>.
-    /// If the cast fails, it returns None.
-    /// This is useful for cases where you want to handle the failure gracefully.
-    /// # Arguments
-    /// * `target_type` - The target type to cast the value to.
-    /// # Returns
-    /// * `Option<Value>` - Some(Value) if the cast is successful, None if it fails.
-    ////
-    /// # Example
-    /// ```
-    /// # use datex_core::values::datex_type::CoreValueType;
-    /// # use datex_core::values::value::Value;
-    /// let value = Value::from(42);
-    /// let casted_value = value.try_cast_to(CoreValueType::Text);
-    /// assert!(casted_value.is_some());
-    /// assert_eq!(casted_value.unwrap().get_type(), CoreValueType::Text);
-    /// ```
-    pub fn try_cast_to(&self, target_type: CoreValueType) -> Option<Value> {
-        self.inner.cast_to(target_type.clone()).map(|inner| Value {
-            actual_type: Box::new(inner.get_default_type()),
-            inner, // Box::new(Type::new(
-                   //     "core:fixme",
-                   //     TypeDescriptor::Core(target_type),
-                   // )),
-        })
-    }
-
-    /// Casts the value to the target type, returning a Value.
-    /// If the cast fails, it panics with an error message.
-    /// This is useful for cases where you expect the cast to succeed and want to avoid handling the failure.
-    /// # Arguments
-    /// * `target_type` - The target type to cast the value to.
-    /// # Returns
-    /// * `Value` - The casted value.
-    /// # Panics
-    /// * If the cast fails, it panics with an error message.
-    /// # Example
-    /// ```
-    /// # use datex_core::values::datex_type::CoreValueType;
-    /// # use datex_core::values::value::Value;
-    /// let value = Value::from(42);
-    /// let casted_value = value.cast_to(CoreValueType::Text);
-    /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
-    /// assert_eq!(casted_value, "42".into());
-    /// ```
-    pub fn cast_to(&self, target_type: CoreValueType) -> Value {
-        self.try_cast_to(target_type.clone()).unwrap_or_else(|| {
-            panic!("Failed to cast value to target type: {target_type:?}")
-        })
-    }
-
-    /// Casts the value to the target type, returning a Value.
-    /// If the cast fails, it returns a Value with type Null.
-    /// This is similar to `cast_to`, but it returns a Value instead of an Option<Value>.
-    /// # Arguments
-    /// * `target_type` - The target type to cast the value to.
-    /// # Returns
-    /// * `Value` - The casted value, or a Value::null() if the cast fails.
-    /// # Example
-    /// ```
-    /// # use datex_core::values::datex_type::CoreValueType;
-    /// # use datex_core::values::value::Value;
-    /// let value = Value::from(42);
-    /// let casted_value = value.cast_or_null(CoreValueType::Text);
-    /// assert_eq!(casted_value.get_type(), CoreValueType::Text);
-    /// assert_eq!(casted_value.inner.cast_to_text().0, "42".to_string());
-    /// ```
-    pub fn cast_or_null(&self, target_type: CoreValueType) -> Value {
-        self.try_cast_to(target_type).unwrap_or(Value::null())
-    }
-
-    // FIXME deprecate
-    pub fn get_type(&self) -> CoreValueType {
-        // self.actual_type.clone()
-        todo!()
-    }
-
-    pub fn null() -> Self {
-        CoreValue::Null.into()
     }
 }
 
@@ -239,9 +160,9 @@ mod tests {
         assert_structural_eq, datex_list,
         logger::init_logger_debug,
         values::core_values::{
-            list::List,
             endpoint::Endpoint,
             integer::{integer::Integer, typed_integer::TypedInteger},
+            list::List,
         },
     };
     use log::{debug, info};
@@ -251,11 +172,6 @@ mod tests {
     fn endpoint() {
         init_logger_debug();
         let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
-        assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
-        assert_eq!(endpoint.to_string(), "@test");
-
-        let endpoint = Value::from("@test").cast_to(CoreValueType::Endpoint);
-        assert_eq!(endpoint.get_type(), CoreValueType::Endpoint);
         assert_eq!(endpoint.to_string(), "@test");
     }
 
@@ -265,7 +181,6 @@ mod tests {
         let y = Value::from(27i8);
 
         x += y.clone();
-        assert_eq!(x.get_type(), CoreValueType::I8);
         assert_eq!(x, Value::from(69i8));
     }
 
@@ -275,7 +190,6 @@ mod tests {
         let y = Value::from(27i8);
 
         let z = (x.clone() + y.clone()).unwrap();
-        assert_eq!(z.get_type(), CoreValueType::I8);
         assert_eq!(z, Value::from(69i8));
     }
 
@@ -312,8 +226,6 @@ mod tests {
         let a = Value::from(true);
         let b = Value::from(false);
         let c = Value::from(false);
-        assert_eq!(a.get_type(), CoreValueType::Boolean);
-        assert_eq!(b.get_type(), CoreValueType::Boolean);
         assert_ne!(a, b);
         assert_eq!(b, c);
 
@@ -332,10 +244,6 @@ mod tests {
         let b = Value::from(42i8);
         let c = Value::from(27i8);
 
-        assert_eq!(a.get_type(), CoreValueType::I8);
-        assert_eq!(b.get_type(), CoreValueType::I8);
-        assert_eq!(c.get_type(), CoreValueType::I8);
-
         assert_eq!(a, b);
         assert_ne!(a, c);
         assert_ne!(b, c);
@@ -350,21 +258,9 @@ mod tests {
         let a = Value::from(42.1f32);
         let b = Value::from(27f32);
 
-        assert_eq!(a.get_type(), CoreValueType::F32);
-        assert_eq!(b.get_type(), CoreValueType::F32);
-
         let a_plus_b = (a.clone() + b.clone()).unwrap();
-        assert_eq!(a_plus_b.get_type(), CoreValueType::F32);
         assert_eq!(a_plus_b, Value::from(69.1f32));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
-    }
-
-    #[test]
-    fn cast_type() {
-        init_logger_debug();
-        let a = Value::from(42);
-        let b = a.try_cast_to(CoreValueType::Text).unwrap();
-        assert_eq!(b.get_type(), CoreValueType::Text);
     }
 
     #[test]
@@ -372,13 +268,12 @@ mod tests {
         init_logger_debug();
 
         let null_value = Value::null();
-        assert_eq!(null_value.get_type(), CoreValueType::Null);
         assert_eq!(null_value.to_string(), "null");
 
         let maybe_value: Option<i8> = None;
         let null_value = Value::from(maybe_value);
-        assert_eq!(null_value.get_type(), CoreValueType::Null);
         assert_eq!(null_value.to_string(), "null");
+        assert!(null_value.is_null());
     }
 
     #[test]
@@ -387,13 +282,7 @@ mod tests {
         let a = Value::from(42i8);
         let b = Value::from(27i8);
 
-        assert_eq!(a.get_type(), CoreValueType::I8);
-        assert_eq!(b.get_type(), CoreValueType::I8);
-
         let a_plus_b = (a.clone() + b.clone()).unwrap();
-
-        assert_eq!(a_plus_b.get_type(), CoreValueType::I8);
-
         assert_eq!(a_plus_b, Value::from(69i8));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b);
     }
@@ -404,14 +293,14 @@ mod tests {
         let a = Value::from("Hello ");
         let b = Value::from(42i8);
 
-        assert_eq!(a.get_type(), CoreValueType::Text);
-        assert_eq!(b.get_type(), CoreValueType::I8);
+        assert!(a.is_text());
+        assert!(b.is_i8());
 
         let a_plus_b = (a.clone() + b.clone()).unwrap();
         let b_plus_a = (b.clone() + a.clone()).unwrap();
 
-        assert_eq!(a_plus_b.get_type(), CoreValueType::Text);
-        assert_eq!(b_plus_a.get_type(), CoreValueType::Text);
+        assert!(a_plus_b.is_text());
+        assert!(b_plus_a.is_text());
 
         assert_eq!(a_plus_b, Value::from("Hello 42"));
         assert_eq!(b_plus_a, Value::from("42Hello "));
@@ -424,9 +313,7 @@ mod tests {
     fn structural_equality() {
         let a = Value::from(42_i8);
         let b = Value::from(42_i32);
-
-        assert_eq!(a.get_type(), CoreValueType::I8);
-        assert_eq!(b.get_type(), CoreValueType::I32);
+        assert!(a.is_i8());
 
         assert_structural_eq!(a, b);
 

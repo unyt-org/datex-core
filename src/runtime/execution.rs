@@ -15,10 +15,10 @@ use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::list::List;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::pointer::PointerAddress;
@@ -1090,7 +1090,6 @@ fn handle_key_value_pair(
         }) => {
             // make sure key is a string
             map.set(key, value);
-
         }
         _ => {
             unreachable!(
@@ -1497,45 +1496,45 @@ mod tests {
     }
 
     #[test]
-    fn tuple() {
+    fn map() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
-        let tuple: CoreValue = result.clone().to_value().borrow().clone().inner;
-        let tuple: Tuple = tuple.try_into().unwrap();
+        let map: CoreValue = result.clone().to_value().borrow().clone().inner;
+        let map: Map = map.try_into().unwrap();
 
         // form and size
-        assert_eq!(tuple.to_string(), "(\"x\": 1, 0: 2, 1: 42)");
-        assert_eq!(tuple.size(), 3);
+        assert_eq!(map.to_string(), "(\"x\": 1, 0: 2, 1: 42)");
+        assert_eq!(map.size(), 3);
 
-        info!("Tuple: {:?}", tuple);
+        info!("Tuple: {:?}", map);
 
         // access by key
-        assert_eq!(tuple.get(&"x".into()), Some(&Integer::from(1i8).into()));
+        assert_eq!(map.get(&"x".into()), Some(&Integer::from(1i8).into()));
         assert_eq!(
-            tuple.get(&Integer::from(0).into()),
+            map.get(&Integer::from(0).into()),
             Some(&Integer::from(2i8).into())
         );
         assert_eq!(
-            tuple.get(&Integer::from(1).into()),
+            map.get(&Integer::from(1).into()),
             Some(&Integer::from(42i8).into())
         );
 
         // structural equality checks
-        let expected_se: Tuple = Tuple::from(vec![
+        let expected_se: Map = Map::from(vec![
             ("x".into(), 1.into()),
             (0.into(), 2.into()),
             (1.into(), 42.into()),
         ]);
-        assert_structural_eq!(tuple, expected_se);
+        assert_structural_eq!(map, expected_se);
 
         // strict equality checks
-        let expected_strict: Tuple = Tuple::from(vec![
+        let expected_strict: Map = Map::from(vec![
             ("x".into(), Integer::from(1_u32).into()),
             (0.into(), Integer::from(2_u32).into()),
             (1.into(), Integer::from(42_u32).into()),
         ]);
-        debug!("Expected tuple: {expected_strict}");
-        debug!("Tuple result: {tuple}");
+        debug!("Expected map: {expected_strict}");
+        debug!("Map result: {map}");
         // FIXME #104 type information gets lost on compile
         // assert_eq!(result, expected.into());
     }

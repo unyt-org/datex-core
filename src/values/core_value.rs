@@ -1,6 +1,7 @@
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::values::core_values::array::Array;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -9,6 +10,7 @@ use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
+use crate::values::core_values::r#struct::Struct;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
@@ -17,8 +19,6 @@ use crate::values::type_container::TypeContainer;
 use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
-use crate::values::core_values::array::Array;
-use crate::values::core_values::r#struct::Struct;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TypeTag {
@@ -247,7 +247,10 @@ impl CoreValue {
     pub fn is_combined_value(&self) -> bool {
         matches!(
             self,
-            CoreValue::List(_) | CoreValue::Map(_) | CoreValue::Struct(_) | CoreValue::Array(_)
+            CoreValue::List(_)
+                | CoreValue::Map(_)
+                | CoreValue::Struct(_)
+                | CoreValue::Array(_)
         )
     }
 
@@ -258,7 +261,7 @@ impl CoreValue {
     pub fn get_default_type(&self) -> TypeContainer {
         get_core_lib_type(CoreLibPointerId::from(self))
     }
-    
+
     pub fn cast_to_type(&self) -> Option<&Type> {
         match self {
             CoreValue::Type(ty) => Some(ty),
@@ -635,10 +638,14 @@ impl Display for CoreValue {
             CoreValue::Text(text) => write!(f, "{text}"),
             CoreValue::Null => write!(f, "null"),
             CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
-            CoreValue::List(array) => write!(f, "{array}"),
             CoreValue::Map(map) => write!(f, "{map}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
+
+            CoreValue::List(list) => write!(f, "{list}"),
+            CoreValue::Struct(structure) => write!(f, "{structure}"),
+            CoreValue::Array(array) => write!(f, "{array}"),
+            CoreValue::Map(map) => write!(f, "{map}"),
         }
     }
 }
@@ -670,12 +677,7 @@ mod tests {
         let b = CoreValue::from(11i32);
         let c = CoreValue::from("11");
 
-        assert_eq!(a.get_default_type_old(), CoreValueType::I32);
-        assert_eq!(b.get_default_type_old(), CoreValueType::I32);
-        assert_eq!(c.get_default_type_old(), CoreValueType::Text);
-
         let a_plus_b = (a.clone() + b.clone()).unwrap();
-        assert_eq!(a_plus_b.clone().get_default_type_old(), CoreValueType::I32);
         assert_eq!(a_plus_b.clone(), CoreValue::from(53));
         info!("{} + {} = {}", a.clone(), b.clone(), a_plus_b.clone());
     }
@@ -685,63 +687,5 @@ mod tests {
         let endpoint: Endpoint = CoreValue::from("@test").try_into().unwrap();
         debug!("Endpoint: {endpoint}");
         assert_eq!(endpoint.to_string(), "@test");
-    }
-
-    #[test]
-    fn integer_decimal_casting() {
-        let int_value = CoreValue::from(42);
-        assert_eq!(
-            int_value.cast_to(CoreValueType::Decimal).unwrap(),
-            CoreValue::from(Decimal::from(42.0))
-        );
-
-        let decimal_value = CoreValue::from(Decimal::from(42.7));
-        assert_eq!(
-            decimal_value.cast_to(CoreValueType::Integer).unwrap(),
-            CoreValue::from(Integer::from(42))
-        );
-    }
-
-    #[test]
-    fn boolean_casting() {
-        let bool_value = CoreValue::from(true);
-        assert_eq!(
-            bool_value.cast_to(CoreValueType::Boolean).unwrap(),
-            CoreValue::from(true)
-        );
-
-        let int_value = CoreValue::from(1);
-        assert_eq!(
-            int_value.cast_to(CoreValueType::Boolean).unwrap(),
-            CoreValue::from(true)
-        );
-
-        let zero_int_value = CoreValue::from(0);
-        assert_eq!(
-            zero_int_value.cast_to(CoreValueType::Boolean).unwrap(),
-            CoreValue::from(false)
-        );
-
-        let invalid_text_value = CoreValue::from("sometext");
-        assert_eq!(
-            invalid_text_value.cast_to(CoreValueType::Boolean),
-            Some(CoreValue::from(true))
-        );
-    }
-
-    #[test]
-    fn invalid_casting() {
-        let text_value = CoreValue::from("Hello, World!");
-        assert_eq!(text_value.cast_to(CoreValueType::Integer), None);
-        assert_eq!(text_value.cast_to(CoreValueType::I16), None);
-        assert_eq!(text_value.cast_to(CoreValueType::I32), None);
-        assert_eq!(text_value.cast_to(CoreValueType::I64), None);
-        assert_eq!(text_value.cast_to(CoreValueType::F32), None);
-        assert_eq!(text_value.cast_to(CoreValueType::F64), None);
-
-        let int_value = CoreValue::from(42);
-        assert_eq!(int_value.cast_to(CoreValueType::Endpoint), None);
-        assert_eq!(int_value.cast_to(CoreValueType::Array), None);
-        assert_eq!(int_value.cast_to(CoreValueType::Map), None);
     }
 }
