@@ -191,13 +191,22 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     visitor
                         .visit_map(serde::de::value::MapDeserializer::new(map))
                 }
-                CoreValue::Struct(structure) => {
-                    let vec = structure
-                        .values()
-                        .cloned()
-                        .map(DatexDeserializer::from_value);
+                CoreValue::Struct(r#struct) => {
+                    let map = r#struct.into_iter().map(|(k, v)| {
+                        (
+                            DatexDeserializer::from_value(k.into()),
+                            DatexDeserializer::from_value(v),
+                        )
+                    });
                     visitor
-                        .visit_seq(serde::de::value::SeqDeserializer::new(vec))
+                        .visit_map(serde::de::value::MapDeserializer::new(map))
+
+                    // let vec = structure
+                    //     .values()
+                    //     .cloned()
+                    //     .map(DatexDeserializer::from_value);
+                    // visitor
+                    //     .visit_seq(serde::de::value::SeqDeserializer::new(vec))
                 }
                 CoreValue::List(list) => {
                     let vec =
