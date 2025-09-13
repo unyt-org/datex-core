@@ -184,18 +184,18 @@ impl From<&DIFValue> for ValueContainer {
                         TypedInteger::U8(_) => {
                             CoreValue::TypedInteger(TypedInteger::U8(*n as u8))
                         }
-                        TypedInteger::I16(_) => {
-                            CoreValue::TypedInteger(TypedInteger::I16(*n as i16))
-                        }
-                        TypedInteger::U16(_) => {
-                            CoreValue::TypedInteger(TypedInteger::U16(*n as u16))
-                        }
-                        TypedInteger::I32(_) => {
-                            CoreValue::TypedInteger(TypedInteger::I32(*n as i32))
-                        }
-                        TypedInteger::U32(_) => {
-                            CoreValue::TypedInteger(TypedInteger::U32(*n as u32))
-                        }
+                        TypedInteger::I16(_) => CoreValue::TypedInteger(
+                            TypedInteger::I16(*n as i16),
+                        ),
+                        TypedInteger::U16(_) => CoreValue::TypedInteger(
+                            TypedInteger::U16(*n as u16),
+                        ),
+                        TypedInteger::I32(_) => CoreValue::TypedInteger(
+                            TypedInteger::I32(*n as i32),
+                        ),
+                        TypedInteger::U32(_) => CoreValue::TypedInteger(
+                            TypedInteger::U32(*n as u32),
+                        ),
                         _ => unreachable!(
                             "Unsupported core type for number conversion"
                         ),
@@ -203,9 +203,9 @@ impl From<&DIFValue> for ValueContainer {
                 }
                 StructuralTypeDefinition::TypedDecimal(typed_decimal) => {
                     match typed_decimal {
-                        TypedDecimal::F32(_) => {
-                            CoreValue::TypedDecimal(TypedDecimal::from(*n as f32))
-                        }
+                        TypedDecimal::F32(_) => CoreValue::TypedDecimal(
+                            TypedDecimal::from(*n as f32),
+                        ),
                         TypedDecimal::F64(_) => {
                             CoreValue::TypedDecimal(TypedDecimal::from(*n))
                         }

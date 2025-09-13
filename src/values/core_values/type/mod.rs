@@ -208,26 +208,80 @@ impl From<&CoreValue> for Type {
     fn from(value: &CoreValue) -> Self {
         match value {
             CoreValue::Null => Type::structural(StructuralTypeDefinition::Null),
-            CoreValue::Boolean(b) => Type::structural(
-                StructuralTypeDefinition::Boolean(b.clone()),
-            ),
+            CoreValue::Boolean(b) => {
+                Type::structural(StructuralTypeDefinition::Boolean(b.clone()))
+            }
             CoreValue::Text(s) => Type::structural(s.clone()),
-            CoreValue::Decimal(d) => Type::structural(
-                StructuralTypeDefinition::Decimal(d.clone()),
-            ),
+            CoreValue::Decimal(d) => {
+                Type::structural(StructuralTypeDefinition::Decimal(d.clone()))
+            }
             CoreValue::TypedDecimal(td) => Type::structural(
                 StructuralTypeDefinition::TypedDecimal(td.clone()),
             ),
-            CoreValue::Integer(i) => Type::structural(
-                StructuralTypeDefinition::Integer(i.clone()),
-            ),
+            CoreValue::Integer(i) => {
+                Type::structural(StructuralTypeDefinition::Integer(i.clone()))
+            }
             CoreValue::TypedInteger(ti) => Type::structural(
                 StructuralTypeDefinition::TypedInteger(ti.clone()),
             ),
             CoreValue::Endpoint(e) => {
                 Type::structural(StructuralTypeDefinition::Endpoint(e.clone()))
             }
-            _ => unimplemented!("handle missing core value to type conversion"),
+            CoreValue::List(list) => {
+                Type::structural(StructuralTypeDefinition::List(Box::new(
+                    TypeContainer::from(if list.is_empty() {
+                        Type::UNIT
+                    } else {
+                        let first_value =
+                            list[0].to_value().borrow().actual_type.clone();
+                        Type::structural(StructuralTypeDefinition::List(
+                            first_value,
+                        ))
+                    }),
+                )))
+            }
+            CoreValue::Array(array) => {
+                let types = array
+                    .iter()
+                    .map(|v| Type::from(v.to_value().borrow().inner.clone()))
+                    .collect::<Vec<_>>();
+                Type::structural(StructuralTypeDefinition::Array(
+                    types.into_iter().map(TypeContainer::from).collect(),
+                ))
+            }
+            CoreValue::Struct(structure) => {
+                // let struct_types = structure
+                //     .iter()
+                //     .map(|(key, value)| (key.clone(), value.actual_type()))
+                //     .collect();
+                let struct_types = structure
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            key.clone(),
+                            TypeContainer::from(Type::from(
+                                value.to_value().borrow().inner.clone(),
+                            )),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                Type::structural(StructuralTypeDefinition::Struct(struct_types))
+            }
+            CoreValue::Map(map) => {
+                let (key_type, value_type) =
+                    if let Some((first_key, first_value)) = map.iter().next() {
+                        (first_key.actual_type(), first_value.actual_type())
+                    } else {
+                        (
+                            TypeContainer::from(Type::UNIT),
+                            TypeContainer::from(Type::UNIT),
+                        )
+                    };
+                Type::structural(StructuralTypeDefinition::Map(Box::new((
+                    key_type, value_type,
+                ))))
+            }
+            e => unimplemented!("Type conversion not implemented for {}", e),
         }
     }
 }

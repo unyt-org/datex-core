@@ -151,6 +151,7 @@ mod tests {
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::integer::integer::Integer;
     use crate::values::core_values::list::List;
+    use crate::values::core_values::r#struct::Struct;
     use datex_core::runtime::RuntimeConfig;
     use datex_core::values::core_values::array::Array;
     use datex_core::values::core_values::decimal::decimal::Decimal;
@@ -230,7 +231,7 @@ mod tests {
                 )]),
                 &runtime
             ),
-            Type::from(CoreValue::from(Map::from_iter(vec![(
+            Type::from(CoreValue::from(Struct::from(vec![(
                 "a".to_string(),
                 ValueContainer::from(Integer::from(1))
             )])))

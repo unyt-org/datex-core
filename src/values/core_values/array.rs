@@ -1,6 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::value_container::{ValueContainer};
+use crate::values::value_container::ValueContainer;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::vec::IntoIter;
@@ -35,13 +35,11 @@ impl Array {
         self.0.iter()
     }
 
-    pub fn iter_slice(&self) -> core::slice::Iter<ValueContainer> {
+    pub fn iter_slice(&'_ self) -> core::slice::Iter<'_, ValueContainer> {
         self.0.iter()
     }
 
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut ValueContainer> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ValueContainer> {
         self.0.iter_mut()
     }
     pub fn clear(&mut self) {
@@ -54,7 +52,10 @@ impl Array {
     pub fn set<T: Into<ValueContainer>>(&mut self, index: u32, value: T) {
         // check if index exists
         if index as usize >= self.0.len() {
-            panic!("Invalid index '{index}' for Array of size {}", self.0.len());
+            panic!(
+                "Invalid index '{index}' for Array of size {}",
+                self.0.len()
+            );
         }
         self.0.insert(index as usize, value.into());
     }
