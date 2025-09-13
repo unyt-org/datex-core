@@ -150,7 +150,7 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum ReferenceFromValueContainerError {
+pub enum ReferenceFromValueContainerError {
     InvalidType,
     MutableTypeReference,
 }
@@ -382,7 +382,9 @@ impl Reference {
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
-                    Err(AccessError::InvalidOperation("Cannot get property".to_string()))
+                    Err(AccessError::InvalidOperation(
+                        "Cannot get property".to_string(),
+                    ))
                 }
             }
         })
