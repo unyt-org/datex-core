@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use std::{
@@ -6,7 +8,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {
     pub name: String,
     pub variant: Option<String>,

@@ -17,6 +17,9 @@ use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
+use rsa::rand_core::le;
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
@@ -28,6 +31,22 @@ pub struct Type {
     pub base_type: Option<Rc<RefCell<TypeReference>>>,
     pub reference_mutability: Option<ReferenceMutability>,
 }
+
+// impl Serialize for Type {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("Type", 3)?;
+//         state.serialize_field("type_definition", &self.type_definition)?;
+//         state.serialize_field("base_type", &self.base_type)?;
+//         state.serialize_field(
+//             "reference_mutability",
+//             &self.reference_mutability,
+//         )?;
+//         state.end()
+//     }
+// }
 
 impl Hash for Type {
     fn hash<H: Hasher>(&self, state: &mut H) {
