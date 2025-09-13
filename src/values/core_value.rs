@@ -352,6 +352,12 @@ impl CoreValue {
             _ => None,
         }
     }
+    pub fn cast_to_struct(&self) -> Option<Struct> {
+        match self {
+            CoreValue::Struct(structure) => Some(structure.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl Add for CoreValue {
