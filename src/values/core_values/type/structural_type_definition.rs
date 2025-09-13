@@ -24,7 +24,6 @@ pub enum StructuralTypeDefinition {
     Null,
     Array(Vec<TypeContainer>),
     List(Box<TypeContainer>),
-    Tuple(Vec<(TypeContainer, TypeContainer)>),
     Struct(Vec<(String, TypeContainer)>),
     Map(Box<(TypeContainer, TypeContainer)>),
 }
@@ -223,13 +222,6 @@ impl Display for StructuralTypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 write!(f, "[{}]", types_str.join(", "))
-            }
-            StructuralTypeDefinition::Tuple(elements) => {
-                let elements_str: Vec<String> = elements
-                    .iter()
-                    .map(|(k, v)| format!("{}: {}", k, v))
-                    .collect();
-                write!(f, "({})", elements_str.join(", "))
             }
             StructuralTypeDefinition::List(element_type) => {
                 write!(f, "List<{}>", element_type)

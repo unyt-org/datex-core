@@ -240,7 +240,7 @@ impl ValueContainer {
             // already a reference, no need to upgrade
             ValueContainer::Reference(_) => self,
             ValueContainer::Value(value) => {
-                if value.is_combined_value() {
+                if value.is_collection_value() {
                     ValueContainer::new_reference(self)
                 }
                 // if the value is not a combined value, keep it as a ValueContainer::Value

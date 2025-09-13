@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
 
-// FIXME: restrict tuple keys to Integer and String only
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Map(IndexMap<ValueContainer, ValueContainer>);
 
@@ -32,8 +31,6 @@ impl Map {
         self.0.get(&key.into())
     }
 
-    /// Set a key-value pair in the tuple. This method should only be used internal, since tuples
-    /// are immutable after creation as per DATEX specification.
     pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
         &mut self,
         key: K,

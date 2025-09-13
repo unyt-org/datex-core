@@ -1115,7 +1115,7 @@ fn handle_key_value_pair(
     key: ValueContainer,
     value: ValueContainer,
 ) -> Result<(), ExecutionError> {
-    // insert key value pair into active object/tuple
+    // insert key value pair into active map/struct
     match active_container {
         // Map
         ValueContainer::Value(Value {
@@ -1127,7 +1127,7 @@ fn handle_key_value_pair(
         }
         // Struct
         ValueContainer::Value(Value {
-            inner: CoreValue::Struct(strut),
+            inner: CoreValue::Struct(r#struct),
             ..
         }) => {
             // make sure key is a string (TODO: optimize this)
@@ -1136,7 +1136,7 @@ fn handle_key_value_pair(
                 ..
             }) = key
             {
-                strut._set_new_field(text.0, value);
+                r#struct._set_new_field(text.0, value);
             } else {
                 return Err(ExecutionError::InvalidProgram(
                     InvalidProgramError::InvalidKeyValuePair,
@@ -1145,7 +1145,7 @@ fn handle_key_value_pair(
         }
         _ => {
             unreachable!(
-                "Expected active value map or tuple to collect key value pairs, but got: {}",
+                "Expected active value that can collect key value pairs, but got: {}",
                 active_container
             );
         }
