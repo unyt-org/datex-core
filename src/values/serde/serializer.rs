@@ -13,7 +13,6 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
     SerializeTupleVariant, Serializer,
 };
-use std::collections::HashMap;
 use std::vec;
 pub struct DatexSerializer {}
 

@@ -14,8 +14,6 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
