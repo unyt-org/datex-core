@@ -1295,6 +1295,10 @@ mod tests {
     #[test]
     #[ignore = "WIP"]
     fn type_declaration_collection() {
+        let src = r#"type User = (x: text, y: text | 4) -> text | 52"#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+        
         let src = r#"type User = text"#;
         let val = parse_type_unwrap(src);
         println!("{}", val);
@@ -1344,6 +1348,14 @@ mod tests {
                 age: integer | text
             }
         "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = "type a = [1,2,text]";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = "type a = [integer | text]";
         let val = parse_type_unwrap(src);
         println!("{}", val);
     }

@@ -2,8 +2,7 @@ use std::fmt::Display;
 
 use crate::values::{
     core_values::r#type::structural_type_definition::StructuralTypeDefinition,
-    reference::Reference,
-    traits::structural_eq::StructuralEq,
+    reference::Reference, traits::structural_eq::StructuralEq,
     type_container::TypeContainer,
 };
 
@@ -20,6 +19,11 @@ pub enum TypeDefinition {
     Union(Vec<TypeContainer>),
     // ()
     Unit,
+
+    Function {
+        parameters: Vec<(String, TypeContainer)>,
+        return_type: Box<TypeContainer>,
+    },
 }
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -38,6 +42,21 @@ impl Display for TypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 write!(f, "{}", types_str.join(" & "))
+            }
+            TypeDefinition::Function {
+                parameters,
+                return_type,
+            } => {
+                let params_str: Vec<String> = parameters
+                    .iter()
+                    .map(|(name, ty)| format!("{}: {}", name, ty))
+                    .collect();
+                write!(
+                    f,
+                    "function({}) -> {}",
+                    params_str.join(", "),
+                    return_type
+                )
             }
         }
     }

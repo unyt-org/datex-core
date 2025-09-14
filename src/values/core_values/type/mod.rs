@@ -171,6 +171,21 @@ impl Type {
         }
     }
 
+    /// Creates a new function type.
+    pub fn function(
+        parameters: Vec<(String, TypeContainer)>,
+        return_type: impl Into<TypeContainer>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Function {
+                parameters,
+                return_type: Box::new(return_type.into()),
+            },
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
     /// Creates a new structural map type.
     pub fn map(
         key_type: impl Into<TypeContainer>,
@@ -259,6 +274,12 @@ impl Type {
             TypeDefinition::Reference(reference) => {
                 todo!("handle reference type matching");
                 //reference.value_matches(value)
+            }
+            TypeDefinition::Function {
+                parameters,
+                return_type,
+            } => {
+                todo!("handle function type matching");
             }
             TypeDefinition::Unit => false, // unit type does not match any value
         }

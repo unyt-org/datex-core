@@ -80,7 +80,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
 
         let key_ident =
             select! { Token::Identifier(k) => k }.padded_by(whitespace());
-        let r#struct = key_ident
+        let r#struct = key_ident.clone()
             .then_ignore(just(Token::Colon))
             .padded_by(whitespace())
             .then(ty.clone())
@@ -125,14 +125,32 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                     ),
                 }
             });
+
+
+		let func = key_ident
+			.then_ignore(just(Token::Colon).padded_by(whitespace()))
+			.then(ty.clone()) 
+			.separated_by(just(Token::Comma))
+			.allow_trailing()
+			.collect()
+			.delimited_by(
+				just(Token::LeftParen).padded_by(whitespace()),
+				just(Token::RightParen).padded_by(whitespace()),
+			)
+			.then_ignore(just(Token::Arrow).padded_by(whitespace()))
+			.then(ty.clone()) 
+			.map(|(params, ret): (Vec<(String, TypeContainer)>, TypeContainer)| {
+				Type::function(params, ret).as_type_container()
+			});
+
         let base = choice((
+			func.clone(),
             literal.clone(),
             array_inline.clone(),
             r#struct.clone(),
             generic.clone(),
 			paren_group.clone(),
-            type_reference.clone(),
-
+			type_reference.clone(),
         ));
 
         // parse zero-or-more postfix `[]`
