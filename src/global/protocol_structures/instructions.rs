@@ -6,6 +6,7 @@ use crate::values::core_values::{
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
 
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
     // signed integers
@@ -92,7 +93,9 @@ pub enum Instruction {
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
 
+    TypeInstructions(Vec<TypeInstruction>),
 }
+
 
 impl Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -218,9 +221,38 @@ impl Display for Instruction {
             Instruction::DivideAssign(address) => {
                 write!(f, "DIVIDE_ASSIGN {}", address.0)
             }
+            Instruction::TypeInstructions(instr) => {
+                let instr_strings: Vec<String> = instr.iter().map(|i| i.to_string()).collect();
+                write!(f, "TYPE_INSTRUCTIONS [{}]", instr_strings.join(", "))
+            }
         }
     }
 }
+
+
+
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum TypeInstruction {
+    LiteralText(TextData),
+    LiteralInteger(IntegerData),
+    ArrayStart,
+    ScopeEnd,
+}
+
+
+impl Display for TypeInstruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeInstruction::LiteralText(data) => write!(f, "LITERAL_TEXT {}", data.0),
+            TypeInstruction::LiteralInteger(data) => write!(f, "LITERAL_INTEGER {}", data.0),
+            TypeInstruction::ArrayStart => write!(f, "ARRAY_START"),
+            TypeInstruction::ScopeEnd => write!(f, "SCOPE_END"),
+        }
+    }
+}
+
+
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

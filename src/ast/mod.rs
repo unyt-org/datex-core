@@ -134,6 +134,19 @@ pub enum Slot {
     Named(String),
 }
 
+
+// TODO: parse TypeExpressions in ast parser
+#[derive(Clone, Debug, PartialEq)]
+pub enum TypeExpression {
+    // e.g. integer/u8
+    Integer(Integer),
+    // e.g. decimal/f32
+    // e.g. string, User, integer/u8
+    Literal(String),
+    // e.g. [integer], (string), {key: value}, (key: value)
+    Container(TypeContainer),
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpression {
     /// This is a marker for recovery from parse errors.
@@ -204,6 +217,8 @@ pub enum DatexExpression {
 
     /// Type
     Type(TypeContainer),
+
+    TypeExpression(TypeExpression),
 
     FunctionDeclaration {
         name: String,

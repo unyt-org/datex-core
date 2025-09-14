@@ -23,33 +23,7 @@ pub enum InstructionCode {
     CACHE_RESET,     // reset dxb scope cache
 
     TYPE_TAG, // e.g. Tag('integer')
-
-    // primitive / fundamental types 0x10 - 0x2f
-    STD_TYPE_TEXT,
-    STD_TYPE_INT,
-    STD_TYPE_FLOAT,
-    STD_TYPE_BOOLEAN,
-    STD_TYPE_NULL,
-    STD_TYPE_VOID,
-    STD_TYPE_BUFFER,
-    STD_TYPE_CODE_BLOCK,
-    STD_TYPE_QUANTITY,
-    STD_TYPE_TIME,
-    STD_TYPE_URL,
-
-    STD_TYPE_ARRAY,
-    STD_TYPE_OBJECT,
-    STD_TYPE_SET,
-    STD_TYPE_MAP,
-    STD_TYPE_TUPLE,
-
-    STD_TYPE_FUNCTION,
-    STD_TYPE_STREAM,
-    STD_TYPE_ANY,
-    STD_TYPE_ASSERTION,
-    STD_TYPE_TASK,
-    STD_TYPE_ITERATOR,
-
+    
     // internal variables and other shorthands 0x30 - 0x4f
     VAR_RESULT,
     SET_VAR_RESULT,
@@ -198,11 +172,13 @@ pub enum InstructionCode {
 
     WILDCARD, // *
 
-    /// type byte codes
-    TYPE_STRUCT,
-    TYPE_ARRAY,
-    TYPE_LITERAL_INT_8,
-    TYPE_LITERAL_INT_16,
+    /// type byte codes --> switch to Type Space
+    TYPED_VALUE,
+
+
+    CONJUNCTION, // x&y&z
+    DISJUNCTION, // x|y|z
+
     // ...
 
     // values 0xc0 - 0xdf
@@ -248,11 +224,6 @@ pub enum InstructionCode {
 
     URL, //file://... , https://...
 
-    TYPE,          // <type>
-    EXTENDED_TYPE, // <type/xy()>
-
-    CONJUNCTION, // x&y&z
-    DISJUNCTION, // x|y|z
 
     TIME, // ~2022-10-10~
 
@@ -298,4 +269,55 @@ pub enum InstructionCode {
 #[repr(u32)]
 pub enum InternalSlot {
     ENDPOINT = 0xffffff00,
+}
+
+
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    TryFromPrimitive,
+    Copy,
+    Clone,
+    Display,
+    num_enum::IntoPrimitive,
+)]
+#[repr(u8)]
+pub enum TypeSpaceInstructionCode {
+    
+    TYPE_REFERENCE,
+    
+    TYPE_ARRAY_START,
+    TYPE_SCOPE_END,
+    
+    TYPE_LITERAL_INTEGER,
+    TYPE_LITERAL_TEXT,
+    TYPE_STRUCT,
+
+    STD_TYPE_TEXT,
+    STD_TYPE_INT,
+    STD_TYPE_FLOAT,
+    STD_TYPE_BOOLEAN,
+    STD_TYPE_NULL,
+    STD_TYPE_VOID,
+    STD_TYPE_BUFFER,
+    STD_TYPE_CODE_BLOCK,
+    STD_TYPE_QUANTITY,
+    STD_TYPE_TIME,
+    STD_TYPE_URL,
+
+    STD_TYPE_ARRAY,
+    STD_TYPE_OBJECT,
+    STD_TYPE_SET,
+    STD_TYPE_MAP,
+    STD_TYPE_TUPLE,
+
+    STD_TYPE_FUNCTION,
+    STD_TYPE_STREAM,
+    STD_TYPE_ANY,
+    STD_TYPE_ASSERTION,
+    STD_TYPE_TASK,
+    STD_TYPE_ITERATOR,
 }

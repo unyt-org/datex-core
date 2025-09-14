@@ -435,3 +435,16 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .labelled(Pattern::Declaration)
         .as_context()
 }
+
+
+pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
+    just(Token::Identifier("type".to_string()))
+        .padded_by(whitespace())
+        .ignore_then(r#type())
+        .delimited_by(
+            just(Token::LeftParen).padded_by(whitespace()),
+            just(Token::RightParen).padded_by(whitespace()),
+        )
+        .map(|expr| DatexExpression::Type(expr))
+        .as_context()
+}

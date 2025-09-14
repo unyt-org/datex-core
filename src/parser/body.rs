@@ -1,13 +1,15 @@
 use crate::decompiler::ScopeType;
-use crate::global::binary_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, RawFullPointerAddress, RawInternalPointerAddress, TypeTagData};
+use crate::global::binary_codes::{InstructionCode, TypeSpaceInstructionCode};
+use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, RawFullPointerAddress, RawInternalPointerAddress, TypeTagData, TypeInstruction};
 use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
-use binrw::BinRead;
+use binrw::{BinRead, BinResult};
 use std::fmt::Display;
-use std::io::Cursor;
+use std::io::{BufRead, Cursor, Read, Seek};
+use binrw::__private::Required;
 use datex_core::global::protocol_structures::instructions::RawOriginPointerAddress;
+use crate::global::protocol_structures::instructions;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -135,23 +137,25 @@ pub fn iterate_instructions<'a>(
             let mut reader = Cursor::new(dxb_body);
             loop {
                 // if cursor is at the end, break
-                if reader.position() as usize >= dxb_body.len() {
+                if reader.has_data_left().unwrap() == false {
                     return;
                 }
 
-                let instruction_code = u8::read(&mut reader);
-                if let Err(err) = instruction_code {
-                    yield Err(err.into());
-                    return;
-                }
+                let instruction_code = {
+                    let instruction_code = u8::read(&mut reader);
+                    if let Err(err) = instruction_code {
+                        yield Err(err.into());
+                        return;
+                    }
 
-                let instruction_code =
-                    InstructionCode::try_from(instruction_code.unwrap());
-                if instruction_code.is_err() {
-                    yield Err(DXBParserError::FailedToReadInstructionCode);
-                    return;
-                }
-                let instruction_code = instruction_code.unwrap();
+                    let instruction_code =
+                        InstructionCode::try_from(instruction_code.unwrap());
+                    if instruction_code.is_err() {
+                        yield Err(DXBParserError::FailedToReadInstructionCode);
+                        return;
+                    }
+                    instruction_code.unwrap()
+                };
                 //info!("Instruction code: {:?}", instruction_code);
 
                 yield match instruction_code {
@@ -461,9 +465,56 @@ pub fn iterate_instructions<'a>(
                         }
                     }
 
+                    InstructionCode::TYPED_VALUE => {
+                        // collect type space instructions
+                        let result: Result<Vec<TypeInstruction>, DXBParserError> = iterate_type_space_instructions(&mut reader).into_iter().collect();
+                        if let Err(err) = result {
+                            Err(err)
+                        } else {
+                            Ok(Instruction::TypeInstructions(result.unwrap()))
+                        }
+                    }
+
                     _ => Err(DXBParserError::InvalidBinaryCode(
                         instruction_code as u8,
                     )),
+                }
+            }
+        },
+    )
+}
+
+
+fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
+    reader: &mut R
+) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
+    std::iter::from_coroutine(
+        #[coroutine]
+        move || {
+            loop {
+                // if cursor is at the end, break
+                if !reader.has_data_left().unwrap() {
+                    return;
+                }
+
+                let instruction_code = u8::read(reader);
+                if let Err(err) = instruction_code {
+                    yield Err(err.into());
+                    return;
+                }
+
+                let instruction_code =
+                    TypeSpaceInstructionCode::try_from(instruction_code.unwrap());
+                if instruction_code.is_err() {
+                    yield Err(DXBParserError::FailedToReadInstructionCode);
+                    return;
+                }
+                let instruction_code = instruction_code.unwrap();
+                //info!("Instruction code: {:?}", instruction_code);
+
+                yield match instruction_code {
+                    TypeSpaceInstructionCode::TYPE_ARRAY_START => Ok(TypeInstruction::ArrayStart),
+                    _ => todo!()
                 }
             }
         },
