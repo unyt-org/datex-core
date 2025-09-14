@@ -132,13 +132,31 @@ impl Type {
     }
 
     /// Creates a new union type.
-    pub fn union(types: Vec<Type>) -> Self {
+    pub fn union<T>(types: Vec<T>) -> Self
+    where
+        T: Into<TypeContainer>,
+    {
+        let types = types.into_iter().map(|t| t.into()).collect();
         Type {
             type_definition: TypeDefinition::Union(types),
             base_type: None,
             reference_mutability: None,
         }
     }
+
+    /// Creates a new intersection type.
+    pub fn intersection<T>(types: Vec<T>) -> Self
+    where
+        T: Into<TypeContainer>,
+    {
+        let types = types.into_iter().map(|t| t.into()).collect();
+        Type {
+            type_definition: TypeDefinition::Intersection(types),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
     /// Creates a new reference type.
     pub fn reference(
         reference: impl Into<Reference>,
@@ -225,7 +243,15 @@ impl Type {
             // e.g. 1 matches 1 | 2
             TypeDefinition::Union(types) => {
                 // value must match at least one of the union types
-                types.iter().any(|t| Type::value_matches_type(value, t))
+                types
+                    .iter()
+                    .any(|t| Type::value_matches_type(value, &t.as_type()))
+            }
+            TypeDefinition::Intersection(types) => {
+                // value must match all of the intersection types
+                types
+                    .iter()
+                    .all(|t| Type::value_matches_type(value, &t.as_type()))
             }
             TypeDefinition::Structural(structural_type) => {
                 structural_type.value_matches(value)
@@ -446,8 +472,8 @@ mod tests {
         assert!(Type::value_matches_type(
             &ValueContainer::from(List::from(vec![1, 2])),
             &Type::list(Type::union(vec![
-                Type::structural(1),
-                Type::structural(2),
+                Type::structural(1).as_type_container(),
+                Type::structural(2).as_type_container(),
             ])),
         ));
 

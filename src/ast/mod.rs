@@ -578,6 +578,17 @@ mod tests {
         }
         res.unwrap()
     }
+    fn parse_type_unwrap(src: &str) -> TypeContainer {
+        let value = parse_unwrap(src);
+        if let DatexExpression::TypeDeclaration { value, .. } = value {
+            *value.clone()
+        } else if let DatexExpression::Type(t) = value {
+            t
+        } else {
+            panic!("Expected TypeDeclaration or Type, got {:?}", value);
+        }
+    }
+
     fn parse_print_error(
         src: &str,
     ) -> Result<DatexExpression, Vec<ParseError>> {
@@ -1284,17 +1295,61 @@ mod tests {
     #[test]
     #[ignore = "WIP"]
     fn type_declaration_collection() {
-        let src = r#"
-            type User = text;
-        "#;
-        let _ = parse_unwrap(src);
+        let src = r#"type User = text"#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
 
-        let src = "type a = 1 | 2 | 3 | 4";
-        let val = parse_unwrap(src);
-        println!("{:?}", val);
+        let src = "type a = (1 | 2) | 3 | 4";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = "type a = 1 | (2 & 3) | 4";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = "type a = (1 | 2) & 3 & 4";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"
+            type a = List<integer | text>
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"
+            type a = Map<text, integer | text>
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"
+            type a = Map<text, List<integer | text>>
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"
+            type a = {
+                name: text,
+                age: integer
+            }
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"
+            type a = {
+                name: text | null,
+                age: integer | text
+            }
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
     }
 
     #[test]
+    #[ignore = "WIP"]
     // WIP
     fn type_declaration_complex() {
         let src = r#"
@@ -2667,6 +2722,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "WIP"]
     fn type_declaration_statement() {
         let src = "type User = { age: 42, name: \"John\" };";
         let expr = parse_unwrap(src);

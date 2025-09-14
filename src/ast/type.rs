@@ -6,152 +6,60 @@ use chumsky::{
 
 use crate::{
     ast::{
-        DatexExpression, DatexParserTrait,
-        error::pattern::Pattern,
-        lexer::{Token, TypedLiteral},
-        literal::literal,
-        utils::whitespace,
+        error::pattern::Pattern, lexer::{IntegerLiteral, Token, TypedLiteral}, literal::literal, utils::whitespace, DatexExpression, DatexParserTrait
     },
     values::{
         core_values::{
-            decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
-            r#type::{
-                Type, structural_type_definition::StructuralTypeDefinition,
-            },
+            decimal::{decimal::Decimal, typed_decimal::TypedDecimal}, integer::integer::Integer, r#type::{
+                structural_type_definition::StructuralTypeDefinition, Type
+            }
         },
         type_container::TypeContainer,
     },
 };
 
-// pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
-//     recursive(|ty| {
-//         // primitives
-//         let primitive = select! {
-//             Token::Identifier(s) => s
-//         }
-//         .map(|s: String| match s.as_str() {
-//             "integer" => TypeContainer::integer(),
-//             "text" => TypeContainer::text(),
-//             "boolean" => TypeContainer::boolean(),
-//             _ => panic!("unknown primitive type {}", s),
-//         });
-
-//         let literal = select! {
-//             Token::DecimalLiteral(n) => Type::from(Decimal::from_string(&n.value).unwrap().into()).as_type_container(),
-//         };
-
-//         // arrays: [t1, t2, ...]
-//         let array_inline: _ = ty
-//             .clone()
-//             .separated_by(just(Token::Comma))
-//             .allow_trailing()
-//             .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-//             .map(|elems: Vec<TypeContainer>| {
-//                 Type::array(elems).as_type_container()
-//             });
-
-//         let key_ident: _ = select! { Token::Identifier(k) => k };
-//         // The inner parser yields (String, TypeContainer), separated_by gives Vec<(String, TypeContainer)>
-//         let strukt: _ = key_ident
-//             .then_ignore(just(Token::Colon))
-//             .then(ty.clone())
-//             .separated_by(just(Token::Comma))
-//             .allow_trailing()
-//             .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
-//             .map(|fields: Vec<(String, TypeContainer)>| {
-//                 Type::structural(StructuralTypeDefinition::Struct(fields))
-//                     .as_type_container()
-//             });
-
-//         // generics: List<T>, Map<K,V>
-//         let generic: _ = select! { Token::Identifier(name) => name }
-//             .then(
-//                 ty.clone()
-//                     .separated_by(just(Token::Comma))
-//                     .allow_trailing()
-//                     .delimited_by(
-//                         just(Token::LeftAngle),
-//                         just(Token::RightAngle),
-//                     ),
-//             )
-//             .map(|(name, args): (String, Vec<TypeContainer>)| {
-//                 match name.as_str() {
-//                     "List" if args.len() == 1 => {
-//                         Type::structural(StructuralTypeDefinition::List(
-//                             Box::new(args[0].clone()),
-//                         ))
-//                         .as_type_container()
-//                     } // << CHANGED: returns TypeContainer
-//                     "Map" if args.len() == 2 => {
-//                         let mut it = args.into_iter();
-//                         let k = it.next().unwrap();
-//                         let v = it.next().unwrap();
-//                         Type::structural(StructuralTypeDefinition::Map(
-//                             Box::new((k, v)),
-//                         ))
-//                         .as_type_container()
-//                     }
-//                     // Fallback: unknown generic — treat as ident (or extend StructuralTypeDefinition)
-//                     other => panic!(
-//                         "unknown generic type {} with {} arguments",
-//                         other,
-//                         args.len()
-//                     ),
-//                 }
-//             });
-
-//         let base: _ = choice((
-//             primitive.clone(),
-//             literal.clone(),
-//             // array_inline.clone(),
-//             // strukt.clone(),
-//             // generic.clone(),
-//         ));
-
-//         let postfix_array: _ = base
-//             .then(
-//                 just(Token::LeftBracket)
-//                     .ignore_then(just(Token::RightBracket))
-//                     .repeated(), // returns Vec<()>
-//             )
-//             .map(|(base_tc, arrs): (TypeContainer, Vec<()>)| {
-//                 let mut t = base_tc;
-//                 for _ in arrs {
-//                     t = Type::structural(StructuralTypeDefinition::List(
-//                         Box::new(t),
-//                     ))
-//                     .as_type_container();
-//                 }
-//                 t
-//             });
-
-//         choice((
-//             postfix_array,
-//             generic,
-//             primitive,
-//             literal,
-//             array_inline,
-//             strukt,
-//         ))
-//     })
-// }
-
 pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
     recursive(|ty| {
-        let primitive =
+
+		let paren_group = ty
+			.clone()
+			.delimited_by(
+				just(Token::LeftParen).padded_by(whitespace()),
+				just(Token::RightParen).padded_by(whitespace()),
+			);
+
+        // Parse a type reference, e.g. `integer`, `text`, `User` etc.
+        let type_reference =
             select! { Token::Identifier(s) => s }.map(|s: String| {
                 match s.as_str() {
                     "integer" => TypeContainer::integer(),
                     "text" => TypeContainer::text(),
                     "boolean" => TypeContainer::boolean(),
+					"null" => TypeContainer::null(),
                     _ => panic!("unknown primitive type {}", s),
                 }
-            });
+            }).or(just(Token::Null).map(|_| TypeContainer::null()));
 
         let literal =
-            select! { Token::DecimalLiteral(TypedLiteral { value, .. }) => value }
-            .padded_by(whitespace())
-			.map(|value: String| {
+            select! { 
+				Token::DecimalLiteral(TypedLiteral { value, variant }) => {
+					if let Some(variant) = variant {
+						StructuralTypeDefinition::TypedDecimal(
+							TypedDecimal::from_string_and_variant(&value, variant).unwrap()
+						)
+					} else {
+						StructuralTypeDefinition::Decimal(
+							Decimal::from_string(&value).unwrap()
+						)
+					}
+				},
+				Token::DecimalIntegerLiteral(IntegerLiteral {value, variant}) => StructuralTypeDefinition::Integer(
+					Integer::from_string(&value).unwrap()
+				),
+				Token::StringLiteral(s) => StructuralTypeDefinition::Text(s.into()),
+			}
+			.padded_by(whitespace())
+			.map(|value: StructuralTypeDefinition| {
                 Type::structural(value)
                     .as_type_container()
             });
@@ -177,7 +85,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
             .padded_by(whitespace())
             .then(ty.clone())
             .separated_by(just(Token::Comma))
-            .allow_trailing() // << CHANGED
+            .allow_trailing() 
             .collect()
             .delimited_by(
                 just(Token::LeftCurly).padded_by(whitespace()),
@@ -190,10 +98,11 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
         let generic = select! { Token::Identifier(name) => name }
             .then(
                 ty.clone()
-                    .separated_by(just(Token::Comma))
-                    .allow_trailing() // << CHANGED: allow trailing commas in generics too
+                    .separated_by(just(Token::Comma).padded_by(whitespace()))
+					.allow_trailing()
                     .collect()
-                    .delimited_by(
+					.padded_by(whitespace())
+					.delimited_by(
                         just(Token::LeftAngle),
                         just(Token::RightAngle),
                     ),
@@ -217,19 +126,21 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                 }
             });
         let base = choice((
-            primitive.clone(),
             literal.clone(),
             array_inline.clone(),
             r#struct.clone(),
             generic.clone(),
+			paren_group.clone(),
+            type_reference.clone(),
+
         ));
 
-        let postfix_array = base
+        // parse zero-or-more postfix `[]`
+        let optional_postfix_array = base
             .then(
                 just(Token::LeftBracket)
                     .ignore_then(just(Token::RightBracket))
                     .repeated()
-                    .at_least(1)
                     .count(),
             )
             .map(|(base_tc, count): (TypeContainer, usize)| {
@@ -240,14 +151,39 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                 t
             });
 
-        choice((
-            postfix_array,
-            generic,
-            primitive,
-            literal,
-            array_inline,
-            r#struct,
-        ))
+        let intersection = optional_postfix_array
+            .clone()
+            .then(
+                // parse zero-or-more `& <postfix_array>`
+                just(Token::Ampersand)
+                    .padded_by(whitespace())
+                    .ignore_then(optional_postfix_array.clone())
+                    .repeated()
+                    .collect(),
+            )
+            .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
+                // fold the tail into a single intersection-type
+                rest.into_iter().fold(first, |acc, next| {
+                    Type::intersection(vec![acc, next]).as_type_container()
+                })
+            });
+
+        let union = intersection
+            .clone()
+            .then(
+                just(Token::Pipe)
+                    .padded_by(whitespace())
+                    .ignore_then(intersection.clone())
+                    .repeated()
+                    .collect(),
+            )
+            .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
+                rest.into_iter().fold(first, |acc, next| {
+                    Type::union(vec![acc, next]).as_type_container()
+                })
+            });
+
+        union
     })
 }
 
@@ -256,6 +192,7 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .ignore_then(literal())
         .then_ignore(just(Token::RightAngle))
         .or_not();
+    // allow ; and end
 
     just(Token::Identifier("type".to_string()))
         .padded_by(whitespace())
@@ -263,6 +200,7 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .then(generic)
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
+        .then_ignore(just(Token::Semicolon).or_not().padded_by(whitespace()))
         .map(|((name, generic), expr)| DatexExpression::TypeDeclaration {
             id: None,
             name: name.to_string(),

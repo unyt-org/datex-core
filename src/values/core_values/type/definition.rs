@@ -6,6 +6,7 @@ use crate::values::{
     },
     reference::Reference,
     traits::structural_eq::StructuralEq,
+    type_container::TypeContainer,
 };
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -14,8 +15,11 @@ pub enum TypeDefinition {
     Structural(StructuralTypeDefinition),
     Reference(Box<Reference>),
 
+    // e.g. A & B & C
+    Intersection(Vec<TypeContainer>),
+
     // e.g. A | B | C
-    Union(Vec<Type>),
+    Union(Vec<TypeContainer>),
     // ()
     Unit,
 }
@@ -31,6 +35,11 @@ impl Display for TypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 write!(f, "{}", types_str.join(" | "))
+            }
+            TypeDefinition::Intersection(types) => {
+                let types_str: Vec<String> =
+                    types.iter().map(|t| t.to_string()).collect();
+                write!(f, "{}", types_str.join(" & "))
             }
         }
     }

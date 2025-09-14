@@ -1,5 +1,6 @@
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::values::core_values::r#type::Type;
+use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
@@ -83,6 +84,21 @@ impl Hash for TypeContainer {
     }
 }
 
+impl StructuralEq for TypeContainer {
+    fn structural_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TypeContainer::Type(a), TypeContainer::Type(b)) => {
+                a.structural_eq(b)
+            }
+            (
+                TypeContainer::TypeReference(a),
+                TypeContainer::TypeReference(b),
+            ) => a.borrow().as_type().structural_eq(&b.borrow().as_type()),
+            _ => false,
+        }
+    }
+}
+
 /**
 
 ValueContainer           <----    TypeContainer
@@ -97,6 +113,9 @@ ValueContainer           <----    TypeContainer
 */
 
 impl TypeContainer {
+    pub fn null() -> Self {
+        get_core_lib_type(CoreLibPointerId::Null)
+    }
     pub fn text() -> Self {
         get_core_lib_type(CoreLibPointerId::Text)
     }
