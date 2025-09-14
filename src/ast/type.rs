@@ -24,6 +24,7 @@ use crate::{
                 decimal::Decimal,
                 typed_decimal::{DecimalTypeVariant, TypedDecimal},
             },
+            endpoint::Endpoint,
             integer::{
                 integer::Integer,
                 typed_integer::{IntegerTypeVariant, TypedInteger},
@@ -140,6 +141,13 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
 					Token::True => StructuralTypeDefinition::Boolean(true.into()),
 					Token::False => StructuralTypeDefinition::Boolean(false.into()),
 				},
+				select! {
+					Token::Endpoint(s) =>
+						Endpoint::from_str(s.as_str())
+				}.try_map(|res, _| {
+					res.map(StructuralTypeDefinition::Endpoint)
+						.map_err(|e| ParseError::new(ErrorKind::InvalidEndpoint(e)))
+				}),
 				integer(),
 				decimal()
 			))
@@ -294,12 +302,19 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                     .repeated()
                     .collect(),
             )
-            .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
-                // fold the tail into a single intersection-type
-                rest.into_iter().fold(first, |acc, next| {
-                    Type::intersection(vec![acc, next]).as_type_container()
-                })
+            .map(|(first, mut rest): (TypeContainer, Vec<TypeContainer>)| {
+                if rest.is_empty() {
+                    return first;
+                }
+                rest.insert(0, first);
+                Type::intersection(rest).as_type_container()
             });
+        // .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
+        //     // fold the tail into a single intersection-type
+        //     rest.into_iter().fold(first, |acc, next| {
+        //         Type::intersection(vec![acc, next]).as_type_container()
+        //     })
+        // });
 
         intersection
             .clone()
@@ -310,11 +325,18 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                     .repeated()
                     .collect(),
             )
-            .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
-                rest.into_iter().fold(first, |acc, next| {
-                    Type::union(vec![acc, next]).as_type_container()
-                })
+            .map(|(first, mut rest): (TypeContainer, Vec<TypeContainer>)| {
+                if rest.is_empty() {
+                    return first;
+                }
+                rest.insert(0, first);
+                Type::union(rest).as_type_container()
             })
+        // .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
+        //     rest.into_iter().fold(first, |acc, next| {
+        //         Type::union(vec![acc, next]).as_type_container()
+        //     })
+        // })
     })
 }
 

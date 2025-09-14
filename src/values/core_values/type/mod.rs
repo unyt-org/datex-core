@@ -358,10 +358,6 @@ impl From<&CoreValue> for Type {
                 ))
             }
             CoreValue::Struct(structure) => {
-                // let struct_types = structure
-                //     .iter()
-                //     .map(|(key, value)| (key.clone(), value.actual_type()))
-                //     .collect();
                 let struct_types = structure
                     .iter()
                     .map(|(key, value)| {

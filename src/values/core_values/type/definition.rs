@@ -1,8 +1,11 @@
 use std::fmt::Display;
 
 use crate::values::{
-    core_values::r#type::structural_type_definition::StructuralTypeDefinition,
-    reference::Reference, traits::structural_eq::StructuralEq,
+    core_values::r#type::{
+        Type, structural_type_definition::StructuralTypeDefinition,
+    },
+    reference::Reference,
+    traits::structural_eq::StructuralEq,
     type_container::TypeContainer,
 };
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -33,14 +36,25 @@ impl Display for TypeDefinition {
             }
             TypeDefinition::Unit => write!(f, "()"),
             TypeDefinition::Union(types) => {
+                let is_level_zero = types.iter().all(|t| {
+                    matches!(
+                        t.as_type().type_definition,
+                        TypeDefinition::Structural(_)
+                            | TypeDefinition::Reference(_)
+                    )
+                });
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "{}", types_str.join(" | "))
+                if is_level_zero {
+                    write!(f, "{}", types_str.join(" | "))
+                } else {
+                    write!(f, "({})", types_str.join(" | "))
+                }
             }
             TypeDefinition::Intersection(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "{}", types_str.join(" & "))
+                write!(f, "({})", types_str.join(" & "))
             }
             TypeDefinition::Function {
                 parameters,

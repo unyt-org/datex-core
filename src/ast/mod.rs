@@ -1295,6 +1295,31 @@ mod tests {
     #[test]
     #[ignore = "WIP"]
     fn type_declaration_collection() {
+        let src = "type a = 1 | 2 | 3 | 4";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"type User = (x: &mut text, y: text | 4.5) -> text | 52"#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = "type User = &[&mut text, &mut integer/u8]";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = "type User = @jonas | @bene";
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"
+            type User = {
+                name: text,
+                friends: List<&text>
+            };
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
         let src = r#"
             type User = {
                 name: text,
