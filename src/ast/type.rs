@@ -6,7 +6,7 @@ use chumsky::{
 
 use crate::{
     ast::{
-        error::pattern::Pattern, lexer::{IntegerLiteral, Token, TypedLiteral}, literal::literal, utils::whitespace, DatexExpression, DatexParserTrait
+        error::pattern::Pattern, lexer::{IntegerLiteral, Token, TypedLiteral}, literal::literal, text::unescape_text, utils::whitespace, DatexExpression, DatexParserTrait
     },
     values::{
         core_values::{
@@ -56,7 +56,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
 				Token::DecimalIntegerLiteral(IntegerLiteral {value, variant}) => StructuralTypeDefinition::Integer(
 					Integer::from_string(&value).unwrap()
 				),
-				Token::StringLiteral(s) => StructuralTypeDefinition::Text(s.into()),
+				Token::StringLiteral(s) => StructuralTypeDefinition::Text(unescape_text(&s).into()),
 			}
 			.padded_by(whitespace())
 			.map(|value: StructuralTypeDefinition| {

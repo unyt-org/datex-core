@@ -1298,7 +1298,15 @@ mod tests {
         let src = r#"type User = (x: text, y: text | 4) -> text | 52"#;
         let val = parse_type_unwrap(src);
         println!("{}", val);
-        
+
+        let src = r#"type User = text[]"#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
+        let src = r#"type User = "hello world" | 42"#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
         let src = r#"type User = text"#;
         let val = parse_type_unwrap(src);
         println!("{}", val);

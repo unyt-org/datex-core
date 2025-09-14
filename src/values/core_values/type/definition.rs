@@ -5,7 +5,6 @@ use crate::values::{
     reference::Reference, traits::structural_eq::StructuralEq,
     type_container::TypeContainer,
 };
-
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum TypeDefinition {
     // {x: integer, y: text}
@@ -51,12 +50,7 @@ impl Display for TypeDefinition {
                     .iter()
                     .map(|(name, ty)| format!("{}: {}", name, ty))
                     .collect();
-                write!(
-                    f,
-                    "function({}) -> {}",
-                    params_str.join(", "),
-                    return_type
-                )
+                write!(f, "({}) -> {}", params_str.join(", "), return_type)
             }
         }
     }
