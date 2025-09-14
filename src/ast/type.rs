@@ -168,7 +168,9 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                 })
             });
 
-        let union = intersection
+        
+
+        intersection
             .clone()
             .then(
                 just(Token::Pipe)
@@ -181,9 +183,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                 rest.into_iter().fold(first, |acc, next| {
                     Type::union(vec![acc, next]).as_type_container()
                 })
-            });
-
-        union
+            })
     })
 }
 

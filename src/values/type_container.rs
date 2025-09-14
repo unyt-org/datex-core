@@ -93,7 +93,7 @@ impl StructuralEq for TypeContainer {
             (
                 TypeContainer::TypeReference(a),
                 TypeContainer::TypeReference(b),
-            ) => a.borrow().as_type().structural_eq(&b.borrow().as_type()),
+            ) => a.borrow().as_type().structural_eq(b.borrow().as_type()),
             _ => false,
         }
     }
