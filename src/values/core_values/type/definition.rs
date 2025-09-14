@@ -29,7 +29,7 @@ impl Display for TypeDefinition {
         match self {
             TypeDefinition::Structural(value) => write!(f, "{}", value),
             TypeDefinition::Reference(reference) => {
-                write!(f, "{:?}", reference)
+                write!(f, "{}", reference)
             }
             TypeDefinition::Unit => write!(f, "()"),
             TypeDefinition::Union(types) => {

@@ -297,10 +297,13 @@ impl StructuralEq for Type {
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mutability = self
-            .reference_mutability
-            .as_ref()
-            .map_or("".to_string(), |m| m.to_string());
+        let mutability =
+            self.reference_mutability
+                .as_ref()
+                .map_or("".to_string(), |m| match m {
+                    ReferenceMutability::Immutable => "&".to_string(),
+                    ReferenceMutability::Mutable => "&mut ".to_string(),
+                });
         let base = self
             .base_type
             .as_ref()

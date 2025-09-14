@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use chumsky::{
     IterParser, Parser,
     prelude::{choice, just, recursive},
@@ -6,58 +8,141 @@ use chumsky::{
 
 use crate::{
     ast::{
-        error::pattern::Pattern, lexer::{IntegerLiteral, Token, TypedLiteral}, literal::literal, text::unescape_text, utils::whitespace, DatexExpression, DatexParserTrait
+        DatexExpression, DatexParserTrait, ParserRecoverExt,
+        error::{
+            error::{ErrorKind, ParseError},
+            pattern::Pattern,
+        },
+        lexer::{DecimalLiteral, IntegerLiteral, Token, TypedLiteral},
+        literal::literal,
+        text::unescape_text,
+        utils::whitespace,
     },
     values::{
         core_values::{
-            decimal::{decimal::Decimal, typed_decimal::TypedDecimal}, integer::integer::Integer, r#type::{
-                structural_type_definition::StructuralTypeDefinition, Type
-            }
+            decimal::{
+                decimal::Decimal,
+                typed_decimal::{DecimalTypeVariant, TypedDecimal},
+            },
+            integer::{
+                integer::Integer,
+                typed_integer::{IntegerTypeVariant, TypedInteger},
+            },
+            r#type::{
+                Type, structural_type_definition::StructuralTypeDefinition,
+            },
         },
+        reference::{Reference, ReferenceMutability},
         type_container::TypeContainer,
     },
 };
 
+pub fn integer<'a>() -> impl DatexParserTrait<'a, StructuralTypeDefinition> {
+    select! {
+        Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_with_variant(&value, var)
+                    .map(StructuralTypeDefinition::TypedInteger),
+                None => Integer::from_string(&value)
+                    .map(StructuralTypeDefinition::Integer),
+            }
+        },
+        Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
+                    .map(StructuralTypeDefinition::TypedInteger),
+                None => Integer::from_string_radix(&value[2..], 2)
+                    .map(StructuralTypeDefinition::Integer),
+            }
+        },
+        Token::HexadecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 16, var)
+                    .map(StructuralTypeDefinition::TypedInteger),
+                None => Integer::from_string_radix(&value[2..], 16)
+                    .map(StructuralTypeDefinition::Integer),
+            }
+        },
+        Token::OctalIntegerLiteral(IntegerLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 8, var)
+                    .map(StructuralTypeDefinition::TypedInteger),
+                None => Integer::from_string_radix(&value[2..], 8)
+                    .map(StructuralTypeDefinition::Integer),
+            }
+        },
+    }.try_map(|res, _| {
+		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
+	})
+}
+
+pub fn decimal<'a>() -> impl DatexParserTrait<'a, StructuralTypeDefinition> {
+    select! {
+        Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
+            match variant {
+                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(StructuralTypeDefinition::TypedDecimal),
+                None => Decimal::from_string(&value).map(StructuralTypeDefinition::Decimal)
+            }
+        },
+        Token::FractionLiteral(s) => Decimal::from_string(&s).map(StructuralTypeDefinition::Decimal),
+    }.try_map(|res, _| {
+		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
+	})
+}
+
 pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
     recursive(|ty| {
-
-		let paren_group = ty
-			.clone()
-			.delimited_by(
-				just(Token::LeftParen).padded_by(whitespace()),
-				just(Token::RightParen).padded_by(whitespace()),
-			);
+        let paren_group = ty.clone().delimited_by(
+            just(Token::LeftParen).padded_by(whitespace()),
+            just(Token::RightParen).padded_by(whitespace()),
+        );
 
         // Parse a type reference, e.g. `integer`, `text`, `User` etc.
-        let type_reference =
-            select! { Token::Identifier(s) => s }.map(|s: String| {
-                match s.as_str() {
-                    "integer" => TypeContainer::integer(),
-                    "text" => TypeContainer::text(),
-                    "boolean" => TypeContainer::boolean(),
-					"null" => TypeContainer::null(),
-                    _ => panic!("unknown primitive type {}", s),
-                }
-            }).or(just(Token::Null).map(|_| TypeContainer::null()));
+        let type_reference = choice((
+            select! { Token::Identifier(s) => s }
+                .then(
+                    just(Token::Slash)
+                        .ignore_then(select! { Token::Identifier(s) => s })
+                        .or_not(),
+                )
+                .map(|(base, sub): (String, Option<String>)| {
+                    match sub.as_deref() {
+                        None => match base.as_str() {
+                            "integer" => Some(TypeContainer::integer()),
+                            "text" => Some(TypeContainer::text()),
+                            "boolean" => Some(TypeContainer::boolean()),
+                            "null" => Some(TypeContainer::null()),
+                            _ => None,
+                        },
+                        Some(variant) => match base.as_str() {
+                            "integer" => IntegerTypeVariant::from_str(variant)
+                                .ok()
+                                .map(TypeContainer::typed_integer),
+                            "decimal" => DecimalTypeVariant::from_str(variant)
+                                .ok()
+                                .map(TypeContainer::typed_decimal),
+                            _ => None,
+                        },
+                    }
+                })
+                .try_map(|res, _| {
+                    res.ok_or_else(|| ParseError::new(ErrorKind::UnexpectedEnd))
+                }),
+            just(Token::Null).map(|_| TypeContainer::null()),
+        ));
 
         let literal =
-            select! { 
-				Token::DecimalLiteral(TypedLiteral { value, variant }) => {
-					if let Some(variant) = variant {
-						StructuralTypeDefinition::TypedDecimal(
-							TypedDecimal::from_string_and_variant(&value, variant).unwrap()
-						)
-					} else {
-						StructuralTypeDefinition::Decimal(
-							Decimal::from_string(&value).unwrap()
-						)
-					}
+            choice((
+				select! {
+					Token::StringLiteral(s) => StructuralTypeDefinition::Text(unescape_text(&s).into()),
 				},
-				Token::DecimalIntegerLiteral(IntegerLiteral {value, variant}) => StructuralTypeDefinition::Integer(
-					Integer::from_string(&value).unwrap()
-				),
-				Token::StringLiteral(s) => StructuralTypeDefinition::Text(unescape_text(&s).into()),
-			}
+				select! {
+					Token::True => StructuralTypeDefinition::Boolean(true.into()),
+					Token::False => StructuralTypeDefinition::Boolean(false.into()),
+				},
+				integer(),
+				decimal()
+			))
 			.padded_by(whitespace())
 			.map(|value: StructuralTypeDefinition| {
                 Type::structural(value)
@@ -80,12 +165,14 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
 
         let key_ident =
             select! { Token::Identifier(k) => k }.padded_by(whitespace());
-        let r#struct = key_ident.clone()
+        let r#struct = key_ident
+            .clone()
             .then_ignore(just(Token::Colon))
             .padded_by(whitespace())
             .then(ty.clone())
+            .padded_by(whitespace())
             .separated_by(just(Token::Comma))
-            .allow_trailing() 
+            .allow_trailing()
             .collect()
             .delimited_by(
                 just(Token::LeftCurly).padded_by(whitespace()),
@@ -99,10 +186,10 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
             .then(
                 ty.clone()
                     .separated_by(just(Token::Comma).padded_by(whitespace()))
-					.allow_trailing()
+                    .allow_trailing()
                     .collect()
-					.padded_by(whitespace())
-					.delimited_by(
+                    .padded_by(whitespace())
+                    .delimited_by(
                         just(Token::LeftAngle),
                         just(Token::RightAngle),
                     ),
@@ -126,31 +213,59 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                 }
             });
 
+        let func = key_ident
+            .then_ignore(just(Token::Colon).padded_by(whitespace()))
+            .then(ty.clone())
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect()
+            .delimited_by(
+                just(Token::LeftParen).padded_by(whitespace()),
+                just(Token::RightParen).padded_by(whitespace()),
+            )
+            .then_ignore(just(Token::Arrow).padded_by(whitespace()))
+            .then(ty.clone())
+            .map(
+                |(params, ret): (
+                    Vec<(String, TypeContainer)>,
+                    TypeContainer,
+                )| {
+                    Type::function(params, ret).as_type_container()
+                },
+            );
 
-		let func = key_ident
-			.then_ignore(just(Token::Colon).padded_by(whitespace()))
-			.then(ty.clone()) 
-			.separated_by(just(Token::Comma))
-			.allow_trailing()
-			.collect()
-			.delimited_by(
-				just(Token::LeftParen).padded_by(whitespace()),
-				just(Token::RightParen).padded_by(whitespace()),
-			)
-			.then_ignore(just(Token::Arrow).padded_by(whitespace()))
-			.then(ty.clone()) 
-			.map(|(params, ret): (Vec<(String, TypeContainer)>, TypeContainer)| {
-				Type::function(params, ret).as_type_container()
-			});
+        let reference = just(Token::Ampersand)
+            .ignore_then(just(Token::Mutable).or_not())
+            .then_ignore(whitespace())
+            .then(ty.clone())
+            .map(|(maybe_mut, inner): (Option<Token>, TypeContainer)| {
+                let mutability = match maybe_mut {
+                    Some(_) => ReferenceMutability::Mutable,
+                    None => ReferenceMutability::Immutable,
+                };
+                let t = match inner {
+                    TypeContainer::Type(mut ty) => {
+                        ty.reference_mutability = Some(mutability);
+                        ty
+                    }
+                    TypeContainer::TypeReference(r) => Type::reference(
+                        Reference::TypeReference(r),
+                        Some(mutability),
+                    ),
+                };
+
+                TypeContainer::Type(t)
+            });
 
         let base = choice((
-			func.clone(),
+            reference.clone(),
+            func.clone(),
             literal.clone(),
             array_inline.clone(),
             r#struct.clone(),
             generic.clone(),
-			paren_group.clone(),
-			type_reference.clone(),
+            paren_group.clone(),
+            type_reference.clone(),
         ));
 
         // parse zero-or-more postfix `[]`
@@ -185,8 +300,6 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                     Type::intersection(vec![acc, next]).as_type_container()
                 })
             });
-
-        
 
         intersection
             .clone()

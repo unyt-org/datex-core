@@ -55,6 +55,21 @@ pub enum Reference {
     TypeReference(Rc<RefCell<TypeReference>>),
 }
 
+impl Display for Reference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Reference::ValueReference(vr) => {
+                let vr = vr.borrow();
+                write!(f, "{} {}", vr.mutability, vr.value_container)
+            }
+            Reference::TypeReference(tr) => {
+                let tr = tr.borrow();
+                write!(f, "{}", tr)
+            }
+        }
+    }
+}
+
 impl From<ValueReference> for Reference {
     fn from(reference: ValueReference) -> Self {
         Reference::ValueReference(Rc::new(RefCell::new(reference)))
