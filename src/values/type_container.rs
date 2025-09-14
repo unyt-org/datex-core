@@ -1,5 +1,8 @@
-
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
+use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
+use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
@@ -83,6 +86,21 @@ impl Hash for TypeContainer {
     }
 }
 
+impl StructuralEq for TypeContainer {
+    fn structural_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TypeContainer::Type(a), TypeContainer::Type(b)) => {
+                a.structural_eq(b)
+            }
+            (
+                TypeContainer::TypeReference(a),
+                TypeContainer::TypeReference(b),
+            ) => a.borrow().as_type().structural_eq(b.borrow().as_type()),
+            _ => false,
+        }
+    }
+}
+
 /**
 
 ValueContainer           <----    TypeContainer
@@ -95,6 +113,36 @@ ValueContainer           <----    TypeContainer
      TypeReference       <-----
 
 */
+
+impl TypeContainer {
+    pub fn null() -> Self {
+        get_core_lib_type(CoreLibPointerId::Null)
+    }
+    pub fn text() -> Self {
+        get_core_lib_type(CoreLibPointerId::Text)
+    }
+    pub fn integer() -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(None))
+    }
+    pub fn typed_integer(variant: IntegerTypeVariant) -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(Some(variant)))
+    }
+    pub fn decimal() -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(None))
+    }
+    pub fn typed_decimal(variant: DecimalTypeVariant) -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(Some(variant)))
+    }
+    pub fn boolean() -> Self {
+        get_core_lib_type(CoreLibPointerId::Boolean)
+    }
+    pub fn endpoint() -> Self {
+        get_core_lib_type(CoreLibPointerId::Endpoint)
+    }
+    pub fn r#type() -> Self {
+        get_core_lib_type(CoreLibPointerId::Type)
+    }
+}
 impl TypeContainer {
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
         Self::value_matches_type(value, self)

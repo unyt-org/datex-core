@@ -24,7 +24,6 @@ pub enum StructuralTypeDefinition {
     Null,
     Array(Vec<TypeContainer>),
     List(Box<TypeContainer>),
-    Tuple(Vec<(TypeContainer, TypeContainer)>),
     Struct(Vec<(String, TypeContainer)>),
     Map(Box<(TypeContainer, TypeContainer)>),
 }
@@ -127,10 +126,64 @@ impl StructuralTypeDefinition {
             }
             (StructuralTypeDefinition::Null, CoreValue::Null) => true,
 
+            // Check that all elements in the list match the element type
             (
                 StructuralTypeDefinition::List(box elem_type),
                 CoreValue::List(list),
             ) => list.into_iter().all(|item| elem_type.value_matches(item)),
+
+            // Check that all keys and values in the map match their types
+            (
+                StructuralTypeDefinition::Map(box (key_type, value_type)),
+                CoreValue::Map(map),
+            ) => map.iter().all(|(k, v)| {
+                key_type.value_matches(k) && value_type.value_matches(v)
+            }),
+
+            // Check that all fields in the struct are present and match their types
+            (
+                StructuralTypeDefinition::Struct(field_types),
+                CoreValue::Struct(structure),
+            ) => field_types.iter().all(|(field_name, field_type)| {
+                structure.get(field_name).is_some_and(|field_value| {
+                    field_type.value_matches(field_value)
+                })
+            }),
+
+            // Check that all elements in the tuple match their types
+            (
+                StructuralTypeDefinition::Array(type_list),
+                CoreValue::Array(array),
+            ) => {
+                if type_list.len() != array.len() {
+                    return false;
+                }
+                type_list
+                    .iter()
+                    .zip(array.iter())
+                    .all(|(t, v)| t.value_matches(v))
+            }
+
+            // array and list
+            (
+                StructuralTypeDefinition::Array(type_list),
+                CoreValue::List(list),
+            ) => {
+                if type_list.len() != list.len() {
+                    return false;
+                }
+                type_list
+                    .iter()
+                    .zip(list.iter())
+                    .all(|(t, v)| t.value_matches(v))
+            }
+
+            // list and array
+            (
+                StructuralTypeDefinition::List(box elem_type),
+                CoreValue::Array(array),
+            ) => array.iter().all(|item| elem_type.value_matches(item)),
+
             _ => unimplemented!("handle complex structural type matching"),
         }
     }
@@ -169,13 +222,6 @@ impl Display for StructuralTypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 write!(f, "[{}]", types_str.join(", "))
-            }
-            StructuralTypeDefinition::Tuple(elements) => {
-                let elements_str: Vec<String> = elements
-                    .iter()
-                    .map(|(k, v)| format!("{}: {}", k, v))
-                    .collect();
-                write!(f, "({})", elements_str.join(", "))
             }
             StructuralTypeDefinition::List(element_type) => {
                 write!(f, "List<{}>", element_type)
@@ -249,7 +295,6 @@ mod tests {
         )));
         assert_eq!(map_type.to_string(), r#"Map<"Key", 100>"#);
     }
-
 
     #[test]
     fn test_value_matching() {

@@ -20,6 +20,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
+use crate::values::core_values::r#struct::Struct;
 use crate::values::core_values::r#type::error::IllegalTypeError;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
@@ -27,6 +28,7 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
+use datex_core::values::core_values::array::Array;
 use datex_core::values::reference::Reference;
 use log::info;
 use num_enum::TryFromPrimitive;
@@ -34,8 +36,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use datex_core::values::core_values::array::Array;
-use crate::values::core_values::r#struct::Struct;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -1115,7 +1115,7 @@ fn handle_key_value_pair(
     key: ValueContainer,
     value: ValueContainer,
 ) -> Result<(), ExecutionError> {
-    // insert key value pair into active object/tuple
+    // insert key value pair into active map/struct
     match active_container {
         // Map
         ValueContainer::Value(Value {
@@ -1127,16 +1127,16 @@ fn handle_key_value_pair(
         }
         // Struct
         ValueContainer::Value(Value {
-                                  inner: CoreValue::Struct(strut),
-                                  ..
-                              }) => {
+            inner: CoreValue::Struct(r#struct),
+            ..
+        }) => {
             // make sure key is a string (TODO: optimize this)
             if let ValueContainer::Value(Value {
                 inner: CoreValue::Text(text),
                 ..
             }) = key
             {
-                strut._set_new_field(text.0, value);
+                r#struct._set_new_field(text.0, value);
             } else {
                 return Err(ExecutionError::InvalidProgram(
                     InvalidProgramError::InvalidKeyValuePair,
@@ -1145,7 +1145,7 @@ fn handle_key_value_pair(
         }
         _ => {
             unreachable!(
-                "Expected active value map or tuple to collect key value pairs, but got: {}",
+                "Expected active value that can collect key value pairs, but got: {}",
                 active_container
             );
         }
@@ -1162,10 +1162,10 @@ fn handle_unary_operation(
         UnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
-        UnaryOperator::CreateRefMut => {
-            todo!("mutable references are not yet supported");
-            // ValueContainer::Reference(Reference::try_mut_from(value_container).expect("Could not create mutable reference"))
-        }
+        UnaryOperator::CreateRefMut => ValueContainer::Reference(
+            Reference::try_mut_from(value_container)
+                .expect("Could not create mutable reference"),
+        ),
         _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }
 }
@@ -1278,7 +1278,9 @@ mod tests {
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger_debug;
     use crate::values::traits::structural_eq::StructuralEq;
-    use crate::{assert_structural_eq, assert_value_eq, datex_array, datex_list};
+    use crate::{
+        assert_structural_eq, assert_value_eq, datex_array, datex_list,
+    };
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -1438,7 +1440,7 @@ mod tests {
         assert_eq!(array.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
-        assert_structural_eq!(result, ValueContainer::from(vec![1,2,3]));
+        assert_structural_eq!(result, ValueContainer::from(vec![1, 2, 3]));
     }
 
     #[test]
@@ -1550,7 +1552,8 @@ mod tests {
     #[test]
     fn map() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("(x: 1, y: 2, z: 42)");
+        let result =
+            execute_datex_script_debug_with_result("(x: 1, y: 2, z: 42)");
         let map: CoreValue = result.clone().to_value().borrow().clone().inner;
         let map: Map = map.try_into().unwrap();
 
@@ -1561,18 +1564,9 @@ mod tests {
         info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(
-            map.get(&"x".into()),
-            Some(&Integer::from(1i8).into())
-        );
-        assert_eq!(
-            map.get(&"y".into()),
-            Some(&Integer::from(2i8).into())
-        );
-        assert_eq!(
-            map.get(&"z".into()),
-            Some(&Integer::from(42i8).into())
-        );
+        assert_eq!(map.get(&"x".into()), Some(&Integer::from(1i8).into()));
+        assert_eq!(map.get(&"y".into()), Some(&Integer::from(2i8).into()));
+        assert_eq!(map.get(&"z".into()), Some(&Integer::from(42i8).into()));
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![

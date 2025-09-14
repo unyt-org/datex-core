@@ -278,24 +278,25 @@ fn visit_expression(
         }
         DatexExpression::TypeDeclaration {
             id,
-            generic: generic_parameters,
+            // generic: generic_parameters,
             name,
             value,
         } => {
-            if let Some(params) = generic_parameters {
-                visit_expression(
-                    params,
-                    metadata,
-                    scope_stack,
-                    NewScopeType::NewScope,
-                )?;
-            }
-            visit_expression(
-                value,
-                metadata,
-                scope_stack,
-                NewScopeType::NewScope,
-            )?;
+            // FIXME
+            // if let Some(params) = generic_parameters {
+            //     visit_expression(
+            //         params,
+            //         metadata,
+            //         scope_stack,
+            //         NewScopeType::NewScope,
+            //     )?;
+            // }
+            // visit_expression(
+            //     value,
+            //     metadata,
+            //     scope_stack,
+            //     NewScopeType::NewScope,
+            // )?;
             let new_id = metadata.variables.len();
             *id = Some(new_id);
             let var_metadata =
@@ -621,6 +622,7 @@ fn visit_expression(
         | DatexExpression::Endpoint(_)
         | DatexExpression::Placeholder
         | DatexExpression::TypedDecimal(_)
+        | DatexExpression::Type(_)
         | DatexExpression::TypedInteger(_)
         | DatexExpression::Slot(_) => {
             // ignored

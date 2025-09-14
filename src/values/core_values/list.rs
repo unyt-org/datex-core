@@ -25,6 +25,10 @@ impl List {
     pub fn push<T: Into<ValueContainer>>(&mut self, value: T) {
         self.0.push(value.into());
     }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, ValueContainer> {
+        self.0.iter()
+    }
 }
 impl CoreValueTrait for List {}
 

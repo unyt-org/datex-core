@@ -243,9 +243,9 @@ impl CoreValue {
         value.into()
     }
 
-    /// Check if the CoreValue is a combined value type (Array, Object, Tuple)
+    /// Check if the CoreValue is a combined value type (Array, List, Struct, Map)
     /// that consists of multiple CoreValues.
-    pub fn is_combined_value(&self) -> bool {
+    pub fn is_collection_value(&self) -> bool {
         matches!(
             self,
             CoreValue::List(_)
@@ -349,6 +349,12 @@ impl CoreValue {
     pub fn cast_to_map(&self) -> Option<Map> {
         match self {
             CoreValue::Map(map) => Some(map.clone()),
+            _ => None,
+        }
+    }
+    pub fn cast_to_struct(&self) -> Option<Struct> {
+        match self {
+            CoreValue::Struct(structure) => Some(structure.clone()),
             _ => None,
         }
     }

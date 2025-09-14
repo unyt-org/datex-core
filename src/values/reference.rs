@@ -55,6 +55,21 @@ pub enum Reference {
     TypeReference(Rc<RefCell<TypeReference>>),
 }
 
+impl Display for Reference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Reference::ValueReference(vr) => {
+                let vr = vr.borrow();
+                write!(f, "{} {}", vr.mutability, vr.value_container)
+            }
+            Reference::TypeReference(tr) => {
+                let tr = tr.borrow();
+                write!(f, "{}", tr)
+            }
+        }
+    }
+}
+
 impl From<ValueReference> for Reference {
     fn from(reference: ValueReference) -> Self {
         Reference::ValueReference(Rc::new(RefCell::new(reference)))
@@ -150,7 +165,7 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum ReferenceFromValueContainerError {
+pub enum ReferenceFromValueContainerError {
     InvalidType,
     MutableTypeReference,
 }
@@ -392,7 +407,9 @@ impl Reference {
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
-                    Err(AccessError::InvalidOperation("Cannot get property".to_string()))
+                    Err(AccessError::InvalidOperation(
+                        "Cannot get property".to_string(),
+                    ))
                 }
             }
         })

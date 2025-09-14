@@ -42,13 +42,9 @@ impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
         let new_type = inner.get_default_type();
-
         Value {
             inner,
-            actual_type: Box::new(new_type), // Box::new(Type::new(
-                                             //     "core:fixme",
-                                             //     TypeDescriptor::Core(actual_type),
-                                             // )),
+            actual_type: Box::new(new_type),
         }
     }
 }

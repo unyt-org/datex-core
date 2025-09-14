@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
 
-// FIXME: restrict tuple keys to Integer and String only
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Map(IndexMap<ValueContainer, ValueContainer>);
 
@@ -25,12 +24,13 @@ impl Map {
         self.0.get(key)
     }
 
-    pub fn get_owned<T: Into<ValueContainer>>(&self, key: T) -> Option<&ValueContainer> {
+    pub fn get_owned<T: Into<ValueContainer>>(
+        &self,
+        key: T,
+    ) -> Option<&ValueContainer> {
         self.0.get(&key.into())
     }
 
-    /// Set a key-value pair in the tuple. This method should only be used internal, since tuples
-    /// are immutable after creation as per DATEX specification.
     pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
         &mut self,
         key: K,
@@ -39,11 +39,13 @@ impl Map {
         self.0.insert(key.into(), value.into());
     }
 
-    pub fn iter(&self) -> Iter<ValueContainer, ValueContainer> {
+    pub fn iter(&'_ self) -> Iter<'_, ValueContainer, ValueContainer> {
         self.0.iter()
     }
-    
-    pub fn iter_mut(&mut self) -> IterMut<ValueContainer, ValueContainer> {
+
+    pub fn iter_mut(
+        &'_ mut self,
+    ) -> IterMut<'_, ValueContainer, ValueContainer> {
         self.0.iter_mut()
     }
 }
@@ -136,10 +138,12 @@ where
     V: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        Map(iter.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+        Map(iter
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect())
     }
 }
-
 
 impl From<IndexMap<ValueContainer, ValueContainer>> for Map {
     fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {

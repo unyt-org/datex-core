@@ -13,7 +13,6 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
     SerializeTupleVariant, Serializer,
 };
-use std::collections::HashMap;
 use std::vec;
 pub struct DatexSerializer {}
 
@@ -211,9 +210,9 @@ impl SerializeTupleVariant for TupleVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Map(Map::from(
-            HashMap::from([(self.variant.to_string(), self.fields)]),
-        ))))
+        Ok(ValueContainer::from(CoreValue::Struct(Struct::from(vec![
+            (self.variant.to_string(), self.fields),
+        ]))))
     }
 }
 
@@ -521,6 +520,14 @@ impl Serializer for &mut DatexSerializer {
         }
     }
 
+    /// Serialize newtype enum variants as structs with one field
+    /// For example:
+    /// enum MyEnum {
+    ///     Variant1(String),
+    ///     Variant2(i32, String),
+    /// }
+    /// is serialized as
+    /// {"Variant2": [100, "hello"]}
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
@@ -532,9 +539,9 @@ impl Serializer for &mut DatexSerializer {
         T: ?Sized + serde::Serialize,
     {
         let field = value.serialize(&mut *self)?;
-        Ok(ValueContainer::from(CoreValue::Map(Map::from(
-            HashMap::from([(variant.to_string(), field)]),
-        ))))
+        Ok(ValueContainer::from(CoreValue::Struct(Struct::from(vec![
+            (variant.to_string(), field),
+        ]))))
     }
 
     fn serialize_seq(
@@ -595,7 +602,6 @@ impl Serializer for &mut DatexSerializer {
 mod tests {
     use crate::assert_structural_eq;
     use crate::values::core_values::endpoint::Endpoint;
-    use crate::values::core_values::map::Map;
     use crate::values::core_values::r#struct::Struct;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::values::{
@@ -606,7 +612,6 @@ mod tests {
     };
     use serde::{Deserialize, Serialize};
     use std::assert_matches::assert_matches;
-    use std::collections::HashMap;
 
     #[derive(Serialize)]
     struct TestStruct {
@@ -664,7 +669,7 @@ mod tests {
         assert_matches!(
             value_container,
             ValueContainer::Value(Value {
-                inner: CoreValue::Map(_),
+                inner: CoreValue::Struct(_),
                 ..
             })
         );
@@ -705,11 +710,10 @@ mod tests {
     fn enum_tuple_variant() {
         let e = TestEnum::Tuple(42, "hello".to_string());
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#"("Tuple": [42, "hello"])"#);
+        assert_eq!(result.to_string(), r#"{"Tuple": [42, "hello"]}"#);
     }
 
     #[test]
-    // WIP
     fn enum_struct_variant() {
         let e = TestEnum::Struct { x: true, y: 3.5 };
         let result = to_value_container(&e).unwrap();
@@ -838,9 +842,9 @@ mod tests {
             result
                 .to_value()
                 .borrow()
-                .cast_to_map()
+                .cast_to_struct()
                 .unwrap()
-                .get_owned("usize")
+                .get("usize")
                 .unwrap(),
             ValueContainer::from(42)
         );
@@ -906,7 +910,7 @@ mod tests {
 
         let e = MyTaggedEnum::Variant2(100, "hello".to_string());
         let result = to_value_container(&e).unwrap();
-        assert_eq!(result.to_string(), r#"("Variant2": [100, "hello"])"#);
+        assert_eq!(result.to_string(), r#"{"Variant2": [100, "hello"]}"#);
 
         let e = MyTaggedEnum::Empty;
         let result = to_value_container(&e).unwrap();

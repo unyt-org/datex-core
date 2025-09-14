@@ -181,10 +181,10 @@ pub enum InstructionCode {
     INIT_LABEL,   // $x := ...
     LABEL_ACTION, // $x += ...
 
-    GET_REF,            // $x
-    GET_INTERNAL_REF,   // $y, containing globally unique internal id
-    GET_ORIGIN_REF,     // $x, containing only the id, origin id is inferred from sender
-    GET_OR_INIT_REF,   // $aa := ...
+    GET_REF,          // $x
+    GET_INTERNAL_REF, // $y, containing globally unique internal id
+    GET_ORIGIN_REF, // $x, containing only the id, origin id is inferred from sender
+    GET_OR_INIT_REF, // $aa := ...
     POINTER_ACTION, // $aa += ...
     CREATE_REF,     // &()
     CREATE_REF_MUT, // &mut ()
@@ -256,10 +256,10 @@ pub enum InstructionCode {
 
     TIME, // ~2022-10-10~
 
-    // lists, records and tuples 0xe0 - 0xef
-    LIST_START,  // (1,2,3)
-    MAP_START,  // (a:1, b:2)
-    ARRAY_START, // [1,2,3]
+    // lists, array, structs and maps 0xe0 - 0xef
+    LIST_START,                   // (1,2,3)
+    MAP_START,                    // (a:1, b:2)
+    ARRAY_START,                  // [1,2,3]
     STRUCT_WITH_FIELDNAMES_START, // {a:1, b:2}
     STRUCT_START, // {a:1, b:2} - optimized, field names are inferred from struct type
 

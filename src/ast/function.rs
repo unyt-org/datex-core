@@ -1,14 +1,14 @@
+use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 fn return_type<'a>(
-    expression_without_tuple: impl DatexParserTrait<'a>,
+    expression_without_list: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a, Option<DatexExpression>> {
     just(Token::Arrow)
         .padded_by(whitespace())
-        .ignore_then(expression_without_tuple.padded_by(whitespace()))
+        .ignore_then(expression_without_list.padded_by(whitespace()))
         .or_not()
 }
 
@@ -21,9 +21,9 @@ fn body<'a>(
 }
 
 fn parameters<'a>(
-    tuple: impl DatexParserTrait<'a>,
+    r#struct: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    tuple
+    r#struct
         .clone()
         .or_not()
         .map(|e| e.unwrap_or(DatexExpression::Map(vec![])))
@@ -35,10 +35,10 @@ fn parameters<'a>(
 
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
-    tuple: impl DatexParserTrait<'a>,
+    r#struct: impl DatexParserTrait<'a>,
     expression_without_tuple: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    let function_params = parameters(tuple);
+    let function_params = parameters(r#struct);
     let return_type = return_type(expression_without_tuple);
     let function_body = body(statements);
     just(Token::Function)

@@ -63,37 +63,6 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
                 .map(|(key, value)| (key, DatexExpression::from(value)))
                 .collect(),
         ),
-        // CoreValue::Union(union) => {
-        //     // create nested binary unary operators to combine all entries
-        //     let mut iter = union.options.iter();
-        //     let first = iter.next().expect("union must have at least one entry");
-        //     let mut expr = DatexExpression::from(first);
-        //     for entry in iter {
-        //         expr = DatexExpression::BinaryOperation(
-        //             BinaryOperator::Union,
-        //             Box::new(expr),
-        //             Box::new(DatexExpression::from(entry)),
-        //             None
-        //         );
-        //     }
-        //     expr
-        // }
-        // // TODO: only temporary impl to represent the TypeTag as AST, this is not final
-        // CoreValue::TypeTag(tag) => {
-        //     let content = if !tag.variants.is_empty() {
-        //         DatexExpression::Tuple(vec![
-        //             TupleEntry::Value(DatexExpression::Text(tag.name.clone())),
-        //             TupleEntry::Value(DatexExpression::Tuple(tag.variants.iter().map(|v| TupleEntry::Value(DatexExpression::Text(v.clone()))).collect())),
-        //         ])
-        //     }
-        //     else {
-        //         DatexExpression::Text(tag.name.clone())
-        //     };
-        //     DatexExpression::ApplyChain(
-        //         Box::new(DatexExpression::Literal("NominalType".to_string())),
-        //         vec![ApplyOperation::FunctionCall(content)],
-        //     )
-        // }
         _ => todo!(),
     }
 }

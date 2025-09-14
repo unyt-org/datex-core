@@ -6,7 +6,6 @@ use crate::ast::DatexExpression;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
-use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
@@ -15,8 +14,6 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
-use datex_core::values::core_values::endpoint::Endpoint;
-use datex_core::values::core_values::integer::integer::Integer;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
@@ -29,6 +26,22 @@ pub struct Type {
     pub reference_mutability: Option<ReferenceMutability>,
 }
 
+// impl Serialize for Type {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("Type", 3)?;
+//         state.serialize_field("type_definition", &self.type_definition)?;
+//         state.serialize_field("base_type", &self.base_type)?;
+//         state.serialize_field(
+//             "reference_mutability",
+//             &self.reference_mutability,
+//         )?;
+//         state.end()
+//     }
+// }
+
 impl Hash for Type {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.type_definition.hash(state);
@@ -37,6 +50,12 @@ impl Hash for Type {
             let ptr = Rc::as_ptr(ptr);
             ptr.hash(state); // hash the address
         }
+    }
+}
+
+impl Type {
+    pub fn as_type_container(self) -> TypeContainer {
+        TypeContainer::Type(self)
     }
 }
 
@@ -90,14 +109,54 @@ impl Type {
         }
     }
 
+    /// Creates a new structural array type.
+    pub fn array(element_types: Vec<TypeContainer>) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::Array(element_types),
+            ),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates a new structural struct type.
+    pub fn r#struct(fields: Vec<(String, TypeContainer)>) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::Struct(fields),
+            ),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
     /// Creates a new union type.
-    pub fn union(types: Vec<Type>) -> Self {
+    pub fn union<T>(types: Vec<T>) -> Self
+    where
+        T: Into<TypeContainer>,
+    {
+        let types = types.into_iter().map(|t| t.into()).collect();
         Type {
             type_definition: TypeDefinition::Union(types),
             base_type: None,
             reference_mutability: None,
         }
     }
+
+    /// Creates a new intersection type.
+    pub fn intersection<T>(types: Vec<T>) -> Self
+    where
+        T: Into<TypeContainer>,
+    {
+        let types = types.into_iter().map(|t| t.into()).collect();
+        Type {
+            type_definition: TypeDefinition::Intersection(types),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
     /// Creates a new reference type.
     pub fn reference(
         reference: impl Into<Reference>,
@@ -109,6 +168,38 @@ impl Type {
             )),
             base_type: None,
             reference_mutability: mutability,
+        }
+    }
+
+    /// Creates a new function type.
+    pub fn function(
+        parameters: Vec<(String, TypeContainer)>,
+        return_type: impl Into<TypeContainer>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Function {
+                parameters,
+                return_type: Box::new(return_type.into()),
+            },
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates a new structural map type.
+    pub fn map(
+        key_type: impl Into<TypeContainer>,
+        value_type: impl Into<TypeContainer>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::Map(Box::new((
+                    key_type.into(),
+                    value_type.into(),
+                ))),
+            ),
+            base_type: None,
+            reference_mutability: None,
         }
     }
 }
@@ -167,7 +258,15 @@ impl Type {
             // e.g. 1 matches 1 | 2
             TypeDefinition::Union(types) => {
                 // value must match at least one of the union types
-                types.iter().any(|t| Type::value_matches_type(value, t))
+                types
+                    .iter()
+                    .any(|t| Type::value_matches_type(value, &t.as_type()))
+            }
+            TypeDefinition::Intersection(types) => {
+                // value must match all of the intersection types
+                types
+                    .iter()
+                    .all(|t| Type::value_matches_type(value, &t.as_type()))
             }
             TypeDefinition::Structural(structural_type) => {
                 structural_type.value_matches(value)
@@ -175,6 +274,12 @@ impl Type {
             TypeDefinition::Reference(reference) => {
                 todo!("handle reference type matching");
                 //reference.value_matches(value)
+            }
+            TypeDefinition::Function {
+                parameters,
+                return_type,
+            } => {
+                todo!("handle function type matching");
             }
             TypeDefinition::Unit => false, // unit type does not match any value
         }
@@ -192,10 +297,13 @@ impl StructuralEq for Type {
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mutability = self
-            .reference_mutability
-            .as_ref()
-            .map_or("".to_string(), |m| m.to_string());
+        let mutability =
+            self.reference_mutability
+                .as_ref()
+                .map_or("".to_string(), |m| match m {
+                    ReferenceMutability::Immutable => "&".to_string(),
+                    ReferenceMutability::Mutable => "&mut ".to_string(),
+                });
         let base = self
             .base_type
             .as_ref()
@@ -208,26 +316,76 @@ impl From<&CoreValue> for Type {
     fn from(value: &CoreValue) -> Self {
         match value {
             CoreValue::Null => Type::structural(StructuralTypeDefinition::Null),
-            CoreValue::Boolean(b) => Type::structural(
-                StructuralTypeDefinition::Boolean(b.clone()),
-            ),
+            CoreValue::Boolean(b) => {
+                Type::structural(StructuralTypeDefinition::Boolean(b.clone()))
+            }
             CoreValue::Text(s) => Type::structural(s.clone()),
-            CoreValue::Decimal(d) => Type::structural(
-                StructuralTypeDefinition::Decimal(d.clone()),
-            ),
+            CoreValue::Decimal(d) => {
+                Type::structural(StructuralTypeDefinition::Decimal(d.clone()))
+            }
             CoreValue::TypedDecimal(td) => Type::structural(
                 StructuralTypeDefinition::TypedDecimal(td.clone()),
             ),
-            CoreValue::Integer(i) => Type::structural(
-                StructuralTypeDefinition::Integer(i.clone()),
-            ),
+            CoreValue::Integer(i) => {
+                Type::structural(StructuralTypeDefinition::Integer(i.clone()))
+            }
             CoreValue::TypedInteger(ti) => Type::structural(
                 StructuralTypeDefinition::TypedInteger(ti.clone()),
             ),
             CoreValue::Endpoint(e) => {
                 Type::structural(StructuralTypeDefinition::Endpoint(e.clone()))
             }
-            _ => unimplemented!("handle missing core value to type conversion"),
+            CoreValue::List(list) => {
+                Type::structural(StructuralTypeDefinition::List(Box::new(
+                    TypeContainer::from(if list.is_empty() {
+                        Type::UNIT
+                    } else {
+                        let first_value =
+                            list[0].to_value().borrow().actual_type.clone();
+                        Type::structural(StructuralTypeDefinition::List(
+                            first_value,
+                        ))
+                    }),
+                )))
+            }
+            CoreValue::Array(array) => {
+                let types = array
+                    .iter()
+                    .map(|v| Type::from(v.to_value().borrow().inner.clone()))
+                    .collect::<Vec<_>>();
+                Type::structural(StructuralTypeDefinition::Array(
+                    types.into_iter().map(TypeContainer::from).collect(),
+                ))
+            }
+            CoreValue::Struct(structure) => {
+                let struct_types = structure
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            key.clone(),
+                            TypeContainer::from(Type::from(
+                                value.to_value().borrow().inner.clone(),
+                            )),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                Type::structural(StructuralTypeDefinition::Struct(struct_types))
+            }
+            CoreValue::Map(map) => {
+                let (key_type, value_type) =
+                    if let Some((first_key, first_value)) = map.iter().next() {
+                        (first_key.actual_type(), first_value.actual_type())
+                    } else {
+                        (
+                            TypeContainer::from(Type::UNIT),
+                            TypeContainer::from(Type::UNIT),
+                        )
+                    };
+                Type::structural(StructuralTypeDefinition::Map(Box::new((
+                    key_type, value_type,
+                ))))
+            }
+            e => unimplemented!("Type conversion not implemented for {}", e),
         }
     }
 }
@@ -334,8 +492,8 @@ mod tests {
         assert!(Type::value_matches_type(
             &ValueContainer::from(List::from(vec![1, 2])),
             &Type::list(Type::union(vec![
-                Type::structural(1),
-                Type::structural(2),
+                Type::structural(1).as_type_container(),
+                Type::structural(2).as_type_container(),
             ])),
         ));
 

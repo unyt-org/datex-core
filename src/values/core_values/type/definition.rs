@@ -6,31 +6,65 @@ use crate::values::{
     },
     reference::Reference,
     traits::structural_eq::StructuralEq,
+    type_container::TypeContainer,
 };
-
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum TypeDefinition {
     // {x: integer, y: text}
     Structural(StructuralTypeDefinition),
     Reference(Box<Reference>),
 
+    // e.g. A & B & C
+    Intersection(Vec<TypeContainer>),
+
     // e.g. A | B | C
-    Union(Vec<Type>),
+    Union(Vec<TypeContainer>),
     // ()
     Unit,
+
+    Function {
+        parameters: Vec<(String, TypeContainer)>,
+        return_type: Box<TypeContainer>,
+    },
 }
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDefinition::Structural(value) => write!(f, "{}", value),
             TypeDefinition::Reference(reference) => {
-                write!(f, "{:?}", reference)
+                write!(f, "{}", reference)
             }
             TypeDefinition::Unit => write!(f, "()"),
             TypeDefinition::Union(types) => {
+                let is_level_zero = types.iter().all(|t| {
+                    matches!(
+                        t.as_type().type_definition,
+                        TypeDefinition::Structural(_)
+                            | TypeDefinition::Reference(_)
+                    )
+                });
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "{}", types_str.join(" | "))
+                if is_level_zero {
+                    write!(f, "{}", types_str.join(" | "))
+                } else {
+                    write!(f, "({})", types_str.join(" | "))
+                }
+            }
+            TypeDefinition::Intersection(types) => {
+                let types_str: Vec<String> =
+                    types.iter().map(|t| t.to_string()).collect();
+                write!(f, "({})", types_str.join(" & "))
+            }
+            TypeDefinition::Function {
+                parameters,
+                return_type,
+            } => {
+                let params_str: Vec<String> = parameters
+                    .iter()
+                    .map(|(name, ty)| format!("{}: {}", name, ty))
+                    .collect();
+                write!(f, "({}) -> {}", params_str.join(", "), return_type)
             }
         }
     }
