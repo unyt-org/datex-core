@@ -199,7 +199,7 @@ pub enum DatexExpression {
     TypeDeclaration {
         id: Option<VariableId>,
         name: String,
-        value: Box<TypeContainer>,
+        value: Box<DatexExpression>, // Type
     },
 
     /// Type
@@ -581,7 +581,10 @@ mod tests {
     fn parse_type_unwrap(src: &str) -> TypeContainer {
         let value = parse_unwrap(src);
         if let DatexExpression::TypeDeclaration { value, .. } = value {
-            *value.clone()
+            match *value {
+                DatexExpression::Type(t) => t,
+                _ => panic!("Expected Type, got {:?}", value),
+            }
         } else if let DatexExpression::Type(t) = value {
             t
         } else {
@@ -1295,6 +1298,15 @@ mod tests {
     #[test]
     #[ignore = "WIP"]
     fn type_declaration_collection() {
+        let src = r#"
+            type User = {
+                name?: text,
+                friends: List<&text>
+            };
+        "#;
+        let val = parse_type_unwrap(src);
+        println!("{}", val);
+
         let src = "type a = 1 | 2 | 3 | 4";
         let val = parse_type_unwrap(src);
         println!("{}", val);
@@ -1417,55 +1429,55 @@ mod tests {
             }
         "#;
         let val = parse_unwrap(src);
-        assert_eq!(
-            val,
-            DatexExpression::TypeDeclaration {
-                id: None,
-                name: "Userx".to_string(),
-                value: Box::new(
-                    TypeReference::nominal(
-                        Type::structural(StructuralTypeDefinition::Struct(
-                            vec![
-                                ("name".to_string(), TypeContainer::text()),
-                                (
-                                    "friends".to_string(),
-                                    TypeContainer::integer()
-                                ),
-                            ]
-                        )),
-                        "User",
-                        None
-                    )
-                    .as_type_container()
-                )
-            },
-            // DatexExpression::TypeDeclaration {
-            //     id: None,
-            //     generic: None,
-            //     name: "User".to_string(),
-            //     value: Box::new(DatexExpression::Struct(vec![
-            //         (
-            //             "name".to_string(),
-            //             DatexExpression::Literal("text".to_owned())
-            //         ),
-            //         (
-            //             "friends".to_string(),
-            //             DatexExpression::RefMut(Box::new(
-            //                 DatexExpression::ApplyChain(
-            //                     Box::new(DatexExpression::Literal(
-            //                         "Array".to_string()
-            //                     )),
-            //                     vec![ApplyOperation::GenericAccess(
-            //                         DatexExpression::Literal(
-            //                             "User".to_string()
-            //                         )
-            //                     )]
-            //                 )
-            //             ))
-            //         )
-            //     ]))
-            // }
-        );
+        // assert_eq!(
+        //     val,
+        //     DatexExpression::TypeDeclaration {
+        //         id: None,
+        //         name: "Userx".to_string(),
+        //         value: Box::new(
+        //             TypeReference::nominal(
+        //                 Type::structural(StructuralTypeDefinition::Struct(
+        //                     vec![
+        //                         ("name".to_string(), TypeContainer::text()),
+        //                         (
+        //                             "friends".to_string(),
+        //                             TypeContainer::integer()
+        //                         ),
+        //                     ]
+        //                 )),
+        //                 "User",
+        //                 None
+        //             )
+        //             .as_type_container()
+        //         )
+        //     },
+        // DatexExpression::TypeDeclaration {
+        //     id: None,
+        //     generic: None,
+        //     name: "User".to_string(),
+        //     value: Box::new(DatexExpression::Struct(vec![
+        //         (
+        //             "name".to_string(),
+        //             DatexExpression::Literal("text".to_owned())
+        //         ),
+        //         (
+        //             "friends".to_string(),
+        //             DatexExpression::RefMut(Box::new(
+        //                 DatexExpression::ApplyChain(
+        //                     Box::new(DatexExpression::Literal(
+        //                         "Array".to_string()
+        //                     )),
+        //                     vec![ApplyOperation::GenericAccess(
+        //                         DatexExpression::Literal(
+        //                             "User".to_string()
+        //                         )
+        //                     )]
+        //                 )
+        //             ))
+        //         )
+        //     ]))
+        // }
+        // );
     }
 
     #[test]

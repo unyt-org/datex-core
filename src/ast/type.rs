@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, vec};
 
 use chumsky::{
     IterParser, Parser,
@@ -91,7 +91,7 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, StructuralTypeDefinition> {
 	})
 }
 
-pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
+pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
             just(Token::LeftParen).padded_by(whitespace()),
@@ -173,22 +173,43 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
 
         let key_ident =
             select! { Token::Identifier(k) => k }.padded_by(whitespace());
-        let r#struct = key_ident
-            .clone()
-            .then_ignore(just(Token::Colon))
-            .padded_by(whitespace())
-            .then(ty.clone())
-            .padded_by(whitespace())
-            .separated_by(just(Token::Comma))
-            .allow_trailing()
-            .collect()
-            .delimited_by(
-                just(Token::LeftCurly).padded_by(whitespace()),
-                just(Token::RightCurly).padded_by(whitespace()),
-            )
-            .map(|fields: Vec<(String, TypeContainer)>| {
-                Type::r#struct(fields).as_type_container()
-            });
+        // let r#struct = key_ident
+        //     .clone()
+        //     .then_ignore(just(Token::Colon))
+        //     .padded_by(whitespace())
+        //     .then(ty.clone())
+        //     .padded_by(whitespace())
+        //     .separated_by(just(Token::Comma))
+        //     .allow_trailing()
+        //     .collect()
+        //     .delimited_by(
+        //         just(Token::LeftCurly).padded_by(whitespace()),
+        //         just(Token::RightCurly).padded_by(whitespace()),
+        //     )
+        //     .map(|fields: Vec<(String, TypeContainer)>| {
+        //         Type::r#struct(fields).as_type_container()
+        //     });
+		let struct_field = select! { Token::Identifier(k) => k }
+			.then(
+				just(Token::Placeholder).or_not()
+			)
+			.then_ignore(just(Token::Colon).padded_by(whitespace()))
+			.then(ty.clone())
+			.map(|((name, opt), typ)| {
+				if opt.is_some() {
+					(name, Type::union(vec![typ, TypeContainer::null()]).as_type_container())
+				} else {
+					(name, typ)
+				}
+			});
+
+		let r#struct = struct_field
+			.separated_by(just(Token::Comma).padded_by(whitespace()))
+			.allow_trailing()
+			.collect()
+			.delimited_by(just(Token::LeftCurly).padded_by(whitespace()),
+						just(Token::RightCurly).padded_by(whitespace()))
+			.map(|fields: Vec<(String, TypeContainer)>| Type::r#struct(fields).as_type_container());
 
         let generic = select! { Token::Identifier(name) => name }
             .then(
@@ -276,6 +297,32 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
             type_reference.clone(),
         ));
 
+        // let field_access = base
+        //     .clone()
+        //     .then(
+        //         just(Token::Dot)
+        //             .ignore_then(select! { Token::Identifier(name) => name })
+        //             .repeated()
+        //             .collect(),
+        //     )
+        //     .map(|(root, fields): (TypeContainer, Vec<String>)| {
+        //         fields.into_iter().fold(root, |acc, field| {
+        //             Type::field_access(acc, field).as_type_container()
+        //         })
+        //     });
+
+		// let index_access = base.clone().then(
+		// 	just(Token::LeftBracket)
+		// 		.ignore_then(ty.clone())
+		// 		.then_ignore(just(Token::RightBracket))
+		// 		.repeated()
+		// 		.collect(),
+		// ).map(|(root, indices): (TypeContainer, Vec<TypeContainer>)| {
+		// 	indices.into_iter().fold(root, |acc, idx| {
+		// 		Type::index_access(acc, idx).as_type_container()
+		// 	})
+		// });
+
         // parse zero-or-more postfix `[]`
         let optional_postfix_array = base
             .then(
@@ -291,6 +338,27 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
                 }
                 t
             });
+		// let postfix = base.clone().then(
+		// 	choice((
+		// 		just(Token::Dot)
+		// 			.ignore_then(select! { Token::Identifier(name) => name })
+		// 			.map(|name| PostfixOp::Field(name)),
+
+		// 		just(Token::LeftBracket)
+		// 			.ignore_then(ty.clone())
+		// 			.then_ignore(just(Token::RightBracket))
+		// 			.map(|idx| PostfixOp::Index(idx)),
+		// 	))
+		// 	.repeated()
+		// 	.collect(),
+		// ).map(|(root, ops): (TypeContainer, Vec<PostfixOp>)| {
+		// 	ops.into_iter().fold(root, |acc, op| {
+		// 		match op {
+		// 			PostfixOp::Field(name) => Type::field_access(acc, name).as_type_container(),
+		// 			PostfixOp::Index(idx)  => Type::index_access(acc, idx).as_type_container(),
+		// 		}
+		// 	})
+		// });
 
         let intersection = optional_postfix_array
             .clone()
@@ -337,6 +405,11 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeContainer> {
         //         Type::union(vec![acc, next]).as_type_container()
         //     })
         // })
+    })
+	.try_map(|res, _| {
+        Ok(DatexExpression::Type(
+			res
+		))
     })
 }
 
