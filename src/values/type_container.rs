@@ -1,4 +1,4 @@
-
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::values::core_values::r#type::Type;
 use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
@@ -95,6 +95,27 @@ ValueContainer           <----    TypeContainer
      TypeReference       <-----
 
 */
+
+impl TypeContainer {
+    pub fn text() -> Self {
+        get_core_lib_type(CoreLibPointerId::Text)
+    }
+    pub fn integer() -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(None))
+    }
+    pub fn decimal() -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(None))
+    }
+    pub fn boolean() -> Self {
+        get_core_lib_type(CoreLibPointerId::Boolean)
+    }
+    pub fn endpoint() -> Self {
+        get_core_lib_type(CoreLibPointerId::Endpoint)
+    }
+    pub fn r#type() -> Self {
+        get_core_lib_type(CoreLibPointerId::Type)
+    }
+}
 impl TypeContainer {
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
         Self::value_matches_type(value, self)

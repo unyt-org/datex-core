@@ -54,6 +54,12 @@ impl Hash for Type {
 }
 
 impl Type {
+    pub fn as_type_container(self) -> TypeContainer {
+        TypeContainer::Type(self)
+    }
+}
+
+impl Type {
     pub const UNIT: Type = Type {
         type_definition: TypeDefinition::Unit,
         base_type: None,
@@ -103,6 +109,28 @@ impl Type {
         }
     }
 
+    /// Creates a new structural array type.
+    pub fn array(element_types: Vec<TypeContainer>) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::Array(element_types),
+            ),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates a new structural struct type.
+    pub fn r#struct(fields: Vec<(String, TypeContainer)>) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::Struct(fields),
+            ),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
     /// Creates a new union type.
     pub fn union(types: Vec<Type>) -> Self {
         Type {
@@ -122,6 +150,23 @@ impl Type {
             )),
             base_type: None,
             reference_mutability: mutability,
+        }
+    }
+
+    /// Creates a new structural map type.
+    pub fn map(
+        key_type: impl Into<TypeContainer>,
+        value_type: impl Into<TypeContainer>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(
+                StructuralTypeDefinition::Map(Box::new((
+                    key_type.into(),
+                    value_type.into(),
+                ))),
+            ),
+            base_type: None,
+            reference_mutability: None,
         }
     }
 }
