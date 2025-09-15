@@ -59,22 +59,6 @@ pub trait CryptoTrait: Send + Sync {
 
     // Elliptic curve generation
     fn gen_x25519(&self) -> Result<([u8; KEY_LEN], [u8; KEY_LEN]), CryptoError>;
-
-    // Asymmetric encryption
-    // Elliptic curve integrated encryption scheme
-    fn ecies_encrypt<'a>(
-        &'a self,
-        rec_pub_raw: &'a [u8; KEY_LEN],
-        plaintext: &'a [u8],
-        aad: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Crypt, CryptoError>> + Send + 'a>>;
-
-    fn ecies_decrypt<'a>(
-        &'a self,
-        rec_pri_raw: &'a [u8; KEY_LEN],
-        msg: &'a Crypt,
-        aad: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>>;
 }
 
 pub struct Crypto;

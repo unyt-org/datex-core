@@ -341,62 +341,6 @@ impl CryptoTrait for CryptoNative {
             .map_err(|_| CryptoError::KeyGeneratorFailed)?;
         Ok((public_key, private_key))
     }
-    // Asymmetric encryption
-    fn ecies_encrypt<'a>(
-        &'a self,
-        rec_pub_raw: &'a [u8; KEY_LEN],
-        plaintext: &'a [u8],
-        aad: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Crypt, CryptoError>> + Send + 'a>> {
-        Box::pin(async move {
-            let (eph_pub, eph_pri) = self
-                .gen_x25519()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-            let shared = derive_x25519(&eph_pri, rec_pub_raw)
-                .map_err(|_| CryptoError::KeyDerivationFailed)?;
-
-            // Map ikm to okm
-            let mut salt = [0u8; SALT_LEN];
-            rand_bytes(&mut salt) // random salt?
-                .map_err(|_| CryptoError::KeyDerivationFailed)?;
-            let key: [u8; KEY_LEN] = hkdf(&shared, &salt, KEY_LEN)?
-                .try_into()
-                .map_err(|_| CryptoError::KeyDerivationFailed)?;
-
-            // Nonce for AES
-            let mut iv = [0u8; IV_LEN];
-            rand_bytes(&mut iv).map_err(|_| CryptoError::KeyDerivationFailed)?;
-
-            // Encrypt
-            let (ct, tag) = aes_gcm_encrypt(&key, &iv, aad, plaintext)?;
-
-            Ok(Crypt {
-                pub_key: eph_pub,
-                salt: salt,
-                iv: iv,
-                ct: ct,
-                tag: tag,
-            })
-        })
-    }
-    // Asymmetric decryption
-
-    fn ecies_decrypt<'a>(
-        &'a self,
-        rec_pri_raw: &'a [u8; KEY_LEN],
-        msg: &'a Crypt,
-        aad: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>> {
-        Box::pin(async move {
-            let shared = derive_x25519(rec_pri_raw, &msg.pub_key)?;
-            let key: [u8; KEY_LEN] = hkdf(&shared, &msg.salt, KEY_LEN)?
-                .try_into()
-                .map_err(|_| CryptoError::DecryptionError)?;
-
-            aes_gcm_decrypt(&key, &msg.iv, aad, &msg.ct, &msg.tag)
-                .map_err(|_| CryptoError::DecryptionError)
-        })
-    }
 }
 
 #[cfg(test)]
@@ -492,21 +436,5 @@ mod tests {
 
         assert_eq!(cli_shared, ser_shared);
         assert_eq!(cli_shared.len(), 32);
-    }
-    #[tokio::test]
-    async fn ecies_roundtrip() {
-        static CRYPTO: CryptoNative = CryptoNative {};
-        let data = b"Some message to encrypt".to_vec();
-        let (rec_pub_key, rec_pri_key) = CRYPTO.gen_x25519().unwrap();
-        let ciphered = CRYPTO
-            .ecies_encrypt(&rec_pub_key, &data, &rec_pub_key)
-            .await
-            .unwrap();
-        let deciphered = CRYPTO
-            .ecies_decrypt(&rec_pri_key, &ciphered, &rec_pub_key)
-            .await
-            .unwrap();
-
-        assert_eq!(data, deciphered);
     }
 }
