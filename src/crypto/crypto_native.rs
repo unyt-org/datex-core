@@ -293,7 +293,7 @@ impl CryptoTrait for CryptoNative {
     fn sig_ed25519<'a>(
         &'a self,
         pri_key: &'a Vec<u8>,
-        digest: &'a Vec<u8>,
+        data: &'a Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>> {
         Box::pin(async move {
             let sig_key = PKey::private_key_from_pkcs8(pri_key)
@@ -301,7 +301,7 @@ impl CryptoTrait for CryptoNative {
             let mut signer =
                 Signer::new_without_digest(&sig_key).map_err(|_| CryptoError::SigningError)?;
             let signature = signer
-                .sign_oneshot_to_vec(digest)
+                .sign_oneshot_to_vec(data)
                 .map_err(|_| CryptoError::SigningError)?;
             Ok(signature)
         })

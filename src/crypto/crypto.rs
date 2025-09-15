@@ -47,7 +47,7 @@ pub trait CryptoTrait: Send + Sync {
     fn sig_ed25519<'a>(
         &'a self,
         pri_key: &'a Vec<u8>,
-        digest: &'a Vec<u8>,
+        data: &'a Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + Send + 'a>>;
 
     fn ver_ed25519<'a>(
