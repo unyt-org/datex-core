@@ -250,6 +250,15 @@ fn visit_expression(
         //         NewScopeType::NewScope,
         //     )?;
         // }
+        DatexExpression::TypeExpression(type_expr) => {
+            // visit_expression(
+            //     type_expr,
+            //     metadata,
+            //     scope_stack,
+            //     NewScopeType::NewScope,
+            // )?;
+            todo!()
+        }
         DatexExpression::Conditional {
             condition,
             then_branch,

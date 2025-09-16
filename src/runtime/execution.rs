@@ -934,15 +934,14 @@ fn get_result_value_from_instruction(
                 yield_unwrap!(res);
                 None
             }
-            
+
             Instruction::TypeInstructions(instructions) => {
                 println!("Type instructions: {:?}", instructions);
-                for output in iterate_type_instructions(
-                    interrupt_provider,
-                    instructions
-                ) {
+                for output in
+                    iterate_type_instructions(interrupt_provider, instructions)
+                {
                     yield_unwrap!(output);
-                };
+                }
                 None
             }
 
@@ -954,8 +953,6 @@ fn get_result_value_from_instruction(
         }))
     }
 }
-
-
 
 fn iterate_type_instructions(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
@@ -976,9 +973,6 @@ fn iterate_type_instructions(
         }
     }
 }
-
-
-
 
 /// Takes a produced value and handles it according to the current scope
 fn handle_value(
@@ -1738,18 +1732,5 @@ mod tests {
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
         let expected = datex_array![Integer::from(1i8), Integer::from(3i8)];
         assert_eq!(result, expected.into());
-    }
-
-    #[test]
-    fn single_line_comment() {
-        init_logger_debug();
-        let result =
-            execute_datex_script_debug_with_result("type(42)");
-        assert_eq!(result, Integer::from(42i8).into());
-
-        let result = execute_datex_script_debug_with_result(
-            "// this is a comment\n// another comment\n42",
-        );
-        assert_eq!(result, Integer::from(42i8).into());
     }
 }

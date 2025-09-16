@@ -134,17 +134,32 @@ pub enum Slot {
     Named(String),
 }
 
-
 // TODO: parse TypeExpressions in ast parser
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeExpression {
-    // e.g. integer/u8
-    Integer(Integer),
-    // e.g. decimal/f32
-    // e.g. string, User, integer/u8
+    // a type name or variable, e.g. integer, string, User, MyType, T
     Literal(String),
-    // e.g. [integer], (string), {key: value}, (key: value)
-    Container(TypeContainer),
+
+    // literals
+    Integer(Integer),
+    TypedInteger(TypedInteger),
+    Decimal(Decimal),
+    TypedDecimal(TypedDecimal),
+    Boolean(bool),
+    Text(String),
+    Endpoint(Endpoint),
+
+    // containers
+    Array(Vec<TypeExpression>),
+    List(Vec<TypeExpression>),
+    Struct(Vec<(String, TypeExpression)>),
+    Map(Vec<(TypeExpression, TypeExpression)>),
+    Intersection(Vec<TypeExpression>),
+    Union(Vec<TypeExpression>),
+
+    // modifiers
+    Ref(Box<TypeExpression>),
+    RefMut(Box<TypeExpression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
