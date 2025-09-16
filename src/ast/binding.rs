@@ -139,7 +139,6 @@ pub fn declaration_or_assignment<'a>(
     union: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
-        // type_declaration(union.clone()),
         type_declaration(),
         variable_declaration(union.clone()),
         variable_assignment(union),

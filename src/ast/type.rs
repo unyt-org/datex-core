@@ -20,15 +20,9 @@ use crate::{
     },
     values::{
         core_values::{
-            decimal::{
-                decimal::Decimal,
-                typed_decimal::TypedDecimal,
-            },
+            decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
             endpoint::Endpoint,
-            integer::{
-                integer::Integer,
-                typed_integer::TypedInteger,
-            },
+            integer::{integer::Integer, typed_integer::TypedInteger},
         },
         reference::ReferenceMutability,
     },
@@ -411,7 +405,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     //.try_map(|res, _| Ok(DatexExpression::Type(res)))
 }
 
-pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
+pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
     let generic = just(Token::LeftAngle)
         .ignore_then(literal())
         .then_ignore(just(Token::RightAngle))
@@ -433,18 +427,35 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .labelled(Pattern::Declaration)
         .as_context()
 }
+pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
+    just(Token::Identifier("typedef".to_string()))
+        .padded_by(whitespace())
+        .ignore_then(select! { Token::Identifier(name) => name })
+        .then_ignore(just(Token::Assign).padded_by(whitespace()))
+        .then(r#type())
+        .map(|(name, expr)| DatexExpression::TypeDeclaration {
+            id: None,
+            name: name.to_string(),
+            value: Box::new(expr),
+        })
+        .labelled(Pattern::Declaration)
+        .as_context()
+}
 
-// pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
-//     just(Token::Identifier("type".to_string()))
-//         .padded_by(whitespace())
-//         .ignore_then(r#type())
-//         .delimited_by(
-//             just(Token::LeftParen).padded_by(whitespace()),
-//             just(Token::RightParen).padded_by(whitespace()),
-//         )
-//         .map(|expr| DatexExpression::Type(expr))
-//         .as_context()
-// }
+pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
+    choice((nominal_type_declaration(), structural_type_definition()))
+}
+
+// structural type expression
+pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
+    just(Token::Identifier("type".to_string()))
+        .padded_by(whitespace())
+        .then_ignore(just(Token::LeftParen).padded_by(whitespace()))
+        .ignore_then(r#type())
+        .padded_by(whitespace())
+        .then_ignore(just(Token::RightParen).padded_by(whitespace()))
+        .map(DatexExpression::Type)
+}
 
 #[cfg(test)]
 mod tests {
@@ -718,12 +729,10 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Array(vec![
-                TypeExpression::Union(vec![
-					TypeExpression::Literal("integer".to_owned()),
-					TypeExpression::Literal("text".to_owned()),
-				])
-            ])
+            TypeExpression::Array(vec![TypeExpression::Union(vec![
+                TypeExpression::Literal("integer".to_owned()),
+                TypeExpression::Literal("text".to_owned()),
+            ])])
         );
     }
 

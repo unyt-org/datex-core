@@ -35,6 +35,7 @@ use crate::ast::function::*;
 use crate::ast::key::*;
 use crate::ast::map::*;
 use crate::ast::structure::*;
+use crate::ast::r#type::type_expression;
 use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
@@ -235,8 +236,11 @@ pub enum DatexExpression {
         value: Box<TypeExpression>, // Type
     },
 
-    /// Type
+    /// Type expression, e.g. { x: 42, y: "John" }
     TypeExpression(TypeExpression),
+
+    /// Type keyword, e.g. type(...)
+    Type(TypeExpression),
 
     FunctionDeclaration {
         name: String,
@@ -421,7 +425,7 @@ where
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom =
         atom(array.clone(), structure.clone(), wrapped_expression.clone());
-    let unary = unary(atom.clone());
+    let unary = choice((type_expression(), unary(atom.clone())));
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
@@ -461,7 +465,7 @@ where
     let comparison = comparison_operation(union.clone());
 
     // declarations or assignments
-    let declaration_or_assignment = declaration_or_assignment(union.clone());
+    let declaration_or_assignment = declaration_or_assignment(union);
 
     let condition_union = binary_operation(chain_without_whitespace_apply(
         unary.clone(),
@@ -679,6 +683,48 @@ mod tests {
                 ),
             ])
         );
+    }
+
+    #[test]
+    #[ignore = "WIP"]
+    fn type_expression() {
+        let src = "type(1 | 2)";
+        let result = parse_print_error(src);
+        let expr = result.unwrap();
+        assert_matches!(expr, DatexExpression::Type(TypeExpression::Union(_)));
+
+        let src = "var a = type(1,2,3)";
+        let result = parse_print_error(src);
+        let expr = result.unwrap();
+        if let DatexExpression::VariableDeclaration { value, .. } = expr {
+            assert_matches!(
+                *value,
+                DatexExpression::Type(TypeExpression::List(_))
+            );
+        } else {
+            panic!("Expected VariableDeclaration");
+        }
+    }
+
+    #[test]
+    fn structural_type_declaration() {
+        let src = "typedef A = integer";
+        let result = parse_print_error(src);
+        let expr = result.unwrap();
+        assert_matches!(expr, DatexExpression::TypeDeclaration { name, .. } if name == "A");
+    }
+
+    #[test]
+    fn nominal_type_declaration() {
+        let src = "type B = { x: integer, y: string }";
+        let result = parse_print_error(src);
+        let expr = result.unwrap();
+        assert_matches!(expr, DatexExpression::TypeDeclaration { name, .. } if name == "B");
+
+        let src = "type User<T> = {id: T}";
+        let result = parse_print_error(src);
+        let expr = result.unwrap();
+        assert_matches!(expr, DatexExpression::TypeDeclaration { name, .. } if name == "User");
     }
 
     /// # WIP
