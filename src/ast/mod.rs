@@ -51,6 +51,7 @@ use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
+use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use chumsky::extra::Err;
@@ -120,13 +121,13 @@ pub enum BindingMutability {
     Mutable,   // e.g. `var x = ...`
 }
 
-#[deprecated(note = "Use other ReferenceMutability instead")]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ReferenceMutability {
-    Mutable,
-    Immutable,
-    None,
-}
+// #[deprecated(note = "Use other ReferenceMutability instead")]
+// #[derive(Clone, Copy, Debug, PartialEq)]
+// pub enum ReferenceMutability {
+//     Mutable,
+//     Immutable,
+//     None,
+// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Slot {
@@ -223,7 +224,7 @@ pub enum DatexExpression {
         id: Option<VariableId>,
         kind: VariableKind,
         binding_mutability: BindingMutability,
-        reference_mutability: ReferenceMutability,
+        reference_mutability: Option<ReferenceMutability>,
         name: String,
         type_annotation: Option<TypeExpression>,
         value: Box<DatexExpression>,
@@ -1000,7 +1001,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(
                     TypeExpression::Integer(Integer::from(5)).into()
                 ),
@@ -1017,7 +1018,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Literal(
                     "integer/u8".to_owned()
                 )),
@@ -1380,7 +1381,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Literal(
                     "integer".to_string()
                 )),
@@ -1397,7 +1398,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Literal(
                     "User".to_string()
                 )),
@@ -1414,7 +1415,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Literal(
                     "integer/u8".to_owned()
                 )),
@@ -1434,7 +1435,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Union(vec![
                     TypeExpression::Literal("integer/u8".to_owned()),
                     TypeExpression::Literal("text".to_owned())
@@ -1455,7 +1456,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Intersection(vec![
                     TypeExpression::Integer(Integer::from(5)),
                     TypeExpression::Integer(Integer::from(6))
@@ -1476,7 +1477,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: Some(TypeExpression::Array(vec![
                     TypeExpression::Literal("integer".to_string())
                 ])),
@@ -2662,7 +2663,7 @@ mod tests {
                     kind: VariableKind::Const,
                     binding_mutability: BindingMutability::Immutable,
                     type_annotation: None,
-                    reference_mutability: ReferenceMutability::None,
+                    reference_mutability: None,
                     name: "x".to_string(),
                     value: Box::new(DatexExpression::Integer(Integer::from(
                         42
@@ -2683,7 +2684,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 type_annotation: None,
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::BinaryOperation(
@@ -2878,7 +2879,7 @@ mod tests {
                         id: None,
                         kind: VariableKind::Var,
                         binding_mutability: BindingMutability::Mutable,
-                        reference_mutability: ReferenceMutability::None,
+                        reference_mutability: None,
                         name: "x".to_string(),
                         value: Box::new(DatexExpression::Integer(
                             Integer::from(42)
@@ -3301,7 +3302,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Const,
                 binding_mutability: BindingMutability::Immutable,
-                reference_mutability: ReferenceMutability::Mutable,
+                reference_mutability: Some(ReferenceMutability::Mutable),
                 name: "x".to_string(),
                 type_annotation: None,
                 value: Box::new(DatexExpression::Array(vec![
@@ -3323,7 +3324,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Const,
                 binding_mutability: BindingMutability::Immutable,
-                reference_mutability: ReferenceMutability::Immutable,
+                reference_mutability: Some(ReferenceMutability::Immutable),
                 name: "x".to_string(),
                 type_annotation: None,
                 value: Box::new(DatexExpression::Array(vec![
@@ -3344,7 +3345,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Const,
                 binding_mutability: BindingMutability::Immutable,
-                reference_mutability: ReferenceMutability::None,
+                reference_mutability: None,
                 name: "x".to_string(),
                 type_annotation: None,
                 value: Box::new(DatexExpression::Integer(Integer::from(1))),

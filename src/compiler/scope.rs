@@ -1,6 +1,7 @@
-use crate::ast::{ReferenceMutability, VariableKind};
+use crate::ast::VariableKind;
 use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
+use crate::values::reference::ReferenceMutability;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -85,7 +86,7 @@ impl CompilationScope {
     pub fn resolve_variable_name_to_virtual_slot(
         &self,
         name: &str,
-    ) -> Option<(VirtualSlot, VariableKind, ReferenceMutability)> {
+    ) -> Option<(VirtualSlot, VariableKind, Option<ReferenceMutability>)> {
         if let Some(variable) = self.variables.get(name) {
             let slot = match variable.representation {
                 VariableRepresentation::Constant(slot) => slot,
@@ -95,7 +96,7 @@ impl CompilationScope {
                 } => container_slot,
                 VariableRepresentation::VariableSlot(slot) => slot,
             };
-            Some((slot, variable.var_type, variable.ref_mut))
+            Some((slot, variable.var_type, variable.ref_mut.clone()))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)

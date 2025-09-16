@@ -8,8 +8,7 @@ use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::ast::{
-    BindingMutability, DatexExpression, DatexScriptParser, ReferenceMutability,
-    VariableKind, parse,
+    BindingMutability, DatexExpression, DatexScriptParser, VariableKind, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
@@ -22,6 +21,7 @@ use crate::libs::core::CoreLibPointerId;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::pointer::PointerAddress;
+use crate::values::reference::ReferenceMutability;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::Slot;
 use log::info;
@@ -150,7 +150,7 @@ pub enum VariableRepresentation {
 pub struct Variable {
     pub name: String,
     pub var_type: VariableKind,
-    pub ref_mut: ReferenceMutability,
+    pub ref_mut: Option<ReferenceMutability>,
     pub binding_mut: BindingMutability,
     pub representation: VariableRepresentation,
 }
@@ -158,7 +158,7 @@ pub struct Variable {
 impl Variable {
     pub fn new_const(
         name: String,
-        mut_type: ReferenceMutability,
+        mut_type: Option<ReferenceMutability>,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
@@ -174,7 +174,7 @@ impl Variable {
         name: String,
         var_type: VariableKind,
         binding_mut: BindingMutability,
-        ref_mut: ReferenceMutability,
+        ref_mut: Option<ReferenceMutability>,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
@@ -189,7 +189,7 @@ impl Variable {
     pub fn new_variable_reference(
         name: String,
         var_type: VariableKind,
-        ref_mut: ReferenceMutability,
+        ref_mut: Option<ReferenceMutability>,
         binding_mut: BindingMutability,
         variable_slot: VirtualSlot,
         container_slot: VirtualSlot,
@@ -691,15 +691,15 @@ fn compile_expression(
             );
             // create reference if value marked with & or &mut
             match reference_mutability {
-                ReferenceMutability::Immutable => {
+                Some(ReferenceMutability::Immutable) => {
                     compilation_context
                         .append_binary_code(InstructionCode::CREATE_REF);
                 }
-                ReferenceMutability::Mutable => {
+                Some(ReferenceMutability::Mutable) => {
                     compilation_context
                         .append_binary_code(InstructionCode::CREATE_REF_MUT);
                 }
-                ReferenceMutability::None => {}
+                None => {}
             }
             // compile expression
             scope = compile_expression(
@@ -808,7 +808,7 @@ fn compile_expression(
                 AssignmentOperator::AddAssign
                 | AssignmentOperator::SubstractAssign => {
                     // if immutable reference, return error
-                    if mut_type == ReferenceMutability::Immutable {
+                    if mut_type == Some(ReferenceMutability::Immutable) {
                         return Err(
                             CompilerError::AssignmentToImmutableReference(
                                 name.clone(),
@@ -816,7 +816,7 @@ fn compile_expression(
                         );
                     }
                     // if immutable value, return error
-                    else if mut_type == ReferenceMutability::None {
+                    else if mut_type == None {
                         return Err(CompilerError::AssignmentToImmutableValue(
                             name.clone(),
                         ));

@@ -9,8 +9,9 @@ use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
 use crate::ast::{
     BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
-    ReferenceMutability, TypeExpression, VariableKind,
+    TypeExpression, VariableKind,
 };
+use crate::values::reference::ReferenceMutability;
 use chumsky::prelude::*;
 pub type VariableId = usize;
 
@@ -18,7 +19,7 @@ fn create_variable_declaration(
     name: String,
     value: Box<DatexExpression>,
     type_annotation: Option<TypeExpression>,
-    reference_mutability: ReferenceMutability,
+    reference_mutability: Option<ReferenceMutability>,
     kind: VariableKind,
 ) -> DatexExpression {
     DatexExpression::VariableDeclaration {
@@ -81,12 +82,12 @@ pub fn variable_declaration<'a>(
         .map(|((((kind, var_name), annotation), op), expr)| {
             let (reference_mutability, expr) = match expr {
                 DatexExpression::RefMut(expr) => {
-                    (ReferenceMutability::Mutable, expr)
+                    (Some(ReferenceMutability::Mutable), expr)
                 }
                 DatexExpression::Ref(expr) => {
-                    (ReferenceMutability::Immutable, expr)
+                    (Some(ReferenceMutability::Immutable), expr)
                 }
-                expr => (ReferenceMutability::None, Box::new(expr)),
+                expr => (None, Box::new(expr)),
             };
 
             if op != AssignmentOperator::Assign {
