@@ -225,7 +225,7 @@ pub enum DatexExpression {
         binding_mutability: BindingMutability,
         reference_mutability: ReferenceMutability,
         name: String,
-        type_annotation: Option<Box<DatexExpression>>,
+        type_annotation: Option<TypeExpression>,
         value: Box<DatexExpression>,
     },
 
@@ -233,7 +233,7 @@ pub enum DatexExpression {
     TypeDeclaration {
         id: Option<VariableId>,
         name: String,
-        value: Box<TypeExpression>, // Type
+        value: TypeExpression, // Type
     },
 
     /// Type expression, e.g. { x: 42, y: "John" }
@@ -245,7 +245,7 @@ pub enum DatexExpression {
     FunctionDeclaration {
         name: String,
         parameters: Box<DatexExpression>,
-        return_type: Option<Box<DatexExpression>>,
+        return_type: Option<TypeExpression>,
         body: Box<DatexExpression>,
     },
 
@@ -455,11 +455,7 @@ where
     let union = binary_operation(reference_or_chain);
 
     // FIXME WIP
-    let function_declaration = function(
-        statements.clone(),
-        map.clone(),
-        expression_without_list.clone(),
-    );
+    let function_declaration = function(statements.clone(), map.clone());
 
     // comparison (==, !=, is, …)
     let comparison = comparison_operation(union.clone());
@@ -595,7 +591,7 @@ mod tests {
     };
 
     use super::*;
-    use std::{assert_matches::assert_matches, io, str::FromStr};
+    use std::{assert_matches::assert_matches, io, str::FromStr, vec};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -969,14 +965,12 @@ mod tests {
         );
     }
 
-    // FIXME WIP
     #[test]
-    #[ignore = "WIP"]
     fn test_function_with_return_type() {
         let src = r#"
-            function myFunction(x: integer) -> (integer) (
+            function myFunction(x: integer) -> integer | text (
                 42
-            );
+            )
         "#;
         let val = parse_unwrap(src);
         assert_eq!(
@@ -987,9 +981,10 @@ mod tests {
                     DatexExpression::Text("x".to_string()),
                     DatexExpression::Literal("integer".to_owned())
                 )])),
-                return_type: Some(Box::new(DatexExpression::Literal(
-                    "integer".to_owned()
-                ))),
+                return_type: Some(TypeExpression::Union(vec![
+                    TypeExpression::Literal("integer".to_owned()),
+                    TypeExpression::Literal("text".to_owned())
+                ])),
                 body: Box::new(DatexExpression::Integer(Integer::from(42))),
             }
         );
@@ -1006,9 +1001,9 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(DatexExpression::Integer(
-                    Integer::from(5)
-                ))),
+                type_annotation: Some(
+                    TypeExpression::Integer(Integer::from(5)).into()
+                ),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -1023,15 +1018,8 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(
-                    DatexExpression::BinaryOperation(
-                        BinaryOperator::VariantAccess,
-                        Box::new(DatexExpression::Literal(
-                            "integer".to_string()
-                        )),
-                        Box::new(DatexExpression::Literal("u8".to_string())),
-                        None
-                    )
+                type_annotation: Some(TypeExpression::Literal(
+                    "integer/u8".to_owned()
                 )),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
@@ -1393,9 +1381,9 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(DatexExpression::Literal(
+                type_annotation: Some(TypeExpression::Literal(
                     "integer".to_string()
-                ))),
+                )),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -1410,9 +1398,9 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(DatexExpression::Literal(
+                type_annotation: Some(TypeExpression::Literal(
                     "User".to_string()
-                ))),
+                )),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -1427,15 +1415,8 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(
-                    DatexExpression::BinaryOperation(
-                        BinaryOperator::VariantAccess,
-                        Box::new(DatexExpression::Literal(
-                            "integer".to_owned()
-                        )),
-                        Box::new(DatexExpression::Literal("u8".to_owned())),
-                        None
-                    )
+                type_annotation: Some(TypeExpression::Literal(
+                    "integer/u8".to_owned()
                 )),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
@@ -1454,21 +1435,10 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(
-                    DatexExpression::BinaryOperation(
-                        BinaryOperator::Union,
-                        Box::new(DatexExpression::BinaryOperation(
-                            BinaryOperator::VariantAccess,
-                            Box::new(DatexExpression::Literal(
-                                "integer".to_owned()
-                            )),
-                            Box::new(DatexExpression::Literal("u8".to_owned())),
-                            None
-                        )),
-                        Box::new(DatexExpression::Literal("text".to_owned())),
-                        None
-                    )
-                )),
+                type_annotation: Some(TypeExpression::Union(vec![
+                    TypeExpression::Literal("integer/u8".to_owned()),
+                    TypeExpression::Literal("text".to_owned())
+                ])),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -1486,14 +1456,10 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(
-                    DatexExpression::BinaryOperation(
-                        BinaryOperator::Intersection,
-                        Box::new(DatexExpression::Integer(Integer::from(5))),
-                        Box::new(DatexExpression::Integer(Integer::from(6))),
-                        None
-                    )
-                )),
+                type_annotation: Some(TypeExpression::Intersection(vec![
+                    TypeExpression::Integer(Integer::from(5)),
+                    TypeExpression::Integer(Integer::from(6))
+                ])),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -1501,12 +1467,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "TBD"]
     fn test_type_var_declaration_array() {
-        // FIXME what would be a syntax for array declarations that doesn't collide with apply chains
-        // myfunc [] // function call with empty array
-        // myfunc [5] // function call with array
-        // var x: 5[] // special declaration only valid after colon and only when no space used?
         let src = "var x: integer[] = 42";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -1516,10 +1477,9 @@ mod tests {
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
                 reference_mutability: ReferenceMutability::None,
-                type_annotation: Some(Box::new(DatexExpression::ApplyChain(
-                    Box::new(DatexExpression::Literal("integer".to_string())),
-                    vec![ApplyOperation::ArrayType]
-                ))),
+                type_annotation: Some(TypeExpression::Array(vec![
+                    TypeExpression::Literal("integer".to_string())
+                ])),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -2645,31 +2605,29 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn type_declaration_statement() {
         let src = "type User = { age: 42, name: \"John\" };";
         let expr = parse_unwrap(src);
-        // assert_eq!(
-        //     expr,
-        //     DatexExpression::Statements(vec![Statement {
-        //         expression: DatexExpression::TypeDeclaration {
-        //             id: None,
-        //             generic: None,
-        //             name: "User".to_string(),
-        //             value: Box::new(DatexExpression::Struct(vec![
-        //                 (
-        //                     "age".to_string(),
-        //                     DatexExpression::Integer(Integer::from(42))
-        //                 ),
-        //                 (
-        //                     "name".to_string(),
-        //                     DatexExpression::Text("John".to_string())
-        //                 ),
-        //             ])),
-        //         },
-        //         is_terminated: true,
-        //     },])
-        // );
+        assert_eq!(
+            expr,
+            DatexExpression::Statements(vec![Statement {
+                expression: DatexExpression::TypeDeclaration {
+                    id: None,
+                    name: "User".to_string(),
+                    value: TypeExpression::Struct(vec![
+                        (
+                            "age".to_string(),
+                            TypeExpression::Integer(Integer::from(42))
+                        ),
+                        (
+                            "name".to_string(),
+                            TypeExpression::Text("John".to_string())
+                        ),
+                    ]),
+                },
+                is_terminated: true,
+            },])
+        );
 
         // make sure { type: 42, name: "John" } is not parsed as type declaration
         let src = r#"{ type: 42, name: "John" };"#;

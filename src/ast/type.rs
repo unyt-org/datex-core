@@ -418,11 +418,11 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .then(generic)
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
-        .then_ignore(just(Token::Semicolon).or_not().padded_by(whitespace()))
+        .padded_by(whitespace())
         .map(|((name, generic), expr)| DatexExpression::TypeDeclaration {
             id: None,
             name: name.to_string(),
-            value: Box::new(expr),
+            value: expr,
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -436,7 +436,7 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
         .map(|(name, expr)| DatexExpression::TypeDeclaration {
             id: None,
             name: name.to_string(),
-            value: Box::new(expr),
+            value: expr,
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -479,9 +479,19 @@ mod tests {
     fn parse_type_unwrap(src: &str) -> TypeExpression {
         let value = parse_unwrap(format!("type T = {}", src).as_str());
         if let DatexExpression::TypeDeclaration { value, .. } = value {
-            *value
+            value
+        } else if let DatexExpression::Statements(statements) = &value
+            && statements.len() == 1
+        {
+            match &statements[0].expression {
+                DatexExpression::TypeDeclaration { value, .. } => value.clone(),
+                _ => panic!(
+                    "Expected TypeDeclaration, got {:?}",
+                    statements[0].expression
+                ),
+            }
         } else {
-            panic!("Expected TypeDeclaration or Type, got {:?}", value);
+            panic!("Expected TypeDeclaration, got {:?}", value);
         }
     }
 

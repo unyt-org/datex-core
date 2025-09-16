@@ -5,11 +5,11 @@ use crate::ast::comparison_operation::comparison_operation;
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
-use crate::ast::r#type::type_declaration;
+use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
 use crate::ast::{
     BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
-    ReferenceMutability, VariableKind,
+    ReferenceMutability, TypeExpression, VariableKind,
 };
 use chumsky::prelude::*;
 pub type VariableId = usize;
@@ -17,7 +17,7 @@ pub type VariableId = usize;
 fn create_variable_declaration(
     name: String,
     value: Box<DatexExpression>,
-    type_annotation: Option<DatexExpression>,
+    type_annotation: Option<TypeExpression>,
     reference_mutability: ReferenceMutability,
     kind: VariableKind,
 ) -> DatexExpression {
@@ -31,7 +31,7 @@ fn create_variable_declaration(
         },
         reference_mutability,
         name,
-        type_annotation: type_annotation.map(Box::new),
+        type_annotation,
         value,
     }
 }
@@ -64,7 +64,7 @@ pub fn variable_declaration<'a>(
 ) -> impl DatexParserTrait<'a> {
     let type_annotation = just(Token::Colon)
         .padded_by(whitespace())
-        .ignore_then(union.clone())
+        .ignore_then(r#type())
         .or_not();
 
     let assignment_op = assignment_operation();

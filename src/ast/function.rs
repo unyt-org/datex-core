@@ -1,14 +1,14 @@
 use crate::ast::lexer::Token;
+use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait};
+use crate::ast::{DatexExpression, DatexParserTrait, TypeExpression};
 use chumsky::prelude::*;
 
-fn return_type<'a>(
-    expression_without_list: impl DatexParserTrait<'a>,
-) -> impl DatexParserTrait<'a, Option<DatexExpression>> {
+fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
     just(Token::Arrow)
         .padded_by(whitespace())
-        .ignore_then(expression_without_list.padded_by(whitespace()))
+        .ignore_then(r#type().padded_by(whitespace()))
+        .map(|ty| ty)
         .or_not()
 }
 
@@ -36,22 +36,20 @@ fn parameters<'a>(
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
     r#struct: impl DatexParserTrait<'a>,
-    expression_without_tuple: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let function_params = parameters(r#struct);
-    let return_type = return_type(expression_without_tuple);
     let function_body = body(statements);
     just(Token::Function)
         .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
         .then(function_params)
-        .then(return_type)
+        .then(return_type())
         .then(function_body)
         .map(|(((name, params), return_type), body)| {
             DatexExpression::FunctionDeclaration {
                 name,
                 parameters: Box::new(params),
-                return_type: return_type.map(Box::new),
+                return_type,
                 body: Box::new(body),
             }
         })
