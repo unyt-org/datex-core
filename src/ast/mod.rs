@@ -588,13 +588,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
 mod tests {
     use crate::{
         ast::error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-        values::{
-            core_values::{
-                endpoint::InvalidEndpointError,
-                r#type::structural_type_definition::StructuralTypeDefinition,
-            },
-            type_reference::TypeReference,
-        },
+        values::core_values::endpoint::InvalidEndpointError,
     };
 
     use super::*;
@@ -611,14 +605,6 @@ mod tests {
             panic!("Parsing errors found");
         }
         res.unwrap()
-    }
-    fn parse_type_unwrap(src: &str) -> TypeExpression {
-        let value = parse_unwrap(src);
-        if let DatexExpression::TypeDeclaration { value, .. } = value {
-            *value
-        } else {
-            panic!("Expected TypeDeclaration or Type, got {:?}", value);
-        }
     }
 
     fn parse_print_error(
@@ -1008,6 +994,7 @@ mod tests {
         );
     }
 
+    #[deprecated(note = "Remove intersection from value syntax")]
     #[test]
     fn intersection() {
         let src = "5 & 6";
@@ -1047,6 +1034,7 @@ mod tests {
         );
     }
 
+    #[deprecated(note = "Remove union from value syntax")]
     #[test]
     fn union() {
         let src = "5 | 6";
@@ -1298,143 +1286,6 @@ mod tests {
                 })),
             }
         );
-    }
-
-    #[test]
-    #[ignore = "WIP"]
-    fn generic_type() {
-        let src = "type User<T> = T & text";
-
-        // let val = parse_unwrap(src);
-        // assert_eq!(
-        //     val,
-        //     DatexExpression::TypeDeclaration {
-        //         id: None,
-        //         generic: Some(Box::new(DatexExpression::Literal(
-        //             "T".to_string()
-        //         ))),
-        //         name: "User".to_string(),
-        //         value: Box::new(DatexExpression::BinaryOperation(
-        //             BinaryOperator::Intersection,
-        //             Box::new(DatexExpression::Literal("T".to_string())),
-        //             Box::new(DatexExpression::Literal("text".to_owned())),
-        //             None
-        //         )),
-        //     }
-        // );
-    }
-
-    #[test]
-    #[ignore = "WIP"]
-
-    //     let src = "type a = (1 | 2) & 3 & 4";
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = r#"
-    //         type a = List<integer | text>
-    //     "#;
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = r#"
-    //         type a = Map<text, integer | text>
-    //     "#;
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = r#"
-    //         type a = Map<text, List<integer | text>>
-    //     "#;
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = r#"
-    //         type a = {
-    //             name: text,
-    //             age: integer
-    //         }
-    //     "#;
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = r#"
-    //         type a = {
-    //             name: text | null,
-    //             age: integer | text
-    //         }
-    //     "#;
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = "type a = [1,2,text]";
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-
-    //     let src = "type a = [integer | text]";
-    //     let val = parse_type_unwrap(src);
-    //     println!("{}", val);
-    // }
-    #[test]
-    #[ignore = "WIP"]
-    // WIP
-    fn type_declaration_complex() {
-        let src = r#"
-            type User = {
-                name: text,
-                friends: integer
-            }
-        "#;
-        let val = parse_unwrap(src);
-        // assert_eq!(
-        //     val,
-        //     DatexExpression::TypeDeclaration {
-        //         id: None,
-        //         name: "Userx".to_string(),
-        //         value: Box::new(
-        //             TypeReference::nominal(
-        //                 Type::structural(StructuralTypeDefinition::Struct(
-        //                     vec![
-        //                         ("name".to_string(), TypeContainer::text()),
-        //                         (
-        //                             "friends".to_string(),
-        //                             TypeContainer::integer()
-        //                         ),
-        //                     ]
-        //                 )),
-        //                 "User",
-        //                 None
-        //             )
-        //             .as_type_container()
-        //         )
-        //     },
-        // DatexExpression::TypeDeclaration {
-        //     id: None,
-        //     generic: None,
-        //     name: "User".to_string(),
-        //     value: Box::new(DatexExpression::Struct(vec![
-        //         (
-        //             "name".to_string(),
-        //             DatexExpression::Literal("text".to_owned())
-        //         ),
-        //         (
-        //             "friends".to_string(),
-        //             DatexExpression::RefMut(Box::new(
-        //                 DatexExpression::ApplyChain(
-        //                     Box::new(DatexExpression::Literal(
-        //                         "Array".to_string()
-        //                     )),
-        //                     vec![ApplyOperation::GenericAccess(
-        //                         DatexExpression::Literal(
-        //                             "User".to_string()
-        //                         )
-        //                     )]
-        //                 )
-        //             ))
-        //         )
-        //     ]))
-        // }
-        // );
     }
 
     #[test]

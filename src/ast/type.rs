@@ -107,9 +107,13 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                         .or_not(),
                 )
                 .map(|(base, sub): (String, Option<String>)| {
-                    TypeExpression::Literal(
-                        base + sub.unwrap_or_default().as_str(),
-                    )
+                    match sub.as_deref() {
+                        None => TypeExpression::Literal(base),
+                        Some(variant) => TypeExpression::Literal(format!(
+                            "{}/{}",
+                            base, variant
+                        )),
+                    }
                     // match sub.as_deref() {
                     //     None => match base.as_str() {
                     //         "integer" => Some(TypeContainer::integer()),
@@ -448,22 +452,10 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        ast::{
-            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-            parse,
-        },
-        values::{
-            core_values::{
-                endpoint::InvalidEndpointError,
-                r#type::structural_type_definition::StructuralTypeDefinition,
-            },
-            type_reference::TypeReference,
-        },
-    };
+    use crate::ast::{error::src::SrcId, parse};
 
     use super::*;
-    use std::{assert_matches::assert_matches, io, str::FromStr};
+    use std::{io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -495,6 +487,33 @@ mod tests {
 
     #[test]
     fn r#struct() {
+        let src = r#"
+			{
+				name: text | null,
+				age: integer | text
+			}
+		"#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Struct(vec![
+                (
+                    "name".to_string(),
+                    TypeExpression::Union(vec![
+                        TypeExpression::Literal("text".to_owned()),
+                        TypeExpression::Null
+                    ])
+                ),
+                (
+                    "age".to_string(),
+                    TypeExpression::Union(vec![
+                        TypeExpression::Literal("integer".to_owned()),
+                        TypeExpression::Literal("text".to_owned())
+                    ])
+                )
+            ])
+        );
+
         let src = r#"
             {
                 name?: text,
@@ -545,7 +564,7 @@ mod tests {
         );
 
         let src = r#"
-            type User = {
+            {
                 name: text,
                 age: &mut text
             }
@@ -603,54 +622,53 @@ mod tests {
         );
     }
 
+    #[test]
+    fn union_nested() {
+        let src = "(1 | 2) | 3 | 4";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Union(vec![
+                TypeExpression::Union(vec![
+                    TypeExpression::Integer(Integer::from(1)),
+                    TypeExpression::Integer(Integer::from(2)),
+                ]),
+                TypeExpression::Integer(Integer::from(3)),
+                TypeExpression::Integer(Integer::from(4)),
+            ])
+        );
+    }
 
-	#[test]
-	fn union_nested() {
-		let src = "(1 | 2) | 3 | 4";
-		let val = parse_type_unwrap(src);
-		assert_eq!(
-			val,
-			TypeExpression::Union(vec![
-				TypeExpression::Union(vec![
-					TypeExpression::Integer(Integer::from(1)),
-					TypeExpression::Integer(Integer::from(2)),
-				]),
-				TypeExpression::Integer(Integer::from(3)),
-				TypeExpression::Integer(Integer::from(4)),
-			])
-		);
-	}
+    #[test]
+    fn union_and_intersection() {
+        let src = "1 | (2 & 3) | 4";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Union(vec![
+                TypeExpression::Integer(Integer::from(1)),
+                TypeExpression::Intersection(vec![
+                    TypeExpression::Integer(Integer::from(2)),
+                    TypeExpression::Integer(Integer::from(3)),
+                ]),
+                TypeExpression::Integer(Integer::from(4)),
+            ])
+        );
 
-	#[test]
-	fn union_and_intersection() {
-		let src = "1 | (2 & 3) | 4";
-		let val = parse_type_unwrap(src);
-		assert_eq!(
-			val,
-			TypeExpression::Union(vec![
-				TypeExpression::Integer(Integer::from(1)),
-				TypeExpression::Intersection(vec![
-					TypeExpression::Integer(Integer::from(2)),
-					TypeExpression::Integer(Integer::from(3)),
-				]),
-				TypeExpression::Integer(Integer::from(4)),
-			])
-		);
-
-		let src = "(1 | 2) & 3 & 4";
-		let val = parse_type_unwrap(src);
-		assert_eq!(
-			val,
-			TypeExpression::Intersection(vec![
-				TypeExpression::Union(vec![
-					TypeExpression::Integer(Integer::from(1)),
-					TypeExpression::Integer(Integer::from(2)),
-				]),
-				TypeExpression::Integer(Integer::from(3)),
-				TypeExpression::Integer(Integer::from(4)),
-			])
-		);
-	}
+        let src = "(1 | 2) & 3 & 4";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Intersection(vec![
+                TypeExpression::Union(vec![
+                    TypeExpression::Integer(Integer::from(1)),
+                    TypeExpression::Integer(Integer::from(2)),
+                ]),
+                TypeExpression::Integer(Integer::from(3)),
+                TypeExpression::Integer(Integer::from(4)),
+            ])
+        );
+    }
 
     #[test]
     fn array() {
@@ -688,6 +706,29 @@ mod tests {
                 )))
             ))])
         );
+
+        let src = "[1,2,text]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Array(vec![
+                TypeExpression::Integer(Integer::from(1)),
+                TypeExpression::Integer(Integer::from(2)),
+                TypeExpression::Literal("text".to_owned()),
+            ])
+        );
+
+        let src = "[integer|text]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Array(vec![
+                TypeExpression::Union(vec![
+					TypeExpression::Literal("integer".to_owned()),
+					TypeExpression::Literal("text".to_owned()),
+				])
+            ])
+        );
     }
 
     #[test]
@@ -699,6 +740,29 @@ mod tests {
             TypeExpression::List(Box::new(TypeExpression::Literal(
                 "integer".to_owned()
             )))
+        );
+
+        let src = "List<integer | text>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::List(Box::new(TypeExpression::Union(vec![
+                TypeExpression::Literal("integer".to_owned()),
+                TypeExpression::Literal("text".to_owned()),
+            ])))
+        );
+    }
+
+    #[test]
+    fn map() {
+        let src = "Map<text, integer>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Map(
+                Box::new(TypeExpression::Literal("text".to_owned())),
+                Box::new(TypeExpression::Literal("integer".to_owned()))
+            )
         );
     }
 
