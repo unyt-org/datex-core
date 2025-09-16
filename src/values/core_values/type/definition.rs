@@ -1,9 +1,7 @@
 use std::fmt::Display;
 
 use crate::values::{
-    core_values::r#type::{
-        Type, structural_type_definition::StructuralTypeDefinition,
-    },
+    core_values::r#type::structural_type_definition::StructuralTypeDefinition,
     reference::Reference,
     traits::structural_eq::StructuralEq,
     type_container::TypeContainer,

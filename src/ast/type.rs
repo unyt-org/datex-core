@@ -8,12 +8,12 @@ use chumsky::{
 
 use crate::{
     ast::{
-        DatexExpression, DatexParserTrait, ParserRecoverExt, TypeExpression,
+        DatexExpression, DatexParserTrait, TypeExpression,
         error::{
             error::{ErrorKind, ParseError},
             pattern::Pattern,
         },
-        lexer::{DecimalLiteral, IntegerLiteral, Token, TypedLiteral},
+        lexer::{DecimalLiteral, IntegerLiteral, Token},
         literal::literal,
         text::unescape_text,
         utils::whitespace,
@@ -22,19 +22,15 @@ use crate::{
         core_values::{
             decimal::{
                 decimal::Decimal,
-                typed_decimal::{DecimalTypeVariant, TypedDecimal},
+                typed_decimal::TypedDecimal,
             },
             endpoint::Endpoint,
             integer::{
                 integer::Integer,
-                typed_integer::{IntegerTypeVariant, TypedInteger},
-            },
-            r#type::{
-                Type, structural_type_definition::StructuralTypeDefinition,
+                typed_integer::TypedInteger,
             },
         },
-        reference::{Reference, ReferenceMutability},
-        type_container::TypeContainer,
+        reference::ReferenceMutability,
     },
 };
 

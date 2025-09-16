@@ -4,12 +4,10 @@ use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlo
 use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
-use binrw::{BinRead, BinResult};
+use binrw::BinRead;
 use std::fmt::Display;
 use std::io::{BufRead, Cursor, Read, Seek};
-use binrw::__private::Required;
 use datex_core::global::protocol_structures::instructions::RawOriginPointerAddress;
-use crate::global::protocol_structures::instructions;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -137,7 +135,7 @@ pub fn iterate_instructions<'a>(
             let mut reader = Cursor::new(dxb_body);
             loop {
                 // if cursor is at the end, break
-                if reader.has_data_left().unwrap() == false {
+                if !reader.has_data_left().unwrap() {
                     return;
                 }
 
@@ -467,7 +465,7 @@ pub fn iterate_instructions<'a>(
 
                     InstructionCode::TYPED_VALUE => {
                         // collect type space instructions
-                        let result: Result<Vec<TypeInstruction>, DXBParserError> = iterate_type_space_instructions(&mut reader).into_iter().collect();
+                        let result: Result<Vec<TypeInstruction>, DXBParserError> = iterate_type_space_instructions(&mut reader).collect();
                         if let Err(err) = result {
                             Err(err)
                         } else {
