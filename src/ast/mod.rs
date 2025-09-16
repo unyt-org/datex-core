@@ -137,6 +137,7 @@ pub enum Slot {
 // TODO: parse TypeExpressions in ast parser
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeExpression {
+    Null,
     // a type name or variable, e.g. integer, string, User, MyType, T
     Literal(String),
 
@@ -151,11 +152,16 @@ pub enum TypeExpression {
 
     // containers
     Array(Vec<TypeExpression>),
-    List(Vec<TypeExpression>),
+    List(Box<TypeExpression>),
     Struct(Vec<(String, TypeExpression)>),
-    Map(Vec<(TypeExpression, TypeExpression)>),
+    Map(Box<TypeExpression>, Box<TypeExpression>),
     Intersection(Vec<TypeExpression>),
     Union(Vec<TypeExpression>),
+
+    Function {
+        parameters: Vec<(String, TypeExpression)>,
+        return_type: Box<TypeExpression>,
+    },
 
     // modifiers
     Ref(Box<TypeExpression>),
@@ -227,12 +233,10 @@ pub enum DatexExpression {
     TypeDeclaration {
         id: Option<VariableId>,
         name: String,
-        value: Box<DatexExpression>, // Type
+        value: Box<TypeExpression>, // Type
     },
 
     /// Type
-    Type(TypeContainer),
-
     TypeExpression(TypeExpression),
 
     FunctionDeclaration {
@@ -608,15 +612,10 @@ mod tests {
         }
         res.unwrap()
     }
-    fn parse_type_unwrap(src: &str) -> TypeContainer {
+    fn parse_type_unwrap(src: &str) -> TypeExpression {
         let value = parse_unwrap(src);
         if let DatexExpression::TypeDeclaration { value, .. } = value {
-            match *value {
-                DatexExpression::Type(t) => t,
-                _ => panic!("Expected Type, got {:?}", value),
-            }
-        } else if let DatexExpression::Type(t) = value {
-            t
+            *value
         } else {
             panic!("Expected TypeDeclaration or Type, got {:?}", value);
         }
@@ -1327,127 +1326,114 @@ mod tests {
 
     #[test]
     #[ignore = "WIP"]
-    fn type_declaration_collection() {
-        let src = r#"
-            type User = {
-                name?: text,
-                friends: List<&text>
-            };
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    // fn type_declaration_collection() {
 
-        let src = "type a = 1 | 2 | 3 | 4";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"type User = (x: &mut text, y: text | 4.5) -> text | 52"#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"type User = (x: &mut text, y: text | 4.5) -> text | 52"#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type User = &[&mut text, &mut integer/u8]";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type User = &[&mut text, &mut integer/u8]";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type User = @jonas | @bene";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type User = @jonas | @bene";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type User = {
+    //             name: text,
+    //             friends: List<&text>
+    //         };
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type User = {
-                name: text,
-                friends: List<&text>
-            };
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type User = {
+    //             name: text,
+    //             age: &mut text
+    //         }
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type User = {
-                name: text,
-                age: &mut text
-            }
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type MyInt = integer/u16";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type MyInt = integer/u16";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"type User = (x: text, y: text | 4.5) -> text | 52"#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"type User = (x: text, y: text | 4.5) -> text | 52"#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"type User = text[]"#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"type User = text[]"#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"type User = "hello world" | 42"#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"type User = "hello world" | 42"#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"type User = text"#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"type User = text"#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type a = (1 | 2) | 3 | 4";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type a = (1 | 2) | 3 | 4";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type a = 1 | (2 & 3) | 4";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type a = 1 | (2 & 3) | 4";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type a = (1 | 2) & 3 & 4";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type a = (1 | 2) & 3 & 4";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type a = List<integer | text>
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type a = List<integer | text>
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type a = Map<text, integer | text>
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type a = Map<text, integer | text>
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type a = Map<text, List<integer | text>>
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type a = Map<text, List<integer | text>>
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type a = {
+    //             name: text,
+    //             age: integer
+    //         }
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type a = {
-                name: text,
-                age: integer
-            }
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = r#"
+    //         type a = {
+    //             name: text | null,
+    //             age: integer | text
+    //         }
+    //     "#;
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = r#"
-            type a = {
-                name: text | null,
-                age: integer | text
-            }
-        "#;
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
+    //     let src = "type a = [1,2,text]";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
 
-        let src = "type a = [1,2,text]";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
-
-        let src = "type a = [integer | text]";
-        let val = parse_type_unwrap(src);
-        println!("{}", val);
-    }
-
+    //     let src = "type a = [integer | text]";
+    //     let val = parse_type_unwrap(src);
+    //     println!("{}", val);
+    // }
     #[test]
     #[ignore = "WIP"]
     // WIP

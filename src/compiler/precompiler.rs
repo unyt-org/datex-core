@@ -631,7 +631,6 @@ fn visit_expression(
         | DatexExpression::Endpoint(_)
         | DatexExpression::Placeholder
         | DatexExpression::TypedDecimal(_)
-        | DatexExpression::Type(_)
         | DatexExpression::TypedInteger(_)
         | DatexExpression::Slot(_) => {
             // ignored

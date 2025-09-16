@@ -8,7 +8,7 @@ use chumsky::{
 
 use crate::{
     ast::{
-        DatexExpression, DatexParserTrait, ParserRecoverExt,
+        DatexExpression, DatexParserTrait, ParserRecoverExt, TypeExpression,
         error::{
             error::{ErrorKind, ParseError},
             pattern::Pattern,
@@ -38,38 +38,38 @@ use crate::{
     },
 };
 
-pub fn integer<'a>() -> impl DatexParserTrait<'a, StructuralTypeDefinition> {
+pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     select! {
         Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_with_variant(&value, var)
-                    .map(StructuralTypeDefinition::TypedInteger),
+                    .map(TypeExpression::TypedInteger),
                 None => Integer::from_string(&value)
-                    .map(StructuralTypeDefinition::Integer),
+                    .map(TypeExpression::Integer),
             }
         },
         Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
-                    .map(StructuralTypeDefinition::TypedInteger),
+                    .map(TypeExpression::TypedInteger),
                 None => Integer::from_string_radix(&value[2..], 2)
-                    .map(StructuralTypeDefinition::Integer),
+                    .map(TypeExpression::Integer),
             }
         },
         Token::HexadecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 16, var)
-                    .map(StructuralTypeDefinition::TypedInteger),
+                    .map(TypeExpression::TypedInteger),
                 None => Integer::from_string_radix(&value[2..], 16)
-                    .map(StructuralTypeDefinition::Integer),
+                    .map(TypeExpression::Integer),
             }
         },
         Token::OctalIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 8, var)
-                    .map(StructuralTypeDefinition::TypedInteger),
+                    .map(TypeExpression::TypedInteger),
                 None => Integer::from_string_radix(&value[2..], 8)
-                    .map(StructuralTypeDefinition::Integer),
+                    .map(TypeExpression::Integer),
             }
         },
     }.try_map(|res, _| {
@@ -77,21 +77,21 @@ pub fn integer<'a>() -> impl DatexParserTrait<'a, StructuralTypeDefinition> {
 	})
 }
 
-pub fn decimal<'a>() -> impl DatexParserTrait<'a, StructuralTypeDefinition> {
+pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     select! {
         Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
             match variant {
-                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(StructuralTypeDefinition::TypedDecimal),
-                None => Decimal::from_string(&value).map(StructuralTypeDefinition::Decimal)
+                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpression::TypedDecimal),
+                None => Decimal::from_string(&value).map(TypeExpression::Decimal)
             }
         },
-        Token::FractionLiteral(s) => Decimal::from_string(&s).map(StructuralTypeDefinition::Decimal),
+        Token::FractionLiteral(s) => Decimal::from_string(&s).map(TypeExpression::Decimal),
     }.try_map(|res, _| {
 		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
 	})
 }
 
-pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
+pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
             just(Token::LeftParen).padded_by(whitespace()),
@@ -107,55 +107,54 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                         .or_not(),
                 )
                 .map(|(base, sub): (String, Option<String>)| {
-                    match sub.as_deref() {
-                        None => match base.as_str() {
-                            "integer" => Some(TypeContainer::integer()),
-                            "text" => Some(TypeContainer::text()),
-                            "boolean" => Some(TypeContainer::boolean()),
-                            "null" => Some(TypeContainer::null()),
-                            _ => None,
-                        },
-                        Some(variant) => match base.as_str() {
-                            "integer" => IntegerTypeVariant::from_str(variant)
-                                .ok()
-                                .map(TypeContainer::typed_integer),
-                            "decimal" => DecimalTypeVariant::from_str(variant)
-                                .ok()
-                                .map(TypeContainer::typed_decimal),
-                            _ => None,
-                        },
-                    }
-                })
-                .try_map(|res, _| {
-                    res.ok_or_else(|| ParseError::new(ErrorKind::UnexpectedEnd))
+                    TypeExpression::Literal(
+                        base + sub.unwrap_or_default().as_str(),
+                    )
+                    // match sub.as_deref() {
+                    //     None => match base.as_str() {
+                    //         "integer" => Some(TypeContainer::integer()),
+                    //         "text" => Some(TypeContainer::text()),
+                    //         "boolean" => Some(TypeContainer::boolean()),
+                    //         "null" => Some(TypeContainer::null()),
+                    //         _ => None,
+                    //     },
+                    //     Some(variant) => match base.as_str() {
+                    //         "integer" => IntegerTypeVariant::from_str(variant)
+                    //             .ok()
+                    //             .map(TypeContainer::typed_integer),
+                    //         "decimal" => DecimalTypeVariant::from_str(variant)
+                    //             .ok()
+                    //             .map(TypeContainer::typed_decimal),
+                    //         _ => None,
+                    //     },
+                    // }
                 }),
-            just(Token::Null).map(|_| TypeContainer::null()),
+            // .try_map(|res, _| {
+            //     res.ok_or_else(|| ParseError::new(ErrorKind::UnexpectedEnd))
+            // }),
+            just(Token::Null).map(|_| TypeExpression::Null),
         ));
 
         let literal =
             choice((
 				select! {
-					Token::StringLiteral(s) => StructuralTypeDefinition::Text(unescape_text(&s).into()),
+					Token::StringLiteral(s) => TypeExpression::Text(unescape_text(&s)),
 				},
 				select! {
-					Token::True => StructuralTypeDefinition::Boolean(true.into()),
-					Token::False => StructuralTypeDefinition::Boolean(false.into()),
+					Token::True => TypeExpression::Boolean(true),
+					Token::False => TypeExpression::Boolean(false),
 				},
 				select! {
 					Token::Endpoint(s) =>
 						Endpoint::from_str(s.as_str())
 				}.try_map(|res, _| {
-					res.map(StructuralTypeDefinition::Endpoint)
+					res.map(TypeExpression::Endpoint)
 						.map_err(|e| ParseError::new(ErrorKind::InvalidEndpoint(e)))
 				}),
 				integer(),
 				decimal()
 			))
-			.padded_by(whitespace())
-			.map(|value: StructuralTypeDefinition| {
-                Type::structural(value)
-                    .as_type_container()
-            });
+			.padded_by(whitespace());
 
         let array_inline = ty
             .clone()
@@ -167,9 +166,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                 just(Token::LeftBracket).padded_by(whitespace()),
                 just(Token::RightBracket).padded_by(whitespace()),
             )
-            .map(|elems: Vec<TypeContainer>| {
-                Type::array(elems).as_type_container()
-            });
+            .map(|elems: Vec<TypeExpression>| TypeExpression::Array(elems));
 
         let key_ident =
             select! { Token::Identifier(k) => k }.padded_by(whitespace());
@@ -189,27 +186,32 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         //     .map(|fields: Vec<(String, TypeContainer)>| {
         //         Type::r#struct(fields).as_type_container()
         //     });
-		let struct_field = select! { Token::Identifier(k) => k }
-			.then(
-				just(Token::Placeholder).or_not()
-			)
-			.then_ignore(just(Token::Colon).padded_by(whitespace()))
-			.then(ty.clone())
-			.map(|((name, opt), typ)| {
-				if opt.is_some() {
-					(name, Type::union(vec![typ, TypeContainer::null()]).as_type_container())
-				} else {
-					(name, typ)
-				}
-			});
+        let struct_field = select! { Token::Identifier(k) => k }
+            .then(just(Token::Placeholder).or_not())
+            .then_ignore(just(Token::Colon).padded_by(whitespace()))
+            .then(ty.clone())
+            .map(|((name, opt), typ)| {
+                if opt.is_some() {
+                    (
+                        name,
+                        TypeExpression::Union(vec![typ, TypeExpression::Null]),
+                    )
+                } else {
+                    (name, typ)
+                }
+            });
 
-		let r#struct = struct_field
-			.separated_by(just(Token::Comma).padded_by(whitespace()))
-			.allow_trailing()
-			.collect()
-			.delimited_by(just(Token::LeftCurly).padded_by(whitespace()),
-						just(Token::RightCurly).padded_by(whitespace()))
-			.map(|fields: Vec<(String, TypeContainer)>| Type::r#struct(fields).as_type_container());
+        let r#struct = struct_field
+            .separated_by(just(Token::Comma).padded_by(whitespace()))
+            .allow_trailing()
+            .collect()
+            .delimited_by(
+                just(Token::LeftCurly).padded_by(whitespace()),
+                just(Token::RightCurly).padded_by(whitespace()),
+            )
+            .map(|fields: Vec<(String, TypeExpression)>| {
+                TypeExpression::Struct(fields)
+            });
 
         let generic = select! { Token::Identifier(name) => name }
             .then(
@@ -223,16 +225,17 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                         just(Token::RightAngle),
                     ),
             )
-            .map(|(name, args): (String, Vec<TypeContainer>)| {
+            .map(|(name, args): (String, Vec<TypeExpression>)| {
                 match name.as_str() {
                     "List" if args.len() == 1 => {
-                        Type::list(args.into_iter().next().unwrap())
-                            .as_type_container()
+                        TypeExpression::List(Box::new(args[0].clone()))
                     }
                     "Map" if args.len() == 2 => {
                         let mut it = args.into_iter();
-                        Type::map(it.next().unwrap(), it.next().unwrap())
-                            .as_type_container()
+                        TypeExpression::Map(
+                            Box::new(it.next().unwrap()),
+                            Box::new(it.next().unwrap()),
+                        )
                     }
                     other => panic!(
                         "unknown generic type {} with {} arguments",
@@ -256,10 +259,13 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
             .then(ty.clone())
             .map(
                 |(params, ret): (
-                    Vec<(String, TypeContainer)>,
-                    TypeContainer,
+                    Vec<(String, TypeExpression)>,
+                    TypeExpression,
                 )| {
-                    Type::function(params, ret).as_type_container()
+                    TypeExpression::Function {
+                        parameters: params,
+                        return_type: Box::new(ret),
+                    }
                 },
             );
 
@@ -267,23 +273,19 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
             .ignore_then(just(Token::Mutable).or_not())
             .then_ignore(whitespace())
             .then(ty.clone())
-            .map(|(maybe_mut, inner): (Option<Token>, TypeContainer)| {
+            .map(|(maybe_mut, inner): (Option<Token>, TypeExpression)| {
                 let mutability = match maybe_mut {
                     Some(_) => ReferenceMutability::Mutable,
                     None => ReferenceMutability::Immutable,
                 };
-                let t = match inner {
-                    TypeContainer::Type(mut ty) => {
-                        ty.reference_mutability = Some(mutability);
-                        ty
+                match mutability {
+                    ReferenceMutability::Mutable => {
+                        TypeExpression::RefMut(Box::new(inner))
                     }
-                    TypeContainer::TypeReference(r) => Type::reference(
-                        Reference::TypeReference(r),
-                        Some(mutability),
-                    ),
-                };
-
-                TypeContainer::Type(t)
+                    ReferenceMutability::Immutable => {
+                        TypeExpression::Ref(Box::new(inner))
+                    }
+                }
             });
 
         let base = choice((
@@ -311,17 +313,17 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         //         })
         //     });
 
-		// let index_access = base.clone().then(
-		// 	just(Token::LeftBracket)
-		// 		.ignore_then(ty.clone())
-		// 		.then_ignore(just(Token::RightBracket))
-		// 		.repeated()
-		// 		.collect(),
-		// ).map(|(root, indices): (TypeContainer, Vec<TypeContainer>)| {
-		// 	indices.into_iter().fold(root, |acc, idx| {
-		// 		Type::index_access(acc, idx).as_type_container()
-		// 	})
-		// });
+        // let index_access = base.clone().then(
+        // 	just(Token::LeftBracket)
+        // 		.ignore_then(ty.clone())
+        // 		.then_ignore(just(Token::RightBracket))
+        // 		.repeated()
+        // 		.collect(),
+        // ).map(|(root, indices): (TypeContainer, Vec<TypeContainer>)| {
+        // 	indices.into_iter().fold(root, |acc, idx| {
+        // 		Type::index_access(acc, idx).as_type_container()
+        // 	})
+        // });
 
         // parse zero-or-more postfix `[]`
         let optional_postfix_array = base
@@ -331,34 +333,34 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                     .repeated()
                     .count(),
             )
-            .map(|(base_tc, count): (TypeContainer, usize)| {
+            .map(|(base_tc, count): (TypeExpression, usize)| {
                 let mut t = base_tc;
                 for _ in 0..count {
-                    t = Type::array(vec![t]).as_type_container();
+                    t = TypeExpression::Array(vec![t]);
                 }
                 t
             });
-		// let postfix = base.clone().then(
-		// 	choice((
-		// 		just(Token::Dot)
-		// 			.ignore_then(select! { Token::Identifier(name) => name })
-		// 			.map(|name| PostfixOp::Field(name)),
+        // let postfix = base.clone().then(
+        // 	choice((
+        // 		just(Token::Dot)
+        // 			.ignore_then(select! { Token::Identifier(name) => name })
+        // 			.map(|name| PostfixOp::Field(name)),
 
-		// 		just(Token::LeftBracket)
-		// 			.ignore_then(ty.clone())
-		// 			.then_ignore(just(Token::RightBracket))
-		// 			.map(|idx| PostfixOp::Index(idx)),
-		// 	))
-		// 	.repeated()
-		// 	.collect(),
-		// ).map(|(root, ops): (TypeContainer, Vec<PostfixOp>)| {
-		// 	ops.into_iter().fold(root, |acc, op| {
-		// 		match op {
-		// 			PostfixOp::Field(name) => Type::field_access(acc, name).as_type_container(),
-		// 			PostfixOp::Index(idx)  => Type::index_access(acc, idx).as_type_container(),
-		// 		}
-		// 	})
-		// });
+        // 		just(Token::LeftBracket)
+        // 			.ignore_then(ty.clone())
+        // 			.then_ignore(just(Token::RightBracket))
+        // 			.map(|idx| PostfixOp::Index(idx)),
+        // 	))
+        // 	.repeated()
+        // 	.collect(),
+        // ).map(|(root, ops): (TypeContainer, Vec<PostfixOp>)| {
+        // 	ops.into_iter().fold(root, |acc, op| {
+        // 		match op {
+        // 			PostfixOp::Field(name) => Type::field_access(acc, name).as_type_container(),
+        // 			PostfixOp::Index(idx)  => Type::index_access(acc, idx).as_type_container(),
+        // 		}
+        // 	})
+        // });
 
         let intersection = optional_postfix_array
             .clone()
@@ -370,12 +372,12 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                     .repeated()
                     .collect(),
             )
-            .map(|(first, mut rest): (TypeContainer, Vec<TypeContainer>)| {
+            .map(|(first, mut rest): (TypeExpression, Vec<TypeExpression>)| {
                 if rest.is_empty() {
                     return first;
                 }
                 rest.insert(0, first);
-                Type::intersection(rest).as_type_container()
+                TypeExpression::Intersection(rest)
             });
         // .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
         //     // fold the tail into a single intersection-type
@@ -393,12 +395,12 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                     .repeated()
                     .collect(),
             )
-            .map(|(first, mut rest): (TypeContainer, Vec<TypeContainer>)| {
+            .map(|(first, mut rest): (TypeExpression, Vec<TypeExpression>)| {
                 if rest.is_empty() {
                     return first;
                 }
                 rest.insert(0, first);
-                Type::union(rest).as_type_container()
+                TypeExpression::Union(rest)
             })
         // .map(|(first, rest): (TypeContainer, Vec<TypeContainer>)| {
         //     rest.into_iter().fold(first, |acc, next| {
@@ -406,11 +408,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         //     })
         // })
     })
-	.try_map(|res, _| {
-        Ok(DatexExpression::Type(
-			res
-		))
-    })
+    //.try_map(|res, _| Ok(DatexExpression::Type(res)))
 }
 
 pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
@@ -447,3 +445,121 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
 //         .map(|expr| DatexExpression::Type(expr))
 //         .as_context()
 // }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ast::{
+            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
+            parse,
+        },
+        values::{
+            core_values::{
+                endpoint::InvalidEndpointError,
+                r#type::structural_type_definition::StructuralTypeDefinition,
+            },
+            type_reference::TypeReference,
+        },
+    };
+
+    use super::*;
+    use std::{assert_matches::assert_matches, io, str::FromStr};
+
+    fn parse_unwrap(src: &str) -> DatexExpression {
+        let src_id = SrcId::test();
+        let res = parse(src);
+        if let Err(errors) = res {
+            errors.iter().for_each(|e| {
+                let cache = ariadne::sources(vec![(src_id, src)]);
+                e.clone().write(cache, io::stdout());
+            });
+            panic!("Parsing errors found");
+        }
+        res.unwrap()
+    }
+    fn parse_type_unwrap(src: &str) -> TypeExpression {
+        let value = parse_unwrap(format!("type T = {}", src).as_str());
+        if let DatexExpression::TypeDeclaration { value, .. } = value {
+            *value
+        } else {
+            panic!("Expected TypeDeclaration or Type, got {:?}", value);
+        }
+    }
+
+    #[test]
+    #[ignore = "WIP"]
+    fn r#struct() {
+        let src = r#"
+            {
+                name?: text,
+                friends: List<&text>
+            };
+        "#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Struct(vec![
+                (
+                    "name".to_string(),
+                    TypeExpression::Union(vec![
+                        TypeExpression::Literal("text".to_owned()),
+                        TypeExpression::Null
+                    ])
+                ),
+                (
+                    "friends".to_string(),
+                    TypeExpression::List(Box::new(TypeExpression::Ref(
+                        Box::new(TypeExpression::Literal("text".to_owned()))
+                    )))
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn union_flat() {
+        let src = "1 | 2 | 3 | 4";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Union(vec![
+                TypeExpression::Integer(Integer::from(1)),
+                TypeExpression::Integer(Integer::from(2)),
+                TypeExpression::Integer(Integer::from(3)),
+                TypeExpression::Integer(Integer::from(4)),
+            ])
+        );
+    }
+
+    #[test]
+    fn function() {
+        let src = "(x: &mut text, y: text | 4.5) -> text | 52";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Function {
+                parameters: vec![
+                    (
+                        "x".to_string(),
+                        TypeExpression::RefMut(Box::new(
+                            TypeExpression::Literal("text".to_owned())
+                        ))
+                    ),
+                    (
+                        "y".to_string(),
+                        TypeExpression::Union(vec![
+                            TypeExpression::Literal("text".to_owned()),
+                            TypeExpression::Decimal(
+                                Decimal::from_string("4.5").unwrap()
+                            )
+                        ])
+                    )
+                ],
+                return_type: Box::new(TypeExpression::Union(vec![
+                    TypeExpression::Literal("text".to_owned()),
+                    TypeExpression::Integer(Integer::from(52))
+                ])),
+            }
+        );
+    }
+}
