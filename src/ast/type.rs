@@ -487,7 +487,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
+    fn literal() {
+        let src = "integer/u16";
+        let val = parse_type_unwrap(src);
+        assert_eq!(val, TypeExpression::Literal("integer/u16".to_owned()));
+    }
+
+    #[test]
     fn r#struct() {
         let src = r#"
             {
@@ -514,10 +520,66 @@ mod tests {
                 ),
             ])
         );
+
+        let src = r#"
+			{
+    			name: text,
+				friends: List<&text>
+			}
+		"#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Struct(vec![
+                (
+                    "name".to_string(),
+                    TypeExpression::Literal("text".to_owned())
+                ),
+                (
+                    "friends".to_string(),
+                    TypeExpression::List(Box::new(TypeExpression::Ref(
+                        Box::new(TypeExpression::Literal("text".to_owned()))
+                    )))
+                ),
+            ])
+        );
+
+        let src = r#"
+            type User = {
+                name: text,
+                age: &mut text
+            }
+        "#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Struct(vec![
+                (
+                    "name".to_string(),
+                    TypeExpression::Literal("text".to_owned())
+                ),
+                (
+                    "age".to_string(),
+                    TypeExpression::RefMut(Box::new(TypeExpression::Literal(
+                        "text".to_owned()
+                    )))
+                ),
+            ])
+        );
     }
 
     #[test]
     fn union_flat() {
+        let src = r#""hello world" | 42"#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Union(vec![
+                TypeExpression::Text("hello world".to_owned()),
+                TypeExpression::Integer(Integer::from(42)),
+            ])
+        );
+
         let src = "1 | 2 | 3 | 4";
         let val = parse_type_unwrap(src);
         assert_eq!(
@@ -529,10 +591,146 @@ mod tests {
                 TypeExpression::Integer(Integer::from(4)),
             ])
         );
+
+        let src = "@jonas | @bene";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Union(vec![
+                TypeExpression::Endpoint(Endpoint::from_str("@jonas").unwrap()),
+                TypeExpression::Endpoint(Endpoint::from_str("@bene").unwrap()),
+            ])
+        );
+    }
+
+
+	#[test]
+	fn union_nested() {
+		let src = "(1 | 2) | 3 | 4";
+		let val = parse_type_unwrap(src);
+		assert_eq!(
+			val,
+			TypeExpression::Union(vec![
+				TypeExpression::Union(vec![
+					TypeExpression::Integer(Integer::from(1)),
+					TypeExpression::Integer(Integer::from(2)),
+				]),
+				TypeExpression::Integer(Integer::from(3)),
+				TypeExpression::Integer(Integer::from(4)),
+			])
+		);
+	}
+
+	#[test]
+	fn union_and_intersection() {
+		let src = "1 | (2 & 3) | 4";
+		let val = parse_type_unwrap(src);
+		assert_eq!(
+			val,
+			TypeExpression::Union(vec![
+				TypeExpression::Integer(Integer::from(1)),
+				TypeExpression::Intersection(vec![
+					TypeExpression::Integer(Integer::from(2)),
+					TypeExpression::Integer(Integer::from(3)),
+				]),
+				TypeExpression::Integer(Integer::from(4)),
+			])
+		);
+
+		let src = "(1 | 2) & 3 & 4";
+		let val = parse_type_unwrap(src);
+		assert_eq!(
+			val,
+			TypeExpression::Intersection(vec![
+				TypeExpression::Union(vec![
+					TypeExpression::Integer(Integer::from(1)),
+					TypeExpression::Integer(Integer::from(2)),
+				]),
+				TypeExpression::Integer(Integer::from(3)),
+				TypeExpression::Integer(Integer::from(4)),
+			])
+		);
+	}
+
+    #[test]
+    fn array() {
+        let src = "[1, 2, 3, 4]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Array(vec![
+                TypeExpression::Integer(Integer::from(1)),
+                TypeExpression::Integer(Integer::from(2)),
+                TypeExpression::Integer(Integer::from(3)),
+                TypeExpression::Integer(Integer::from(4)),
+            ])
+        );
+    }
+
+    #[test]
+    fn array_postfix() {
+        let src = "text[]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Array(vec![TypeExpression::Literal(
+                "text".to_owned()
+            )])
+        );
+
+        let src = "integer[][][]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Array(vec![TypeExpression::Array(vec!(
+                TypeExpression::Array(vec!(TypeExpression::Literal(
+                    "integer".to_owned()
+                )))
+            ))])
+        );
+    }
+
+    #[test]
+    fn list() {
+        let src = "List<integer>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::List(Box::new(TypeExpression::Literal(
+                "integer".to_owned()
+            )))
+        );
     }
 
     #[test]
     fn function() {
+        let src = "(x: text, y: text | 4.5) -> text | 52";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Function {
+                parameters: vec![
+                    (
+                        "x".to_string(),
+                        TypeExpression::Literal("text".to_owned())
+                    ),
+                    (
+                        "y".to_string(),
+                        TypeExpression::Union(vec![
+                            TypeExpression::Literal("text".to_owned()),
+                            TypeExpression::Decimal(
+                                Decimal::from_string("4.5").unwrap()
+                            )
+                        ])
+                    )
+                ],
+                return_type: Box::new(TypeExpression::Union(vec![
+                    TypeExpression::Literal("text".to_owned()),
+                    TypeExpression::Integer(Integer::from(52))
+                ])),
+            }
+        );
+
         let src = "(x: &mut text, y: text | 4.5) -> text | 52";
         let val = parse_type_unwrap(src);
         assert_eq!(
@@ -560,6 +758,23 @@ mod tests {
                     TypeExpression::Integer(Integer::from(52))
                 ])),
             }
+        );
+    }
+
+    #[test]
+    fn mix_1() {
+        let src = "&[&mut text, &mut integer/u8]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Ref(Box::new(TypeExpression::Array(vec![
+                TypeExpression::RefMut(Box::new(TypeExpression::Literal(
+                    "text".to_owned()
+                ))),
+                TypeExpression::RefMut(Box::new(TypeExpression::Literal(
+                    "integer/u8".to_owned()
+                ))),
+            ])))
         );
     }
 }
