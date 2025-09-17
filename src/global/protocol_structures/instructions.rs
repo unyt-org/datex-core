@@ -77,6 +77,7 @@ pub enum Instruction {
 
     CreateRef,
     CreateRefMut,
+    CreateRefFinal,
 
     // &ABCDE
     GetRef(RawFullPointerAddress),
@@ -195,6 +196,7 @@ impl Display for Instruction {
             }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
             Instruction::CreateRefMut => write!(f, "CREATE_REF_MUT"),
+            Instruction::CreateRefFinal => write!(f, "CREATE_REF_FINAL"),
             Instruction::GetOrCreateRef(data) => {
                 write!(f, "GET_OR_CREATE_REF [{}:{}, block_size: {}]", data.address.endpoint, hex::encode(data.address.id), data.create_block_size)
             }

@@ -316,7 +316,6 @@ fn visit_expression(
             id,
             kind,
             binding_mutability,
-            reference_mutability,
             name,
             value,
             type_annotation,

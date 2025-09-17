@@ -382,6 +382,7 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::MATCHES => Ok(Instruction::Matches),
                     InstructionCode::CREATE_REF => Ok(Instruction::CreateRef),
                     InstructionCode::CREATE_REF_MUT =>  Ok(Instruction::CreateRefMut),
+                    InstructionCode::CREATE_REF_FINAL =>  Ok(Instruction::CreateRefFinal),
 
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {

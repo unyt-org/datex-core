@@ -86,7 +86,7 @@ impl CompilationScope {
     pub fn resolve_variable_name_to_virtual_slot(
         &self,
         name: &str,
-    ) -> Option<(VirtualSlot, VariableKind, Option<ReferenceMutability>)> {
+    ) -> Option<(VirtualSlot, VariableKind)> {
         if let Some(variable) = self.variables.get(name) {
             let slot = match variable.representation {
                 VariableRepresentation::Constant(slot) => slot,
@@ -96,12 +96,12 @@ impl CompilationScope {
                 } => container_slot,
                 VariableRepresentation::VariableSlot(slot) => slot,
             };
-            Some((slot, variable.var_type, variable.ref_mut.clone()))
+            Some((slot, variable.var_type))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
-                .map(|(virt_slot, var_type, mut_type)| {
-                    (virt_slot.downgrade(), var_type, mut_type)
+                .map(|(virt_slot, var_type)| {
+                    (virt_slot.downgrade(), var_type)
                 })
         } else if let Some(parent) = &self.parent_scope {
             parent.resolve_variable_name_to_virtual_slot(name)

@@ -264,13 +264,15 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             );
 
         let reference = just(Token::Ampersand)
-            .ignore_then(just(Token::Mutable).or_not())
+            .ignore_then(just(Token::Mutable).or(just(Token::Final)).or_not())
             .then_ignore(whitespace())
             .then(ty.clone())
             .map(|(maybe_mut, inner): (Option<Token>, TypeExpression)| {
                 let mutability = match maybe_mut {
-                    Some(_) => ReferenceMutability::Mutable,
+                    Some(Token::Mutable) => ReferenceMutability::Mutable,
+                    Some(Token::Final) => ReferenceMutability::Final,
                     None => ReferenceMutability::Immutable,
+                    _ => unreachable!()
                 };
                 match mutability {
                     ReferenceMutability::Mutable => {

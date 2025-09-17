@@ -150,7 +150,6 @@ pub enum VariableRepresentation {
 pub struct Variable {
     pub name: String,
     pub var_type: VariableKind,
-    pub ref_mut: Option<ReferenceMutability>,
     pub binding_mut: BindingMutability,
     pub representation: VariableRepresentation,
 }
@@ -158,14 +157,12 @@ pub struct Variable {
 impl Variable {
     pub fn new_const(
         name: String,
-        mut_type: Option<ReferenceMutability>,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
             var_type: VariableKind::Const,
             binding_mut: BindingMutability::Immutable,
-            ref_mut: mut_type,
             representation: VariableRepresentation::Constant(slot),
         }
     }
@@ -174,14 +171,12 @@ impl Variable {
         name: String,
         var_type: VariableKind,
         binding_mut: BindingMutability,
-        ref_mut: Option<ReferenceMutability>,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
             var_type,
             binding_mut,
-            ref_mut,
             representation: VariableRepresentation::VariableSlot(slot),
         }
     }
@@ -189,7 +184,6 @@ impl Variable {
     pub fn new_variable_reference(
         name: String,
         var_type: VariableKind,
-        ref_mut: Option<ReferenceMutability>,
         binding_mut: BindingMutability,
         variable_slot: VirtualSlot,
         container_slot: VirtualSlot,
@@ -197,7 +191,6 @@ impl Variable {
         Variable {
             name,
             var_type,
-            ref_mut,
             binding_mut,
             representation: VariableRepresentation::VariableReference {
                 variable_slot,
@@ -674,7 +667,6 @@ fn compile_expression(
         DatexExpression::VariableDeclaration {
             id,
             binding_mutability,
-            reference_mutability,
             name,
             kind,
             type_annotation,
@@ -689,22 +681,6 @@ fn compile_expression(
             compilation_context.insert_virtual_slot_address(
                 VirtualSlot::local(virtual_slot_addr),
             );
-            // create reference if value marked with & or &mut
-            match reference_mutability {
-                Some(ReferenceMutability::Immutable) => {
-                    compilation_context
-                        .append_binary_code(InstructionCode::CREATE_REF);
-                }
-                Some(ReferenceMutability::Mutable) => {
-                    compilation_context
-                        .append_binary_code(InstructionCode::CREATE_REF_MUT);
-                }
-                Some(ReferenceMutability::Final) => {
-                    compilation_context
-                        .append_binary_code(InstructionCode::CREATE_REF_FINAL);
-                }
-                None => {}
-            }
             // compile expression
             scope = compile_expression(
                 compilation_context,
@@ -749,7 +725,6 @@ fn compile_expression(
                     Variable::new_variable_reference(
                         name.clone(),
                         kind,
-                        reference_mutability,
                         binding_mutability,
                         VirtualSlot::local(virtual_slot_addr_for_var),
                         VirtualSlot::local(virtual_slot_addr),
@@ -757,14 +732,12 @@ fn compile_expression(
                 }
                 VariableModel::Constant => Variable::new_const(
                     name.clone(),
-                    reference_mutability,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
                 VariableModel::VariableSlot => Variable::new_variable_slot(
                     name.clone(),
                     kind,
                     binding_mutability,
-                    reference_mutability,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
             };
@@ -788,7 +761,7 @@ fn compile_expression(
         ) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
-            let (virtual_slot, var_type, mut_type) = scope
+            let (virtual_slot, var_type) = scope
                 .resolve_variable_name_to_virtual_slot(&name)
                 .ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
@@ -811,20 +784,21 @@ fn compile_expression(
                 }
                 AssignmentOperator::AddAssign
                 | AssignmentOperator::SubstractAssign => {
-                    // if immutable reference, return error
-                    if mut_type == Some(ReferenceMutability::Immutable) {
-                        return Err(
-                            CompilerError::AssignmentToImmutableReference(
-                                name.clone(),
-                            ),
-                        );
-                    }
-                    // if immutable value, return error
-                    else if mut_type == None {
-                        return Err(CompilerError::AssignmentToImmutableValue(
-                            name.clone(),
-                        ));
-                    }
+                    // TODO: handle mut type
+                    // // if immutable reference, return error
+                    // if mut_type == Some(ReferenceMutability::Immutable) {
+                    //     return Err(
+                    //         CompilerError::AssignmentToImmutableReference(
+                    //             name.clone(),
+                    //         ),
+                    //     );
+                    // }
+                    // // if immutable value, return error
+                    // else if mut_type == None {
+                    //     return Err(CompilerError::AssignmentToImmutableValue(
+                    //         name.clone(),
+                    //     ));
+                    // }
                     compilation_context
                         .append_binary_code(InstructionCode::from(&operator));
                 }
@@ -923,6 +897,41 @@ fn compile_expression(
                     return Err(CompilerError::InvalidSlotName(name.clone()));
                 }
             }
+        }
+
+        // refs
+        DatexExpression::Ref(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_binary_code(InstructionCode::CREATE_REF);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+        DatexExpression::RefMut(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_binary_code(InstructionCode::CREATE_REF_MUT);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+        DatexExpression::RefFinal(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_binary_code(InstructionCode::CREATE_REF_FINAL);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
 
         _ => return Err(CompilerError::UnexpectedTerm(ast_with_metadata.ast)),

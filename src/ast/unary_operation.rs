@@ -5,4 +5,5 @@ pub enum UnaryOperator {
     Plus,
     CreateRef,
     CreateRefMut,
+    CreateRefFinal,
 }

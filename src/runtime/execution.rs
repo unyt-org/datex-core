@@ -919,6 +919,15 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::CreateRefFinal => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::CreateRefFinal,
+                    },
+                );
+                None
+            }
+
             // remote execution
             Instruction::RemoteExecution => {
                 context
@@ -1191,7 +1200,11 @@ fn handle_unary_operation(
     match operator {
         UnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
-        }
+        },
+        UnaryOperator::CreateRefFinal => ValueContainer::Reference(
+            Reference::try_final_from(value_container)
+                .expect("Could not create final reference"),
+        ),
         UnaryOperator::CreateRefMut => ValueContainer::Reference(
             Reference::try_mut_from(value_container)
                 .expect("Could not create mutable reference"),

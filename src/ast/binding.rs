@@ -17,9 +17,8 @@ pub type VariableId = usize;
 
 fn create_variable_declaration(
     name: String,
-    value: Box<DatexExpression>,
+    value: DatexExpression,
     type_annotation: Option<TypeExpression>,
-    reference_mutability: Option<ReferenceMutability>,
     kind: VariableKind,
 ) -> DatexExpression {
     DatexExpression::VariableDeclaration {
@@ -30,10 +29,9 @@ fn create_variable_declaration(
         } else {
             BindingMutability::Mutable
         },
-        reference_mutability,
         name,
         type_annotation,
-        value,
+        value: Box::new(value),
     }
 }
 
@@ -80,16 +78,6 @@ pub fn variable_declaration<'a>(
         .then(assignment_op)
         .then(union.clone())
         .map(|((((kind, var_name), annotation), op), expr)| {
-            let (reference_mutability, expr) = match expr {
-                DatexExpression::RefMut(expr) => {
-                    (Some(ReferenceMutability::Mutable), expr)
-                }
-                DatexExpression::Ref(expr) => {
-                    (Some(ReferenceMutability::Immutable), expr)
-                }
-                expr => (None, Box::new(expr)),
-            };
-
             if op != AssignmentOperator::Assign {
                 return Err(ParseError::new_custom(format!(
                     "Cannot use '{}' operator in variable declaration",
@@ -101,7 +89,6 @@ pub fn variable_declaration<'a>(
                 var_name.to_string(),
                 expr,
                 annotation,
-                reference_mutability,
                 kind,
             ))
         })

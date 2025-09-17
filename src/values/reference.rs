@@ -289,6 +289,18 @@ impl Reference {
             ReferenceMutability::Mutable,
         )
     }
+    
+    pub fn try_final_from(
+        value_container: ValueContainer,
+    ) -> Result<Self, ReferenceFromValueContainerError> {
+        // TODO: don't allow creating final reference from &mut/& references
+        Reference::try_new_from_value_container(
+            value_container,
+            None,
+            None,
+            ReferenceMutability::Final,
+        )
+    }
 
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
