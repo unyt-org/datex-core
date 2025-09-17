@@ -237,7 +237,7 @@ impl Reference {
                                 ReferenceFromValueContainerError::InvalidType,
                             );
                         }
-                        if mutability != ReferenceMutability::Immutable {
+                        if mutability == ReferenceMutability::Mutable {
                             return Err(ReferenceFromValueContainerError::MutableTypeReference);
                         }
                         Reference::new_from_type(
