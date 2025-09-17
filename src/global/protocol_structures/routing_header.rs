@@ -43,9 +43,10 @@ pub struct Flags {
 #[bits = 2]
 pub enum ReceiverType {
     #[default]
-    Pointer = 0b00,
-    Receivers = 0b01,
-    ReceiversWithKeys = 0b10,
+    None = 0b00,
+    Pointer = 0b01,
+    Receivers = 0b10,
+    ReceiversWithKeys = 0b11,
 }
 
 
