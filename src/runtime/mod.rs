@@ -225,15 +225,6 @@ impl RuntimeInternal {
             block_size_u16: Some(0),
             block_size_u32: None,
             sender: self_rc.endpoint.clone(),
-            receivers: routing_header::Receivers {
-                flags: routing_header::ReceiverFlags::new()
-                    .with_has_endpoints(false)
-                    .with_has_pointer_id(false)
-                    .with_has_endpoint_keys(false),
-                pointer_id: None,
-                endpoints: None,
-                endpoints_with_keys: None,
-            },
             ..RoutingHeader::default()
         };
 

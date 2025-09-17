@@ -7,7 +7,7 @@ use super::protocol_structures::{
     encrypted_header::EncryptedHeader,
     routing_header::{BlockSize, EncryptionType, RoutingHeader, SignatureType},
 };
-use crate::global::protocol_structures::routing_header::ReceiverEndpoints;
+use crate::global::protocol_structures::routing_header::{ReceiverEndpoints, ReceiverType};
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
@@ -307,7 +307,7 @@ impl DXBBlock {
 
     /// Get a list of all receiver endpoints from the routing header.
     pub fn receivers(&self) -> Option<&Vec<Endpoint>> {
-        if let Some(endpoints) = &self.routing_header.receivers.endpoints {
+        if let Some(endpoints) = &self.routing_header.receivers_endpoints {
             Some(&endpoints.endpoints)
         } else {
             None
@@ -316,12 +316,11 @@ impl DXBBlock {
 
     /// Update the receivers list in the routing header.
     pub fn set_receivers(&mut self, receivers: &[Endpoint]) {
-        self.routing_header.receivers.endpoints =
+        self.routing_header.receivers_endpoints =
             Some(ReceiverEndpoints::new(receivers.to_vec()));
         self.routing_header
-            .receivers
             .flags
-            .set_has_endpoints(!receivers.is_empty());
+            .set_receiver_type(ReceiverType::Receivers)
     }
 
     pub fn set_bounce_back(&mut self, bounce_back: bool) {
@@ -333,10 +332,10 @@ impl DXBBlock {
     }
 
     pub fn get_receivers(&self) -> Vec<Endpoint> {
-        if let Some(ref endpoints) = self.routing_header.receivers.endpoints {
+        if let Some(ref endpoints) = self.routing_header.receivers_endpoints {
             endpoints.endpoints.clone()
         } else if let Some(ref endpoints) =
-            self.routing_header.receivers.endpoints_with_keys
+            self.routing_header.receivers_endpoints_with_keys
         {
             endpoints
                 .endpoints_with_keys

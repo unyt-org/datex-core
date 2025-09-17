@@ -396,8 +396,9 @@ impl ComHub {
             );
         }
 
-        if let Some(receivers) = &block.routing_header.receivers.endpoints {
-            let is_for_own = receivers.endpoints.iter().any(|e| {
+        let receivers = block.get_receivers();
+        if !receivers.is_empty() {
+            let is_for_own = receivers.iter().any(|e| {
                 e == &self.endpoint
                     || e == &Endpoint::ANY
                     || e == &Endpoint::ANY_ALL_INSTANCES
@@ -434,9 +435,9 @@ impl ComHub {
             if should_relay {
                 // get all receivers that the block must be relayed to
                 let remaining_receivers = if is_for_own {
-                    &self.get_remote_receivers(receivers)
+                    &self.get_remote_receivers(&receivers)
                 } else {
-                    &receivers.endpoints
+                    &receivers
                 };
 
                 // relay the block to all receivers
@@ -476,10 +477,9 @@ impl ComHub {
     /// excluding the local endpoint
     fn get_remote_receivers(
         &self,
-        receiver_endpoints: &ReceiverEndpoints,
+        receiver_endpoints: &Vec<Endpoint>,
     ) -> Vec<Endpoint> {
         receiver_endpoints
-            .endpoints
             .iter()
             .filter(|e| e != &&self.endpoint)
             .cloned()

@@ -7,7 +7,7 @@ use datex_core::global::{
     protocol_structures::{
         block_header::BlockHeader,
         encrypted_header::{self, EncryptedHeader},
-        routing_header::{Flags, ReceiverFlags, Receivers, RoutingHeader},
+        routing_header::{Flags, RoutingHeader},
         serializable::Serializable,
     },
 };
@@ -67,15 +67,6 @@ pub fn parse_routing_header() {
             type_: EndpointType::Person,
             identifier: [0; 18],
             instance: EndpointInstance::Any,
-        },
-        receivers: Receivers {
-            flags: ReceiverFlags::new()
-                .with_has_endpoints(false)
-                .with_has_pointer_id(false)
-                .with_has_endpoint_keys(false),
-            pointer_id: None,
-            endpoints: None,
-            endpoints_with_keys: None,
         },
         ..Default::default()
     };
