@@ -36,6 +36,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use itertools::Itertools;
+use datex_core::decompiler::{decompile_value, DecompileOptions};
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -67,6 +69,29 @@ pub struct ExecutionInput<'a> {
 //         DatexProgram::Script(script)
 //     }
 // }
+
+pub struct MemoryDump {
+    pub slots: Vec<(u32, Option<ValueContainer>)>,
+}
+
+impl Display for MemoryDump {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (address, value) in &self.slots {
+            match value {
+                Some(vc) => {
+                    let decompiled = decompile_value(vc, DecompileOptions::colorized());
+                    writeln!(f, "#{address}: {decompiled}")?
+                },
+                None => writeln!(f, "#{address}: <uninitialized>")?,
+            }
+        }
+        if self.slots.is_empty() {
+            writeln!(f, "<no slots allocated>")?;
+        }
+        Ok(())
+    }
+}
+
 
 impl Default for ExecutionInput<'_> {
     fn default() -> Self {
@@ -170,6 +195,19 @@ impl RuntimeExecutionContext {
             .cloned()
             .ok_or(())
             .map_err(|_| ExecutionError::SlotNotAllocated(address))
+    }
+
+    /// Returns a memory dump of the current slots and their values.
+    pub fn memory_dump(&self) -> MemoryDump {
+        MemoryDump {
+            slots: self
+                .slots
+                .borrow()
+                .iter()
+                .map(|(k, v)| (*k, v.clone()))
+                .sorted_by_key(|(k, _)| *k)
+                .collect(),
+        }
     }
 }
 

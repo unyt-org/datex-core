@@ -4,10 +4,7 @@ use crate::compiler::{CompileOptions, compile_template};
 use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::RuntimeInternal;
-use crate::runtime::execution::{
-    ExecutionError, ExecutionInput, ExecutionOptions, RuntimeExecutionContext,
-    execute_dxb, execute_dxb_sync,
-};
+use crate::runtime::execution::{ExecutionError, ExecutionInput, ExecutionOptions, RuntimeExecutionContext, execute_dxb, execute_dxb_sync, MemoryDump};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
@@ -134,6 +131,11 @@ impl LocalExecutionContext {
         self.runtime_execution_context
             .borrow_mut()
             .set_runtime_internal(runtime_internal);
+    }
+    
+    /// Returns a memory dump of the current state of the execution context.
+    pub fn memory_dump(&self) -> MemoryDump {
+        self.runtime_execution_context.borrow().memory_dump()
     }
 }
 
@@ -348,5 +350,16 @@ impl ExecutionContext {
         self.execute_dxb(&dxb, true)
             .await
             .map_err(ScriptExecutionError::from)
+    }
+    
+    /// Returns a memory dump of the current state of the execution context if available.
+    pub fn memory_dump(&self) -> Option<MemoryDump> {
+        match self {
+            ExecutionContext::Local(local_context) => {
+                Some(local_context.memory_dump())
+            }
+            // TODO: also support remote memory dump if possible
+            ExecutionContext::Remote(_) => None,
+        }
     }
 }
