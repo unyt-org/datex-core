@@ -284,11 +284,11 @@ pub fn test_recalculate() {
         body: vec![0x01, 0x02, 0x03],
         encrypted_header: EncryptedHeader {
             flags: encrypted_header::Flags::new()
-                .with_device_type(encrypted_header::DeviceType::Unused11),
+                .with_user_agent(encrypted_header::UserAgent::Unused11),
             ..Default::default()
         },
         routing_header: RoutingHeader {
-            block_size_u16: Some(420),
+            block_size: 420,
             sender: Endpoint::from_str("@test").unwrap(),
             ..Default::default()
         },
@@ -323,7 +323,7 @@ pub async fn test_receive() {
             body: vec![0x01, 0x02, 0x03],
             encrypted_header: EncryptedHeader {
                 flags: encrypted_header::Flags::new()
-                    .with_device_type(encrypted_header::DeviceType::Unused11),
+                    .with_user_agent(encrypted_header::UserAgent::Unused11),
                 ..Default::default()
             },
             ..DXBBlock::default()

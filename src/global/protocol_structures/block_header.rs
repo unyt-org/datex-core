@@ -47,13 +47,16 @@ impl BlockType {
 }
 
 // 21 bit + 43 bit = 64 bit
+/// has_side_effects: If set, the block can have side effects that change external state. Default is true
+/// has_only_data: If set, the block does only contain data and no executable instructions. Default is false
 #[bitfield]
 #[derive(BinWrite, BinRead, Clone, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct FlagsAndTimestamp {
     pub block_type: BlockType,
-    pub allow_execution: bool,
+    pub has_side_effects: bool,
+    pub has_only_data: bool,
     pub is_end_of_section: bool,
     pub is_end_of_context: bool,
     pub has_lifetime: bool,
@@ -78,9 +81,7 @@ pub struct FlagsAndTimestamp {
     unused_6: bool,
     #[allow(unused)]
     unused_7: bool,
-    #[allow(unused)]
-    unused_8: bool,
-
+    
     pub creation_timestamp: B43,
 }
 
@@ -88,7 +89,8 @@ impl Default for FlagsAndTimestamp {
     fn default() -> Self {
         FlagsAndTimestamp::new()
             .with_block_type(BlockType::Request)
-            .with_allow_execution(false)
+            .with_has_side_effects(true)
+            .with_has_only_data(false)
             .with_is_end_of_section(true)
             .with_is_end_of_context(true)
             .with_has_lifetime(false)

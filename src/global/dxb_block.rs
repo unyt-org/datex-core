@@ -5,7 +5,7 @@ use std::io::{Cursor, Read};
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
-    routing_header::{BlockSize, EncryptionType, RoutingHeader, SignatureType},
+    routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
 use crate::global::protocol_structures::routing_header::{ReceiverEndpoints, ReceiverType};
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
@@ -43,10 +43,8 @@ impl PartialEq for DXBBlock {
     }
 }
 
-const ROUTING_HEADER_FLAGS_POSITION: usize = 5;
-const SIZE_BYTE_POSITION: usize = ROUTING_HEADER_FLAGS_POSITION + 1;
-const MAX_SIZE_BYTE_LENGTH: usize = 4;
-const ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION: u8 = 3;
+const SIZE_BYTE_POSITION: usize = 3; // magic number (2 bytes) + version (1 byte)
+const SIZE_BYTES: usize = 2;
 
 pub type IncomingContextId = u32;
 pub type IncomingSectionIndex = u16;
@@ -171,62 +169,20 @@ impl DXBBlock {
         self.encrypted_header.write(&mut writer)?;
         let mut bytes = writer.into_inner();
         bytes.extend_from_slice(&self.body);
-        Ok(DXBBlock::adjust_block_length(bytes, &self.routing_header))
+        Ok(DXBBlock::adjust_block_length(bytes))
     }
     pub fn recalculate_struct(&mut self) -> &mut Self {
         let bytes = self.to_bytes().unwrap();
-        let size = bytes.len() as u32;
-        let is_small_size = size <= u16::MAX as u32;
-        self.routing_header.flags.set_block_size(if is_small_size {
-            BlockSize::Default
-        } else {
-            BlockSize::Large
-        });
-        self.routing_header.block_size_u16 = if is_small_size {
-            Some(size as u16)
-        } else {
-            None
-        };
-        self.routing_header.block_size_u32 =
-            if is_small_size { None } else { Some(size) };
+        let size = bytes.len() as u16;
+        self.routing_header.block_size = size;
         self
     }
 
     fn adjust_block_length(
         mut bytes: Vec<u8>,
-        routing_header: &RoutingHeader,
     ) -> Vec<u8> {
         let size = bytes.len() as u32;
-        let is_small_size = size <= u16::MAX as u32;
-
-        if is_small_size {
-            // replace u32 size with u16 size
-            if routing_header.flags.block_size() == BlockSize::Large {
-                bytes.remove(SIZE_BYTE_POSITION);
-            }
-            write_u16(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size as u16);
-        } else {
-            // replace u16 size with u32 size
-            if routing_header.flags.block_size() == BlockSize::Default {
-                bytes.insert(SIZE_BYTE_POSITION, 0);
-            }
-            write_u32(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size);
-        }
-
-        // update small size flag
-        if is_small_size {
-            clear_bit(
-                &mut bytes,
-                ROUTING_HEADER_FLAGS_POSITION,
-                ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION,
-            );
-        } else {
-            set_bit(
-                &mut bytes,
-                ROUTING_HEADER_FLAGS_POSITION,
-                ROUTING_HEADER_FLAGS_SIZE_BIT_POSITION,
-            );
-        }
+        write_u16(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size as u16);
         bytes
     }
 
@@ -236,8 +192,8 @@ impl DXBBlock {
 
     pub fn extract_dxb_block_length(
         dxb: &[u8],
-    ) -> Result<u32, HeaderParsingError> {
-        if dxb.len() < SIZE_BYTE_POSITION + MAX_SIZE_BYTE_LENGTH {
+    ) -> Result<u16, HeaderParsingError> {
+        if dxb.len() < SIZE_BYTE_POSITION + SIZE_BYTES {
             return Err(HeaderParsingError::InsufficientLength);
         }
         let routing_header = RoutingHeader::read(&mut Cursor::new(dxb))
@@ -245,11 +201,7 @@ impl DXBBlock {
                 error!("Failed to read routing header: {e:?}");
                 HeaderParsingError::InvalidBlock
             })?;
-        if routing_header.block_size_u16.is_some() {
-            Ok(routing_header.block_size_u16.unwrap() as u32)
-        } else {
-            Ok(routing_header.block_size_u32.unwrap())
-        }
+        Ok(routing_header.block_size)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<DXBBlock, binrw::Error> {

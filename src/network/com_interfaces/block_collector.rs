@@ -19,7 +19,7 @@ pub struct BlockCollector {
     /**
      * The length of the current block as specified by the block header.
      */
-    current_block_specified_length: Option<u32>,
+    current_block_specified_length: Option<u16>,
 }
 
 impl Default for BlockCollector {

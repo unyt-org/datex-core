@@ -21,13 +21,6 @@ pub enum EncryptionType {
     Encrypted = 0b1,
 }
 
-// 1 bit
-#[derive(Debug, PartialEq, Clone, Default, Specifier)]
-pub enum BlockSize {
-    #[default]
-    Default = 0b0,
-    Large = 0b1,
-}
 
 // 2 bit + 1 bit + 1 bit + 4 bit = 1 byte
 #[bitfield]
@@ -38,8 +31,8 @@ pub struct Flags {
     pub signature_type: SignatureType,
     pub encryption_type: EncryptionType,
     pub receiver_type: ReceiverType,
-    pub block_size: BlockSize,
     pub is_bounce_back: bool,
+    pub has_checksum: bool,
 
     #[allow(unused)]
     unused_2: bool,
@@ -51,8 +44,8 @@ pub struct Flags {
 pub enum ReceiverType {
     #[default]
     Pointer = 0b00,
-    Receivers = 0b10,
-    ReceiversWithKeys = 0b11,
+    Receivers = 0b01,
+    ReceiversWithKeys = 0b10,
 }
 
 
@@ -97,29 +90,17 @@ pub struct ReceiverEndpointsWithKeys {
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
     pub version: u8,
-    pub distance: i8,
-    pub ttl: u8,
+    pub block_size: u16,
     pub flags: Flags,
 
-    #[brw(
-        if(flags.block_size() == BlockSize::Default)
-    )]
-    pub block_size_u16: Option<u16>,
+    #[brw(if(flags.has_checksum()))]
+    pub checksum: u32,
 
-    #[brw(
-        if(flags.block_size() == BlockSize::Large),
-        assert(
-            match flags.block_size() {
-                BlockSize::Large => block_size_u32.is_some(),
-                BlockSize::Default => block_size_u16.is_some(),
-            },
-            "No valid block size found"
-        ),
-    )]
-    pub block_size_u32: Option<u32>,
+    pub distance: i8,
+    pub ttl: u8,
 
     pub sender: Endpoint,
-    
+
     // TODO #115: add custom match receiver queries
     #[brw(if(flags.receiver_type() == ReceiverType::Pointer))]
     pub receivers_pointer_id: Option<PointerId>,
@@ -139,8 +120,8 @@ impl Default for RoutingHeader {
             distance: 0,
             ttl: 42,
             flags: Flags::new(),
-            block_size_u16: Some(26),
-            block_size_u32: None,
+            checksum: 0,
+            block_size: 0,
             sender: Endpoint::default(),
             receivers_pointer_id: None,
             receivers_endpoints: None,

@@ -5,12 +5,12 @@ use modular_bitfield::{Specifier, bitfield};
 
 // 4 bit
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
-pub enum DeviceType {
+pub enum UserAgent {
     #[default]
     Unknown = 0,
-    Mobile = 1,
-    Desktop = 2,
-    Bot = 3,
+    Human = 1,
+    Bot = 2,
+    Service = 3,
 
     #[allow(unused)]
     Unused0 = 4,
@@ -44,7 +44,7 @@ pub enum DeviceType {
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct Flags {
-    pub device_type: DeviceType,
+    pub user_agent: UserAgent,
     pub has_on_behalf_of: bool,
     unused_0: bool,
     unused_1: bool,

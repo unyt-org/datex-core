@@ -222,8 +222,6 @@ impl RuntimeInternal {
         let routing_header: RoutingHeader = RoutingHeader {
             version: 2,
             flags: routing_header::Flags::new(),
-            block_size_u16: Some(0),
-            block_size_u32: None,
             sender: self_rc.endpoint.clone(),
             ..RoutingHeader::default()
         };
