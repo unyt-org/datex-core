@@ -1,5 +1,7 @@
-use crate::ast::DatexExpression;
+use crate::ast::{DatexExpression, TypeExpression};
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::definition::TypeDefinition;
+use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -66,6 +68,21 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
                 .map(|(key, value)| (key, DatexExpression::from(value)))
                 .collect(),
         ),
+        CoreValue::Type(type_value) => {
+            DatexExpression::TypeExpression(
+                match &type_value.type_definition {
+                    TypeDefinition::Structural(struct_type) => {
+                        match struct_type {
+                            StructuralTypeDefinition::Integer(integer) => {
+                                TypeExpression::Integer(integer.clone())
+                            }
+                            _ => todo!()
+                        }
+                    }
+                    _ => todo!()
+                }
+            )
+        }
         _ => todo!(),
     }
 }

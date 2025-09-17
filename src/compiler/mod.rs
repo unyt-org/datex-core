@@ -27,6 +27,7 @@ use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::compiler::type_compiler::compile_type_expression;
 
 pub mod context;
 pub mod error;
@@ -34,6 +35,7 @@ pub mod metadata;
 mod precompiler;
 pub mod scope;
 mod type_inference;
+mod type_compiler;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -492,10 +494,10 @@ fn compile_expression(
             compilation_context.insert_endpoint(&endpoint);
         }
         DatexExpression::Null => {
-            compilation_context.append_binary_code(InstructionCode::NULL);
+            compilation_context.append_instruction_code(InstructionCode::NULL);
         }
         DatexExpression::List(list) => {
-            compilation_context.append_binary_code(InstructionCode::LIST_START);
+            compilation_context.append_instruction_code(InstructionCode::LIST_START);
             for item in list {
                 scope = compile_expression(
                     compilation_context,
@@ -504,10 +506,10 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Map(map) => {
-            compilation_context.append_binary_code(InstructionCode::MAP_START);
+            compilation_context.append_instruction_code(InstructionCode::MAP_START);
             for (key, value) in map {
                 scope = compile_key_value_entry(
                     compilation_context,
@@ -517,11 +519,11 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Array(array) => {
             compilation_context
-                .append_binary_code(InstructionCode::ARRAY_START);
+                .append_instruction_code(InstructionCode::ARRAY_START);
             for item in array {
                 scope = compile_expression(
                     compilation_context,
@@ -530,10 +532,10 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Struct(structure) => {
-            compilation_context.append_binary_code(
+            compilation_context.append_instruction_code(
                 InstructionCode::STRUCT_WITH_FIELDNAMES_START,
             );
             for (key, value) in structure {
@@ -545,7 +547,7 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Placeholder => {
             compilation_context.insert_value_container(
@@ -576,7 +578,7 @@ fn compile_expression(
                 // if not outer context, new scope
                 let mut child_scope = if !meta.is_outer_context() {
                     compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_START);
+                        .append_instruction_code(InstructionCode::SCOPE_START);
                     scope.push()
                 } else {
                     scope
@@ -590,7 +592,7 @@ fn compile_expression(
                     )?;
                     // if statement is terminated, append close and store
                     if statement.is_terminated {
-                        compilation_context.append_binary_code(
+                        compilation_context.append_instruction_code(
                             InstructionCode::CLOSE_AND_STORE,
                         );
                     }
@@ -603,13 +605,13 @@ fn compile_expression(
                     // drop all slot addresses that were allocated in this scope
                     for slot_address in scope_data.1 {
                         compilation_context
-                            .append_binary_code(InstructionCode::DROP_SLOT);
+                            .append_instruction_code(InstructionCode::DROP_SLOT);
                         // insert virtual slot address for dropping
                         compilation_context
                             .insert_virtual_slot_address(slot_address);
                     }
                     compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_END);
+                        .append_instruction_code(InstructionCode::SCOPE_END);
                 } else {
                     scope = child_scope;
                 }
@@ -621,7 +623,7 @@ fn compile_expression(
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
-                .append_binary_code(InstructionCode::from(&operator));
+                .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*a, &metadata),
@@ -641,7 +643,7 @@ fn compile_expression(
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
-                .append_binary_code(InstructionCode::from(&operator));
+                .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*a, &metadata),
@@ -677,7 +679,7 @@ fn compile_expression(
             // allocate new slot for variable
             let virtual_slot_addr = scope.get_next_virtual_slot();
             compilation_context
-                .append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                .append_instruction_code(InstructionCode::ALLOCATE_SLOT);
             compilation_context.insert_virtual_slot_address(
                 VirtualSlot::local(virtual_slot_addr),
             );
@@ -703,21 +705,21 @@ fn compile_expression(
                 VariableModel::VariableReference => {
                     // scope end
                     compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_END);
+                        .append_instruction_code(InstructionCode::SCOPE_END);
                     // allocate an additional slot with a reference to the variable
                     let virtual_slot_addr_for_var =
                         scope.get_next_virtual_slot();
                     compilation_context
-                        .append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                        .append_instruction_code(InstructionCode::ALLOCATE_SLOT);
                     compilation_context.insert_virtual_slot_address(
                         VirtualSlot::local(virtual_slot_addr_for_var),
                     );
                     // indirect reference to the variable
                     compilation_context
-                        .append_binary_code(InstructionCode::CREATE_REF);
+                        .append_instruction_code(InstructionCode::CREATE_REF);
                     // append binary code to load variable
                     compilation_context
-                        .append_binary_code(InstructionCode::GET_SLOT);
+                        .append_instruction_code(InstructionCode::GET_SLOT);
                     compilation_context.insert_virtual_slot_address(
                         VirtualSlot::local(virtual_slot_addr),
                     );
@@ -744,7 +746,7 @@ fn compile_expression(
 
             scope.register_variable_slot(variable);
 
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpression::GetReference(address) => {
@@ -780,7 +782,7 @@ fn compile_expression(
                         "append variable virtual slot: {virtual_slot:?}, name: {name}"
                     );
                     compilation_context
-                        .append_binary_code(InstructionCode::SET_SLOT);
+                        .append_instruction_code(InstructionCode::SET_SLOT);
                 }
                 AssignmentOperator::AddAssign
                 | AssignmentOperator::SubstractAssign => {
@@ -800,7 +802,7 @@ fn compile_expression(
                     //     ));
                     // }
                     compilation_context
-                        .append_binary_code(InstructionCode::from(&operator));
+                        .append_instruction_code(InstructionCode::from(&operator));
                 }
                 op => todo!("Handle assignment operator: {op:?}"),
             }
@@ -814,7 +816,7 @@ fn compile_expression(
                 scope,
             )?;
             // close assignment scope
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
@@ -827,7 +829,7 @@ fn compile_expression(
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
             // append binary code to load variable
-            compilation_context.append_binary_code(InstructionCode::GET_SLOT);
+            compilation_context.append_instruction_code(InstructionCode::GET_SLOT);
             compilation_context.insert_virtual_slot_address(virtual_slot);
         }
 
@@ -837,7 +839,7 @@ fn compile_expression(
 
             // insert remote execution code
             compilation_context
-                .append_binary_code(InstructionCode::REMOTE_EXECUTION);
+                .append_instruction_code(InstructionCode::REMOTE_EXECUTION);
             // insert compiled caller expression
             scope = compile_expression(
                 compilation_context,
@@ -865,7 +867,7 @@ fn compile_expression(
             let external_slots = execution_block_ctx.external_slots();
             // start block
             compilation_context
-                .append_binary_code(InstructionCode::EXECUTION_BLOCK);
+                .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
             // set block size (len of compilation_context.buffer)
             compilation_context
                 .append_u32(execution_block_ctx.buffer.borrow().len() as u32);
@@ -885,7 +887,7 @@ fn compile_expression(
             match name.as_str() {
                 "endpoint" => {
                     compilation_context
-                        .append_binary_code(InstructionCode::GET_SLOT);
+                        .append_instruction_code(InstructionCode::GET_SLOT);
                     compilation_context
                         .append_u32(InternalSlot::ENDPOINT as u32);
                 }
@@ -903,7 +905,7 @@ fn compile_expression(
         DatexExpression::Ref(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
-                .append_binary_code(InstructionCode::CREATE_REF);
+                .append_instruction_code(InstructionCode::CREATE_REF);
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*expression, &metadata),
@@ -914,7 +916,7 @@ fn compile_expression(
         DatexExpression::RefMut(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
-                .append_binary_code(InstructionCode::CREATE_REF_MUT);
+                .append_instruction_code(InstructionCode::CREATE_REF_MUT);
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*expression, &metadata),
@@ -925,11 +927,22 @@ fn compile_expression(
         DatexExpression::RefFinal(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
-                .append_binary_code(InstructionCode::CREATE_REF_FINAL);
+                .append_instruction_code(InstructionCode::CREATE_REF_FINAL);
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*expression, &metadata),
                 CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
+        DatexExpression::Type(type_expression) => {
+            compilation_context
+                .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
+            scope = compile_type_expression(
+                compilation_context,
+                &type_expression,
+                metadata,
                 scope,
             )?;
         }
@@ -955,7 +968,7 @@ fn compile_key_value_entry(
         // other -> insert key as dynamic
         _ => {
             compilation_scope
-                .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                .append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
                 compilation_scope,
                 AstWithMetadata::new(key, metadata),

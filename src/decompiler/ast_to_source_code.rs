@@ -2,6 +2,7 @@ use crate::ast::chain::ApplyOperation;
 use crate::decompiler::DecompileOptions;
 use datex_core::ast::DatexExpression;
 use datex_core::decompiler::Formatting;
+use crate::ast::TypeExpression;
 
 #[derive(Clone, Default)]
 enum BraceStyle {
@@ -114,9 +115,28 @@ pub fn ast_to_source_code(
                 applies_code.join("")
             )
         }
+
+        DatexExpression::TypeExpression(type_expr) => {
+            format!(
+                "type({})",
+                type_expression_to_source_code(type_expr, decompile_options)
+            )
+        }
+
         _ => todo!(),
     }
 }
+
+fn type_expression_to_source_code(
+    type_expr: &TypeExpression,
+    decompile_options: &DecompileOptions,
+) -> String {
+    match type_expr {
+        TypeExpression::Integer(ti) => ti.to_string(),
+        _ => todo!(),
+    }
+}
+
 
 /// Converts a DatexExpression key into source code, adding parentheses if necessary
 fn key_to_source_code(

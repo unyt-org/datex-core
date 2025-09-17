@@ -95,6 +95,7 @@ pub enum Instruction {
     SetSlot(SlotAddress),
 
     TypeInstructions(Vec<TypeInstruction>),
+    TypeExpression(Vec<TypeInstruction>),
 }
 
 
@@ -226,6 +227,10 @@ impl Display for Instruction {
             Instruction::TypeInstructions(instr) => {
                 let instr_strings: Vec<String> = instr.iter().map(|i| i.to_string()).collect();
                 write!(f, "TYPE_INSTRUCTIONS [{}]", instr_strings.join(", "))
+            }
+            Instruction::TypeExpression(instr) => {
+                let instr_strings: Vec<String> = instr.iter().map(|i| i.to_string()).collect();
+                write!(f, "TYPE_EXPRESSION [{}]", instr_strings.join(", "))
             }
         }
     }

@@ -258,6 +258,20 @@ impl<T: Into<Value>> From<T> for ValueContainer {
     }
 }
 
+impl From<TypeContainer> for ValueContainer {
+    fn from(type_container: TypeContainer) -> Self {
+        match type_container {
+            TypeContainer::Type(type_value) => {
+                ValueContainer::Value(Value::from(type_value))
+            }
+            TypeContainer::TypeReference(type_reference) => {
+                ValueContainer::Reference(Reference::TypeReference(type_reference))
+            }
+        }
+    }
+}
+
+
 impl Add<ValueContainer> for ValueContainer {
     type Output = Result<ValueContainer, ValueError>;
 

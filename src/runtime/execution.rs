@@ -37,7 +37,10 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
 use itertools::Itertools;
+use syntect::parsing::ScopeError::NoClearedScopesToRestore;
 use datex_core::decompiler::{decompile_value, DecompileOptions};
+use datex_core::values::core_values::r#type::Type;
+use crate::values::type_container::TypeContainer;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -498,6 +501,7 @@ impl Display for ExecutionError {
 #[derive(Debug)]
 pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
+    InternalTypeReturn(Option<TypeContainer>),
     Return(Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
     ResolveOriginPointer(RawOriginPointerAddress),
@@ -572,6 +576,9 @@ pub fn execute_loop(
                 match yield_unwrap!(output) {
                     ExecutionStep::InternalReturn(result) => {
                         result_value = result;
+                    }
+                    ExecutionStep::InternalTypeReturn(result) => {
+                        result_value = result.map(ValueContainer::from);
                     }
                     step => {
                         *interrupt_provider.borrow_mut() =
@@ -983,13 +990,23 @@ fn get_result_value_from_instruction(
             }
 
             Instruction::TypeInstructions(instructions) => {
-                println!("Type instructions: {:?}", instructions);
                 for output in
                     iterate_type_instructions(interrupt_provider, instructions)
                 {
-                    yield_unwrap!(output);
+                    // TODO: handle type here
+                    yield output;
                 }
-                None
+                return;
+            }
+
+            // type(...)
+            Instruction::TypeExpression(instructions) => {
+                for output in
+                    iterate_type_instructions(interrupt_provider, instructions)
+                {
+                    yield output;
+                }
+                return;
             }
 
             i => {
@@ -1014,9 +1031,13 @@ fn iterate_type_instructions(
                         ExecutionStep::Pause
                     );
                 }
+                TypeInstruction::LiteralInteger(integer) => {
+                    yield Ok(ExecutionStep::InternalTypeReturn(Some(
+                        TypeContainer::Type(Type::structural(integer.0))
+                    )));
+                }
                 _ => todo!(),
             }
-            yield Ok(ExecutionStep::InternalReturn(None));
         }
     }
 }

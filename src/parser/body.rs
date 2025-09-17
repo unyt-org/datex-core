@@ -473,6 +473,15 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::TypeInstructions(result.unwrap()))
                         }
                     }
+                    InstructionCode::TYPE_EXPRESSION => {
+                        // collect type space instructions
+                        let result: Result<Vec<TypeInstruction>, DXBParserError> = iterate_type_space_instructions(&mut reader).collect();
+                        if let Err(err) = result {
+                            Err(err)
+                        } else {
+                            Ok(Instruction::TypeExpression(result.unwrap()))
+                        }
+                    }
 
                     _ => Err(DXBParserError::InvalidBinaryCode(
                         instruction_code as u8,
@@ -513,6 +522,14 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
 
                 yield match instruction_code {
                     TypeSpaceInstructionCode::TYPE_ARRAY_START => Ok(TypeInstruction::ArrayStart),
+                    TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER => {
+                        let integer_data = IntegerData::read(reader);
+                        if let Err(err) = integer_data {
+                            Err(err.into())
+                        } else {
+                            Ok(TypeInstruction::LiteralInteger(integer_data.unwrap()))
+                        }
+                    },
                     _ => todo!()
                 }
             }

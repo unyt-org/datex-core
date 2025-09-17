@@ -205,9 +205,9 @@ impl<'a> CompilationContext<'a> {
                 // TODO #160: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
                 // add CREATE_REF/CREATE_REF_MUT instruction
                 if reference.mutability() == ReferenceMutability::Mutable {
-                    self.append_binary_code(InstructionCode::CREATE_REF_MUT);
+                    self.append_instruction_code(InstructionCode::CREATE_REF_MUT);
                 } else {
-                    self.append_binary_code(InstructionCode::CREATE_REF);
+                    self.append_instruction_code(InstructionCode::CREATE_REF);
                 }
                 self.insert_value(
                     &reference.collapse_to_value().borrow(),
@@ -234,37 +234,37 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
             CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
             CoreValue::Boolean(val) => self.insert_boolean(val.0),
-            CoreValue::Null => self.append_binary_code(InstructionCode::NULL),
+            CoreValue::Null => self.append_instruction_code(InstructionCode::NULL),
             CoreValue::Text(val) => {
                 self.insert_text(&val.0.clone());
             }
             CoreValue::List(val) => {
-                self.append_binary_code(InstructionCode::LIST_START);
+                self.append_instruction_code(InstructionCode::LIST_START);
                 for item in val {
                     self.insert_value_container(item);
                 }
-                self.append_binary_code(InstructionCode::SCOPE_END);
+                self.append_instruction_code(InstructionCode::SCOPE_END);
             }
             CoreValue::Map(val) => {
-                self.append_binary_code(InstructionCode::MAP_START);
+                self.append_instruction_code(InstructionCode::MAP_START);
                 for (key, value) in val {
                     self.insert_key_value_pair(key, value);
                 }
-                self.append_binary_code(InstructionCode::SCOPE_END);
+                self.append_instruction_code(InstructionCode::SCOPE_END);
             },
             CoreValue::Array(array) => {
-                self.append_binary_code(InstructionCode::ARRAY_START);
+                self.append_instruction_code(InstructionCode::ARRAY_START);
                 for item in array {
                     self.insert_value_container(item);
                 }
-                self.append_binary_code(InstructionCode::SCOPE_END);
+                self.append_instruction_code(InstructionCode::SCOPE_END);
             }
             CoreValue::Struct(structure) => {
-                self.append_binary_code(InstructionCode::STRUCT_WITH_FIELDNAMES_START);
+                self.append_instruction_code(InstructionCode::STRUCT_WITH_FIELDNAMES_START);
                 for (key, value) in structure.iter() {
                     self.insert_struct_key_value_pair(key, value);
                 }
-                self.append_binary_code(InstructionCode::SCOPE_END);
+                self.append_instruction_code(InstructionCode::SCOPE_END);
             }
         }
     }
@@ -272,9 +272,9 @@ impl<'a> CompilationContext<'a> {
     // value insert functions
     pub fn insert_boolean(&self, boolean: bool) {
         if boolean {
-            self.append_binary_code(InstructionCode::TRUE);
+            self.append_instruction_code(InstructionCode::TRUE);
         } else {
-            self.append_binary_code(InstructionCode::FALSE);
+            self.append_instruction_code(InstructionCode::FALSE);
         }
     }
 
@@ -283,10 +283,10 @@ impl<'a> CompilationContext<'a> {
         let len = bytes.len();
 
         if len < 256 {
-            self.append_binary_code(InstructionCode::SHORT_TEXT);
+            self.append_instruction_code(InstructionCode::SHORT_TEXT);
             self.append_u8(len as u8);
         } else {
-            self.append_binary_code(InstructionCode::TEXT);
+            self.append_instruction_code(InstructionCode::TEXT);
             self.append_u32(len as u32);
         }
 
@@ -308,7 +308,7 @@ impl<'a> CompilationContext<'a> {
                 self.insert_key_string(&text.0);
             }
             _ => {
-                self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                self.append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
                 self.insert_value_container(key);
             }
         }
@@ -332,11 +332,11 @@ impl<'a> CompilationContext<'a> {
         let len = bytes.len();
 
         if len < 256 {
-            self.append_binary_code(InstructionCode::KEY_VALUE_SHORT_TEXT);
+            self.append_instruction_code(InstructionCode::KEY_VALUE_SHORT_TEXT);
             self.append_u8(len as u8);
             self.append_buffer(bytes);
         } else {
-            self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+            self.append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             self.insert_text(key_string);
         }
     }
@@ -380,16 +380,16 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn insert_float32(&self, float32: f32) {
-        self.append_binary_code(InstructionCode::DECIMAL_F32);
+        self.append_instruction_code(InstructionCode::DECIMAL_F32);
         self.append_f32(float32);
     }
     pub fn insert_float64(&self, float64: f64) {
-        self.append_binary_code(InstructionCode::DECIMAL_F64);
+        self.append_instruction_code(InstructionCode::DECIMAL_F64);
         self.append_f64(float64);
     }
 
     pub fn insert_endpoint(&self, endpoint: &Endpoint) {
-        self.append_binary_code(InstructionCode::ENDPOINT);
+        self.append_instruction_code(InstructionCode::ENDPOINT);
         self.append_buffer(&endpoint.to_binary());
     }
 
@@ -398,7 +398,7 @@ impl<'a> CompilationContext<'a> {
         let len = bytes.len();
         let variant_count = tag.variants.len();
 
-        self.append_binary_code(InstructionCode::TYPE_TAG);
+        self.append_instruction_code(InstructionCode::TYPE_TAG);
         self.append_u8(len as u8);
         self.append_u32(variant_count as u32);
         self.append_buffer(bytes);
@@ -427,18 +427,17 @@ impl<'a> CompilationContext<'a> {
         if options.len() == 1 {
             self.insert_value_container(&options[0]);
         } else {
-            self.append_binary_code(InstructionCode::SCOPE_START);
-            self.append_binary_code(InstructionCode::UNION);
+            self.append_instruction_code(InstructionCode::SCOPE_START);
+            self.append_instruction_code(InstructionCode::UNION);
             // insert first value
             self.insert_value_container(&options[0]);
             // insert rest of values recursively
             self.insert_union_options(options[1..].to_vec());
-            self.append_binary_code(InstructionCode::SCOPE_END);
+            self.append_instruction_code(InstructionCode::SCOPE_END);
         }
     }
 
     pub fn insert_big_integer(&self, integer: &Integer) {
-        self.append_binary_code(InstructionCode::INT_BIG);
         // use BinWrite to write the integer to the buffer
         // big_integer binrw write into buffer
         let mut buffer = self.buffer.borrow_mut();
@@ -488,13 +487,14 @@ impl<'a> CompilationContext<'a> {
                 self.insert_u128(*val);
             }
             TypedInteger::Big(val) => {
+                self.append_instruction_code(InstructionCode::INT_BIG);
                 self.insert_big_integer(val);
             }
         }
     }
 
     pub fn insert_decimal(&self, decimal: &Decimal) {
-        self.append_binary_code(InstructionCode::DECIMAL_BIG);
+        self.append_instruction_code(InstructionCode::DECIMAL_BIG);
         // big_decimal binrw write into buffer
         let mut buffer = self.buffer.borrow_mut();
         let original_length = buffer.len();
@@ -511,52 +511,52 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn insert_float_as_i16(&self, int: i16) {
-        self.append_binary_code(InstructionCode::DECIMAL_AS_INT_16);
+        self.append_instruction_code(InstructionCode::DECIMAL_AS_INT_16);
         self.append_i16(int);
     }
     pub fn insert_float_as_i32(&self, int: i32) {
-        self.append_binary_code(InstructionCode::DECIMAL_AS_INT_32);
+        self.append_instruction_code(InstructionCode::DECIMAL_AS_INT_32);
         self.append_i32(int);
     }
     pub fn insert_i8(&self, int8: i8) {
-        self.append_binary_code(InstructionCode::INT_8);
+        self.append_instruction_code(InstructionCode::INT_8);
         self.append_i8(int8);
     }
 
     pub fn insert_i16(&self, int16: i16) {
-        self.append_binary_code(InstructionCode::INT_16);
+        self.append_instruction_code(InstructionCode::INT_16);
         self.append_i16(int16);
     }
     pub fn insert_i32(&self, int32: i32) {
-        self.append_binary_code(InstructionCode::INT_32);
+        self.append_instruction_code(InstructionCode::INT_32);
         self.append_i32(int32);
     }
     pub fn insert_i64(&self, int64: i64) {
-        self.append_binary_code(InstructionCode::INT_64);
+        self.append_instruction_code(InstructionCode::INT_64);
         self.append_i64(int64);
     }
     pub fn insert_i128(&self, int128: i128) {
-        self.append_binary_code(InstructionCode::INT_128);
+        self.append_instruction_code(InstructionCode::INT_128);
         self.append_i128(int128);
     }
     pub fn insert_u8(&self, uint8: u8) {
-        self.append_binary_code(InstructionCode::INT_16);
+        self.append_instruction_code(InstructionCode::INT_16);
         self.append_i16(uint8 as i16);
     }
     pub fn insert_u16(&self, uint16: u16) {
-        self.append_binary_code(InstructionCode::INT_32);
+        self.append_instruction_code(InstructionCode::INT_32);
         self.append_i32(uint16 as i32);
     }
     pub fn insert_u32(&self, uint32: u32) {
-        self.append_binary_code(InstructionCode::INT_64);
+        self.append_instruction_code(InstructionCode::INT_64);
         self.append_i64(uint32 as i64);
     }
     pub fn insert_u64(&self, uint64: u64) {
-        self.append_binary_code(InstructionCode::INT_128);
+        self.append_instruction_code(InstructionCode::INT_128);
         self.append_i128(uint64 as i128);
     }
     pub fn insert_u128(&self, uint128: u128) {
-        self.append_binary_code(InstructionCode::UINT_128);
+        self.append_instruction_code(InstructionCode::UINT_128);
         self.append_i128(uint128 as i128);
     }
     pub fn append_u8(&self, u8: u8) {
@@ -629,15 +629,15 @@ impl<'a> CompilationContext<'a> {
     pub fn insert_get_ref(&self, address: PointerAddress) {
         match address {
             PointerAddress::Internal(id) => {
-                self.append_binary_code(InstructionCode::GET_INTERNAL_REF);
+                self.append_instruction_code(InstructionCode::GET_INTERNAL_REF);
                 self.append_buffer(&id);
             }
             PointerAddress::Local(id) => {
-                self.append_binary_code(InstructionCode::GET_ORIGIN_REF);
+                self.append_instruction_code(InstructionCode::GET_ORIGIN_REF);
                 self.append_buffer(&id);
             }
             PointerAddress::Remote(id) => {
-                self.append_binary_code(InstructionCode::GET_REF);
+                self.append_instruction_code(InstructionCode::GET_REF);
                 self.append_buffer(&id);
             }
         }
@@ -647,7 +647,7 @@ impl<'a> CompilationContext<'a> {
         self.has_non_static_value.replace(true);
     }
 
-    pub fn append_binary_code(&self, binary_code: InstructionCode) {
-        self.append_u8(binary_code as u8);
+    pub fn append_instruction_code(&self, code: InstructionCode) {
+        self.append_u8(code as u8);
     }
 }

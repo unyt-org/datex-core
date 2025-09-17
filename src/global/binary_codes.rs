@@ -175,6 +175,7 @@ pub enum InstructionCode {
 
     /// type byte codes --> switch to Type Space
     TYPED_VALUE,
+    TYPE_EXPRESSION, // type()
 
 
     CONJUNCTION, // x&y&z
