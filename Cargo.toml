@@ -99,6 +99,7 @@ tokio-tungstenite = { version = "0.21.0", optional = true, features = [
     "native-tls",
 ] }
 tungstenite = { version = "0.21.0", optional = true }
+openssl = { version = "0.10.73", optional = true }
 
 wasm-bindgen-futures = { optional = true, version = "0.4.29" }
 gloo-timers = { optional = true, version = "0.3.0", features = ["futures"] }
@@ -161,7 +162,7 @@ native_tcp = []                                         # use native tcp
 native_time = []                                        # use native time
 native_rand = ["rand"]                                  # use native websocket
 native_uuid = ["uuid"]                                  # use native uuid
-native_crypto = ["rsa"]                                 # use native crypto
+native_crypto = ["rsa", "openssl"]                      # use native crypto
 native_serial = ["serialport"]                          # use native serial
 native_webrtc = ["webrtc"]                              # use webrtc
 

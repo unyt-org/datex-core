@@ -9,6 +9,14 @@ use rsa::{
     pkcs8::{EncodePrivateKey, EncodePublicKey},
 };
 use uuid::Uuid;
+#[cfg(not(target_arch = "wasm32"))]
+use openssl::{
+    derive::Deriver,
+    md::Md,
+    pkey::PKey,
+    sign::{Signer, Verifier},
+};
+
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -115,6 +123,85 @@ impl CryptoTrait for CryptoNative {
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
     {
         todo!("#168 Undescribed by author.")
+    }
+
+    // EdDSA keygen
+    fn gen_ed25519(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>> + 'static>>
+    {
+        Box::pin(async move {
+            let key = PKey::generate_ed25519().map_err(|_| CryptoError::KeyGeneratorFailed)?;
+
+            let public_key: Vec<u8> = key
+                .public_key_to_der()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .try_into()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let private_key: Vec<u8>= key
+                .private_key_to_pkcs8()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .try_into()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            Ok((public_key, private_key))
+        })
+    }
+
+    // EdDSA signature
+    fn sig_ed25519<'a>(
+        &'a self,
+        pri_key: &'a Vec<u8>,
+        data: &'a Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+        Box::pin(async move {
+            let sig_key = PKey::private_key_from_pkcs8(pri_key)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            let mut signer =
+                Signer::new_without_digest(&sig_key).map_err(|_| CryptoError::SigningError)?;
+            let signature = signer
+                .sign_oneshot_to_vec(data)
+                .map_err(|_| CryptoError::SigningError)?;
+            Ok(signature)
+        })
+    }
+
+    // EdDSA verification of signature
+    fn ver_ed25519<'a>(
+        &'a self,
+        pub_key: &'a Vec<u8>,
+        sig: &'a Vec<u8>,
+        data: &'a Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>> {
+        Box::pin(async move {
+            let public_key = PKey::public_key_from_der(pub_key)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            let mut verifier = Verifier::new_without_digest(&public_key)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            Ok(verifier
+                .verify_oneshot(sig, &data)
+                .map_err(|_| CryptoError::VerificationError)?)
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    static CRYPTO: CryptoNative = CryptoNative {};
+    #[tokio::test]
+    pub async fn test_dsa_ed2519() {
+        let data = b"Some message to sign".to_vec();
+
+        let (pub_key, pri_key) = CRYPTO.gen_ed25519().await.unwrap();
+
+        let sig: Vec<u8> = CRYPTO
+            .sig_ed25519(&pri_key, &data)
+            .await
+            .unwrap();
+
+        assert_eq!(sig.len(), 64);
+
+        assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
     }
 }
 
