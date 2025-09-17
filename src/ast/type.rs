@@ -279,6 +279,9 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     ReferenceMutability::Immutable => {
                         TypeExpression::Ref(Box::new(inner))
                     }
+                    ReferenceMutability::Final => {
+                        TypeExpression::RefFinal(Box::new(inner))
+                    }
                 }
             });
 

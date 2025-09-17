@@ -167,6 +167,7 @@ pub enum TypeExpression {
     // modifiers
     Ref(Box<TypeExpression>),
     RefMut(Box<TypeExpression>),
+    RefFinal(Box<TypeExpression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -254,6 +255,8 @@ pub enum DatexExpression {
     Ref(Box<DatexExpression>),
     /// Mutable reference, e.g. &mut x
     RefMut(Box<DatexExpression>),
+    /// Final reference, e.g. &final x
+    RefFinal(Box<DatexExpression>),
 
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),

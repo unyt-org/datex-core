@@ -699,6 +699,10 @@ fn compile_expression(
                     compilation_context
                         .append_binary_code(InstructionCode::CREATE_REF_MUT);
                 }
+                Some(ReferenceMutability::Final) => {
+                    compilation_context
+                        .append_binary_code(InstructionCode::CREATE_REF_FINAL);
+                }
                 None => {}
             }
             // compile expression

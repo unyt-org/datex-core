@@ -32,12 +32,14 @@ pub enum AccessError {
 pub enum ReferenceMutability {
     Mutable,
     Immutable,
+    Final,
 }
 
 impl Display for ReferenceMutability {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReferenceMutability::Mutable => write!(f, "&mut"),
+            ReferenceMutability::Final => write!(f, "&final"),
             ReferenceMutability::Immutable => write!(f, "&"),
         }
     }

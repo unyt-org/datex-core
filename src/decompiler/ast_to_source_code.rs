@@ -65,6 +65,9 @@ pub fn ast_to_source_code(
         DatexExpression::RefMut(expr) => {
             format!("&mut {}", ast_to_source_code(expr, decompile_options))
         }
+        DatexExpression::RefFinal(expr) => {
+            format!("&final {}", ast_to_source_code(expr, decompile_options))
+        }
         DatexExpression::BinaryOperation(operator, left, right, _type) => {
             let left_code = key_to_source_code(left, decompile_options);
             let right_code = key_to_source_code(right, decompile_options);

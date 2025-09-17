@@ -18,6 +18,9 @@ impl From<&ValueContainer> for DatexExpression {
                     ReferenceMutability::Immutable => DatexExpression::Ref(
                         Box::new(DatexExpression::from(&reference.value_container()))
                     ),
+                    ReferenceMutability::Final => DatexExpression::RefFinal(
+                        Box::new(DatexExpression::from(&reference.value_container()))
+                    )
                 }
             }
         }

@@ -446,22 +446,6 @@ fn visit_expression(
                 )?;
             }
         }
-        DatexExpression::Map(entries) => {
-            for (key, value) in entries {
-                visit_expression(
-                    key,
-                    metadata,
-                    scope_stack,
-                    NewScopeType::NewScope,
-                )?;
-                visit_expression(
-                    value,
-                    metadata,
-                    scope_stack,
-                    NewScopeType::NewScope,
-                )?;
-            }
-        }
         DatexExpression::RemoteExecution(callee, expr) => {
             visit_expression(
                 callee,
@@ -602,7 +586,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-        DatexExpression::RefMut(expr) | DatexExpression::Ref(expr) => {
+        DatexExpression::RefMut(expr) | DatexExpression::RefFinal(expr) | DatexExpression::Ref(expr) => {
             visit_expression(
                 expr,
                 metadata,
