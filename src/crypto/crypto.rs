@@ -35,6 +35,23 @@ pub trait CryptoTrait: Send + Sync {
     fn new_sign_key_pair(
         &self,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>;
+
+    fn gen_ed25519(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>> + 'static>>;
+
+    fn sig_ed25519<'a>(
+        &'a self,
+        pri_key: &'a Vec<u8>,
+        data: &'a Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
+
+    fn ver_ed25519<'a>(
+        &'a self,
+        pub_key: &'a Vec<u8>,
+        sig: &'a Vec<u8>,
+        data: &'a Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>;
 }
 
 pub struct Crypto;
