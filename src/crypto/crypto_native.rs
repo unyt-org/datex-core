@@ -304,8 +304,63 @@ mod tests {
         assert_eq!(cli_shared, ser_shared);
         assert_eq!(cli_shared.len(), 32);
     }
-}
 
+    #[tokio::test]
+    pub async fn test_multi_roundtrip() {
+        // Given
+        let mut client_list = Vec::new();
+
+        // Generate symmetric random key
+        let sym_key: [u8; 32] = CRYPTO.random_bytes(32)
+            .try_into()
+            .unwrap();
+
+        for _ in 0..10 {
+            let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
+            client_list.push((cli_pri, cli_pub));
+        }
+
+        // Encrypt data with symmetric key
+        let data = b"Some message to encrypt".to_vec();
+        let iv = [0u8; 16];
+        let cipher = CRYPTO.aes_ctr_encrypt(&sym_key, &iv, &data).await.unwrap();
+
+        // Sender (server)
+        let mut payloads = Vec::new();
+        for i in 0..10 {
+            let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
+            let ser_kek_bytes: [u8; 32] = CRYPTO.derive_x25519(&ser_pri, &client_list[i].1)
+                .await
+                .unwrap().try_into().unwrap();
+
+            let wrapped = CRYPTO.key_upwrap(&ser_kek_bytes, &sym_key)
+                .await
+                .unwrap();
+
+            payloads.push((ser_pub, wrapped));
+        }
+
+        // Receiver (client)
+        for i in 0..10 {
+            // Unwraps key and decrypts
+            let cli_kek_bytes: [u8; 32] = CRYPTO.derive_x25519(&client_list[i].0, &payloads[i].0)
+                .await
+                .unwrap().try_into().unwrap();
+            let unwrapped = CRYPTO.key_unwrap(&cli_kek_bytes, &payloads[i].1)
+                .await
+                .unwrap();
+            let plain = CRYPTO.aes_ctr_encrypt(&unwrapped, &iv, &cipher).await.unwrap();
+
+            // Check key wraps
+            assert_ne!(payloads[i].1.to_vec(), unwrapped.to_vec());
+            assert_eq!(payloads[i].1.len(), unwrapped.len() + 8);
+
+            // Check data, cipher and deciphered
+            assert_ne!(data, cipher);
+            assert_eq!(plain, data);
+        }
+    }
+}
 // TODO #169: reenable
 /*#[cfg(test)]
 mod tests {
