@@ -60,7 +60,6 @@ futures = { version = "0.3" }
 nostd = { version = "0.1.4", optional = true }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
-rsa = { version = "0.9.8", optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
@@ -162,7 +161,7 @@ native_tcp = []                                         # use native tcp
 native_time = []                                        # use native time
 native_rand = ["rand"]                                  # use native websocket
 native_uuid = ["uuid"]                                  # use native uuid
-native_crypto = ["rsa", "openssl"]                      # use native crypto
+native_crypto = ["openssl"]                             # use native crypto
 native_serial = ["serialport"]                          # use native serial
 native_webrtc = ["webrtc"]                              # use webrtc
 

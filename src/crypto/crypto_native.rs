@@ -3,12 +3,9 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
-use rand::{Rng, rngs::OsRng};
-use rsa::{
-    RsaPrivateKey, RsaPublicKey,
-    pkcs8::{EncodePrivateKey, EncodePublicKey},
-};
+use crate::runtime::global_context::get_global_context;
 use uuid::Uuid;
+
 #[cfg(not(target_arch = "wasm32"))]
 use openssl::{
     derive::Deriver,
@@ -35,24 +32,6 @@ fn generate_pseudo_uuid() -> String {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
 impl CryptoTrait for CryptoNative {
-    fn encrypt_rsa(
-        &self,
-        data: Vec<u8>,
-        public_key: Vec<u8>,
-    ) -> Pin<Box<(dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'static)>>
-    {
-        todo!("#164 Undescribed by author.")
-    }
-
-    fn decrypt_rsa(
-        &self,
-        data: Vec<u8>,
-        private_key: Vec<u8>,
-    ) -> Pin<Box<(dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'static)>>
-    {
-        todo!("#165 Undescribed by author.")
-    }
-
     fn create_uuid(&self) -> String {
         // use pseudo-random UUID for testing
         cfg_if::cfg_if! {
@@ -74,32 +53,6 @@ impl CryptoTrait for CryptoNative {
     fn random_bytes(&self, length: usize) -> Vec<u8> {
         let mut rng = rand::thread_rng();
         (0..length).map(|_| rng.r#gen()).collect()
-    }
-
-    fn new_encryption_key_pair(
-        &self,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
-    {
-        Box::pin(async {
-            let mut rng = OsRng;
-            let private_key = RsaPrivateKey::new(&mut rng, 4096)
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-
-            let private_key_der = private_key
-                .to_pkcs8_der()
-                .map_err(|_| CryptoError::KeyExportFailed)?
-                .as_bytes()
-                .to_vec();
-            let public_key = RsaPublicKey::from(&private_key);
-
-            let public_key_der = public_key
-                .to_public_key_der()
-                .map_err(|_| CryptoError::KeyExportFailed)?
-                .as_bytes()
-                .to_vec();
-
-            Ok((public_key_der, private_key_der))
-        })
     }
 
     // EdDSA keygen
