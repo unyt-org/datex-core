@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 #[cfg(not(target_arch = "wasm32"))]
 use openssl::{
+    aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
     md::Md,
     pkey::PKey,
@@ -133,6 +134,43 @@ impl CryptoTrait for CryptoNative {
             Ok(out)
         })
     }
+    
+    
+    // AES KW
+    fn key_upwrap<'a>(
+        &'a self,
+        kek_bytes: &'a [u8; 32],
+        rb: &'a [u8; 32],
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 40], CryptoError>> + 'a>> {
+        Box::pin(async move {
+            // Key encryption key
+            let kek = AesKey::new_encrypt(kek_bytes)
+                .map_err(|_| CryptoError::EncryptionError)?;
+
+            // Key wrap
+            let mut wrapped = [0u8; 40];
+            let _length = wrap_key(&kek, None, &mut wrapped, rb);
+
+            Ok(wrapped)
+        })
+    }
+
+    fn key_unwrap<'a>(
+        &'a self,
+        kek_bytes: &'a [u8; 32],
+        cipher: &'a [u8; 40],
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>> {
+        Box::pin(async move {
+            // Key encryption key
+            let kek = AesKey::new_decrypt(kek_bytes)
+                .map_err(|_| CryptoError::DecryptionError)?;
+
+            // Unwrap key 
+            let mut unwrapped: [u8; 32] = [0u8; 32];
+            let _length = unwrap_key(&kek, None, &mut unwrapped, cipher);
+            Ok(unwrapped)
+        })
+    }
 }
 
 #[cfg(test)]
@@ -170,6 +208,48 @@ mod tests {
 
         assert_ne!(ciphered, data);
         assert_eq!(data, deciphered.to_vec());
+    }
+
+    #[tokio::test]
+    pub async fn test_keywrapping() {
+        let kek_bytes = [1u8; 32];
+        let sym_key: [u8; 32] = CRYPTO.random_bytes(32_usize).try_into().unwrap();
+        let arand = CRYPTO.key_upwrap(&kek_bytes, &sym_key)
+            .await
+            .unwrap();
+        let brand = CRYPTO.key_unwrap(&kek_bytes, &arand)
+            .await
+            .unwrap();
+
+        assert_ne!(arand.to_vec(), brand.to_vec());
+        assert_eq!(arand.len() , brand.len() + 8);
+    }
+
+    #[tokio::test]
+    pub async fn test_keywrapping_more() {
+        // Copy pasta from Web Crypto implementation
+        let kek: [u8; 32] = 
+        [176, 213,  29, 202, 131,  45, 220,
+        153, 250, 120, 219,  65, 177, 117,
+        244, 172,  38, 107, 221, 109, 160,
+        134,  15, 195,  23,  22, 143, 238,
+        242, 222,  38, 248];
+
+
+        let web_wrapped: [u8; 40] = 
+        [140, 223, 207,  46,   9, 105, 205,  24, 174,
+        238, 109,   5,  96,   4,  51, 132,  54, 187,
+        251, 167, 105, 131, 109, 246, 123, 238, 160,
+        139, 180,  59, 185,   8, 191,  57, 139, 133,
+         19,  40,  15, 210];
+
+        let wrapped = CRYPTO.key_upwrap(&kek, &kek).await.unwrap();
+
+        let unwrapped = CRYPTO.key_unwrap(&kek, &wrapped).await.unwrap();
+        let web_unwrapped = CRYPTO.key_unwrap(&kek, &web_wrapped).await.unwrap();
+
+        assert_eq!(kek, unwrapped);
+        assert_eq!(kek, web_unwrapped);
     }
 }
 
