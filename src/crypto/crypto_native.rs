@@ -11,7 +11,7 @@ use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
     md::Md,
-    pkey::PKey,
+    pkey::{Id, PKey},
     sign::{Signer, Verifier},
     symm::{Cipher, Crypter, Mode},
 };
@@ -171,6 +171,47 @@ impl CryptoTrait for CryptoNative {
             Ok(unwrapped)
         })
     }
+
+
+    // Generate encryption keypair
+    fn gen_x25519(&self) -> Pin<Box<dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>>>> {
+        Box::pin(async move {
+            let key = PKey::generate_x25519().map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let public_key: [u8; 44] = key
+                .public_key_to_der()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .try_into()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let private_key: [u8; 48] = key
+                .private_key_to_pkcs8()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .try_into()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            Ok((public_key, private_key))
+        })
+    }
+
+    // Derive shared secret on x255109
+    fn derive_x25519<'a>(
+        &'a self,
+        my_raw: &'a [u8; 48],
+        peer_pub: &'a [u8; 44],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+        Box::pin(async move {
+            let peer_pub = PKey::public_key_from_der(peer_pub)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+            let my_priv = PKey::private_key_from_pkcs8(my_raw)
+                .map_err(|_| CryptoError::KeyImportFailed)?;
+
+            let mut deriver = Deriver::new(&my_priv).map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            deriver
+                .set_peer(&peer_pub)
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            deriver
+                .derive_to_vec()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)
+        })
+    }
 }
 
 #[cfg(test)]
@@ -250,6 +291,18 @@ mod tests {
 
         assert_eq!(kek, unwrapped);
         assert_eq!(kek, web_unwrapped);
+    }
+
+    #[tokio::test]
+    async fn test_dh_x25519() {
+        let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
+        let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
+
+        let cli_shared = CRYPTO.derive_x25519(&cli_pri, &ser_pub).await.unwrap();
+        let ser_shared = CRYPTO.derive_x25519(&ser_pri, &cli_pub).await.unwrap();
+
+        assert_eq!(cli_shared, ser_shared);
+        assert_eq!(cli_shared.len(), 32);
     }
 }
 
