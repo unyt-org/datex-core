@@ -4,7 +4,6 @@ use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
-use webrtc::interceptor::report::receiver;
 
 // 2 bit
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
@@ -292,5 +291,70 @@ impl RoutingHeader {
         } else {
             Receivers::None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    #[test]
+    fn single_receiver() {
+        let routing_header = RoutingHeader::default()
+            .with_sender(Endpoint::from_str("@jonas").unwrap())
+            .with_ttl(64)
+            .with_receivers(Receivers::Endpoints(vec![
+                Endpoint::from_str("@alice").unwrap(),
+            ]))
+            .to_owned();
+        assert_eq!(
+            routing_header.sender,
+            Endpoint::from_str("@jonas").unwrap()
+        );
+        assert_eq!(routing_header.ttl, 64);
+        assert_eq!(
+            routing_header.receivers(),
+            Receivers::Endpoints(vec![Endpoint::from_str("@alice").unwrap()])
+        );
+        assert_eq!(
+            routing_header.flags.receiver_type(),
+            ReceiverType::Receivers
+        );
+    }
+
+    #[test]
+    fn multiple_receivers() {
+        let routing_header = RoutingHeader::default()
+            .with_receivers(Receivers::Endpoints(vec![
+                Endpoint::from_str("@alice").unwrap(),
+                Endpoint::from_str("@bob").unwrap(),
+            ]))
+            .to_owned();
+        assert_eq!(
+            routing_header.receivers(),
+            Receivers::Endpoints(vec![
+                Endpoint::from_str("@alice").unwrap(),
+                Endpoint::from_str("@bob").unwrap(),
+            ])
+        );
+        assert_eq!(
+            routing_header.flags.receiver_type(),
+            ReceiverType::Receivers
+        );
+    }
+
+    #[test]
+    fn no_receivers() {
+        let routing_header = RoutingHeader::default()
+            .with_receivers(Receivers::None)
+            .to_owned();
+        assert_eq!(routing_header.receivers(), Receivers::None);
+
+        let routing_header = RoutingHeader::default()
+            .with_receivers(Receivers::Endpoints(vec![]))
+            .to_owned();
+        assert_eq!(routing_header.receivers(), Receivers::None);
+        assert_eq!(routing_header.flags.receiver_type(), ReceiverType::None);
     }
 }
