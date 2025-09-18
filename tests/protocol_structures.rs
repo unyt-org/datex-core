@@ -1,15 +1,15 @@
 use binrw::{BinRead, BinWrite};
-use datex_core::values::core_values::endpoint::{
-    Endpoint, EndpointInstance, EndpointType,
-};
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{
         block_header::BlockHeader,
         encrypted_header::{self, EncryptedHeader},
-        routing_header::{RoutingHeader},
+        routing_header::RoutingHeader,
         serializable::Serializable,
     },
+};
+use datex_core::values::core_values::endpoint::{
+    Endpoint, EndpointInstance, EndpointType,
 };
 use std::io::{Cursor, Seek, SeekFrom};
 // FIXME #214 no-std
@@ -58,15 +58,14 @@ pub fn parse_block_header() {
 
 #[test]
 pub fn parse_routing_header() {
-    let routing_header = RoutingHeader {
-        version: 2,
-        sender: Endpoint {
+    let routing_header = RoutingHeader::default()
+        .with_sender(Endpoint {
             type_: EndpointType::Person,
             identifier: [0; 18],
             instance: EndpointInstance::Any,
-        },
-        ..Default::default()
-    };
+        })
+        .to_owned();
+
     let mut writer = Cursor::new(Vec::new());
     routing_header.write(&mut writer).unwrap();
 
@@ -82,10 +81,7 @@ pub fn parse_routing_header() {
 #[test]
 pub fn parse_dxb_block() {
     let block = DXBBlock {
-        routing_header: RoutingHeader {
-            version: 42,
-            ..RoutingHeader::default()
-        },
+        routing_header: RoutingHeader::default(),
         ..DXBBlock::default()
     };
 

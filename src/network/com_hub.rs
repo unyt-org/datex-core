@@ -123,7 +123,10 @@ impl Debug for ComHub {
             .field("endpoint", &self.endpoint)
             .field("options", &self.options)
             .field("sockets", &self.sockets)
-            .field("endpoint_sockets_blacklist", &self.endpoint_sockets_blacklist)
+            .field(
+                "endpoint_sockets_blacklist",
+                &self.endpoint_sockets_blacklist,
+            )
             .field("fallback_sockets", &self.fallback_sockets)
             .field("endpoint_sockets", &self.endpoint_sockets)
             .finish()
@@ -232,15 +235,16 @@ impl ComHub {
         setup_data: ValueContainer,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-        info!("creating interface {interface_type} with setup data: {setup_data:?}");
+        info!(
+            "creating interface {interface_type} with setup data: {setup_data:?}"
+        );
         let interface_factories = self.interface_factories.borrow();
         if let Some(factory) = interface_factories.get(interface_type) {
             let interface =
                 factory(setup_data).map_err(ComHubError::InterfaceError)?;
             drop(interface_factories);
-            
-            self
-                .open_and_add_interface(interface.clone(), priority)
+
+            self.open_and_add_interface(interface.clone(), priority)
                 .await
                 .map(|_| interface)
         } else {
@@ -396,7 +400,7 @@ impl ComHub {
             );
         }
 
-        let receivers = block.get_receivers();
+        let receivers = block.receiver_endpoints();
         if !receivers.is_empty() {
             let is_for_own = receivers.iter().any(|e| {
                 e == &self.endpoint
@@ -535,7 +539,7 @@ impl ComHub {
         // only for debugging traces
         forked: bool,
     ) {
-        let receivers = block.get_receivers();
+        let receivers = block.receiver_endpoints();
 
         // check if block has already passed this endpoint (-> bounced back block)
         // and add to blacklist for all receiver endpoints
@@ -609,7 +613,10 @@ impl ComHub {
                 // never send a bounce back block back again to the incoming socket
                 if block.is_bounce_back() && send_back_socket == incoming_socket
                 {
-                    warn!("{}: Tried to send bounce back block back to incoming socket, but this is not allowed", self.endpoint);
+                    warn!(
+                        "{}: Tried to send bounce back block back to incoming socket, but this is not allowed",
+                        self.endpoint
+                    );
                 } else if self
                     .get_socket_by_uuid(&send_back_socket)
                     .lock()
@@ -624,7 +631,9 @@ impl ComHub {
                         if forked { Some(0) } else { None },
                     )
                 } else {
-                    error!("Tried to send bounce back block, but cannot send back to incoming socket")
+                    error!(
+                        "Tried to send bounce back block, but cannot send back to incoming socket"
+                    )
                 }
             }
             // Otherwise, the block originated from this endpoint, we can just call send again
@@ -673,7 +682,9 @@ impl ComHub {
                 match is_trusted {
                     true => true,
                     false => {
-                        warn!("Block received by {endpoint} is not signed. Dropping block...");
+                        warn!(
+                            "Block received by {endpoint} is not signed. Dropping block..."
+                        );
                         false
                     }
                 }
@@ -1063,10 +1074,9 @@ impl ComHub {
                         // check if the socket is excluded if exclude_socket is set
                         if options.exclude_sockets.contains(&socket.uuid) {
                             debug!(
-                                    "Socket {} is excluded for endpoint {}. Skipping...",
-                                    socket.uuid,
-                                    endpoint
-                                );
+                                "Socket {} is excluded for endpoint {}. Skipping...",
+                                socket.uuid, endpoint
+                            );
                             continue;
                         }
 
@@ -1077,8 +1087,7 @@ impl ComHub {
                         if !socket.can_send() {
                             info!(
                                 "Socket {} is not outgoing for endpoint {}. Skipping...",
-                                socket.uuid,
-                                endpoint
+                                socket.uuid, endpoint
                             );
                             return;
                         }
@@ -1199,35 +1208,33 @@ impl ComHub {
         block: &DXBBlock,
         mut exclude_sockets: Vec<ComInterfaceSocketUUID>,
     ) -> Option<Vec<(Option<ComInterfaceSocketUUID>, Vec<Endpoint>)>> {
-        if let Some(receivers) = block.receivers() {
-            if !receivers.is_empty() {
-                let endpoint_sockets = receivers
-                    .iter()
-                    .map(|e| {
-                        // add sockets from endpoint blacklist
-                        if let Some(blacklist) =
-                            self.endpoint_sockets_blacklist.borrow().get(e)
-                        {
-                            exclude_sockets.extend(blacklist.iter().cloned());
-                        }
-                        let socket =
-                            self.find_best_endpoint_socket(e, &exclude_sockets);
-                        (socket, e)
-                    })
-                    .group_by(|(socket, _)| socket.clone())
-                    .into_iter()
-                    .map(|(socket, group)| {
-                        let endpoints = group
-                            .map(|(_, endpoint)| endpoint.clone())
-                            .collect::<Vec<_>>();
-                        (socket, endpoints)
-                    })
-                    .collect::<Vec<_>>();
+        let receivers = block.receiver_endpoints();
 
-                Some(endpoint_sockets)
-            } else {
-                None
-            }
+        if !receivers.is_empty() {
+            let endpoint_sockets = receivers
+                .iter()
+                .map(|e| {
+                    // add sockets from endpoint blacklist
+                    if let Some(blacklist) =
+                        self.endpoint_sockets_blacklist.borrow().get(e)
+                    {
+                        exclude_sockets.extend(blacklist.iter().cloned());
+                    }
+                    let socket =
+                        self.find_best_endpoint_socket(e, &exclude_sockets);
+                    (socket, e)
+                })
+                .group_by(|(socket, _)| socket.clone())
+                .into_iter()
+                .map(|(socket, group)| {
+                    let endpoints = group
+                        .map(|(_, endpoint)| endpoint.clone())
+                        .collect::<Vec<_>>();
+                    (socket, endpoints)
+                })
+                .collect::<Vec<_>>();
+
+            Some(endpoint_sockets)
         } else {
             None
         }
@@ -1321,7 +1328,7 @@ impl ComHub {
         let section_index = block.block_header.section_index;
 
         let has_exact_receiver_count = block.has_exact_receiver_count();
-        let receivers = block.get_receivers();
+        let receivers = block.receiver_endpoints();
 
         let res = self.send_own_block(block);
         let failed_endpoints = res.err().unwrap_or_default();
@@ -1457,7 +1464,11 @@ impl ComHub {
             let mut responses = vec![];
 
             let res = task::timeout(timeout, async {
-                let mut rx = self.block_handler.register_incoming_block_observer(context_id, section_index);
+                let mut rx =
+                    self.block_handler.register_incoming_block_observer(
+                        context_id,
+                        section_index,
+                    );
                 while let Some(section) = rx.next().await {
                     // get sender
                     let sender = section.get_sender();
@@ -1466,11 +1477,14 @@ impl ComHub {
                     responses.push(Ok(Response::UnspecifiedResponse(section)));
 
                     // if resolution strategy is ReturnOnFirstResult, break if any response is received
-                    if options.resolution_strategy == ResponseResolutionStrategy::ReturnOnFirstResult {
+                    if options.resolution_strategy
+                        == ResponseResolutionStrategy::ReturnOnFirstResult
+                    {
                         break;
                     }
                 }
-            }).await;
+            })
+            .await;
 
             if res.is_err() {
                 info!("Timeout waiting for responses");
@@ -1525,7 +1539,11 @@ impl ComHub {
                     fork_count,
                 );
             } else {
-                error!("{}: cannot send block, no receiver sockets found for endpoints {:?}", self.endpoint, endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>());
+                error!(
+                    "{}: cannot send block, no receiver sockets found for endpoints {:?}",
+                    self.endpoint,
+                    endpoints.iter().map(|e| e.to_string()).collect::<Vec<_>>()
+                );
                 unreachable_endpoints.extend(endpoints);
             }
             // increment fork_count if Some

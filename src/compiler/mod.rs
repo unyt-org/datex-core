@@ -16,6 +16,7 @@ use crate::compiler::precompiler::{
     AstMetadata, AstWithMetadata, VariableMetadata, precompile_ast,
 };
 use crate::compiler::scope::CompilationScope;
+use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::libs::core::CoreLibPointerId;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -27,15 +28,14 @@ use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::compiler::type_compiler::compile_type_expression;
 
 pub mod context;
 pub mod error;
 pub mod metadata;
 mod precompiler;
 pub mod scope;
-mod type_inference;
 mod type_compiler;
+mod type_inference;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -157,10 +157,7 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn new_const(
-        name: String,
-        slot: VirtualSlot,
-    ) -> Self {
+    pub fn new_const(name: String, slot: VirtualSlot) -> Self {
         Variable {
             name,
             var_type: VariableKind::Const,
@@ -220,13 +217,7 @@ impl Variable {
 pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
     let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
-    let routing_header = RoutingHeader {
-        version: 2,
-        flags: routing_header::Flags::new(),
-        block_size: 0,
-        sender: Endpoint::LOCAL,
-        ..RoutingHeader::default()
-    };
+    let routing_header = RoutingHeader::default();
 
     let block_header = BlockHeader::default();
     let encrypted_header = EncryptedHeader::default();
@@ -487,7 +478,8 @@ fn compile_expression(
             compilation_context.append_instruction_code(InstructionCode::NULL);
         }
         DatexExpression::List(list) => {
-            compilation_context.append_instruction_code(InstructionCode::LIST_START);
+            compilation_context
+                .append_instruction_code(InstructionCode::LIST_START);
             for item in list {
                 scope = compile_expression(
                     compilation_context,
@@ -496,10 +488,12 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Map(map) => {
-            compilation_context.append_instruction_code(InstructionCode::MAP_START);
+            compilation_context
+                .append_instruction_code(InstructionCode::MAP_START);
             for (key, value) in map {
                 scope = compile_key_value_entry(
                     compilation_context,
@@ -509,7 +503,8 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Array(array) => {
             compilation_context
@@ -522,7 +517,8 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Struct(structure) => {
             compilation_context.append_instruction_code(
@@ -537,7 +533,8 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Placeholder => {
             compilation_context.insert_value_container(
@@ -594,8 +591,9 @@ fn compile_expression(
                     scope = scope_data.0; // set parent scope
                     // drop all slot addresses that were allocated in this scope
                     for slot_address in scope_data.1 {
-                        compilation_context
-                            .append_instruction_code(InstructionCode::DROP_SLOT);
+                        compilation_context.append_instruction_code(
+                            InstructionCode::DROP_SLOT,
+                        );
                         // insert virtual slot address for dropping
                         compilation_context
                             .insert_virtual_slot_address(slot_address);
@@ -699,8 +697,9 @@ fn compile_expression(
                     // allocate an additional slot with a reference to the variable
                     let virtual_slot_addr_for_var =
                         scope.get_next_virtual_slot();
-                    compilation_context
-                        .append_instruction_code(InstructionCode::ALLOCATE_SLOT);
+                    compilation_context.append_instruction_code(
+                        InstructionCode::ALLOCATE_SLOT,
+                    );
                     compilation_context.insert_virtual_slot_address(
                         VirtualSlot::local(virtual_slot_addr_for_var),
                     );
@@ -736,7 +735,8 @@ fn compile_expression(
 
             scope.register_variable_slot(variable);
 
-            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpression::GetReference(address) => {
@@ -791,8 +791,9 @@ fn compile_expression(
                     //         name.clone(),
                     //     ));
                     // }
-                    compilation_context
-                        .append_instruction_code(InstructionCode::from(&operator));
+                    compilation_context.append_instruction_code(
+                        InstructionCode::from(&operator),
+                    );
                 }
                 op => todo!("Handle assignment operator: {op:?}"),
             }
@@ -806,7 +807,8 @@ fn compile_expression(
                 scope,
             )?;
             // close assignment scope
-            compilation_context.append_instruction_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
@@ -819,7 +821,8 @@ fn compile_expression(
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
             // append binary code to load variable
-            compilation_context.append_instruction_code(InstructionCode::GET_SLOT);
+            compilation_context
+                .append_instruction_code(InstructionCode::GET_SLOT);
             compilation_context.insert_virtual_slot_address(virtual_slot);
         }
 

@@ -1,12 +1,5 @@
 use crate::compile;
-use crate::values::core_value::CoreValue;
-use crate::values::core_values::boolean::Boolean;
-use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::map::Map;
-use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
-use crate::decompiler::{decompile_body, DecompileOptions};
+use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -15,15 +8,24 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::network::com_hub::{ComHub, Response, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
+use crate::runtime::execution::{
+    ExecutionInput, ExecutionOptions, execute_dxb_sync,
+};
+use crate::runtime::global_context::get_global_context;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::map::Map;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 use itertools::Itertools;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use serde_with::serde_as;
 use std::fmt::Display;
 use std::time::Duration;
-use crate::runtime::global_context::get_global_context;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -197,7 +199,7 @@ impl Display for NetworkTraceResult {
 
 #[derive(Default, Debug)]
 pub struct TraceOptions {
-    pub max_hops: Option<usize>,
+    pub max_hops: Option<u8>,
     pub endpoints: Vec<Endpoint>,
     pub response_options: ResponseOptions,
 }
@@ -211,7 +213,7 @@ impl TraceOptions {
     }
 
     pub fn new(
-        max_hops: Option<usize>,
+        max_hops: Option<u8>,
         response_options: ResponseOptions,
     ) -> Self {
         TraceOptions {
@@ -274,7 +276,8 @@ impl ComHub {
         };
 
         // measure round trip time
-        let start_time = get_global_context().clone().time.lock().unwrap().now();
+        let start_time =
+            get_global_context().clone().time.lock().unwrap().now();
 
         let responses = self
             .send_own_block_await_response(
@@ -283,9 +286,7 @@ impl ComHub {
             )
             .await;
         let end_time = get_global_context().clone().time.lock().unwrap().now();
-        let round_trip_time = Duration::from_millis(
-            end_time - start_time
-        );
+        let round_trip_time = Duration::from_millis(end_time - start_time);
 
         let mut results = vec![];
 
@@ -306,7 +307,7 @@ impl ComHub {
                     let block = block
                         .as_ref()
                         .expect("Expected a block in incoming section");
-                    
+
                     let hops = self.get_trace_data_from_block(block);
                     if let Some(hops) = hops {
                         let result = NetworkTraceResult {
@@ -483,13 +484,12 @@ impl ComHub {
         receiver_endpoint: &[Endpoint],
         block_type: BlockType,
         context_id: OutgoingContextId,
-        max_hops: Option<usize>,
+        max_hops: Option<u8>,
     ) -> DXBBlock {
         let mut trace_block = DXBBlock {
-            routing_header: RoutingHeader {
-                ttl: max_hops.unwrap_or(42) as u8,
-                ..RoutingHeader::default()
-            },
+            routing_header: RoutingHeader::default()
+                .with_ttl(max_hops.unwrap_or(42))
+                .to_owned(),
             block_header: BlockHeader {
                 flags_and_timestamp: FlagsAndTimestamp::default()
                     .with_block_type(block_type),
@@ -512,11 +512,9 @@ impl ComHub {
         let dxb = block.body.clone();
         let exec_input = ExecutionInput::new_with_dxb_and_options(
             &dxb,
-            ExecutionOptions::default()
+            ExecutionOptions::default(),
         );
-        let hops_datex = execute_dxb_sync(exec_input)
-            .unwrap()
-            .unwrap();
+        let hops_datex = execute_dxb_sync(exec_input).unwrap().unwrap();
         if let ValueContainer::Value(Value {
             inner: CoreValue::Array(array),
             ..
@@ -535,8 +533,13 @@ impl ComHub {
                     // let endpoint: Endpoint = obj.get("endpoint").try_cast_to_endpoint().unwrap();
                     // let endpoint: Endpoint = obj.get("endpoint").cast_to_endpoint();
 
-                    let endpoint: Endpoint =
-                        obj.get_owned("endpoint").unwrap().to_value().borrow().cast_to_endpoint().unwrap();
+                    let endpoint: Endpoint = obj
+                        .get_owned("endpoint")
+                        .unwrap()
+                        .to_value()
+                        .borrow()
+                        .cast_to_endpoint()
+                        .unwrap();
                     let distance: TypedInteger =
                         obj.get_owned("distance").cloned().try_into().unwrap();
 
@@ -558,7 +561,8 @@ impl ComHub {
                                 if let ValueContainer::Value(Value {
                                     inner: CoreValue::Text(name),
                                     ..
-                                }) = socket_obj.get_owned("interface_name")?
+                                }) =
+                                    socket_obj.get_owned("interface_name")?
                                 {
                                     Some(name.clone().0)
                                 } else {
@@ -588,12 +592,25 @@ impl ComHub {
                             error!("Invalid socket data in trace block");
                             continue;
                         };
-                    let direction =
-                        obj.get_owned("direction").unwrap().to_value().borrow().cast_to_text().0;
-                    let fork_nr =
-                        obj.get_owned("fork_nr").unwrap().to_value().borrow().cast_to_text().0;
-                    let bounce_back: Boolean =
-                        obj.get_owned("bounce_back").cloned().try_into().unwrap();
+                    let direction = obj
+                        .get_owned("direction")
+                        .unwrap()
+                        .to_value()
+                        .borrow()
+                        .cast_to_text()
+                        .0;
+                    let fork_nr = obj
+                        .get_owned("fork_nr")
+                        .unwrap()
+                        .to_value()
+                        .borrow()
+                        .cast_to_text()
+                        .0;
+                    let bounce_back: Boolean = obj
+                        .get_owned("bounce_back")
+                        .cloned()
+                        .try_into()
+                        .unwrap();
 
                     hops.push(NetworkTraceHop {
                         endpoint,
@@ -612,8 +629,7 @@ impl ComHub {
                         fork_nr,
                         bounce_back: bounce_back.0,
                     });
-                }
-                else {
+                } else {
                     error!("Invalid hop data in trace block");
                     continue;
                 }

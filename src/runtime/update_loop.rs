@@ -1,21 +1,21 @@
-use std::rc::Rc;
-use std::time::Duration;
-use futures::channel::oneshot;
-use log::info;
 use crate::compiler::compile_value;
 use crate::global::dxb_block::{DXBBlock, OutgoingContextId};
-use crate::global::protocol_structures::block_header::{BlockHeader, BlockType};
+use crate::global::protocol_structures::block_header::FlagsAndTimestamp;
+use crate::global::protocol_structures::block_header::{
+    BlockHeader, BlockType,
+};
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
-use crate::runtime::{RuntimeInternal};
+use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::ExecutionError;
 use crate::task::{sleep, spawn_with_panic_notify};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
-use crate::global::protocol_structures::block_header::{
-    FlagsAndTimestamp,
-};
+use futures::channel::oneshot;
+use log::info;
+use std::rc::Rc;
+use std::time::Duration;
 
 impl RuntimeInternal {
     /// Starts the
@@ -65,14 +65,26 @@ impl RuntimeInternal {
 
     /// pops incoming sections from the ComHub and executes them in separate tasks
     fn handle_incoming_sections(self_rc: Rc<RuntimeInternal>) {
-        let mut sections = self_rc.com_hub.block_handler.incoming_sections_queue.borrow_mut();
+        let mut sections = self_rc
+            .com_hub
+            .block_handler
+            .incoming_sections_queue
+            .borrow_mut();
         // get incoming sections from ComHub
         for section in sections.drain(..) {
             // execute the section in a separate task
             let self_rc = self_rc.clone();
             spawn_with_panic_notify(async move {
-                let (result, endpoint, context_id) = RuntimeInternal::execute_incoming_section(self_rc.clone(), section).await;
-                info!("Execution result (on {} from {}): {result:?}", self_rc.endpoint, endpoint);
+                let (result, endpoint, context_id) =
+                    RuntimeInternal::execute_incoming_section(
+                        self_rc.clone(),
+                        section,
+                    )
+                    .await;
+                info!(
+                    "Execution result (on {} from {}): {result:?}",
+                    self_rc.endpoint, endpoint
+                );
                 // send response back to the sender
                 let res = RuntimeInternal::send_response_block(
                     self_rc.clone(),
@@ -91,11 +103,9 @@ impl RuntimeInternal {
         receiver_endpoint: Endpoint,
         context_id: OutgoingContextId,
     ) -> Result<(), Vec<Endpoint>> {
-        let routing_header: RoutingHeader = RoutingHeader {
-            version: 2,
-            sender: self_rc.endpoint.clone(),
-            ..RoutingHeader::default()
-        };
+        let routing_header: RoutingHeader = RoutingHeader::default()
+            .with_sender(self_rc.endpoint.clone())
+            .to_owned();
 
         let block_header = BlockHeader {
             context_id,
@@ -107,10 +117,11 @@ impl RuntimeInternal {
         };
         let encrypted_header = EncryptedHeader::default();
 
-        info!("send response, context_id: {context_id:?}, receiver: {receiver_endpoint}");
+        info!(
+            "send response, context_id: {context_id:?}, receiver: {receiver_endpoint}"
+        );
 
         if let Ok(value) = result {
-
             let dxb = if let Some(value) = &value {
                 compile_value(value)
             } else {
@@ -120,13 +131,16 @@ impl RuntimeInternal {
             // TODO #232: handle compiler error here
             let dxb = dxb.unwrap();
 
-            let mut block =
-                DXBBlock::new(routing_header, block_header, encrypted_header, dxb);
+            let mut block = DXBBlock::new(
+                routing_header,
+                block_header,
+                encrypted_header,
+                dxb,
+            );
             block.set_receivers(std::slice::from_ref(&receiver_endpoint));
 
             self_rc.com_hub.send_own_block(block)
-        }
-        else {
+        } else {
             todo!("#233 Handle returning error response block");
         }
     }

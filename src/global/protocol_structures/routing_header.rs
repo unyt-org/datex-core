@@ -1,7 +1,10 @@
+use std::fmt::Display;
+
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
+use webrtc::interceptor::report::receiver;
 
 // 2 bit
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
@@ -20,7 +23,6 @@ pub enum EncryptionType {
     Unencrypted = 0b0,
     Encrypted = 0b1,
 }
-
 
 // 2 bit + 1 bit + 1 bit + 4 bit = 1 byte
 #[bitfield]
@@ -49,7 +51,6 @@ pub enum ReceiverType {
     ReceiversWithKeys = 0b11,
 }
 
-
 // 1 byte + 18 byte + 2 byte + 4 byte + 1 byte = 26 bytes
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct PointerId {
@@ -58,6 +59,20 @@ pub struct PointerId {
     pub instance: u16,
     pub timestamp: u32,
     pub counter: u8,
+}
+
+impl Display for PointerId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "PointerId({}, {:?}, {}, {}, {})",
+            self.pointer_type,
+            self.identifier,
+            self.instance,
+            self.timestamp,
+            self.counter
+        )
+    }
 }
 
 // <count>: 1 byte + (21 byte * count)
@@ -80,11 +95,19 @@ impl ReceiverEndpoints {
 // min: 2 bytes
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct ReceiverEndpointsWithKeys {
-    pub count: u8,
+    count: u8,
     #[br(count = count)]
     pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
 }
-
+impl ReceiverEndpointsWithKeys {
+    pub fn new(endpoints_with_keys: Vec<(Endpoint, [u8; 512])>) -> Self {
+        let count = endpoints_with_keys.len() as u8;
+        ReceiverEndpointsWithKeys {
+            count,
+            endpoints_with_keys,
+        }
+    }
+}
 
 // min: 11 byte + 2 byte + 21 byte + 1 byte = 35 bytes
 #[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
@@ -95,7 +118,7 @@ pub struct RoutingHeader {
     pub flags: Flags,
 
     #[brw(if(flags.has_checksum()))]
-    pub checksum: u32,
+    checksum: u32,
 
     pub distance: i8,
     pub ttl: u8,
@@ -104,12 +127,12 @@ pub struct RoutingHeader {
 
     // TODO #115: add custom match receiver queries
     #[brw(if(flags.receiver_type() == ReceiverType::Pointer))]
-    pub receivers_pointer_id: Option<PointerId>,
+    receivers_pointer_id: Option<PointerId>,
 
     #[brw(if(flags.receiver_type() == ReceiverType::Receivers))]
-    pub receivers_endpoints: Option<ReceiverEndpoints>,
+    receivers_endpoints: Option<ReceiverEndpoints>,
     #[brw(if(flags.receiver_type() == ReceiverType::ReceiversWithKeys))]
-    pub receivers_endpoints_with_keys: Option<ReceiverEndpointsWithKeys>,
+    receivers_endpoints_with_keys: Option<ReceiverEndpointsWithKeys>,
 }
 
 impl Serializable for RoutingHeader {}
@@ -127,6 +150,147 @@ impl Default for RoutingHeader {
             receivers_pointer_id: None,
             receivers_endpoints: None,
             receivers_endpoints_with_keys: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Receivers {
+    None,
+    PointerId(PointerId),
+    Endpoints(Vec<Endpoint>),
+    EndpointsWithKeys(Vec<(Endpoint, [u8; 512])>),
+}
+impl Display for Receivers {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Receivers::None => write!(f, "No receivers"),
+            Receivers::PointerId(pid) => write!(f, "PointerId: {}", pid),
+            Receivers::Endpoints(endpoints) => {
+                write!(f, "Endpoints: {:?}", endpoints)
+            }
+            Receivers::EndpointsWithKeys(endpoints_with_keys) => {
+                write!(f, "Endpoints with keys: {:?}", endpoints_with_keys)
+            }
+        }
+    }
+}
+
+impl From<PointerId> for Receivers {
+    fn from(pid: PointerId) -> Self {
+        Receivers::PointerId(pid)
+    }
+}
+impl From<Vec<Endpoint>> for Receivers {
+    fn from(endpoints: Vec<Endpoint>) -> Self {
+        Receivers::from(endpoints.as_slice())
+    }
+}
+impl From<&Vec<Endpoint>> for Receivers {
+    fn from(endpoints: &Vec<Endpoint>) -> Self {
+        Receivers::from(endpoints.as_slice())
+    }
+}
+impl From<&[Endpoint]> for Receivers {
+    fn from(endpoints: &[Endpoint]) -> Self {
+        if endpoints.len() == 0 {
+            Receivers::None
+        } else {
+            Receivers::Endpoints(endpoints.to_vec())
+        }
+    }
+}
+impl From<Vec<(Endpoint, [u8; 512])>> for Receivers {
+    fn from(endpoints_with_keys: Vec<(Endpoint, [u8; 512])>) -> Self {
+        if endpoints_with_keys.len() == 0 {
+            Receivers::None
+        } else {
+            Receivers::EndpointsWithKeys(endpoints_with_keys)
+        }
+    }
+}
+
+impl RoutingHeader {
+    pub fn with_sender(&mut self, sender: Endpoint) -> &mut Self {
+        self.sender = sender;
+        self
+    }
+    pub fn with_receivers(&mut self, receivers: Receivers) -> &mut Self {
+        self.set_receivers(receivers);
+        self
+    }
+    pub fn with_ttl(&mut self, ttl: u8) -> &mut Self {
+        self.ttl = ttl;
+        self
+    }
+}
+
+impl RoutingHeader {
+    pub fn new(
+        ttl: u8,
+        flags: Flags,
+        sender: Endpoint,
+        receivers: Receivers,
+    ) -> Self {
+        let mut routing_header = RoutingHeader {
+            sender,
+            ttl,
+            flags,
+            ..RoutingHeader::default()
+        };
+        routing_header.set_receivers(receivers);
+        routing_header
+    }
+
+    pub fn set_size(&mut self, size: u16) {
+        self.block_size = size;
+    }
+
+    pub fn set_receivers(&mut self, receivers: Receivers) {
+        self.receivers_endpoints = None;
+        self.receivers_pointer_id = None;
+        self.receivers_endpoints_with_keys = None;
+        self.flags.set_receiver_type(ReceiverType::None);
+
+        match receivers {
+            Receivers::PointerId(pid) => self.receivers_pointer_id = Some(pid),
+            Receivers::Endpoints(endpoints) => {
+                if endpoints.len() > 0 {
+                    self.receivers_endpoints =
+                        Some(ReceiverEndpoints::new(endpoints));
+                    self.flags.set_receiver_type(ReceiverType::Receivers);
+                }
+            }
+            Receivers::EndpointsWithKeys(endpoints_with_keys) => {
+                if endpoints_with_keys.len() > 0 {
+                    self.receivers_endpoints_with_keys = Some(
+                        ReceiverEndpointsWithKeys::new(endpoints_with_keys),
+                    );
+                    self.flags
+                        .set_receiver_type(ReceiverType::ReceiversWithKeys);
+                }
+            }
+            Receivers::None => {}
+        }
+    }
+
+    /// Get the receivers from the routing header
+    pub fn receivers(&self) -> Receivers {
+        if let Some(pid) = &self.receivers_pointer_id {
+            Receivers::PointerId(pid.clone())
+        } else if let Some(endpoints) = &self.receivers_endpoints
+            && endpoints.count > 0
+        {
+            Receivers::Endpoints(endpoints.endpoints.clone())
+        } else if let Some(endpoints_with_keys) =
+            &self.receivers_endpoints_with_keys
+            && endpoints_with_keys.count > 0
+        {
+            Receivers::EndpointsWithKeys(
+                endpoints_with_keys.endpoints_with_keys.clone(),
+            )
+        } else {
+            Receivers::None
         }
     }
 }

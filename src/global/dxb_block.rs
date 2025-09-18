@@ -7,7 +7,9 @@ use super::protocol_structures::{
     encrypted_header::EncryptedHeader,
     routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
-use crate::global::protocol_structures::routing_header::{ReceiverEndpoints, ReceiverType};
+use crate::global::protocol_structures::routing_header::{
+    ReceiverEndpoints, ReceiverType, Receivers,
+};
 use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
@@ -178,9 +180,7 @@ impl DXBBlock {
         self
     }
 
-    fn adjust_block_length(
-        mut bytes: Vec<u8>,
-    ) -> Vec<u8> {
+    fn adjust_block_length(mut bytes: Vec<u8>) -> Vec<u8> {
         let size = bytes.len() as u32;
         write_u16(&mut bytes, &mut SIZE_BYTE_POSITION.clone(), size as u16);
         bytes
@@ -258,21 +258,26 @@ impl DXBBlock {
     }
 
     /// Get a list of all receiver endpoints from the routing header.
-    pub fn receivers(&self) -> Option<&Vec<Endpoint>> {
-        if let Some(endpoints) = &self.routing_header.receivers_endpoints {
-            Some(&endpoints.endpoints)
-        } else {
-            None
+    pub fn receiver_endpoints(&self) -> Vec<Endpoint> {
+        match self.routing_header.receivers() {
+            Receivers::Endpoints(endpoints) => endpoints,
+            Receivers::EndpointsWithKeys(endpoints_with_keys) => {
+                endpoints_with_keys.into_iter().map(|(e, _)| e).collect()
+            }
+            Receivers::PointerId(_) => unimplemented!(),
+            _ => Vec::new(),
         }
+    }
+    pub fn receivers(&self) -> Receivers {
+        self.routing_header.receivers()
     }
 
     /// Update the receivers list in the routing header.
-    pub fn set_receivers(&mut self, receivers: &[Endpoint]) {
-        self.routing_header.receivers_endpoints =
-            Some(ReceiverEndpoints::new(receivers.to_vec()));
-        self.routing_header
-            .flags
-            .set_receiver_type(ReceiverType::Receivers)
+    pub fn set_receivers<T>(&mut self, endpoints: T)
+    where
+        T: Into<Receivers>,
+    {
+        self.routing_header.set_receivers(endpoints.into());
     }
 
     pub fn set_bounce_back(&mut self, bounce_back: bool) {
@@ -281,22 +286,6 @@ impl DXBBlock {
 
     pub fn is_bounce_back(&self) -> bool {
         self.routing_header.flags.is_bounce_back()
-    }
-
-    pub fn get_receivers(&self) -> Vec<Endpoint> {
-        if let Some(ref endpoints) = self.routing_header.receivers_endpoints {
-            endpoints.endpoints.clone()
-        } else if let Some(ref endpoints) =
-            self.routing_header.receivers_endpoints_with_keys
-        {
-            endpoints
-                .endpoints_with_keys
-                .iter()
-                .map(|(e, _)| e.clone())
-                .collect()
-        } else {
-            unreachable!("No receivers set in the routing header")
-        }
     }
 
     pub fn get_sender(&self) -> &Endpoint {
@@ -313,7 +302,10 @@ impl DXBBlock {
     pub fn get_block_id(&self) -> BlockId {
         BlockId {
             endpoint_context_id: self.get_endpoint_context_id(),
-            timestamp: self.block_header.flags_and_timestamp.creation_timestamp(),
+            timestamp: self
+                .block_header
+                .flags_and_timestamp
+                .creation_timestamp(),
             current_section_index: self.block_header.section_index,
             current_block_number: self.block_header.block_number,
         }
@@ -323,17 +315,17 @@ impl DXBBlock {
     /// without wildcard instances, and no @@any receiver.
     pub fn has_exact_receiver_count(&self) -> bool {
         !self
-            .get_receivers()
+            .receiver_endpoints()
             .iter()
             .any(|e| e.is_broadcast() || e.is_any())
     }
 
-    pub fn clone_with_new_receivers(
-        &self,
-        new_receivers: &[Endpoint],
-    ) -> DXBBlock {
+    pub fn clone_with_new_receivers<T>(&self, new_receivers: T) -> DXBBlock
+    where
+        T: Into<Receivers>,
+    {
         let mut new_block = self.clone();
-        new_block.set_receivers(new_receivers);
+        new_block.set_receivers(new_receivers.into());
         new_block
     }
 }
@@ -342,19 +334,58 @@ impl Display for DXBBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let block_type = self.block_header.flags_and_timestamp.block_type();
         let sender = &self.routing_header.sender;
-        let receivers = self
-            .receivers()
-            .map(|endpoints| {
-                endpoints
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            })
-            .unwrap_or("none".to_string());
-
+        let receivers = self.receivers();
         write!(f, "[{block_type}] {sender} -> {receivers}")?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::{
+        global::{
+            dxb_block::DXBBlock,
+            protocol_structures::{
+                encrypted_header::{self, EncryptedHeader},
+                routing_header::RoutingHeader,
+            },
+        },
+        values::core_values::endpoint::Endpoint,
+    };
+
+    #[test]
+    pub fn test_recalculate() {
+        let mut routing_header = RoutingHeader::default()
+            .with_sender(Endpoint::from_str("@test").unwrap())
+            .to_owned();
+        routing_header.set_size(420);
+        let mut block = DXBBlock {
+            body: vec![0x01, 0x02, 0x03],
+            encrypted_header: EncryptedHeader {
+                flags: encrypted_header::Flags::new()
+                    .with_user_agent(encrypted_header::UserAgent::Unused11),
+                ..Default::default()
+            },
+            routing_header,
+            ..DXBBlock::default()
+        };
+
+        {
+            // invalid block size
+            let block_bytes = block.to_bytes().unwrap();
+            let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            assert_ne!(block, block2);
+        }
+
+        {
+            // valid block size
+            block.recalculate_struct();
+            let block_bytes = block.to_bytes().unwrap();
+            let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            assert_eq!(block, block3);
+        }
     }
 }

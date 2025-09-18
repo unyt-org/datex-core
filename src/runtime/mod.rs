@@ -219,12 +219,9 @@ impl RuntimeInternal {
         remote_execution_context: &mut RemoteExecutionContext,
         dxb: Vec<u8>,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        let routing_header: RoutingHeader = RoutingHeader {
-            version: 2,
-            flags: routing_header::Flags::new(),
-            sender: self_rc.endpoint.clone(),
-            ..RoutingHeader::default()
-        };
+        let routing_header: RoutingHeader = RoutingHeader::default()
+            .with_sender(self_rc.endpoint.clone())
+            .to_owned();
 
         // get existing context_id for context, or create a new one
         let context_id =
