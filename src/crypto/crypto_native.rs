@@ -52,23 +52,6 @@ impl CryptoTrait for CryptoNative {
         todo!("#165 Undescribed by author.")
     }
 
-    fn sign_rsa(
-        &self,
-        data: Vec<u8>,
-        private_key: Vec<u8>,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>>>> {
-        todo!("#166 Undescribed by author.")
-    }
-
-    fn verify_rsa(
-        &self,
-        data: Vec<u8>,
-        signature: Vec<u8>,
-        public_key: Vec<u8>,
-    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>>>> {
-        todo!("#167 Undescribed by author.")
-    }
-
     fn create_uuid(&self) -> String {
         // use pseudo-random UUID for testing
         cfg_if::cfg_if! {
@@ -116,13 +99,6 @@ impl CryptoTrait for CryptoNative {
 
             Ok((public_key_der, private_key_der))
         })
-    }
-
-    fn new_sign_key_pair(
-        &self,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>>>
-    {
-        todo!("#168 Undescribed by author.")
     }
 
     // EdDSA keygen
