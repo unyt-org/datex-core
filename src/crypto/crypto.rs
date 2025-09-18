@@ -39,6 +39,13 @@ pub trait CryptoTrait: Send + Sync {
         kek_bytes: &'a [u8; 32],
         cipher: &'a [u8; 40],
     ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>>;
+
+    fn gen_x25519(&self) -> Pin<Box<dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>>>>;
+    fn derive_x25519<'a>(
+        &'a self,
+        my_raw: &'a [u8; 48],
+        peer_pub: &'a [u8; 44],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 }
 
 pub struct Crypto;
