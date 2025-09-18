@@ -36,6 +36,13 @@ pub trait CryptoTrait: Send + Sync {
         sig: &'a Vec<u8>,
         data: &'a Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>;
+
+    fn aes_ctr_encrypt<'a>(
+        &'a self,
+        key: &'a [u8; 32],
+        iv: &'a [u8; 16],
+        plaintext: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 }
 
 pub struct Crypto;
