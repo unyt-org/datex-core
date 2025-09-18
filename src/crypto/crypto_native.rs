@@ -15,6 +15,7 @@ use openssl::{
     md::Md,
     pkey::PKey,
     sign::{Signer, Verifier},
+    symm::{Cipher, Crypter, Mode},
 };
 
 
@@ -158,12 +159,35 @@ impl CryptoTrait for CryptoNative {
                 .map_err(|_| CryptoError::VerificationError)?)
         })
     }
+    //
+    // AES CTR
+    fn aes_ctr_encrypt<'a>(
+        &'a self,
+        key: &'a [u8; 32],
+        iv: &'a [u8; 16],
+        plaintext: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+        Box::pin(async move {
+            let cipher = Cipher::aes_256_ctr();
+            let mut enc = Crypter::new(cipher, Mode::Encrypt, key, Some(iv))
+                .map_err(|_| CryptoError::EncryptionError)?;
+
+            let mut out = vec![0u8; plaintext.len()];
+            let count = enc
+                .update(plaintext, &mut out)
+                .map_err(|_| CryptoError::EncryptionError)?;
+            out.truncate(count);
+            Ok(out)
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     static CRYPTO: CryptoNative = CryptoNative {};
+
+    // Signatures
     #[tokio::test]
     pub async fn test_dsa_ed2519() {
         let data = b"Some message to sign".to_vec();
@@ -178,6 +202,21 @@ mod tests {
         assert_eq!(sig.len(), 64);
 
         assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
+    }
+
+    // AES CTR
+    #[tokio::test]
+    pub async fn aes_ctr_roundtrip() {
+        let key = [0u8; 32];
+        let iv = [0u8; 16];
+
+        let data = b"Some message to encrypt".to_vec();
+
+        let ciphered = CRYPTO.aes_ctr_encrypt(&key, &iv, &data).await.unwrap();
+        let deciphered = CRYPTO.aes_ctr_encrypt(&key, &iv, &ciphered).await.unwrap();
+
+        assert_ne!(ciphered, data);
+        assert_eq!(data, deciphered.to_vec());
     }
 }
 
