@@ -1499,9 +1499,9 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 binding_mutability: BindingMutability::Mutable,
-                type_annotation: Some(TypeExpression::Array(vec![
-                    TypeExpression::Literal("integer".to_string())
-                ])),
+                type_annotation: Some(TypeExpression::SliceArray(Box::new(
+                    TypeExpression::Literal("integer".to_owned())
+                ))),
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
@@ -3322,11 +3322,13 @@ mod tests {
                 binding_mutability: BindingMutability::Immutable,
                 name: "x".to_string(),
                 type_annotation: None,
-                value: Box::new(DatexExpression::Array(vec![
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(2)),
-                    DatexExpression::Integer(Integer::from(3)),
-                ])),
+                value: Box::new(DatexExpression::RefMut(Box::new(
+                    DatexExpression::Array(vec![
+                        DatexExpression::Integer(Integer::from(1)),
+                        DatexExpression::Integer(Integer::from(2)),
+                        DatexExpression::Integer(Integer::from(3)),
+                    ])
+                ))),
             }
         );
     }
@@ -3343,11 +3345,13 @@ mod tests {
                 binding_mutability: BindingMutability::Immutable,
                 name: "x".to_string(),
                 type_annotation: None,
-                value: Box::new(DatexExpression::Array(vec![
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(2)),
-                    DatexExpression::Integer(Integer::from(3)),
-                ])),
+                value: Box::new(DatexExpression::Ref(Box::new(
+                    DatexExpression::Array(vec![
+                        DatexExpression::Integer(Integer::from(1)),
+                        DatexExpression::Integer(Integer::from(2)),
+                        DatexExpression::Integer(Integer::from(3)),
+                    ])
+                ))),
             }
         );
     }
