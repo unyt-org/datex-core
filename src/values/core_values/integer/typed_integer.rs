@@ -289,6 +289,11 @@ impl TypedInteger {
         }
     }
 
+    /// Converts the integer to a usize if it fits, otherwise returns None.
+    pub fn as_usize(&self) -> Option<usize> {
+        self.as_u128().and_then(|v| usize::try_from(v).ok())
+    }
+
     /// Returns true if the integer is of a signed type.
     pub fn is_signed(&self) -> bool {
         if let TypedInteger::Big(v) = self {

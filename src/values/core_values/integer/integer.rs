@@ -90,6 +90,11 @@ impl Integer {
         self.0.to_i64()
     }
 
+    /// Converts the integer to a usize if it fits, otherwise returns None.
+    pub fn as_usize(&self) -> Option<usize> {
+        self.0.to_usize()
+    }
+
     /// Converts the integer to a u64 if it fits, otherwise returns None.
     pub fn as_u64(&self) -> Option<u64> {
         self.0.to_u64()

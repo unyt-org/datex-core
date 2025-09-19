@@ -2,6 +2,7 @@ use std::{str::FromStr, vec};
 
 use chumsky::{
     IterParser, Parser,
+    error::Error,
     prelude::{choice, just, recursive},
     select,
 };
@@ -321,20 +322,63 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         // });
 
         // parse zero-or-more postfix `[]`
-        let optional_postfix_array = base
-            .then(
-                just(Token::LeftBracket)
-                    .ignore_then(just(Token::RightBracket))
-                    .repeated()
-                    .count(),
-            )
-            .map(|(base_tc, count): (TypeExpression, usize)| {
-                let mut t = base_tc;
-                for _ in 0..count {
-                    t = TypeExpression::Array(vec![t]);
+        // let optional_postfix_array = base
+        //     .then(
+        //         just(Token::LeftBracket)
+        //             .ignore_then(just(Token::RightBracket))
+        //             .repeated()
+        //             .count(),
+        //     )
+        //     .map(|(base_tc, count): (TypeExpression, usize)| {
+        //         let mut t = base_tc;
+        //         for _ in 0..count {
+        //             t = TypeExpression::Array(vec![t]);
+        //         }
+        //         t
+        //     });
+        let postfix_array = just(Token::LeftBracket).ignore_then(choice((
+            // Slice: []
+            just(Token::RightBracket).to(None),
+            // Fixed-size: [10]
+            integer().then_ignore(just(Token::RightBracket)).map(Some),
+            // Fixed-size alternative: [; 10]
+            just(Token::Semicolon)
+                .padded_by(whitespace())
+                .ignore_then(integer().padded_by(whitespace()))
+                .then_ignore(just(Token::RightBracket))
+                .map(Some),
+        )));
+
+        let array_postfix = base
+            .then(postfix_array.repeated().collect::<Vec<_>>())
+            .map(|(mut t, arrs)| {
+                for arr in arrs {
+                    t = match arr {
+                        None => TypeExpression::SliceArray(Box::new(t)), // []
+                        Some(n) => {
+                            let size = match n {
+                                TypeExpression::Integer(v) => v.as_usize(),
+                                TypeExpression::TypedInteger(v) => v.as_usize(),
+                                _ => unreachable!(
+                                    "Array size must be an integer"
+                                ),
+                            };
+                            // throw error if size is None
+                            // if size.is_none() {
+                            //     return Err(ParseError::new(
+                            //         ErrorKind::UnexpectedEnd,
+                            //     ));
+                            // }
+                            TypeExpression::FixedSizeArray(
+                                Box::new(t),
+                                size.unwrap(),
+                            )
+                        }
+                    };
                 }
                 t
             });
+
         // let postfix = base.clone().then(
         // 	choice((
         // 		just(Token::Dot)
@@ -357,13 +401,13 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         // 	})
         // });
 
-        let intersection = optional_postfix_array
+        let intersection = array_postfix
             .clone()
             .then(
                 // parse zero-or-more `& <postfix_array>`
                 just(Token::Ampersand)
                     .padded_by(whitespace())
-                    .ignore_then(optional_postfix_array.clone())
+                    .ignore_then(array_postfix.clone())
                     .repeated()
                     .collect(),
             )
@@ -704,25 +748,41 @@ mod tests {
     }
 
     #[test]
+	// WIP
+    fn array_sized() {
+        let src = "[text; 4]";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Array(vec![
+                TypeExpression::Literal(
+                    "text".to_owned()
+                );
+                4
+            ])
+        );
+    }
+
+    #[test]
     fn array_postfix() {
         let src = "text[]";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Array(vec![TypeExpression::Literal(
+            TypeExpression::SliceArray(Box::new(TypeExpression::Literal(
                 "text".to_owned()
-            )])
+            )))
         );
 
         let src = "integer[][][]";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Array(vec![TypeExpression::Array(vec!(
-                TypeExpression::Array(vec!(TypeExpression::Literal(
-                    "integer".to_owned()
+            TypeExpression::SliceArray(Box::new(TypeExpression::SliceArray(
+                Box::new(TypeExpression::SliceArray(Box::new(
+                    TypeExpression::Literal("integer".to_owned())
                 )))
-            ))])
+            )))
         );
 
         let src = "[1,2,text]";

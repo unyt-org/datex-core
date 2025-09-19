@@ -151,19 +151,40 @@ pub enum TypeExpression {
     Text(String),
     Endpoint(Endpoint),
 
-    // containers
+    // [integer, text, endpoint]
+    // size known to compile time
     Array(Vec<TypeExpression>),
-    Struct(Vec<(String, TypeExpression)>),
-    Intersection(Vec<TypeExpression>),
-    Union(Vec<TypeExpression>),
-    Generic(String, Vec<TypeExpression>), // e.g. User<text, integer>
 
+    // [text; 3], integer[10]
+    // fixed size and known to compile time
+    FixedSizeArray(Box<TypeExpression>, usize),
+
+    // text[], integer[]
+    // size not known to compile time
+    SliceArray(Box<TypeExpression>),
+
+    // { x: integer, y: text }
+    Struct(Vec<(String, TypeExpression)>),
+
+    // text & "test"
+    Intersection(Vec<TypeExpression>),
+
+    // text | integer
+    Union(Vec<TypeExpression>),
+
+    // User<text, integer>
+    Generic(String, Vec<TypeExpression>),
+
+    // (x: text) -> text
     Function {
         parameters: Vec<(String, TypeExpression)>,
         return_type: Box<TypeExpression>,
     },
 
+    // List<integer>
     List(Box<TypeExpression>),
+
+    // Map<integer, text>
     Map(Box<TypeExpression>, Box<TypeExpression>),
 
     // modifiers
