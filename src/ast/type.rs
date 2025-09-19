@@ -231,11 +231,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                             Box::new(it.next().unwrap()),
                         )
                     }
-                    other => panic!(
-                        "unknown generic type {} with {} arguments",
-                        other,
-                        args.len()
-                    ),
+                    other => TypeExpression::Generic(other.to_owned(), args),
                 }
             });
 
@@ -272,7 +268,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     Some(Token::Mutable) => ReferenceMutability::Mutable,
                     Some(Token::Final) => ReferenceMutability::Final,
                     None => ReferenceMutability::Immutable,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 match mutability {
                     ReferenceMutability::Mutable => {
@@ -782,6 +778,35 @@ mod tests {
             TypeExpression::Map(
                 Box::new(TypeExpression::Literal("text".to_owned())),
                 Box::new(TypeExpression::Literal("integer".to_owned()))
+            )
+        );
+    }
+
+    #[test]
+    fn generic_type() {
+        let src = "User<text, integer>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Generic(
+                "User".to_owned(),
+                vec![
+                    TypeExpression::Literal("text".to_owned()),
+                    TypeExpression::Literal("integer".to_owned()),
+                ],
+            )
+        );
+
+        let src = "User<text | integer>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Generic(
+                "User".to_owned(),
+                vec![TypeExpression::Union(vec![
+                    TypeExpression::Literal("text".to_owned()),
+                    TypeExpression::Literal("integer".to_owned()),
+                ]),],
             )
         );
     }

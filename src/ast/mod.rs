@@ -153,16 +153,18 @@ pub enum TypeExpression {
 
     // containers
     Array(Vec<TypeExpression>),
-    List(Box<TypeExpression>),
     Struct(Vec<(String, TypeExpression)>),
-    Map(Box<TypeExpression>, Box<TypeExpression>),
     Intersection(Vec<TypeExpression>),
     Union(Vec<TypeExpression>),
+    Generic(String, Vec<TypeExpression>), // e.g. User<text, integer>
 
     Function {
         parameters: Vec<(String, TypeExpression)>,
         return_type: Box<TypeExpression>,
     },
+
+    List(Box<TypeExpression>),
+    Map(Box<TypeExpression>, Box<TypeExpression>),
 
     // modifiers
     Ref(Box<TypeExpression>),
@@ -442,15 +444,18 @@ where
     );
 
     let reference = just(Token::Ampersand)
-        .ignore_then(just(Token::Mutable).or(just(Token::Final)).or_not().padded_by(whitespace()))
+        .ignore_then(
+            just(Token::Mutable)
+                .or(just(Token::Final))
+                .or_not()
+                .padded_by(whitespace()),
+        )
         .then(chain.clone())
-        .map(|(ref_type, expr)| {
-            match ref_type {
-                Some(Token::Mutable) => DatexExpression::RefMut(Box::new(expr)),
-                Some(Token::Final) => DatexExpression::RefFinal(Box::new(expr)),
-                None => DatexExpression::Ref(Box::new(expr)),
-                _ => unreachable!(),
-            }
+        .map(|(ref_type, expr)| match ref_type {
+            Some(Token::Mutable) => DatexExpression::RefMut(Box::new(expr)),
+            Some(Token::Final) => DatexExpression::RefFinal(Box::new(expr)),
+            None => DatexExpression::Ref(Box::new(expr)),
+            _ => unreachable!(),
         });
 
     let unary = reference.clone().or(unary);
