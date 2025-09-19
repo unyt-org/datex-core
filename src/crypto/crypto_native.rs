@@ -10,8 +10,7 @@ use uuid::Uuid;
 use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
-    md::Md,
-    pkey::{Id, PKey},
+    pkey::PKey,
     sign::{Signer, Verifier},
     symm::{Cipher, Crypter, Mode},
 };
@@ -113,7 +112,7 @@ impl CryptoTrait for CryptoNative {
                 .map_err(|_| CryptoError::VerificationError)?)
         })
     }
-    //
+
     // AES CTR
     fn aes_ctr_encrypt<'a>(
         &'a self,
@@ -207,9 +206,9 @@ impl CryptoTrait for CryptoNative {
             deriver
                 .set_peer(&peer_pub)
                 .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-            deriver
+            Ok(deriver
                 .derive_to_vec()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?)
         })
     }
 }
@@ -277,12 +276,13 @@ mod tests {
         242, 222,  38, 248];
 
 
-        let web_wrapped: [u8; 40] = 
-        [140, 223, 207,  46,   9, 105, 205,  24, 174,
-        238, 109,   5,  96,   4,  51, 132,  54, 187,
-        251, 167, 105, 131, 109, 246, 123, 238, 160,
-        139, 180,  59, 185,   8, 191,  57, 139, 133,
-         19,  40,  15, 210];
+        let web_wrapped: [u8; 40] = [
+            140, 223, 207,  46,   9, 105, 205,  24, 174,
+            238, 109,   5,  96,   4,  51, 132,  54, 187,
+            251, 167, 105, 131, 109, 246, 123, 238, 160,
+            139, 180,  59, 185,   8, 191,  57, 139, 133,
+             19,  40,  15, 210
+        ];
 
         let wrapped = CRYPTO.key_upwrap(&kek, &kek).await.unwrap();
 
