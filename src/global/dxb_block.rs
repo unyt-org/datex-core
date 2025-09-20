@@ -7,10 +7,8 @@ use super::protocol_structures::{
     encrypted_header::EncryptedHeader,
     routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
-use crate::global::protocol_structures::routing_header::{
-    ReceiverEndpoints, ReceiverType, Receivers,
-};
-use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
+use crate::global::protocol_structures::routing_header::Receivers;
+use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use futures::channel::mpsc::UnboundedReceiver;

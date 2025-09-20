@@ -42,7 +42,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use syntect::parsing::ScopeError::NoClearedScopesToRestore;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {

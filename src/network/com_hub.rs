@@ -1,7 +1,5 @@
 use crate::global::protocol_structures::block_header::BlockType;
-use crate::global::protocol_structures::routing_header::{
-    ReceiverEndpoints, SignatureType,
-};
+use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};

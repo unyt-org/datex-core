@@ -1,7 +1,6 @@
 use crate::ast::VariableKind;
 use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
-use crate::values::reference::ReferenceMutability;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;

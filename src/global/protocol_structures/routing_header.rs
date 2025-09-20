@@ -191,7 +191,7 @@ impl From<&Vec<Endpoint>> for Receivers {
 }
 impl From<&[Endpoint]> for Receivers {
     fn from(endpoints: &[Endpoint]) -> Self {
-        if endpoints.len() == 0 {
+        if endpoints.is_empty() {
             Receivers::None
         } else {
             Receivers::Endpoints(endpoints.to_vec())
@@ -200,7 +200,7 @@ impl From<&[Endpoint]> for Receivers {
 }
 impl From<Vec<(Endpoint, [u8; 512])>> for Receivers {
     fn from(endpoints_with_keys: Vec<(Endpoint, [u8; 512])>) -> Self {
-        if endpoints_with_keys.len() == 0 {
+        if endpoints_with_keys.is_empty() {
             Receivers::None
         } else {
             Receivers::EndpointsWithKeys(endpoints_with_keys)
@@ -253,14 +253,14 @@ impl RoutingHeader {
         match receivers {
             Receivers::PointerId(pid) => self.receivers_pointer_id = Some(pid),
             Receivers::Endpoints(endpoints) => {
-                if endpoints.len() > 0 {
+                if !endpoints.is_empty() {
                     self.receivers_endpoints =
                         Some(ReceiverEndpoints::new(endpoints));
                     self.flags.set_receiver_type(ReceiverType::Receivers);
                 }
             }
             Receivers::EndpointsWithKeys(endpoints_with_keys) => {
-                if endpoints_with_keys.len() > 0 {
+                if !endpoints_with_keys.is_empty() {
                     self.receivers_endpoints_with_keys = Some(
                         ReceiverEndpointsWithKeys::new(endpoints_with_keys),
                     );
