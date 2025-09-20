@@ -1,7 +1,9 @@
+use std::fmt::Display;
+
 use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
-use crate::ast::utils::operation;
 use crate::ast::lexer::Token;
+use crate::ast::utils::operation;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
@@ -9,6 +11,7 @@ use chumsky::prelude::*;
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ComparisonOperator {
     Is,                 // is
+    Matches,            // matches
     StructuralEqual,    // ==
     NotStructuralEqual, // !=
     Equal,              // ===
@@ -17,7 +20,27 @@ pub enum ComparisonOperator {
     GreaterThan,        // >
     LessThanOrEqual,    // <=
     GreaterThanOrEqual, // >=
-    Matches,            // matches
+}
+
+impl Display for ComparisonOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ComparisonOperator::Is => "is",
+                ComparisonOperator::Matches => "matches",
+                ComparisonOperator::StructuralEqual => "==",
+                ComparisonOperator::NotStructuralEqual => "!=",
+                ComparisonOperator::Equal => "===",
+                ComparisonOperator::NotEqual => "!==",
+                ComparisonOperator::LessThan => "<",
+                ComparisonOperator::GreaterThan => ">",
+                ComparisonOperator::LessThanOrEqual => "<=",
+                ComparisonOperator::GreaterThanOrEqual => ">=",
+            }
+        )
+    }
 }
 
 fn comparison_op(
@@ -43,7 +66,8 @@ pub fn comparison_operation<'a>(
                 operation(Token::NotEqual)
                     .to(comparison_op(ComparisonOperator::NotEqual)),
                 operation(Token::Is).to(comparison_op(ComparisonOperator::Is)),
-                operation(Token::Matches).to(comparison_op(ComparisonOperator::Matches)),
+                operation(Token::Matches)
+                    .to(comparison_op(ComparisonOperator::Matches)),
             ))
             .then(union.clone())
             .repeated(),

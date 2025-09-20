@@ -984,7 +984,7 @@ mod tests {
                 return_type: None,
                 body: Box::new(DatexExpression::Statements(vec![Statement {
                     expression: DatexExpression::BinaryOperation(
-                        BinaryOperator::Add,
+                        BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                         Box::new(DatexExpression::Integer(Integer::from(1))),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                         None
@@ -1063,7 +1063,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Intersection,
+                BinaryOperator::Logical(LogicalOperator::And),
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::Integer(Integer::from(6))),
                 None
@@ -1075,9 +1075,9 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Intersection,
+                BinaryOperator::Logical(LogicalOperator::And),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Intersection,
+                    BinaryOperator::Logical(LogicalOperator::And),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::VariantAccess,
                         Box::new(DatexExpression::Literal(
@@ -1103,7 +1103,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Union,
+                BinaryOperator::Bitwise(BitwiseOperator::Or),
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::Integer(Integer::from(6))),
                 None
@@ -1115,9 +1115,9 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Union,
+                BinaryOperator::Bitwise(BitwiseOperator::Or),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Union,
+                    BinaryOperator::Bitwise(BitwiseOperator::Or),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::VariantAccess,
                         Box::new(DatexExpression::Literal(
@@ -1142,10 +1142,10 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Multiply,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Multiply),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     Box::new(DatexExpression::Integer(Integer::from(3))),
                     None
@@ -1159,9 +1159,9 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Intersection,
+                BinaryOperator::Logical(LogicalOperator::And),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -1176,9 +1176,9 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Union,
+                BinaryOperator::Bitwise(BitwiseOperator::Or),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -1257,7 +1257,7 @@ mod tests {
                     condition: Box::new(DatexExpression::ComparisonOperation(
                         ComparisonOperator::StructuralEqual,
                         Box::new(DatexExpression::BinaryOperation(
-                            BinaryOperator::Add,
+                            BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                             Box::new(DatexExpression::Boolean(true)),
                             Box::new(DatexExpression::Integer(Integer::from(
                                 1
@@ -1289,7 +1289,7 @@ mod tests {
                     condition: Box::new(DatexExpression::ComparisonOperation(
                         ComparisonOperator::StructuralEqual,
                         Box::new(DatexExpression::BinaryOperation(
-                            BinaryOperator::Add,
+                            BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                             Box::new(DatexExpression::Boolean(true)),
                             Box::new(DatexExpression::Integer(Integer::from(
                                 1
@@ -1518,7 +1518,7 @@ mod tests {
                 ComparisonOperator::StructuralEqual,
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -1534,7 +1534,7 @@ mod tests {
                 ComparisonOperator::Equal,
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -1550,7 +1550,7 @@ mod tests {
                 ComparisonOperator::NotStructuralEqual,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -1565,7 +1565,7 @@ mod tests {
                 ComparisonOperator::NotEqual,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -1581,7 +1581,7 @@ mod tests {
                 ComparisonOperator::Is,
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -2058,7 +2058,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -2074,15 +2074,15 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Array(vec![])),
                     Box::new(DatexExpression::Literal("x".to_string())),
                     None
                 )),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -2099,7 +2099,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Subtract,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 None
@@ -2114,7 +2114,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Multiply,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Multiply),
                 Box::new(DatexExpression::Integer(Integer::from(4))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -2129,7 +2129,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Integer(Integer::from(8))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -2141,7 +2141,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Integer(Integer::from(8))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -2153,7 +2153,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::TypedInteger(TypedInteger::from(
                     8u8
                 ))),
@@ -2170,12 +2170,14 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::BinaryOperation(
-                        BinaryOperator::Multiply,
+                        BinaryOperator::Arithmetic(
+                            ArithmeticOperator::Multiply
+                        ),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                         Box::new(DatexExpression::Integer(Integer::from(3))),
                         None
@@ -2195,10 +2197,10 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     Box::new(DatexExpression::Integer(Integer::from(3))),
                     None
@@ -2216,7 +2218,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Statements(vec![
                     Statement {
@@ -2241,7 +2243,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Statements(vec![
                     Statement {
                         expression: DatexExpression::Integer(Integer::from(1)),
@@ -2265,7 +2267,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Array(vec![DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -2404,7 +2406,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Literal("myVar".to_string())),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 None
@@ -2529,7 +2531,7 @@ mod tests {
                     )),
                     ApplyOperation::PropertyAccess(
                         DatexExpression::BinaryOperation(
-                            BinaryOperator::Add,
+                            BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                             Box::new(DatexExpression::Integer(Integer::from(
                                 1
                             ))),
@@ -2707,7 +2709,7 @@ mod tests {
                 type_annotation: None,
                 name: "x".to_string(),
                 value: Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
                     None
@@ -2827,7 +2829,7 @@ mod tests {
         assert_eq!(
             res,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Decimal(
                     Decimal::from_string("42.4").unwrap()
                 )),
@@ -2840,7 +2842,7 @@ mod tests {
         assert_eq!(
             res,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Integer(Integer::from(42))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 None
@@ -2851,7 +2853,7 @@ mod tests {
         assert_eq!(
             res,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Integer(Integer::from(42))),
                 Box::new(DatexExpression::Integer(Integer::from(3))),
                 None
@@ -2912,7 +2914,9 @@ mod tests {
                         None,
                         "x".to_string(),
                         Box::new(DatexExpression::BinaryOperation(
-                            BinaryOperator::Multiply,
+                            BinaryOperator::Arithmetic(
+                                ArithmeticOperator::Multiply
+                            ),
                             Box::new(DatexExpression::Integer(Integer::from(
                                 100
                             ))),
@@ -3092,7 +3096,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -3104,7 +3108,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -3119,7 +3123,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -3131,7 +3135,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -3146,7 +3150,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Add,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
                 None
@@ -3196,10 +3200,12 @@ mod tests {
             DatexExpression::RemoteExecution(
                 Box::new(DatexExpression::Literal("a".to_string())),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Add,
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Literal("b".to_string())),
                     Box::new(DatexExpression::BinaryOperation(
-                        BinaryOperator::Multiply,
+                        BinaryOperator::Arithmetic(
+                            ArithmeticOperator::Multiply
+                        ),
                         Box::new(DatexExpression::Literal("c".to_string())),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                         None
@@ -3247,7 +3253,7 @@ mod tests {
                     },
                     Statement {
                         expression: DatexExpression::BinaryOperation(
-                            BinaryOperator::Add,
+                            BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                             Box::new(DatexExpression::Integer(Integer::from(
                                 2
                             ))),

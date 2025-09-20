@@ -1,5 +1,5 @@
 use crate::ast::DatexExpression;
-use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
@@ -507,7 +507,9 @@ fn visit_expression(
                         )?;
 
                         *expression = DatexExpression::BinaryOperation(
-                            BinaryOperator::Divide,
+                            BinaryOperator::Arithmetic(
+                                ArithmeticOperator::Divide,
+                            ),
                             left.to_owned(),
                             right.to_owned(),
                             None,
@@ -585,7 +587,9 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-        DatexExpression::RefMut(expr) | DatexExpression::RefFinal(expr) | DatexExpression::Ref(expr) => {
+        DatexExpression::RefMut(expr)
+        | DatexExpression::RefFinal(expr)
+        | DatexExpression::Ref(expr) => {
             visit_expression(
                 expr,
                 metadata,
@@ -754,7 +758,7 @@ mod tests {
         assert_eq!(
             statements.get(2).unwrap().expression,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Variable(
                     Some(0),
                     "fixme".to_string()
