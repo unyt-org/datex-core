@@ -5,7 +5,10 @@ use crate::ast::binary_operation::{
     ArithmeticOperator, BinaryOperator, BitwiseOperator, LogicalOperator,
 };
 use crate::ast::comparison_operation::ComparisonOperator;
-use crate::ast::unary_operation::UnaryOperator;
+use crate::ast::unary_operation::{
+    ArithmeticUnaryOperator, LogicalUnaryOperator, ReferenceUnaryOperator,
+    UnaryOperator,
+};
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
@@ -950,7 +953,9 @@ fn get_result_value_from_instruction(
             Instruction::CreateRef => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRef,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRef,
+                        ),
                     },
                 );
                 None
@@ -959,7 +964,9 @@ fn get_result_value_from_instruction(
             Instruction::CreateRefMut => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRefMut,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRefMut,
+                        ),
                     },
                 );
                 None
@@ -968,7 +975,9 @@ fn get_result_value_from_instruction(
             Instruction::CreateRefFinal => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRefFinal,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRefFinal,
+                        ),
                     },
                 );
                 None
@@ -1253,22 +1262,55 @@ fn handle_key_value_pair(
     Ok(())
 }
 
+fn handle_unary_reference_operation(
+    operator: ReferenceUnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    match operator {
+        ReferenceUnaryOperator::CreateRef => {
+            ValueContainer::Reference(Reference::from(value_container))
+        }
+        ReferenceUnaryOperator::CreateRefFinal => ValueContainer::Reference(
+            Reference::try_final_from(value_container)
+                .expect("Could not create final reference"),
+        ),
+        ReferenceUnaryOperator::CreateRefMut => ValueContainer::Reference(
+            Reference::try_mut_from(value_container)
+                .expect("Could not create mutable reference"),
+        ),
+    }
+}
+fn handle_unary_logical_operation(
+    operator: LogicalUnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    unimplemented!(
+        "Logical unary operations are not implemented yet: {operator:?}"
+    )
+}
+fn handle_unary_arithmetic_operation(
+    operator: ArithmeticUnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    unimplemented!(
+        "Arithmetic unary operations are not implemented yet: {operator:?}"
+    )
+}
+
 fn handle_unary_operation(
     operator: UnaryOperator,
     value_container: ValueContainer,
 ) -> ValueContainer {
     match operator {
-        UnaryOperator::CreateRef => {
-            ValueContainer::Reference(Reference::from(value_container))
+        UnaryOperator::Reference(reference) => {
+            handle_unary_reference_operation(reference, value_container)
         }
-        UnaryOperator::CreateRefFinal => ValueContainer::Reference(
-            Reference::try_final_from(value_container)
-                .expect("Could not create final reference"),
-        ),
-        UnaryOperator::CreateRefMut => ValueContainer::Reference(
-            Reference::try_mut_from(value_container)
-                .expect("Could not create mutable reference"),
-        ),
+        UnaryOperator::Logical(logical) => {
+            handle_unary_logical_operation(logical, value_container)
+        }
+        UnaryOperator::Arithmetic(arithmetic) => {
+            handle_unary_arithmetic_operation(arithmetic, value_container)
+        }
         _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }
 }

@@ -1355,7 +1355,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::UnaryOperation(
-                UnaryOperator::Plus,
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::Literal("User".to_string())),
                     vec![ApplyOperation::FunctionCall(
@@ -1370,7 +1370,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::UnaryOperation(
-                UnaryOperator::Minus,
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
                 Box::new(DatexExpression::Integer(Integer::from(5)))
             )
         );
@@ -1380,13 +1380,17 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::UnaryOperation(
-                UnaryOperator::Plus,
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
                 Box::new(DatexExpression::UnaryOperation(
-                    UnaryOperator::Minus,
+                    UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
                     Box::new(DatexExpression::UnaryOperation(
-                        UnaryOperator::Plus,
+                        UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Plus
+                        ),
                         Box::new(DatexExpression::UnaryOperation(
-                            UnaryOperator::Minus,
+                            UnaryOperator::Arithmetic(
+                                ArithmeticUnaryOperator::Minus
+                            ),
                             Box::new(DatexExpression::Literal(
                                 "myVal".to_string()
                             ))
@@ -3384,7 +3388,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::UnaryOperation(
-                UnaryOperator::Not,
+                UnaryOperator::Logical(LogicalUnaryOperator::Not),
                 Box::new(DatexExpression::Literal("x".to_string()))
             )
         );
@@ -3394,7 +3398,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::UnaryOperation(
-                UnaryOperator::Not,
+                UnaryOperator::Logical(LogicalUnaryOperator::Not),
                 Box::new(DatexExpression::Boolean(true))
             )
         );
@@ -3404,9 +3408,9 @@ mod tests {
         assert_matches!(
             expr,
             DatexExpression::UnaryOperation(
-                UnaryOperator::Not,
+                UnaryOperator::Logical(LogicalUnaryOperator::Not),
                 box DatexExpression::UnaryOperation(
-                    UnaryOperator::Not,
+                    UnaryOperator::Logical(LogicalUnaryOperator::Not),
                     box DatexExpression::List(_),
                 ),
             )
