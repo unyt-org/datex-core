@@ -1062,7 +1062,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Logical(LogicalOperator::And),
+                BinaryOperator::Bitwise(BitwiseOperator::And),
                 Box::new(DatexExpression::Integer(Integer::from(5))),
                 Box::new(DatexExpression::Integer(Integer::from(6))),
                 None
@@ -1074,9 +1074,9 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Logical(LogicalOperator::And),
+                BinaryOperator::Bitwise(BitwiseOperator::And),
                 Box::new(DatexExpression::BinaryOperation(
-                    BinaryOperator::Logical(LogicalOperator::And),
+                    BinaryOperator::Bitwise(BitwiseOperator::And),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::VariantAccess,
                         Box::new(DatexExpression::Literal(
@@ -1158,7 +1158,7 @@ mod tests {
         assert_eq!(
             val,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Logical(LogicalOperator::And),
+                BinaryOperator::Bitwise(BitwiseOperator::And),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
