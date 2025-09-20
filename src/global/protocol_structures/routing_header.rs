@@ -127,7 +127,6 @@ pub struct RoutingHeader {
     // TODO #115: add custom match receiver queries
     #[brw(if(flags.receiver_type() == ReceiverType::Pointer))]
     receivers_pointer_id: Option<PointerId>,
-
     #[brw(if(flags.receiver_type() == ReceiverType::Receivers))]
     receivers_endpoints: Option<ReceiverEndpoints>,
     #[brw(if(flags.receiver_type() == ReceiverType::ReceiversWithKeys))]

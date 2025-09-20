@@ -653,6 +653,8 @@ impl ComHub {
         }
     }
 
+    /// Validates a block including it's signature if set
+    /// TODO @Norbert
     fn validate_block(&self, block: &DXBBlock) -> bool {
         // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
@@ -1290,6 +1292,7 @@ impl ComHub {
 
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
+    /// TODO @Norbert
     fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
         // TODO #188 signature & encryption
         let now = get_global_context().clone().time.lock().unwrap().now();

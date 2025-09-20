@@ -27,6 +27,8 @@ pub enum HeaderParsingError {
 
 // TODO #110: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
 
+// TODO @Norbert
+// Add optional raw signature, and encrypted part
 #[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
