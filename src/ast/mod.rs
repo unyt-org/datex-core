@@ -152,15 +152,15 @@ pub enum TypeExpression {
     Endpoint(Endpoint),
 
     // [integer, text, endpoint]
-    // size known to compile time
+    // size known to compile time, arbitrary types
     Array(Vec<TypeExpression>),
 
     // [text; 3], integer[10]
-    // fixed size and known to compile time
+    // fixed size and known to compile time, only one type
     FixedSizeArray(Box<TypeExpression>, usize),
 
     // text[], integer[]
-    // size not known to compile time
+    // size not known to compile time, only one type
     SliceArray(Box<TypeExpression>),
 
     // { x: integer, y: text }
