@@ -1015,6 +1015,9 @@ pub mod tests {
     };
     use datex_core::compiler::error::CompilerError;
     use log::*;
+    use crate::global::binary_codes::TypeSpaceInstructionCode;
+    use crate::libs::core::CoreLibPointerId;
+    use crate::values::pointer::PointerAddress;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
@@ -2689,6 +2692,38 @@ pub mod tests {
                 0xff,
                 0xff
             ]
+        );
+    }
+
+    #[test]
+    fn type_literal_integer() {
+        let script = "type(1)";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::TYPE_EXPRESSION.into(),
+                TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER.into(),
+                // slot index as u32
+                2, 1, 0, 0, 0, 1
+            ]
+        );
+    }
+
+    #[test]
+    fn type_core_type_integer() {
+        let script = "integer";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        let mut instructions: Vec<u8> = vec![
+            InstructionCode::GET_INTERNAL_REF.into(),
+        ];
+        // pointer id
+        instructions.append(&mut PointerAddress::from(CoreLibPointerId::Integer(None)).bytes().clone().to_vec());
+        assert_eq!(
+            res,
+            instructions
         );
     }
 }

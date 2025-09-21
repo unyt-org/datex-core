@@ -10,3 +10,13 @@ pub enum PointerAddress {
     // globally unique internal pointer, e.g. for #core, #std
     Internal([u8; 3]),
 }
+
+impl PointerAddress {
+    pub fn bytes(&self) -> &[u8] {
+        match self {
+            PointerAddress::Local(bytes) => bytes,
+            PointerAddress::Remote(bytes) => bytes,
+            PointerAddress::Internal(bytes) => bytes,
+        }
+    }
+}
