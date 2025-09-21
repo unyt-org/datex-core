@@ -11,7 +11,6 @@ use crate::ast::{
     BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
     TypeExpression, VariableKind,
 };
-use crate::values::reference::ReferenceMutability;
 use chumsky::prelude::*;
 pub type VariableId = usize;
 
