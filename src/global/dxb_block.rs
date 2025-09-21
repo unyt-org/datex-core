@@ -234,7 +234,7 @@ impl DXBBlock {
                 reader.read_exact(&mut decrypted_bytes)?;
                 decrypted_bytes
             }
-            EncryptionType::Unencrypted => {
+            EncryptionType::None => {
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes)?;
                 bytes

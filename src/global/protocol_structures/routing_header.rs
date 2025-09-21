@@ -19,7 +19,7 @@ pub enum SignatureType {
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
 pub enum EncryptionType {
     #[default]
-    Unencrypted = 0b0,
+    None = 0b0,
     Encrypted = 0b1,
 }
 
