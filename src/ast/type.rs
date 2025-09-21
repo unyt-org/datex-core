@@ -187,20 +187,20 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         //     .map(|fields: Vec<(String, TypeContainer)>| {
         //         Type::r#struct(fields).as_type_container()
         //     });
-        let struct_field = select! { Token::Identifier(k) => k }
-            .then(just(Token::Placeholder).or_not())
-            .then_ignore(just(Token::Colon).padded_by(whitespace()))
-            .then(ty.clone())
-            .map(|((name, opt), typ)| {
-                if opt.is_some() {
-                    (
-                        name,
-                        TypeExpression::Union(vec![typ, TypeExpression::Null]),
-                    )
-                } else {
-                    (name, typ)
-                }
-            });
+        let struct_field = select! {
+           Token::Identifier(k) => k,
+           Token::StringLiteral(k) => unescape_text(&k),
+        }
+        .then(just(Token::Placeholder).or_not())
+        .then_ignore(just(Token::Colon).padded_by(whitespace()))
+        .then(ty.clone())
+        .map(|((name, opt), typ)| {
+            if opt.is_some() {
+                (name, TypeExpression::Union(vec![typ, TypeExpression::Null]))
+            } else {
+                (name, typ)
+            }
+        });
 
         let r#struct = struct_field
             .separated_by(just(Token::Comma).padded_by(whitespace()))
@@ -444,6 +444,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
             id: None,
             name: name.to_string(),
             value: expr,
+            hoisted: false
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -458,6 +459,7 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
             id: None,
             name: name.to_string(),
             value: expr,
+            hoisted: false
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -527,7 +529,7 @@ mod tests {
     fn r#struct() {
         let src = r#"
 			{
-				name: text | null,
+				"name": text | null,
 				age: integer | text
 			}
 		"#;

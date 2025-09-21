@@ -1,18 +1,22 @@
 use std::fmt::Display;
 
 use crate::ast::DatexParserTrait;
-use crate::ast::utils::whitespace;
 use crate::ast::lexer::Token;
+use crate::ast::utils::whitespace;
 use crate::global::binary_codes::InstructionCode;
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {
-    Assign,          // =
-    AddAssign,       // +=
-    SubstractAssign, // -=
-    MultiplyAssign,  // *=
-    DivideAssign,    // /=
+    Assign,           // =
+    AddAssign,        // +=
+    SubstractAssign,  // -=
+    MultiplyAssign,   // *=
+    DivideAssign,     // /=
+    ModuloAssign,     // %=
+    PowerAssign,      // ^=
+    BitwiseAndAssign, // &=
+    BitwiseOrAssign,  // |=
 }
 impl Display for AssignmentOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -25,6 +29,10 @@ impl Display for AssignmentOperator {
                 AssignmentOperator::SubstractAssign => "-=",
                 AssignmentOperator::MultiplyAssign => "*=",
                 AssignmentOperator::DivideAssign => "/=",
+                AssignmentOperator::ModuloAssign => "%=",
+                AssignmentOperator::PowerAssign => "^=",
+                AssignmentOperator::BitwiseAndAssign => "&=",
+                AssignmentOperator::BitwiseOrAssign => "|=",
             }
         )
     }
@@ -58,6 +66,7 @@ pub fn assignment_operation<'a>()
         Token::SubAssign   => AssignmentOperator::SubstractAssign,
         Token::MulAssign   => AssignmentOperator::MultiplyAssign,
         Token::DivAssign   => AssignmentOperator::DivideAssign,
+        Token::ModAssign   => AssignmentOperator::ModuloAssign,
     }
     .padded_by(whitespace())
 }

@@ -5,7 +5,6 @@ use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType,
 };
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
-use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::ExecutionError;

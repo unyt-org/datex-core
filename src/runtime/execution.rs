@@ -1,9 +1,14 @@
 use super::stack::{Scope, ScopeStack};
 
 use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::binary_operation::{
+    ArithmeticOperator, BinaryOperator, BitwiseOperator, LogicalOperator,
+};
 use crate::ast::comparison_operation::ComparisonOperator;
-use crate::ast::unary_operation::UnaryOperator;
+use crate::ast::unary_operation::{
+    ArithmeticUnaryOperator, LogicalUnaryOperator, ReferenceUnaryOperator,
+    UnaryOperator,
+};
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
@@ -26,21 +31,20 @@ use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
+use crate::values::type_container::TypeContainer;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
+use datex_core::decompiler::{DecompileOptions, decompile_value};
 use datex_core::values::core_values::array::Array;
+use datex_core::values::core_values::r#type::Type;
 use datex_core::values::reference::Reference;
+use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use itertools::Itertools;
-use syntect::parsing::ScopeError::NoClearedScopesToRestore;
-use datex_core::decompiler::{decompile_value, DecompileOptions};
-use datex_core::values::core_values::r#type::Type;
-use crate::values::type_container::TypeContainer;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -82,9 +86,10 @@ impl Display for MemoryDump {
         for (address, value) in &self.slots {
             match value {
                 Some(vc) => {
-                    let decompiled = decompile_value(vc, DecompileOptions::colorized());
+                    let decompiled =
+                        decompile_value(vc, DecompileOptions::colorized());
                     writeln!(f, "#{address}: {decompiled}")?
-                },
+                }
                 None => writeln!(f, "#{address}: <uninitialized>")?,
             }
         }
@@ -94,7 +99,6 @@ impl Display for MemoryDump {
         Ok(())
     }
 }
-
 
 impl Default for ExecutionInput<'_> {
     fn default() -> Self {
@@ -949,7 +953,9 @@ fn get_result_value_from_instruction(
             Instruction::CreateRef => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRef,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRef,
+                        ),
                     },
                 );
                 None
@@ -958,7 +964,9 @@ fn get_result_value_from_instruction(
             Instruction::CreateRefMut => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRefMut,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRefMut,
+                        ),
                     },
                 );
                 None
@@ -967,7 +975,9 @@ fn get_result_value_from_instruction(
             Instruction::CreateRefFinal => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRefFinal,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRefFinal,
+                        ),
                     },
                 );
                 None
@@ -1033,7 +1043,7 @@ fn iterate_type_instructions(
                 }
                 TypeInstruction::LiteralInteger(integer) => {
                     yield Ok(ExecutionStep::InternalTypeReturn(Some(
-                        TypeContainer::Type(Type::structural(integer.0))
+                        TypeContainer::Type(Type::structural(integer.0)),
                     )));
                 }
                 _ => todo!(),
@@ -1252,22 +1262,55 @@ fn handle_key_value_pair(
     Ok(())
 }
 
+fn handle_unary_reference_operation(
+    operator: ReferenceUnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    match operator {
+        ReferenceUnaryOperator::CreateRef => {
+            ValueContainer::Reference(Reference::from(value_container))
+        }
+        ReferenceUnaryOperator::CreateRefFinal => ValueContainer::Reference(
+            Reference::try_final_from(value_container)
+                .expect("Could not create final reference"),
+        ),
+        ReferenceUnaryOperator::CreateRefMut => ValueContainer::Reference(
+            Reference::try_mut_from(value_container)
+                .expect("Could not create mutable reference"),
+        ),
+    }
+}
+fn handle_unary_logical_operation(
+    operator: LogicalUnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    unimplemented!(
+        "Logical unary operations are not implemented yet: {operator:?}"
+    )
+}
+fn handle_unary_arithmetic_operation(
+    operator: ArithmeticUnaryOperator,
+    value_container: ValueContainer,
+) -> ValueContainer {
+    unimplemented!(
+        "Arithmetic unary operations are not implemented yet: {operator:?}"
+    )
+}
+
 fn handle_unary_operation(
     operator: UnaryOperator,
     value_container: ValueContainer,
 ) -> ValueContainer {
     match operator {
-        UnaryOperator::CreateRef => {
-            ValueContainer::Reference(Reference::from(value_container))
-        },
-        UnaryOperator::CreateRefFinal => ValueContainer::Reference(
-            Reference::try_final_from(value_container)
-                .expect("Could not create final reference"),
-        ),
-        UnaryOperator::CreateRefMut => ValueContainer::Reference(
-            Reference::try_mut_from(value_container)
-                .expect("Could not create mutable reference"),
-        ),
+        UnaryOperator::Reference(reference) => {
+            handle_unary_reference_operation(reference, value_container)
+        }
+        UnaryOperator::Logical(logical) => {
+            handle_unary_logical_operation(logical, value_container)
+        }
+        UnaryOperator::Arithmetic(arithmetic) => {
+            handle_unary_arithmetic_operation(arithmetic, value_container)
+        }
         _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
     }
 }
@@ -1329,41 +1372,76 @@ fn handle_assignment_operation(
     }
 }
 
+fn handle_arithmetic_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: ArithmeticOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        ArithmeticOperator::Add => {
+            Ok((active_value_container + &value_container)?)
+        }
+        ArithmeticOperator::Subtract => {
+            Ok((active_value_container - &value_container)?)
+        }
+        // ArithmeticOperator::Multiply => {
+        //     Ok((active_value_container * &value_container)?)
+        // }
+        // ArithmeticOperator::Divide => {
+        //     Ok((active_value_container / &value_container)?)
+        // }
+        _ => {
+            todo!("Implement arithmetic operation for {:?}", operator);
+        }
+    }
+}
+
+fn handle_bitwise_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: BitwiseOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    {
+        todo!("Implement bitwise operation for {:?}", operator);
+    }
+}
+
+fn handle_logical_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: LogicalOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    {
+        todo!("Implement logical operation for {:?}", operator);
+    }
+}
+
 fn handle_binary_operation(
     active_value_container: &ValueContainer,
     value_container: ValueContainer,
     operator: BinaryOperator,
 ) -> Result<ValueContainer, ExecutionError> {
-    // apply operation to active value
     match operator {
-        BinaryOperator::Add => Ok((active_value_container + &value_container)?),
-        BinaryOperator::Subtract => {
-            Ok((active_value_container - &value_container)?)
-        }
-        BinaryOperator::Union => {
-            // if right is already a union, prepend left value to options
-
-            todo!("implement union operation");
-            // if let ValueContainer::Value(Value {
-            //     inner: CoreValue::Union(right_union),
-            //     ..
-            // }) = value_container
-            // {
-            //     // TODO: no clone here
-            //     let mut new_options = right_union.options.clone();
-            //     new_options.insert(0, active_value_container.clone());
-            //     Ok(ValueContainer::from(Union::new(new_options)))
-            // }
-            // // else create new union with both values
-            // else {
-            //     Ok(ValueContainer::from(Union::new(vec![
-            //         active_value_container.clone(),
-            //         value_container,
-            //     ])))
-            // }
-        }
-        _ => {
-            unreachable!("Instruction {:?} is not a valid operation", operator);
+        BinaryOperator::Arithmetic(arith_op) => handle_arithmetic_operation(
+            active_value_container,
+            value_container,
+            arith_op,
+        ),
+        BinaryOperator::Bitwise(bitwise_op) => handle_bitwise_operation(
+            active_value_container,
+            value_container,
+            bitwise_op,
+        ),
+        BinaryOperator::Logical(logical_op) => handle_logical_operation(
+            active_value_container,
+            value_container,
+            logical_op,
+        ),
+        BinaryOperator::VariantAccess => {
+            todo!("Implement variant access operation")
         }
     }
 }

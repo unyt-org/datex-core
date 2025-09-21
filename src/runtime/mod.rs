@@ -6,7 +6,6 @@ use crate::global::dxb_block::{
 };
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
-use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
 use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};

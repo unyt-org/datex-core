@@ -1,5 +1,5 @@
-use crate::ast::DatexExpression;
-use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::{DatexExpression, TypeExpression};
+use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
@@ -9,6 +9,8 @@ use log::info;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::ast::assignment_operation::AssignmentOperator;
+use crate::values::pointer::PointerAddress;
 
 #[derive(Clone, Debug, Default)]
 pub struct VariableMetadata {
@@ -120,7 +122,7 @@ impl PrecompilerScopeStack {
         var_metadata
     }
 
-    pub fn get_variable_id(
+    pub fn get_variable_and_update_metadata(
         &self,
         name: &str,
         metadata: &mut AstMetadata,
@@ -251,13 +253,12 @@ fn visit_expression(
         //     )?;
         // }
         DatexExpression::TypeExpression(type_expr) => {
-            // visit_expression(
-            //     type_expr,
-            //     metadata,
-            //     scope_stack,
-            //     NewScopeType::NewScope,
-            // )?;
-            todo!()
+            visit_type_expression(
+                type_expr,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
         }
         DatexExpression::Conditional {
             condition,
@@ -290,27 +291,25 @@ fn visit_expression(
             // generic: generic_parameters,
             name,
             value,
+            hoisted
         } => {
-            // FIXME
-            // if let Some(params) = generic_parameters {
-            //     visit_expression(
-            //         params,
-            //         metadata,
-            //         scope_stack,
-            //         NewScopeType::NewScope,
-            //     )?;
-            // }
-            // visit_expression(
-            //     value,
-            //     metadata,
-            //     scope_stack,
-            //     NewScopeType::NewScope,
-            // )?;
-            let new_id = metadata.variables.len();
-            *id = Some(new_id);
-            let var_metadata =
-                scope_stack.add_new_variable(name.clone(), new_id);
-            metadata.variables.push(var_metadata);
+            visit_type_expression(
+                value,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            // already declared if hoisted
+            if *hoisted {
+                *id = Some(scope_stack.get_variable_and_update_metadata(name, metadata)?);
+            }
+            else {
+                *id = Some(add_new_variable(
+                    name.clone(),
+                    metadata,
+                    scope_stack,
+                ));
+            }
         }
         DatexExpression::VariableDeclaration {
             id,
@@ -326,63 +325,31 @@ fn visit_expression(
                 scope_stack,
                 NewScopeType::NewScope,
             )?;
-            let new_id = metadata.variables.len();
-            *id = Some(new_id);
-            let var_metadata =
-                scope_stack.add_new_variable(name.clone(), new_id);
-            metadata.variables.push(var_metadata);
+            *id = Some(add_new_variable(
+                name.clone(),
+                metadata,
+                scope_stack,
+            ));
         }
         DatexExpression::Literal(name) => {
-            // If variable exist
-            return if let Some(id) = scope_stack.get_variable(name) {
-                info!(
-                    "Visiting variable: {name}, scope stack: {scope_stack:?}"
-                );
-                *expression = DatexExpression::Variable(Some(id), name.clone());
-                Ok(())
-            }
-            // try to resolve core variable
-            else if let Some(core) = metadata
-                .runtime
-                .memory()
-                .borrow()
-                .get_reference(&CoreLibPointerId::Core.into())
-                && let Some(core_variable) = core
-                    .collapse_to_value()
-                    .borrow()
-                    .cast_to_map()
-                    .unwrap()
-                    .get_owned(name.to_string())
-            {
-                match core_variable {
-                    ValueContainer::Reference(reference) => {
-                        if let Some(pointer_id) = reference.pointer_address() {
-                            *expression = DatexExpression::GetReference(
-                                pointer_id.clone(),
-                            );
-                        } else {
-                            unreachable!(
-                                "Core variable reference must have a pointer ID"
-                            );
-                        }
-                    }
-                    _ => {
-                        unreachable!("Core variable must be a reference");
-                    }
+            let resolved_variable = resolve_variable(name, metadata, scope_stack)?;
+            *expression = match resolved_variable {
+                ResolvedVariable::VariableId(id) => {
+                    DatexExpression::Variable(id, name.clone())
                 }
-                Ok(())
-            } else {
-                Err(CompilerError::UndeclaredVariable(name.clone()))
+                ResolvedVariable::PointerId(pointer_address) => {
+                    DatexExpression::GetReference(pointer_address)
+                }
             };
         }
-        DatexExpression::AssignmentOperation(operator, id, name, expr) => {
+        DatexExpression::VariableAssignment(operator, id, name, expr) => {
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
             )?;
-            *id = Some(scope_stack.get_variable_id(name, metadata)?);
+            *id = Some(scope_stack.get_variable_and_update_metadata(name, metadata)?);
         }
         DatexExpression::ApplyChain(expr, applies) => {
             visit_expression(
@@ -507,7 +474,9 @@ fn visit_expression(
                         )?;
 
                         *expression = DatexExpression::BinaryOperation(
-                            BinaryOperator::Divide,
+                            BinaryOperator::Arithmetic(
+                                ArithmeticOperator::Divide,
+                            ),
                             left.to_owned(),
                             right.to_owned(),
                             None,
@@ -562,13 +531,27 @@ fn visit_expression(
             // nothing to do
         }
         DatexExpression::Statements(stmts) => {
+            // hoist type declarations first
+            for stmt in stmts.iter_mut() {
+                // TODO: prevent duplicate declarations
+                if let DatexExpression::TypeDeclaration { name, hoisted, .. } = &mut stmt.expression {
+                    // set hoisted to true
+                    *hoisted = true;
+                    // register variable
+                    add_new_variable(
+                        name.clone(),
+                        metadata,
+                        scope_stack,
+                    );
+                }
+            }
             for stmt in stmts {
                 visit_expression(
                     &mut stmt.expression,
                     metadata,
                     scope_stack,
                     NewScopeType::None,
-                )?;
+                )?
             }
         }
         DatexExpression::ComparisonOperation(op, left, right) => {
@@ -585,7 +568,9 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-        DatexExpression::RefMut(expr) | DatexExpression::RefFinal(expr) | DatexExpression::Ref(expr) => {
+        DatexExpression::RefMut(expr)
+        | DatexExpression::RefFinal(expr)
+        | DatexExpression::Ref(expr) => {
             visit_expression(
                 expr,
                 metadata,
@@ -631,13 +616,133 @@ fn visit_expression(
     Ok(())
 }
 
+fn add_new_variable(
+    name: String,
+    metadata: &mut AstMetadata,
+    scope_stack: &mut PrecompilerScopeStack,
+) -> usize {
+    let new_id = metadata.variables.len();
+    let var_metadata =
+        scope_stack.add_new_variable(name.clone(), new_id);
+    metadata.variables.push(var_metadata);
+    new_id
+}
+
+
+enum ResolvedVariable {
+    VariableId(usize),
+    PointerId(PointerAddress),
+}
+
+/// Resolves a variable name to either a local variable ID if it was already declared (or hoisted),
+/// or to a core library pointer ID if it is a core variable.
+/// If the variable cannot be resolved, a CompilerError is returned.
+fn resolve_variable(
+    name: &str,
+    metadata: &mut AstMetadata,
+    scope_stack: &mut PrecompilerScopeStack,
+) -> Result<ResolvedVariable, CompilerError> {
+    // If variable exist
+    if let Ok(id) = scope_stack.get_variable_and_update_metadata(name, metadata) {
+        info!(
+            "Visiting variable: {name}, scope stack: {scope_stack:?}"
+        );
+        Ok(ResolvedVariable::VariableId(id))
+    }
+    // try to resolve core variable
+    else if let Some(core) = metadata
+        .runtime
+        .memory()
+        .borrow()
+        .get_reference(&CoreLibPointerId::Core.into())
+        && let Some(core_variable) = core
+        .collapse_to_value()
+        .borrow()
+        .cast_to_map()
+        .unwrap()
+        .get_owned(name)
+    {
+        match core_variable {
+            ValueContainer::Reference(reference) => {
+                if let Some(pointer_id) = reference.pointer_address() {
+                    Ok(ResolvedVariable::PointerId(pointer_id))
+                } else {
+                    unreachable!(
+                        "Core variable reference must have a pointer ID"
+                    );
+                }
+            }
+            _ => {
+                unreachable!("Core variable must be a reference");
+            }
+        }
+    } else {
+        Err(CompilerError::UndeclaredVariable(name.to_string()))
+    }
+}
+
+fn visit_type_expression(
+    type_expr: &mut TypeExpression,
+    metadata: &mut AstMetadata,
+    scope_stack: &mut PrecompilerScopeStack,
+    new_scope: NewScopeType,
+) -> Result<(), CompilerError> {
+    match type_expr {
+        TypeExpression::Literal(name) => {
+            let resolved_variable = resolve_variable(name, metadata, scope_stack)?;
+            *type_expr = match resolved_variable {
+                ResolvedVariable::VariableId(id) => {
+                    TypeExpression::Variable(id, name.clone())
+                }
+                ResolvedVariable::PointerId(pointer_address) => {
+                    TypeExpression::GetReference(pointer_address)
+                }
+            };
+            Ok(())
+        }
+        TypeExpression::Integer(_)
+        | TypeExpression::Text(_)
+        | TypeExpression::Boolean(_)
+        | TypeExpression::Null
+        | TypeExpression::Decimal(_)
+        | TypeExpression::Endpoint(_)
+        | TypeExpression::TypedDecimal(_)
+        | TypeExpression::TypedInteger(_)
+        | TypeExpression::GetReference(_) => Ok(()),
+        TypeExpression::Array(inner_type) => {
+            for ty in inner_type {
+                visit_type_expression(
+                    ty,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
+            Ok(())
+        }
+        TypeExpression::Struct(properties) => {
+            for (_, ty) in properties {
+                visit_type_expression(
+                    ty,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
+            Ok(())
+        }
+        _ => todo!("Handle other type expressions in precompiler"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{error::src::SrcId, parse};
+    use crate::ast::{error::src::SrcId, parse, Statement};
     use crate::runtime::RuntimeConfig;
     use std::assert_matches::assert_matches;
     use std::io;
+    use datex_core::values::core_values::integer::integer::Integer;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -727,7 +832,7 @@ mod tests {
             DatexExpression::BinaryOperation(
                 BinaryOperator::VariantAccess,
                 Box::new(DatexExpression::Variable(
-                    Some(0),
+                    0,
                     "User".to_string()
                 )),
                 Box::new(DatexExpression::Literal("u8".to_string())),
@@ -754,17 +859,174 @@ mod tests {
         assert_eq!(
             statements.get(2).unwrap().expression,
             DatexExpression::BinaryOperation(
-                BinaryOperator::Divide,
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpression::Variable(
-                    Some(0),
+                    0,
                     "fixme".to_string()
                 )),
                 Box::new(DatexExpression::Variable(
-                    Some(1),
+                    1,
                     "whatever".to_string()
                 )),
                 None
             )
+        );
+    }
+
+    #[test]
+    fn test_type_declaration_assigment() {
+        let result = parse_and_precompile("type MyInt = 1; var x = MyInt;");
+        assert!(result.is_ok());
+        let ast_with_metadata = result.unwrap();
+        assert_eq!(
+            ast_with_metadata.ast,
+            DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(0),
+                        name: "MyInt".to_string(),
+                        value: TypeExpression::Integer(Integer::from(1).into()),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::VariableDeclaration {
+                        id: Some(1),
+                        kind: crate::ast::VariableKind::Var,
+                        binding_mutability: crate::ast::BindingMutability::Mutable,
+                        name: "x".to_string(),
+                        // must refer to variable id 0
+                        value: Box::new(DatexExpression::Variable(0, "MyInt".to_string())),
+                        type_annotation: None,
+                    },
+                    is_terminated: true,
+                },
+            ])
+        )
+    }
+
+    #[test]
+    fn test_type_declaration_hoisted_assigment() {
+        let result = parse_and_precompile("var x = MyInt; type MyInt = 1;");
+        assert!(result.is_ok());
+        let ast_with_metadata = result.unwrap();
+        assert_eq!(
+            ast_with_metadata.ast,
+            DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::VariableDeclaration {
+                        id: Some(1),
+                        kind: crate::ast::VariableKind::Var,
+                        binding_mutability: crate::ast::BindingMutability::Mutable,
+                        name: "x".to_string(),
+                        // must refer to variable id 0
+                        value: Box::new(DatexExpression::Variable(0, "MyInt".to_string())),
+                        type_annotation: None,
+                    },
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(0),
+                        name: "MyInt".to_string(),
+                        value: TypeExpression::Integer(Integer::from(1).into()),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+            ])
+        )
+    }
+
+    #[test]
+    fn test_type_declaration_hoisted_cross_assigment() {
+        let result = parse_and_precompile("type x = MyInt; type MyInt = x;");
+        assert!(result.is_ok());
+        let ast_with_metadata = result.unwrap();
+        assert_eq!(
+            ast_with_metadata.ast,
+            DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(0),
+                        name: "x".to_string(),
+                        value: TypeExpression::Variable(1, "MyInt".to_string()),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(1),
+                        name: "MyInt".to_string(),
+                        value: TypeExpression::Variable(0, "x".to_string()),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+            ])
+        )
+    }
+
+    #[test]
+    fn test_type_invalid_nested_type_declaration() {
+        let result = parse_and_precompile("type x = NestedVar; (1; type NestedVar = x;)");
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "NestedVar");
+    }
+
+    #[test]
+    fn test_type_valid_nested_type_declaration() {
+        let result = parse_and_precompile("type x = 10; (1; type NestedVar = x;)");
+        assert!(result.is_ok());
+        let ast_with_metadata = result.unwrap();
+        assert_eq!(
+            ast_with_metadata.ast,
+            DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(0),
+                        name: "x".to_string(),
+                        value: TypeExpression::Integer(Integer::from(10).into()),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Statements(vec![
+                        Statement {
+                            expression: DatexExpression::Integer(Integer::from(1)),
+                            is_terminated: true,
+                        },
+                        Statement {
+                            expression: DatexExpression::TypeDeclaration {
+                                id: Some(1),
+                                name: "NestedVar".to_string(),
+                                value: TypeExpression::Variable(0, "x".to_string()),
+                                hoisted: true,
+                            },
+                            is_terminated: true,
+                        },
+                    ]),
+                    is_terminated: false,
+                }
+            ])
+        )
+    }
+
+    #[test]
+    fn test_core_reference_type() {
+        let result = parse_and_precompile("type x = integer");
+        assert!(result.is_ok());
+        let ast_with_metadata = result.unwrap();
+        assert_eq!(
+            ast_with_metadata.ast,
+            DatexExpression::TypeDeclaration {
+                id: Some(0),
+                name: "x".to_string(),
+                value: TypeExpression::GetReference(PointerAddress::from(CoreLibPointerId::Integer(None))),
+                hoisted: false,
+            }
         );
     }
 }

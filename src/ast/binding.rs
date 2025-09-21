@@ -11,7 +11,6 @@ use crate::ast::{
     BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
     TypeExpression, VariableKind,
 };
-use crate::values::reference::ReferenceMutability;
 use chumsky::prelude::*;
 pub type VariableId = usize;
 
@@ -46,7 +45,7 @@ pub fn variable_assignment<'a>(
         .then(assignment_op)
         .then(comparison)
         .map(|((var_name, op), expr)| {
-            DatexExpression::AssignmentOperation(
+            DatexExpression::VariableAssignment(
                 op,
                 None,
                 var_name.to_string(),

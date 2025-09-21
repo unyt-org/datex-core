@@ -4,7 +4,6 @@ use crate::compiler::error::CompilerError;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
-use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::ast::{
@@ -20,9 +19,7 @@ use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::libs::core::CoreLibPointerId;
 use crate::values::core_values::decimal::decimal::Decimal;
-use crate::values::core_values::endpoint::Endpoint;
 use crate::values::pointer::PointerAddress;
-use crate::values::reference::ReferenceMutability;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::Slot;
 use log::info;
@@ -745,7 +742,7 @@ fn compile_expression(
         }
 
         // assignment
-        DatexExpression::AssignmentOperation(
+        DatexExpression::VariableAssignment(
             operator,
             id,
             name,
@@ -940,7 +937,7 @@ fn compile_expression(
             )?;
         }
 
-        _ => return Err(CompilerError::UnexpectedTerm(ast_with_metadata.ast)),
+        _ => return Err(CompilerError::UnexpectedTerm(Box::new(ast_with_metadata.ast))),
     }
 
     Ok(scope)

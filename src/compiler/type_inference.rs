@@ -109,9 +109,7 @@ fn infer_binary_expression_type(
 
     match operator {
         // numeric-type only operations
-        BinaryOperator::Subtract
-        | BinaryOperator::Multiply
-        | BinaryOperator::Divide => {
+        BinaryOperator::Arithmetic(op) => {
             let lhs_base_type = lhs_type.base_type();
             let rhs_base_type = rhs_type.base_type();
 
@@ -147,6 +145,7 @@ fn infer_binary_expression_type(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::binary_operation::ArithmeticOperator;
     use crate::libs::core::CoreLibPointerId;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::integer::integer::Integer;
@@ -253,7 +252,7 @@ mod tests {
 
         // integer - integer = integer
         let mut expr = DatexExpression::BinaryOperation(
-            BinaryOperator::Subtract,
+            BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
             Box::new(DatexExpression::Integer(Integer::from(1))),
             Box::new(DatexExpression::Integer(Integer::from(2))),
             None,

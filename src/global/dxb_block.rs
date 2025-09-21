@@ -7,10 +7,8 @@ use super::protocol_structures::{
     encrypted_header::EncryptedHeader,
     routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
-use crate::global::protocol_structures::routing_header::{
-    ReceiverEndpoints, ReceiverType, Receivers,
-};
-use crate::utils::buffers::{clear_bit, set_bit, write_u16, write_u32};
+use crate::global::protocol_structures::routing_header::Receivers;
+use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use futures::channel::mpsc::UnboundedReceiver;
@@ -27,6 +25,8 @@ pub enum HeaderParsingError {
 
 // TODO #110: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
 
+// TODO @Norbert
+// Add optional raw signature, and encrypted part
 #[derive(Debug, Clone, Default)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,

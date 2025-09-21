@@ -2,7 +2,7 @@ use crate::ast::{DatexExpression, error::error::ParseError};
 use std::fmt::Display;
 #[derive(Debug)]
 pub enum CompilerError {
-    UnexpectedTerm(DatexExpression),
+    UnexpectedTerm(Box<DatexExpression>),
     ParserErrors(Vec<ParseError>),
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
