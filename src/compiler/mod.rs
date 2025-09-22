@@ -7,7 +7,7 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
 use crate::ast::{
-    BindingMutability, DatexExpression, DatexScriptParser, VariableKind, parse,
+    DatexExpression, DatexScriptParser, VariableKind, parse,
 };
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
@@ -149,7 +149,6 @@ pub enum VariableRepresentation {
 pub struct Variable {
     pub name: String,
     pub var_type: VariableKind,
-    pub binding_mut: BindingMutability,
     pub representation: VariableRepresentation,
 }
 
@@ -158,7 +157,6 @@ impl Variable {
         Variable {
             name,
             var_type: VariableKind::Const,
-            binding_mut: BindingMutability::Immutable,
             representation: VariableRepresentation::Constant(slot),
         }
     }
@@ -166,13 +164,11 @@ impl Variable {
     pub fn new_variable_slot(
         name: String,
         var_type: VariableKind,
-        binding_mut: BindingMutability,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
             var_type,
-            binding_mut,
             representation: VariableRepresentation::VariableSlot(slot),
         }
     }
@@ -180,14 +176,12 @@ impl Variable {
     pub fn new_variable_reference(
         name: String,
         var_type: VariableKind,
-        binding_mut: BindingMutability,
         variable_slot: VirtualSlot,
         container_slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
             var_type,
-            binding_mut,
             representation: VariableRepresentation::VariableReference {
                 variable_slot,
                 container_slot,
@@ -653,11 +647,10 @@ fn compile_expression(
         // declaration
         DatexExpression::VariableDeclaration {
             id,
-            binding_mutability,
             name,
             kind,
             type_annotation,
-            value,
+            init_expression: value,
         } => {
             compilation_context.mark_has_non_static_value();
 
@@ -713,7 +706,6 @@ fn compile_expression(
                     Variable::new_variable_reference(
                         name.clone(),
                         kind,
-                        binding_mutability,
                         VirtualSlot::local(virtual_slot_addr_for_var),
                         VirtualSlot::local(virtual_slot_addr),
                     )
@@ -725,7 +717,6 @@ fn compile_expression(
                 VariableModel::VariableSlot => Variable::new_variable_slot(
                     name.clone(),
                     kind,
-                    binding_mutability,
                     VirtualSlot::local(virtual_slot_addr),
                 ),
             };

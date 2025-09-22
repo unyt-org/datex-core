@@ -306,16 +306,7 @@ impl Reference {
     pub fn collapse_reference_chain(&self) -> Reference {
         match self {
             Reference::TypeReference(tr) => {
-                match &tr.borrow().type_value.type_definition {
-                    TypeDefinition::Reference(reference) => {
-                        // If this is a reference type, resolve it to its current reference
-                        reference.collapse_reference_chain()
-                    }
-                    _ => {
-                        // If this is not a reference type, return it directly
-                        self.clone()
-                    }
-                }
+                Reference::TypeReference(Rc::new(RefCell::new(tr.borrow().collapse_reference_chain())))
             }
             Reference::ValueReference(vr) => {
                 match &vr.borrow().value_container {

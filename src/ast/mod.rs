@@ -107,26 +107,11 @@ where
 {
 }
 
-// TODO TBD can we deprecate this?
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VariableKind {
     Const,
     Var,
 }
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum BindingMutability {
-    Immutable, // e.g. `const x = ...`
-    Mutable,   // e.g. `var x = ...`
-}
-
-// #[deprecated(note = "Use other ReferenceMutability instead")]
-// #[derive(Clone, Copy, Debug, PartialEq)]
-// pub enum ReferenceMutability {
-//     Mutable,
-//     Immutable,
-//     None,
-// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Slot {
@@ -249,10 +234,9 @@ pub enum DatexExpression {
     VariableDeclaration {
         id: Option<VariableId>,
         kind: VariableKind,
-        binding_mutability: BindingMutability,
         name: String,
         type_annotation: Option<TypeExpression>,
-        value: Box<DatexExpression>,
+        init_expression: Box<DatexExpression>,
     },
 
     /// Type declaration, e.g. type MyType = { x: 42, y: "John" };
@@ -725,7 +709,7 @@ mod tests {
         let src = "var a = type(1,2,3)";
         let result = parse_print_error(src);
         let expr = result.unwrap();
-        if let DatexExpression::VariableDeclaration { value, .. } = expr {
+        if let DatexExpression::VariableDeclaration { init_expression: value, .. } = expr {
             assert_matches!(
                 *value,
                 DatexExpression::Type(TypeExpression::List(_))
@@ -1037,12 +1021,11 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(
                     TypeExpression::Integer(Integer::from(5)).into()
                 ),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
 
@@ -1053,12 +1036,11 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::Literal(
                     "integer/u8".to_owned()
                 )),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
     }
@@ -1419,12 +1401,11 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::Literal(
                     "integer".to_string()
                 )),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
 
@@ -1435,12 +1416,11 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::Literal(
                     "User".to_string()
                 )),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
 
@@ -1451,12 +1431,11 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::Literal(
                     "integer/u8".to_owned()
                 )),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
     }
@@ -1470,13 +1449,12 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::Union(vec![
                     TypeExpression::Literal("integer/u8".to_owned()),
                     TypeExpression::Literal("text".to_owned())
                 ])),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
     }
@@ -1490,13 +1468,12 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::Intersection(vec![
                     TypeExpression::Integer(Integer::from(5)),
                     TypeExpression::Integer(Integer::from(6))
                 ])),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
     }
@@ -1510,12 +1487,11 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: Some(TypeExpression::SliceArray(Box::new(
                     TypeExpression::Literal("integer".to_owned())
                 ))),
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
             }
         );
     }
@@ -2697,10 +2673,9 @@ mod tests {
                 expression: DatexExpression::VariableDeclaration {
                     id: None,
                     kind: VariableKind::Const,
-                    binding_mutability: BindingMutability::Immutable,
                     type_annotation: None,
                     name: "x".to_string(),
-                    value: Box::new(DatexExpression::Integer(Integer::from(
+                    init_expression: Box::new(DatexExpression::Integer(Integer::from(
                         42
                     ))),
                 },
@@ -2718,10 +2693,9 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                binding_mutability: BindingMutability::Mutable,
                 type_annotation: None,
                 name: "x".to_string(),
-                value: Box::new(DatexExpression::BinaryOperation(
+                init_expression: Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::Integer(Integer::from(1))),
                     Box::new(DatexExpression::Integer(Integer::from(2))),
@@ -2912,9 +2886,8 @@ mod tests {
                     expression: DatexExpression::VariableDeclaration {
                         id: None,
                         kind: VariableKind::Var,
-                        binding_mutability: BindingMutability::Mutable,
                         name: "x".to_string(),
-                        value: Box::new(DatexExpression::Integer(
+                        init_expression: Box::new(DatexExpression::Integer(
                             Integer::from(42)
                         )),
                         type_annotation: None
@@ -3338,10 +3311,9 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Const,
-                binding_mutability: BindingMutability::Immutable,
                 name: "x".to_string(),
                 type_annotation: None,
-                value: Box::new(DatexExpression::RefMut(Box::new(
+                init_expression: Box::new(DatexExpression::RefMut(Box::new(
                     DatexExpression::Array(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
@@ -3361,10 +3333,9 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Const,
-                binding_mutability: BindingMutability::Immutable,
                 name: "x".to_string(),
                 type_annotation: None,
-                value: Box::new(DatexExpression::Ref(Box::new(
+                init_expression: Box::new(DatexExpression::Ref(Box::new(
                     DatexExpression::Array(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
@@ -3383,10 +3354,9 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Const,
-                binding_mutability: BindingMutability::Immutable,
                 name: "x".to_string(),
                 type_annotation: None,
-                value: Box::new(DatexExpression::Integer(Integer::from(1))),
+                init_expression: Box::new(DatexExpression::Integer(Integer::from(1))),
             }
         );
     }

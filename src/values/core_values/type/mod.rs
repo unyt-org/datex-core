@@ -18,6 +18,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use crate::libs::core::{get_core_lib_type, get_core_lib_type_reference, CoreLibPointerId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -159,7 +160,7 @@ impl Type {
 
     /// Creates a new reference type.
     pub fn reference(
-        reference: impl Into<Reference>,
+        reference: impl Into<TypeReference>,
         mutability: Option<ReferenceMutability>,
     ) -> Self {
         Type {
@@ -205,7 +206,12 @@ impl Type {
 }
 
 impl Type {
-    /// Converts a specific type (e.g. 42u8) to its base type (e.g. integer/u8)
+    /// Converts a specific type (e.g. 42u8) to its base nominal type (e.g. integer)
+    /// integer/u8 -> integer
+    /// integer -> integer
+    /// 42u8 -> integer
+    /// 42 -> integer
+    /// Array<string> -> Array
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
         // has direct base type (e.g. integer/u8 -> integer)
         if let Some(base_type) = &self.base_type {
@@ -217,16 +223,18 @@ impl Type {
         }
         Some(match &self.type_definition {
             TypeDefinition::Structural(value) => {
-                todo!("handle structural base type");
+                match value {
+                    StructuralTypeDefinition::Integer(_) => {
+                        get_core_lib_type_reference(CoreLibPointerId::Integer(None))
+                    },
+                    StructuralTypeDefinition::Decimal(_) => {
+                        get_core_lib_type_reference(CoreLibPointerId::Decimal(None))
+                    },
+                    _ => todo!()
+                }
             }
             TypeDefinition::Union(types) => {
-                // let base_types: Vec<Type> =
-                //     types.iter().map(|t| t.get_base_type()).collect();
-                // Type {
-                //     type_definition: TypeDefinition::Union(base_types),
-                //     reference_mutability: self.reference_mutability.clone(),
-                // }
-                todo!("handle union base type");
+                get_core_lib_type_reference(CoreLibPointerId::Union)
             }
             TypeDefinition::Reference(reference) => {
                 todo!("handle reference base type");

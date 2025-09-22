@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use datex_core::values::type_reference::TypeReference;
 use crate::values::{
     core_values::r#type::structural_type_definition::StructuralTypeDefinition,
     reference::Reference,
@@ -10,7 +10,7 @@ use crate::values::{
 pub enum TypeDefinition {
     // {x: integer, y: text}
     Structural(StructuralTypeDefinition),
-    Reference(Box<Reference>),
+    Reference(Box<TypeReference>),
 
     // e.g. A & B & C
     Intersection(Vec<TypeContainer>),
