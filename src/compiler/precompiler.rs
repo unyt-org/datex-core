@@ -483,57 +483,79 @@ fn visit_expression(
                         "Right side of variant access must be a literal"
                     );
                 };
+                let full_name = format!("{lit_left}/{lit_right}");
+                // if get_variable_kind(lhs) == Value
+                // 1. user value lhs, whatever rhs -> division
 
-                // 1. resolve_variable no error with rhs+lhs
-                // core type variant lhs/rhs -> type
-                // -> error: core type variant not allowed
+                // if get_variable_kind(lhs) == Type
+                // 2. lhs is a user defined type, so
+                // lhs/rhs should be also, otherwise
+                // this throws VariantNotFound
 
-                // 2. resolve_variable no error with lhs
-                // core type lhs -> type
-                // user value lhs, whatever rhs -> division
-                // -> error: handled down the tree
-
-                // user type variant lhs/rhs -> type
-                // -> error: user type variant not allowed
-
-                // user type lhs -> type
+                // if resolve_variable(lhs)
+                // this must be a core type
+                // if resolve_variable(lhs/rhs) has
+                // and error, this throws VariantNotFound
 
                 // Check if the left literal is a variable (value or type, but no core type)
                 if scope_stack.has_variable(lit_left.as_str()) {
-                    // if lhs is a value, then this is a division, not a variant access
-                    // if one of the sides is not in scope, this will fail on the
-                    // variable accessor branch
-                    if scope_stack
+                    match scope_stack
                         .variable_kind(lit_left.as_str(), metadata)
                         .unwrap()
-                        == VariableKind::Value
                     {
-                        visit_expression(
-                            left,
-                            metadata,
-                            scope_stack,
-                            NewScopeType::NewScope,
-                        )?;
-                        visit_expression(
-                            right,
-                            metadata,
-                            scope_stack,
-                            NewScopeType::NewScope,
-                        )?;
+                        VariableKind::Type => {
+                            // user defined type, continue to variant access
+                            let resolved_variable = resolve_variable(
+                                &full_name,
+                                metadata,
+                                scope_stack,
+                            )
+                            .map_err(|_| {
+                                CompilerError::SubvariantNotFound(
+                                    lit_left.to_string(),
+                                    lit_right.to_string(),
+                                )
+                            })?;
+                            *expression = match resolved_variable {
+                                ResolvedVariable::VariableId(id) => {
+                                    DatexExpression::Variable(
+                                        id,
+                                        full_name.to_string(),
+                                    )
+                                }
+                                _ => unreachable!(
+                                    "Variant access must resolve to a core library type"
+                                ),
+                            };
+                        }
+                        VariableKind::Value => {
+                            // user defined value, this is a division
+                            visit_expression(
+                                left,
+                                metadata,
+                                scope_stack,
+                                NewScopeType::NewScope,
+                            )?;
+                            visit_expression(
+                                right,
+                                metadata,
+                                scope_stack,
+                                NewScopeType::NewScope,
+                            )?;
 
-                        *expression = DatexExpression::BinaryOperation(
-                            BinaryOperator::Arithmetic(
-                                ArithmeticOperator::Divide,
-                            ),
-                            left.to_owned(),
-                            right.to_owned(),
-                            None,
-                        );
-                        return Ok(());
+                            *expression = DatexExpression::BinaryOperation(
+                                BinaryOperator::Arithmetic(
+                                    ArithmeticOperator::Divide,
+                                ),
+                                left.to_owned(),
+                                right.to_owned(),
+                                None,
+                            );
+                        }
                     }
-                } else {
-                    // must be core type or invalid
+                    return Ok(());
                 }
+                // can be either a core type or a undeclared variable
 
                 // check if left part is a core value / type
                 // otherwise throw the error
@@ -878,9 +900,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn variant_access() {
-        // reserved type should work
+        // core type should work
         let result =
             parse_and_precompile("integer/u8").expect("Precompilation failed");
         assert_eq!(
@@ -890,37 +911,53 @@ mod tests {
             )
         );
 
+        // core type with bad variant should error
+        let result = parse_and_precompile("integer/invalid");
+        assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "integer" && variant == "invalid");
+
         // unknown type should error
         let result = parse_and_precompile("unknown/u8");
         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "unknown");
 
-        // undeclared type variable should work (assuming x is of type "Type", TODO)
+        // declared type with invalid subvariant shall throw
         let result = parse_and_precompile("type User = {}; User/u8");
         assert!(result.is_err());
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(name)) if name == "u8");
+        assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "User" && variant == "u8");
 
-        // declared variable of not type "Type" should be mapped to division, and whatever should not exist in scope
-        let result = parse_and_precompile("type fixme = 42; fixme/whatever");
-        assert!(result.is_err());
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "whatever");
-
-        let result = parse_and_precompile(
-            "var fixme = 42; var whatever = 69; fixme/whatever",
-        )
-        .expect("Precompilation failed");
-
-        let statements = if let DatexExpression::Statements(stmts) = result.ast
-        {
-            stmts
-        } else {
-            panic!("Expected statements");
-        };
+        // value shall be interpreted as division
+        let result = parse_and_precompile("var a = 42; var b = 69; a/b");
+        assert!(result.is_ok());
+        let statements =
+            if let DatexExpression::Statements(stmts) = result.unwrap().ast {
+                stmts
+            } else {
+                panic!("Expected statements");
+            };
         assert_eq!(
             statements.get(2).unwrap().expression,
             DatexExpression::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(DatexExpression::Variable(0, "fixme".to_string())),
-                Box::new(DatexExpression::Variable(1, "whatever".to_string())),
+                Box::new(DatexExpression::Variable(0, "a".to_string())),
+                Box::new(DatexExpression::Variable(1, "b".to_string())),
+                None
+            )
+        );
+
+        // type with value should be interpreted as division
+        let result = parse_and_precompile("var a = 10; type b = 42; a/b");
+        assert!(result.is_ok());
+        let statements =
+            if let DatexExpression::Statements(stmts) = result.unwrap().ast {
+                stmts
+            } else {
+                panic!("Expected statements");
+            };
+        assert_eq!(
+            statements.get(2).unwrap().expression,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
+                Box::new(DatexExpression::Variable(1, "a".to_string())),
+                Box::new(DatexExpression::Variable(0, "b".to_string())),
                 None
             )
         );
