@@ -924,6 +924,48 @@ mod tests {
         assert!(result.is_err());
         assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "User" && variant == "u8");
 
+        // a variant access without declaring the super type should error
+        let result = parse_and_precompile("type User/admin = {}; User/admin");
+        assert!(result.is_err());
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "User");
+
+        // declared subtype should work
+        let result = parse_and_precompile(
+            "type User = {}; type User/admin = {}; User/admin",
+        );
+        assert!(result.is_ok());
+        let ast_with_metadata = result.unwrap();
+        assert_eq!(
+            ast_with_metadata.ast,
+            DatexExpression::Statements(vec![
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(0),
+                        name: "User".to_string(),
+                        value: TypeExpression::Struct(vec![]),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::TypeDeclaration {
+                        id: Some(1),
+                        name: "User/admin".to_string(),
+                        value: TypeExpression::Struct(vec![]),
+                        hoisted: true,
+                    },
+                    is_terminated: true,
+                },
+                Statement {
+                    expression: DatexExpression::Variable(
+                        1,
+                        "User/admin".to_string()
+                    ),
+                    is_terminated: false,
+                }
+            ])
+        );
+
         // value shall be interpreted as division
         let result = parse_and_precompile("var a = 42; var b = 69; a/b");
         assert!(result.is_ok());

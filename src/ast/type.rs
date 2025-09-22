@@ -431,11 +431,21 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .ignore_then(literal())
         .then_ignore(just(Token::RightAngle))
         .or_not();
-    // allow ; and end
+
+    let name = select! { Token::Identifier(name) => name }
+        .then(
+            just(Token::Slash)
+                .ignore_then(select! { Token::Identifier(name) => name })
+                .or_not(),
+        )
+        .map(|(base, opt_suffix)| match opt_suffix {
+            Some(suffix) => format!("{}/{}", base, suffix),
+            None => base,
+        });
 
     just(Token::Identifier("type".to_string()))
         .padded_by(whitespace())
-        .ignore_then(select! { Token::Identifier(name) => name })
+        .ignore_then(name)
         .then(generic)
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
@@ -444,7 +454,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
             id: None,
             name: name.to_string(),
             value: expr,
-            hoisted: false
+            hoisted: false,
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -459,7 +469,7 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
             id: None,
             name: name.to_string(),
             value: expr,
-            hoisted: false
+            hoisted: false,
         })
         .labelled(Pattern::Declaration)
         .as_context()

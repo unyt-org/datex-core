@@ -754,6 +754,11 @@ mod tests {
         let result = parse_print_error(src);
         let expr = result.unwrap();
         assert_matches!(expr, DatexExpression::TypeDeclaration { name, .. } if name == "User");
+
+        let src = "type User/admin = {id: integer}";
+        let result = parse_print_error(src);
+        let expr = result.unwrap();
+        assert_matches!(expr, DatexExpression::TypeDeclaration { name, .. } if name == "User/admin");
     }
 
     /// # WIP
