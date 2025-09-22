@@ -1,4 +1,3 @@
-use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::ast::{DatexExpression, TypeExpression};
