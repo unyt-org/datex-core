@@ -10,6 +10,7 @@ pub enum CompilerError {
     InvalidPlaceholderCount,
     NonStaticValue,
     UndeclaredVariable(String),
+    SubvariantNotFound(String, String),
     ScopePopError,
     InvalidSlotName(String),
     AssignmentToConst(String),
@@ -34,6 +35,9 @@ impl Display for CompilerError {
                     writeln!(f, "{}", e.message())?;
                 }
                 Ok(())
+            }
+            CompilerError::SubvariantNotFound(name, variant) => {
+                write!(f, "Subvariant {variant} does not exist for {name}")
             }
             CompilerError::SerializationError(error) => {
                 write!(f, "Serialization error: {error}")
