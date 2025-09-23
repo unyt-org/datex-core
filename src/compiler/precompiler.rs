@@ -360,6 +360,14 @@ fn visit_expression(
                 scope_stack,
                 NewScopeType::NewScope,
             )?;
+            if let Some(type_annotation) = type_annotation {
+                visit_type_expression(
+                    type_annotation,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
             *id = Some(add_new_variable(
                 name.clone(),
                 VariableKind::Value,

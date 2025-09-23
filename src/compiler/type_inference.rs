@@ -141,6 +141,12 @@ fn infer_expression_type(
 
             variable_type
         }
+        DatexExpression::Statements(statements) => {
+            for stmt in statements.iter_mut() {
+                infer_expression_type(&mut stmt.expression, metadata.clone())?;
+            }
+            get_core_lib_type(CoreLibPointerId::Unit)
+        }
         e => panic!("Type inference not implemented for expression: {:?}", e),
         // _ => get_core_lib_type(CoreLibPointerId::Unit), // other expressions not handled yet
     })
@@ -344,6 +350,21 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "WIP"]
+    fn reassignment() {
+        let src = r#"
+        var a: text | integer = 42;
+        a = "hello";
+        a = 45;
+        "#;
+        let ast_with_metadata = parse_and_precompile(src);
+        let metadata = ast_with_metadata.metadata;
+        let mut expr = ast_with_metadata.ast;
+        infer_expression_type(&mut expr, metadata.clone()).unwrap();
+        println!("{:#?}", metadata.borrow());
+    }
+
+    #[test]
     fn infer_type_typed_literal() {
         let inferred_type = infer_type_from_str("type X = 42u8");
         assert_eq!(
@@ -492,6 +513,9 @@ mod tests {
 
         let inferred_type = infer_type_container_from_str("type X = boolean");
         assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
+
+        let inferred_type = infer_type_container_from_str("type X = text");
+        assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Text));
     }
 
     /// Tests literal type resolution, as implemented by ValueContainer::try_from
