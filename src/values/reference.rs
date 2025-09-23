@@ -1,7 +1,6 @@
 use crate::dif::{DIFUpdate, DIFValue};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
-use crate::values::core_values::r#type::definition::TypeDefinition;
 
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;

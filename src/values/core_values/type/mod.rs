@@ -9,7 +9,7 @@ use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
-use crate::values::reference::{Reference, ReferenceMutability};
+use crate::values::reference::ReferenceMutability;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::type_container::TypeContainer;
 use crate::values::type_reference::TypeReference;
@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::libs::core::{get_core_lib_type, get_core_lib_type_reference, CoreLibPointerId};
+use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {

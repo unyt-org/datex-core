@@ -2,7 +2,6 @@ use std::fmt::Display;
 use datex_core::values::type_reference::TypeReference;
 use crate::values::{
     core_values::r#type::structural_type_definition::StructuralTypeDefinition,
-    reference::Reference,
     traits::structural_eq::StructuralEq,
     type_container::TypeContainer,
 };

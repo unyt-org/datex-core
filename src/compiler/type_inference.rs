@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::ast::binary_operation::BinaryOperator;
-use crate::compiler::precompiler::{AstMetadata, AstWithMetadata};
+use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
