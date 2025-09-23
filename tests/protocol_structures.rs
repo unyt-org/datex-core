@@ -4,14 +4,17 @@ use datex_core::global::{
     protocol_structures::{
         block_header::BlockHeader,
         encrypted_header::{self, EncryptedHeader},
-        routing_header::RoutingHeader,
+        routing_header::{EncryptionType, RoutingHeader},
         serializable::Serializable,
     },
 };
 use datex_core::values::core_values::endpoint::{
     Endpoint, EndpointInstance, EndpointType,
 };
-use std::io::{Cursor, Seek, SeekFrom};
+use std::{
+    io::{Cursor, Seek, SeekFrom},
+    str::FromStr,
+};
 // FIXME #214 no-std
 
 #[test]
@@ -93,11 +96,33 @@ pub fn parse_dxb_block() {
     assert_eq!(bytes, new_bytes);
 }
 
-#[test]
-pub fn dummy_dxb_block() {
-    let block = DXBBlock::default();
-    let _bytes = block.to_bytes().unwrap();
+fn create_dxb_block_artifacts(block: &DXBBlock, name: String) {
+    // create a file in ./structs/$name/block.bin and ./structs/$name/block.json
+    use std::fs;
+    use std::path::Path;
+    let dir_path = Path::new("tests").join("structs").join(name);
+    fs::create_dir_all(&dir_path).unwrap();
+    let bin_path = dir_path.join("block.bin");
+    let json_path = dir_path.join("block.json");
+    fs::write(&bin_path, block.to_bytes().unwrap()).unwrap();
+    fs::write(&json_path, serde_json::to_string_pretty(&block).unwrap())
+        .unwrap();
+}
 
-    let json = serde_json::to_string_pretty(&block).unwrap();
-    println!("{}", json);
+#[test]
+#[ignore = "Only run to create artifacts"]
+pub fn dxb_blocks() {
+    let mut block = DXBBlock::default();
+    block
+        .routing_header
+        .flags
+        .set_encryption_type(EncryptionType::Encrypted);
+    create_dxb_block_artifacts(&block, "simple".to_string());
+
+    let mut block = DXBBlock::default();
+    block.set_receivers(vec![
+        Endpoint::from_str("@jonas").unwrap(),
+        Endpoint::from_str("@ben").unwrap(),
+    ]);
+    create_dxb_block_artifacts(&block, "receivers".to_string());
 }
