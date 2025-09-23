@@ -1,22 +1,22 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::ast::{DatexExpression, TypeExpression};
 use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
-use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
+use crate::libs::core::{
+    CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
+};
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
+use crate::values::pointer::PointerAddress;
 use crate::values::type_container::TypeContainer;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum TypeError {
     MismatchedOperands(TypeContainer, TypeContainer),
 }
 
-struct ResolvedPointer {
-
-}
-
+struct ResolvedPointer {}
 
 /// Infers the type of an expression as precisely as possible.
 /// Uses cached type information if available.
@@ -87,7 +87,35 @@ fn infer_expression_type(
         DatexExpression::BinaryOperation(operator, lhs, rhs, cached_type) => {
             infer_binary_expression_type(operator, lhs, rhs, metadata)?
         }
-        DatexExpression::VariableDeclaration{
+        DatexExpression::TypeExpression(type_expr) => {
+            infer_type_expression_type(type_expr, metadata)?
+        }
+        DatexExpression::TypeDeclaration {
+            id,
+            name: _,
+            value,
+            hoisted: _,
+        } => {
+            let type_def = infer_type_expression_type(value, metadata.clone())?;
+            let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
+            metadata
+                .borrow_mut()
+                .variable_metadata_mut(type_id)
+                .expect("TypeDeclaration should have variable metadata")
+                .var_type = Some(type_def.clone());
+            type_def
+        }
+        DatexExpression::Variable(id, _) => {
+            let var_id = *id;
+            let metadata = metadata.borrow();
+            metadata
+                .variable_metadata(var_id)
+                .expect("Variable should have variable metadata")
+                .var_type
+                .clone()
+                .expect("Variable type should have been inferred already")
+        }
+        DatexExpression::VariableDeclaration {
             id,
             kind: _,
             name: _,
@@ -99,7 +127,10 @@ fn infer_expression_type(
 
             let variable_type = if let Some(type_annotation) = type_annotation {
                 // match the inferred type against the annotation
-                let annotated_type = infer_type_expression_type(type_annotation, metadata.clone())?;
+                let annotated_type = infer_type_expression_type(
+                    type_annotation,
+                    metadata.clone(),
+                )?;
                 todo!("match init_type against annotated_type");
             } else {
                 // no annotation, use the inferred type
@@ -116,7 +147,8 @@ fn infer_expression_type(
 
             variable_type
         }
-        _ => get_core_lib_type(CoreLibPointerId::Unit), // other expressions not handled yet
+        e => panic!("Type inference not implemented for expression: {:?}", e),
+        // _ => get_core_lib_type(CoreLibPointerId::Unit), // other expressions not handled yet
     })
 }
 
@@ -124,7 +156,31 @@ fn infer_type_expression_type(
     ast: &mut TypeExpression,
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, TypeError> {
-   todo!("Implement type expression inference")
+    Ok(match ast {
+        TypeExpression::Variable(id, _) => {
+            let var_id = *id;
+            let metadata = metadata.borrow();
+            metadata
+                .variable_metadata(var_id)
+                .expect("Type variable should have variable metadata")
+                .var_type
+                .clone()
+                .expect("Type variable type should have been inferred already")
+        }
+        TypeExpression::GetReference(pointer_address) => {
+            if matches!(pointer_address, PointerAddress::Internal(_)) {
+                get_core_lib_type(CoreLibPointerId::from(
+                    &pointer_address.to_owned(),
+                ))
+            } else {
+                panic!("GetReference not supported yet")
+            }
+        }
+        _ => panic!(
+            "Type inference not implemented for type expression: {:?}",
+            ast
+        ),
+    })
 }
 
 fn infer_binary_expression_type(
@@ -156,10 +212,7 @@ fn infer_binary_expression_type(
             }
             // otherwise, return type error
             else {
-                Err(TypeError::MismatchedOperands(
-                    lhs_type,
-                    rhs_type,
-                ))
+                Err(TypeError::MismatchedOperands(lhs_type, rhs_type))
             }
         }
 
@@ -171,23 +224,78 @@ fn infer_binary_expression_type(
 mod tests {
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
-    use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
+    use crate::ast::error::src;
+    use crate::ast::{VariableKind, parse};
+    use crate::compiler::precompiler::{
+        AstWithMetadata, PrecompilerScopeStack, precompile_ast,
+    };
+    use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::integer::integer::Integer;
+    use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::decimal::Decimal;
-    use crate::ast::{VariableKind};
-    use crate::compiler::precompiler::{precompile_ast, PrecompilerScopeStack};
 
     fn infer_get_type(expr: &mut DatexExpression) -> Type {
-        infer_expression_type(expr, Rc::new(RefCell::new(AstMetadata::default())))
-            .map(|tc| tc.as_type())
-            .expect("TypeContainer should contain a Type")
+        infer_expression_type(
+            expr,
+            Rc::new(RefCell::new(AstMetadata::default())),
+        )
+        .map(|tc| tc.as_type())
+        .expect("TypeContainer should contain a Type")
+    }
+
+    /// Parses the given source code into an AST with metadata.
+    fn parse_and_precompile(src: &str) -> AstWithMetadata {
+        let ast = parse(src).expect("Invalid expression");
+        precompile_ast(
+            ast,
+            Rc::new(RefCell::new(AstMetadata::default())),
+            &mut PrecompilerScopeStack::default(),
+        )
+        .unwrap()
+    }
+
+    /// Helpers to infer the type of a type expression from source code.
+    /// The source code should be a type expression, e.g. "integer/u8".
+    /// The function wraps the type expression in a type declaration to parse it.
+    fn infer_type_expr_from_str(src: &str) -> TypeContainer {
+        let src = format!("type X = {}", src);
+        let ast_with_metadata = parse_and_precompile(&src);
+        let mut expr = ast_with_metadata.ast;
+        infer_type_expression_type(
+            match &mut expr {
+                DatexExpression::TypeDeclaration { value, .. } => value,
+                _ => unreachable!(),
+            },
+            ast_with_metadata.metadata,
+        )
+        .expect("Type inference failed")
+    }
+
+    #[test]
+    fn infer_core_type_expression() {
+        let inferred_type = infer_type_expr_from_str("integer/u8");
+        assert_eq!(
+            inferred_type,
+            get_core_lib_type(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8,
+            )))
+        );
+
+        let inferred_type = infer_type_expr_from_str("decimal");
+        assert_eq!(
+            inferred_type,
+            get_core_lib_type(CoreLibPointerId::Decimal(None))
+        );
+
+        let inferred_type = infer_type_expr_from_str("boolean");
+        assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
     }
 
     /// Tests literal type resolution, as implemented by ValueContainer::try_from
     #[test]
-    fn test_infer_literal_types() {
+    fn infer_literal_types() {
         assert_eq!(
             infer_get_type(&mut DatexExpression::Boolean(true)),
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
@@ -204,50 +312,54 @@ mod tests {
         );
 
         assert_eq!(
-            infer_get_type(
-                &mut DatexExpression::Decimal(Decimal::from(1.23)),
-            ),
-            Type::structural(StructuralTypeDefinition::Decimal(Decimal::from(1.23)))
+            infer_get_type(&mut DatexExpression::Decimal(Decimal::from(1.23)),),
+            Type::structural(StructuralTypeDefinition::Decimal(Decimal::from(
+                1.23
+            )))
         );
 
         assert_eq!(
-            infer_get_type(
-                &mut DatexExpression::Integer(Integer::from(42)),
-            ),
-            Type::structural(StructuralTypeDefinition::Integer(Integer::from(42)))
+            infer_get_type(&mut DatexExpression::Integer(Integer::from(42)),),
+            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
+                42
+            )))
         );
 
         assert_eq!(
-            infer_get_type(
-                &mut DatexExpression::Array(vec![
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(2)),
-                    DatexExpression::Integer(Integer::from(3))
-                ]),
-            ),
+            infer_get_type(&mut DatexExpression::Array(vec![
+                DatexExpression::Integer(Integer::from(1)),
+                DatexExpression::Integer(Integer::from(2)),
+                DatexExpression::Integer(Integer::from(3))
+            ]),),
             Type::structural(StructuralTypeDefinition::Array(vec![
-                TypeContainer::Type(Type::from(CoreValue::from(Integer::from(1)))),
-                TypeContainer::Type(Type::from(CoreValue::from(Integer::from(2)))),
-                TypeContainer::Type(Type::from(CoreValue::from(Integer::from(3))))
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(1)
+                ))),
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(2)
+                ))),
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(3)
+                )))
             ]))
         );
 
         assert_eq!(
-            infer_get_type(
-                &mut DatexExpression::Struct(vec![(
-                    "a".to_string(),
-                    DatexExpression::Integer(Integer::from(1))
-                )]),
-            ),
+            infer_get_type(&mut DatexExpression::Struct(vec![(
+                "a".to_string(),
+                DatexExpression::Integer(Integer::from(1))
+            )]),),
             Type::structural(StructuralTypeDefinition::Struct(vec![(
                 "a".to_string(),
-                TypeContainer::Type(Type::from(CoreValue::from(Integer::from(1))))
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(1)
+                )))
             )]))
         );
     }
 
     #[test]
-    fn test_infer_binary_expression_types() {
+    fn infer_binary_expression_types() {
         let integer = get_core_lib_type(CoreLibPointerId::Integer(None));
         let decimal = get_core_lib_type(CoreLibPointerId::Decimal(None));
 
@@ -260,8 +372,11 @@ mod tests {
         );
 
         assert_eq!(
-            infer_expression_type(&mut expr, Rc::new(RefCell::new(AstMetadata::default())))
-                .unwrap(),
+            infer_expression_type(
+                &mut expr,
+                Rc::new(RefCell::new(AstMetadata::default()))
+            )
+            .unwrap(),
             integer
         );
 
@@ -273,8 +388,11 @@ mod tests {
             None,
         );
         assert_eq!(
-            infer_expression_type(&mut expr, Rc::new(RefCell::new(AstMetadata::default())))
-                .unwrap(),
+            infer_expression_type(
+                &mut expr,
+                Rc::new(RefCell::new(AstMetadata::default()))
+            )
+            .unwrap(),
             decimal
         );
 
@@ -286,37 +404,45 @@ mod tests {
             None,
         );
         assert!(matches!(
-            infer_expression_type(&mut expr, Rc::new(RefCell::new(AstMetadata::default()))),
+            infer_expression_type(
+                &mut expr,
+                Rc::new(RefCell::new(AstMetadata::default()))
+            ),
             Err(TypeError::MismatchedOperands(_, _))
         ));
     }
 
     #[test]
-    fn test_infer_variable_declaration() {
+    fn infer_variable_declaration() {
         /*
-         const x = 10
-         */
+        const x = 10
+        */
         let expr = DatexExpression::VariableDeclaration {
             id: None,
             kind: VariableKind::Const,
             name: "x".to_string(),
             type_annotation: None,
-            init_expression: Box::new(DatexExpression::Integer(Integer::from(10))),
+            init_expression: Box::new(DatexExpression::Integer(Integer::from(
+                10,
+            ))),
         };
 
         let ast_with_metadata = precompile_ast(
             expr,
             Rc::new(RefCell::new(AstMetadata::default())),
-            &mut PrecompilerScopeStack::default()
-        ).unwrap();
+            &mut PrecompilerScopeStack::default(),
+        )
+        .unwrap();
         let metadata = ast_with_metadata.metadata;
         let mut expr = ast_with_metadata.ast;
 
         // check that the expression type is inferred correctly
         assert_eq!(
-            infer_expression_type(&mut expr, metadata.clone())
-                .unwrap(),
-            Type::structural(StructuralTypeDefinition::Integer(Integer::from(10))).as_type_container()
+            infer_expression_type(&mut expr, metadata.clone()).unwrap(),
+            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
+                10
+            )))
+            .as_type_container()
         );
 
         // check that the variable metadata has been updated
@@ -324,12 +450,17 @@ mod tests {
         let var_metadata = metadata.variable_metadata(0).unwrap();
         assert_eq!(
             var_metadata.var_type,
-            Some(Type::structural(StructuralTypeDefinition::Integer(Integer::from(10))).as_type_container()),
+            Some(
+                Type::structural(StructuralTypeDefinition::Integer(
+                    Integer::from(10)
+                ))
+                .as_type_container()
+            ),
         );
     }
 
     #[test]
-    fn test_infer_expression_with_variable() {
+    fn infer_expression_with_variable() {
         /*
         var x = 10;
         x;
