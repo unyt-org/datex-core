@@ -5,12 +5,12 @@ use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::Runtime;
 use crate::values::pointer::PointerAddress;
+use crate::values::type_container::TypeContainer;
 use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::values::type_container::TypeContainer;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -812,6 +812,52 @@ fn visit_type_expression(
         }
         TypeExpression::Struct(properties) => {
             for (_, ty) in properties {
+                visit_type_expression(
+                    ty,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
+            Ok(())
+        }
+        TypeExpression::Union(types) => {
+            for ty in types {
+                visit_type_expression(
+                    ty,
+                    metadata,
+                    scope_stack,
+                    NewScopeType::NewScope,
+                )?;
+            }
+            Ok(())
+        }
+        TypeExpression::Map(key_type, value_type) => {
+            visit_type_expression(
+                key_type,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            visit_type_expression(
+                value_type,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            Ok(())
+        }
+        TypeExpression::List(inner_type) => {
+            visit_type_expression(
+                inner_type,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            Ok(())
+        }
+        TypeExpression::Intersection(types) => {
+            for ty in types {
                 visit_type_expression(
                     ty,
                     metadata,

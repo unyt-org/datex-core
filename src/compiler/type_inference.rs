@@ -156,6 +156,58 @@ fn infer_type_expression_type(
     ast: &mut TypeExpression,
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, TypeError> {
+    /// First, try to directly match the type expression to a structural type definition.
+    /// This covers literals and composite types like structs and arrays.
+    /// If that fails, handle more complex type expressions like variables, unions, and intersections.
+    if let Some(res) = match ast {
+        TypeExpression::Integer(value) => {
+            Some(StructuralTypeDefinition::Integer(value.clone()))
+        }
+        TypeExpression::TypedInteger(value) => {
+            Some(StructuralTypeDefinition::TypedInteger(value.clone()))
+        }
+        TypeExpression::Decimal(value) => {
+            Some(StructuralTypeDefinition::Decimal(value.clone()))
+        }
+        TypeExpression::TypedDecimal(value) => {
+            Some(StructuralTypeDefinition::TypedDecimal(value.clone()))
+        }
+        TypeExpression::Boolean(value) => {
+            Some(StructuralTypeDefinition::Boolean((*value).into()))
+        }
+        TypeExpression::Text(value) => Some(value.clone().into()),
+        TypeExpression::Null => Some(StructuralTypeDefinition::Null),
+        TypeExpression::Endpoint(value) => {
+            Some(StructuralTypeDefinition::Endpoint(value.clone()))
+        }
+        TypeExpression::Struct(fields) => {
+            let entries = fields
+                .iter_mut()
+                .map(|(k, v)| {
+                    let value =
+                        infer_type_expression_type(v, metadata.clone())?;
+                    Ok((k.clone(), value))
+                })
+                .collect::<Result<Vec<(_, _)>, TypeError>>()?;
+            Some(StructuralTypeDefinition::Struct(entries))
+        }
+        TypeExpression::Array(members) => {
+            let member_types = members
+                .iter_mut()
+                .map(|m| infer_type_expression_type(m, metadata.clone()))
+                .collect::<Result<Vec<_>, TypeError>>()?;
+            Some(StructuralTypeDefinition::Array(member_types))
+        }
+        TypeExpression::List(entry_type) => {
+            let entry_type =
+                infer_type_expression_type(entry_type, metadata.clone())?;
+            Some(StructuralTypeDefinition::List(Box::new(entry_type)))
+        }
+        _ => None,
+    } {
+        return Ok(Type::structural(res).as_type_container());
+    }
+
     Ok(match ast {
         TypeExpression::Variable(id, _) => {
             let var_id = *id;
@@ -176,17 +228,19 @@ fn infer_type_expression_type(
                 panic!("GetReference not supported yet")
             }
         }
-        TypeExpression::Struct(fields) => {
-            let entries = fields
+        TypeExpression::Union(members) => {
+            let member_types = members
                 .iter_mut()
-                .map(|(k, v)| {
-                    let value =
-                        infer_type_expression_type(v, metadata.clone())?;
-                    Ok((k.clone(), value))
-                })
-                .collect::<Result<Vec<(_, _)>, TypeError>>()?;
-            Type::structural(StructuralTypeDefinition::Struct(entries))
-                .as_type_container()
+                .map(|m| infer_type_expression_type(m, metadata.clone()))
+                .collect::<Result<Vec<_>, TypeError>>()?;
+            Type::union(member_types).as_type_container()
+        }
+        TypeExpression::Intersection(members) => {
+            let member_types = members
+                .iter_mut()
+                .map(|m| infer_type_expression_type(m, metadata.clone()))
+                .collect::<Result<Vec<_>, TypeError>>()?;
+            Type::intersection(member_types).as_type_container()
         }
         _ => panic!(
             "Type inference not implemented for type expression: {:?}",
@@ -271,9 +325,8 @@ mod tests {
 
     /// Helpers to infer the type of a type expression from source code.
     /// The source code should be a type expression, e.g. "integer/u8".
-    /// The function wraps the type expression in a type declaration to parse it.
+    /// The function asserts that the expression is indeed a type declaration.
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
-        let src = format!("type X = {}", src);
         let ast_with_metadata = parse_and_precompile(&src);
         let mut expr = ast_with_metadata.ast;
         infer_type_expression_type(
@@ -290,25 +343,71 @@ mod tests {
     }
 
     #[test]
-    fn infer_struct_type_expression() {
-        let inferred_type = infer_type_from_str("{ a: integer/u8, b: decimal }");
+    fn infer_intersection_type_expression() {
+        let inferred_type = infer_type_from_str("type X = integer/u8 & 42");
         assert_eq!(
             inferred_type,
-            Type::structural(StructuralTypeDefinition::Struct(vec![(
-                "a".to_string(),
+            Type::intersection(vec![
                 get_core_lib_type(CoreLibPointerId::Integer(Some(
                     IntegerTypeVariant::U8
-                )))
-            ), (
-                "b".to_string(),
+                ))),
+                Type::structural(StructuralTypeDefinition::Integer(
+                    Integer::from(42)
+                ))
+                .as_type_container()
+            ])
+        );
+    }
+
+    #[test]
+    fn infer_union_type_expression() {
+        let inferred_type =
+            infer_type_from_str("type X = integer/u8 | decimal");
+        assert_eq!(
+            inferred_type,
+            Type::union(vec![
+                get_core_lib_type(CoreLibPointerId::Integer(Some(
+                    IntegerTypeVariant::U8
+                ))),
                 get_core_lib_type(CoreLibPointerId::Decimal(None))
-            )]))
+            ])
+        );
+    }
+
+    #[test]
+    fn infer_empty_struct_type_expression() {
+        let inferred_type = infer_type_from_str("type X = {}");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Struct(vec![]))
+        );
+    }
+
+    #[test]
+    fn infer_struct_type_expression() {
+        let inferred_type =
+            infer_type_from_str("type X = { a: integer/u8, b: decimal }");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Struct(vec![
+                (
+                    "a".to_string(),
+                    get_core_lib_type(CoreLibPointerId::Integer(Some(
+                        IntegerTypeVariant::U8
+                    )))
+                ),
+                (
+                    "b".to_string(),
+                    get_core_lib_type(CoreLibPointerId::Decimal(None))
+                )
+            ]))
         );
     }
 
     #[test]
     fn infer_core_type_expression() {
-        let inferred_type = infer_type_container_from_str("integer/u8");
+        let inferred_type =
+            infer_type_container_from_str("type X = integer/u8");
         assert_eq!(
             inferred_type,
             get_core_lib_type(CoreLibPointerId::Integer(Some(
@@ -316,13 +415,13 @@ mod tests {
             )))
         );
 
-        let inferred_type = infer_type_container_from_str("decimal");
+        let inferred_type = infer_type_container_from_str("type X = decimal");
         assert_eq!(
             inferred_type,
             get_core_lib_type(CoreLibPointerId::Decimal(None))
         );
 
-        let inferred_type = infer_type_container_from_str("boolean");
+        let inferred_type = infer_type_container_from_str("type X = boolean");
         assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
     }
 
