@@ -16,8 +16,6 @@ pub enum TypeError {
     MismatchedOperands(TypeContainer, TypeContainer),
 }
 
-struct ResolvedPointer {}
-
 /// Infers the type of an expression as precisely as possible.
 /// Uses cached type information if available.
 fn infer_expression_type(
@@ -30,6 +28,8 @@ fn infer_expression_type(
         | DatexExpression::Text(_)
         | DatexExpression::Decimal(_)
         | DatexExpression::Integer(_)
+        | DatexExpression::TypedInteger(_)
+        | DatexExpression::TypedDecimal(_)
         | DatexExpression::Endpoint(_) => {
             // TODO: this unwrap asserts that try_from succeeds in all cases, but this is not yet guaranteed and tested
             let value = Type::try_from(ast as &_).unwrap();
@@ -37,34 +37,30 @@ fn infer_expression_type(
         }
         // composite values
         DatexExpression::Map(map) => {
-            todo!()
+            todo!("Map type inference not implemented yet");
             // let entries = map
             //     .iter_mut()
             //     .map(|(k, v)| {
-            //         // TODO: is unwrap safe here?
-            //         let value =
-            //             infer_expression_type(v, runtime).unwrap().unwrap();
             //         let key =
-            //             infer_expression_type(k, runtime).unwrap().unwrap();
+            //             infer_expression_type(k, metadata.clone()).unwrap();
+            //         let value =
+            //             infer_expression_type(v, metadata.clone()).unwrap();
             //         Ok((key, value))
             //     })
-            //     // TODO: is unwrap safe here?
             //     .collect::<Result<Vec<(_, _)>, ()>>()
             //     .unwrap();
-            // Some(TypeContainer::Type(Type::structural(
-            //     StructuralType::Map(entries),
-            // )))
+            // TypeContainer::Type(Type::structural(
+            //     StructuralTypeDefinition::Map(entries),
+            // ))
         }
         DatexExpression::Struct(structure) => {
             let entries = structure
                 .iter_mut()
                 .map(|(k, v)| {
-                    // TODO: is unwrap safe here?
                     let value =
                         infer_expression_type(v, metadata.clone()).unwrap();
                     Ok((k.clone(), value))
                 })
-                // TODO: is unwrap safe here?
                 .collect::<Result<Vec<(_, _)>, ()>>()
                 .unwrap();
             TypeContainer::Type(Type::structural(
@@ -74,10 +70,7 @@ fn infer_expression_type(
         DatexExpression::Array(arr) => {
             let entries = arr
                 .iter_mut()
-                .map(|v| {
-                    // TODO: is unwrap safe here?
-                    infer_expression_type(v, metadata.clone()).unwrap()
-                })
+                .map(|v| infer_expression_type(v, metadata.clone()).unwrap())
                 .collect::<Vec<_>>();
             TypeContainer::Type(Type::structural(
                 StructuralTypeDefinition::Array(entries),
@@ -88,7 +81,7 @@ fn infer_expression_type(
             infer_binary_expression_type(operator, lhs, rhs, metadata)?
         }
         DatexExpression::TypeExpression(type_expr) => {
-            infer_type_expression_type(type_expr, metadata)?
+            resolve_type_expression_type(type_expr, metadata)?
         }
         DatexExpression::TypeDeclaration {
             id,
@@ -96,7 +89,8 @@ fn infer_expression_type(
             value,
             hoisted: _,
         } => {
-            let type_def = infer_type_expression_type(value, metadata.clone())?;
+            let type_def =
+                resolve_type_expression_type(value, metadata.clone())?;
             let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
             metadata
                 .borrow_mut()
@@ -127,7 +121,7 @@ fn infer_expression_type(
 
             let variable_type = if let Some(type_annotation) = type_annotation {
                 // match the inferred type against the annotation
-                let annotated_type = infer_type_expression_type(
+                let annotated_type = resolve_type_expression_type(
                     type_annotation,
                     metadata.clone(),
                 )?;
@@ -152,13 +146,16 @@ fn infer_expression_type(
     })
 }
 
-fn infer_type_expression_type(
+/// Resolved the type represented by a type expression.
+/// This is used in type declarations and type annotations.
+/// e.g. `integer/u8`, `{ a: integer, b: decimal }`, `integer | decimal`, etc.
+fn resolve_type_expression_type(
     ast: &mut TypeExpression,
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, TypeError> {
-    /// First, try to directly match the type expression to a structural type definition.
-    /// This covers literals and composite types like structs and arrays.
-    /// If that fails, handle more complex type expressions like variables, unions, and intersections.
+    // First, try to directly match the type expression to a structural type definition.
+    // This covers literals and composite types like structs and arrays.
+    // If that fails, handle more complex type expressions like variables, unions, and intersections.
     if let Some(res) = match ast {
         TypeExpression::Integer(value) => {
             Some(StructuralTypeDefinition::Integer(value.clone()))
@@ -185,7 +182,7 @@ fn infer_type_expression_type(
                 .iter_mut()
                 .map(|(k, v)| {
                     let value =
-                        infer_type_expression_type(v, metadata.clone())?;
+                        resolve_type_expression_type(v, metadata.clone())?;
                     Ok((k.clone(), value))
                 })
                 .collect::<Result<Vec<(_, _)>, TypeError>>()?;
@@ -194,13 +191,13 @@ fn infer_type_expression_type(
         TypeExpression::Array(members) => {
             let member_types = members
                 .iter_mut()
-                .map(|m| infer_type_expression_type(m, metadata.clone()))
+                .map(|m| resolve_type_expression_type(m, metadata.clone()))
                 .collect::<Result<Vec<_>, TypeError>>()?;
             Some(StructuralTypeDefinition::Array(member_types))
         }
         TypeExpression::List(entry_type) => {
             let entry_type =
-                infer_type_expression_type(entry_type, metadata.clone())?;
+                resolve_type_expression_type(entry_type, metadata.clone())?;
             Some(StructuralTypeDefinition::List(Box::new(entry_type)))
         }
         _ => None,
@@ -208,6 +205,7 @@ fn infer_type_expression_type(
         return Ok(Type::structural(res).as_type_container());
     }
 
+    // handle more complex type expressions
     Ok(match ast {
         TypeExpression::Variable(id, _) => {
             let var_id = *id;
@@ -231,14 +229,14 @@ fn infer_type_expression_type(
         TypeExpression::Union(members) => {
             let member_types = members
                 .iter_mut()
-                .map(|m| infer_type_expression_type(m, metadata.clone()))
+                .map(|m| resolve_type_expression_type(m, metadata.clone()))
                 .collect::<Result<Vec<_>, TypeError>>()?;
             Type::union(member_types).as_type_container()
         }
         TypeExpression::Intersection(members) => {
             let member_types = members
                 .iter_mut()
-                .map(|m| infer_type_expression_type(m, metadata.clone()))
+                .map(|m| resolve_type_expression_type(m, metadata.clone()))
                 .collect::<Result<Vec<_>, TypeError>>()?;
             Type::intersection(member_types).as_type_container()
         }
@@ -332,7 +330,7 @@ mod tests {
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
         let ast_with_metadata = parse_and_precompile(&src);
         let mut expr = ast_with_metadata.ast;
-        infer_type_expression_type(
+        resolve_type_expression_type(
             match &mut expr {
                 DatexExpression::TypeDeclaration { value, .. } => value,
                 _ => unreachable!(),
@@ -413,6 +411,7 @@ mod tests {
 
     #[test]
     // TODO resolve intersection and union types properly
+    // by merging the member types if one is base (one level higher) than the other
     fn infer_intersection_type_expression() {
         let inferred_type = infer_type_from_str("type X = integer/u8 & 42");
         assert_eq!(
