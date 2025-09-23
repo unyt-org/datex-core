@@ -31,6 +31,7 @@ pub enum CoreLibPointerId {
     Endpoint,                            // #core.Endpoint
     Array,                               // #core.Array
     List,                                // #core.List
+    Map,                                 // #core.Map
     Struct,                              // #core.Struct
     Function,                            // #core.Function
     Union,                               // #core.Union
@@ -55,6 +56,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::List => 9,
             CoreLibPointerId::Union => 10,
             CoreLibPointerId::Unit => 11,
+            CoreLibPointerId::Map => 12,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -82,6 +84,7 @@ impl CoreLibPointerId {
             9 => Some(CoreLibPointerId::List),
             10 => Some(CoreLibPointerId::Union),
             11 => Some(CoreLibPointerId::Unit),
+            12 => Some(CoreLibPointerId::Map),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -209,6 +212,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
             endpoint(),
             union(),
             unit(),
+            map(),
         ])
         .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
@@ -229,9 +233,12 @@ pub fn array() -> CoreLibTypeDefinition {
 pub fn list() -> CoreLibTypeDefinition {
     create_core_type("List", None, None, CoreLibPointerId::List)
 }
+pub fn map() -> CoreLibTypeDefinition {
+    create_core_type("Map", None, None, CoreLibPointerId::Map)
+}
 
 pub fn union() -> CoreLibTypeDefinition {
-    create_core_type("Union", None, None, CoreLibPointerId::List)
+    create_core_type("Union", None, None, CoreLibPointerId::Union)
 }
 
 pub fn unit() -> CoreLibTypeDefinition {

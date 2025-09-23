@@ -160,4 +160,23 @@ impl TypeContainer {
             }
         }
     }
+
+    /// Matches if one type can be assigned to another
+    pub fn matches_type(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TypeContainer::Type(a), TypeContainer::Type(b)) => {
+                a.matches_type(b)
+            }
+            (
+                TypeContainer::TypeReference(a),
+                TypeContainer::TypeReference(b),
+            ) => a.borrow().matches_reference(b.clone()),
+            (TypeContainer::TypeReference(a), TypeContainer::Type(b)) => {
+                a.borrow().matches_type(b)
+            }
+            (TypeContainer::Type(a), TypeContainer::TypeReference(b)) => {
+                a.matches_reference(b.clone())
+            }
+        }
+    }
 }

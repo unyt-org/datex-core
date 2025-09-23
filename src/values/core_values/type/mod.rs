@@ -2,7 +2,10 @@ pub mod definition;
 pub mod error;
 pub mod structural_type_definition;
 
+use chumsky::prelude::todo;
+
 use crate::ast::DatexExpression;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
@@ -18,7 +21,6 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -218,21 +220,53 @@ impl Type {
             return Some(base_type.clone());
         }
         // unit type has no base type
-        if self.is_unit() {
-            return None;
-        }
+        // FIXME
+        // if self.is_unit() {
+        //     return None;
+        // }
         Some(match &self.type_definition {
-            TypeDefinition::Structural(value) => {
-                match value {
-                    StructuralTypeDefinition::Integer(_) => {
-                        get_core_lib_type_reference(CoreLibPointerId::Integer(None))
-                    },
-                    StructuralTypeDefinition::Decimal(_) => {
-                        get_core_lib_type_reference(CoreLibPointerId::Decimal(None))
-                    },
-                    _ => todo!()
+            TypeDefinition::Structural(value) => match value {
+                StructuralTypeDefinition::Integer(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Integer(None))
                 }
-            }
+                StructuralTypeDefinition::TypedInteger(ti) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Integer(
+                        Some(ti.variant()),
+                    ))
+                }
+                StructuralTypeDefinition::Decimal(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Decimal(None))
+                }
+                StructuralTypeDefinition::TypedDecimal(td) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Decimal(
+                        Some(td.variant()),
+                    ))
+                }
+                StructuralTypeDefinition::Boolean(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Boolean)
+                }
+                StructuralTypeDefinition::Text(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Text)
+                }
+                StructuralTypeDefinition::Endpoint(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Endpoint)
+                }
+                StructuralTypeDefinition::Null => {
+                    get_core_lib_type_reference(CoreLibPointerId::Null)
+                }
+                StructuralTypeDefinition::List(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::List)
+                }
+                StructuralTypeDefinition::Array(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Array)
+                }
+                StructuralTypeDefinition::Struct(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Struct)
+                }
+                StructuralTypeDefinition::Map(_) => {
+                    get_core_lib_type_reference(CoreLibPointerId::Map)
+                }
+            },
             TypeDefinition::Union(types) => {
                 get_core_lib_type_reference(CoreLibPointerId::Union)
             }
@@ -251,6 +285,51 @@ impl Type {
     /// integer matches 1 | 2 -> false
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
         Type::value_matches_type(value, self)
+    }
+
+    /// 1 matches integer -> true
+    /// integer matches 1 -> false
+    /// integer matches integer -> true
+    pub fn matches_type(&self, other: &Type) -> bool {
+        // TODO
+        println!("Matching types: {} and {}", self, other);
+
+        let other_base_type =
+            other.base_type().expect("other type has no base type");
+        let other_base_type = other_base_type.borrow();
+        let other_base_type = other_base_type.clone().as_type_container();
+
+        match &self.type_definition {
+            TypeDefinition::Union(members) => {
+                // If self is a union, check if any member matches the other type
+                for member in members {
+                    if member == &other_base_type {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            TypeDefinition::Intersection(members) => {
+                // If self is an intersection, all members must match the other type
+                for member in members {
+                    if !member.as_type().matches_type(other) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            // TODO
+            _ => {}
+        }
+
+        if self.base_type() == other.base_type() {
+            return true;
+        }
+        false
+    }
+    pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
+        todo!("implement type reference matching");
+        // self.type_matches(&other.type_value)
     }
 
     /// Matches a value against a type

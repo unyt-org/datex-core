@@ -1,5 +1,7 @@
+use chumsky::prelude::todo;
 use serde::{Deserialize, Serialize};
 
+use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::pointer::PointerAddress;
 use crate::values::{core_values::r#type::Type, type_container::TypeContainer};
 use std::{
@@ -7,7 +9,6 @@ use std::{
     fmt::{Display, Formatter},
     rc::Rc,
 };
-use crate::values::core_values::r#type::definition::TypeDefinition;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {
@@ -80,7 +81,7 @@ impl TypeReference {
     pub fn as_type_container(self) -> TypeContainer {
         TypeContainer::TypeReference(self.as_ref_cell())
     }
-    
+
     pub fn collapse_reference_chain(&self) -> TypeReference {
         match &self.type_value.type_definition {
             TypeDefinition::Reference(reference) => {
@@ -102,6 +103,21 @@ impl TypeReference {
 
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
         self.type_value.base_type()
+    }
+
+    pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
+        todo!("implement type matching");
+    }
+
+    pub fn matches_type(&self, other: &Type) -> bool {
+        println!("Other {:?}", other.base_type());
+        println!("Matching type {:?} against type {}", self, other);
+
+        if let Some(base) = other.base_type() {
+            return *self == *base.borrow();
+        }
+
+        todo!("implement type matching");
     }
 }
 impl Display for TypeReference {

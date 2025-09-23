@@ -14,6 +14,12 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub enum TypeError {
     MismatchedOperands(TypeContainer, TypeContainer),
+
+    // can not assign value to variable of different type
+    AssignmentTypeMismatch {
+        annotated_type: TypeContainer,
+        assigned_type: TypeContainer,
+    },
 }
 
 /// Infers the type of an expression as precisely as possible.
@@ -125,7 +131,17 @@ fn infer_expression_type(
                     type_annotation,
                     metadata.clone(),
                 )?;
-                todo!("match init_type against annotated_type");
+                println!(
+                    "Matching annotated type {} against inferred type {}",
+                    annotated_type, init_type
+                );
+                if !annotated_type.matches_type(&init_type) {
+                    return Err(TypeError::AssignmentTypeMismatch {
+                        annotated_type,
+                        assigned_type: init_type,
+                    });
+                }
+                annotated_type
             } else {
                 // no annotation, use the inferred type
                 init_type
@@ -330,6 +346,32 @@ mod tests {
         .unwrap()
     }
 
+    /// Parses the given source code into an AST with metadata and infers types for all expressions.
+    /// Returns the metadata with all inferred types.
+    /// Panics if parsing, precompilation, or type inference fails.
+    fn parse_and_precompile_metadata(src: &str) -> AstMetadata {
+        let cell = Rc::new(RefCell::new(AstMetadata::default()));
+        {
+            let ast = parse(src).expect("Invalid expression");
+            let ast_with_metadata = precompile_ast(
+                ast,
+                cell.clone(),
+                &mut PrecompilerScopeStack::default(),
+            )
+            .unwrap();
+
+            let mut expr = ast_with_metadata.ast;
+            infer_expression_type(
+                &mut expr,
+                ast_with_metadata.metadata.clone(),
+            )
+            .unwrap();
+        }
+        Rc::try_unwrap(cell)
+            .expect("multiple references exist")
+            .into_inner()
+    }
+
     /// Helpers to infer the type of a type expression from source code.
     /// The source code should be a type expression, e.g. "integer/u8".
     /// The function asserts that the expression is indeed a type declaration.
@@ -350,18 +392,35 @@ mod tests {
     }
 
     #[test]
+    fn assignment() {
+        let src = r#"
+        var a: integer = 42;
+        "#;
+        let metadata = parse_and_precompile_metadata(src);
+        let var = metadata.variable_metadata(0).unwrap();
+        assert_eq!(
+            var.var_type,
+            Some(get_core_lib_type(CoreLibPointerId::Integer(None)))
+        );
+    }
+
+    #[test]
     #[ignore = "WIP"]
     fn reassignment() {
         let src = r#"
         var a: text | integer = 42;
-        a = "hello";
-        a = 45;
+        // a = "hello";
+        // a = 45;
         "#;
-        let ast_with_metadata = parse_and_precompile(src);
-        let metadata = ast_with_metadata.metadata;
-        let mut expr = ast_with_metadata.ast;
-        infer_expression_type(&mut expr, metadata.clone()).unwrap();
-        println!("{:#?}", metadata.borrow());
+        let metadata = parse_and_precompile_metadata(src);
+        let var = metadata.variable_metadata(0).unwrap();
+        assert_eq!(
+            var.var_type.as_ref().map(|t| t.as_type()),
+            Some(Type::union(vec![
+                get_core_lib_type(CoreLibPointerId::Text),
+                get_core_lib_type(CoreLibPointerId::Integer(None))
+            ]))
+        );
     }
 
     #[test]
