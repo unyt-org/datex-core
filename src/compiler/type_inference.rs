@@ -176,6 +176,18 @@ fn infer_type_expression_type(
                 panic!("GetReference not supported yet")
             }
         }
+        TypeExpression::Struct(fields) => {
+            let entries = fields
+                .iter_mut()
+                .map(|(k, v)| {
+                    let value =
+                        infer_type_expression_type(v, metadata.clone())?;
+                    Ok((k.clone(), value))
+                })
+                .collect::<Result<Vec<(_, _)>, TypeError>>()?;
+            Type::structural(StructuralTypeDefinition::Struct(entries))
+                .as_type_container()
+        }
         _ => panic!(
             "Type inference not implemented for type expression: {:?}",
             ast
@@ -224,7 +236,6 @@ fn infer_binary_expression_type(
 mod tests {
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
-    use crate::ast::error::src;
     use crate::ast::{VariableKind, parse};
     use crate::compiler::precompiler::{
         AstWithMetadata, PrecompilerScopeStack, precompile_ast,
@@ -236,6 +247,8 @@ mod tests {
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::decimal::Decimal;
 
+    /// Helper to infer the type of an expression and return it directly as Type.
+    /// Panics if type inference fails or if the inferred type is not a Type.
     fn infer_get_type(expr: &mut DatexExpression) -> Type {
         infer_expression_type(
             expr,
@@ -259,7 +272,7 @@ mod tests {
     /// Helpers to infer the type of a type expression from source code.
     /// The source code should be a type expression, e.g. "integer/u8".
     /// The function wraps the type expression in a type declaration to parse it.
-    fn infer_type_expr_from_str(src: &str) -> TypeContainer {
+    fn infer_type_container_from_str(src: &str) -> TypeContainer {
         let src = format!("type X = {}", src);
         let ast_with_metadata = parse_and_precompile(&src);
         let mut expr = ast_with_metadata.ast;
@@ -272,10 +285,30 @@ mod tests {
         )
         .expect("Type inference failed")
     }
+    fn infer_type_from_str(src: &str) -> Type {
+        infer_type_container_from_str(src).as_type()
+    }
+
+    #[test]
+    fn infer_struct_type_expression() {
+        let inferred_type = infer_type_from_str("{ a: integer/u8, b: decimal }");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Struct(vec![(
+                "a".to_string(),
+                get_core_lib_type(CoreLibPointerId::Integer(Some(
+                    IntegerTypeVariant::U8
+                )))
+            ), (
+                "b".to_string(),
+                get_core_lib_type(CoreLibPointerId::Decimal(None))
+            )]))
+        );
+    }
 
     #[test]
     fn infer_core_type_expression() {
-        let inferred_type = infer_type_expr_from_str("integer/u8");
+        let inferred_type = infer_type_container_from_str("integer/u8");
         assert_eq!(
             inferred_type,
             get_core_lib_type(CoreLibPointerId::Integer(Some(
@@ -283,13 +316,13 @@ mod tests {
             )))
         );
 
-        let inferred_type = infer_type_expr_from_str("decimal");
+        let inferred_type = infer_type_container_from_str("decimal");
         assert_eq!(
             inferred_type,
             get_core_lib_type(CoreLibPointerId::Decimal(None))
         );
 
-        let inferred_type = infer_type_expr_from_str("boolean");
+        let inferred_type = infer_type_container_from_str("boolean");
         assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
     }
 
