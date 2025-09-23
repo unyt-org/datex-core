@@ -296,8 +296,11 @@ mod tests {
     };
     use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
     use crate::values::core_value::CoreValue;
+    use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::integer::Integer;
-    use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
+    use crate::values::core_values::integer::typed_integer::{
+        IntegerTypeVariant, TypedInteger,
+    };
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::decimal::Decimal;
 
@@ -343,6 +346,73 @@ mod tests {
     }
 
     #[test]
+    fn infer_type_typed_literal() {
+        let inferred_type = infer_type_from_str("type X = 42u8");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::TypedInteger(
+                TypedInteger::U8(42)
+            ))
+        );
+
+        let inferred_type = infer_type_from_str("type X = 42i32");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::TypedInteger(
+                TypedInteger::I32(42)
+            ))
+        );
+
+        let inferred_type = infer_type_from_str("type X = 42.69f32");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::TypedDecimal(
+                TypedDecimal::from(42.69_f32)
+            ))
+        );
+    }
+
+    #[test]
+    fn infer_type_simple_literal() {
+        let inferred_type = infer_type_from_str("type X = 42");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
+                42
+            )))
+        );
+
+        let inferred_type = infer_type_from_str("type X = 3/4");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Decimal(
+                Decimal::from_string("3/4").unwrap()
+            ))
+        );
+
+        let inferred_type = infer_type_from_str("type X = true");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
+        );
+
+        let inferred_type = infer_type_from_str("type X = false");
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Boolean(Boolean(false)))
+        );
+
+        let inferred_type = infer_type_from_str(r#"type X = "hello""#);
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Text(
+                "hello".to_string().into()
+            ))
+        );
+    }
+
+    #[test]
+    // TODO resolve intersection and union types properly
     fn infer_intersection_type_expression() {
         let inferred_type = infer_type_from_str("type X = integer/u8 & 42");
         assert_eq!(
