@@ -1,9 +1,9 @@
 use com_interface_macros::create_opener_impl;
 use proc_macro::TokenStream;
 use syn::{ImplItemFn, ItemImpl, parse_macro_input};
+mod bitfield_macros;
 mod com_interface_macros;
 mod value_macros;
-
 /// This macro is used to create an opener for a interface.
 /// ```
 /// # use datex_macros::create_opener;
@@ -46,4 +46,10 @@ pub fn from_core_value_derive(input: TokenStream) -> TokenStream {
 pub fn derive_datex_struct(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
     value_macros::derive_datex_struct(input).into()
+}
+
+#[proc_macro_derive(BitfieldSerde)]
+pub fn derive_bitfield_serde(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    bitfield_macros::derive_bitfield_serde(input).into()
 }

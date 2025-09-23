@@ -14,6 +14,7 @@ use binrw::{BinRead, BinWrite};
 use futures::channel::mpsc::UnboundedReceiver;
 use futures_util::StreamExt;
 use log::error;
+use serde::{Deserialize, Serialize};
 use strum::Display;
 use thiserror::Error;
 
@@ -27,12 +28,13 @@ pub enum HeaderParsingError {
 
 // TODO @Norbert
 // Add optional raw signature, and encrypted part
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
     pub block_header: BlockHeader,
     pub encrypted_header: EncryptedHeader,
     pub body: Vec<u8>,
+    #[serde(skip)]
     pub raw_bytes: Option<Vec<u8>>,
 }
 

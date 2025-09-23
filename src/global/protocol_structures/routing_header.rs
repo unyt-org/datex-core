@@ -3,10 +3,16 @@ use std::fmt::Display;
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
+use datex_macros::BitfieldSerde;
 use modular_bitfield::prelude::*;
+use serde_big_array::BigArray;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_with::{Bytes, serde_as};
 // 2 bit
-#[derive(Debug, PartialEq, Clone, Default, Specifier)]
+#[derive(
+    Debug, PartialEq, Clone, Default, Specifier, Serialize, Deserialize,
+)]
 #[bits = 2]
 pub enum SignatureType {
     #[default]
@@ -16,7 +22,9 @@ pub enum SignatureType {
 }
 
 // 1 bit
-#[derive(Debug, PartialEq, Clone, Default, Specifier)]
+#[derive(
+    Debug, PartialEq, Clone, Default, Specifier, Serialize, Deserialize,
+)]
 pub enum EncryptionType {
     #[default]
     None = 0b0,
@@ -28,6 +36,8 @@ pub enum EncryptionType {
 #[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
+#[derive(BitfieldSerde)]
+
 pub struct Flags {
     pub signature_type: SignatureType,
     pub encryption_type: EncryptionType,
@@ -39,8 +49,61 @@ pub struct Flags {
     unused_2: bool,
 }
 
+// impl Serialize for Flags {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         // define how you want JSON to look
+//         #[derive(Serialize)]
+//         struct FlagsHelper {
+//             signature_type: SignatureType,
+//             encryption_type: EncryptionType,
+//             receiver_type: ReceiverType,
+//             is_bounce_back: bool,
+//             has_checksum: bool,
+//         }
+
+//         let helper = FlagsHelper {
+//             signature_type: self.signature_type(),
+//             encryption_type: self.encryption_type(),
+//             receiver_type: self.receiver_type(),
+//             is_bounce_back: self.is_bounce_back(),
+//             has_checksum: self.has_checksum(),
+//         };
+
+//         helper.serialize(serializer)
+//     }
+// }
+
+// impl<'de> Deserialize<'de> for Flags {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         #[derive(Deserialize)]
+//         struct FlagsHelper {
+//             signature_type: SignatureType,
+//             encryption_type: EncryptionType,
+//             receiver_type: ReceiverType,
+//             is_bounce_back: bool,
+//             has_checksum: bool,
+//         }
+
+//         let helper = FlagsHelper::deserialize(deserializer)?;
+//         Ok(Flags::new()
+//             .with_signature_type(helper.signature_type)
+//             .with_encryption_type(helper.encryption_type)
+//             .with_receiver_type(helper.receiver_type)
+//             .with_is_bounce_back(helper.is_bounce_back)
+//             .with_has_checksum(helper.has_checksum))
+//     }
+// }
+
 // 2 bit
-#[derive(Debug, PartialEq, Clone, Default, Specifier)]
+#[derive(
+    Debug, PartialEq, Clone, Default, Specifier, Serialize, Deserialize,
+)]
 #[bits = 2]
 pub enum ReceiverType {
     #[default]
@@ -51,7 +114,9 @@ pub enum ReceiverType {
 }
 
 // 1 byte + 18 byte + 2 byte + 4 byte + 1 byte = 26 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
+#[derive(
+    Debug, Clone, Default, BinWrite, BinRead, PartialEq, Serialize, Deserialize,
+)]
 pub struct PointerId {
     pub pointer_type: u8,
     pub identifier: [u8; 18],
@@ -76,7 +141,9 @@ impl Display for PointerId {
 
 // <count>: 1 byte + (21 byte * count)
 // min: 2 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
+#[derive(
+    Debug, Clone, Default, BinWrite, BinRead, PartialEq, Serialize, Deserialize,
+)]
 pub struct ReceiverEndpoints {
     pub count: u8,
     #[br(count = count)]
@@ -92,10 +159,15 @@ impl ReceiverEndpoints {
 
 // <count>: 1 byte + (21 byte * count) + (512 byte * count)
 // min: 2 bytes
-#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
+#[serde_as]
+#[derive(
+    Debug, Clone, Default, BinWrite, BinRead, PartialEq, Serialize, Deserialize,
+)]
+
 pub struct ReceiverEndpointsWithKeys {
     count: u8,
     #[br(count = count)]
+    #[serde_as(as = "Vec<(_, Bytes)>")]
     pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
 }
 impl ReceiverEndpointsWithKeys {
@@ -109,7 +181,9 @@ impl ReceiverEndpointsWithKeys {
 }
 
 // min: 11 byte + 2 byte + 21 byte + 1 byte = 35 bytes
-#[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
+#[derive(
+    Debug, Clone, BinWrite, BinRead, PartialEq, Serialize, Deserialize,
+)]
 #[brw(little, magic = b"\x01\x64")]
 pub struct RoutingHeader {
     pub version: u8,

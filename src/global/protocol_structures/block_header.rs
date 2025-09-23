@@ -2,6 +2,7 @@ use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::{Specifier, bitfield, prelude::B43};
+use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
 // 4 bit
@@ -50,7 +51,9 @@ impl BlockType {
 /// has_side_effects: If set, the block can have side effects that change external state. Default is true
 /// has_only_data: If set, the block does only contain data and no executable instructions. Default is false
 #[bitfield]
-#[derive(BinWrite, BinRead, Clone, Copy, Debug, PartialEq)]
+#[derive(
+    BinWrite, BinRead, Clone, Copy, Debug, PartialEq, Serialize, Deserialize,
+)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct FlagsAndTimestamp {
@@ -81,7 +84,7 @@ pub struct FlagsAndTimestamp {
     unused_6: bool,
     #[allow(unused)]
     unused_7: bool,
-    
+
     pub creation_timestamp: B43,
 }
 
@@ -103,7 +106,9 @@ impl Default for FlagsAndTimestamp {
 
 // min: 16 byte
 // max 8 + 8 byte + 4 byte + 21 byte + 16 byte = 57 byte
-#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
+#[derive(
+    Debug, Clone, Default, BinWrite, BinRead, PartialEq, Serialize, Deserialize,
+)]
 #[brw(little)]
 pub struct BlockHeader {
     /// A unique id that defines the context in which this block lives

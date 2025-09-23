@@ -92,3 +92,12 @@ pub fn parse_dxb_block() {
 
     assert_eq!(bytes, new_bytes);
 }
+
+#[test]
+pub fn dummy_dxb_block() {
+    let block = DXBBlock::default();
+    let _bytes = block.to_bytes().unwrap();
+
+    let json = serde_json::to_string_pretty(&block).unwrap();
+    println!("{}", json);
+}
