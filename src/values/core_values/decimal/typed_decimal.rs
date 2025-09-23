@@ -50,15 +50,28 @@ pub enum TypedDecimal {
     Decimal(Decimal),
 }
 
-// TODO #131: this is only a temporary solution to make clippy happy
 impl Hash for TypedDecimal {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypedDecimal::F32(value) => {
-                value.into_inner().to_bits().hash(state)
+                // hash -0.0 and 0.0 to the same value
+                if value.into_inner() == 0.0 {
+                    0.0f32.to_bits().hash(state)
+                }
+                // normal hash
+                else {
+                    value.into_inner().to_bits().hash(state)
+                }
             }
             TypedDecimal::F64(value) => {
-                value.into_inner().to_bits().hash(state)
+                // hash -0.0 and 0.0 to the same value
+                if value.into_inner() == 0.0 {
+                    0.0f64.to_bits().hash(state);
+                }
+                // normal hash
+                else {
+                    value.into_inner().to_bits().hash(state)
+                }
             }
             TypedDecimal::Decimal(value) => value.hash(state),
         }

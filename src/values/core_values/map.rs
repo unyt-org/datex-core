@@ -23,7 +23,7 @@ impl Map {
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         self.0.get(key)
     }
-    
+
     pub fn has(&self, key: &ValueContainer) -> bool {
         self.0.contains_key(key)
     }
@@ -179,7 +179,7 @@ impl TryFrom<CoreValue> for Map {
 #[cfg(test)]
 mod tests {
     use datex_core::values::core_values::decimal::decimal::Decimal;
-    use datex_core::values::reference::Reference;
+    use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::map::Map;
     use crate::values::value_container::ValueContainer;
 
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(map.size(), 1);
         assert!(map.has(&key));
         assert_eq!(map.get(&key).unwrap().to_string(), "\"value\"");
-        
+
         // new reference with same value should not be found
         let new_key = ValueContainer::new_reference(ValueContainer::from(42));
         assert!(!map.has(&new_key));
@@ -231,8 +231,12 @@ mod tests {
         // new NaN value should also be found
         let new_nan_value = ValueContainer::from(Decimal::NaN);
         assert!(map.has(&new_nan_value));
+        
+        // adding new_nan_value should not increase size
+        map.set(new_nan_value.clone(), "new_value");
+        assert_eq!(map.size(), 1);
     }
-    
+
     #[test]
     fn test_float_nan_value_key() {
         let mut map = Map::default();
@@ -241,16 +245,20 @@ mod tests {
         // same NaN value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&nan_value));
-        
+
         // new f64 NaN value should also be found
         let new_nan_value = ValueContainer::from(f64::NAN);
         assert!(map.has(&new_nan_value));
-        
+
         // new f32 NaN should not be found
         let float32_nan_value = ValueContainer::from(f32::NAN);
         assert!(!map.has(&float32_nan_value));
+        
+        // adding new_nan_value should not increase size
+        map.set(new_nan_value.clone(), "new_value");
+        assert_eq!(map.size(), 1);
     }
-    
+
     #[test]
     fn test_decimal_zero_value_key() {
         let mut map = Map::default();
@@ -264,12 +272,16 @@ mod tests {
         let new_zero_value = ValueContainer::from(Decimal::Zero);
         println!("new_zero_value: {:?}", new_zero_value);
         assert!(map.has(&new_zero_value));
-        
+
         // new NegZero value should also be found
         let neg_zero_value = ValueContainer::from(Decimal::NegZero);
         assert!(map.has(&neg_zero_value));
+        
+        // adding neg_zero_value should not increase size
+        map.set(neg_zero_value.clone(), "new_value");
+        assert_eq!(map.size(), 1);
     }
-    
+
     #[test]
     fn test_float_zero_value_key() {
         let mut map = Map::default();
@@ -285,9 +297,33 @@ mod tests {
         let neg_zero_value = ValueContainer::from(-0.0f64);
         assert!(map.has(&neg_zero_value));
 
+        // adding neg_zero_value should not increase size
+        map.set(neg_zero_value.clone(), "new_value");
+        assert_eq!(map.size(), 1);
+
         // new 0.0f32 value should not be found
         let float32_zero_value = ValueContainer::from(0.0f32);
         assert!(!map.has(&float32_zero_value));
+    }
+
+    #[test]
+    fn test_typed_big_decimal_key() {
+        let mut map = Map::default();
+        let zero_big_decimal = ValueContainer::from(TypedDecimal::Decimal(Decimal::Zero));
+        map.set(zero_big_decimal.clone(), "value");
+        // same Zero value should be found
+        assert_eq!(map.size(), 1);
+        assert!(map.has(&zero_big_decimal));
+        // new Zero value should also be found
+        let new_zero_big_decimal = ValueContainer::from(TypedDecimal::Decimal(Decimal::Zero));
+        assert!(map.has(&new_zero_big_decimal));
+        // new NegZero value should also be found
+        let neg_zero_big_decimal = ValueContainer::from(TypedDecimal::Decimal(Decimal::NegZero));
+        assert!(map.has(&neg_zero_big_decimal));
+
+        // adding neg_zero_big_decimal should not increase size
+        map.set(neg_zero_big_decimal.clone(), "new_value");
+        assert_eq!(map.size(), 1);
     }
 }
 

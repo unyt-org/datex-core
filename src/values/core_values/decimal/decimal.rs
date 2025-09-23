@@ -26,16 +26,15 @@ pub enum Decimal {
     NegInfinity,
 }
 
-// TODO #132: this is only a temporary solution to make clippy happy
 impl Hash for Decimal {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Decimal::Finite(value) => value.hash(state),
             Decimal::NaN => 0.hash(state),
             Decimal::Zero => 1.hash(state),
-            Decimal::NegZero => 2.hash(state),
-            Decimal::Infinity => 3.hash(state),
-            Decimal::NegInfinity => 4.hash(state),
+            Decimal::NegZero => 1.hash(state),
+            Decimal::Infinity => 2.hash(state),
+            Decimal::NegInfinity => 3.hash(state),
         }
     }
 }
