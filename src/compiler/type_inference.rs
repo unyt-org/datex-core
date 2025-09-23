@@ -1,3 +1,4 @@
+use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
@@ -157,6 +158,35 @@ fn infer_expression_type(
 
             variable_type
         }
+        DatexExpression::VariableAssignment(operator, id, _, value) => {
+            let var_id = id.unwrap();
+            let metadata_borrowed = metadata.borrow();
+            let var_metadata = metadata_borrowed
+                .variable_metadata(var_id)
+                .expect("Variable should have variable metadata");
+            let var_type = var_metadata
+                .var_type
+                .as_ref()
+                .expect("Variable type should have been inferred already")
+                .clone();
+            drop(metadata_borrowed);
+
+            let value_type = infer_expression_type(value, metadata.clone())?;
+
+            match operator {
+                AssignmentOperator::Assign => {
+                    // simple assignment, types must match
+                    if !var_type.matches_type(&value_type) {
+                        return Err(TypeError::AssignmentTypeMismatch {
+                            annotated_type: var_type,
+                            assigned_type: value_type,
+                        });
+                    }
+                    value_type
+                }
+                op => todo!("handle other assignment operators: {:?}", op),
+            }
+        }
         DatexExpression::Statements(statements) => {
             for stmt in statements.iter_mut() {
                 infer_expression_type(&mut stmt.expression, metadata.clone())?;
@@ -308,6 +338,8 @@ fn infer_binary_expression_type(
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
     use crate::ast::{VariableKind, parse};
@@ -409,8 +441,8 @@ mod tests {
     fn reassignment() {
         let src = r#"
         var a: text | integer = 42;
-        // a = "hello";
-        // a = 45;
+        a = "hello";
+        a = 45;
         "#;
         let metadata = parse_and_precompile_metadata(src);
         let var = metadata.variable_metadata(0).unwrap();
@@ -420,6 +452,28 @@ mod tests {
                 get_core_lib_type(CoreLibPointerId::Text),
                 get_core_lib_type(CoreLibPointerId::Integer(None))
             ]))
+        );
+    }
+
+    #[test]
+    fn assignment_type_mismatch() {
+        let src = r#"
+        var a: integer = 42;
+        a = "hello"; // type error
+        "#;
+        let ast_with_metadata = parse_and_precompile(&src);
+        let mut expr = ast_with_metadata.ast;
+        let result = infer_expression_type(
+            &mut expr,
+            ast_with_metadata.metadata.clone(),
+        );
+        assert_matches!(
+            result,
+            Err(TypeError::AssignmentTypeMismatch {
+                annotated_type,
+                assigned_type
+            }) if annotated_type == get_core_lib_type(CoreLibPointerId::Integer(None))
+              && assigned_type.as_type() == Type::structural(StructuralTypeDefinition::Text("hello".to_string().into()))
         );
     }
 
