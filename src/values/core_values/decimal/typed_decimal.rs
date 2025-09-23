@@ -15,6 +15,7 @@ use std::{
 };
 
 use strum_macros::{AsRefStr, EnumIter, EnumString};
+use crate::values::traits::value_eq::ValueEq;
 
 /// The decimal type variants to be used as a inline
 /// definition in DATEX (such as 42.4f32 or -42.4f32).
@@ -97,8 +98,8 @@ impl StructuralEq for TypedDecimal {
     }
 }
 
-impl PartialEq for TypedDecimal {
-    fn eq(&self, other: &Self) -> bool {
+impl ValueEq for TypedDecimal {
+    fn value_eq(&self, other: &Self) -> bool {
         match (self, other) {
             // F32 and F32
             (TypedDecimal::F32(a), TypedDecimal::F32(b)) => {
@@ -107,6 +108,36 @@ impl PartialEq for TypedDecimal {
             // F64 and F64
             (TypedDecimal::F64(a), TypedDecimal::F64(b)) => {
                 a.into_inner() == b.into_inner()
+            }
+            // Big and Big
+            (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => a.value_eq(b),
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq for TypedDecimal {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            // F32 and F32
+            (TypedDecimal::F32(a), TypedDecimal::F32(b)) => {
+                let a = a.into_inner();
+                let b = b.into_inner();
+                if a.is_nan() && b.is_nan() {
+                    true
+                } else {
+                    a == b
+                }
+            }
+            // F64 and F64
+            (TypedDecimal::F64(a), TypedDecimal::F64(b)) => {
+                let a = a.into_inner();
+                let b = b.into_inner();
+                if a.is_nan() && b.is_nan() {
+                    true
+                } else {
+                    a == b
+                }
             }
             // Big and Big
             (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => a == b,
@@ -463,6 +494,7 @@ mod tests {
     use super::*;
     use crate::values::core_values::decimal::decimal::Decimal;
     use ordered_float::OrderedFloat;
+    use crate::{assert_structural_eq, assert_value_eq};
 
     #[test]
     fn zero_sign() {
@@ -617,6 +649,27 @@ mod tests {
     }
 
     #[test]
+    fn test_zero_equality() {
+        let zero_f32 = TypedDecimal::from(0.0f32);
+        let neg_zero_f32 = TypedDecimal::from(-0.0f32);
+        assert_eq!(zero_f32, neg_zero_f32);
+        assert_structural_eq!(zero_f32, neg_zero_f32);
+        assert_value_eq!(zero_f32, neg_zero_f32);
+
+        let zero_f64 = TypedDecimal::from(0.0f64);
+        let neg_zero_f64 = TypedDecimal::from(-0.0f64);
+        assert_eq!(zero_f64, neg_zero_f64);
+        assert_structural_eq!(zero_f64, neg_zero_f64);
+        assert_value_eq!(zero_f64, neg_zero_f64);
+
+        let zero_big = TypedDecimal::Decimal(Decimal::from(0.0));
+        let neg_zero_big = TypedDecimal::Decimal(Decimal::from(-0.0));
+        assert_eq!(zero_big, neg_zero_big);
+        assert_structural_eq!(zero_big, neg_zero_big);
+        assert_value_eq!(zero_big, neg_zero_big);
+    }
+
+    #[test]
     fn addition() {
         let a = TypedDecimal::F32(1.5.into());
         let b = TypedDecimal::F64(2.5.into());
@@ -765,5 +818,39 @@ mod tests {
         );
         assert!(d.is_err());
         assert_eq!(d.err().unwrap(), NumberParseError::OutOfRange);
+    }
+
+    #[test]
+    fn test_nan_equality() {
+        let nan_f32_a = TypedDecimal::from(f32::NAN);
+        let nan_f32_b = TypedDecimal::from(f32::NAN);
+        let nan_f64_a = TypedDecimal::from(f64::NAN);
+        let nan_f64_b = TypedDecimal::from(f64::NAN);
+        let nan_big_a = TypedDecimal::Decimal(Decimal::NaN);
+        let nan_big_b = TypedDecimal::Decimal(Decimal::NaN);
+
+        // Structural equality (always false)
+        assert!(!nan_f32_a.structural_eq(&nan_f32_b));
+        assert!(!nan_f64_a.structural_eq(&nan_f64_b));
+        assert!(!nan_big_a.structural_eq(&nan_big_b));
+        assert!(!nan_f32_a.structural_eq(&nan_f64_a));
+        assert!(!nan_f32_a.structural_eq(&nan_big_a));
+        assert!(!nan_f64_a.structural_eq(&nan_big_a));
+
+        // Value equality (always false for NaN)
+        assert!(!nan_f32_a.value_eq(&nan_f32_b));
+        assert!(!nan_f64_a.value_eq(&nan_f64_b));
+        assert!(!nan_big_a.value_eq(&nan_big_b));
+        assert!(!nan_f32_a.value_eq(&nan_f64_a));
+        assert!(!nan_f32_a.value_eq(&nan_big_a));
+        assert!(!nan_f64_a.value_eq(&nan_big_a));
+
+        // Standard equality (always true for same decimal types)
+        assert_eq!(nan_f32_a, nan_f32_b);
+        assert_eq!(nan_f64_a, nan_f64_b);
+        assert_eq!(nan_big_a, nan_big_b);
+        assert_ne!(nan_f32_a, nan_f64_a);
+        assert_ne!(nan_f32_a, nan_big_a);
+        assert_ne!(nan_f64_a, nan_big_a);
     }
 }

@@ -23,6 +23,10 @@ impl Map {
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         self.0.get(key)
     }
+    
+    pub fn has(&self, key: &ValueContainer) -> bool {
+        self.0.contains_key(key)
+    }
 
     pub fn get_owned<T: Into<ValueContainer>>(
         &self,
@@ -170,3 +174,121 @@ impl TryFrom<CoreValue> for Map {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use datex_core::values::core_values::decimal::decimal::Decimal;
+    use datex_core::values::reference::Reference;
+    use crate::values::core_values::map::Map;
+    use crate::values::value_container::ValueContainer;
+
+    #[test]
+    fn test_map() {
+        let mut map = Map::default();
+        map.set("key1", 42);
+        map.set("key2", "value2");
+        assert_eq!(map.size(), 2);
+        assert_eq!(map.get_owned("key1").unwrap().to_string(), "42");
+        assert_eq!(map.get_owned("key2").unwrap().to_string(), "\"value2\"");
+        assert_eq!(map.to_string(), r#"("key1": 42, "key2": "value2")"#);
+    }
+
+    #[test]
+    fn test_duplicate_keys() {
+        let mut map = Map::default();
+        map.set("key1", 42);
+        map.set("key1", "new_value");
+        assert_eq!(map.size(), 1);
+        assert_eq!(map.get_owned("key1").unwrap().to_string(), "\"new_value\"");
+    }
+
+    #[test]
+    fn test_ref_keys() {
+        let mut map = Map::default();
+        let key = ValueContainer::new_reference(ValueContainer::from(42));
+        map.set(key.clone(), "value");
+        // same reference should be found
+        assert_eq!(map.size(), 1);
+        assert!(map.has(&key));
+        assert_eq!(map.get(&key).unwrap().to_string(), "\"value\"");
+        
+        // new reference with same value should not be found
+        let new_key = ValueContainer::new_reference(ValueContainer::from(42));
+        assert!(!map.has(&new_key));
+        assert!(map.get(&new_key).is_none());
+    }
+
+    #[test]
+    fn test_decimal_nan_value_key() {
+        let mut map = Map::default();
+        let nan_value = ValueContainer::from(Decimal::NaN);
+        map.set(nan_value.clone(), "value");
+        // same NaN value should be found
+        assert_eq!(map.size(), 1);
+        assert!(map.has(&nan_value));
+
+        // new NaN value should also be found
+        let new_nan_value = ValueContainer::from(Decimal::NaN);
+        assert!(map.has(&new_nan_value));
+    }
+    
+    #[test]
+    fn test_float_nan_value_key() {
+        let mut map = Map::default();
+        let nan_value = ValueContainer::from(f64::NAN);
+        map.set(nan_value.clone(), "value");
+        // same NaN value should be found
+        assert_eq!(map.size(), 1);
+        assert!(map.has(&nan_value));
+        
+        // new f64 NaN value should also be found
+        let new_nan_value = ValueContainer::from(f64::NAN);
+        assert!(map.has(&new_nan_value));
+        
+        // new f32 NaN should not be found
+        let float32_nan_value = ValueContainer::from(f32::NAN);
+        assert!(!map.has(&float32_nan_value));
+    }
+    
+    #[test]
+    fn test_decimal_zero_value_key() {
+        let mut map = Map::default();
+        let zero_value = ValueContainer::from(Decimal::Zero);
+        map.set(zero_value.clone(), "value");
+        // same Zero value should be found
+        assert_eq!(map.size(), 1);
+        assert!(map.has(&zero_value));
+
+        // new Zero value should also be found
+        let new_zero_value = ValueContainer::from(Decimal::Zero);
+        println!("new_zero_value: {:?}", new_zero_value);
+        assert!(map.has(&new_zero_value));
+        
+        // new NegZero value should also be found
+        let neg_zero_value = ValueContainer::from(Decimal::NegZero);
+        assert!(map.has(&neg_zero_value));
+    }
+    
+    #[test]
+    fn test_float_zero_value_key() {
+        let mut map = Map::default();
+        let zero_value = ValueContainer::from(0.0f64);
+        map.set(zero_value.clone(), "value");
+        // same 0.0 value should be found
+        assert_eq!(map.size(), 1);
+        assert!(map.has(&zero_value));
+        // new 0.0 value should also be found
+        let new_zero_value = ValueContainer::from(0.0f64);
+        assert!(map.has(&new_zero_value));
+        // new -0.0 value should also be found
+        let neg_zero_value = ValueContainer::from(-0.0f64);
+        assert!(map.has(&neg_zero_value));
+
+        // new 0.0f32 value should not be found
+        let float32_zero_value = ValueContainer::from(0.0f32);
+        assert!(!map.has(&float32_zero_value));
+    }
+}
+
+

@@ -106,10 +106,18 @@ impl StructuralEq for CoreValue {
     }
 }
 
-/// value equality corresponds to partial equality for values
+/// Value equality corresponds to partial equality for all values,
+/// except for decimals, where partial equality is also given for NaN values and +0.0 and -0.0.
+/// Therefore, we ValueEq is used instead for decimals
 impl ValueEq for CoreValue {
     fn value_eq(&self, other: &Self) -> bool {
-        self == other
+        match (self, other) {
+            (CoreValue::Decimal(a), CoreValue::Decimal(b)) => a.value_eq(b),
+            (CoreValue::TypedDecimal(a), CoreValue::TypedDecimal(b)) => {
+                a.value_eq(b)
+            }
+            _ => self == other
+        }
     }
 }
 

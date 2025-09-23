@@ -14,6 +14,7 @@ use std::hash::Hash;
 use std::io::{Read, Seek};
 use std::ops::{Add, Neg, Sub};
 use std::str::FromStr;
+use crate::values::traits::value_eq::ValueEq;
 
 #[derive(Debug, Clone, Eq)]
 pub enum Decimal {
@@ -48,7 +49,7 @@ impl PartialEq for Decimal {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
             (Decimal::Infinity, Decimal::Infinity) => true,
             (Decimal::NegInfinity, Decimal::NegInfinity) => true,
-            (Decimal::NaN, Decimal::NaN) => false,
+            (Decimal::NaN, Decimal::NaN) => true,
             _ => false,
         }
     }
@@ -195,15 +196,22 @@ impl Decimal {
 
 impl StructuralEq for Decimal {
     fn structural_eq(&self, other: &Self) -> bool {
+        if self.is_zero() && other.is_zero() {
+            return true; // +0.0 == -0.0
+        }
         match (self, other) {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
-            (Decimal::Zero, Decimal::Zero) => true,
-            (Decimal::NegZero, Decimal::NegZero) => true,
             (Decimal::Infinity, Decimal::Infinity) => true,
             (Decimal::NegInfinity, Decimal::NegInfinity) => true,
             (Decimal::NaN, Decimal::NaN) => false,
             _ => false,
         }
+    }
+}
+
+impl ValueEq for Decimal {
+    fn value_eq(&self, other: &Self) -> bool {
+        self.structural_eq(other)
     }
 }
 
@@ -645,47 +653,36 @@ mod tests {
         // implicit big decimal NaN
         let a = Decimal::from_string("nan").unwrap();
         let b = Decimal::from_string("nan").unwrap();
-        assert_ne!(a, b);
+        // partial equality for nan values
+        assert_eq!(a, b);
+        // no structural equality for nan values
         assert!(!a.structural_eq(&b));
+        // no value equality for nan values
+        assert!(!a.value_eq(&b));
 
         // explicit big decimal NaN
         let c = Decimal::NaN;
         let d = Decimal::NaN;
-        assert_ne!(c, d);
+        // partial equality for nan values
+        assert_eq!(c, d);
+        // no structural equality for nan values
         assert!(!c.structural_eq(&d));
+        // no value equality for nan values
+        assert!(!c.value_eq(&d));
 
         // f32 NaN
         let e = Decimal::from(f32::NAN);
         let f = Decimal::from(f32::NAN);
-        assert_ne!(e, f);
+        assert_eq!(e, f);
         assert!(!e.structural_eq(&f));
+        assert!(!e.value_eq(&f));
 
         // f64 NaN
         let g = Decimal::from(f64::NAN);
         let h = Decimal::from(f64::NAN);
-        assert_ne!(g, h);
+        assert_eq!(g, h);
         assert!(!g.structural_eq(&h));
-
-        // eq
-        assert_ne!(a, c);
-        assert_ne!(a, e);
-        assert_ne!(a, g);
-        assert_ne!(a, h);
-        assert_ne!(b, c);
-        assert_ne!(b, e);
-        assert_ne!(b, g);
-        assert_ne!(b, h);
-        assert_ne!(c, e);
-        assert_ne!(c, g);
-        assert_ne!(c, h);
-        assert_ne!(d, e);
-        assert_ne!(d, g);
-        assert_ne!(d, h);
-        assert_ne!(e, g);
-        assert_ne!(e, h);
-        assert_ne!(f, g);
-        assert_ne!(f, h);
-        assert_ne!(g, h);
+        assert!(!g.value_eq(&h));
 
         // structural equality
         assert!(!a.structural_eq(&c));
@@ -717,6 +714,13 @@ mod tests {
 
         assert_eq!(a, b);
         assert_eq!(a, c);
+
+        assert!(a.structural_eq(&b));
+        assert!(a.structural_eq(&c));
+        assert!(b.structural_eq(&c));
+        assert!(a.value_eq(&b));
+        assert!(a.value_eq(&c));
+        assert!(b.value_eq(&c));
     }
 
     #[test]

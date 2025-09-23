@@ -1,5 +1,5 @@
 pub trait ValueEq {
-    /// Check if two values are equal, ignoring the type.
+    /// Check if two values are exactly equal, including the type.
     fn value_eq(&self, other: &Self) -> bool;
 }
 
