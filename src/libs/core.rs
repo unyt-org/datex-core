@@ -33,6 +33,8 @@ pub enum CoreLibPointerId {
     List,                                // #core.List
     Struct,                              // #core.Struct
     Function,                            // #core.Function
+    Union,                               // #core.Union
+    Unit,                                // #core.unit
 }
 
 impl CoreLibPointerId {
@@ -51,6 +53,8 @@ impl CoreLibPointerId {
             CoreLibPointerId::Endpoint => 7,
             CoreLibPointerId::Text => 8,
             CoreLibPointerId::List => 9,
+            CoreLibPointerId::Union => 10,
+            CoreLibPointerId::Unit => 11,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -76,6 +80,8 @@ impl CoreLibPointerId {
             7 => Some(CoreLibPointerId::Endpoint),
             8 => Some(CoreLibPointerId::Text),
             9 => Some(CoreLibPointerId::List),
+            10 => Some(CoreLibPointerId::Union),
+            11 => Some(CoreLibPointerId::Unit),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -129,6 +135,16 @@ pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> TypeContainer {
         panic!("Core lib type not found: {:?}", id);
     }
     CORE_LIB_TYPES.with(|core| core.get(&id).unwrap().clone())
+}
+
+pub fn get_core_lib_type_reference(
+    id: impl Into<CoreLibPointerId>,
+) -> Rc<RefCell<TypeReference>> {
+    let type_container = get_core_lib_type(id);
+    match type_container {
+        TypeContainer::TypeReference(tr) => tr,
+        _ => panic!("Core lib type is not a TypeReference"),
+    }
 }
 
 fn has_core_lib_type<T>(id: T) -> bool
@@ -191,6 +207,8 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
             list(),
             boolean(),
             endpoint(),
+            union(),
+            unit(),
         ])
         .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
@@ -210,6 +228,14 @@ pub fn array() -> CoreLibTypeDefinition {
 }
 pub fn list() -> CoreLibTypeDefinition {
     create_core_type("List", None, None, CoreLibPointerId::List)
+}
+
+pub fn union() -> CoreLibTypeDefinition {
+    create_core_type("Union", None, None, CoreLibPointerId::List)
+}
+
+pub fn unit() -> CoreLibTypeDefinition {
+    create_core_type("Unit", None, None, CoreLibPointerId::Unit)
 }
 
 pub fn boolean() -> CoreLibTypeDefinition {

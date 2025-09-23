@@ -7,6 +7,7 @@ use std::{
     fmt::{Display, Formatter},
     rc::Rc,
 };
+use crate::values::core_values::r#type::definition::TypeDefinition;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {
@@ -78,6 +79,19 @@ impl TypeReference {
     }
     pub fn as_type_container(self) -> TypeContainer {
         TypeContainer::TypeReference(self.as_ref_cell())
+    }
+    
+    pub fn collapse_reference_chain(&self) -> TypeReference {
+        match &self.type_value.type_definition {
+            TypeDefinition::Reference(reference) => {
+                // If this is a reference type, resolve it to its current reference
+                reference.collapse_reference_chain()
+            }
+            _ => {
+                // If this is not a reference type, return it directly
+                self.clone()
+            }
+        }
     }
 }
 

@@ -10,13 +10,14 @@ use log::info;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::values::type_container::TypeContainer;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
     original_realm_index: usize,
     pub is_cross_realm: bool,
     pub kind: VariableKind,
-    // TODO #239: store type information etc.
+    pub var_type: Option<TypeContainer>,
 }
 
 #[derive(Default, Debug)]
@@ -125,6 +126,7 @@ impl PrecompilerScopeStack {
             is_cross_realm: false,
             original_realm_index: current_realm_index,
             kind,
+            var_type: None,
         };
         self.set_variable(name, id);
         var_metadata
@@ -348,9 +350,8 @@ fn visit_expression(
         DatexExpression::VariableDeclaration {
             id,
             kind,
-            binding_mutability,
             name,
-            value,
+            init_expression: value,
             type_annotation,
         } => {
             visit_expression(
@@ -1025,11 +1026,9 @@ mod tests {
                     expression: DatexExpression::VariableDeclaration {
                         id: Some(1),
                         kind: crate::ast::VariableKind::Var,
-                        binding_mutability:
-                            crate::ast::BindingMutability::Mutable,
                         name: "x".to_string(),
                         // must refer to variable id 0
-                        value: Box::new(DatexExpression::Variable(
+                        init_expression: Box::new(DatexExpression::Variable(
                             0,
                             "MyInt".to_string()
                         )),
@@ -1053,11 +1052,9 @@ mod tests {
                     expression: DatexExpression::VariableDeclaration {
                         id: Some(1),
                         kind: crate::ast::VariableKind::Var,
-                        binding_mutability:
-                            crate::ast::BindingMutability::Mutable,
                         name: "x".to_string(),
                         // must refer to variable id 0
-                        value: Box::new(DatexExpression::Variable(
+                        init_expression: Box::new(DatexExpression::Variable(
                             0,
                             "MyInt".to_string()
                         )),

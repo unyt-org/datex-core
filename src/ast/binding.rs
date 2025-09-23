@@ -8,7 +8,7 @@ use crate::ast::lexer::Token;
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
 use crate::ast::{
-    BindingMutability, DatexExpression, DatexParserTrait, ParserRecoverExt,
+    DatexExpression, DatexParserTrait, ParserRecoverExt,
     TypeExpression, VariableKind,
 };
 use chumsky::prelude::*;
@@ -23,14 +23,9 @@ fn create_variable_declaration(
     DatexExpression::VariableDeclaration {
         id: None,
         kind,
-        binding_mutability: if kind == VariableKind::Const {
-            BindingMutability::Immutable
-        } else {
-            BindingMutability::Mutable
-        },
         name,
         type_annotation,
-        value: Box::new(value),
+        init_expression: Box::new(value),
     }
 }
 
