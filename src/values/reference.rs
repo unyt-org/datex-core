@@ -15,6 +15,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum ObserveError {
@@ -27,7 +28,7 @@ pub enum AccessError {
     InvalidOperation(String),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReferenceMutability {
     Mutable,
     Immutable,

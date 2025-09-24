@@ -5,11 +5,40 @@ use num_traits::{Signed, ToPrimitive, Zero};
 use pad::PadStr;
 use std::fmt::Display;
 use std::ops::{Add, Neg};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {
     big_rational: BigRational,
 }
+
+impl Serialize for Rational {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.rational_to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Rational {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        // Try to parse as BigRational
+        if let Ok(big_rational) = s.parse::<BigRational>() {
+            return Ok(Rational { big_rational });
+        }
+        
+        Err(serde::de::Error::custom(format!(
+            "Failed to parse '{}' as Rational",
+            s
+        )))
+    }
+}
+
 
 impl Rational {
     pub(crate) fn is_integer(&self) -> bool {

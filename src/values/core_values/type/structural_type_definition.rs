@@ -11,8 +11,9 @@ use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
 use std::fmt::Display;
 use std::hash::Hash;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum StructuralTypeDefinition {
     Integer(Integer),
     TypedInteger(TypedInteger),

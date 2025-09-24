@@ -4,7 +4,6 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
-use crate::values::type_container::TypeContainer;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
@@ -14,12 +13,12 @@ use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serializer, de};
 use serde_with::serde_derive::Serialize;
 use std::fmt;
+use crate::values::type_container::TypeContainer;
 
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFValue {
     pub value: Option<DIFCoreValue>,
-    #[serde(skip)]
     pub r#type: Option<TypeContainer>,
     pub ptr_id: Option<String>,
 }
@@ -243,6 +242,11 @@ impl From<&DIFValue> for ValueContainer {
 
         ValueContainer::Value(Value::from(core_value))
     }
+}
+
+pub enum DIFType {
+    Core(String),
+    Custom(StructuralTypeDefinition),
 }
 
 #[derive(Clone, Debug, PartialEq)]

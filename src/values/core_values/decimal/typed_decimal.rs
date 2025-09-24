@@ -13,7 +13,7 @@ use std::{
     fmt::Display,
     ops::{Add, AddAssign, Sub},
 };
-
+use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 use crate::values::traits::value_eq::ValueEq;
 
@@ -42,12 +42,34 @@ pub enum DecimalTypeVariant {
     Big,
 }
 
-// TODO #130: think about hash keys for NaN
 #[derive(Debug, Clone, Eq)]
 pub enum TypedDecimal {
     F32(OrderedFloat<f32>),
     F64(OrderedFloat<f64>),
     Decimal(Decimal),
+}
+
+impl Serialize for TypedDecimal {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            TypedDecimal::F32(value) => serializer.serialize_f32(value.into_inner()),
+            TypedDecimal::F64(value) => serializer.serialize_f64(value.into_inner()),
+            TypedDecimal::Decimal(value) => value.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for TypedDecimal {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        TypedDecimal::from_string(&s).map_err(serde::de::Error::custom)
+    }
 }
 
 impl Hash for TypedDecimal {

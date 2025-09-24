@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::rc::Rc;
+use serde::{Deserialize, Serialize};
 
 // TODO: move match logic and other type stuff here
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,6 +17,30 @@ pub enum TypeContainer {
     Type(Type),
     TypeReference(Rc<RefCell<TypeReference>>),
 }
+
+// needed for DIF
+impl Serialize for TypeContainer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            TypeContainer::Type(t) => t.serialize(serializer),
+            TypeContainer::TypeReference(tr) => tr.borrow().as_type().serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for TypeContainer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let t = Type::deserialize(deserializer)?;
+        Ok(TypeContainer::Type(t))
+    }
+}
+
 
 impl Display for TypeContainer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

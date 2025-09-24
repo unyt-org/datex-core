@@ -14,9 +14,31 @@ use std::{
     ops::{Add, Neg, Sub},
     str::FromStr,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
+
+impl Serialize for Integer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_str_radix(10))
+    }
+}
+
+impl<'de> Deserialize<'de> for Integer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Integer::from_string(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+
 impl Integer {
     /// Parse an integer from a string in base 10.
     /// Returns an error if the string is not a valid integer.

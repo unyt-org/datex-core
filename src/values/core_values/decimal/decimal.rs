@@ -14,9 +14,10 @@ use std::hash::Hash;
 use std::io::{Read, Seek};
 use std::ops::{Add, Neg, Sub};
 use std::str::FromStr;
+use serde::{Deserialize, Serialize};
 use crate::values::traits::value_eq::ValueEq;
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum Decimal {
     Finite(Rational),
     NaN,

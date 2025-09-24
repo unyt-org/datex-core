@@ -2,8 +2,6 @@ pub mod definition;
 pub mod error;
 pub mod structural_type_definition;
 
-use chumsky::prelude::todo;
-
 use crate::ast::DatexExpression;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::values::core_value::CoreValue;
@@ -21,6 +19,8 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -29,21 +29,43 @@ pub struct Type {
     pub reference_mutability: Option<ReferenceMutability>,
 }
 
-// impl Serialize for Type {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer,
-//     {
-//         let mut state = serializer.serialize_struct("Type", 3)?;
-//         state.serialize_field("type_definition", &self.type_definition)?;
-//         state.serialize_field("base_type", &self.base_type)?;
-//         state.serialize_field(
-//             "reference_mutability",
-//             &self.reference_mutability,
-//         )?;
-//         state.end()
-//     }
-// }
+impl Serialize for Type {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("Type", 3)?;
+        state.serialize_field("type_definition", &self.type_definition)?;
+        state.serialize_field("base_type", &self.base_type.as_ref().map(|b| b.borrow().as_type().clone()))?;
+        state.serialize_field("reference_mutability", &self.reference_mutability)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Type {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>
+    {
+        #[derive(Deserialize)]
+        struct TypeHelper {
+            type_definition: TypeDefinition,
+            base_type: Option<Type>,
+            reference_mutability: Option<ReferenceMutability>,
+        }
+
+        let helper = TypeHelper::deserialize(deserializer)?;
+        Ok(Type {
+            type_definition: helper.type_definition,
+            base_type: helper.base_type.map(|bt| Rc::new(RefCell::new(TypeReference {
+                type_value: bt,
+                nominal_type_declaration: None,
+                pointer_address: None,
+            }))),
+            reference_mutability: helper.reference_mutability,
+        })
+    }
+}
 
 impl Hash for Type {
     fn hash<H: Hasher>(&self, state: &mut H) {
