@@ -7,6 +7,7 @@ use modular_bitfield::prelude::*;
 
 #[cfg(feature = "debug")]
 use serde_with::{Bytes, serde_as};
+
 // 2 bit
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
@@ -145,16 +146,29 @@ impl ReceiverEndpoints {
 
 // <count>: 1 byte + (21 byte * count) + (512 byte * count)
 // min: 2 bytes
-#[cfg_attr(feature = "debug", serde_with::serde_as)]
+#[cfg(feature = "debug")]
+#[cfg_attr(feature = "debug", serde_as)]
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 
 pub struct ReceiverEndpointsWithKeys {
     count: u8,
     #[br(count = count)]
-    #[cfg_attr(feature = "debug", serde_as(as = "Vec<Bytes>"))]
+    #[serde_as(as = "Vec<(_, Bytes)>")]
     pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
 }
+
+#[cfg(not(feature = "debug"))]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
+
+pub struct ReceiverEndpointsWithKeys {
+    count: u8,
+    #[br(count = count)]
+    #[serde_as(as = "Vec<Bytes>")]
+    pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
+}
+
 impl ReceiverEndpointsWithKeys {
     pub fn new(endpoints_with_keys: Vec<(Endpoint, [u8; 512])>) -> Self {
         let count = endpoints_with_keys.len() as u8;
