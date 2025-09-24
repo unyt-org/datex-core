@@ -28,8 +28,6 @@ impl From<&ValueContainer> for DIFValue {
         let val_rc = value.to_value();
         let val = val_rc.borrow();
         let core_value = &val.inner;
-        let actual_type = val.actual_type().clone();
-        let core_type = core_value.get_default_type();
 
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => todo!("Type value not supported in DIF"),
@@ -111,12 +109,6 @@ impl From<&ValueContainer> for DIFValue {
             )),
         };
 
-        /*
-        serde_json::to_string(&actual_type.to_string())
-                .unwrap()
-                .trim_matches('"')
-                .to_string()
-                 */
         DIFValue {
             value: dif_core_value,
             // FIXME custom type when serializing the whole actual_type to a json object
