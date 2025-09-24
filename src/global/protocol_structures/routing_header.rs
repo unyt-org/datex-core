@@ -152,7 +152,7 @@ impl ReceiverEndpoints {
 pub struct ReceiverEndpointsWithKeys {
     count: u8,
     #[br(count = count)]
-    #[serde_as(as = "Vec<(_, Bytes)>")]
+    #[cfg_attr(feature = "debug", serde_as(as = "Vec<Bytes>"))]
     pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
 }
 impl ReceiverEndpointsWithKeys {
