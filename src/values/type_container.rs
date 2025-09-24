@@ -26,7 +26,16 @@ impl Serialize for TypeContainer {
     {
         match self {
             TypeContainer::Type(t) => t.serialize(serializer),
-            TypeContainer::TypeReference(tr) => tr.borrow().as_type().serialize(serializer),
+            TypeContainer::TypeReference(tr) => {
+                let address = &tr.borrow().pointer_address;
+                // Serialize core types
+                if let Some(pointer_address) = &address && let Ok(core_type) = CoreLibPointerId::try_from(pointer_address) {
+                    core_type.serialize(serializer)
+                }
+                else {
+                    address.serialize(serializer)
+                }
+            },
         }
     }
 }

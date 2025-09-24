@@ -37,6 +37,8 @@ use crate::values::core_values::r#type::Type;
     AsRefStr,
     IntoPrimitive,
     TryFromPrimitive,
+    Serialize,
+    Deserialize,
 )]
 #[repr(u8)]
 #[strum(serialize_all = "lowercase")]

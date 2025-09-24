@@ -13,13 +13,14 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::once;
 use std::rc::Rc;
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 thread_local! {
     pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub enum CoreLibPointerId {
     Core,                                // #core
     Type,                                // #core.type
@@ -36,6 +37,37 @@ pub enum CoreLibPointerId {
     Function,                            // #core.Function
     Union,                               // #core.Union
     Unit,                                // #core.unit
+}
+
+impl Serialize for CoreLibPointerId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            CoreLibPointerId::Type => serializer.serialize_str("Type"),
+            CoreLibPointerId::Null => serializer.serialize_str("null"),
+            CoreLibPointerId::Boolean => serializer.serialize_str("boolean"),
+            CoreLibPointerId::Integer(None) => serializer.serialize_str("integer"),
+            CoreLibPointerId::Integer(Some(v)) => {
+                serializer.collect_seq(&[ "integer", v.as_ref() ])
+            }
+            CoreLibPointerId::Decimal(None) => serializer.serialize_str("decimal"),
+            CoreLibPointerId::Decimal(Some(v)) => {
+                serializer.collect_seq(&[ "decimal", v.as_ref() ])
+            }
+            CoreLibPointerId::Text => serializer.serialize_str("text"),
+            CoreLibPointerId::Endpoint => serializer.serialize_str("endpoint"),
+            CoreLibPointerId::Array => serializer.serialize_str("Array"),
+            CoreLibPointerId::List => serializer.serialize_str("List"),
+            CoreLibPointerId::Map => serializer.serialize_str("Map"),
+            CoreLibPointerId::Struct => serializer.serialize_str("Struct"),
+            CoreLibPointerId::Function => serializer.serialize_str("Function"),
+            CoreLibPointerId::Union => serializer.serialize_str("Union"),
+            CoreLibPointerId::Unit => serializer.serialize_str("Unit"),
+            CoreLibPointerId::Core => unreachable!("not serializable"),
+        }
+    }
 }
 
 impl CoreLibPointerId {
@@ -113,21 +145,25 @@ impl From<CoreLibPointerId> for PointerAddress {
         PointerAddress::Internal(id_bytes)
     }
 }
-impl From<&PointerAddress> for CoreLibPointerId {
-    fn from(address: &PointerAddress) -> Self {
+
+
+impl TryFrom<&PointerAddress> for CoreLibPointerId {
+    type Error = String;
+    fn try_from(address: &PointerAddress) -> Result<Self, Self::Error> {
         match address {
             PointerAddress::Internal(id_bytes) => {
                 let mut id_array = [0u8; 4];
                 id_array[0..3].copy_from_slice(id_bytes);
                 let id = u32::from_le_bytes(id_array);
                 match CoreLibPointerId::from_u16(id as u16) {
-                    Some(core_id) => core_id,
-                    None => panic!("Invalid CoreLibPointerId"),
+                    Some(core_id) => Ok(core_id),
+                    None => Err("Invalid CoreLibPointerId".to_string()),
                 }
             }
-            e => panic!(
-                "CoreLibPointerId can only be created from Internal PointerAddress"
-            ),
+            e => Err(format!(
+                "CoreLibPointerId can only be created from Internal PointerAddress, got: {:?}",
+                e
+            )),
         }
     }
 }
@@ -365,29 +401,29 @@ mod tests {
     fn core_lib_pointer_id_conversion() {
         let core_id = CoreLibPointerId::Core;
         let pointer_address: PointerAddress = core_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).into();
+        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
         assert_eq!(core_id, converted_id);
 
         let boolean_id = CoreLibPointerId::Boolean;
         let pointer_address: PointerAddress = boolean_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).into();
+        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
         assert_eq!(boolean_id, converted_id);
 
         let integer_id =
             CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32));
         let pointer_address: PointerAddress = integer_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).into();
+        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
         assert_eq!(integer_id, converted_id);
 
         let decimal_id =
             CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64));
         let pointer_address: PointerAddress = decimal_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).into();
+        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
         assert_eq!(decimal_id, converted_id);
 
         let type_id = CoreLibPointerId::Type;
         let pointer_address: PointerAddress = type_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).into();
+        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
         assert_eq!(type_id, converted_id);
     }
 

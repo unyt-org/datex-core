@@ -33,6 +33,8 @@ use crate::values::traits::value_eq::ValueEq;
     AsRefStr,
     IntoPrimitive,
     TryFromPrimitive,
+    Serialize,
+    Deserialize,
 )]
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]

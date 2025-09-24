@@ -13,6 +13,7 @@ use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serializer, de};
 use serde_with::serde_derive::Serialize;
 use std::fmt;
+use log::info;
 use crate::values::type_container::TypeContainer;
 
 /// Represents a value in the Datex Interface Format (DIF).
@@ -109,6 +110,7 @@ impl From<&ValueContainer> for DIFValue {
             )),
         };
 
+        
         DIFValue {
             value: dif_core_value,
             // FIXME custom type when serializing the whole actual_type to a json object

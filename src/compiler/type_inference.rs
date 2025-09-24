@@ -271,9 +271,9 @@ fn resolve_type_expression_type(
         }
         TypeExpression::GetReference(pointer_address) => {
             if matches!(pointer_address, PointerAddress::Internal(_)) {
-                get_core_lib_type(CoreLibPointerId::from(
+                get_core_lib_type(CoreLibPointerId::try_from(
                     &pointer_address.to_owned(),
-                ))
+                ).unwrap())
             } else {
                 panic!("GetReference not supported yet")
             }
