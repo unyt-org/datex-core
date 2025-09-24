@@ -19,7 +19,7 @@ use crate::values::type_container::TypeContainer;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFValue {
     pub value: Option<DIFCoreValue>,
-    pub r#type: Option<TypeContainer>,
+    pub r#type: TypeContainer,
     pub ptr_id: Option<String>,
 }
 
@@ -120,7 +120,7 @@ impl From<&ValueContainer> for DIFValue {
         DIFValue {
             value: dif_core_value,
             // FIXME custom type when serializing the whole actual_type to a json object
-            r#type: None,
+            r#type: value.actual_type(),
             ptr_id: None,
         }
     }
@@ -142,8 +142,8 @@ impl From<&DIFValue> for ValueContainer {
         let struct_type = value
             .r#type
             .clone()
-            .map(|t| t.as_type())
-            .and_then(|ty| ty.structural_type().cloned());
+            .as_type()
+            .structural_type().cloned();
         let core_value = match &value.value {
             Some(DIFCoreValue::Null) => CoreValue::Null,
             Some(DIFCoreValue::Boolean(b)) => CoreValue::Boolean(Boolean(*b)),
@@ -399,14 +399,14 @@ pub enum DIFUpdate {
 
 #[cfg(test)]
 mod tests {
-
+    use datex_core::values::core_values::r#type::Type;
     use super::*;
 
     #[test]
     fn dif_value_serialization() {
         let value = DIFValue {
             value: None,
-            r#type: None,
+            r#type: TypeContainer::Type(Type::structural(StructuralTypeDefinition::Null)),
             ptr_id: None,
         };
         let serialized = serde_json::to_string(&value).unwrap();
@@ -452,7 +452,7 @@ mod tests {
     fn to_value_container_i32() {
         let dif_value = DIFValue {
             value: Some(DIFCoreValue::Number(42f64)),
-            r#type: None,
+            r#type: TypeContainer::Type(Type::structural(StructuralTypeDefinition::Null)), // TODO
             ptr_id: None,
         };
         let value_container: ValueContainer = ValueContainer::from(&dif_value);
@@ -471,8 +471,7 @@ mod tests {
     fn to_value_container_text() {
         let dif_value = DIFValue {
             value: Some(DIFCoreValue::String("Hello, World!".to_string())),
-            r#type: None,
-            // r#type: "text".to_string(),
+            r#type: TypeContainer::Type(Type::structural(StructuralTypeDefinition::Null)), // TODO
             ptr_id: None,
         };
         let value_container: ValueContainer = ValueContainer::from(&dif_value);
