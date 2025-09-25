@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::values::core_values::r#type::definition::TypeDefinition;
+use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use crate::{
-    types::type_container::TypeContainer, values::core_values::r#type::Type,
+    types::definition::TypeDefinition, values::core_values::r#type::Type,
 };
 use std::{
     cell::RefCell,

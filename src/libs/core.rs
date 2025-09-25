@@ -1,11 +1,11 @@
 use crate::r#ref::reference::Reference;
 use crate::r#ref::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::runtime::memory::Memory;
+use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
-use crate::values::core_values::r#type::definition::TypeDefinition;
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;

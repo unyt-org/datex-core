@@ -1,8 +1,8 @@
 use crate::ast::{DatexExpression, TypeExpression};
-use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::definition::TypeDefinition;
-use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::r#ref::reference::ReferenceMutability;
+use crate::types::definition::TypeDefinition;
+use crate::types::structural_type_definition::StructuralTypeDefinition;
+use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
@@ -14,15 +14,21 @@ impl From<&ValueContainer> for DatexExpression {
             ValueContainer::Value(value) => value_to_datex_expression(value),
             ValueContainer::Reference(reference) => {
                 match reference.mutability() {
-                    ReferenceMutability::Mutable => DatexExpression::RefMut(
-                        Box::new(DatexExpression::from(&reference.value_container())),
-                    ),
-                    ReferenceMutability::Immutable => DatexExpression::Ref(
-                        Box::new(DatexExpression::from(&reference.value_container()))
-                    ),
-                    ReferenceMutability::Final => DatexExpression::RefFinal(
-                        Box::new(DatexExpression::from(&reference.value_container()))
-                    )
+                    ReferenceMutability::Mutable => {
+                        DatexExpression::RefMut(Box::new(
+                            DatexExpression::from(&reference.value_container()),
+                        ))
+                    }
+                    ReferenceMutability::Immutable => {
+                        DatexExpression::Ref(Box::new(DatexExpression::from(
+                            &reference.value_container(),
+                        )))
+                    }
+                    ReferenceMutability::Final => {
+                        DatexExpression::RefFinal(Box::new(
+                            DatexExpression::from(&reference.value_container()),
+                        ))
+                    }
                 }
             }
         }
@@ -69,19 +75,15 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
                 .collect(),
         ),
         CoreValue::Type(type_value) => {
-            DatexExpression::TypeExpression(
-                match &type_value.type_definition {
-                    TypeDefinition::Structural(struct_type) => {
-                        match struct_type {
-                            StructuralTypeDefinition::Integer(integer) => {
-                                TypeExpression::Integer(integer.clone())
-                            }
-                            _ => todo!()
-                        }
+            DatexExpression::TypeExpression(match &type_value.type_definition {
+                TypeDefinition::Structural(struct_type) => match struct_type {
+                    StructuralTypeDefinition::Integer(integer) => {
+                        TypeExpression::Integer(integer.clone())
                     }
-                    _ => todo!()
-                }
-            )
+                    _ => todo!(),
+                },
+                _ => todo!(),
+            })
         }
         _ => todo!(),
     }

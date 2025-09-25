@@ -1,9 +1,9 @@
 use crate::{
-    types::type_container::TypeContainer,
-    values::{
-        core_values::r#type::structural_type_definition::StructuralTypeDefinition,
-        traits::structural_eq::StructuralEq,
+    types::{
+        structural_type_definition::StructuralTypeDefinition,
+        type_container::TypeContainer,
     },
+    values::traits::structural_eq::StructuralEq,
 };
 use datex_core::r#ref::type_reference::TypeReference;
 use serde::{Deserialize, Serialize};

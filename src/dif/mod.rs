@@ -1,9 +1,10 @@
+use crate::types::structural_type_definition::StructuralTypeDefinition;
+use crate::types::type_container::TypeContainer;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
-use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
@@ -13,7 +14,6 @@ use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serializer, de};
 use serde_with::serde_derive::Serialize;
 use std::fmt;
-use crate::types::type_container::TypeContainer;
 
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -109,7 +109,6 @@ impl From<&ValueContainer> for DIFValue {
             )),
         };
 
-        
         DIFValue {
             value: dif_core_value,
             // FIXME custom type when serializing the whole actual_type to a json object
@@ -132,11 +131,8 @@ impl From<DIFValue> for ValueContainer {
 }
 impl From<&DIFValue> for ValueContainer {
     fn from(value: &DIFValue) -> Self {
-        let struct_type = value
-            .r#type
-            .clone()
-            .as_type()
-            .structural_type().cloned();
+        let struct_type =
+            value.r#type.clone().as_type().structural_type().cloned();
         let core_value = match &value.value {
             Some(DIFCoreValue::Null) => CoreValue::Null,
             Some(DIFCoreValue::Boolean(b)) => CoreValue::Boolean(Boolean(*b)),
@@ -392,14 +388,17 @@ pub enum DIFUpdate {
 
 #[cfg(test)]
 mod tests {
-    use datex_core::values::core_values::r#type::Type;
+    use crate::values::core_values::r#type::Type;
+
     use super::*;
 
     #[test]
     fn dif_value_serialization() {
         let value = DIFValue {
             value: None,
-            r#type: TypeContainer::Type(Type::structural(StructuralTypeDefinition::Null)),
+            r#type: TypeContainer::Type(Type::structural(
+                StructuralTypeDefinition::Null,
+            )),
             ptr_id: None,
         };
         let serialized = serde_json::to_string(&value).unwrap();
@@ -445,7 +444,9 @@ mod tests {
     fn to_value_container_i32() {
         let dif_value = DIFValue {
             value: Some(DIFCoreValue::Number(42f64)),
-            r#type: TypeContainer::Type(Type::structural(StructuralTypeDefinition::Null)), // TODO
+            r#type: TypeContainer::Type(Type::structural(
+                StructuralTypeDefinition::Null,
+            )), // TODO
             ptr_id: None,
         };
         let value_container: ValueContainer = ValueContainer::from(&dif_value);
@@ -464,7 +465,9 @@ mod tests {
     fn to_value_container_text() {
         let dif_value = DIFValue {
             value: Some(DIFCoreValue::String("Hello, World!".to_string())),
-            r#type: TypeContainer::Type(Type::structural(StructuralTypeDefinition::Null)), // TODO
+            r#type: TypeContainer::Type(Type::structural(
+                StructuralTypeDefinition::Null,
+            )), // TODO
             ptr_id: None,
         };
         let value_container: ValueContainer = ValueContainer::from(&dif_value);

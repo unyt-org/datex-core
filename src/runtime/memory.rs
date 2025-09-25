@@ -1,9 +1,9 @@
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::r#ref::reference::Reference;
-use crate::r#ref::value_reference::ValueReference;
-use crate::types::type_container::TypeContainer;
 use crate::r#ref::type_reference::TypeReference;
-use crate::values::core_values::r#type::error::IllegalTypeError;
+use crate::r#ref::value_reference::ValueReference;
+use crate::types::error::IllegalTypeError;
+use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::runtime::global_context::get_global_context;

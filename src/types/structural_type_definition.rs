@@ -243,11 +243,11 @@ impl Display for StructuralTypeDefinition {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::structural_type_definition::StructuralTypeDefinition;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::integer::integer::Integer;
     use crate::values::core_values::text::Text;
     use crate::values::core_values::r#type::Type;
-    use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
     use crate::values::value_container::ValueContainer;
     #[test]
     fn test_structural_type_display() {

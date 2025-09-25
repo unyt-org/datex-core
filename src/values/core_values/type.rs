@@ -1,18 +1,14 @@
-pub mod definition;
-pub mod error;
-pub mod structural_type_definition;
-
 use crate::ast::DatexExpression;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::r#ref::reference::ReferenceMutability;
 use crate::r#ref::type_reference::TypeReference;
+use crate::types::definition::TypeDefinition;
+use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::text::Text;
-use crate::values::core_values::r#type::definition::TypeDefinition;
-use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use serde::ser::SerializeStruct;

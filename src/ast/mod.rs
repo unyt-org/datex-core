@@ -709,7 +709,11 @@ mod tests {
         let src = "var a = type(1,2,3)";
         let result = parse_print_error(src);
         let expr = result.unwrap();
-        if let DatexExpression::VariableDeclaration { init_expression: value, .. } = expr {
+        if let DatexExpression::VariableDeclaration {
+            init_expression: value,
+            ..
+        } = expr
+        {
             assert_matches!(
                 *value,
                 DatexExpression::Type(TypeExpression::List(_))
@@ -1025,7 +1029,9 @@ mod tests {
                     TypeExpression::Integer(Integer::from(5)).into()
                 ),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
 
@@ -1040,7 +1046,9 @@ mod tests {
                     "integer/u8".to_owned()
                 )),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
     }
@@ -1405,7 +1413,9 @@ mod tests {
                     "integer".to_string()
                 )),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
 
@@ -1420,7 +1430,9 @@ mod tests {
                     "User".to_string()
                 )),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
 
@@ -1435,7 +1447,9 @@ mod tests {
                     "integer/u8".to_owned()
                 )),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
     }
@@ -1454,7 +1468,9 @@ mod tests {
                     TypeExpression::Literal("text".to_owned())
                 ])),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
     }
@@ -1473,7 +1489,9 @@ mod tests {
                     TypeExpression::Integer(Integer::from(6))
                 ])),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
     }
@@ -1491,7 +1509,9 @@ mod tests {
                     TypeExpression::Literal("integer".to_owned())
                 ))),
                 name: "x".to_string(),
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(42)))
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(42)
+                ))
             }
         );
     }
@@ -2675,9 +2695,9 @@ mod tests {
                     kind: VariableKind::Const,
                     type_annotation: None,
                     name: "x".to_string(),
-                    init_expression: Box::new(DatexExpression::Integer(Integer::from(
-                        42
-                    ))),
+                    init_expression: Box::new(DatexExpression::Integer(
+                        Integer::from(42)
+                    )),
                 },
                 is_terminated: true,
             },])
@@ -3356,7 +3376,9 @@ mod tests {
                 kind: VariableKind::Const,
                 name: "x".to_string(),
                 type_annotation: None,
-                init_expression: Box::new(DatexExpression::Integer(Integer::from(1))),
+                init_expression: Box::new(DatexExpression::Integer(
+                    Integer::from(1)
+                )),
             }
         );
     }
