@@ -1,7 +1,7 @@
 use crate::ast::DatexExpression;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
-use crate::r#ref::reference::ReferenceMutability;
-use crate::r#ref::type_reference::TypeReference;
+use crate::references::reference::ReferenceMutability;
+use crate::references::type_reference::TypeReference;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;

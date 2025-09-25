@@ -1,5 +1,5 @@
-use crate::r#ref::reference::Reference;
-use crate::r#ref::type_reference::{NominalTypeDeclaration, TypeReference};
+use crate::references::reference::Reference;
+use crate::references::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::runtime::memory::Memory;
 use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;

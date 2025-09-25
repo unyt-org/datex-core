@@ -1,7 +1,7 @@
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
-use crate::r#ref::reference::Reference;
-use crate::r#ref::type_reference::TypeReference;
-use crate::r#ref::value_reference::ValueReference;
+use crate::references::reference::Reference;
+use crate::references::type_reference::TypeReference;
+use crate::references::value_reference::ValueReference;
 use crate::types::error::IllegalTypeError;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;

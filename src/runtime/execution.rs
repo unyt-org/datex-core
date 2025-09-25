@@ -36,7 +36,7 @@ use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
 use datex_core::decompiler::{DecompileOptions, decompile_value};
-use datex_core::r#ref::reference::Reference;
+use datex_core::references::reference::Reference;
 use datex_core::values::core_values::array::Array;
 use itertools::Itertools;
 use log::info;

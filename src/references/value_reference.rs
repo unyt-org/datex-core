@@ -1,5 +1,5 @@
 use crate::dif::DIFUpdate;
-use crate::r#ref::reference::ReferenceMutability;
+use crate::references::reference::ReferenceMutability;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::value_eq::ValueEq;

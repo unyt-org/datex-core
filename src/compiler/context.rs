@@ -1,5 +1,5 @@
 use crate::global::binary_codes::InstructionCode;
-use crate::r#ref::reference::ReferenceMutability;
+use crate::references::reference::ReferenceMutability;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_i32, append_i64,
     append_i128, append_u8, append_u32, append_u128,

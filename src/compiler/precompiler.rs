@@ -3,7 +3,7 @@ use crate::ast::chain::ApplyOperation;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
-use crate::r#ref::type_reference::{NominalTypeDeclaration, TypeReference};
+use crate::references::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;

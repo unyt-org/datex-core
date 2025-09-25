@@ -7,7 +7,7 @@ use super::value::Value;
 use crate::compiler::compile_value;
 use crate::values::serde::deserializer::DatexDeserializer;
 use crate::values::traits::value_eq::ValueEq;
-use datex_core::r#ref::reference::Reference;
+use datex_core::references::reference::Reference;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;

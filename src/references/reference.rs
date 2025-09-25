@@ -1,9 +1,9 @@
 use crate::dif::{DIFUpdate, DIFValue};
-use crate::r#ref::type_reference::{NominalTypeDeclaration, TypeReference};
+use crate::reference::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 
-use crate::r#ref::value_reference::ValueReference;
+use crate::references::value_reference::ValueReference;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;

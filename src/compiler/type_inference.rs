@@ -3,7 +3,7 @@ use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
-use crate::r#ref::type_reference::TypeReference;
+use crate::references::type_reference::TypeReference;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
@@ -377,7 +377,7 @@ mod tests {
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
-    use crate::r#ref::type_reference::NominalTypeDeclaration;
+    use crate::references::type_reference::NominalTypeDeclaration;
     use crate::types::definition::TypeDefinition;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;

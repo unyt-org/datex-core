@@ -1,5 +1,5 @@
 use crate::ast::{DatexExpression, TypeExpression};
-use crate::r#ref::reference::ReferenceMutability;
+use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;

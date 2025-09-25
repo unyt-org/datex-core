@@ -18,7 +18,7 @@ use crate::{
         text::unescape_text,
         utils::whitespace,
     },
-    r#ref::reference::ReferenceMutability,
+    references::reference::ReferenceMutability,
     values::core_values::{
         decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
         endpoint::Endpoint,

@@ -5,7 +5,7 @@ use crate::{
     },
     values::traits::structural_eq::StructuralEq,
 };
-use datex_core::r#ref::type_reference::TypeReference;
+use datex_core::references::type_reference::TypeReference;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
