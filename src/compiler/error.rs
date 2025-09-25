@@ -10,6 +10,7 @@ pub enum CompilerError {
     InvalidPlaceholderCount,
     NonStaticValue,
     UndeclaredVariable(String),
+    InvalidRedeclaration(String),
     SubvariantNotFound(String, String),
     ScopePopError,
     InvalidSlotName(String),
@@ -27,6 +28,9 @@ impl From<Vec<ParseError>> for CompilerError {
 impl Display for CompilerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            CompilerError::InvalidRedeclaration(name) => {
+                write!(f, "Invalid redeclaration of {name}")
+            }
             CompilerError::UnexpectedTerm(rule) => {
                 write!(f, "Unexpected term: {rule:?}")
             }

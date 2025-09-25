@@ -11,7 +11,7 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -628,14 +628,21 @@ fn visit_expression(
         }
         DatexExpression::Statements(stmts) => {
             // hoist type declarations first
+            let mut registered_names = HashSet::new();
             for stmt in stmts.iter_mut() {
-                // TODO: prevent duplicate declarations
                 if let DatexExpression::TypeDeclaration {
                     name, hoisted, ..
                 } = &mut stmt.expression
                 {
                     // set hoisted to true
                     *hoisted = true;
+                    if registered_names.contains(name) {
+                        return Err(CompilerError::InvalidRedeclaration(
+                            name.clone(),
+                        ));
+                    }
+                    registered_names.insert(name.clone());
+
                     // register variable
                     let type_id = add_new_variable(
                         name.clone(),
@@ -644,8 +651,7 @@ fn visit_expression(
                         scope_stack,
                     );
 
-                    // register placeholder in metadata
-
+                    // register placeholder ref in metadata
                     let reference = Rc::new(RefCell::new(
                         TypeReference::anonymous(Type::UNIT, None),
                     ));

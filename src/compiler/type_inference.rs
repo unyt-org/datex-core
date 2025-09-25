@@ -365,6 +365,7 @@ mod tests {
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
     use crate::ast::{VariableKind, parse};
+    use crate::compiler::error::CompilerError;
     use crate::compiler::precompiler::{
         AstWithMetadata, PrecompilerScopeStack, precompile_ast,
     };
@@ -390,15 +391,21 @@ mod tests {
         .expect("TypeContainer should contain a Type")
     }
 
-    /// Parses the given source code into an AST with metadata.
-    fn parse_and_precompile(src: &str) -> AstWithMetadata {
+    /// Parses the given source code into an AST with metadata, returning a Result.
+    fn parse_and_precompile(
+        src: &str,
+    ) -> Result<AstWithMetadata, CompilerError> {
         let ast = parse(src).expect("Invalid expression");
         precompile_ast(
             ast,
             Rc::new(RefCell::new(AstMetadata::default())),
             &mut PrecompilerScopeStack::default(),
         )
-        .unwrap()
+    }
+
+    /// Parses the given source code into an AST with metadata.
+    fn parse_and_precompile_unwrap(src: &str) -> AstWithMetadata {
+        parse_and_precompile(src).unwrap()
     }
 
     /// Parses the given source code into an AST with metadata and infers types for all expressions.
@@ -431,7 +438,7 @@ mod tests {
     /// The source code should be a type expression, e.g. "integer/u8".
     /// The function asserts that the expression is indeed a type declaration.
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
-        let ast_with_metadata = parse_and_precompile(&src);
+        let ast_with_metadata = parse_and_precompile_unwrap(&src);
         let mut expr = ast_with_metadata.ast;
         resolve_type_expression_type(
             match &mut expr {
@@ -444,6 +451,20 @@ mod tests {
     }
     fn infer_type_from_str(src: &str) -> Type {
         infer_type_container_from_str(src).as_type()
+    }
+
+    #[test]
+    fn invalid_redeclaration() {
+        let src = r#"
+        type A = integer;
+        type A = text; // redeclaration error
+        "#;
+        let result = parse_and_precompile(src);
+        assert!(result.is_err());
+        assert_matches!(
+            result,
+            Err(CompilerError::InvalidRedeclaration(name)) if name == "A"
+        );
     }
 
     #[test]
@@ -536,7 +557,7 @@ mod tests {
         var a: integer = 42;
         a = "hello"; // type error
         "#;
-        let ast_with_metadata = parse_and_precompile(&src);
+        let ast_with_metadata = parse_and_precompile_unwrap(&src);
         let mut expr = ast_with_metadata.ast;
         let result = infer_expression_type(
             &mut expr,
