@@ -1,16 +1,16 @@
 use crate::dif::{DIFUpdate, DIFValue};
+use crate::r#ref::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::types::type_container::TypeContainer;
-use crate::types::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
 
+use crate::r#ref::value_reference::ValueReference;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::values::value_reference::ValueReference;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;

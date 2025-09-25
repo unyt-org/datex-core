@@ -5,7 +5,7 @@ use crate::{
         traits::structural_eq::StructuralEq,
     },
 };
-use datex_core::types::type_reference::TypeReference;
+use datex_core::r#ref::type_reference::TypeReference;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]

@@ -1,5 +1,5 @@
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
-use crate::types::type_reference::TypeReference;
+use crate::r#ref::type_reference::TypeReference;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
