@@ -2,7 +2,7 @@ use crate::ast::{DatexExpression, TypeExpression};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
-use crate::values::reference::ReferenceMutability;
+use crate::r#ref::reference::ReferenceMutability;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 

@@ -1,11 +1,13 @@
-use std::fmt::Display;
-use serde::{Deserialize, Serialize};
-use datex_core::values::type_reference::TypeReference;
-use crate::values::{
-    core_values::r#type::structural_type_definition::StructuralTypeDefinition,
-    traits::structural_eq::StructuralEq,
-    type_container::TypeContainer,
+use crate::{
+    types::type_container::TypeContainer,
+    values::{
+        core_values::r#type::structural_type_definition::StructuralTypeDefinition,
+        traits::structural_eq::StructuralEq,
+    },
 };
+use datex_core::types::type_reference::TypeReference;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum TypeDefinition {
     // {x: integer, y: text}

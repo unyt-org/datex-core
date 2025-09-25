@@ -1,8 +1,8 @@
+use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
-use crate::values::type_container::TypeContainer;
 use crate::values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};

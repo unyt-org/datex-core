@@ -1,15 +1,15 @@
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::types::type_reference::TypeReference;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
 
 // TODO: move match logic and other type stuff here
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,13 +29,15 @@ impl Serialize for TypeContainer {
             TypeContainer::TypeReference(tr) => {
                 let address = &tr.borrow().pointer_address;
                 // Serialize core types
-                if let Some(pointer_address) = &address && let Ok(core_type) = CoreLibPointerId::try_from(pointer_address) {
+                if let Some(pointer_address) = &address
+                    && let Ok(core_type) =
+                        CoreLibPointerId::try_from(pointer_address)
+                {
                     core_type.serialize(serializer)
-                }
-                else {
+                } else {
                     address.serialize(serializer)
                 }
-            },
+            }
         }
     }
 }
@@ -49,7 +51,6 @@ impl<'de> Deserialize<'de> for TypeContainer {
         Ok(TypeContainer::Type(t))
     }
 }
-
 
 impl Display for TypeContainer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

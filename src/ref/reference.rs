@@ -1,4 +1,6 @@
 use crate::dif::{DIFUpdate, DIFValue};
+use crate::types::type_container::TypeContainer;
+use crate::types::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
 
@@ -6,16 +8,14 @@ use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
-use crate::values::type_container::TypeContainer;
-use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use crate::values::value_reference::ValueReference;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum ObserveError {
@@ -289,7 +289,7 @@ impl Reference {
             ReferenceMutability::Mutable,
         )
     }
-    
+
     pub fn try_final_from(
         value_container: ValueContainer,
     ) -> Result<Self, ReferenceFromValueContainerError> {
@@ -305,9 +305,9 @@ impl Reference {
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
         match self {
-            Reference::TypeReference(tr) => {
-                Reference::TypeReference(Rc::new(RefCell::new(tr.borrow().collapse_reference_chain())))
-            }
+            Reference::TypeReference(tr) => Reference::TypeReference(Rc::new(
+                RefCell::new(tr.borrow().collapse_reference_chain()),
+            )),
             Reference::ValueReference(vr) => {
                 match &vr.borrow().value_container {
                     ValueContainer::Reference(reference) => {
@@ -346,7 +346,9 @@ impl Reference {
     // TODO: no clone?
     pub fn value_container(&self) -> ValueContainer {
         match self {
-            Reference::ValueReference(vr) => vr.borrow().value_container.clone(),
+            Reference::ValueReference(vr) => {
+                vr.borrow().value_container.clone()
+            }
             Reference::TypeReference(tr) => ValueContainer::Value(Value::from(
                 CoreValue::Type(tr.borrow().type_value.clone()),
             )),

@@ -5,10 +5,10 @@ use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{
     CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
 };
+use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
 use crate::values::pointer::PointerAddress;
-use crate::values::type_container::TypeContainer;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -271,9 +271,10 @@ fn resolve_type_expression_type(
         }
         TypeExpression::GetReference(pointer_address) => {
             if matches!(pointer_address, PointerAddress::Internal(_)) {
-                get_core_lib_type(CoreLibPointerId::try_from(
-                    &pointer_address.to_owned(),
-                ).unwrap())
+                get_core_lib_type(
+                    CoreLibPointerId::try_from(&pointer_address.to_owned())
+                        .unwrap(),
+                )
             } else {
                 panic!("GetReference not supported yet")
             }

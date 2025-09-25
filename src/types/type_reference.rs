@@ -1,9 +1,10 @@
-use chumsky::prelude::todo;
 use serde::{Deserialize, Serialize};
 
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::pointer::PointerAddress;
-use crate::values::{core_values::r#type::Type, type_container::TypeContainer};
+use crate::{
+    types::type_container::TypeContainer, values::core_values::r#type::Type,
+};
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},

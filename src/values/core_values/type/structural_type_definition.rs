@@ -1,3 +1,4 @@
+use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -5,13 +6,12 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::type_container::TypeContainer;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum StructuralTypeDefinition {

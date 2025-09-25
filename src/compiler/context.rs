@@ -1,4 +1,5 @@
 use crate::global::binary_codes::InstructionCode;
+use crate::r#ref::reference::ReferenceMutability;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_i32, append_i64,
     append_i128, append_u8, append_u32, append_u128,
@@ -21,7 +22,6 @@ use std::cell::{Cell, RefCell};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
-use crate::values::reference::ReferenceMutability;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -205,13 +205,13 @@ impl<'a> CompilationContext<'a> {
                 // TODO #160: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
                 // add CREATE_REF/CREATE_REF_MUT instruction
                 if reference.mutability() == ReferenceMutability::Mutable {
-                    self.append_instruction_code(InstructionCode::CREATE_REF_MUT);
+                    self.append_instruction_code(
+                        InstructionCode::CREATE_REF_MUT,
+                    );
                 } else {
                     self.append_instruction_code(InstructionCode::CREATE_REF);
                 }
-                self.insert_value(
-                    &reference.collapse_to_value().borrow(),
-                )
+                self.insert_value(&reference.collapse_to_value().borrow())
             }
         }
     }
@@ -234,7 +234,9 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
             CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
             CoreValue::Boolean(val) => self.insert_boolean(val.0),
-            CoreValue::Null => self.append_instruction_code(InstructionCode::NULL),
+            CoreValue::Null => {
+                self.append_instruction_code(InstructionCode::NULL)
+            }
             CoreValue::Text(val) => {
                 self.insert_text(&val.0.clone());
             }
@@ -251,7 +253,7 @@ impl<'a> CompilationContext<'a> {
                     self.insert_key_value_pair(key, value);
                 }
                 self.append_instruction_code(InstructionCode::SCOPE_END);
-            },
+            }
             CoreValue::Array(array) => {
                 self.append_instruction_code(InstructionCode::ARRAY_START);
                 for item in array {
@@ -260,7 +262,9 @@ impl<'a> CompilationContext<'a> {
                 self.append_instruction_code(InstructionCode::SCOPE_END);
             }
             CoreValue::Struct(structure) => {
-                self.append_instruction_code(InstructionCode::STRUCT_WITH_FIELDNAMES_START);
+                self.append_instruction_code(
+                    InstructionCode::STRUCT_WITH_FIELDNAMES_START,
+                );
                 for (key, value) in structure.iter() {
                     self.insert_struct_key_value_pair(key, value);
                 }
@@ -308,7 +312,9 @@ impl<'a> CompilationContext<'a> {
                 self.insert_key_string(&text.0);
             }
             _ => {
-                self.append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                self.append_instruction_code(
+                    InstructionCode::KEY_VALUE_DYNAMIC,
+                );
                 self.insert_value_container(key);
             }
         }

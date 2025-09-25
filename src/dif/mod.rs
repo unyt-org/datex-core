@@ -14,7 +14,7 @@ use serde::{Deserialize, Deserializer, Serializer, de};
 use serde_with::serde_derive::Serialize;
 use std::fmt;
 use log::info;
-use crate::values::type_container::TypeContainer;
+use crate::types::type_container::TypeContainer;
 
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

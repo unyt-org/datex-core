@@ -18,13 +18,11 @@ use crate::{
         text::unescape_text,
         utils::whitespace,
     },
-    values::{
-        core_values::{
-            decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
-            endpoint::Endpoint,
-            integer::{integer::Integer, typed_integer::TypedInteger},
-        },
-        reference::ReferenceMutability,
+    r#ref::reference::ReferenceMutability,
+    values::core_values::{
+        decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
+        endpoint::Endpoint,
+        integer::{integer::Integer, typed_integer::TypedInteger},
     },
 };
 

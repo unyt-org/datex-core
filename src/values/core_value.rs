@@ -1,6 +1,7 @@
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::types::type_container::TypeContainer;
 use crate::values::core_values::array::Array;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
@@ -15,7 +16,6 @@ use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
-use crate::values::type_container::TypeContainer;
 use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Not, Sub};
@@ -116,7 +116,7 @@ impl ValueEq for CoreValue {
             (CoreValue::TypedDecimal(a), CoreValue::TypedDecimal(b)) => {
                 a.value_eq(b)
             }
-            _ => self == other
+            _ => self == other,
         }
     }
 }

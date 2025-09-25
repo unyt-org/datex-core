@@ -1,19 +1,19 @@
+use crate::r#ref::reference::Reference;
 use crate::runtime::memory::Memory;
+use crate::types::type_container::TypeContainer;
+use crate::types::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::core_values::r#type::definition::TypeDefinition;
-use crate::values::reference::Reference;
-use crate::values::type_container::TypeContainer;
-use crate::values::type_reference::{NominalTypeDeclaration, TypeReference};
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::once;
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 thread_local! {
@@ -48,13 +48,17 @@ impl Serialize for CoreLibPointerId {
             CoreLibPointerId::Type => serializer.serialize_str("Type"),
             CoreLibPointerId::Null => serializer.serialize_str("null"),
             CoreLibPointerId::Boolean => serializer.serialize_str("boolean"),
-            CoreLibPointerId::Integer(None) => serializer.serialize_str("integer"),
-            CoreLibPointerId::Integer(Some(v)) => {
-                serializer.collect_seq(&[ "integer", v.as_ref() ])
+            CoreLibPointerId::Integer(None) => {
+                serializer.serialize_str("integer")
             }
-            CoreLibPointerId::Decimal(None) => serializer.serialize_str("decimal"),
+            CoreLibPointerId::Integer(Some(v)) => {
+                serializer.collect_seq(&["integer", v.as_ref()])
+            }
+            CoreLibPointerId::Decimal(None) => {
+                serializer.serialize_str("decimal")
+            }
             CoreLibPointerId::Decimal(Some(v)) => {
-                serializer.collect_seq(&[ "decimal", v.as_ref() ])
+                serializer.collect_seq(&["decimal", v.as_ref()])
             }
             CoreLibPointerId::Text => serializer.serialize_str("text"),
             CoreLibPointerId::Endpoint => serializer.serialize_str("endpoint"),
@@ -145,7 +149,6 @@ impl From<CoreLibPointerId> for PointerAddress {
         PointerAddress::Internal(id_bytes)
     }
 }
-
 
 impl TryFrom<&PointerAddress> for CoreLibPointerId {
     type Error = String;
@@ -401,29 +404,34 @@ mod tests {
     fn core_lib_pointer_id_conversion() {
         let core_id = CoreLibPointerId::Core;
         let pointer_address: PointerAddress = core_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
+        let converted_id: CoreLibPointerId =
+            (&pointer_address).try_into().unwrap();
         assert_eq!(core_id, converted_id);
 
         let boolean_id = CoreLibPointerId::Boolean;
         let pointer_address: PointerAddress = boolean_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
+        let converted_id: CoreLibPointerId =
+            (&pointer_address).try_into().unwrap();
         assert_eq!(boolean_id, converted_id);
 
         let integer_id =
             CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32));
         let pointer_address: PointerAddress = integer_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
+        let converted_id: CoreLibPointerId =
+            (&pointer_address).try_into().unwrap();
         assert_eq!(integer_id, converted_id);
 
         let decimal_id =
             CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64));
         let pointer_address: PointerAddress = decimal_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
+        let converted_id: CoreLibPointerId =
+            (&pointer_address).try_into().unwrap();
         assert_eq!(decimal_id, converted_id);
 
         let type_id = CoreLibPointerId::Type;
         let pointer_address: PointerAddress = type_id.clone().into();
-        let converted_id: CoreLibPointerId = (&pointer_address).try_into().unwrap();
+        let converted_id: CoreLibPointerId =
+            (&pointer_address).try_into().unwrap();
         assert_eq!(type_id, converted_id);
     }
 

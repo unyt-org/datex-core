@@ -1,13 +1,13 @@
+use crate::types::type_container::TypeContainer;
 use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::type_container::TypeContainer;
 use std::cell::RefCell;
 
 use super::value::Value;
 use crate::compiler::compile_value;
 use crate::values::serde::deserializer::DatexDeserializer;
 use crate::values::traits::value_eq::ValueEq;
-use datex_core::values::reference::Reference;
+use datex_core::r#ref::reference::Reference;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
@@ -265,12 +265,13 @@ impl From<TypeContainer> for ValueContainer {
                 ValueContainer::Value(Value::from(type_value))
             }
             TypeContainer::TypeReference(type_reference) => {
-                ValueContainer::Reference(Reference::TypeReference(type_reference))
+                ValueContainer::Reference(Reference::TypeReference(
+                    type_reference,
+                ))
             }
         }
     }
 }
-
 
 impl Add<ValueContainer> for ValueContainer {
     type Output = Result<ValueContainer, ValueError>;

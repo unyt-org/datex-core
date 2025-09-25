@@ -4,23 +4,23 @@ pub mod structural_type_definition;
 
 use crate::ast::DatexExpression;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
+use crate::r#ref::reference::ReferenceMutability;
+use crate::types::type_container::TypeContainer;
+use crate::types::type_reference::TypeReference;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::definition::TypeDefinition;
 use crate::values::core_values::r#type::structural_type_definition::StructuralTypeDefinition;
-use crate::values::reference::ReferenceMutability;
 use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::type_container::TypeContainer;
-use crate::values::type_reference::TypeReference;
 use crate::values::value_container::ValueContainer;
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
-use serde::ser::SerializeStruct;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -36,8 +36,17 @@ impl Serialize for Type {
     {
         let mut state = serializer.serialize_struct("Type", 3)?;
         state.serialize_field("type_definition", &self.type_definition)?;
-        state.serialize_field("base_type", &self.base_type.as_ref().map(|b| b.borrow().as_type().clone()))?;
-        state.serialize_field("reference_mutability", &self.reference_mutability)?;
+        state.serialize_field(
+            "base_type",
+            &self
+                .base_type
+                .as_ref()
+                .map(|b| b.borrow().as_type().clone()),
+        )?;
+        state.serialize_field(
+            "reference_mutability",
+            &self.reference_mutability,
+        )?;
         state.end()
     }
 }
@@ -45,7 +54,7 @@ impl Serialize for Type {
 impl<'de> Deserialize<'de> for Type {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>
+        D: serde::Deserializer<'de>,
     {
         #[derive(Deserialize)]
         struct TypeHelper {
@@ -57,11 +66,13 @@ impl<'de> Deserialize<'de> for Type {
         let helper = TypeHelper::deserialize(deserializer)?;
         Ok(Type {
             type_definition: helper.type_definition,
-            base_type: helper.base_type.map(|bt| Rc::new(RefCell::new(TypeReference {
-                type_value: bt,
-                nominal_type_declaration: None,
-                pointer_address: None,
-            }))),
+            base_type: helper.base_type.map(|bt| {
+                Rc::new(RefCell::new(TypeReference {
+                    type_value: bt,
+                    nominal_type_declaration: None,
+                    pointer_address: None,
+                }))
+            }),
             reference_mutability: helper.reference_mutability,
         })
     }
