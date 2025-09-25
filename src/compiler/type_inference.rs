@@ -8,7 +8,7 @@ use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -96,14 +96,33 @@ fn infer_expression_type(
             hoisted: _,
         } => {
             // WIP
-            let type_def =
-                resolve_type_expression_type(value, metadata.clone())?;
             let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
-            metadata
-                .borrow_mut()
-                .variable_metadata_mut(type_id)
-                .expect("TypeDeclaration should have variable metadata")
-                .var_type = Some(type_def.clone());
+
+            let reference = Rc::new(RefCell::new(TypeReference::anonymous(
+                Type::UNIT,
+                None,
+            )));
+            let type_def = TypeContainer::TypeReference(reference.clone());
+            {
+                metadata
+                    .borrow_mut()
+                    .variable_metadata_mut(type_id)
+                    .expect("TypeDeclaration should have variable metadata")
+                    .var_type = Some(type_def.clone());
+            }
+
+            let inferred_type_def =
+                resolve_type_expression_type(value, metadata.clone())?;
+
+            match inferred_type_def {
+                TypeContainer::Type(t) => {
+                    reference.borrow_mut().type_value = t;
+                }
+                TypeContainer::TypeReference(r) => {
+                    reference.swap(&r);
+                }
+            }
+
             type_def
         }
         DatexExpression::Variable(id, _) => {
@@ -261,24 +280,7 @@ fn resolve_type_expression_type(
     Ok(match ast {
         TypeExpression::Variable(id, _) => {
             let var_id = *id;
-            let mut metadata = metadata.borrow_mut();
-
-            // If var_type is already set, use it
-            if let Some(var_type) = &metadata
-                .variable_metadata(var_id)
-                .expect("Type variable should have variable metadata")
-                .var_type
-            {
-                var_type.clone()
-            } else {
-                let placeholder = TypeContainer::TypeReference(Rc::new(
-                    RefCell::new(TypeReference::anonymous(Type::UNIT, None)),
-                ));
-                metadata.variable_metadata_mut(var_id).unwrap().var_type =
-                    Some(placeholder.clone());
-                placeholder
-            }
-
+            let metadata = metadata.borrow();
             metadata
                 .variable_metadata(var_id)
                 .expect("Type variable should have variable metadata")
@@ -365,6 +367,7 @@ mod tests {
         AstWithMetadata, PrecompilerScopeStack, precompile_ast,
     };
     use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+    use crate::types::definition::TypeDefinition;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::integer::Integer;
@@ -452,7 +455,35 @@ mod tests {
         "#;
         let metadata = parse_and_precompile_metadata(src);
         let var = metadata.variable_metadata(0).unwrap();
-        println!("Var metadata: {:?}", var);
+        let var_type = var.var_type.as_ref().unwrap();
+        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+
+        // get next field, as wrapped in union
+        let next = {
+            let var_type_ref = match var_type {
+                TypeContainer::TypeReference(r) => r,
+                _ => unreachable!(),
+            };
+            let bor = var_type_ref.borrow();
+            let r#struct = bor.as_type().structural_type().unwrap();
+            let fields = match r#struct {
+                StructuralTypeDefinition::Struct(fields) => fields,
+                _ => unreachable!(),
+            };
+            let inner_union = match &fields[1].1 {
+                TypeContainer::Type(r) => r.clone(),
+                _ => unreachable!(),
+            }
+            .type_definition;
+            match inner_union {
+                TypeDefinition::Union(members) => {
+                    assert_eq!(members.len(), 2);
+                    members[0].clone()
+                }
+                _ => unreachable!(),
+            }
+        };
+        assert_eq!(next, var_type.clone());
     }
 
     #[test]
