@@ -3,6 +3,7 @@ use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::r#ref::type_reference::TypeReference;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
@@ -94,6 +95,7 @@ fn infer_expression_type(
             value,
             hoisted: _,
         } => {
+            // WIP
             let type_def =
                 resolve_type_expression_type(value, metadata.clone())?;
             let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
@@ -259,7 +261,24 @@ fn resolve_type_expression_type(
     Ok(match ast {
         TypeExpression::Variable(id, _) => {
             let var_id = *id;
-            let metadata = metadata.borrow();
+            let mut metadata = metadata.borrow_mut();
+
+            // If var_type is already set, use it
+            if let Some(var_type) = &metadata
+                .variable_metadata(var_id)
+                .expect("Type variable should have variable metadata")
+                .var_type
+            {
+                var_type.clone()
+            } else {
+                let placeholder = TypeContainer::TypeReference(Rc::new(
+                    RefCell::new(TypeReference::anonymous(Type::UNIT, None)),
+                ));
+                metadata.variable_metadata_mut(var_id).unwrap().var_type =
+                    Some(placeholder.clone());
+                placeholder
+            }
+
             metadata
                 .variable_metadata(var_id)
                 .expect("Type variable should have variable metadata")
@@ -423,6 +442,20 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "WIP"]
+    fn recursive_type() {
+        let src = r#"
+        type LinkedList = {
+            value: text,
+            next: LinkedList | null
+        };
+        "#;
+        let metadata = parse_and_precompile_metadata(src);
+        let var = metadata.variable_metadata(0).unwrap();
+        println!("Var metadata: {:?}", var);
+    }
+
+    #[test]
     fn assignment() {
         let src = r#"
         var a: integer = 42;
@@ -436,7 +469,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn reassignment() {
         let src = r#"
         var a: text | integer = 42;
