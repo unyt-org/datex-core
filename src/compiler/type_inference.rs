@@ -3,7 +3,7 @@ use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{
-    CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
+    CoreLibPointerId, get_core_lib_type,
 };
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;

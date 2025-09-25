@@ -19,7 +19,6 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
-use crate::values::core_values::r#type::Type;
 
 /// The integer type variants to be used as a inline
 /// definition in DATEX (such as 42u32 or -42i64).
