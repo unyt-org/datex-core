@@ -133,7 +133,15 @@ impl CryptoTrait for CryptoNative {
             Ok(out)
         })
     }
-    
+
+    fn aes_ctr_decrypt<'a>(
+        &'a self,
+        key: &'a [u8; 32],
+        iv: &'a [u8; 16],
+        ciphertext: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+        self.aes_ctr_encrypt(key, iv, ciphertext)
+    }
     
     // AES KW
     fn key_upwrap<'a>(
@@ -244,7 +252,7 @@ mod tests {
         let data = b"Some message to encrypt".to_vec();
 
         let ciphered = CRYPTO.aes_ctr_encrypt(&key, &iv, &data).await.unwrap();
-        let deciphered = CRYPTO.aes_ctr_encrypt(&key, &iv, &ciphered).await.unwrap();
+        let deciphered = CRYPTO.aes_ctr_decrypt(&key, &iv, &ciphered).await.unwrap();
 
         assert_ne!(ciphered, data);
         assert_eq!(data, deciphered.to_vec());
@@ -350,7 +358,7 @@ mod tests {
             let unwrapped = CRYPTO.key_unwrap(&cli_kek_bytes, &payloads[i].1)
                 .await
                 .unwrap();
-            let plain = CRYPTO.aes_ctr_encrypt(&unwrapped, &iv, &cipher).await.unwrap();
+            let plain = CRYPTO.aes_ctr_decrypt(&unwrapped, &iv, &cipher).await.unwrap();
 
             // Check key wraps
             assert_ne!(payloads[i].1.to_vec(), unwrapped.to_vec());

@@ -28,6 +28,13 @@ pub trait CryptoTrait: Send + Sync {
         plaintext: &'a [u8],
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 
+    fn aes_ctr_decrypt<'a>(
+        &'a self,
+        key: &'a [u8; 32],
+        iv: &'a [u8; 16],
+        cipher: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
+
     fn key_upwrap<'a>(
         &'a self,
         kek_bytes: &'a [u8; 32],
