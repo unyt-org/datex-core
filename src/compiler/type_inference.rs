@@ -116,13 +116,17 @@ fn infer_expression_type(
             let inferred_type_def =
                 resolve_type_expression_type(value, metadata.clone())?;
 
+            println!("Inferring type declaration id {:#?}", reference);
+            // let inner_ref = reference.borrow();
             // WIP
             match inferred_type_def {
                 TypeContainer::Type(t) => {
                     reference.borrow_mut().type_value = t;
                 }
                 TypeContainer::TypeReference(r) => {
-                    reference.swap(&r);
+                    reference.borrow_mut().type_value =
+                        Type::reference(r, None);
+                    // reference.swap(&r);
                 }
             }
 
@@ -458,7 +462,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn nominal() {
         let src = r#"
         type A = integer;
@@ -466,7 +469,7 @@ mod tests {
         let metadata = parse_and_precompile_metadata(src);
         let var_a = metadata.variable_metadata(0).unwrap();
 
-        let nom = TypeReference::nominal(
+        let nominal_ref = TypeReference::nominal(
             Type::reference(
                 get_core_lib_type_reference(CoreLibPointerId::Integer(None)),
                 None,
@@ -474,8 +477,19 @@ mod tests {
             NominalTypeDeclaration::from("A"),
             None,
         );
-        println!("Var A type: {:?}", nom);
-        assert_eq!(var_a.var_type, Some(nom.as_type_container()));
+        assert_eq!(var_a.var_type, Some(nominal_ref.as_type_container()));
+    }
+
+    #[test]
+    #[ignore = "WIP"]
+    fn structural() {
+        let src = r#"
+        typedef A = integer;
+        "#;
+        let metadata = parse_and_precompile_metadata(src);
+        let var_a = metadata.variable_metadata(0).unwrap();
+        let var_type = var_a.var_type.as_ref().unwrap();
+        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
     }
 
     #[test]
