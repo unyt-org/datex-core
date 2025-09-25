@@ -7,12 +7,15 @@ use crate::{
 };
 use datex_core::r#ref::type_reference::TypeReference;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
+use serde_with::serde_as;
+use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)] // FIXME serde
 pub enum TypeDefinition {
     // {x: integer, y: text}
     Structural(StructuralTypeDefinition),
-    Reference(Box<TypeReference>),
+
+    #[serde(with = "rc_refcell_typeref")]
+    Reference(Rc<RefCell<TypeReference>>),
 
     // e.g. A & B & C
     Intersection(Vec<TypeContainer>),
@@ -27,12 +30,70 @@ pub enum TypeDefinition {
         return_type: Box<TypeContainer>,
     },
 }
+mod rc_refcell_typeref {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        value: &Rc<RefCell<TypeReference>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.borrow().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Rc<RefCell<TypeReference>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = TypeReference::deserialize(deserializer)?;
+        Ok(Rc::new(RefCell::new(inner)))
+    }
+}
+impl Hash for TypeDefinition {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            TypeDefinition::Structural(value) => {
+                value.hash(state);
+            }
+            TypeDefinition::Reference(reference) => {
+                reference.borrow().hash(state);
+            }
+            TypeDefinition::Unit => 0_u8.hash(state),
+            TypeDefinition::Union(types) => {
+                for ty in types {
+                    ty.hash(state);
+                }
+            }
+            TypeDefinition::Intersection(types) => {
+                for ty in types {
+                    ty.hash(state);
+                }
+            }
+            TypeDefinition::Function {
+                parameters,
+                return_type,
+            } => {
+                for (name, ty) in parameters {
+                    name.hash(state);
+                    ty.hash(state);
+                }
+                return_type.hash(state);
+            }
+        }
+    }
+}
+
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeDefinition::Structural(value) => write!(f, "{}", value),
             TypeDefinition::Reference(reference) => {
-                write!(f, "{}", reference)
+                write!(f, "{}", reference.borrow())
             }
             TypeDefinition::Unit => write!(f, "()"),
             TypeDefinition::Union(types) => {

@@ -191,13 +191,11 @@ impl Type {
 
     /// Creates a new reference type.
     pub fn reference(
-        reference: impl Into<TypeReference>,
+        reference: impl Into<Rc<RefCell<TypeReference>>>,
         mutability: Option<ReferenceMutability>,
     ) -> Self {
         Type {
-            type_definition: TypeDefinition::Reference(Box::new(
-                reference.into(),
-            )),
+            type_definition: TypeDefinition::Reference(reference.into()),
             base_type: None,
             reference_mutability: mutability,
         }

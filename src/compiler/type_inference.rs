@@ -116,6 +116,7 @@ fn infer_expression_type(
             let inferred_type_def =
                 resolve_type_expression_type(value, metadata.clone())?;
 
+            // WIP
             match inferred_type_def {
                 TypeContainer::Type(t) => {
                     reference.borrow_mut().type_value = t;
@@ -369,7 +370,10 @@ mod tests {
     use crate::compiler::precompiler::{
         AstWithMetadata, PrecompilerScopeStack, precompile_ast,
     };
-    use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+    use crate::libs::core::{
+        CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
+    };
+    use crate::r#ref::type_reference::NominalTypeDeclaration;
     use crate::types::definition::TypeDefinition;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -438,7 +442,7 @@ mod tests {
     /// The source code should be a type expression, e.g. "integer/u8".
     /// The function asserts that the expression is indeed a type declaration.
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
-        let ast_with_metadata = parse_and_precompile_unwrap(&src);
+        let ast_with_metadata = parse_and_precompile_unwrap(src);
         let mut expr = ast_with_metadata.ast;
         resolve_type_expression_type(
             match &mut expr {
@@ -451,6 +455,27 @@ mod tests {
     }
     fn infer_type_from_str(src: &str) -> Type {
         infer_type_container_from_str(src).as_type()
+    }
+
+    #[test]
+    #[ignore = "WIP"]
+    fn nominal() {
+        let src = r#"
+        type A = integer;
+        "#;
+        let metadata = parse_and_precompile_metadata(src);
+        let var_a = metadata.variable_metadata(0).unwrap();
+
+        let nom = TypeReference::nominal(
+            Type::reference(
+                get_core_lib_type_reference(CoreLibPointerId::Integer(None)),
+                None,
+            ),
+            NominalTypeDeclaration::from("A"),
+            None,
+        );
+        println!("Var A type: {:?}", nom);
+        assert_eq!(var_a.var_type, Some(nom.as_type_container()));
     }
 
     #[test]

@@ -87,7 +87,7 @@ impl TypeReference {
         match &self.type_value.type_definition {
             TypeDefinition::Reference(reference) => {
                 // If this is a reference type, resolve it to its current reference
-                reference.collapse_reference_chain()
+                reference.borrow().collapse_reference_chain()
             }
             _ => {
                 // If this is not a reference type, return it directly

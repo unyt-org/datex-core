@@ -3,7 +3,7 @@ use crate::ast::chain::ApplyOperation;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
-use crate::r#ref::type_reference::TypeReference;
+use crate::r#ref::type_reference::{NominalTypeDeclaration, TypeReference};
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
@@ -652,9 +652,12 @@ fn visit_expression(
                     );
 
                     // register placeholder ref in metadata
-                    let reference = Rc::new(RefCell::new(
-                        TypeReference::anonymous(Type::UNIT, None),
-                    ));
+                    let reference =
+                        Rc::new(RefCell::new(TypeReference::nominal(
+                            Type::UNIT,
+                            NominalTypeDeclaration::from(name.to_string()),
+                            None,
+                        )));
                     let type_def =
                         TypeContainer::TypeReference(reference.clone());
                     {
