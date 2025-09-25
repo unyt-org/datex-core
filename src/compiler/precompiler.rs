@@ -3,8 +3,10 @@ use crate::ast::chain::ApplyOperation;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
+use crate::r#ref::type_reference::TypeReference;
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
+use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use log::info;
@@ -635,12 +637,28 @@ fn visit_expression(
                     // set hoisted to true
                     *hoisted = true;
                     // register variable
-                    add_new_variable(
+                    let type_id = add_new_variable(
                         name.clone(),
                         VariableKind::Type,
                         metadata,
                         scope_stack,
                     );
+
+                    // register placeholder in metadata
+
+                    let reference = Rc::new(RefCell::new(
+                        TypeReference::anonymous(Type::UNIT, None),
+                    ));
+                    let type_def =
+                        TypeContainer::TypeReference(reference.clone());
+                    {
+                        metadata
+                            .variable_metadata_mut(type_id)
+                            .expect(
+                                "TypeDeclaration should have variable metadata",
+                            )
+                            .var_type = Some(type_def.clone());
+                    }
                 }
             }
             for stmt in stmts {

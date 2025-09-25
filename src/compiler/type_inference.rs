@@ -97,19 +97,21 @@ fn infer_expression_type(
         } => {
             // WIP
             let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
-
-            let reference = Rc::new(RefCell::new(TypeReference::anonymous(
-                Type::UNIT,
-                None,
-            )));
-            let type_def = TypeContainer::TypeReference(reference.clone());
-            {
-                metadata
-                    .borrow_mut()
-                    .variable_metadata_mut(type_id)
-                    .expect("TypeDeclaration should have variable metadata")
-                    .var_type = Some(type_def.clone());
-            }
+            let type_def = {
+                let metadata = metadata.borrow();
+                let metadata = metadata
+                    .variable_metadata(type_id)
+                    .expect("TypeDeclaration should have variable metadata");
+                metadata.var_type.as_ref().expect(
+                    "TypeDeclaration type should have been inferred already",
+                ).clone()
+            };
+            let reference = match &type_def {
+                TypeContainer::TypeReference(r) => r.clone(),
+                _ => {
+                    panic!("TypeDeclaration var_type should be a TypeReference")
+                }
+            };
 
             let inferred_type_def =
                 resolve_type_expression_type(value, metadata.clone())?;
@@ -445,7 +447,18 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
+    fn recursive_types() {
+        let src = r#"
+        type A = { b: B };
+        type B = { a: A };
+        "#;
+        let metadata = parse_and_precompile_metadata(src);
+        let var = metadata.variable_metadata(0).unwrap();
+        let var_type = var.var_type.as_ref().unwrap();
+        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+    }
+
+    #[test]
     fn recursive_type() {
         let src = r#"
         type LinkedList = {
