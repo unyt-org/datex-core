@@ -2,9 +2,14 @@ use crate::dif::r#type::DIFType;
 use crate::dif::{
     core_value::DIFRepresentationValue, r#type::DIFTypeContainer,
 };
-use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
+use crate::types::type_container::TypeContainer;
+use crate::values::core_values::decimal::typed_decimal::{
+    DecimalTypeVariant, TypedDecimal,
+};
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
+use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
@@ -15,6 +20,10 @@ pub struct DIFValue {
     pub value: DIFRepresentationValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<DIFTypeContainer>,
+
+    // used for references
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_type: Option<DIFTypeContainer>,
 }
 
 impl DIFValue {
@@ -24,6 +33,7 @@ impl DIFValue {
     ) -> Self {
         DIFValue {
             value,
+            allowed_type: None,
             r#type: r#type.map(Into::into),
         }
     }
@@ -36,6 +46,7 @@ impl From<DIFRepresentationValue> for DIFValue {
     fn from(value: DIFRepresentationValue) -> Self {
         DIFValue {
             value,
+            allowed_type: None,
             r#type: None,
         }
     }
@@ -66,8 +77,8 @@ impl From<PointerAddress> for DIFValueContainer {
 }
 
 impl From<&ValueContainer> for DIFValue {
-    fn from(value: &ValueContainer) -> Self {
-        let val_rc = value.to_value();
+    fn from(value_container: &ValueContainer) -> Self {
+        let val_rc = value_container.to_value();
         let val = val_rc.borrow();
         let core_value = &val.inner;
 
@@ -148,24 +159,121 @@ impl From<&ValueContainer> for DIFValue {
                     })
                     .collect(),
             ),
-            _ => unimplemented!(
-                "Conversion for core value {:?} not implemented yet",
-                core_value
+            CoreValue::List(list) => DIFRepresentationValue::Array(
+                list.iter()
+                    .map(|v| DIFValueContainer::from(DIFValue::from(v)))
+                    .collect(),
             ),
-            // CoreValue::List(list) => Some(DIFCoreValue::Array(
-            //     list.into_iter().map(|v| v.into()).collect(),
-            // )),
-            // CoreValue::Array(arr) => Some(DIFCoreValue::Array(
-            //     arr.into_iter().map(|v| v.into()).collect(),
-            // )),
-            // CoreValue::Map(map) => Some(DIFCoreValue::Map(
-            //     map.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
-            // )),
+            CoreValue::Array(arr) => DIFRepresentationValue::Array(
+                arr.iter()
+                    .map(|v| DIFValueContainer::from(DIFValue::from(v)))
+                    .collect(),
+            ),
+            CoreValue::Map(map) => DIFRepresentationValue::Map(
+                map.iter()
+                    .map(|(k, v)| {
+                        (
+                            DIFValueContainer::from(DIFValue::from(k)),
+                            DIFValueContainer::from(DIFValue::from(v)),
+                        )
+                    })
+                    .collect(),
+            ),
         };
 
         DIFValue {
             value: dif_core_value,
-            r#type: Some(value.actual_type().into()),
+            allowed_type: get_allowed_type(value_container),
+            r#type: get_type_if_non_default(value_container.actual_type()),
+        }
+    }
+}
+
+impl From<ValueContainer> for DIFValue {
+    fn from(value: ValueContainer) -> Self {
+        DIFValue::from(&value)
+    }
+}
+
+/// Returns the allowed type for references, None for other value containers
+fn get_allowed_type(
+    value_container: &ValueContainer,
+) -> Option<DIFTypeContainer> {
+    match &value_container {
+        ValueContainer::Reference(reference) => {
+            let allowed_type = reference.allowed_type();
+            Some(allowed_type.into())
+        }
+        _ => None,
+    }
+}
+
+/// Returns the type if it is not the default type for the value, None otherwise
+/// We treet the following types as default:
+/// - Boolean
+/// - Text
+/// - Null
+/// - Decimal (f64)
+/// - List
+/// - Map
+fn get_type_if_non_default(r#type: TypeContainer) -> Option<DIFTypeContainer> {
+    match &r#type {
+        TypeContainer::TypeReference(inner) => {
+            if let Some(Ok(address)) = inner
+                .borrow()
+                .pointer_address
+                .as_ref()
+                .map(CoreLibPointerId::try_from)
+                && matches!(
+                    address,
+                    CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64))
+                        | CoreLibPointerId::Boolean
+                        | CoreLibPointerId::Text
+                        | CoreLibPointerId::List
+                        | CoreLibPointerId::Map
+                        | CoreLibPointerId::Null // | CoreLibPointerId::Struct
+                )
+            {
+                None
+            } else {
+                Some(DIFTypeContainer::from(r#type))
+            }
+        }
+        _ => Some(DIFTypeContainer::from(r#type)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        dif::{r#type::DIFTypeContainer, value::DIFValue},
+        libs::core::CoreLibPointerId,
+        values::{
+            core_values::integer::typed_integer::IntegerTypeVariant,
+            value_container::ValueContainer,
+        },
+    };
+
+    #[test]
+    fn default_type() {
+        let dif = DIFValue::from(ValueContainer::from(true));
+        assert!(dif.r#type.is_none());
+
+        let dif = DIFValue::from(ValueContainer::from("hello"));
+        assert!(dif.r#type.is_none());
+    }
+
+    #[test]
+    fn non_default_type() {
+        let dif = DIFValue::from(ValueContainer::from(123u16));
+        assert!(dif.r#type.is_some());
+        if let DIFTypeContainer::Reference(reference) = dif.r#type.unwrap() {
+            assert_eq!(
+                reference,
+                CoreLibPointerId::Integer(Some(IntegerTypeVariant::U16)).into()
+            );
+        } else {
+            panic!("Expected reference type");
         }
     }
 }

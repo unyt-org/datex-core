@@ -68,6 +68,7 @@ mod tests {
                 }
                 .as_container(),
             ),
+            allowed_type: None,
         };
         let serialized = serde_json::to_string(&value).unwrap();
         println!("Serialized DIFValue: {}", serialized);

@@ -40,6 +40,7 @@ impl From<TypeDefinition> for DIFTypeDefinition {
                 DIFTypeDefinition::Structural(Box::new(DIFValue {
                     value: struct_def.into(),
                     r#type: None,
+                    allowed_type: None,
                 }))
             }
             TypeDefinition::Reference(type_ref) => {
@@ -227,6 +228,7 @@ mod tests {
                             .as_container(),
                         ),
                     ]),
+                    allowed_type: None,
                     r#type: None,
                 },
             )),
@@ -263,6 +265,7 @@ mod tests {
                         ),
                     ]),
                     r#type: None,
+                    allowed_type: None,
                 },
             )),
         };
@@ -289,6 +292,7 @@ mod tests {
                             .as_container(),
                     ]),
                     r#type: None,
+                    allowed_type: None,
                 },
             )),
         };
