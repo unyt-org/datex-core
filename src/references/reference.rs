@@ -16,6 +16,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -24,6 +25,7 @@ use std::rc::Rc;
 pub enum ObserveError {
     ImmutableReference,
 }
+pub type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -225,8 +227,9 @@ impl Reference {
                         value_container,
                         pointer_address: maybe_pointer_id,
                         allowed_type,
-                        observers: Vec::new(),
+                        observers: HashMap::new(),
                         mutability,
+                        next_observer_id: 0,
                     },
                 )))
             }
@@ -259,8 +262,9 @@ impl Reference {
                                 value_container: ValueContainer::Value(value),
                                 pointer_address: maybe_pointer_id,
                                 allowed_type,
-                                observers: Vec::new(),
+                                observers: HashMap::new(),
                                 mutability,
+                                next_observer_id: 0,
                             },
                         )))
                     }
@@ -358,53 +362,6 @@ impl Reference {
         }
     }
 
-    /// Runs a closure with the current value of this reference.
-    pub fn with_value<R, F: FnOnce(&mut Value) -> R>(&self, f: F) -> Option<R> {
-        let reference = self.collapse_reference_chain();
-
-        match reference {
-            Reference::ValueReference(vr) => {
-                match &mut vr.borrow_mut().value_container {
-                    ValueContainer::Value(value) => Some(f(value)),
-                    ValueContainer::Reference(_) => {
-                        unreachable!(
-                            "Expected a ValueContainer::Value, but found a Reference"
-                        )
-                    }
-                }
-            }
-            Reference::TypeReference(_) => None,
-        }
-    }
-
-    /// Sets a text property on the value if applicable (e.g. for objects)
-    pub fn try_set_text_property(
-        &self,
-        key: &str,
-        mut val: ValueContainer,
-    ) -> Result<(), AccessError> {
-        // Ensure the value is a reference if it is a combined value (e.g. an object)
-        val = val.upgrade_combined_value_to_reference();
-
-        self.with_value(|value| {
-            match value.inner {
-                CoreValue::Map(ref mut obj) => {
-                    // If the value is an object, set the property
-                    obj.set(key, self.bind_child(val));
-                }
-                _ => {
-                    // If the value is not an object, we cannot set a property
-                    return Err(AccessError::InvalidOperation(format!(
-                        "Cannot set property '{}' on non-object value: {:?}",
-                        key, value
-                    )));
-                }
-            }
-            Ok(())
-        })
-        .unwrap_or(Err(AccessError::ImmutableReference))
-    }
-
     pub fn try_get_value_for_key<T: Into<ValueContainer>>(
         &self,
         key: T,
@@ -424,27 +381,6 @@ impl Reference {
             }
         })
         .expect("todo: implement property access for types")
-    }
-
-    pub fn try_set_value<T: Into<ValueContainer>>(
-        &self,
-        value: T,
-    ) -> Result<(), String> {
-        // TODO: ensure type compatibility with allowed_type
-        let value_container = &value.into();
-        self.with_value(|core_value| {
-            // Set the value directly, ensuring it is a ValueContainer
-            core_value.inner =
-                value_container.to_value().borrow().inner.clone();
-        });
-
-        // Notify observers of the update
-        if self.has_observers() {
-            let dif = DIFUpdate::Replace(DIFValue::from(value_container));
-            self.notify_observers(&dif);
-        }
-
-        Ok(())
     }
 
     /// upgrades all inner combined values (e.g. object properties) to references
@@ -467,52 +403,10 @@ impl Reference {
     }
 
     /// Binds a child value to this reference, ensuring the child is a reference if it is a combined value
-    fn bind_child(&self, child: ValueContainer) -> ValueContainer {
+    pub fn bind_child(&self, child: ValueContainer) -> ValueContainer {
         // Ensure the child is a reference if it is a combined value
 
         child.upgrade_combined_value_to_reference()
-    }
-
-    /// Adds an observer to this reference that will be notified on value changes.
-    /// Returns an error if the reference is immutable
-    pub fn observe<F: Fn(&DIFUpdate) + 'static>(
-        &self,
-        observer: F,
-    ) -> Result<(), ObserveError> {
-        // Add the observer to the list of observers
-        match self {
-            Reference::TypeReference(_) => {
-                // Type references do not have observers
-                Err(ObserveError::ImmutableReference)
-            }
-            Reference::ValueReference(vr) => {
-                vr.borrow_mut().observers.push(Box::new(observer));
-                Ok(())
-            }
-        }
-        // TODO: also set observers on child references if not yet active, keep track of active observers
-    }
-
-    fn notify_observers(&self, dif: &DIFUpdate) {
-        match self {
-            Reference::TypeReference(_) => {
-                // Type references do not have observers
-            }
-            Reference::ValueReference(vr) => {
-                /// Notify all observers of the update
-                for observer in &vr.borrow().observers {
-                    observer(dif);
-                }
-            }
-        }
-    }
-
-    fn has_observers(&self) -> bool {
-        // Check if there are any observers registered
-        match self {
-            Reference::TypeReference(_) => false,
-            Reference::ValueReference(vr) => !vr.borrow().observers.is_empty(),
-        }
     }
 
     pub fn allowed_type(&self) -> TypeContainer {
@@ -548,7 +442,6 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::DatexExpression::Ref;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
@@ -638,29 +531,5 @@ mod tests {
                 });
             })
             .expect("object_b_ref should be a reference");
-    }
-
-    #[test]
-    fn value_change_observe() {
-        let int_ref = Reference::from(42);
-
-        let observed_update: Rc<RefCell<Option<DIFUpdate>>> =
-            Rc::new(RefCell::new(None));
-        let observed_update_clone = Rc::clone(&observed_update);
-
-        // Attach an observer to the reference
-        int_ref
-            .observe(move |update| {
-                *observed_update_clone.borrow_mut() = Some(update.clone());
-            })
-            .expect("Failed to attach observer");
-
-        // Update the value of the reference
-        int_ref.try_set_value(43).expect("Failed to set value");
-
-        // Verify the observed update matches the expected change
-        let expected_update =
-            DIFUpdate::Replace(DIFValue::from(&ValueContainer::from(43)));
-        assert_eq!(*observed_update.borrow(), Some(expected_update));
     }
 }

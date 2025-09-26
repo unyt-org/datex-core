@@ -28,6 +28,7 @@ use std::fmt::Debug;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
+pub mod dif_interface;
 pub mod execution;
 pub mod execution_context;
 pub mod global_context;

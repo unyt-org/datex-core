@@ -1,17 +1,16 @@
 use crate::dif::DIFUpdate;
-use crate::references::reference::ReferenceMutability;
+use crate::references::reference::{ReferenceMutability, ReferenceObserver};
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 
 impl ValueReference {}
-
-type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 
 pub struct ValueReference {
     /// the value that this reference points to
@@ -21,8 +20,9 @@ pub struct ValueReference {
     /// custom type for the pointer that the Datex value is allowed to reference
     pub allowed_type: TypeContainer,
     /// list of observer callbacks
-    pub observers: Vec<ReferenceObserver>,
+    pub observers: HashMap<u32, ReferenceObserver>,
     pub mutability: ReferenceMutability,
+    pub next_observer_id: u32,
 }
 
 impl Debug for ValueReference {
@@ -54,5 +54,9 @@ impl ValueReference {
 
     pub fn resolve_current_value(&self) -> Rc<RefCell<Value>> {
         self.value_container.to_value()
+    }
+
+    pub fn is_mutable(&self) -> bool {
+        matches!(self.mutability, ReferenceMutability::Mutable)
     }
 }

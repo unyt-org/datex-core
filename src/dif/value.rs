@@ -1,6 +1,6 @@
 use crate::dif::r#type::DIFType;
 use crate::dif::{
-    core_value::DIFRepresentationValue, r#type::DIFTypeContainer,
+    dif_representation::DIFRepresentationValue, r#type::DIFTypeContainer,
 };
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::types::type_container::TypeContainer;
@@ -9,6 +9,7 @@ use crate::values::core_values::decimal::typed_decimal::{
 };
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
+use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,49 @@ pub struct DIFValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_type: Option<DIFTypeContainer>,
 }
+
+impl From<DIFValue> for Value {
+    fn from(dif_value: DIFValue) -> Self {}
+}
+
+// impl From<DIFValue> for CoreValue {
+//     fn from(dif_value: DIFValue) -> Self {
+//         match &dif_value.value {
+//             DIFRepresentationValue::Null => CoreValue::Null,
+//             DIFRepresentationValue::Boolean(b) => CoreValue::Boolean(b.into()),
+//             DIFRepresentationValue::Number(n) => match dif_value.r#type {
+
+//             },
+//             DIFRepresentationValue::String(s) => {
+//                 // Try to parse as integer or decimal, otherwise treat as text
+//                 if let Ok(i) = s.parse::<i64>() {
+//                     CoreValue::TypedInteger(TypedInteger::I64(i))
+//                 } else if let Ok(f) = s.parse::<f64>() {
+//                     CoreValue::TypedDecimal(TypedDecimal::F64(f))
+//                 } else {
+//                     CoreValue::Text(s.into())
+//                 }
+//             }
+//             DIFRepresentationValue::Array(arr) => CoreValue::List(
+//                 arr.iter().map(|v| Value::from(v.clone())).collect(),
+//             ),
+//             DIFRepresentationValue::Object(obj) => {
+//                 let mut map = std::collections::HashMap::new();
+//                 for (k, v) in obj {
+//                     map.insert(k, Value::from(v));
+//                 }
+//                 CoreValue::Struct(map)
+//             }
+//             DIFRepresentationValue::Map(map) => {
+//                 let mut core_map = std::collections::HashMap::new();
+//                 for (k, v) in map {
+//                     core_map.insert(Value::from(k), Value::from(v));
+//                 }
+//                 CoreValue::Map(core_map)
+//             }
+//         }
+//     }
+// }
 
 impl DIFValue {
     pub fn new(
@@ -75,7 +119,7 @@ impl From<PointerAddress> for DIFValueContainer {
     }
 }
 
-impl From<&ValueContainer> for DIFValue {
+impl From<&ValueContainer> for DIFValueContainer {
     fn from(value_container: &ValueContainer) -> Self {
         let val_rc = value_container.to_value();
         let val = val_rc.borrow();
@@ -151,30 +195,20 @@ impl From<&ValueContainer> for DIFValue {
                 structure
                     .iter()
                     .map(|(key, value)| {
-                        (
-                            key.clone(),
-                            DIFValueContainer::from(DIFValue::from(value)),
-                        )
+                        (key.clone(), DIFValueContainer::from(value))
                     })
                     .collect(),
             ),
             CoreValue::List(list) => DIFRepresentationValue::Array(
-                list.iter()
-                    .map(|v| DIFValueContainer::from(DIFValue::from(v)))
-                    .collect(),
+                list.iter().map(|v| DIFValueContainer::from(v)).collect(),
             ),
             CoreValue::Array(arr) => DIFRepresentationValue::Array(
-                arr.iter()
-                    .map(|v| DIFValueContainer::from(DIFValue::from(v)))
-                    .collect(),
+                arr.iter().map(|v| DIFValueContainer::from(v)).collect(),
             ),
             CoreValue::Map(map) => DIFRepresentationValue::Map(
                 map.iter()
                     .map(|(k, v)| {
-                        (
-                            DIFValueContainer::from(DIFValue::from(k)),
-                            DIFValueContainer::from(DIFValue::from(v)),
-                        )
+                        (DIFValueContainer::from(k), DIFValueContainer::from(v))
                     })
                     .collect(),
             ),

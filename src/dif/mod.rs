@@ -2,10 +2,10 @@ use crate::{
     dif::value::{DIFValue, DIFValueContainer},
     values::{pointer::PointerAddress, value_container::ValueContainer},
 };
-pub mod core_value;
+pub mod dif_representation;
+pub mod interface;
 pub mod r#type;
 pub mod value;
-mod interface;
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq)]
@@ -29,12 +29,11 @@ pub enum DIFUpdate {
     Push(DIFValue),
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::{
         dif::{
-            core_value::DIFRepresentationValue,
+            dif_representation::DIFRepresentationValue,
             r#type::{DIFType, DIFTypeContainer},
         },
         libs::core::CoreLibPointerId,
@@ -100,10 +99,7 @@ mod tests {
             dif_value.value,
             DIFRepresentationValue::String("Hello, World!".to_string())
         );
-        assert_eq!(
-            dif_value.r#type,
-            None
-        );
+        assert_eq!(dif_value.r#type, None);
     }
 
     //     #[test]

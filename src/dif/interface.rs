@@ -1,42 +1,71 @@
+use crate::compiler::error::CompilerError;
 use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValueContainer;
-use crate::runtime::Runtime;
+use crate::references::reference::{
+    ObserveError, Reference, ReferenceObserver,
+};
+use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
 
+#[derive(Debug)]
+pub enum DIFObserveError {
+    ReferenceNotFound,
+    ObserveError(ObserveError),
+}
+impl From<ObserveError> for DIFObserveError {
+    fn from(err: ObserveError) -> Self {
+        DIFObserveError::ObserveError(err)
+    }
+}
+
+#[derive(Debug)]
+pub enum DIFUpdateError {
+    ReferenceNotFound,
+    InvalidUpdate,
+}
+
+#[derive(Debug)]
+pub enum DIFApplyError {
+    ExecutionError(ExecutionError),
+    ReferenceNotFound,
+}
+
+#[derive(Debug)]
+pub enum DIFCreatePointerError {
+    ReferenceNotFound,
+}
 
 pub trait DIFInterface {
     /// Applies a DIF update to the value at the given pointer address.
-    fn update(&mut self, address: PointerAddress, update: DIFUpdate);
+    fn update(
+        &mut self,
+        address: PointerAddress,
+        update: DIFUpdate,
+    ) -> Result<(), DIFUpdateError>;
+
     /// Executes an apply operation, applying the `value` to the `callee`.
-    fn apply(&mut self, callee: DIFValueContainer, value: DIFValueContainer);
+    fn apply(
+        &mut self,
+        callee: DIFValueContainer,
+        value: DIFValueContainer,
+    ) -> Result<DIFApplyError, ExecutionError>;
+
     /// Creates a new pointer with the given DIF value and returns its address.
     fn create_pointer(&self, value: DIFValueContainer) -> PointerAddress;
+
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.
-    fn observe_pointer(&self, address: PointerAddress);
+    fn observe_pointer(
+        &self,
+        address: PointerAddress,
+        observer: ReferenceObserver,
+    ) -> Result<u32, DIFObserveError>;
+
     /// Stops observing changes to the pointer at the given address.
     /// If no other references to the pointer exist, it may be garbage collected after this call.
-    fn unobserve_pointer(&self, address: PointerAddress);
-}
-
-impl DIFInterface for Runtime {
-    fn update(&mut self, address: PointerAddress, update: DIFUpdate) {
-        todo!()
-    }
-
-    fn apply(&mut self, callee: DIFValueContainer, value: DIFValueContainer) {
-        todo!()
-    }
-
-    fn create_pointer(&self, value: DIFValueContainer) -> PointerAddress {
-        todo!()
-    }
-
-    fn observe_pointer(&self, address: PointerAddress) {
-        todo!()
-    }
-
-    fn unobserve_pointer(&self, address: PointerAddress) {
-        todo!()
-    }
+    fn unobserve_pointer(
+        &self,
+        address: PointerAddress,
+        observer_id: u32,
+    ) -> bool;
 }

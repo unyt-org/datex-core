@@ -71,6 +71,8 @@ impl From<TypeDefinition> for DIFTypeDefinition {
     }
 }
 
+impl From<DIFType> for TypeContainer {}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DIFTypeContainer {
@@ -185,7 +187,7 @@ mod mutability_as_int {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dif::core_value::DIFRepresentationValue,
+        dif::dif_representation::DIFRepresentationValue,
         types::structural_type_definition::StructuralTypeDefinition,
     };
 

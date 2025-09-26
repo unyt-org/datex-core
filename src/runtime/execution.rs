@@ -419,6 +419,7 @@ pub enum ExecutionError {
     ResponseError(ResponseError),
     CompilerError(CompilerError),
     IllegalTypeError(IllegalTypeError),
+    ReferenceNotFound,
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -460,6 +461,9 @@ impl From<CompilerError> for ExecutionError {
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ExecutionError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
             ExecutionError::CompilerError(err) => {
                 write!(f, "Compiler error: {err}")
             }
