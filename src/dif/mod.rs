@@ -45,6 +45,14 @@ mod tests {
 
     use super::*;
 
+    fn dif_value_circle(value_container: ValueContainer) -> DIFValue {
+        let dif_value: DIFValue = DIFValue::from(&value_container);
+        let serialized = serde_json::to_string(&dif_value).unwrap();
+        let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(dif_value, deserialized);
+        dif_value
+    }
+
     #[test]
     fn dif_value_serialization() {
         let value = DIFValue {
@@ -66,8 +74,7 @@ mod tests {
 
     #[test]
     fn from_value_container_i32() {
-        let value_container = ValueContainer::from(42i32);
-        let dif_value: DIFValue = DIFValue::from(&value_container);
+        let dif_value = dif_value_circle(ValueContainer::from(42i32));
         assert_eq!(dif_value.value, DIFCoreValue::Number(42f64));
         assert_eq!(
             dif_value.r#type,
@@ -75,72 +82,27 @@ mod tests {
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
             )
         );
-        let serialized = serde_json::to_string(&dif_value).unwrap();
-        println!("Serialized DIFValue from int: {}", serialized);
     }
+
+    #[test]
+    fn from_value_container_text() {
+        let dif_value = dif_value_circle(ValueContainer::from("Hello, World!"));
+        assert_eq!(
+            dif_value.value,
+            DIFCoreValue::String("Hello, World!".to_string())
+        );
+        assert_eq!(
+            dif_value.r#type,
+            DIFTypeContainer::Reference(CoreLibPointerId::Text.into())
+        );
+    }
+
+    //     #[test]
+    //     fn dif_property_serialization() {
+    //         let property = DIFProperty::Text("example".to_string());
+    //         let serialized = serde_json::to_string(&property).unwrap();
+    //         let deserialized: DIFProperty =
+    //             serde_json::from_str(&serialized).unwrap();
+    //         assert_eq!(property, deserialized);
+    //     }
 }
-
-//     #[test]
-//     fn dif_property_serialization() {
-//         let property = DIFProperty::Text("example".to_string());
-//         let serialized = serde_json::to_string(&property).unwrap();
-//         let deserialized: DIFProperty =
-//             serde_json::from_str(&serialized).unwrap();
-//         assert_eq!(property, deserialized);
-//     }
-
-//     #[test]
-//     fn from_value_container_text() {
-//         let value_container = ValueContainer::from("Hello, World!");
-//         let dif_value: DIFValue = DIFValue::from(&value_container);
-//         assert_eq!(
-//             dif_value.value,
-//             Some(DIFCoreValue::String("Hello, World!".to_string()))
-//         );
-//         // assert_eq!(dif_value.core_type, CoreValueType::Text);
-//         // assert_eq!(dif_value.r#type, "text");
-//         assert!(dif_value.ptr_id.is_none());
-//     }
-
-//     #[test]
-//     fn to_value_container_i32() {
-//         let dif_value = DIFValue {
-//             value: Some(DIFCoreValue::Number(42f64)),
-//             r#type: TypeContainer::Type(Type::structural(
-//                 StructuralTypeDefinition::Null,
-//             )), // TODO
-//             ptr_id: None,
-//         };
-//         let value_container: ValueContainer = ValueContainer::from(&dif_value);
-//         if let ValueContainer::Value(val) = value_container {
-//             assert_eq!(
-//                 val.inner,
-//                 CoreValue::TypedInteger(TypedInteger::I32(42))
-//             );
-//             // assert_eq!(val.get_type(), CoreValueType::I32);
-//         } else {
-//             panic!("Expected ValueContainer::Value");
-//         }
-//     }
-
-//     #[test]
-//     fn to_value_container_text() {
-//         let dif_value = DIFValue {
-//             value: Some(DIFCoreValue::String("Hello, World!".to_string())),
-//             r#type: TypeContainer::Type(Type::structural(
-//                 StructuralTypeDefinition::Null,
-//             )), // TODO
-//             ptr_id: None,
-//         };
-//         let value_container: ValueContainer = ValueContainer::from(&dif_value);
-//         if let ValueContainer::Value(val) = value_container {
-//             assert_eq!(
-//                 val.inner,
-//                 CoreValue::Text(Text("Hello, World!".to_string()))
-//             );
-//             // assert_eq!(val.get_type(), CoreValueType::Text);
-//         } else {
-//             panic!("Expected ValueContainer::Value");
-//         }
-//     }
-// }
