@@ -376,7 +376,9 @@ mod tests {
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
-    use crate::references::type_reference::NominalTypeDeclaration;
+    use crate::references::type_reference::{
+        NominalTypeDeclaration, TypeReference,
+    };
     use crate::types::definition::TypeDefinition;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;

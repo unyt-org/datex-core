@@ -27,7 +27,13 @@ pub enum DIFUpdate {
 
 #[cfg(test)]
 mod tests {
-    use crate::dif::{core_value::DIFCoreValue, r#type::DIFType};
+    use crate::{
+        dif::{core_value::DIFCoreValue, r#type::DIFType},
+        types::{
+            definition::TypeDefinition,
+            structural_type_definition::StructuralTypeDefinition,
+        },
+    };
 
     use super::*;
 
