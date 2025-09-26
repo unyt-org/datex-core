@@ -83,6 +83,7 @@ pub struct DIFType {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "mut")]
+    #[serde(default)]
     #[serde(with = "mutability_as_int")]
     pub mutability: Option<ReferenceMutability>,
 
@@ -206,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn dif_type_serialization_2() {
+    fn r#struct() {
         let dif_type = DIFType {
             name: None,
             mutability: None,
@@ -233,6 +234,68 @@ mod tests {
         let serialized = serde_json::to_string(&dif_type).unwrap();
         println!("Serialized DIFType: {}", serialized);
         let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(dif_type, deserialized);
+    }
+
+    #[test]
+    fn map() {
+        let dif_type = DIFType {
+            name: None,
+            mutability: None,
+            type_definition: DIFTypeDefinition::Structural(Box::new(
+                DIFValue {
+                    value: DIFRepresentationValue::Map(vec![
+                        (
+                            DIFValue::from(DIFRepresentationValue::String(
+                                "key1".to_string(),
+                            ))
+                            .as_container(),
+                            DIFValue::from(DIFRepresentationValue::Number(
+                                42.0,
+                            ))
+                            .as_container(),
+                        ),
+                        (
+                            DIFValue::from(DIFRepresentationValue::Number(1.0))
+                                .as_container(),
+                            DIFValue::from(DIFRepresentationValue::Number(3.5))
+                                .as_container(),
+                        ),
+                    ]),
+                    r#type: None,
+                },
+            )),
+        };
+        let serialized = serde_json::to_string_pretty(&dif_type).unwrap();
+        println!("Serialized DIFType: {}", serialized);
+        let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
+        println!("Deserialized DIFType: {:#?}", deserialized);
+        assert_eq!(dif_type, deserialized);
+    }
+
+    #[test]
+    fn array() {
+        let dif_type = DIFType {
+            name: None,
+            mutability: None,
+            type_definition: DIFTypeDefinition::Structural(Box::new(
+                DIFValue {
+                    value: DIFRepresentationValue::Array(vec![
+                        DIFValue::from(DIFRepresentationValue::Number(1.0))
+                            .as_container(),
+                        DIFValue::from(DIFRepresentationValue::Number(2.0))
+                            .as_container(),
+                        DIFValue::from(DIFRepresentationValue::Number(3.0))
+                            .as_container(),
+                    ]),
+                    r#type: None,
+                },
+            )),
+        };
+        let serialized = serde_json::to_string_pretty(&dif_type).unwrap();
+        println!("Serialized DIFType: {}", serialized);
+        let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
+        println!("Deserialized DIFType: {:#?}", deserialized);
         assert_eq!(dif_type, deserialized);
     }
 }

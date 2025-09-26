@@ -1,7 +1,7 @@
 use crate::dif::value::DIFValueContainer;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use serde::de::{MapAccess, SeqAccess, Visitor};
-use serde::ser::SerializeMap;
+use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::fmt;
 
@@ -20,6 +20,13 @@ pub enum DIFRepresentationValue {
     Map(Vec<(DIFValueContainer, DIFValueContainer)>),
     /// Represents a struct value in DIF.
     Object(Vec<(String, DIFValueContainer)>),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DeserializeMapOrArray {
+    MapEntry(DIFValueContainer, DIFValueContainer),
+    ArrayEntry(DIFValueContainer),
 }
 
 impl From<StructuralTypeDefinition> for DIFRepresentationValue {
@@ -84,11 +91,11 @@ impl Serialize for DIFRepresentationValue {
             DIFRepresentationValue::Number(f) => serializer.serialize_f64(*f),
             DIFRepresentationValue::Array(vec) => vec.serialize(serializer),
             DIFRepresentationValue::Map(entries) => {
-                let mut map = serializer.serialize_map(Some(entries.len()))?;
+                let mut seq = serializer.serialize_seq(Some(entries.len()))?;
                 for (k, v) in entries {
-                    map.serialize_entry(k, v)?;
+                    seq.serialize_element(&vec![k, v])?;
                 }
-                map.end()
+                seq.end()
             }
             DIFRepresentationValue::Object(fields) => {
                 let mut map = serializer.serialize_map(Some(fields.len()))?;
@@ -151,17 +158,39 @@ impl<'de> Deserialize<'de> for DIFRepresentationValue {
                 Ok(DIFRepresentationValue::Null)
             }
 
+            // array / map
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
                 A: SeqAccess<'de>,
             {
-                let mut elements = Vec::new();
-                while let Some(elem) = seq.next_element()? {
-                    elements.push(elem);
+                let first_entry =
+                    seq.next_element::<DeserializeMapOrArray>()?;
+                match first_entry {
+                    Some(DeserializeMapOrArray::ArrayEntry(first)) => {
+                        let mut elements = vec![first];
+                        while let Some(elem) =
+                            seq.next_element::<DIFValueContainer>()?
+                        {
+                            elements.push(elem);
+                        }
+                        Ok(DIFRepresentationValue::Array(elements))
+                    }
+                    Some(DeserializeMapOrArray::MapEntry(k, v)) => {
+                        let mut elements = vec![(k, v)];
+                        while let Some((k, v)) = seq.next_element::<(
+                            DIFValueContainer,
+                            DIFValueContainer,
+                        )>(
+                        )? {
+                            elements.push((k, v));
+                        }
+                        Ok(DIFRepresentationValue::Map(elements))
+                    }
+                    None => Ok(DIFRepresentationValue::Array(vec![])), // empty array
                 }
-                Ok(DIFRepresentationValue::Array(elements))
             }
 
+            // object
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where
                 A: MapAccess<'de>,
@@ -170,7 +199,7 @@ impl<'de> Deserialize<'de> for DIFRepresentationValue {
                 while let Some((k, v)) = map.next_entry()? {
                     entries.push((k, v));
                 }
-                Ok(DIFRepresentationValue::Map(entries))
+                Ok(DIFRepresentationValue::Object(entries))
             }
         }
 

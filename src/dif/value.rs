@@ -34,23 +34,10 @@ impl DIFValue {
 
 impl From<DIFRepresentationValue> for DIFValue {
     fn from(value: DIFRepresentationValue) -> Self {
-        let r#type = match value {
-            DIFRepresentationValue::Boolean(_)
-            | DIFRepresentationValue::Null => None,
-            DIFRepresentationValue::Number(_) => {
-                todo!("Decide on a default number type in DIF");
-                // Some(DIFTypeContainer::Reference(
-                //     CoreLibPointerId::Decimal(Some(TypedDecimal::F64)).into(),
-                // ))
-            }
-            _ => unreachable!(), // DIFRepresentationValue::String(_) => {
-                                 //     Some(DIFTypeContainer::Reference(CoreLibPointerId::Text.into()))
-                                 // }
-                                 // DIFRepresentationValue::Object(_) => None,
-                                 // DIFRepresentationValue::Array(_) => None,
-        };
-        // FIXME
-        DIFValue { value, r#type }
+        DIFValue {
+            value,
+            r#type: None,
+        }
     }
 }
 

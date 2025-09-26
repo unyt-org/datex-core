@@ -12,15 +12,17 @@ pub enum PointerAddress {
     // globally unique internal pointer, e.g. for #core, #std
     Internal([u8; 3]),
 }
-impl From<String> for PointerAddress {
-    fn from(s: String) -> Self {
-        PointerAddress::from(s.as_str())
+impl TryFrom<String> for PointerAddress {
+    type Error = &'static str;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        PointerAddress::try_from(s.as_str())
     }
 }
-impl From<&str> for PointerAddress {
-    fn from(s: &str) -> Self {
+impl TryFrom<&str> for PointerAddress {
+    type Error = &'static str;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         if !s.starts_with('$') {
-            panic!("PointerAddress must start with '$'");
+            return Err("PointerAddress must start with '$'");
         }
         let hex_str = &s[1..];
         let bytes =
@@ -29,19 +31,19 @@ impl From<&str> for PointerAddress {
             5 => {
                 let mut arr = [0u8; 5];
                 arr.copy_from_slice(&bytes);
-                PointerAddress::Local(arr)
+                Ok(PointerAddress::Local(arr))
             }
             26 => {
                 let mut arr = [0u8; 26];
                 arr.copy_from_slice(&bytes);
-                PointerAddress::Remote(arr)
+                Ok(PointerAddress::Remote(arr))
             }
             3 => {
                 let mut arr = [0u8; 3];
                 arr.copy_from_slice(&bytes);
-                PointerAddress::Internal(arr)
+                Ok(PointerAddress::Internal(arr))
             }
-            _ => panic!("PointerAddress must be 5, 26 or 3 bytes long"),
+            _ => Err("PointerAddress must be 5, 26 or 3 bytes long"),
         }
     }
 }
@@ -76,7 +78,13 @@ impl<'de> Deserialize<'de> for PointerAddress {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(PointerAddress::from(s.as_str()))
+        println!("Deserializing PointerAddress from string: {}", s);
+        PointerAddress::try_from(s.as_str()).map_err(|e| {
+            serde::de::Error::custom(format!(
+                "Failed to parse PointerAddress: {}",
+                e
+            ))
+        })
     }
 }
 
