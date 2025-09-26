@@ -2,13 +2,38 @@ use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum DIFTypeContainer {
-    Value(DIFType),
+    Type(DIFType),
     Reference(PointerAddress),
 }
+
+// impl Serialize for DIFTypeContainer {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         match self {
+//             DIFTypeContainer::Type(ty) => ty.serialize(serializer),
+//             DIFTypeContainer::Reference(ptr) => ptr.serialize(serializer),
+//         }
+//     }
+// }
+// impl<'de> Deserialize<'de> for DIFTypeContainer {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         if let Ok(s) = String::deserialize(&deserializer) {
+//             return Ok(DIFTypeContainer::Reference(PointerAddress::from(s)));
+//         }
+//         let ty = DIFType::deserialize(deserializer)?;
+//         Ok(DIFTypeContainer::Type(ty))
+//     }
+// }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFType {
@@ -19,10 +44,16 @@ pub struct DIFType {
     pub type_definition: TypeDefinition,
 }
 
+impl DIFType {
+    pub fn as_container(self) -> DIFTypeContainer {
+        DIFTypeContainer::Type(self)
+    }
+}
+
 impl From<TypeContainer> for DIFTypeContainer {
     fn from(type_container: TypeContainer) -> Self {
         match type_container {
-            TypeContainer::Type(ty) => DIFTypeContainer::Value(DIFType {
+            TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType {
                 name: None,
                 mutability: ty.reference_mutability,
                 type_definition: ty.type_definition,

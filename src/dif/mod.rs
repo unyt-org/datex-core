@@ -28,10 +28,18 @@ pub enum DIFUpdate {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dif::{core_value::DIFCoreValue, r#type::DIFType},
+        dif::{
+            core_value::DIFCoreValue,
+            r#type::{DIFType, DIFTypeContainer},
+        },
+        libs::core::CoreLibPointerId,
         types::{
             definition::TypeDefinition,
             structural_type_definition::StructuralTypeDefinition,
+        },
+        values::{
+            core_values::integer::typed_integer::IntegerTypeVariant,
+            value_container::ValueContainer,
         },
     };
 
@@ -47,12 +55,28 @@ mod tests {
                 type_definition: TypeDefinition::Structural(
                     StructuralTypeDefinition::Null,
                 ),
-            },
+            }
+            .as_container(),
         };
         let serialized = serde_json::to_string(&value).unwrap();
         println!("Serialized DIFValue: {}", serialized);
         let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();
         assert_eq!(value, deserialized);
+    }
+
+    #[test]
+    fn from_value_container_i32() {
+        let value_container = ValueContainer::from(42i32);
+        let dif_value: DIFValue = DIFValue::from(&value_container);
+        assert_eq!(dif_value.value, DIFCoreValue::Number(42f64));
+        assert_eq!(
+            dif_value.r#type,
+            DIFTypeContainer::Reference(
+                CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
+            )
+        );
+        let serialized = serde_json::to_string(&dif_value).unwrap();
+        println!("Serialized DIFValue from int: {}", serialized);
     }
 }
 
@@ -63,17 +87,6 @@ mod tests {
 //         let deserialized: DIFProperty =
 //             serde_json::from_str(&serialized).unwrap();
 //         assert_eq!(property, deserialized);
-//     }
-
-//     #[test]
-//     fn from_value_container_i32() {
-//         let value_container = ValueContainer::from(42i32);
-//         let dif_value: DIFValue = DIFValue::from(&value_container);
-//         assert_eq!(dif_value.value, Some(DIFCoreValue::Number(42f64)));
-//         // assert_eq!(dif_value.r#type, "i32");
-//         assert!(dif_value.ptr_id.is_none());
-//         let serialized = serde_json::to_string(&dif_value).unwrap();
-//         println!("Serialized DIFValue from int: {}", serialized);
 //     }
 
 //     #[test]

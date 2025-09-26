@@ -1,5 +1,5 @@
-use crate::dif::core_value::DIFCoreValue;
 use crate::dif::r#type::DIFType;
+use crate::dif::{core_value::DIFCoreValue, r#type::DIFTypeContainer};
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
@@ -11,7 +11,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFValue {
     pub value: DIFCoreValue,
-    pub r#type: DIFType,
+    pub r#type: DIFTypeContainer,
+}
+
+impl DIFValue {
+    pub fn new(
+        value: DIFCoreValue,
+        r#type: impl Into<DIFTypeContainer>,
+    ) -> Self {
+        DIFValue {
+            value,
+            r#type: r#type.into(),
+        }
+    }
 }
 
 /// Holder for either a value or a reference to a value in DIF
