@@ -1,7 +1,17 @@
-use crate::dif::value::DIFValue;
+use crate::{
+    dif::value::{DIFValue, DIFValueContainer},
+    values::{pointer::PointerAddress, value_container::ValueContainer},
+};
 pub mod core_value;
 pub mod r#type;
 pub mod value;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum DIFEvent {
+    Create(DIFValue),
+    Update(DIFUpdate),
+    Apply(DIFValueContainer, DIFValueContainer),
+}
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq)]

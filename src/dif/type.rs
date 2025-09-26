@@ -187,7 +187,6 @@ mod tests {
     use crate::{
         dif::core_value::DIFRepresentationValue,
         types::structural_type_definition::StructuralTypeDefinition,
-        values::core_values::r#type::Type,
     };
 
     use super::*;

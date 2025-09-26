@@ -9,7 +9,6 @@ use crate::values::core_values::decimal::typed_decimal::{
 };
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
-use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
@@ -276,4 +275,20 @@ mod tests {
             panic!("Expected reference type");
         }
     }
+
+    // #[test]
+    // fn allowed_type() {
+    //     let dif = DIFValue::from(ValueContainer::Reference(
+    //         CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into(),
+    //         Some(CoreLibPointerId::Number.into()),
+    //     ));
+    //     assert!(dif.allowed_type.is_some());
+    //     if let DIFTypeContainer::Reference(reference) =
+    //         dif.allowed_type.unwrap()
+    //     {
+    //         assert_eq!(reference, CoreLibPointerId::Number.into());
+    //     } else {
+    //         panic!("Expected reference type");
+    //     }
+    // }
 }
