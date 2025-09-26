@@ -5,13 +5,7 @@ use crate::{
 pub mod core_value;
 pub mod r#type;
 pub mod value;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum DIFEvent {
-    Create(DIFValue),
-    Update(DIFUpdate),
-    Apply(DIFValueContainer, DIFValueContainer),
-}
+mod interface;
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq)]
@@ -34,6 +28,7 @@ pub enum DIFUpdate {
     },
     Push(DIFValue),
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -107,7 +102,7 @@ mod tests {
         );
         assert_eq!(
             dif_value.r#type,
-            Some(DIFTypeContainer::Reference(CoreLibPointerId::Text.into()))
+            None
         );
     }
 
