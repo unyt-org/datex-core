@@ -29,7 +29,7 @@ pub enum DIFUpdate {
 mod tests {
     use crate::{
         dif::{
-            core_value::DIFCoreValue,
+            core_value::DIFRepresentationValue,
             r#type::{DIFType, DIFTypeContainer},
         },
         libs::core::CoreLibPointerId,
@@ -56,15 +56,18 @@ mod tests {
     #[test]
     fn dif_value_serialization() {
         let value = DIFValue {
-            value: DIFCoreValue::Null,
-            r#type: DIFType {
-                mutability: None,
-                name: None,
-                type_definition: TypeDefinition::Structural(
-                    StructuralTypeDefinition::Null,
-                ),
-            }
-            .as_container(),
+            value: DIFRepresentationValue::Null,
+            r#type: Some(
+                DIFType {
+                    mutability: None,
+                    name: None,
+                    type_definition: TypeDefinition::Structural(
+                        StructuralTypeDefinition::Null,
+                    )
+                    .into(),
+                }
+                .as_container(),
+            ),
         };
         let serialized = serde_json::to_string(&value).unwrap();
         println!("Serialized DIFValue: {}", serialized);
@@ -75,12 +78,12 @@ mod tests {
     #[test]
     fn from_value_container_i32() {
         let dif_value = dif_value_circle(ValueContainer::from(42i32));
-        assert_eq!(dif_value.value, DIFCoreValue::Number(42f64));
+        assert_eq!(dif_value.value, DIFRepresentationValue::Number(42f64));
         assert_eq!(
             dif_value.r#type,
-            DIFTypeContainer::Reference(
+            Some(DIFTypeContainer::Reference(
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
-            )
+            ))
         );
     }
 
@@ -89,11 +92,11 @@ mod tests {
         let dif_value = dif_value_circle(ValueContainer::from("Hello, World!"));
         assert_eq!(
             dif_value.value,
-            DIFCoreValue::String("Hello, World!".to_string())
+            DIFRepresentationValue::String("Hello, World!".to_string())
         );
         assert_eq!(
             dif_value.r#type,
-            DIFTypeContainer::Reference(CoreLibPointerId::Text.into())
+            Some(DIFTypeContainer::Reference(CoreLibPointerId::Text.into()))
         );
     }
 

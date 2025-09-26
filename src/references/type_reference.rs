@@ -41,7 +41,7 @@ impl Display for NominalTypeDeclaration {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeReference {
     /// the value that contains the type declaration
     pub type_value: Type,

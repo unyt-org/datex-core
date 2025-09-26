@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {
     Integer(Integer),
     TypedInteger(TypedInteger),
