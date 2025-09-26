@@ -1,5 +1,7 @@
 use crate::dif::r#type::DIFType;
-use crate::dif::{core_value::DIFCoreValue, r#type::DIFTypeContainer};
+use crate::dif::{
+    core_value::DIFRepresentationValue, r#type::DIFTypeContainer,
+};
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
@@ -10,24 +12,39 @@ use serde::{Deserialize, Serialize};
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFValue {
-    pub value: DIFCoreValue,
-    pub r#type: DIFTypeContainer,
+    pub value: DIFRepresentationValue,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<DIFTypeContainer>,
 }
 
 impl DIFValue {
     pub fn new(
-        value: DIFCoreValue,
-        r#type: impl Into<DIFTypeContainer>,
+        value: DIFRepresentationValue,
+        r#type: Option<impl Into<DIFTypeContainer>>,
     ) -> Self {
         DIFValue {
             value,
-            r#type: r#type.into(),
+            r#type: r#type.map(Into::into),
+        }
+    }
+    pub fn as_container(&self) -> DIFValueContainer {
+        DIFValueContainer::from(self.clone())
+    }
+}
+
+impl From<DIFRepresentationValue> for DIFValue {
+    fn from(value: DIFRepresentationValue) -> Self {
+        // FIXME
+        DIFValue {
+            value,
+            r#type: None,
         }
     }
 }
 
 /// Holder for either a value or a reference to a value in DIF
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum DIFValueContainer {
     Value(DIFValue),
     Reference(PointerAddress),
@@ -57,49 +74,71 @@ impl From<&ValueContainer> for DIFValue {
 
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => todo!("Type value not supported in DIF"),
-            CoreValue::Null => DIFCoreValue::Null,
-            CoreValue::Boolean(bool) => DIFCoreValue::Boolean(bool.0),
+            CoreValue::Null => DIFRepresentationValue::Null,
+            CoreValue::Boolean(bool) => DIFRepresentationValue::Boolean(bool.0),
             CoreValue::Integer(integer) => {
                 // TODO: optimize this and pass as integer if in range
-                DIFCoreValue::String(integer.to_string())
+                DIFRepresentationValue::String(integer.to_string())
             }
             CoreValue::TypedInteger(integer) => {
                 // Some(DIFCoreValue::Number(integer.as_i64().unwrap() as f64))
                 match integer {
-                    TypedInteger::I8(i) => DIFCoreValue::Number(*i as f64),
-                    TypedInteger::U8(u) => DIFCoreValue::Number(*u as f64),
-                    TypedInteger::I16(i) => DIFCoreValue::Number(*i as f64),
-                    TypedInteger::U16(u) => DIFCoreValue::Number(*u as f64),
-                    TypedInteger::I32(i) => DIFCoreValue::Number(*i as f64),
-                    TypedInteger::U32(u) => DIFCoreValue::Number(*u as f64),
+                    TypedInteger::I8(i) => {
+                        DIFRepresentationValue::Number(*i as f64)
+                    }
+                    TypedInteger::U8(u) => {
+                        DIFRepresentationValue::Number(*u as f64)
+                    }
+                    TypedInteger::I16(i) => {
+                        DIFRepresentationValue::Number(*i as f64)
+                    }
+                    TypedInteger::U16(u) => {
+                        DIFRepresentationValue::Number(*u as f64)
+                    }
+                    TypedInteger::I32(i) => {
+                        DIFRepresentationValue::Number(*i as f64)
+                    }
+                    TypedInteger::U32(u) => {
+                        DIFRepresentationValue::Number(*u as f64)
+                    }
                     // i64 and above are serialized as strings in DIF
-                    TypedInteger::I64(i) => DIFCoreValue::String(i.to_string()),
-                    TypedInteger::U64(u) => DIFCoreValue::String(u.to_string()),
+                    TypedInteger::I64(i) => {
+                        DIFRepresentationValue::String(i.to_string())
+                    }
+                    TypedInteger::U64(u) => {
+                        DIFRepresentationValue::String(u.to_string())
+                    }
                     TypedInteger::I128(i) => {
-                        DIFCoreValue::String(i.to_string())
+                        DIFRepresentationValue::String(i.to_string())
                     }
                     TypedInteger::U128(u) => {
-                        DIFCoreValue::String(u.to_string())
+                        DIFRepresentationValue::String(u.to_string())
                     }
-                    TypedInteger::Big(i) => DIFCoreValue::String(i.to_string()),
+                    TypedInteger::Big(i) => {
+                        DIFRepresentationValue::String(i.to_string())
+                    }
                 }
             }
             CoreValue::Decimal(decimal) => {
                 // TODO: optimize this and pass as decimal if in range
-                DIFCoreValue::String(decimal.to_string())
+                DIFRepresentationValue::String(decimal.to_string())
             }
             CoreValue::TypedDecimal(decimal) => match decimal {
-                TypedDecimal::F32(f) => DIFCoreValue::Number(f.0 as f64),
-                TypedDecimal::F64(f) => DIFCoreValue::Number(f.0),
+                TypedDecimal::F32(f) => {
+                    DIFRepresentationValue::Number(f.0 as f64)
+                }
+                TypedDecimal::F64(f) => DIFRepresentationValue::Number(f.0),
                 TypedDecimal::Decimal(bd) => {
-                    DIFCoreValue::String(bd.to_string())
+                    DIFRepresentationValue::String(bd.to_string())
                 }
             },
-            CoreValue::Text(text) => DIFCoreValue::String(text.0.clone()),
-            CoreValue::Endpoint(endpoint) => {
-                DIFCoreValue::String(endpoint.to_string())
+            CoreValue::Text(text) => {
+                DIFRepresentationValue::String(text.0.clone())
             }
-            CoreValue::Struct(structure) => DIFCoreValue::Object(
+            CoreValue::Endpoint(endpoint) => {
+                DIFRepresentationValue::String(endpoint.to_string())
+            }
+            CoreValue::Struct(structure) => DIFRepresentationValue::Object(
                 structure
                     .iter()
                     .map(|(key, value)| {
@@ -127,7 +166,7 @@ impl From<&ValueContainer> for DIFValue {
 
         DIFValue {
             value: dif_core_value,
-            r#type: value.actual_type().into(),
+            r#type: Some(value.actual_type().into()),
         }
     }
 }

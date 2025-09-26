@@ -8,12 +8,12 @@ use crate::{
 use datex_core::references::type_reference::TypeReference;
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)] // FIXME serde
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
     // {x: integer, y: text}
     Structural(StructuralTypeDefinition),
 
-    #[serde(with = "rc_refcell_typeref")]
+    // #[serde(with = "rc_refcell_typeref")]
     Reference(Rc<RefCell<TypeReference>>),
 
     // e.g. A & B & C
@@ -29,30 +29,30 @@ pub enum TypeDefinition {
         return_type: Box<TypeContainer>,
     },
 }
-mod rc_refcell_typeref {
-    use super::*;
-    use serde::{Deserializer, Serializer};
+// mod rc_refcell_typeref {
+//     use super::*;
+//     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S>(
-        value: &Rc<RefCell<TypeReference>>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        value.borrow().serialize(serializer)
-    }
+//     pub fn serialize<S>(
+//         value: &Rc<RefCell<TypeReference>>,
+//         serializer: S,
+//     ) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         value.borrow().serialize(serializer)
+//     }
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<Rc<RefCell<TypeReference>>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let inner = TypeReference::deserialize(deserializer)?;
-        Ok(Rc::new(RefCell::new(inner)))
-    }
-}
+//     pub fn deserialize<'de, D>(
+//         deserializer: D,
+//     ) -> Result<Rc<RefCell<TypeReference>>, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         let inner = TypeReference::deserialize(deserializer)?;
+//         Ok(Rc::new(RefCell::new(inner)))
+//     }
+// }
 impl Hash for TypeDefinition {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
