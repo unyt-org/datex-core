@@ -1,23 +1,11 @@
 use crate::dif::core_value::DIFCoreValue;
 use crate::dif::r#type::DIFType;
-use crate::references::reference::ReferenceMutability;
-use crate::types::definition::TypeDefinition;
-use crate::types::structural_type_definition::StructuralTypeDefinition;
-use crate::types::type_container::TypeContainer;
-use crate::values::core_values::boolean::Boolean;
-use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::text::Text;
 use crate::values::pointer::PointerAddress;
-use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
-use datex_core::values::core_values::integer::integer::Integer;
-use serde::de::{MapAccess, SeqAccess, Visitor};
-use serde::ser::SerializeMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-use std::fmt;
+use serde::{Deserialize, Serialize};
 
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
