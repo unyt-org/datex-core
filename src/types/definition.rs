@@ -7,7 +7,6 @@ use crate::{
 };
 use datex_core::references::type_reference::TypeReference;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)] // FIXME serde
 pub enum TypeDefinition {
