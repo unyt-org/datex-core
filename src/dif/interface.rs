@@ -1,9 +1,7 @@
 use crate::compiler::error::CompilerError;
 use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValueContainer;
-use crate::references::reference::{
-    ObserveError, Reference, ReferenceObserver,
-};
+use crate::references::reference::{ObserveError, Reference, ReferenceFromValueContainerError, ReferenceObserver};
 use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
 
@@ -33,6 +31,13 @@ pub enum DIFApplyError {
 #[derive(Debug)]
 pub enum DIFCreatePointerError {
     ReferenceNotFound,
+    ReferenceFromValueContainerError(ReferenceFromValueContainerError)
+}
+
+impl From<ReferenceFromValueContainerError> for DIFCreatePointerError {
+    fn from(err: ReferenceFromValueContainerError) -> Self {
+        DIFCreatePointerError::ReferenceFromValueContainerError(err)
+    }
 }
 
 pub trait DIFInterface {
@@ -51,7 +56,7 @@ pub trait DIFInterface {
     ) -> Result<DIFApplyError, ExecutionError>;
 
     /// Creates a new pointer with the given DIF value and returns its address.
-    fn create_pointer(&self, value: DIFValueContainer) -> PointerAddress;
+    fn create_pointer(&self, value: DIFValueContainer) -> Result<PointerAddress, DIFCreatePointerError>;
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.

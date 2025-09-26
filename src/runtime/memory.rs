@@ -37,7 +37,7 @@ impl Memory {
     }
 
     /// Registers a new reference in memory. If the reference has no PointerAddress, a new local one is generated.
-    pub fn register_reference(&mut self, reference: Reference) {
+    pub fn register_reference(&mut self, reference: Reference) -> PointerAddress {
         // auto-generate new local id if no id is set
         let pointer_address = reference
             .pointer_address()
@@ -47,7 +47,8 @@ impl Memory {
         if reference.pointer_address().is_none() {
             reference.set_pointer_address(pointer_address.clone());
         }
-        self.pointers.insert(pointer_address, reference);
+        self.pointers.insert(pointer_address.clone(), reference);
+        pointer_address
     }
 
     /// Returns a reference stored at the given PointerAddress, if it exists.

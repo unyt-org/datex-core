@@ -1,3 +1,4 @@
+use datex_core::references::value_reference::ValueReference;
 use crate::{
     dif::{
         DIFUpdate,
@@ -11,6 +12,8 @@ use crate::{
     runtime::{Runtime, execution::ExecutionError},
     values::{pointer::PointerAddress, value_container::ValueContainer},
 };
+use crate::references::reference::ReferenceMutability;
+
 impl Runtime {
     fn resolve_reference(&self, address: &PointerAddress) -> Option<Reference> {
         self.memory().borrow().get_reference(&address).cloned()
@@ -45,6 +48,14 @@ impl DIFInterface for Runtime {
             ),
             DIFValueContainer::Value(v) => ValueContainer::from(v),
         };
+        let reference = Reference::try_new_from_value_container(
+            container,// TODO
+            None,// TODO
+            None,// TODO
+            ReferenceMutability::Immutable, // TODO
+        )?;
+        let address = self.memory().borrow_mut().register_reference(reference);
+        Ok(address)
     }
 
     fn observe_pointer(

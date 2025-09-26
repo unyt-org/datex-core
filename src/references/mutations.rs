@@ -5,6 +5,7 @@ use crate::{
         core_value::CoreValue, value::Value, value_container::ValueContainer,
     },
 };
+use crate::dif::value::DIFValueContainer;
 
 impl Reference {
     /// Runs a closure with the current value of this reference.
@@ -117,7 +118,8 @@ impl Reference {
 
         // Notify observers of the update
         if self.has_observers() {
-            let dif = DIFUpdate::Replace(DIFValue::from(value_container));
+            // TODO: no unwrap here
+            let dif = DIFUpdate::Replace(DIFValueContainer::try_from(value_container).unwrap());
             self.notify_observers(&dif);
         }
 
@@ -134,6 +136,7 @@ mod tests {
         references::reference::Reference,
         values::value_container::ValueContainer,
     };
+    use crate::dif::value::DIFValueContainer;
 
     #[test]
     fn value_change_observe() {
@@ -155,7 +158,7 @@ mod tests {
 
         // Verify the observed update matches the expected change
         let expected_update =
-            DIFUpdate::Replace(DIFValue::from(ValueContainer::from(43)));
+            DIFUpdate::Replace(DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap());
         assert_eq!(*observed_update.borrow(), Some(expected_update));
     }
 }

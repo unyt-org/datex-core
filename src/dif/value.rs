@@ -27,7 +27,9 @@ pub struct DIFValue {
 }
 
 impl From<DIFValue> for Value {
-    fn from(dif_value: DIFValue) -> Self {}
+    fn from(dif_value: DIFValue) -> Self {
+        todo!()
+    }
 }
 
 // impl From<DIFValue> for CoreValue {
@@ -119,11 +121,31 @@ impl From<PointerAddress> for DIFValueContainer {
     }
 }
 
-impl From<&ValueContainer> for DIFValueContainer {
-    fn from(value_container: &ValueContainer) -> Self {
-        let val_rc = value_container.to_value();
-        let val = val_rc.borrow();
-        let core_value = &val.inner;
+#[derive(Debug)]
+pub enum TryIntoDIFError {
+    /// If the ValueContainer contains a Reference that has no pointer address assigned
+    MissingReferenceAddress
+}
+
+impl TryFrom<&ValueContainer> for DIFValueContainer {
+    type Error = TryIntoDIFError;
+    fn try_from(value_container: &ValueContainer) -> Result<Self, Self::Error> {
+        match value_container {
+            ValueContainer::Reference(reference) => {
+                let address = reference.pointer_address()
+                    .ok_or(TryIntoDIFError::MissingReferenceAddress)?;
+                Ok(DIFValueContainer::Reference(address.clone()))
+            }
+            ValueContainer::Value(value) => Ok(DIFValueContainer::Value(DIFValue::try_from(value)?)),
+        }
+    }
+}
+
+impl TryFrom<&Value> for DIFValue {
+    type Error = TryIntoDIFError;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        let core_value = &value.inner;
 
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => todo!("Type value not supported in DIF"),
@@ -195,38 +217,43 @@ impl From<&ValueContainer> for DIFValueContainer {
                 structure
                     .iter()
                     .map(|(key, value)| {
-                        (key.clone(), DIFValueContainer::from(value))
+                        DIFValueContainer::try_from(value).map(|v| (key.clone(), v))
                     })
-                    .collect(),
+                    .collect::<Result<Vec<(String, DIFValueContainer)>, _>>()?,
             ),
             CoreValue::List(list) => DIFRepresentationValue::Array(
-                list.iter().map(|v| DIFValueContainer::from(v)).collect(),
+                list
+                    .iter()
+                    .map(DIFValueContainer::try_from)
+                    .collect::<Result<Vec<DIFValueContainer>, _>>()?,
             ),
             CoreValue::Array(arr) => DIFRepresentationValue::Array(
-                arr.iter().map(|v| DIFValueContainer::from(v)).collect(),
+                arr
+                    .iter()
+                    .map(DIFValueContainer::try_from)
+                    .collect::<Result<Vec<DIFValueContainer>, _>>()?,
             ),
             CoreValue::Map(map) => DIFRepresentationValue::Map(
                 map.iter()
                     .map(|(k, v)| {
-                        (DIFValueContainer::from(k), DIFValueContainer::from(v))
+                        DIFValueContainer::try_from(k)
+                            .and_then(|key| {
+                                DIFValueContainer::try_from(v)
+                                    .map(|val| (key, val))
+                            })
                     })
-                    .collect(),
+                    .collect::<Result<Vec<(DIFValueContainer, DIFValueContainer)>, _>>()?,
             ),
         };
 
-        DIFValue {
+        Ok(DIFValue {
             value: dif_core_value,
-            allowed_type: get_allowed_type(value_container),
-            r#type: get_type_if_non_default(value_container.actual_type()),
-        }
+            allowed_type: None,
+            r#type: None,
+        })
     }
 }
 
-impl From<ValueContainer> for DIFValue {
-    fn from(value: ValueContainer) -> Self {
-        DIFValue::from(&value)
-    }
-}
 
 /// Returns the allowed type for references, None for other value containers
 fn get_allowed_type(
@@ -278,27 +305,27 @@ fn get_type_if_non_default(r#type: TypeContainer) -> Option<DIFTypeContainer> {
 
 #[cfg(test)]
 mod tests {
+    use datex_core::values::value::Value;
     use crate::{
         dif::{r#type::DIFTypeContainer, value::DIFValue},
         libs::core::CoreLibPointerId,
         values::{
             core_values::integer::typed_integer::IntegerTypeVariant,
-            value_container::ValueContainer,
         },
     };
 
     #[test]
     fn default_type() {
-        let dif = DIFValue::from(ValueContainer::from(true));
+        let dif = DIFValue::try_from(&Value::from(true)).unwrap();
         assert!(dif.r#type.is_none());
 
-        let dif = DIFValue::from(ValueContainer::from("hello"));
+        let dif = DIFValue::try_from(&Value::from("hello")).unwrap();
         assert!(dif.r#type.is_none());
     }
 
     #[test]
     fn non_default_type() {
-        let dif = DIFValue::from(ValueContainer::from(123u16));
+        let dif = DIFValue::try_from(&Value::from(123u16)).unwrap();
         assert!(dif.r#type.is_some());
         if let DIFTypeContainer::Reference(reference) = dif.r#type.unwrap() {
             assert_eq!(

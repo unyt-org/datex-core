@@ -21,7 +21,7 @@ pub enum DIFProperty {
 /// Represents an update operation for a DIF value.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFUpdate {
-    Replace(DIFValue),
+    Replace(DIFValueContainer),
     UpdateProperty {
         property: DIFProperty,
         value: DIFValue,
@@ -49,12 +49,12 @@ mod tests {
 
     use super::*;
 
-    fn dif_value_circle(value_container: ValueContainer) -> DIFValue {
-        let dif_value: DIFValue = DIFValue::from(&value_container);
-        let serialized = serde_json::to_string(&dif_value).unwrap();
-        let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(dif_value, deserialized);
-        dif_value
+    fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
+        let dif_value_container: DIFValueContainer = DIFValueContainer::try_from(&value_container).unwrap();
+        let serialized = serde_json::to_string(&dif_value_container).unwrap();
+        let deserialized: DIFValueContainer = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(dif_value_container, deserialized);
+        dif_value_container
     }
 
     #[test]
@@ -82,24 +82,32 @@ mod tests {
 
     #[test]
     fn from_value_container_i32() {
-        let dif_value = dif_value_circle(ValueContainer::from(42i32));
-        assert_eq!(dif_value.value, DIFRepresentationValue::Number(42f64));
-        assert_eq!(
-            dif_value.r#type,
-            Some(DIFTypeContainer::Reference(
-                CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
-            ))
-        );
+        let dif_value_container = dif_value_circle(ValueContainer::from(42i32));
+        if let DIFValueContainer::Value(dif_value) = &dif_value_container {
+            assert_eq!(dif_value.value, DIFRepresentationValue::Number(42f64));
+            assert_eq!(
+                dif_value.r#type,
+                Some(DIFTypeContainer::Reference(
+                    CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
+                ))
+            );
+        } else {
+            panic!("Expected DIFValueContainer::Value variant");
+        }
     }
 
     #[test]
     fn from_value_container_text() {
-        let dif_value = dif_value_circle(ValueContainer::from("Hello, World!"));
-        assert_eq!(
-            dif_value.value,
-            DIFRepresentationValue::String("Hello, World!".to_string())
-        );
-        assert_eq!(dif_value.r#type, None);
+        let dif_value_container = dif_value_circle(ValueContainer::from("Hello, World!"));
+        if let DIFValueContainer::Value(dif_value) = &dif_value_container {
+            assert_eq!(
+                dif_value.value,
+                DIFRepresentationValue::String("Hello, World!".to_string())
+            );
+            assert_eq!(dif_value.r#type, None);
+        } else {
+            panic!("Expected DIFValueContainer::Value variant");
+        }
     }
 
     //     #[test]

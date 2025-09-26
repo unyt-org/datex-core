@@ -71,7 +71,11 @@ impl From<TypeDefinition> for DIFTypeDefinition {
     }
 }
 
-impl From<DIFType> for TypeContainer {}
+impl From<DIFTypeContainer> for TypeContainer {
+    fn from(dif_type_container: DIFTypeContainer) -> Self {
+        todo!()
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
