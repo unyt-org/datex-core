@@ -249,12 +249,13 @@ impl TryFrom<&Value> for DIFValue {
         Ok(DIFValue {
             value: dif_core_value,
             allowed_type: None,
-            r#type: None,
+            r#type: get_type_if_non_default(&value.actual_type)
         })
     }
 }
 
 
+// TODO: handle allowed type for references (must be set after try_from<Value> for references)
 /// Returns the allowed type for references, None for other value containers
 fn get_allowed_type(
     value_container: &ValueContainer,
@@ -276,8 +277,8 @@ fn get_allowed_type(
 /// - Decimal (f64)
 /// - List
 /// - Map
-fn get_type_if_non_default(r#type: TypeContainer) -> Option<DIFTypeContainer> {
-    match &r#type {
+fn get_type_if_non_default(r#type: &TypeContainer) -> Option<DIFTypeContainer> {
+    match r#type {
         TypeContainer::TypeReference(inner) => {
             if let Some(Ok(address)) = inner
                 .borrow()

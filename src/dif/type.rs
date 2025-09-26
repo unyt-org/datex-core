@@ -105,13 +105,13 @@ impl DIFType {
     }
 }
 
-impl From<TypeContainer> for DIFTypeContainer {
-    fn from(type_container: TypeContainer) -> Self {
+impl From<&TypeContainer> for DIFTypeContainer {
+    fn from(type_container: &TypeContainer) -> Self {
         match type_container {
             TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType {
                 name: None,
-                mutability: ty.reference_mutability,
-                type_definition: ty.type_definition.into(),
+                mutability: ty.reference_mutability.clone(),
+                type_definition: ty.type_definition.clone().into(),
             }),
             TypeContainer::TypeReference(type_ref) => {
                 DIFTypeContainer::Reference(
@@ -119,6 +119,12 @@ impl From<TypeContainer> for DIFTypeContainer {
                 )
             }
         }
+    }
+}
+
+impl From<TypeContainer> for DIFTypeContainer {
+    fn from(type_container: TypeContainer) -> Self {
+        (&type_container).into()
     }
 }
 impl From<TypeContainer> for DIFType {
