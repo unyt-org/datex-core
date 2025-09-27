@@ -112,6 +112,21 @@ impl DIFValue {
                         inner: CoreValue::Struct(map.into()),
                     }
                 }
+                DIFRepresentationValue::Map(map) => {
+                    let mut core_map = IndexMap::new();
+                    for (k, v) in map {
+                        core_map.insert(
+                            k.to_value_container(memory)?,
+                            v.to_value_container(memory)?,
+                        );
+                    }
+                    Value {
+                        actual_type: Box::new(get_core_lib_type(
+                            CoreLibPointerId::Map,
+                        )),
+                        inner: CoreValue::Map(core_map.into()),
+                    }
+                }
                 _ => todo!(
                     "Other DIFRepresentationValue variants not supported yet"
                 ),

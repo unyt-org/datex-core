@@ -21,10 +21,7 @@ impl TryFrom<String> for PointerAddress {
 impl TryFrom<&str> for PointerAddress {
     type Error = &'static str;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        if !s.starts_with('$') {
-            return Err("PointerAddress must start with '$'");
-        }
-        let hex_str = &s[1..];
+        let hex_str = if s.starts_with('$') {&s[1..]} else {s};
         let bytes =
             hex::decode(hex_str).expect("PointerAddress must be valid hex");
         match bytes.len() {
@@ -69,7 +66,17 @@ impl Serialize for PointerAddress {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        match self {
+            PointerAddress::Local(bytes) => {
+                serializer.serialize_str(&format!("${}", hex::encode(bytes)))
+            }
+            PointerAddress::Remote(bytes) => {
+                serializer.serialize_str(&format!("${}", hex::encode(bytes)))
+            }
+            PointerAddress::Internal(bytes) => {
+                serializer.serialize_str(&format!("${}", hex::encode(bytes)))
+            }
+        }
     }
 }
 impl<'de> Deserialize<'de> for PointerAddress {
