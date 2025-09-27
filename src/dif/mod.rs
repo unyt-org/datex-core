@@ -32,6 +32,7 @@ mod tests {
         dif::{
             dif_representation::DIFRepresentationValue,
             r#type::{DIFType, DIFTypeContainer},
+            value::DIFValue,
         },
         libs::core::CoreLibPointerId,
         types::{
