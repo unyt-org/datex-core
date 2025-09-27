@@ -1,5 +1,5 @@
 use crate::dif::DIFProperty;
-use crate::dif::interface::DIFResolveReferenceError;
+use crate::dif::interface::{DIFFreeError, DIFResolveReferenceError};
 use crate::dif::r#type::{DIFType, DIFTypeContainer};
 use crate::dif::value::DIFValue;
 use crate::references::observers::ReferenceObserver;
@@ -178,37 +178,7 @@ impl DIFInterface for Runtime {
         todo!()
     }
 
-    async fn create_pointer(
-        &self,
-        value: DIFValueContainer,
-        allowed_type: Option<DIFTypeContainer>,
-        mutability: ReferenceMutability,
-    ) -> Result<PointerAddress, DIFCreatePointerError> {
-        let container = match value {
-            DIFValueContainer::Reference(address) => ValueContainer::Reference(
-                self.resolve_in_memory_reference(&address)
-                    .ok_or(DIFCreatePointerError::ReferenceNotFound)?,
-            ),
-            DIFValueContainer::Value(v) => ValueContainer::from(v),
-        };
-        let type_container = if let Some(allowed_type) = &allowed_type {
-            todo!(
-                "FIXME: Implement type_container creation from DIFTypeContainer"
-            )
-        } else {
-            None
-        };
-        let reference = Reference::try_new_from_value_container(
-            container,
-            type_container,
-            None,
-            mutability,
-        )?;
-        let address = self.memory().borrow_mut().register_reference(reference);
-        Ok(address)
-    }
-
-    fn create_pointer_sync(
+    fn create_pointer(
         &self,
         value: DIFValueContainer,
         allowed_type: Option<DIFTypeContainer>,
@@ -260,6 +230,10 @@ impl DIFInterface for Runtime {
         ptr.unobserve(observer_id)
             .map_err(DIFObserveError::ObserveError)
     }
+
+    fn free_pointer(&self, address: PointerAddress) -> Result<(), DIFFreeError> {
+        todo!()
+    }
 }
 
 
@@ -278,7 +252,7 @@ mod tests {
     fn test_create_and_observe_pointer() {
         let runtime = Runtime::init_native(RuntimeConfig::default());
         let pointer_address = runtime
-            .create_pointer_sync(
+            .create_pointer(
                 DIFValueContainer::Value(
                     DIFValue::from(
                         DIFRepresentationValue::String("Hello, world!".to_string()),
@@ -330,7 +304,7 @@ mod tests {
                 )),
             )))
         );
-        
+
         // try unobserve again, should fail
         assert!(runtime.unobserve_pointer(pointer_address.clone(), observer_id.borrow().unwrap()).is_err());
     }
