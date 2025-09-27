@@ -1,3 +1,5 @@
+use crate::dif::value::DIFValueContainer;
+use crate::dif::{DIFProperty, DIFUpdate};
 use crate::references::reference::AssignmentError;
 use crate::{
     references::reference::{AccessError, Reference},
@@ -16,11 +18,15 @@ impl Reference {
         }
 
         let val = val.upgrade_combined_value_to_reference();
+        let dif_val =
+            DIFValueContainer::try_from(&val).expect("FIXME: references");
+        let dif_key =
+            DIFValueContainer::try_from(&key).expect("FIXME: references");
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
-                    obj.set(key, self.bind_child(val));
+                    obj.set(key, val);
                 }
                 CoreValue::Struct(ref mut struct_val) => {
                     if let ValueContainer::Value(value) = &key {
@@ -28,7 +34,7 @@ impl Reference {
                             let key_str = value.cast_to_text().0;
                             // If the value is a struct, set the property if it exists
                             if struct_val.has_field(&key_str) {
-                                struct_val.set(&key_str, self.bind_child(val));
+                                struct_val.set(&key_str, val);
                             } else {
                                 return Err(AccessError::PropertyNotFound(
                                     key_str,
@@ -51,18 +57,13 @@ impl Reference {
                     )));
                 }
             }
-            // FIXME: Notify observers about the property update
-            // self.notify_observers(&DIFUpdate::UpdateProperty {
-            //     property: DIFProperty::Value(key),
-            //     value: DIFValueContainer::Value(val),
-            // });
             Ok(())
         })?;
         // FIXME: Notify observers about the property update
-        // self.notify_observers(&DIFUpdate::UpdateProperty {
-        //     property: DIFProperty::Value(key),
-        //     value: DIFValueContainer::Value(val),
-        // });
+        self.notify_observers(&DIFUpdate::UpdateProperty {
+            property: DIFProperty::Value(dif_key),
+            value: dif_val,
+        });
         Ok(())
     }
 
@@ -78,16 +79,17 @@ impl Reference {
 
         // Ensure the value is a reference if it is a combined value (e.g. an object)
         let val = val.upgrade_combined_value_to_reference();
+        let dif = DIFValueContainer::try_from(&val).expect("FIXME: references");
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
-                    obj.set(key, self.bind_child(val));
+                    obj.set(key, val);
                 }
                 CoreValue::Struct(ref mut struct_val) => {
                     // If the value is a struct, set the property if it exists
                     if struct_val.has_field(key) {
-                        struct_val.set(key, self.bind_child(val));
+                        struct_val.set(key, val);
                     } else {
                         return Err(AccessError::PropertyNotFound(
                             key.to_string(),
@@ -105,11 +107,10 @@ impl Reference {
             Ok(())
         })?;
 
-        // FIXME: Notify observers about the property update
-        // self.notify_observers(&DIFUpdate::UpdateProperty {
-        //     property: DIFProperty::Text(key.to_string()),
-        //     value: DIFValueContainer::Value(val),
-        // });
+        self.notify_observers(&DIFUpdate::UpdateProperty {
+            property: DIFProperty::Text(key.to_string()),
+            value: dif,
+        });
         Ok(())
     }
 
@@ -123,6 +124,7 @@ impl Reference {
         }
 
         let val = val.upgrade_combined_value_to_reference();
+        let dif = DIFValueContainer::try_from(&val).expect("FIXME: references");
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Array(ref mut arr) => {
@@ -156,11 +158,10 @@ impl Reference {
             Ok(())
         })?;
 
-        // FIXME: Notify observers about the property update
-        // self.notify_observers(&DIFUpdate::UpdateProperty {
-        //     property: DIFProperty::Integer(index as i64),
-        //     value: DIFValueContainer::Value(val),
-        // });
+        self.notify_observers(&DIFUpdate::UpdateProperty {
+            property: DIFProperty::Integer(index as i64),
+            value: dif,
+        });
         Ok(())
     }
 
@@ -181,10 +182,9 @@ impl Reference {
             Ok(())
         })?;
 
-        // FIXME: Notify observers about the value change
-        // self.notify_observers(&DIFUpdate::Replace(
-        //     DIFValueContainer::try_from(value_container).unwrap(),
-        // ));
+        self.notify_observers(&DIFUpdate::Replace(
+            DIFValueContainer::try_from(value_container).unwrap(),
+        ));
         Ok(())
     }
 
@@ -199,10 +199,12 @@ impl Reference {
 
         let value_container =
             value.into().upgrade_combined_value_to_reference();
+        let dif = DIFValueContainer::try_from(&value_container)
+            .expect("FIXME: references");
         self.with_value_unchecked(move |core_value| {
             match &mut core_value.inner {
                 CoreValue::List(list) => {
-                    list.push(self.bind_child(value_container));
+                    list.push(value_container);
                 }
                 _ => {
                     return Err(AccessError::InvalidOperation(format!(
@@ -214,10 +216,7 @@ impl Reference {
             Ok(())
         })?;
 
-        // FIXME: Notify observers about the push operation
-        // self.notify_observers(&DIFUpdate::Push(
-        //     DIFValueContainer::Value(value_container),
-        // ));
+        self.notify_observers(&DIFUpdate::Push(dif));
         Ok(())
     }
 }
