@@ -47,18 +47,16 @@ impl Reference {
     /// Removes an observer by its ID.
     /// Returns an error if the observer ID is not found or the reference is immutable.
     pub fn unobserve(&self, observer_id: u32) -> Result<(), ObserverError> {
-        Ok(())
-        // TODO renable
-        // let removed = self
-        //     .ensure_mutable_value_reference()?
-        //     .borrow_mut()
-        //     .observers
-        //     .remove(observer_id);
-        // if removed.is_some() {
-        //     Ok(())
-        // } else {
-        //     Err(ObserverError::ObserverNotFound)
-        // }
+        let removed = self
+            .ensure_mutable_value_reference()?
+            .borrow_mut()
+            .observers
+            .remove(observer_id);
+        if removed.is_some() {
+            Ok(())
+        } else {
+            Err(ObserverError::ObserverNotFound)
+        }
     }
 
     /// Returns a list of all observer IDs currently registered to this reference.
