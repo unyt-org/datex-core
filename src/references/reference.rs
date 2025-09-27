@@ -58,12 +58,6 @@ impl Display for ReferenceMutability {
     }
 }
 
-/*
-
-x = x.try_set_property();
-
-*/
-
 #[derive(Debug, Clone)]
 pub enum Reference {
     ValueReference(Rc<RefCell<ValueReference>>),
