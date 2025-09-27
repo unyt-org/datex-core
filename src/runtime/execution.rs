@@ -919,7 +919,7 @@ fn get_result_value_from_instruction(
                 )
             }
 
-            Instruction::GetOriginRef(address) => {
+            Instruction::GetLocalRef(address) => {
                 interrupt_with_result!(
                     interrupt_provider,
                     ExecutionStep::ResolveOriginPointer(address)

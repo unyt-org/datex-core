@@ -835,7 +835,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, false)?;
             }
 
-            Instruction::GetOriginRef(address) => {
+            Instruction::GetLocalRef(address) => {
                 handle_before_term(
                     state,
                     &mut output,

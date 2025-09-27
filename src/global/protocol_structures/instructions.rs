@@ -81,7 +81,7 @@ pub enum Instruction {
 
     // &ABCDE
     GetRef(RawFullPointerAddress),
-    GetOriginRef(RawOriginPointerAddress),
+    GetLocalRef(RawOriginPointerAddress),
     GetInternalRef(RawInternalPointerAddress),
 
     // &ABCDE := ...
@@ -189,8 +189,8 @@ impl Display for Instruction {
             Instruction::GetRef(address) => {
                 write!(f, "GET_REF [{}:{}]", address.endpoint, hex::encode(address.id))
             }
-            Instruction::GetOriginRef(address) => {
-                write!(f, "GET_ORIGIN_REF [origin_id: {}]", hex::encode(address.id))
+            Instruction::GetLocalRef(address) => {
+                write!(f, "GET_LOCAL_REF [origin_id: {}]", hex::encode(address.id))
             }
             Instruction::GetInternalRef(address) => {
                 write!(f, "GET_INTERNAL_REF [internal_id: {}]", hex::encode(address.id))

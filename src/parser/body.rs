@@ -432,7 +432,7 @@ pub fn iterate_instructions<'a>(
                         if let Err(err) = address {
                             Err(err.into())
                         } else {
-                            Ok(Instruction::GetOriginRef(address.unwrap()))
+                            Ok(Instruction::GetLocalRef(address.unwrap()))
                         }
                     }
 
