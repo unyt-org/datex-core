@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::{
     dif_representation::DIFRepresentationValue, r#type::DIFTypeContainer,
@@ -15,6 +16,11 @@ use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
+use datex_core::runtime::memory::Memory;
+use crate::dif::interface::DIFCreatePointerError;
+
+#[derive(Debug)]
+pub struct DIFReferenceNotFoundError;
 
 /// Represents a value in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -28,10 +34,11 @@ pub struct DIFValue {
     pub allowed_type: Option<DIFTypeContainer>,
 }
 
-// FIXME
-impl From<DIFValue> for Value {
-    fn from(dif_value: DIFValue) -> Self {
-        if let Some(r#type) = &dif_value.r#type {
+impl DIFValue {
+    /// Converts the DIFValue into a Value, resolving references using the provided memory.
+    /// Returns an error if a reference cannot be resolved.
+    pub fn to_value(self, memory: &Memory) -> Result<Value, DIFReferenceNotFoundError> {
+        Ok(if let Some(r#type) = &self.r#type {
             match r#type {
                 DIFTypeContainer::Reference(r) => todo!(
                     "Type references not supported in Value conversion yet"
@@ -54,7 +61,7 @@ impl From<DIFValue> for Value {
                 }
             }
         } else {
-            match dif_value.value {
+            match self.value {
                 DIFRepresentationValue::Null => Value::null(),
                 DIFRepresentationValue::String(str) => Value {
                     actual_type: Box::new(get_core_lib_type(
@@ -78,11 +85,38 @@ impl From<DIFValue> for Value {
                         OrderedFloat::from(n),
                     )),
                 },
+                DIFRepresentationValue::Array(array) => Value {
+                    actual_type: Box::new(get_core_lib_type(
+                        CoreLibPointerId::List,
+                    )),
+                    inner: CoreValue::List(
+                        array
+                            .into_iter()
+                            .map(|v| v.to_value_container(memory))
+                            .collect::<Result<Vec<ValueContainer>, _>>()?
+                            .into(),
+                    ),
+                },
+                DIFRepresentationValue::Object(object) => {
+                    let mut map = IndexMap::new();
+                    for (k, v) in object {
+                        map.insert(
+                            k,
+                            v.to_value_container(memory)?,
+                        );
+                    }
+                    Value {
+                        actual_type: Box::new(get_core_lib_type(
+                            CoreLibPointerId::Struct,
+                        )),
+                        inner: CoreValue::Struct(map.into()),
+                    }
+                }
                 _ => todo!(
                     "Other DIFRepresentationValue variants not supported yet"
                 ),
             }
-        }
+        })
     }
 }
 
@@ -157,6 +191,23 @@ impl From<DIFRepresentationValue> for DIFValue {
 pub enum DIFValueContainer {
     Value(DIFValue),
     Reference(PointerAddress),
+}
+
+impl DIFValueContainer {
+    /// Converts the DIFValueContainer into a ValueContainer, resolving references using the provided memory.
+    /// Returns an error if a reference cannot be resolved.
+    pub fn to_value_container(self, memory: &Memory) -> Result<ValueContainer, DIFReferenceNotFoundError> {
+        Ok(
+            match self {
+                DIFValueContainer::Reference(address) => ValueContainer::Reference(
+                    memory.get_reference(&address)
+                        .ok_or(DIFReferenceNotFoundError)?
+                        .clone(),
+                ),
+                DIFValueContainer::Value(v) => ValueContainer::Value(v.to_value(&memory)?)
+            }
+        )
+    }
 }
 
 impl From<DIFValue> for DIFValueContainer {

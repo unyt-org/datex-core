@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use datex_core::dif::value::DIFReferenceNotFoundError;
 use crate::dif::DIFUpdate;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::value::DIFValueContainer;
@@ -42,6 +42,13 @@ pub enum DIFUpdateError {
     AssignmentError(AssignmentError),
     TypeError(TypeError),
 }
+
+impl From<DIFReferenceNotFoundError> for DIFUpdateError {
+    fn from(_: DIFReferenceNotFoundError) -> Self {
+        DIFUpdateError::ReferenceNotFound
+    }
+}
+
 impl Display for DIFUpdateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -82,6 +89,12 @@ impl Display for DIFApplyError {
 pub enum DIFCreatePointerError {
     ReferenceNotFound,
     ReferenceFromValueContainerError(ReferenceFromValueContainerError),
+}
+
+impl From<DIFReferenceNotFoundError> for DIFCreatePointerError {
+    fn from(_: DIFReferenceNotFoundError) -> Self {
+        DIFCreatePointerError::ReferenceNotFound
+    }
 }
 
 impl Display for DIFCreatePointerError {

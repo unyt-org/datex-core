@@ -33,19 +33,7 @@ impl Runtime {
     ) -> Option<Reference> {
         self.memory().borrow().get_reference(address).cloned()
     }
-    pub fn as_value_container(
-        &self,
-        val: &DIFValueContainer,
-    ) -> Option<ValueContainer> {
-        match val {
-            DIFValueContainer::Value(value) => {
-                Some(ValueContainer::from(value.clone()))
-            }
-            DIFValueContainer::Reference(address) => self
-                .resolve_in_memory_reference(address)
-                .map(ValueContainer::Reference),
-        }
-    }
+
     // pub fn as_dif_value_container(
     //     &self,
     //     val: &ValueContainer,
@@ -83,25 +71,23 @@ impl DIFInterface for Runtime {
                         ),
                     ));
                 }
-                let value_container = self
-                    .as_value_container(&value)
-                    .ok_or(DIFUpdateError::ReferenceNotFound)?;
-                match &property {
+                let value_container = value
+                    .to_value_container(&self.memory().borrow())?;
+                match property {
                     DIFProperty::Text(key) => {
-                        ptr.try_set_text_property(key, value_container)
+                        ptr.try_set_text_property(&key, value_container)
                             .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Integer(key) => {
                         ptr.try_set_numeric_property(
-                            *key as u32,
+                            key as u32,
                             value_container,
                         )
                         .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Value(key) => {
-                        let key = self
-                            .as_value_container(key)
-                            .ok_or(DIFUpdateError::ReferenceNotFound)?;
+                        let key = key
+                            .to_value_container(&self.memory().borrow())?;
                         ptr.try_set_property(key, value_container)
                             .map_err(DIFUpdateError::AccessError)?;
                     }
@@ -115,8 +101,7 @@ impl DIFInterface for Runtime {
             }
             DIFUpdate::Replace(new_value) => {
                 ptr.try_set_value(
-                    self.as_value_container(&new_value)
-                        .ok_or(DIFUpdateError::ReferenceNotFound)?,
+                    new_value.to_value_container(&self.memory().borrow())?,
                 )
                 .map_err(DIFUpdateError::AssignmentError)?;
 
@@ -133,8 +118,7 @@ impl DIFInterface for Runtime {
                     ));
                 }
                 ptr.try_push_value(
-                    self.as_value_container(&new_value)
-                        .ok_or(DIFUpdateError::ReferenceNotFound)?,
+                    new_value.to_value_container(&self.memory().borrow())?,
                 )
                 .map_err(DIFUpdateError::AccessError)?;
 
@@ -184,13 +168,7 @@ impl DIFInterface for Runtime {
         allowed_type: Option<DIFTypeContainer>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError> {
-        let container = match value {
-            DIFValueContainer::Reference(address) => ValueContainer::Reference(
-                self.resolve_in_memory_reference(&address)
-                    .ok_or(DIFCreatePointerError::ReferenceNotFound)?,
-            ),
-            DIFValueContainer::Value(v) => ValueContainer::from(v),
-        };
+        let container = value.to_value_container(&self.memory().borrow())?;
         let type_container = if let Some(allowed_type) = &allowed_type {
             todo!(
                 "FIXME: Implement type_container creation from DIFTypeContainer"
