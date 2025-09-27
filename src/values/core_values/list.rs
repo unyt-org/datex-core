@@ -12,14 +12,14 @@ impl List {
     pub fn new<T: Into<ValueContainer>>(values: Vec<T>) -> Self {
         List(values.into_iter().map(Into::into).collect())
     }
-    pub fn len(&self) -> usize {
-        self.0.len()
+    pub fn len(&self) -> u32 {
+        self.0.len() as u32
     }
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    pub fn get(&self, index: usize) -> Option<&ValueContainer> {
-        self.0.get(index)
+    pub fn get(&self, index: u32) -> Option<&ValueContainer> {
+        self.0.get(index as usize)
     }
 
     pub fn push<T: Into<ValueContainer>>(&mut self, value: T) {

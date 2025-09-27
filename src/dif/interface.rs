@@ -3,7 +3,7 @@ use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{ObserveError, ReferenceObserver};
 use crate::references::reference::{
-    Reference, ReferenceFromValueContainerError,
+    AccessError, Reference, ReferenceFromValueContainerError,
 };
 use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
@@ -23,6 +23,7 @@ impl From<ObserveError> for DIFObserveError {
 pub enum DIFUpdateError {
     ReferenceNotFound,
     InvalidUpdate,
+    AccessError(AccessError),
 }
 
 #[derive(Debug)]

@@ -11,8 +11,8 @@ impl Array {
     pub fn new<T: Into<ValueContainer>>(vec: Vec<T>) -> Self {
         Array(vec.into_iter().map(|v| v.into()).collect())
     }
-    pub fn len(&self) -> usize {
-        self.0.len()
+    pub fn len(&self) -> u32 {
+        self.0.len() as u32
     }
     pub fn get_unchecked(&self, index: u32) -> &ValueContainer {
         self.get(index)

@@ -21,7 +21,7 @@ impl Struct {
     ) -> Self {
         Struct(vec.into_iter().map(|v| v.into()).collect(), fields)
     }
-    pub fn size(&self) -> usize {
+    pub fn size(&self) -> u32 {
         self.0.len()
     }
     pub fn at_unchecked(&self, index: u32) -> &ValueContainer {
@@ -67,6 +67,10 @@ impl Struct {
 
     pub fn has_index(&self, index: u32) -> bool {
         self.0.has_index(index)
+    }
+
+    pub fn has_field(&self, field: &str) -> bool {
+        self.1.iter().any(|f| f == field)
     }
 
     pub fn values(&self) -> impl Iterator<Item = &ValueContainer> {

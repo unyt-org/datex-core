@@ -1,5 +1,8 @@
+use chumsky::prelude::todo;
+
+use crate::dif::DIFProperty;
 use crate::references::observers::ReferenceObserver;
-use crate::references::reference::ReferenceMutability;
+use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::{
     dif::{
         DIFUpdate,
@@ -26,7 +29,53 @@ impl DIFInterface for Runtime {
         address: PointerAddress,
         update: DIFUpdate,
     ) -> Result<(), DIFUpdateError> {
-        todo!()
+        let ptr = self
+            .resolve_reference(&address)
+            .ok_or(DIFUpdateError::ReferenceNotFound)?;
+        match update {
+            DIFUpdate::UpdateProperty { property, value } => {
+                if !ptr.has_property_access() {
+                    return Err(DIFUpdateError::AccessError(
+                        AccessError::InvalidOperation(
+                            "Reference does not support property access"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                match property {
+                    DIFProperty::Text(key) => {
+                        ptr.try_set_text_property(
+                            &key,
+                            ValueContainer::from(value),
+                        )
+                        .map_err(DIFUpdateError::AccessError)?;
+                    }
+                    DIFProperty::Integer(key) => {
+                        ptr.try_set_numeric_property(
+                            key as u32,
+                            ValueContainer::from(value),
+                        )
+                        .map_err(DIFUpdateError::AccessError)?;
+                    }
+                    DIFProperty::Value(key) => {
+                        ptr.try_set_property(
+                            ValueContainer::from(key),
+                            ValueContainer::from(value),
+                        )
+                        .map_err(DIFUpdateError::AccessError)?;
+                    }
+                }
+
+                // ptr.notify_observers(&DIFUpdate::UpdateProperty {
+                //     property,
+                //     value,
+                // });
+                Ok(())
+            }
+            _ => unreachable!(
+                "only property updates are supported via DIFUpdate"
+            ),
+        }
     }
 
     fn apply(

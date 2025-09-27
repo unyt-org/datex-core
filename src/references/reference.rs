@@ -25,6 +25,9 @@ use std::rc::Rc;
 pub enum AccessError {
     ImmutableReference,
     InvalidOperation(String),
+    PropertyNotFound(String),
+    CanNotUseReferenceAsKey,
+    IndexOutOfBounds,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
