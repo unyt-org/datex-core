@@ -85,7 +85,7 @@ impl Serialize for DIFRepresentationValue {
         S: Serializer,
     {
         match self {
-            DIFRepresentationValue::Null => serializer.serialize_unit(),
+            DIFRepresentationValue::Null => serializer.serialize_none(), // FIXME
             DIFRepresentationValue::Boolean(b) => serializer.serialize_bool(*b),
             DIFRepresentationValue::String(s) => serializer.serialize_str(s),
             DIFRepresentationValue::Number(f) => serializer.serialize_f64(*f),
