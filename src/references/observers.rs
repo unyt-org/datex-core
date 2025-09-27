@@ -59,8 +59,9 @@ impl Reference {
     /// Removes all observers from this reference.
     /// Returns an error if the reference is immutable.
     pub fn unobserve_all(&self) -> Result<(), ObserveError> {
+        self.ensure_mutable_value_reference()?;
         for id in self.observers_ids() {
-            self.unobserve(id)?;
+            let _ = self.unobserve(id);
         }
         Ok(())
     }
