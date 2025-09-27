@@ -1,7 +1,9 @@
 use crate::dif::DIFProperty;
+use crate::dif::r#type::{DIFType, DIFTypeContainer};
 use crate::dif::value::DIFValue;
 use crate::references::observers::ReferenceObserver;
 use crate::references::reference::{AccessError, ReferenceMutability};
+use crate::types::type_container;
 use crate::{
     dif::{
         DIFUpdate,
@@ -142,6 +144,8 @@ impl DIFInterface for Runtime {
     fn create_pointer(
         &self,
         value: DIFValueContainer,
+        allowed_type: Option<DIFTypeContainer>,
+        mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError> {
         let container = match value {
             DIFValueContainer::Reference(address) => ValueContainer::Reference(
@@ -150,11 +154,18 @@ impl DIFInterface for Runtime {
             ),
             DIFValueContainer::Value(v) => ValueContainer::from(v),
         };
+        let type_container = if let Some(allowed_type) = &allowed_type {
+            todo!(
+                "FIXME: Implement type_container creation from DIFTypeContainer"
+            )
+        } else {
+            None
+        };
         let reference = Reference::try_new_from_value_container(
-            container,                      // TODO
-            None,                           // TODO
-            None,                           // TODO
-            ReferenceMutability::Immutable, // TODO
+            container,
+            type_container,
+            None,
+            mutability,
         )?;
         let address = self.memory().borrow_mut().register_reference(reference);
         Ok(address)

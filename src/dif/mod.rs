@@ -19,6 +19,7 @@ pub enum DIFProperty {
 
 /// Represents an update operation for a DIF value.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind")]
 pub enum DIFUpdate {
     Replace(DIFValueContainer),
     UpdateProperty {
@@ -57,6 +58,21 @@ mod tests {
             serde_json::from_str(&serialized).unwrap();
         assert_eq!(dif_value_container, deserialized);
         dif_value_container
+    }
+
+    #[test]
+    fn serde() {
+        let dif_update =
+            DIFUpdate::Replace(DIFValueContainer::Value(DIFValue {
+                value: DIFRepresentationValue::String("Hello".to_string()),
+                r#type: None,
+                allowed_type: None,
+            }));
+        let serialized = serde_json::to_string(&dif_update).unwrap();
+        println!("Serialized DIFUpdate: {}", serialized);
+        let deserialized: DIFUpdate =
+            serde_json::from_str(&serialized).unwrap();
+        assert_eq!(dif_update, deserialized);
     }
 
     #[test]

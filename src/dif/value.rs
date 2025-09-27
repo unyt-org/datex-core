@@ -1,7 +1,9 @@
+use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::{
     dif_representation::DIFRepresentationValue, r#type::DIFTypeContainer,
 };
-use crate::libs::core::CoreLibPointerId;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -11,6 +13,7 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 /// Represents a value in the Datex Interface Format (DIF).
@@ -25,9 +28,61 @@ pub struct DIFValue {
     pub allowed_type: Option<DIFTypeContainer>,
 }
 
+// FIXME
 impl From<DIFValue> for Value {
     fn from(dif_value: DIFValue) -> Self {
-        todo!()
+        if let Some(r#type) = &dif_value.r#type {
+            match r#type {
+                DIFTypeContainer::Reference(r) => todo!(
+                    "Type references not supported in Value conversion yet"
+                ),
+                DIFTypeContainer::Type(dif_type) => {
+                    match &dif_type.type_definition {
+                        DIFTypeDefinition::Structural(s) => {
+                            todo!(
+                                "Structural type conversion not supported yet"
+                            )
+                        }
+                        DIFTypeDefinition::Unit => Value {
+                            actual_type: Box::new(get_core_lib_type(
+                                CoreLibPointerId::Null,
+                            )),
+                            inner: CoreValue::Null,
+                        },
+                        _ => todo!("Other type definitions not supported yet"),
+                    }
+                }
+            }
+        } else {
+            match dif_value.value {
+                DIFRepresentationValue::Null => Value::null(),
+                DIFRepresentationValue::String(str) => Value {
+                    actual_type: Box::new(get_core_lib_type(
+                        CoreLibPointerId::Text,
+                    )),
+                    inner: CoreValue::Text(str.into()),
+                },
+                DIFRepresentationValue::Boolean(b) => Value {
+                    actual_type: Box::new(get_core_lib_type(
+                        CoreLibPointerId::Boolean,
+                    )),
+                    inner: CoreValue::Boolean(b.into()),
+                },
+                DIFRepresentationValue::Number(n) => Value {
+                    actual_type: Box::new(get_core_lib_type(
+                        CoreLibPointerId::Decimal(Some(
+                            DecimalTypeVariant::F64,
+                        )),
+                    )),
+                    inner: CoreValue::TypedDecimal(TypedDecimal::F64(
+                        OrderedFloat::from(n),
+                    )),
+                },
+                _ => todo!(
+                    "Other DIFRepresentationValue variants not supported yet"
+                ),
+            }
+        }
     }
 }
 
@@ -341,6 +396,14 @@ mod tests {
         }
     }
 
+    #[test]
+    fn serde_dif_value() {
+        let dif = DIFValue::try_from(&Value::from("123u16")).unwrap();
+        let serialized = serde_json::to_string(&dif).unwrap();
+        println!("Serialized DIFValue: {}", serialized);
+        let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(dif, deserialized);
+    }
     // #[test]
     // fn allowed_type() {
     //     let dif = DIFValue::from(ValueContainer::Reference(

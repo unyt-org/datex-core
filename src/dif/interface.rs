@@ -1,10 +1,12 @@
 use std::fmt::Display;
 
 use crate::dif::DIFUpdate;
+use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{ObserverError, ReferenceObserver};
 use crate::references::reference::{
-    AccessError, AssignmentError, ReferenceFromValueContainerError, TypeError,
+    AccessError, AssignmentError, ReferenceFromValueContainerError,
+    ReferenceMutability, TypeError,
 };
 use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
@@ -120,6 +122,8 @@ pub trait DIFInterface {
     fn create_pointer(
         &self,
         value: DIFValueContainer,
+        allowed_type: Option<DIFTypeContainer>,
+        mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError>;
 
     /// Starts observing changes to the pointer at the given address.
