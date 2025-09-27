@@ -525,9 +525,7 @@ impl Reference {
                     // If the value is an object, get the property
                     Ok(map
                         .get(&key)
-                        .ok_or(AccessError::PropertyNotFound(
-                            key.actual_type().to_string(),
-                        ))?
+                        .ok_or(AccessError::PropertyNotFound(key.to_string()))?
                         .clone())
                 }
                 CoreValue::Struct(ref mut struct_val) => {
@@ -768,7 +766,7 @@ mod tests {
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
         object_b_ref.with_maybe_reference(|b_ref| {
-            b_ref.try_set_text_property("a", object_a_val.clone())
+            b_ref.try_set_property("a".into(), object_a_val.clone())
         });
 
         println!("Object B Reference: {:#?}", object_b_ref);
