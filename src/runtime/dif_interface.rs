@@ -1,4 +1,5 @@
 use crate::dif::DIFProperty;
+use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::r#type::{DIFType, DIFTypeContainer};
 use crate::dif::value::DIFValue;
 use crate::references::observers::ReferenceObserver;
@@ -19,7 +20,17 @@ use crate::{
 };
 
 impl Runtime {
-    fn resolve_reference(&self, address: &PointerAddress) -> Option<Reference> {
+    fn resolve_in_memory_reference(
+        &self,
+        address: &PointerAddress,
+    ) -> Option<Reference> {
+        self.memory().borrow().get_reference(address).cloned()
+    }
+    // FIXME TODO
+    async fn resolve_reference(
+        &self,
+        address: &PointerAddress,
+    ) -> Option<Reference> {
         self.memory().borrow().get_reference(address).cloned()
     }
     pub fn as_value_container(
@@ -31,7 +42,7 @@ impl Runtime {
                 Some(ValueContainer::from(value.clone()))
             }
             DIFValueContainer::Reference(address) => self
-                .resolve_reference(address)
+                .resolve_in_memory_reference(address)
                 .map(ValueContainer::Reference),
         }
     }
@@ -60,7 +71,7 @@ impl DIFInterface for Runtime {
         update: DIFUpdate,
     ) -> Result<(), DIFUpdateError> {
         let ptr = self
-            .resolve_reference(&address)
+            .resolve_in_memory_reference(&address)
             .ok_or(DIFUpdateError::ReferenceNotFound)?;
         match update {
             DIFUpdate::UpdateProperty { property, value } => {
@@ -133,6 +144,32 @@ impl DIFInterface for Runtime {
         }
     }
 
+    async fn resolve_pointer_address_external(
+        &self,
+        address: PointerAddress,
+    ) -> Result<DIFValueContainer, DIFResolveReferenceError> {
+        let ptr = self.resolve_in_memory_reference(&address);
+        match ptr {
+            Some(ptr) => {
+                Ok(DIFValueContainer::try_from(&ptr.value_container()).unwrap())
+            }
+            None => todo!("Implement async resolution of references"),
+        }
+    }
+
+    fn resolve_pointer_address_in_memory(
+        &self,
+        address: PointerAddress,
+    ) -> Result<DIFValueContainer, DIFResolveReferenceError> {
+        let ptr = self.resolve_in_memory_reference(&address);
+        match ptr {
+            Some(ptr) => {
+                Ok(DIFValueContainer::try_from(&ptr.value_container()).unwrap())
+            }
+            None => Err(DIFResolveReferenceError::ReferenceNotFound),
+        }
+    }
+
     fn apply(
         &mut self,
         callee: DIFValueContainer,
@@ -141,7 +178,7 @@ impl DIFInterface for Runtime {
         todo!()
     }
 
-    fn create_pointer(
+    async fn create_pointer(
         &self,
         value: DIFValueContainer,
         allowed_type: Option<DIFTypeContainer>,
@@ -149,7 +186,37 @@ impl DIFInterface for Runtime {
     ) -> Result<PointerAddress, DIFCreatePointerError> {
         let container = match value {
             DIFValueContainer::Reference(address) => ValueContainer::Reference(
-                self.resolve_reference(&address)
+                self.resolve_in_memory_reference(&address)
+                    .ok_or(DIFCreatePointerError::ReferenceNotFound)?,
+            ),
+            DIFValueContainer::Value(v) => ValueContainer::from(v),
+        };
+        let type_container = if let Some(allowed_type) = &allowed_type {
+            todo!(
+                "FIXME: Implement type_container creation from DIFTypeContainer"
+            )
+        } else {
+            None
+        };
+        let reference = Reference::try_new_from_value_container(
+            container,
+            type_container,
+            None,
+            mutability,
+        )?;
+        let address = self.memory().borrow_mut().register_reference(reference);
+        Ok(address)
+    }
+
+    fn create_pointer_sync(
+        &self,
+        value: DIFValueContainer,
+        allowed_type: Option<DIFTypeContainer>,
+        mutability: ReferenceMutability,
+    ) -> Result<PointerAddress, DIFCreatePointerError> {
+        let container = match value {
+            DIFValueContainer::Reference(address) => ValueContainer::Reference(
+                self.resolve_in_memory_reference(&address)
                     .ok_or(DIFCreatePointerError::ReferenceNotFound)?,
             ),
             DIFValueContainer::Value(v) => ValueContainer::from(v),
@@ -177,7 +244,7 @@ impl DIFInterface for Runtime {
         observer: ReferenceObserver,
     ) -> Result<u32, DIFObserveError> {
         let ptr = self
-            .resolve_reference(&address)
+            .resolve_in_memory_reference(&address)
             .ok_or(DIFObserveError::ReferenceNotFound)?;
         Ok(ptr.observe(observer)?)
     }
@@ -188,7 +255,7 @@ impl DIFInterface for Runtime {
         observer_id: u32,
     ) -> Result<(), DIFObserveError> {
         let ptr = self
-            .resolve_reference(&address)
+            .resolve_in_memory_reference(&address)
             .ok_or(DIFObserveError::ReferenceNotFound)?;
         ptr.unobserve(observer_id)
             .map_err(DIFObserveError::ObserveError)

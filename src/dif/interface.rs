@@ -97,6 +97,20 @@ impl Display for DIFCreatePointerError {
     }
 }
 
+#[derive(Debug)]
+pub enum DIFResolveReferenceError {
+    ReferenceNotFound,
+}
+impl Display for DIFResolveReferenceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DIFResolveReferenceError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
+        }
+    }
+}
+
 impl From<ReferenceFromValueContainerError> for DIFCreatePointerError {
     fn from(err: ReferenceFromValueContainerError) -> Self {
         DIFCreatePointerError::ReferenceFromValueContainerError(err)
@@ -119,12 +133,29 @@ pub trait DIFInterface {
     ) -> Result<DIFValueContainer, DIFApplyError>;
 
     /// Creates a new pointer with the given DIF value and returns its address.
-    fn create_pointer(
+    async fn create_pointer(
         &self,
         value: DIFValueContainer,
         allowed_type: Option<DIFTypeContainer>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError>;
+
+    fn create_pointer_sync(
+        &self,
+        value: DIFValueContainer,
+        allowed_type: Option<DIFTypeContainer>,
+        mutability: ReferenceMutability,
+    ) -> Result<PointerAddress, DIFCreatePointerError>;
+
+    async fn resolve_pointer_address_external(
+        &self,
+        address: PointerAddress,
+    ) -> Result<DIFValueContainer, DIFResolveReferenceError>;
+
+    fn resolve_pointer_address_in_memory(
+        &self,
+        address: PointerAddress,
+    ) -> Result<DIFValueContainer, DIFResolveReferenceError>;
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.

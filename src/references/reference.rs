@@ -12,6 +12,7 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use num_enum::{FromPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -86,11 +87,14 @@ impl Display for AssignmentError {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TryFromPrimitive,
+)]
+#[repr(u8)]
 pub enum ReferenceMutability {
-    Mutable,
-    Immutable,
-    Final,
+    Mutable = 0,
+    Immutable = 1,
+    Final = 2,
 }
 
 impl Display for ReferenceMutability {
@@ -358,6 +362,11 @@ impl Reference {
         maybe_pointer_id: Option<PointerAddress>,
         mutability: ReferenceMutability,
     ) -> Result<Self, ReferenceFromValueContainerError> {
+        /**
+        * val a: &mut text = &mut "hello" // Reference<mutable, type: text>
+        * val b: &&mut text = &a     // Reference<immutable, type: Reference<&mut text>>
+        #*/
+        // FIXME implement type check
         Ok(match value_container {
             ValueContainer::Reference(ref reference) => {
                 let allowed_type =
