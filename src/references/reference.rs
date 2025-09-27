@@ -484,9 +484,6 @@ impl Reference {
     }
 }
 
-// FIXME: Can we remove option here? As None values shall be represented as Value::Null
-// for any structure, and access out of bounds or property non-existence is handled via Result.
-
 /// Getter for references
 impl Reference {
     /// Gets a property on the value if applicable (e.g. for map and structs)
