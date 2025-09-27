@@ -1,11 +1,10 @@
+use crate::dif::DIFProperty;
 use crate::dif::value::DIFValueContainer;
 use crate::references::reference::AssignmentError;
 use crate::{
     dif::DIFUpdate,
     references::reference::{AccessError, Reference},
-    values::{
-        core_value::CoreValue, value_container::ValueContainer,
-    },
+    values::{core_value::CoreValue, value_container::ValueContainer},
 };
 
 impl Reference {
@@ -15,8 +14,12 @@ impl Reference {
         key: ValueContainer,
         val: ValueContainer,
     ) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
+
         let val = val.upgrade_combined_value_to_reference();
-        self.with_value(|value| {
+        self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
@@ -51,9 +54,19 @@ impl Reference {
                     )));
                 }
             }
+            // FIXME: Notify observers about the property update
+            // self.notify_observers(&DIFUpdate::UpdateProperty {
+            //     property: DIFProperty::Value(key),
+            //     value: DIFValueContainer::Value(val),
+            // });
             Ok(())
-        })
-        .unwrap_or(Err(AccessError::ImmutableReference))
+        })?;
+        // FIXME: Notify observers about the property update
+        // self.notify_observers(&DIFUpdate::UpdateProperty {
+        //     property: DIFProperty::Value(key),
+        //     value: DIFValueContainer::Value(val),
+        // });
+        Ok(())
     }
 
     /// Sets a text property on the value if applicable (e.g. for structs)
@@ -62,9 +75,13 @@ impl Reference {
         key: &str,
         val: ValueContainer,
     ) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
+
         // Ensure the value is a reference if it is a combined value (e.g. an object)
         let val = val.upgrade_combined_value_to_reference();
-        self.with_value(|value| {
+        self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
@@ -89,8 +106,14 @@ impl Reference {
                 }
             }
             Ok(())
-        })
-        .unwrap_or(Err(AccessError::ImmutableReference))
+        })?;
+
+        // FIXME: Notify observers about the property update
+        // self.notify_observers(&DIFUpdate::UpdateProperty {
+        //     property: DIFProperty::Text(key.to_string()),
+        //     value: DIFValueContainer::Value(val),
+        // });
+        Ok(())
     }
 
     pub fn try_set_numeric_property(
@@ -98,8 +121,12 @@ impl Reference {
         index: u32,
         val: ValueContainer,
     ) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
+
         let val = val.upgrade_combined_value_to_reference();
-        self.with_value(|value| {
+        self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Array(ref mut arr) => {
                     if index < arr.len() {
@@ -130,8 +157,14 @@ impl Reference {
                 }
             }
             Ok(())
-        })
-        .unwrap_or(Err(AccessError::ImmutableReference))
+        })?;
+
+        // FIXME: Notify observers about the property update
+        // self.notify_observers(&DIFUpdate::UpdateProperty {
+        //     property: DIFProperty::Integer(index as i64),
+        //     value: DIFValueContainer::Value(val),
+        // });
+        Ok(())
     }
 
     /// Sets a value on the reference if it is mutable and the type is compatible.
@@ -144,21 +177,17 @@ impl Reference {
         }
         // TODO: ensure type compatibility with allowed_type
         let value_container = &value.into();
-        self.with_value(|core_value| {
+        self.with_value_unchecked(|core_value| {
             // Set the value directly, ensuring it is a ValueContainer
             core_value.inner =
                 value_container.to_value().borrow().inner.clone();
-        });
+            Ok(())
+        })?;
 
-        // Notify observers of the update
-        if self.has_observers() {
-            // TODO: no unwrap here
-            let dif = DIFUpdate::Replace(
-                DIFValueContainer::try_from(value_container).unwrap(),
-            );
-            self.notify_observers(&dif);
-        }
-
+        // FIXME: Notify observers about the value change
+        // self.notify_observers(&DIFUpdate::Replace(
+        //     DIFValueContainer::try_from(value_container).unwrap(),
+        // ));
         Ok(())
     }
 
@@ -167,9 +196,13 @@ impl Reference {
         &self,
         value: T,
     ) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
+
         let value_container =
             value.into().upgrade_combined_value_to_reference();
-        self.with_value(move |core_value| {
+        self.with_value_unchecked(move |core_value| {
             match &mut core_value.inner {
                 CoreValue::List(list) => {
                     list.push(self.bind_child(value_container));
@@ -182,8 +215,12 @@ impl Reference {
                 }
             }
             Ok(())
-        })
-        .unwrap_or(Err(AccessError::ImmutableReference))?;
+        })?;
+
+        // FIXME: Notify observers about the push operation
+        // self.notify_observers(&DIFUpdate::Push(
+        //     DIFValueContainer::Value(value_container),
+        // ));
         Ok(())
     }
 }
@@ -191,9 +228,7 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-    use std::{cell::RefCell, rc::Rc};
 
-    use crate::dif::value::DIFValueContainer;
     use crate::references::reference::{
         AccessError, AssignmentError, ReferenceMutability,
     };
@@ -201,7 +236,7 @@ mod tests {
     use crate::values::core_values::map::Map;
     use crate::values::core_values::r#struct::Struct;
     use crate::{
-        dif::DIFUpdate, references::reference::Reference,
+        references::reference::Reference,
         values::value_container::ValueContainer,
     };
 
@@ -222,6 +257,10 @@ mod tests {
 
         // Try to push to non-list value
         let int_ref = Reference::from(42);
+        let result = int_ref.try_push_value(ValueContainer::from(99));
+        assert_matches!(result, Err(AccessError::ImmutableReference));
+
+        let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result = int_ref.try_push_value(ValueContainer::from(99));
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
@@ -279,7 +318,7 @@ mod tests {
         );
 
         // Try to set index on non-array value
-        let int_ref = Reference::from(42);
+        let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result =
             int_ref.try_set_numeric_property(0, ValueContainer::from(99));
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
@@ -312,7 +351,7 @@ mod tests {
         );
 
         // Try to set property on non-struct value
-        let int_ref = Reference::from(42);
+        let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result =
             int_ref.try_set_text_property("name", ValueContainer::from("Bob"));
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));

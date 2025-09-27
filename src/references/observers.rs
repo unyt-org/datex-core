@@ -77,13 +77,35 @@ mod tests {
     use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
 
     use crate::{
-        dif::{DIFUpdate, value::DIFValueContainer},
+        dif::{
+            DIFProperty, DIFUpdate,
+            dif_representation::DIFRepresentationValue,
+            r#type::DIFTypeContainer,
+            value::{DIFValue, DIFValueContainer},
+        },
         references::{
             observers::ObserveError,
             reference::{Reference, ReferenceMutability},
         },
-        values::value_container::ValueContainer,
+        values::{
+            core_values::{map::Map, r#struct::Struct},
+            value_container::ValueContainer,
+        },
     };
+
+    fn record_dif_updates(
+        reference: &Reference,
+    ) -> Rc<RefCell<Vec<DIFUpdate>>> {
+        let updates: Rc<RefCell<Vec<DIFUpdate>>> =
+            Rc::new(RefCell::new(vec![]));
+        let updates_clone = Rc::clone(&updates);
+        reference
+            .observe(move |update| {
+                updates_clone.borrow_mut().push(update.clone());
+            })
+            .expect("Failed to attach observer");
+        updates
+    }
 
     #[test]
     fn immutable_reference_observe_fails() {
@@ -148,19 +170,9 @@ mod tests {
     }
 
     #[test]
-    fn value_change_observe() {
+    fn observe_replace() {
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-
-        let observed_update: Rc<RefCell<Option<DIFUpdate>>> =
-            Rc::new(RefCell::new(None));
-        let observed_update_clone = Rc::clone(&observed_update);
-
-        // Attach an observer to the reference
-        int_ref
-            .observe(move |update| {
-                *observed_update_clone.borrow_mut() = Some(update.clone());
-            })
-            .expect("Failed to attach observer");
+        let observed_update = record_dif_updates(&int_ref);
 
         // Update the value of the reference
         int_ref.try_set_value(43).expect("Failed to set value");
@@ -169,6 +181,33 @@ mod tests {
         let expected_update = DIFUpdate::Replace(
             DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
         );
-        assert_eq!(*observed_update.borrow(), Some(expected_update));
+        assert_eq!(*observed_update.borrow(), vec![expected_update]);
+    }
+
+    #[test]
+    fn observe_update_property() {
+        let reference = Reference::try_mut_from(
+            Struct::from(vec![
+                ("a".to_string(), ValueContainer::from(1)),
+                ("b".to_string(), ValueContainer::from(2)),
+            ])
+            .into(),
+        )
+        .unwrap();
+        let observed_updates = record_dif_updates(&reference);
+        // Update a property
+        reference
+            .try_set_text_property("a", "val".into())
+            .expect("Failed to set property");
+        // Verify the observed update matches the expected change
+        let expected_update = DIFUpdate::UpdateProperty {
+            property: DIFProperty::Text("a".to_string()),
+            value: DIFValue::new(
+                DIFRepresentationValue::String("val".to_string()),
+                DIFTypeContainer::none(),
+            )
+            .as_container(),
+        };
+        assert_eq!(*observed_updates.borrow(), vec![expected_update]);
     }
 }

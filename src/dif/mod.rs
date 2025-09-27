@@ -12,7 +12,7 @@ pub enum DIFProperty {
     /// an integer property (e.g. an array index)
     Integer(i64),
     /// any other property type
-    Value(DIFValue),
+    Value(DIFValueContainer),
 }
 
 /// Represents an update operation for a DIF value.
@@ -21,7 +21,7 @@ pub enum DIFUpdate {
     Replace(DIFValueContainer),
     UpdateProperty {
         property: DIFProperty,
-        value: DIFValue, // fixme should be DIFValueContainer
+        value: DIFValueContainer,
     },
     Push(DIFValueContainer),
 }

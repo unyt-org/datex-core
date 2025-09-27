@@ -21,11 +21,11 @@ impl Runtime {
     }
     fn as_value_container(
         &self,
-        val: DIFValueContainer,
+        val: &DIFValueContainer,
     ) -> Option<ValueContainer> {
         match val {
             DIFValueContainer::Value(value) => {
-                Some(ValueContainer::from(value))
+                Some(ValueContainer::from(value.clone()))
             }
             DIFValueContainer::Reference(address) => self
                 .resolve_reference(&address)
@@ -53,27 +53,27 @@ impl DIFInterface for Runtime {
                         ),
                     ));
                 }
-                match property {
+                let value_container = self
+                    .as_value_container(&value)
+                    .ok_or(DIFUpdateError::ReferenceNotFound)?;
+                match &property {
                     DIFProperty::Text(key) => {
-                        ptr.try_set_text_property(
-                            &key,
-                            ValueContainer::from(value),
-                        )
-                        .map_err(DIFUpdateError::AccessError)?;
+                        ptr.try_set_text_property(&key, value_container)
+                            .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Integer(key) => {
                         ptr.try_set_numeric_property(
-                            key as u32,
-                            ValueContainer::from(value),
+                            *key as u32,
+                            value_container,
                         )
                         .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Value(key) => {
-                        ptr.try_set_property(
-                            ValueContainer::from(key),
-                            ValueContainer::from(value),
-                        )
-                        .map_err(DIFUpdateError::AccessError)?;
+                        let key = self
+                            .as_value_container(key)
+                            .ok_or(DIFUpdateError::ReferenceNotFound)?;
+                        ptr.try_set_property(key, value_container)
+                            .map_err(DIFUpdateError::AccessError)?;
                     }
                 }
 
@@ -85,10 +85,12 @@ impl DIFInterface for Runtime {
             }
             DIFUpdate::Replace(new_value) => {
                 ptr.try_set_value(
-                    self.as_value_container(new_value)
+                    self.as_value_container(&new_value)
                         .ok_or(DIFUpdateError::ReferenceNotFound)?,
                 )
                 .map_err(DIFUpdateError::AssignmentError)?;
+
+                // ptr.notify_observers(&DIFUpdate::Replace(new_value));
                 Ok(())
             }
             DIFUpdate::Push(new_value) => {
@@ -101,10 +103,12 @@ impl DIFInterface for Runtime {
                     ));
                 }
                 ptr.try_push_value(
-                    self.as_value_container(new_value)
+                    self.as_value_container(&new_value)
                         .ok_or(DIFUpdateError::ReferenceNotFound)?,
                 )
                 .map_err(DIFUpdateError::AccessError)?;
+
+                // ptr.notify_observers(&DIFUpdate::Push(new_value));
                 Ok(())
             }
         }

@@ -84,6 +84,12 @@ pub enum DIFTypeContainer {
     Reference(PointerAddress),
 }
 
+impl DIFTypeContainer {
+    pub fn none() -> Option<Self> {
+        None
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFType {
     #[serde(skip_serializing_if = "Option::is_none")]

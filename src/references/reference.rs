@@ -202,6 +202,14 @@ impl Reference {
             Reference::TypeReference(_) => None,
         }
     }
+
+    pub(crate) fn with_value_unchecked<R, F: FnOnce(&mut Value) -> R>(
+        &self,
+        f: F,
+    ) -> R {
+        self.with_value(f).unwrap()
+    }
+
     /// Checks if the reference has property access.
     /// This is true for objects and structs, arrays and lists and text.
     /// For other types, this returns false.
