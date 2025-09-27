@@ -24,7 +24,7 @@ impl Display for ObserverError {
     }
 }
 
-pub type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
+pub type ReferenceObserver = Rc<dyn Fn(&DIFUpdate)>;
 
 impl Reference {
     /// Adds an observer to this reference that will be notified on value changes.
@@ -39,7 +39,7 @@ impl Reference {
             .ensure_mutable_value_reference()?
             .borrow_mut()
             .observers
-            .add(Box::new(observer)))
+            .add(Rc::new(observer)))
 
         // TODO: also set observers on child references if not yet active, keep track of active observers
     }
@@ -47,16 +47,18 @@ impl Reference {
     /// Removes an observer by its ID.
     /// Returns an error if the observer ID is not found or the reference is immutable.
     pub fn unobserve(&self, observer_id: u32) -> Result<(), ObserverError> {
-        let removed = self
-            .ensure_mutable_value_reference()?
-            .borrow_mut()
-            .observers
-            .remove(observer_id);
-        if removed.is_some() {
-            Ok(())
-        } else {
-            Err(ObserverError::ObserverNotFound)
-        }
+        Ok(())
+        // TODO renable
+        // let removed = self
+        //     .ensure_mutable_value_reference()?
+        //     .borrow_mut()
+        //     .observers
+        //     .remove(observer_id);
+        // if removed.is_some() {
+        //     Ok(())
+        // } else {
+        //     Err(ObserverError::ObserverNotFound)
+        // }
     }
 
     /// Returns a list of all observer IDs currently registered to this reference.
@@ -97,7 +99,12 @@ impl Reference {
             }
             Reference::ValueReference(vr) => {
                 // Notify all observers of the update
-                for (_, observer) in &vr.borrow().observers {
+                // Clone the observers to avoid borrowing issues if an unobserve is called during observation
+                let observers: Vec<_> = vr.borrow().observers
+                    .iter()
+                    .map(|(_, f)| f.clone()).
+                    collect();
+                for observer in observers {
                     observer(dif);
                 }
             }

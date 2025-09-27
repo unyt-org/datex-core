@@ -120,14 +120,14 @@ impl From<ReferenceFromValueContainerError> for DIFCreatePointerError {
 pub trait DIFInterface {
     /// Applies a DIF update to the value at the given pointer address.
     fn update(
-        &mut self,
+        &self,
         address: PointerAddress,
         update: DIFUpdate,
     ) -> Result<(), DIFUpdateError>;
 
     /// Executes an apply operation, applying the `value` to the `callee`.
     fn apply(
-        &mut self,
+        &self,
         callee: DIFValueContainer,
         value: DIFValueContainer,
     ) -> Result<DIFValueContainer, DIFApplyError>;
@@ -159,10 +159,10 @@ pub trait DIFInterface {
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.
-    fn observe_pointer(
+    fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
         &self,
         address: PointerAddress,
-        observer: ReferenceObserver,
+        observer: F,
     ) -> Result<u32, DIFObserveError>;
 
     /// Stops observing changes to the pointer at the given address.

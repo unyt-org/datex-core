@@ -66,7 +66,7 @@ impl Runtime {
 
 impl DIFInterface for Runtime {
     fn update(
-        &mut self,
+        &self,
         address: PointerAddress,
         update: DIFUpdate,
     ) -> Result<(), DIFUpdateError> {
@@ -171,7 +171,7 @@ impl DIFInterface for Runtime {
     }
 
     fn apply(
-        &mut self,
+        &self,
         callee: DIFValueContainer,
         value: DIFValueContainer,
     ) -> Result<DIFValueContainer, DIFApplyError> {
@@ -238,10 +238,10 @@ impl DIFInterface for Runtime {
         Ok(address)
     }
 
-    fn observe_pointer(
+    fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
         &self,
         address: PointerAddress,
-        observer: ReferenceObserver,
+        observer: F,
     ) -> Result<u32, DIFObserveError> {
         let ptr = self
             .resolve_in_memory_reference(&address)
