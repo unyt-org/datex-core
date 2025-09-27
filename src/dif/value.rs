@@ -123,7 +123,7 @@ impl From<PointerAddress> for DIFValueContainer {
 #[derive(Debug)]
 pub enum TryIntoDIFError {
     /// If the ValueContainer contains a Reference that has no pointer address assigned
-    MissingReferenceAddress
+    MissingReferenceAddress,
 }
 
 impl TryFrom<&ValueContainer> for DIFValueContainer {
@@ -131,15 +131,19 @@ impl TryFrom<&ValueContainer> for DIFValueContainer {
     fn try_from(value_container: &ValueContainer) -> Result<Self, Self::Error> {
         match value_container {
             ValueContainer::Reference(reference) => {
-                let address = reference.pointer_address()
+                let address = reference
+                    .pointer_address()
                     .ok_or(TryIntoDIFError::MissingReferenceAddress)?;
                 Ok(DIFValueContainer::Reference(address.clone()))
             }
-            ValueContainer::Value(value) => Ok(DIFValueContainer::Value(DIFValue::try_from(value)?)),
+            ValueContainer::Value(value) => {
+                Ok(DIFValueContainer::Value(DIFValue::try_from(value)?))
+            }
         }
     }
 }
 
+// FIXME do we really need a TryFrom here?
 impl TryFrom<&Value> for DIFValue {
     type Error = TryIntoDIFError;
 
@@ -216,43 +220,45 @@ impl TryFrom<&Value> for DIFValue {
                 structure
                     .iter()
                     .map(|(key, value)| {
-                        DIFValueContainer::try_from(value).map(|v| (key.clone(), v))
+                        DIFValueContainer::try_from(value)
+                            .map(|v| (key.clone(), v))
                     })
                     .collect::<Result<Vec<(String, DIFValueContainer)>, _>>()?,
             ),
             CoreValue::List(list) => DIFRepresentationValue::Array(
-                list
-                    .iter()
+                list.iter()
                     .map(DIFValueContainer::try_from)
                     .collect::<Result<Vec<DIFValueContainer>, _>>()?,
             ),
             CoreValue::Array(arr) => DIFRepresentationValue::Array(
-                arr
-                    .iter()
+                arr.iter()
                     .map(DIFValueContainer::try_from)
                     .collect::<Result<Vec<DIFValueContainer>, _>>()?,
             ),
-            CoreValue::Map(map) => DIFRepresentationValue::Map(
-                map.iter()
-                    .map(|(k, v)| {
-                        DIFValueContainer::try_from(k)
-                            .and_then(|key| {
+            CoreValue::Map(map) => {
+                DIFRepresentationValue::Map(
+                    map.iter()
+                        .map(|(k, v)| {
+                            DIFValueContainer::try_from(k).and_then(|key| {
                                 DIFValueContainer::try_from(v)
                                     .map(|val| (key, val))
                             })
-                    })
-                    .collect::<Result<Vec<(DIFValueContainer, DIFValueContainer)>, _>>()?,
-            ),
+                        })
+                        .collect::<Result<
+                            Vec<(DIFValueContainer, DIFValueContainer)>,
+                            _,
+                        >>()?,
+                )
+            }
         };
 
         Ok(DIFValue {
             value: dif_core_value,
             allowed_type: None,
-            r#type: get_type_if_non_default(&value.actual_type)
+            r#type: get_type_if_non_default(&value.actual_type),
         })
     }
 }
-
 
 // TODO: handle allowed type for references (must be set after try_from<Value> for references)
 /// Returns the allowed type for references, None for other value containers
@@ -305,14 +311,12 @@ fn get_type_if_non_default(r#type: &TypeContainer) -> Option<DIFTypeContainer> {
 
 #[cfg(test)]
 mod tests {
-    use datex_core::values::value::Value;
     use crate::{
         dif::{r#type::DIFTypeContainer, value::DIFValue},
         libs::core::CoreLibPointerId,
-        values::{
-            core_values::integer::typed_integer::IntegerTypeVariant,
-        },
+        values::core_values::integer::typed_integer::IntegerTypeVariant,
     };
+    use datex_core::values::value::Value;
 
     #[test]
     fn default_type() {

@@ -58,7 +58,7 @@ pub trait DIFInterface {
         &mut self,
         callee: DIFValueContainer,
         value: DIFValueContainer,
-    ) -> Result<DIFApplyError, ExecutionError>;
+    ) -> Result<DIFValueContainer, DIFApplyError>;
 
     /// Creates a new pointer with the given DIF value and returns its address.
     fn create_pointer(

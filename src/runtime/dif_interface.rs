@@ -1,4 +1,5 @@
 use crate::dif::DIFProperty;
+use crate::dif::value::DIFValue;
 use crate::references::observers::ReferenceObserver;
 use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::{
@@ -19,7 +20,7 @@ impl Runtime {
     fn resolve_reference(&self, address: &PointerAddress) -> Option<Reference> {
         self.memory().borrow().get_reference(address).cloned()
     }
-    fn as_value_container(
+    pub fn as_value_container(
         &self,
         val: &DIFValueContainer,
     ) -> Option<ValueContainer> {
@@ -32,6 +33,22 @@ impl Runtime {
                 .map(ValueContainer::Reference),
         }
     }
+    // pub fn as_dif_value_container(
+    //     &self,
+    //     val: &ValueContainer,
+    // ) -> Option<DIFValueContainer> {
+    //     match val {
+    //         ValueContainer::Value(value) => {
+    //             DIFValue::try_from(value).ok().map(DIFValueContainer::Value)
+    //         }
+    //         ValueContainer::Reference(address) => Some(DIFValueContainer::Reference(
+    //             address
+    //                 .pointer_address()
+    //                 .expect("Reference in ValueContainer must have a pointer address")
+    //                 .clone(),
+    //         )),
+    //     }
+    // }
 }
 
 impl DIFInterface for Runtime {
@@ -118,7 +135,7 @@ impl DIFInterface for Runtime {
         &mut self,
         callee: DIFValueContainer,
         value: DIFValueContainer,
-    ) -> Result<DIFApplyError, ExecutionError> {
+    ) -> Result<DIFValueContainer, DIFApplyError> {
         todo!()
     }
 
