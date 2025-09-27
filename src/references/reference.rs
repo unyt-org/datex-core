@@ -534,7 +534,7 @@ impl Reference {
     }
 
     /// Gets a text property from the value if applicable (e.g. for structs)
-    pub fn get_text_property(
+    pub fn try_get_text_property(
         &self,
         key: &str,
     ) -> Result<ValueContainer, AccessError> {
@@ -628,16 +628,16 @@ mod tests {
         ]);
         let reference = Reference::from(ValueContainer::from(struct_val));
         assert_eq!(
-            reference.get_text_property("name").unwrap(),
+            reference.try_get_text_property("name").unwrap(),
             ValueContainer::from("Jonas")
         );
         assert_eq!(
-            reference.get_text_property("age").unwrap(),
+            reference.try_get_text_property("age").unwrap(),
             ValueContainer::from(30)
         );
-        assert!(reference.get_text_property("nonexistent").is_err());
+        assert!(reference.try_get_text_property("nonexistent").is_err());
         assert_matches!(
-            reference.get_text_property("nonexistent"),
+            reference.try_get_text_property("nonexistent"),
             Err(AccessError::PropertyNotFound(_))
         );
     }

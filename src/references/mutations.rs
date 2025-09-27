@@ -213,11 +213,107 @@ mod tests {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::dif::value::DIFValueContainer;
-    use crate::references::reference::{AssignmentError, ReferenceMutability};
+    use crate::references::reference::{
+        AccessError, AssignmentError, ReferenceMutability,
+    };
+    use crate::values::core_values::map::Map;
+    use crate::values::core_values::r#struct::Struct;
     use crate::{
         dif::DIFUpdate, references::reference::Reference,
         values::value_container::ValueContainer,
     };
+
+    #[test]
+    fn property() {
+        let map = Map::from(vec![
+            ("key1".to_string(), ValueContainer::from(1)),
+            ("key2".to_string(), ValueContainer::from(2)),
+        ]);
+        let map_ref =
+            Reference::try_mut_from(ValueContainer::from(map)).unwrap();
+        // Set existing property
+        map_ref
+            .try_set_property("key1".into(), ValueContainer::from(42))
+            .expect("Failed to set existing property");
+        let updated_value = map_ref
+            .try_get_property(ValueContainer::from("key1"))
+            .unwrap();
+        assert_eq!(updated_value, 42.into());
+
+        // Set new property
+        let result =
+            map_ref.try_set_property("new".into(), ValueContainer::from(99));
+        assert!(result.is_ok());
+        let new_value = map_ref
+            .try_get_property(ValueContainer::from("new"))
+            .unwrap();
+        assert_eq!(new_value, 99.into());
+    }
+
+    #[test]
+    fn numeric_property() {
+        let arr = vec![
+            ValueContainer::from(1),
+            ValueContainer::from(2),
+            ValueContainer::from(3),
+        ];
+        let arr_ref =
+            Reference::try_mut_from(ValueContainer::from(arr)).unwrap();
+
+        // Set existing index
+        arr_ref
+            .try_set_numeric_property(1, ValueContainer::from(42))
+            .expect("Failed to set existing index");
+        let updated_value = arr_ref.get_numeric_property(1).unwrap();
+        assert_eq!(updated_value, ValueContainer::from(42));
+
+        // Try to set out-of-bounds index
+        let result =
+            arr_ref.try_set_numeric_property(5, ValueContainer::from(99));
+        assert_matches!(
+            result,
+            Err(AccessError::PropertyNotFound(idx)) if idx == "5"
+        );
+
+        // Try to set index on non-array value
+        let int_ref = Reference::from(42);
+        let result =
+            int_ref.try_set_numeric_property(0, ValueContainer::from(99));
+        assert_matches!(result, Err(AccessError::InvalidOperation(_)));
+    }
+
+    #[test]
+    fn text_property() {
+        let struct_val = Struct::new(vec![
+            ("name".to_string(), ValueContainer::from("Alice")),
+            ("age".to_string(), ValueContainer::from(30)),
+        ]);
+        let struct_ref =
+            Reference::try_mut_from(ValueContainer::from(struct_val)).unwrap();
+
+        // Set existing property
+        struct_ref
+            .try_set_text_property("name", ValueContainer::from("Bob"))
+            .expect("Failed to set existing property");
+        let name = struct_ref.try_get_text_property("name").unwrap();
+        assert_eq!(name, "Bob".into());
+
+        // Try to set non-existing property
+        let result = struct_ref.try_set_text_property(
+            "nonexistent",
+            ValueContainer::from("Value"),
+        );
+        assert_matches!(
+            result,
+            Err(AccessError::PropertyNotFound(prop)) if prop == "nonexistent"
+        );
+
+        // Try to set property on non-struct value
+        let int_ref = Reference::from(42);
+        let result =
+            int_ref.try_set_text_property("name", ValueContainer::from("Bob"));
+        assert_matches!(result, Err(AccessError::InvalidOperation(_)));
+    }
 
     #[test]
     fn immutable_reference_fails() {
@@ -254,7 +350,7 @@ mod tests {
 
     #[test]
     fn value_change_observe() {
-        let int_ref = Reference::from(42);
+        let int_ref = Reference::try_mut_from(42.into()).unwrap();
 
         let observed_update: Rc<RefCell<Option<DIFUpdate>>> =
             Rc::new(RefCell::new(None));
