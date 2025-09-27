@@ -1,8 +1,5 @@
-use crate::dif::DIFProperty;
-use crate::dif::value::DIFValueContainer;
 use crate::references::reference::AssignmentError;
 use crate::{
-    dif::DIFUpdate,
     references::reference::{AccessError, Reference},
     values::{core_value::CoreValue, value_container::ValueContainer},
 };

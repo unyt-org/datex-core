@@ -28,7 +28,7 @@ impl Runtime {
                 Some(ValueContainer::from(value.clone()))
             }
             DIFValueContainer::Reference(address) => self
-                .resolve_reference(&address)
+                .resolve_reference(address)
                 .map(ValueContainer::Reference),
         }
     }
@@ -58,7 +58,7 @@ impl DIFInterface for Runtime {
                     .ok_or(DIFUpdateError::ReferenceNotFound)?;
                 match &property {
                     DIFProperty::Text(key) => {
-                        ptr.try_set_text_property(&key, value_container)
+                        ptr.try_set_text_property(key, value_container)
                             .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Integer(key) => {

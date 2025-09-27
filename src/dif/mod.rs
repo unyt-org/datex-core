@@ -1,4 +1,4 @@
-use crate::dif::value::{DIFValue, DIFValueContainer};
+use crate::dif::value::DIFValueContainer;
 pub mod dif_representation;
 pub mod interface;
 pub mod r#type;
