@@ -65,13 +65,8 @@ impl<K: NextKey, T> FreeHashMap<K, T> {
         self.entries.len()
     }
 
-    /// Inserts an entry with a specific ID. Returns an error if the ID already exists.
-    pub fn insert(&mut self, id: K, value: T) -> Result<(), ()> {
-        if self.entries.contains_key(&id) {
-            return Err(());
-        }
-        self.entries.insert(id, value);
-        Ok(())
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     /// Checks if an entry with the given ID exists.
@@ -80,10 +75,12 @@ impl<K: NextKey, T> FreeHashMap<K, T> {
     }
 
     /// Removes the entry with the given ID, if it exists.
-    pub fn remove(&mut self, id: K) {
-        if self.entries.remove(&id).is_some() {
+    pub fn remove(&mut self, id: K) -> Option<T> {
+        let cur = self.entries.remove(&id);
+        if cur.is_some() {
             self.free_list.push(id);
         }
+        cur
     }
 
     /// Get a reference to an entry.

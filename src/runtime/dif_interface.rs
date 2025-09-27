@@ -1,4 +1,5 @@
-use datex_core::references::value_reference::ValueReference;
+use crate::references::observers::ReferenceObserver;
+use crate::references::reference::ReferenceMutability;
 use crate::{
     dif::{
         DIFUpdate,
@@ -8,11 +9,10 @@ use crate::{
         },
         value::DIFValueContainer,
     },
-    references::reference::{Reference, ReferenceObserver},
+    references::reference::Reference,
     runtime::{Runtime, execution::ExecutionError},
     values::{pointer::PointerAddress, value_container::ValueContainer},
 };
-use crate::references::reference::ReferenceMutability;
 
 impl Runtime {
     fn resolve_reference(&self, address: &PointerAddress) -> Option<Reference> {
@@ -49,9 +49,9 @@ impl DIFInterface for Runtime {
             DIFValueContainer::Value(v) => ValueContainer::from(v),
         };
         let reference = Reference::try_new_from_value_container(
-            container,// TODO
-            None,// TODO
-            None,// TODO
+            container,                      // TODO
+            None,                           // TODO
+            None,                           // TODO
             ReferenceMutability::Immutable, // TODO
         )?;
         let address = self.memory().borrow_mut().register_reference(reference);
@@ -73,7 +73,11 @@ impl DIFInterface for Runtime {
         &self,
         address: PointerAddress,
         observer_id: u32,
-    ) -> bool {
-        todo!()
+    ) -> Result<(), DIFObserveError> {
+        let ptr = self
+            .resolve_reference(&address)
+            .ok_or(DIFObserveError::ReferenceNotFound)?;
+        ptr.unobserve(observer_id)
+            .map_err(DIFObserveError::ObserveError)
     }
 }
