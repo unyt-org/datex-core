@@ -27,6 +27,28 @@ pub enum AccessError {
     IndexOutOfBounds,
     InvalidPropertyKeyType(String),
 }
+impl Display for AccessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AccessError::ImmutableReference => {
+                write!(f, "Cannot modify an immutable reference")
+            }
+            AccessError::InvalidOperation(op) => {
+                write!(f, "Invalid operation: {}", op)
+            }
+            AccessError::PropertyNotFound(prop) => {
+                write!(f, "Property not found: {}", prop)
+            }
+            AccessError::CanNotUseReferenceAsKey => {
+                write!(f, "Cannot use a reference as a property key")
+            }
+            AccessError::IndexOutOfBounds => write!(f, "Index out of bounds"),
+            AccessError::InvalidPropertyKeyType(ty) => {
+                write!(f, "Invalid property key type: {}", ty)
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum TypeError {
@@ -35,11 +57,33 @@ pub enum TypeError {
         found: TypeContainer,
     },
 }
+impl Display for TypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeError::TypeMismatch { expected, found } => write!(
+                f,
+                "Type mismatch: expected {}, found {}",
+                expected, found
+            ),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum AssignmentError {
     ImmutableReference,
     TypeError(TypeError),
+}
+
+impl Display for AssignmentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssignmentError::ImmutableReference => {
+                write!(f, "Cannot assign to an immutable reference")
+            }
+            AssignmentError::TypeError(e) => write!(f, "Type error: {}", e),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -178,6 +222,22 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 pub enum ReferenceFromValueContainerError {
     InvalidType,
     MutableTypeReference,
+}
+
+impl Display for ReferenceFromValueContainerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReferenceFromValueContainerError::InvalidType => {
+                write!(
+                    f,
+                    "Cannot create reference from value container: invalid type"
+                )
+            }
+            ReferenceFromValueContainerError::MutableTypeReference => {
+                write!(f, "Cannot create mutable reference to type")
+            }
+        }
+    }
 }
 
 impl Reference {

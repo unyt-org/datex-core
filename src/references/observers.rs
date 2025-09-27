@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::{
     dif::DIFUpdate,
@@ -10,6 +10,20 @@ pub enum ObserverError {
     ObserverNotFound,
     ImmutableReference,
 }
+
+impl Display for ObserverError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObserverError::ObserverNotFound => {
+                write!(f, "Observer not found")
+            }
+            ObserverError::ImmutableReference => {
+                write!(f, "Cannot observe an immutable reference")
+            }
+        }
+    }
+}
+
 pub type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
 
 impl Reference {

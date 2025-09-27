@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{ObserverError, ReferenceObserver};
@@ -17,6 +19,18 @@ impl From<ObserverError> for DIFObserveError {
         DIFObserveError::ObserveError(err)
     }
 }
+impl Display for DIFObserveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DIFObserveError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
+            DIFObserveError::ObserveError(e) => {
+                write!(f, "Observe error: {}", e)
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum DIFUpdateError {
@@ -26,17 +40,59 @@ pub enum DIFUpdateError {
     AssignmentError(AssignmentError),
     TypeError(TypeError),
 }
+impl Display for DIFUpdateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DIFUpdateError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
+            DIFUpdateError::InvalidUpdate => {
+                write!(f, "Invalid update operation")
+            }
+            DIFUpdateError::AccessError(e) => write!(f, "Access error: {}", e),
+            DIFUpdateError::AssignmentError(e) => {
+                write!(f, "Assignment error: {}", e)
+            }
+            DIFUpdateError::TypeError(e) => write!(f, "Type error: {}", e),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum DIFApplyError {
     ExecutionError(ExecutionError),
     ReferenceNotFound,
 }
+impl Display for DIFApplyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DIFApplyError::ExecutionError(e) => {
+                write!(f, "Execution error: {}", e)
+            }
+            DIFApplyError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum DIFCreatePointerError {
     ReferenceNotFound,
     ReferenceFromValueContainerError(ReferenceFromValueContainerError),
+}
+
+impl Display for DIFCreatePointerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DIFCreatePointerError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
+            DIFCreatePointerError::ReferenceFromValueContainerError(e) => {
+                write!(f, "Reference from value container error: {}", e)
+            }
+        }
+    }
 }
 
 impl From<ReferenceFromValueContainerError> for DIFCreatePointerError {

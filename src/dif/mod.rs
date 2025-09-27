@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::dif::value::DIFValueContainer;
 pub mod dif_representation;
 pub mod interface;
@@ -5,7 +7,7 @@ pub mod r#type;
 pub mod value;
 
 /// Represents a property in the Datex Interface Format (DIF).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DIFProperty {
     /// a simple string property
     Text(String),
@@ -16,7 +18,7 @@ pub enum DIFProperty {
 }
 
 /// Represents an update operation for a DIF value.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DIFUpdate {
     Replace(DIFValueContainer),
     UpdateProperty {
