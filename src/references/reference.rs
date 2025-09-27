@@ -1,3 +1,4 @@
+use crate::ast::key;
 use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValue;
 use crate::references::type_reference::{
@@ -14,6 +15,7 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use chumsky::prelude::todo;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -410,27 +412,6 @@ impl Reference {
         }
     }
 
-    pub fn try_get_value_for_key<T: Into<ValueContainer>>(
-        &self,
-        key: T,
-    ) -> Result<Option<ValueContainer>, AccessError> {
-        self.with_value(|value| {
-            match value.inner {
-                CoreValue::Map(ref mut map) => {
-                    // If the value is an object, get the property
-                    Ok(map.get(&key.into()).cloned())
-                }
-                _ => {
-                    // If the value is not an object, we cannot get a property
-                    Err(AccessError::InvalidOperation(
-                        "Cannot get property".to_string(),
-                    ))
-                }
-            }
-        })
-        .expect("todo: implement property access for types")
-    }
-
     /// upgrades all inner combined values (e.g. object properties) to references
     pub fn upgrade_inner_combined_values_to_references(&self) {
         self.with_value(|value| {
@@ -503,13 +484,209 @@ impl Reference {
     }
 }
 
+// FIXME: Can we remove option here? As None values shall be represented as Value::Null
+// for any structure, and access out of bounds or property non-existence is handled via Result.
+
+/// Getter for references
+impl Reference {
+    /// Gets a property on the value if applicable (e.g. for map and structs)
+    pub fn try_get_property<T: Into<ValueContainer>>(
+        &self,
+        key: T,
+    ) -> Result<Option<ValueContainer>, AccessError> {
+        let key = key.into();
+        self.with_value(|value| {
+            match value.inner {
+                CoreValue::Map(ref mut map) => {
+                    // If the value is an object, get the property
+                    Ok(map.get(&key).cloned())
+                }
+                CoreValue::Struct(ref mut struct_val) => {
+                    if let ValueContainer::Value(value) = &key {
+                        if value.is_text() {
+                            let key_str = value.cast_to_text().0;
+                            // If the value is a struct, get the property
+                            if struct_val.has_field(&key_str) {
+                                Ok(struct_val.get(&key_str).cloned())
+                            } else {
+                                Err(AccessError::PropertyNotFound(key_str))
+                            }
+                        } else {
+                            Err(AccessError::InvalidPropertyKeyType(
+                                key.actual_type().to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(AccessError::CanNotUseReferenceAsKey)
+                    }
+                }
+                _ => {
+                    // If the value is not an object, we cannot get a property
+                    Err(AccessError::InvalidOperation(
+                        "Cannot get property".to_string(),
+                    ))
+                }
+            }
+        })
+        .unwrap_or(Err(AccessError::InvalidOperation(
+            "Cannot get property on invalid reference".to_string(),
+        )))
+    }
+
+    /// Gets a text property from the value if applicable (e.g. for structs)
+    pub fn get_text_property(
+        &self,
+        key: &str,
+    ) -> Result<Option<ValueContainer>, AccessError> {
+        self.with_value(|value| {
+            match value.inner {
+                CoreValue::Struct(ref mut struct_val) => {
+                    if struct_val.has_field(&key) {
+                        Ok(struct_val.get(&key).cloned())
+                    } else {
+                        Err(AccessError::PropertyNotFound(key.to_string()))
+                    }
+                }
+                _ => {
+                    // If the value is not an object, we cannot get a property
+                    Err(AccessError::InvalidOperation(
+                        "Cannot get property".to_string(),
+                    ))
+                }
+            }
+        })
+        .unwrap_or(Err(AccessError::InvalidOperation(
+            "Cannot get property on invalid reference".to_string(),
+        )))
+    }
+
+    /// Gets a numeric property from the value if applicable (e.g. for arrays, lists and text)
+    pub fn get_numeric_property(
+        &self,
+        index: u32,
+    ) -> Result<Option<ValueContainer>, AccessError> {
+        self.with_value(|value| match value.inner {
+            CoreValue::Array(ref mut array) => {
+                if index < array.len() {
+                    Ok(array.get(index).cloned())
+                } else {
+                    Err(AccessError::IndexOutOfBounds)
+                }
+            }
+            CoreValue::List(ref mut list) => {
+                if (index) < list.len() {
+                    Ok(list.get(index).cloned())
+                } else {
+                    Err(AccessError::IndexOutOfBounds)
+                }
+            }
+            CoreValue::Text(ref text) => {
+                let char = text
+                    .char_at(index as usize)
+                    .ok_or(AccessError::IndexOutOfBounds)?;
+                Ok(Some(ValueContainer::from(char.to_string())))
+            }
+            _ => Err(AccessError::InvalidOperation(
+                "Cannot get numeric property".to_string(),
+            )),
+        })
+        .unwrap_or(Err(AccessError::InvalidOperation(
+            "Cannot get numeric property on invalid reference".to_string(),
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::values::core_values::r#struct::Struct;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;
+
+    #[test]
+    fn property() {
+        let mut object = Map::default();
+        object.set("name", ValueContainer::from("Jonas"));
+        object.set("age", ValueContainer::from(30));
+        let reference = Reference::from(ValueContainer::from(object));
+        assert_eq!(
+            reference.try_get_property("name").unwrap().unwrap(),
+            ValueContainer::from("Jonas")
+        );
+        assert_eq!(
+            reference.try_get_property("age").unwrap().unwrap(),
+            ValueContainer::from(30)
+        );
+        assert!(reference.try_get_property("nonexistent").is_err());
+        assert_matches!(
+            reference.try_get_property("nonexistent"),
+            Err(AccessError::PropertyNotFound(_))
+        );
+    }
+
+    #[test]
+    fn text_property() {
+        let struct_val = Struct::from(vec![
+            ("name".to_string(), ValueContainer::from("Jonas")),
+            ("age".to_string(), ValueContainer::from(30)),
+        ]);
+        let reference = Reference::from(ValueContainer::from(struct_val));
+        assert_eq!(
+            reference.get_text_property("name").unwrap().unwrap(),
+            ValueContainer::from("Jonas")
+        );
+        assert_eq!(
+            reference.get_text_property("age").unwrap().unwrap(),
+            ValueContainer::from(30)
+        );
+        assert!(reference.get_text_property("nonexistent").is_err());
+        assert_matches!(
+            reference.get_text_property("nonexistent"),
+            Err(AccessError::PropertyNotFound(_))
+        );
+    }
+
+    #[test]
+    fn numeric_property() {
+        let array = vec![
+            ValueContainer::from(1),
+            ValueContainer::from(2),
+            ValueContainer::from(3),
+        ];
+        let reference = Reference::from(ValueContainer::from(array));
+
+        assert_eq!(
+            reference.get_numeric_property(0).unwrap().unwrap(),
+            ValueContainer::from(1)
+        );
+        assert_eq!(
+            reference.get_numeric_property(1).unwrap().unwrap(),
+            ValueContainer::from(2)
+        );
+        assert_eq!(
+            reference.get_numeric_property(2).unwrap().unwrap(),
+            ValueContainer::from(3)
+        );
+        assert!(reference.get_numeric_property(3).is_err());
+
+        assert_matches!(
+            reference.get_numeric_property(100),
+            Err(AccessError::IndexOutOfBounds)
+        );
+
+        let text_ref = Reference::from(ValueContainer::from("hello"));
+        assert_eq!(
+            text_ref.get_numeric_property(1).unwrap().unwrap(),
+            ValueContainer::from("e".to_string())
+        );
+        assert!(text_ref.get_numeric_property(5).is_err());
+        assert_matches!(
+            text_ref.get_numeric_property(100),
+            Err(AccessError::IndexOutOfBounds)
+        );
+    }
 
     #[test]
     fn reference_identity() {
@@ -577,19 +754,19 @@ mod tests {
         object_b_ref
             .with_maybe_reference(|b_ref| {
                 let object_a_ref =
-                    b_ref.try_get_value_for_key("a").unwrap().unwrap();
+                    b_ref.try_get_property("a").unwrap().unwrap();
                 assert_structural_eq!(object_a_ref, object_a_val);
                 // object_a_ref should be a reference
                 assert_matches!(object_a_ref, ValueContainer::Reference(_));
                 object_a_ref.with_maybe_reference(|a_ref| {
                     // object_a_ref.number should be a value
                     assert_matches!(
-                        a_ref.try_get_value_for_key("number"),
+                        a_ref.try_get_property("number"),
                         Ok(Some(ValueContainer::Value(_)))
                     );
                     // object_a_ref.obj should be a reference
                     assert_matches!(
-                        a_ref.try_get_value_for_key("obj"),
+                        a_ref.try_get_property("obj"),
                         Ok(Some(ValueContainer::Reference(_)))
                     );
                 });
