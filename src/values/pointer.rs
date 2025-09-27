@@ -45,20 +45,20 @@ impl TryFrom<&str> for PointerAddress {
     }
 }
 
+impl PointerAddress {
+    pub fn to_address_string(&self) -> String {
+        match self {
+            PointerAddress::Local(bytes) => hex::encode(bytes),
+            PointerAddress::Remote(bytes) => hex::encode(bytes),
+            PointerAddress::Internal(bytes) => hex::encode(bytes),
+        }
+    }
+}
+
 impl Display for PointerAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "$")?;
-        match self {
-            PointerAddress::Local(bytes) => {
-                write!(f, "{}", hex::encode(bytes))
-            }
-            PointerAddress::Remote(bytes) => {
-                write!(f, "{}", hex::encode(bytes))
-            }
-            PointerAddress::Internal(bytes) => {
-                write!(f, "{}", hex::encode(bytes))
-            }
-        }
+        write!(f, "{}", self.to_address_string())
     }
 }
 impl Serialize for PointerAddress {
@@ -66,17 +66,8 @@ impl Serialize for PointerAddress {
     where
         S: serde::Serializer,
     {
-        match self {
-            PointerAddress::Local(bytes) => {
-                serializer.serialize_str(&hex::encode(bytes))
-            }
-            PointerAddress::Remote(bytes) => {
-                serializer.serialize_str(&hex::encode(bytes))
-            }
-            PointerAddress::Internal(bytes) => {
-                serializer.serialize_str(&hex::encode(bytes))
-            }
-        }
+        let addr_str = self.to_address_string();
+        serializer.serialize_str(&addr_str)
     }
 }
 impl<'de> Deserialize<'de> for PointerAddress {
