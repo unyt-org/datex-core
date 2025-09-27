@@ -726,7 +726,8 @@ fn visit_expression(
         | DatexExpression::TypedDecimal(_)
         | DatexExpression::TypedInteger(_)
         | DatexExpression::Type(_)
-        | DatexExpression::Slot(_) => {
+        | DatexExpression::Slot(_)
+        | DatexExpression::PointerAddress(_) => {
             // ignored
         }
     }

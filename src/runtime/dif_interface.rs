@@ -99,16 +99,16 @@ impl DIFInterface for Runtime {
                 // });
                 Ok(())
             }
-            DIFUpdate::Replace(new_value) => {
+            DIFUpdate::Replace {value} => {
                 ptr.try_set_value(
-                    new_value.to_value_container(&self.memory().borrow())?,
+                    value.to_value_container(&self.memory().borrow())?,
                 )
                 .map_err(DIFUpdateError::AssignmentError)?;
 
                 // ptr.notify_observers(&DIFUpdate::Replace(new_value));
                 Ok(())
             }
-            DIFUpdate::Push(new_value) => {
+            DIFUpdate::Push { value } => {
                 if !ptr.supports_push() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
@@ -118,7 +118,7 @@ impl DIFInterface for Runtime {
                     ));
                 }
                 ptr.try_push_value(
-                    new_value.to_value_container(&self.memory().borrow())?,
+                    value.to_value_container(&self.memory().borrow())?,
                 )
                 .map_err(DIFUpdateError::AccessError)?;
 
@@ -264,11 +264,13 @@ mod tests {
         runtime
             .update(
                 pointer_address.clone(),
-                crate::dif::DIFUpdate::Replace(DIFValueContainer::Value(
-                    DIFValue::from(DIFRepresentationValue::String(
-                        "Hello, Datex!".to_string(),
-                    )),
-                )),
+                crate::dif::DIFUpdate::Replace {
+                    value: DIFValueContainer::Value(
+                        DIFValue::from(DIFRepresentationValue::String(
+                            "Hello, Datex!".to_string(),
+                        )),
+                    )
+                },
             )
             .expect("Failed to update pointer");
 
@@ -276,11 +278,13 @@ mod tests {
         let observed_value = observed.borrow();
         assert_eq!(
             *observed_value,
-            Some(crate::dif::DIFUpdate::Replace(DIFValueContainer::Value(
-                DIFValue::from(DIFRepresentationValue::String(
-                    "Hello, Datex!".to_string(),
-                )),
-            )))
+            Some(crate::dif::DIFUpdate::Replace {
+                value: DIFValueContainer::Value(
+                    DIFValue::from(DIFRepresentationValue::String(
+                        "Hello, Datex!".to_string(),
+                    )),
+                )
+            })
         );
 
         // try unobserve again, should fail

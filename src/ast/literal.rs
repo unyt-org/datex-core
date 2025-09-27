@@ -1,6 +1,7 @@
 use crate::ast::{DatexExpression, DatexParserTrait, Slot};
 use crate::ast::lexer::Token;
 use chumsky::prelude::*;
+use crate::values::pointer::PointerAddress;
 
 pub fn literal<'a>() -> impl DatexParserTrait<'a> {
     choice((
@@ -8,6 +9,7 @@ pub fn literal<'a>() -> impl DatexParserTrait<'a> {
         select! { Token::False => DatexExpression::Boolean(false) },
         select! { Token::Null => DatexExpression::Null },
         select! { Token::NamedSlot(s) => DatexExpression::Slot(Slot::Named(s[1..].to_string())) },
+        select! { Token::PointerAddress(s) => DatexExpression::PointerAddress(PointerAddress::try_from(&s[1..]).unwrap()) },
         select! { Token::Slot(s) => DatexExpression::Slot(Slot::Addressed(s[1..].parse::<u32>().unwrap())) },
         select! { Token::Placeholder => DatexExpression::Placeholder },
         select! { Token::Identifier(name) => DatexExpression::Literal(name) },

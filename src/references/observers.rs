@@ -226,9 +226,9 @@ mod tests {
         int_ref.try_set_value(43).expect("Failed to set value");
 
         // Verify the observed update matches the expected change
-        let expected_update = DIFUpdate::Replace(
-            DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
-        );
+        let expected_update = DIFUpdate::Replace {
+            value: DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
+        };
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
     }
 

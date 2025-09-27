@@ -427,7 +427,7 @@ pub fn iterate_instructions<'a>(
                         }
                     }
 
-                    InstructionCode::GET_ORIGIN_REF => {
+                    InstructionCode::GET_LOCAL_REF => {
                         let address = RawOriginPointerAddress::read(&mut reader);
                         if let Err(err) = address {
                             Err(err.into())

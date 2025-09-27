@@ -498,7 +498,7 @@ impl<'a> CompilationContext<'a> {
             }
         }
     }
-
+    
     pub fn insert_decimal(&self, decimal: &Decimal) {
         self.append_instruction_code(InstructionCode::DECIMAL_BIG);
         // big_decimal binrw write into buffer
@@ -632,6 +632,7 @@ impl<'a> CompilationContext<'a> {
         self.index.update(|x| x + buffer.len());
     }
 
+
     pub fn insert_get_ref(&self, address: PointerAddress) {
         match address {
             PointerAddress::Internal(id) => {
@@ -639,7 +640,7 @@ impl<'a> CompilationContext<'a> {
                 self.append_buffer(&id);
             }
             PointerAddress::Local(id) => {
-                self.append_instruction_code(InstructionCode::GET_ORIGIN_REF);
+                self.append_instruction_code(InstructionCode::GET_LOCAL_REF);
                 self.append_buffer(&id);
             }
             PointerAddress::Remote(id) => {

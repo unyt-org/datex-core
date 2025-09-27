@@ -106,6 +106,9 @@ pub enum Token {
     #[token("if")] If,
     #[token("else")] Else,
 
+    // pointer address (e.g. $1234ab, exactly 3, 5 or 26 bytes)
+    #[regex(r"\$(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{10}|[0-9a-fA-F]{52})", allocated_string)] PointerAddress(String),
+
     // decimal literals (infinity, nan)
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] Infinity(String),
     #[regex(r"[+-]?(?:nan|NaN)")] Nan,

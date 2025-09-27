@@ -272,6 +272,8 @@ pub enum DatexExpression {
     /// Slot assignment
     SlotAssignment(Slot, Box<DatexExpression>),
 
+    PointerAddress(PointerAddress),
+
     BinaryOperation(
         BinaryOperator,
         Box<DatexExpression>,
@@ -3290,6 +3292,36 @@ mod tests {
         let src = "#123";
         let expr = parse_unwrap(src);
         assert_eq!(expr, DatexExpression::Slot(Slot::Addressed(123)));
+    }
+
+    #[test]
+    fn pointer_address() {
+        // 3 bytes (internal)
+        let src = "$123456";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::PointerAddress(PointerAddress::Internal([0x12, 0x34, 0x56])));
+
+        // 5 bytes (local)
+        let src = "$123456789A";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::PointerAddress(PointerAddress::Local([0x12, 0x34, 0x56, 0x78, 0x9A])));
+
+        // 26 bytes (remote)
+        let src = "$1234567890ABCDEF123456789000000000000000000000000042";
+        let expr = parse_unwrap(src);
+        assert_eq!(expr, DatexExpression::PointerAddress(
+            PointerAddress::Remote([
+                0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF,
+                0x12, 0x34, 0x56, 0x78, 0x90, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x42
+            ])
+        ));
+
+        // other lengths are invalid
+        let src = "$12";
+        let res = parse(src);
+        assert!(res.is_err());
     }
 
     #[test]

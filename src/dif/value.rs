@@ -38,141 +38,16 @@ impl DIFValue {
     /// Converts the DIFValue into a Value, resolving references using the provided memory.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_value(self, memory: &Memory) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(if let Some(r#type) = &self.r#type {
-            match r#type {
-                DIFTypeContainer::Reference(r) => todo!(
-                    "Type references not supported in Value conversion yet"
-                ),
-                DIFTypeContainer::Type(dif_type) => {
-                    match &dif_type.type_definition {
-                        DIFTypeDefinition::Structural(s) => {
-                            todo!(
-                                "Structural type conversion not supported yet"
-                            )
-                        }
-                        DIFTypeDefinition::Unit => Value {
-                            actual_type: Box::new(get_core_lib_type(
-                                CoreLibPointerId::Null,
-                            )),
-                            inner: CoreValue::Null,
-                        },
-                        _ => todo!("Other type definitions not supported yet"),
-                    }
-                }
+        Ok(
+            if let Some(r#type) = &self.r#type {
+                self.value.to_value_with_type(r#type, memory)?
             }
-        } else {
-            match self.value {
-                DIFRepresentationValue::Null => Value::null(),
-                DIFRepresentationValue::String(str) => Value {
-                    actual_type: Box::new(get_core_lib_type(
-                        CoreLibPointerId::Text,
-                    )),
-                    inner: CoreValue::Text(str.into()),
-                },
-                DIFRepresentationValue::Boolean(b) => Value {
-                    actual_type: Box::new(get_core_lib_type(
-                        CoreLibPointerId::Boolean,
-                    )),
-                    inner: CoreValue::Boolean(b.into()),
-                },
-                DIFRepresentationValue::Number(n) => Value {
-                    actual_type: Box::new(get_core_lib_type(
-                        CoreLibPointerId::Decimal(Some(
-                            DecimalTypeVariant::F64,
-                        )),
-                    )),
-                    inner: CoreValue::TypedDecimal(TypedDecimal::F64(
-                        OrderedFloat::from(n),
-                    )),
-                },
-                DIFRepresentationValue::Array(array) => Value {
-                    actual_type: Box::new(get_core_lib_type(
-                        CoreLibPointerId::List,
-                    )),
-                    inner: CoreValue::List(
-                        array
-                            .into_iter()
-                            .map(|v| v.to_value_container(memory))
-                            .collect::<Result<Vec<ValueContainer>, _>>()?
-                            .into(),
-                    ),
-                },
-                DIFRepresentationValue::Object(object) => {
-                    let mut map = IndexMap::new();
-                    for (k, v) in object {
-                        map.insert(
-                            k,
-                            v.to_value_container(memory)?,
-                        );
-                    }
-                    Value {
-                        actual_type: Box::new(get_core_lib_type(
-                            CoreLibPointerId::Struct,
-                        )),
-                        inner: CoreValue::Struct(map.into()),
-                    }
-                }
-                DIFRepresentationValue::Map(map) => {
-                    let mut core_map = IndexMap::new();
-                    for (k, v) in map {
-                        core_map.insert(
-                            k.to_value_container(memory)?,
-                            v.to_value_container(memory)?,
-                        );
-                    }
-                    Value {
-                        actual_type: Box::new(get_core_lib_type(
-                            CoreLibPointerId::Map,
-                        )),
-                        inner: CoreValue::Map(core_map.into()),
-                    }
-                }
-                _ => todo!(
-                    "Other DIFRepresentationValue variants not supported yet"
-                ),
+            else {
+                self.value.to_default_value(memory)?
             }
-        })
+        )
     }
 }
-
-// impl From<DIFValue> for CoreValue {
-//     fn from(dif_value: DIFValue) -> Self {
-//         match &dif_value.value {
-//             DIFRepresentationValue::Null => CoreValue::Null,
-//             DIFRepresentationValue::Boolean(b) => CoreValue::Boolean(b.into()),
-//             DIFRepresentationValue::Number(n) => match dif_value.r#type {
-
-//             },
-//             DIFRepresentationValue::String(s) => {
-//                 // Try to parse as integer or decimal, otherwise treat as text
-//                 if let Ok(i) = s.parse::<i64>() {
-//                     CoreValue::TypedInteger(TypedInteger::I64(i))
-//                 } else if let Ok(f) = s.parse::<f64>() {
-//                     CoreValue::TypedDecimal(TypedDecimal::F64(f))
-//                 } else {
-//                     CoreValue::Text(s.into())
-//                 }
-//             }
-//             DIFRepresentationValue::Array(arr) => CoreValue::List(
-//                 arr.iter().map(|v| Value::from(v.clone())).collect(),
-//             ),
-//             DIFRepresentationValue::Object(obj) => {
-//                 let mut map = std::collections::HashMap::new();
-//                 for (k, v) in obj {
-//                     map.insert(k, Value::from(v));
-//                 }
-//                 CoreValue::Struct(map)
-//             }
-//             DIFRepresentationValue::Map(map) => {
-//                 let mut core_map = std::collections::HashMap::new();
-//                 for (k, v) in map {
-//                     core_map.insert(Value::from(k), Value::from(v));
-//                 }
-//                 CoreValue::Map(core_map)
-//             }
-//         }
-//     }
-// }
 
 impl DIFValue {
     pub fn new(

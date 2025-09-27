@@ -68,13 +68,13 @@ impl Serialize for PointerAddress {
     {
         match self {
             PointerAddress::Local(bytes) => {
-                serializer.serialize_str(&format!("${}", hex::encode(bytes)))
+                serializer.serialize_str(&hex::encode(bytes))
             }
             PointerAddress::Remote(bytes) => {
-                serializer.serialize_str(&format!("${}", hex::encode(bytes)))
+                serializer.serialize_str(&hex::encode(bytes))
             }
             PointerAddress::Internal(bytes) => {
-                serializer.serialize_str(&format!("${}", hex::encode(bytes)))
+                serializer.serialize_str(&hex::encode(bytes))
             }
         }
     }

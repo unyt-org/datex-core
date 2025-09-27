@@ -1,9 +1,18 @@
-use crate::dif::value::DIFValueContainer;
+use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::fmt;
+use indexmap::IndexMap;
+use ordered_float::OrderedFloat;
+use crate::dif::r#type::{DIFTypeContainer, DIFTypeDefinition};
+use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
+use crate::runtime::memory::Memory;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::decimal::typed_decimal::{DecimalTypeVariant, TypedDecimal};
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFRepresentationValue {
@@ -21,6 +30,131 @@ pub enum DIFRepresentationValue {
     /// Represents a struct value in DIF.
     Object(Vec<(String, DIFValueContainer)>),
 }
+
+impl DIFRepresentationValue {
+    
+    /// Converts a DIFRepresentationValue into a default Value, without considering additional type information.
+    /// Returns an error if a reference cannot be resolved.
+    pub fn to_default_value(self, memory: &Memory) -> Result<Value, DIFReferenceNotFoundError> {
+        Ok(match self {
+            DIFRepresentationValue::Null => Value::null(),
+            DIFRepresentationValue::String(str) => Value {
+                actual_type: Box::new(get_core_lib_type(
+                    CoreLibPointerId::Text,
+                )),
+                inner: CoreValue::Text(str.into()),
+            },
+            DIFRepresentationValue::Boolean(b) => Value {
+                actual_type: Box::new(get_core_lib_type(
+                    CoreLibPointerId::Boolean,
+                )),
+                inner: CoreValue::Boolean(b.into()),
+            },
+            DIFRepresentationValue::Number(n) => Value {
+                actual_type: Box::new(get_core_lib_type(
+                    CoreLibPointerId::Decimal(Some(
+                        DecimalTypeVariant::F64,
+                    )),
+                )),
+                inner: CoreValue::TypedDecimal(TypedDecimal::F64(
+                    OrderedFloat::from(n),
+                )),
+            },
+            DIFRepresentationValue::Array(array) => Value {
+                actual_type: Box::new(get_core_lib_type(
+                    CoreLibPointerId::List,
+                )),
+                inner: CoreValue::List(
+                    array
+                        .into_iter()
+                        .map(|v| v.to_value_container(memory))
+                        .collect::<Result<Vec<ValueContainer>, _>>()?
+                        .into(),
+                ),
+            },
+            DIFRepresentationValue::Object(object) => {
+                let mut map = IndexMap::new();
+                for (k, v) in object {
+                    map.insert(
+                        k,
+                        v.to_value_container(memory)?,
+                    );
+                }
+                Value {
+                    actual_type: Box::new(get_core_lib_type(
+                        CoreLibPointerId::Struct,
+                    )),
+                    inner: CoreValue::Struct(map.into()),
+                }
+            }
+            DIFRepresentationValue::Map(map) => {
+                let mut core_map = IndexMap::new();
+                for (k, v) in map {
+                    core_map.insert(
+                        k.to_value_container(memory)?,
+                        v.to_value_container(memory)?,
+                    );
+                }
+                Value {
+                    actual_type: Box::new(get_core_lib_type(
+                        CoreLibPointerId::Map,
+                    )),
+                    inner: CoreValue::Map(core_map.into()),
+                }
+            }
+            _ => todo!(
+                "Other DIFRepresentationValue variants not supported yet"
+            ),
+        })
+    }
+
+    /// Converts a DIFRepresentationValue into a Value, using the provided type information to guide the conversion.
+    /// Returns an error if a reference cannot be resolved.
+    pub fn to_value_with_type(self, type_container: &DIFTypeContainer, memory: &Memory) -> Result<Value, DIFReferenceNotFoundError> {
+        Ok(match r#type_container {
+            DIFTypeContainer::Reference(r) => {
+                if let Ok(core_lib_ptr_id) = CoreLibPointerId::try_from(r) {
+                    match core_lib_ptr_id {
+                        // special mappings:
+                        // type map and represented as object -> convert to map
+                        CoreLibPointerId::Map if let DIFRepresentationValue::Object(object) = self => {
+                            let mut core_map: IndexMap<ValueContainer, ValueContainer> = IndexMap::new();
+                            for (k, v) in object {
+                                core_map.insert(
+                                    Value::from(k).into(),
+                                    v.to_value_container(memory)?,
+                                );
+                            }
+                            Value::from(CoreValue::Map(core_map.into()))
+                        }
+                        // otherwise, use default mapping
+                        _ => self.to_default_value(memory)?,
+                    }
+                }
+                else {
+                    todo!("Handle non-core library type references")
+                }
+            }
+            DIFTypeContainer::Type(dif_type) => {
+                match &dif_type.type_definition {
+                    DIFTypeDefinition::Structural(s) => {
+                        todo!(
+                            "Structural type conversion not supported yet"
+                        )
+                    }
+                    DIFTypeDefinition::Unit => Value {
+                        actual_type: Box::new(get_core_lib_type(
+                            CoreLibPointerId::Null,
+                        )),
+                        inner: CoreValue::Null,
+                    },
+                    _ => todo!("Other type definitions not supported yet"),
+                }
+            }
+        })
+    }
+}
+
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -85,7 +219,7 @@ impl Serialize for DIFRepresentationValue {
         S: Serializer,
     {
         match self {
-            DIFRepresentationValue::Null => serializer.serialize_unit(), // FIXME
+            DIFRepresentationValue::Null => serializer.serialize_unit(),
             DIFRepresentationValue::Boolean(b) => serializer.serialize_bool(*b),
             DIFRepresentationValue::String(s) => serializer.serialize_str(s),
             DIFRepresentationValue::Number(f) => serializer.serialize_f64(*f),

@@ -157,7 +157,7 @@ pub enum InstructionCode {
 
     GET_REF,          // $x
     GET_INTERNAL_REF, // $y, containing globally unique internal id
-    GET_ORIGIN_REF, // $x, containing only the id, origin id is inferred from sender
+    GET_LOCAL_REF, // $x, containing only the id, origin id is inferred from sender
     GET_OR_INIT_REF, // $aa := ...
     POINTER_ACTION, // $aa += ...
     CREATE_REF,     // &()

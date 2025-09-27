@@ -881,6 +881,11 @@ fn compile_expression(
                 }
             }
         }
+        
+        // pointer address
+        DatexExpression::PointerAddress(address) => {
+            compilation_context.insert_get_ref(address);
+        }
 
         // refs
         DatexExpression::Ref(expression) => {

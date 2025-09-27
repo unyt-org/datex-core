@@ -182,9 +182,9 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::Replace(
-            DIFValueContainer::try_from(value_container).unwrap(),
-        ));
+        self.notify_observers(&DIFUpdate::Replace {
+            value: DIFValueContainer::try_from(value_container).unwrap()
+        });
         Ok(())
     }
 
@@ -216,7 +216,7 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::Push(dif));
+        self.notify_observers(&DIFUpdate::Push{value: dif});
         Ok(())
     }
 }
