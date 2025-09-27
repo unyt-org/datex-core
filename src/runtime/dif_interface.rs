@@ -1,4 +1,3 @@
-
 use crate::dif::DIFProperty;
 use crate::references::observers::ReferenceObserver;
 use crate::references::reference::{AccessError, ReferenceMutability};
@@ -28,9 +27,9 @@ impl Runtime {
             DIFValueContainer::Value(value) => {
                 Some(ValueContainer::from(value))
             }
-            DIFValueContainer::Reference(address) => {
-                self.resolve_reference(&address).map(ValueContainer::Reference)
-            }
+            DIFValueContainer::Reference(address) => self
+                .resolve_reference(&address)
+                .map(ValueContainer::Reference),
         }
     }
 }
@@ -89,7 +88,7 @@ impl DIFInterface for Runtime {
                     self.as_value_container(new_value)
                         .ok_or(DIFUpdateError::ReferenceNotFound)?,
                 )
-                .map_err(DIFUpdateError::TypeError)?;
+                .map_err(DIFUpdateError::AssignmentError)?;
                 Ok(())
             }
             DIFUpdate::Push(new_value) => {

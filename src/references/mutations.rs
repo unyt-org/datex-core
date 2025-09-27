@@ -1,5 +1,5 @@
 use crate::dif::value::DIFValueContainer;
-use crate::references::reference::TypeError;
+use crate::references::reference::{AssignmentError, TypeError};
 use crate::{
     dif::DIFUpdate,
     references::reference::{AccessError, Reference},
@@ -157,7 +157,10 @@ impl Reference {
     pub fn try_set_value<T: Into<ValueContainer>>(
         &self,
         value: T,
-    ) -> Result<(), TypeError> {
+    ) -> Result<(), AssignmentError> {
+        if !self.is_mutable() {
+            return Err(AssignmentError::ImmutableReference);
+        }
         // TODO: ensure type compatibility with allowed_type
         let value_container = &value.into();
         self.with_value(|core_value| {
@@ -206,14 +209,48 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use std::{cell::RefCell, rc::Rc};
 
     use crate::dif::value::DIFValueContainer;
+    use crate::references::reference::{AssignmentError, ReferenceMutability};
     use crate::{
-        dif::{DIFUpdate, value::DIFValue},
-        references::reference::Reference,
+        dif::DIFUpdate, references::reference::Reference,
         values::value_container::ValueContainer,
     };
+
+    #[test]
+    fn immutable_reference_fails() {
+        let r = Reference::from(42);
+        assert_matches!(
+            r.try_set_value(43),
+            Err(AssignmentError::ImmutableReference)
+        );
+
+        let r = Reference::try_new_from_value_container(
+            42.into(),
+            None,
+            None,
+            ReferenceMutability::Final,
+        )
+        .unwrap();
+        assert_matches!(
+            r.try_set_value(43),
+            Err(AssignmentError::ImmutableReference)
+        );
+
+        let r = Reference::try_new_from_value_container(
+            42.into(),
+            None,
+            None,
+            ReferenceMutability::Immutable,
+        )
+        .unwrap();
+        assert_matches!(
+            r.try_set_value(43),
+            Err(AssignmentError::ImmutableReference)
+        );
+    }
 
     #[test]
     fn value_change_observe() {

@@ -36,6 +36,12 @@ pub enum TypeError {
     },
 }
 
+#[derive(Debug)]
+pub enum AssignmentError {
+    ImmutableReference,
+    TypeError(TypeError),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReferenceMutability {
     Mutable,
@@ -251,6 +257,9 @@ impl Reference {
             Reference::ValueReference(vr) => vr.borrow().mutability.clone(),
             Reference::TypeReference(_) => ReferenceMutability::Immutable,
         }
+    }
+    pub fn is_mutable(&self) -> bool {
+        self.mutability() == ReferenceMutability::Mutable
     }
 
     /// Creates a new reference from a value container
