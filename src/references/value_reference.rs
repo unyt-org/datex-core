@@ -1,16 +1,15 @@
 use crate::dif::DIFUpdate;
-use crate::references::reference::{ReferenceMutability, ReferenceObserver};
+use crate::references::observers::ReferenceObserver;
+use crate::references::reference::ReferenceMutability;
 use crate::types::type_container::TypeContainer;
+use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
-
-impl ValueReference {}
 
 pub struct ValueReference {
     /// the value that this reference points to
@@ -20,9 +19,37 @@ pub struct ValueReference {
     /// custom type for the pointer that the Datex value is allowed to reference
     pub allowed_type: TypeContainer,
     /// list of observer callbacks
-    pub observers: HashMap<u32, ReferenceObserver>,
+    pub observers: FreeHashMap<u32, ReferenceObserver>,
     pub mutability: ReferenceMutability,
-    pub next_observer_id: u32,
+}
+
+impl Default for ValueReference {
+    fn default() -> Self {
+        ValueReference {
+            value_container: ValueContainer::Value(Value::null()),
+            pointer_address: None,
+            allowed_type: TypeContainer::null(),
+            observers: FreeHashMap::new(),
+            mutability: ReferenceMutability::Immutable,
+        }
+    }
+}
+
+impl ValueReference {
+    pub fn new(
+        value_container: ValueContainer,
+        pointer_address: Option<PointerAddress>,
+        allowed_type: TypeContainer,
+        mutability: ReferenceMutability,
+    ) -> Self {
+        ValueReference {
+            value_container,
+            pointer_address,
+            allowed_type,
+            observers: FreeHashMap::new(),
+            mutability,
+        }
+    }
 }
 
 impl Debug for ValueReference {

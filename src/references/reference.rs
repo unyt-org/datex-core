@@ -22,12 +22,6 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub enum ObserveError {
-    ImmutableReference,
-}
-pub type ReferenceObserver = Box<dyn Fn(&DIFUpdate)>;
-
-#[derive(Debug)]
 pub enum AccessError {
     ImmutableReference,
     InvalidOperation(String),
@@ -223,14 +217,12 @@ impl Reference {
                     allowed_type.unwrap_or_else(|| reference.allowed_type());
                 // TODO: make sure allowed type is superset of reference's allowed type
                 Reference::ValueReference(Rc::new(RefCell::new(
-                    ValueReference {
+                    ValueReference::new(
                         value_container,
-                        pointer_address: maybe_pointer_id,
+                        maybe_pointer_id,
                         allowed_type,
-                        observers: HashMap::new(),
                         mutability,
-                        next_observer_id: 0,
-                    },
+                    ),
                 )))
             }
             ValueContainer::Value(value) => {
@@ -258,14 +250,12 @@ impl Reference {
                             value.actual_type.as_ref().clone()
                         });
                         Reference::ValueReference(Rc::new(RefCell::new(
-                            ValueReference {
-                                value_container: ValueContainer::Value(value),
-                                pointer_address: maybe_pointer_id,
+                            ValueReference::new(
+                                ValueContainer::Value(value),
+                                maybe_pointer_id,
                                 allowed_type,
-                                observers: HashMap::new(),
                                 mutability,
-                                next_observer_id: 0,
-                            },
+                            ),
                         )))
                     }
                 }

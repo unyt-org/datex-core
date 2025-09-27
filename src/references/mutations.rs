@@ -1,11 +1,11 @@
+use crate::dif::value::DIFValueContainer;
 use crate::{
     dif::{DIFUpdate, value::DIFValue},
-    references::reference::{AccessError, ObserveError, Reference},
+    references::reference::{AccessError, Reference},
     values::{
         core_value::CoreValue, value::Value, value_container::ValueContainer,
     },
 };
-use crate::dif::value::DIFValueContainer;
 
 impl Reference {
     /// Runs a closure with the current value of this reference.
@@ -55,55 +55,6 @@ impl Reference {
         .unwrap_or(Err(AccessError::ImmutableReference))
     }
 
-    /// Adds an observer to this reference that will be notified on value changes.
-    /// Returns an error if the reference is immutable
-    pub fn observe<F: Fn(&DIFUpdate) + 'static>(
-        &self,
-        observer: F,
-    ) -> Result<u32, ObserveError> {
-        // Add the observer to the list of observers
-        match self {
-            Reference::TypeReference(_) => {
-                // Type references do not have observers
-                Err(ObserveError::ImmutableReference)
-            }
-            Reference::ValueReference(vr) => {
-                let mut brw = vr.borrow_mut();
-                if !brw.is_mutable() {
-                    return Err(ObserveError::ImmutableReference);
-                }
-
-                let next_id = brw.next_observer_id;
-                brw.observers.insert(next_id, Box::new(observer));
-                brw.next_observer_id += 1;
-                Ok(vr.borrow().observers.len() as u32)
-            }
-        }
-        // TODO: also set observers on child references if not yet active, keep track of active observers
-    }
-
-    fn notify_observers(&self, dif: &DIFUpdate) {
-        match self {
-            Reference::TypeReference(_) => {
-                // Type references do not have observers
-            }
-            Reference::ValueReference(vr) => {
-                /// Notify all observers of the update
-                for (_, observer) in &vr.borrow().observers {
-                    observer(dif);
-                }
-            }
-        }
-    }
-
-    fn has_observers(&self) -> bool {
-        // Check if there are any observers registered
-        match self {
-            Reference::TypeReference(_) => false,
-            Reference::ValueReference(vr) => !vr.borrow().observers.is_empty(),
-        }
-    }
-
     pub fn try_set_value<T: Into<ValueContainer>>(
         &self,
         value: T,
@@ -119,7 +70,9 @@ impl Reference {
         // Notify observers of the update
         if self.has_observers() {
             // TODO: no unwrap here
-            let dif = DIFUpdate::Replace(DIFValueContainer::try_from(value_container).unwrap());
+            let dif = DIFUpdate::Replace(
+                DIFValueContainer::try_from(value_container).unwrap(),
+            );
             self.notify_observers(&dif);
         }
 
@@ -131,12 +84,12 @@ impl Reference {
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
+    use crate::dif::value::DIFValueContainer;
     use crate::{
         dif::{DIFUpdate, value::DIFValue},
         references::reference::Reference,
         values::value_container::ValueContainer,
     };
-    use crate::dif::value::DIFValueContainer;
 
     #[test]
     fn value_change_observe() {
@@ -157,8 +110,9 @@ mod tests {
         int_ref.try_set_value(43).expect("Failed to set value");
 
         // Verify the observed update matches the expected change
-        let expected_update =
-            DIFUpdate::Replace(DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap());
+        let expected_update = DIFUpdate::Replace(
+            DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
+        );
         assert_eq!(*observed_update.borrow(), Some(expected_update));
     }
 }
