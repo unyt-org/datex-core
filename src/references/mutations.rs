@@ -9,25 +9,6 @@ use crate::{
 };
 
 impl Reference {
-    /// Runs a closure with the current value of this reference.
-    pub fn with_value<R, F: FnOnce(&mut Value) -> R>(&self, f: F) -> Option<R> {
-        let reference = self.collapse_reference_chain();
-
-        match reference {
-            Reference::ValueReference(vr) => {
-                match &mut vr.borrow_mut().value_container {
-                    ValueContainer::Value(value) => Some(f(value)),
-                    ValueContainer::Reference(_) => {
-                        unreachable!(
-                            "Expected a ValueContainer::Value, but found a Reference"
-                        )
-                    }
-                }
-            }
-            Reference::TypeReference(_) => None,
-        }
-    }
-
     /// Sets a property on the value if applicable (e.g. for objects and structs)
     pub fn try_set_property(
         &self,
@@ -216,12 +197,34 @@ mod tests {
     use crate::references::reference::{
         AccessError, AssignmentError, ReferenceMutability,
     };
+    use crate::values::core_values::list::List;
     use crate::values::core_values::map::Map;
     use crate::values::core_values::r#struct::Struct;
     use crate::{
         dif::DIFUpdate, references::reference::Reference,
         values::value_container::ValueContainer,
     };
+
+    #[test]
+    fn push() {
+        let list = vec![
+            ValueContainer::from(1),
+            ValueContainer::from(2),
+            ValueContainer::from(3),
+        ];
+        let list_ref =
+            Reference::try_mut_from(List::from(list).into()).unwrap();
+        list_ref
+            .try_push_value(ValueContainer::from(4))
+            .expect("Failed to push value to list");
+        let updated_value = list_ref.get_numeric_property(3).unwrap();
+        assert_eq!(updated_value, ValueContainer::from(4));
+
+        // Try to push to non-list value
+        let int_ref = Reference::from(42);
+        let result = int_ref.try_push_value(ValueContainer::from(99));
+        assert_matches!(result, Err(AccessError::InvalidOperation(_)));
+    }
 
     #[test]
     fn property() {
@@ -346,30 +349,5 @@ mod tests {
             r.try_set_value(43),
             Err(AssignmentError::ImmutableReference)
         );
-    }
-
-    #[test]
-    fn value_change_observe() {
-        let int_ref = Reference::try_mut_from(42.into()).unwrap();
-
-        let observed_update: Rc<RefCell<Option<DIFUpdate>>> =
-            Rc::new(RefCell::new(None));
-        let observed_update_clone = Rc::clone(&observed_update);
-
-        // Attach an observer to the reference
-        int_ref
-            .observe(move |update| {
-                *observed_update_clone.borrow_mut() = Some(update.clone());
-            })
-            .expect("Failed to attach observer");
-
-        // Update the value of the reference
-        int_ref.try_set_value(43).expect("Failed to set value");
-
-        // Verify the observed update matches the expected change
-        let expected_update = DIFUpdate::Replace(
-            DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
-        );
-        assert_eq!(*observed_update.borrow(), Some(expected_update));
     }
 }

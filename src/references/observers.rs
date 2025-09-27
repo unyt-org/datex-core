@@ -74,11 +74,15 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
 
-    use crate::references::{
-        observers::ObserveError,
-        reference::{Reference, ReferenceMutability},
+    use crate::{
+        dif::{DIFUpdate, value::DIFValueContainer},
+        references::{
+            observers::ObserveError,
+            reference::{Reference, ReferenceMutability},
+        },
+        values::value_container::ValueContainer,
     };
 
     #[test]
@@ -141,5 +145,30 @@ mod tests {
         assert!(id3 == 0);
         let id4 = r.observe(|_| {}).unwrap();
         assert!(id4 == 2);
+    }
+
+    #[test]
+    fn value_change_observe() {
+        let int_ref = Reference::try_mut_from(42.into()).unwrap();
+
+        let observed_update: Rc<RefCell<Option<DIFUpdate>>> =
+            Rc::new(RefCell::new(None));
+        let observed_update_clone = Rc::clone(&observed_update);
+
+        // Attach an observer to the reference
+        int_ref
+            .observe(move |update| {
+                *observed_update_clone.borrow_mut() = Some(update.clone());
+            })
+            .expect("Failed to attach observer");
+
+        // Update the value of the reference
+        int_ref.try_set_value(43).expect("Failed to set value");
+
+        // Verify the observed update matches the expected change
+        let expected_update = DIFUpdate::Replace(
+            DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
+        );
+        assert_eq!(*observed_update.borrow(), Some(expected_update));
     }
 }

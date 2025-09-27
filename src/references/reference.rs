@@ -181,6 +181,27 @@ pub enum ReferenceFromValueContainerError {
 }
 
 impl Reference {
+    /// Runs a closure with the current value of this reference.
+    pub(crate) fn with_value<R, F: FnOnce(&mut Value) -> R>(
+        &self,
+        f: F,
+    ) -> Option<R> {
+        let reference = self.collapse_reference_chain();
+
+        match reference {
+            Reference::ValueReference(vr) => {
+                match &mut vr.borrow_mut().value_container {
+                    ValueContainer::Value(value) => Some(f(value)),
+                    ValueContainer::Reference(_) => {
+                        unreachable!(
+                            "Expected a ValueContainer::Value, but found a Reference"
+                        )
+                    }
+                }
+            }
+            Reference::TypeReference(_) => None,
+        }
+    }
     /// Checks if the reference has property access.
     /// This is true for objects and structs, arrays and lists and text.
     /// For other types, this returns false.
