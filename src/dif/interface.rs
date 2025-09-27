@@ -1,6 +1,6 @@
 use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValueContainer;
-use crate::references::observers::{ObserveError, ReferenceObserver};
+use crate::references::observers::{ObserverError, ReferenceObserver};
 use crate::references::reference::{
     AccessError, AssignmentError, ReferenceFromValueContainerError, TypeError,
 };
@@ -10,10 +10,10 @@ use crate::values::pointer::PointerAddress;
 #[derive(Debug)]
 pub enum DIFObserveError {
     ReferenceNotFound,
-    ObserveError(ObserveError),
+    ObserveError(ObserverError),
 }
-impl From<ObserveError> for DIFObserveError {
-    fn from(err: ObserveError) -> Self {
+impl From<ObserverError> for DIFObserveError {
+    fn from(err: ObserverError) -> Self {
         DIFObserveError::ObserveError(err)
     }
 }

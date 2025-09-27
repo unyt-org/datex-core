@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum ObserveError {
+pub enum ObserverError {
     ObserverNotFound,
     ImmutableReference,
 }
@@ -19,7 +19,7 @@ impl Reference {
     pub fn observe<F: Fn(&DIFUpdate) + 'static>(
         &self,
         observer: F,
-    ) -> Result<u32, ObserveError> {
+    ) -> Result<u32, ObserverError> {
         // Add the observer to the list of observers
         Ok(self
             .ensure_mutable_value_reference()?
@@ -32,7 +32,7 @@ impl Reference {
 
     /// Removes an observer by its ID.
     /// Returns an error if the observer ID is not found or the reference is immutable.
-    pub fn unobserve(&self, observer_id: u32) -> Result<(), ObserveError> {
+    pub fn unobserve(&self, observer_id: u32) -> Result<(), ObserverError> {
         let removed = self
             .ensure_mutable_value_reference()?
             .borrow_mut()
@@ -41,7 +41,7 @@ impl Reference {
         if removed.is_some() {
             Ok(())
         } else {
-            Err(ObserveError::ObserverNotFound)
+            Err(ObserverError::ObserverNotFound)
         }
     }
 
@@ -58,7 +58,7 @@ impl Reference {
 
     /// Removes all observers from this reference.
     /// Returns an error if the reference is immutable.
-    pub fn unobserve_all(&self) -> Result<(), ObserveError> {
+    pub fn unobserve_all(&self) -> Result<(), ObserverError> {
         self.ensure_mutable_value_reference()?;
         for id in self.observers_ids() {
             let _ = self.unobserve(id);
@@ -66,11 +66,13 @@ impl Reference {
         Ok(())
     }
 
+    /// Ensures that this reference is a mutable value reference and returns it.
+    /// Returns an ObserverError if the reference is immutable or a type reference.
     fn ensure_mutable_value_reference(
         &self,
-    ) -> Result<Rc<RefCell<ValueReference>>, ObserveError> {
+    ) -> Result<Rc<RefCell<ValueReference>>, ObserverError> {
         self.mutable_value_reference()
-            .ok_or(ObserveError::ImmutableReference)
+            .ok_or(ObserverError::ImmutableReference)
     }
 
     /// Notifies all observers of a change represented by the given DIFUpdate.
@@ -109,7 +111,7 @@ mod tests {
             value::{DIFValue, DIFValueContainer},
         },
         references::{
-            observers::ObserveError,
+            observers::ObserverError,
             reference::{Reference, ReferenceMutability},
         },
         values::{
@@ -117,6 +119,9 @@ mod tests {
         },
     };
 
+    /// Helper function to record DIF updates observed on a reference
+    /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
+    /// The caller can borrow this to inspect the updates after performing operations on the reference
     fn record_dif_updates(
         reference: &Reference,
     ) -> Rc<RefCell<Vec<DIFUpdate>>> {
@@ -136,7 +141,7 @@ mod tests {
         let r = Reference::from(42);
         assert_matches!(
             r.observe(|_| {}),
-            Err(ObserveError::ImmutableReference)
+            Err(ObserverError::ImmutableReference)
         );
 
         let r = Reference::try_new_from_value_container(
@@ -148,7 +153,7 @@ mod tests {
         .unwrap();
         assert_matches!(
             r.observe(|_| {}),
-            Err(ObserveError::ImmutableReference)
+            Err(ObserverError::ImmutableReference)
         );
 
         let r = Reference::try_new_from_value_container(
@@ -160,7 +165,7 @@ mod tests {
         .unwrap();
         assert_matches!(
             r.observe(|_| {}),
-            Err(ObserveError::ImmutableReference)
+            Err(ObserverError::ImmutableReference)
         );
     }
 
@@ -175,7 +180,7 @@ mod tests {
         assert!(!r.has_observers());
         assert_matches!(
             r.unobserve(observer_id),
-            Err(ObserveError::ObserverNotFound)
+            Err(ObserverError::ObserverNotFound)
         );
     }
 
