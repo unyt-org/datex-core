@@ -99,6 +99,16 @@ impl<K: NextKey, T> FreeHashMap<K, T> {
         self.entries.get_mut(id)
     }
 
+    pub fn values(&self) -> impl Iterator<Item = &T> {
+        self.entries.values()
+    }
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.entries.values_mut()
+    }
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.entries.keys()
+    }
+
     pub fn iter(&self) -> Iter<'_, K, T> {
         self.entries.iter()
     }

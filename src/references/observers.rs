@@ -33,11 +33,35 @@ impl Reference {
     /// Removes an observer by its ID.
     /// Returns an error if the observer ID is not found or the reference is immutable.
     pub fn unobserve(&self, observer_id: u32) -> Result<(), ObserveError> {
-        self.ensure_mutable_value_reference()?
+        let removed = self
+            .ensure_mutable_value_reference()?
             .borrow_mut()
             .observers
-            .remove(observer_id)
-            .ok_or(ObserveError::ObserverNotFound)?;
+            .remove(observer_id);
+        if removed.is_some() {
+            Ok(())
+        } else {
+            Err(ObserveError::ObserverNotFound)
+        }
+    }
+
+    /// Returns a list of all observer IDs currently registered to this reference.
+    /// A type reference or immutable reference will always return an empty list.
+    pub fn observers_ids(&self) -> Vec<u32> {
+        match self {
+            Reference::TypeReference(_) => vec![],
+            Reference::ValueReference(vr) => {
+                vr.borrow().observers.keys().cloned().collect()
+            }
+        }
+    }
+
+    /// Removes all observers from this reference.
+    /// Returns an error if the reference is immutable.
+    pub fn unobserve_all(&self) -> Result<(), ObserveError> {
+        for id in self.observers_ids() {
+            self.unobserve(id)?;
+        }
         Ok(())
     }
 
@@ -88,8 +112,7 @@ mod tests {
             reference::{Reference, ReferenceMutability},
         },
         values::{
-            core_values::{map::Map, r#struct::Struct},
-            value_container::ValueContainer,
+            core_values::r#struct::Struct, value_container::ValueContainer,
         },
     };
 
