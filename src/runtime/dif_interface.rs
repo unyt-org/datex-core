@@ -1,4 +1,3 @@
-use chumsky::prelude::todo;
 
 use crate::dif::DIFProperty;
 use crate::references::observers::ReferenceObserver;
@@ -19,7 +18,7 @@ use crate::{
 
 impl Runtime {
     fn resolve_reference(&self, address: &PointerAddress) -> Option<Reference> {
-        self.memory().borrow().get_reference(&address).cloned()
+        self.memory().borrow().get_reference(address).cloned()
     }
     fn as_value_container(
         &self,
@@ -30,11 +29,7 @@ impl Runtime {
                 Some(ValueContainer::from(value))
             }
             DIFValueContainer::Reference(address) => {
-                if let Some(val) = self.resolve_reference(&address) {
-                    Some(ValueContainer::Reference(val))
-                } else {
-                    None
-                }
+                self.resolve_reference(&address).map(ValueContainer::Reference)
             }
         }
     }

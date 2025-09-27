@@ -1,7 +1,7 @@
 use crate::dif::value::DIFValueContainer;
 use crate::references::reference::TypeError;
 use crate::{
-    dif::{DIFUpdate, value::DIFValue},
+    dif::DIFUpdate,
     references::reference::{AccessError, Reference},
     values::{
         core_value::CoreValue, value::Value, value_container::ValueContainer,

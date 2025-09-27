@@ -1,4 +1,3 @@
-use crate::dif::DIFUpdate;
 use crate::references::observers::ReferenceObserver;
 use crate::references::reference::ReferenceMutability;
 use crate::types::type_container::TypeContainer;

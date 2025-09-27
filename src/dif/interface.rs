@@ -1,9 +1,8 @@
-use crate::compiler::error::CompilerError;
 use crate::dif::DIFUpdate;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{ObserveError, ReferenceObserver};
 use crate::references::reference::{
-    AccessError, Reference, ReferenceFromValueContainerError, TypeError,
+    AccessError, ReferenceFromValueContainerError, TypeError,
 };
 use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;

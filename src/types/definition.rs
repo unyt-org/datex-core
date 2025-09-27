@@ -6,7 +6,6 @@ use crate::{
     values::traits::structural_eq::StructuralEq,
 };
 use datex_core::references::type_reference::TypeReference;
-use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {

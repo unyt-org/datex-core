@@ -1,7 +1,4 @@
-use crate::{
-    dif::value::{DIFValue, DIFValueContainer},
-    values::{pointer::PointerAddress, value_container::ValueContainer},
-};
+use crate::dif::value::{DIFValue, DIFValueContainer};
 pub mod dif_representation;
 pub mod interface;
 pub mod r#type;

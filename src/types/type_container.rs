@@ -5,7 +5,6 @@ use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
-use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::Hash;

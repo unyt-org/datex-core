@@ -12,6 +12,12 @@ pub struct FreeHashMap<K: NextKey, T> {
     next_id: K,
 }
 
+impl<K: NextKey, T> Default for FreeHashMap<K, T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K: NextKey, T> FreeHashMap<K, T> {
     pub fn new() -> Self {
         Self {

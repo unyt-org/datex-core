@@ -9,7 +9,6 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
-use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
 

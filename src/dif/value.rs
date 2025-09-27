@@ -1,8 +1,7 @@
-use crate::dif::r#type::DIFType;
 use crate::dif::{
     dif_representation::DIFRepresentationValue, r#type::DIFTypeContainer,
 };
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
+use crate::libs::core::CoreLibPointerId;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,

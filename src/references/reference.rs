@@ -1,6 +1,3 @@
-use crate::ast::key;
-use crate::dif::DIFUpdate;
-use crate::dif::value::DIFValue;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
@@ -15,10 +12,8 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use chumsky::prelude::todo;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -537,8 +532,8 @@ impl Reference {
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Struct(ref mut struct_val) => {
-                    if struct_val.has_field(&key) {
-                        Ok(struct_val.get_unchecked(&key).clone())
+                    if struct_val.has_field(key) {
+                        Ok(struct_val.get_unchecked(key).clone())
                     } else {
                         Err(AccessError::PropertyNotFound(key.to_string()))
                     }
