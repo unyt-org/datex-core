@@ -71,3 +71,75 @@ impl Reference {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::references::{
+        observers::ObserveError,
+        reference::{Reference, ReferenceMutability},
+    };
+
+    #[test]
+    fn immutable_reference_observe_fails() {
+        let r = Reference::from(42);
+        assert_matches!(
+            r.observe(|_| {}),
+            Err(ObserveError::ImmutableReference)
+        );
+
+        let r = Reference::try_new_from_value_container(
+            42.into(),
+            None,
+            None,
+            ReferenceMutability::Final,
+        )
+        .unwrap();
+        assert_matches!(
+            r.observe(|_| {}),
+            Err(ObserveError::ImmutableReference)
+        );
+
+        let r = Reference::try_new_from_value_container(
+            42.into(),
+            None,
+            None,
+            ReferenceMutability::Immutable,
+        )
+        .unwrap();
+        assert_matches!(
+            r.observe(|_| {}),
+            Err(ObserveError::ImmutableReference)
+        );
+    }
+
+    #[test]
+    fn observe_and_unobserve() {
+        let r = Reference::try_mut_from(42.into()).unwrap();
+        assert!(!r.has_observers());
+        let observer_id = r.observe(|_| {}).unwrap();
+        assert!(observer_id == 0);
+        assert!(r.has_observers());
+        assert!(r.unobserve(observer_id).is_ok());
+        assert!(!r.has_observers());
+        assert_matches!(
+            r.unobserve(observer_id),
+            Err(ObserveError::ObserverNotFound)
+        );
+    }
+
+    #[test]
+    fn observer_ids_incremental() {
+        let r = Reference::try_mut_from(42.into()).unwrap();
+        let id1 = r.observe(|_| {}).unwrap();
+        let id2 = r.observe(|_| {}).unwrap();
+        assert!(id1 == 0);
+        assert!(id2 == 1);
+        assert!(r.unobserve(id1).is_ok());
+        let id3 = r.observe(|_| {}).unwrap();
+        assert!(id3 == 0);
+        let id4 = r.observe(|_| {}).unwrap();
+        assert!(id4 == 2);
+    }
+}
