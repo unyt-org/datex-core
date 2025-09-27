@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn serde_dif_value() {
-        let dif = DIFValue::try_from(&Value::from("123u16")).unwrap();
+        let dif = DIFValue::try_from(&Value::from("Hello, world!")).unwrap();
         let serialized = serde_json::to_string(&dif).unwrap();
         println!("Serialized DIFValue: {}", serialized);
         let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();

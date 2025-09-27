@@ -16,7 +16,7 @@ impl Reference {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
         }
-
+        // FIXME consider immutability of indirect refs
         let val = val.upgrade_combined_value_to_reference();
         let dif_val =
             DIFValueContainer::try_from(&val).expect("FIXME: references");
