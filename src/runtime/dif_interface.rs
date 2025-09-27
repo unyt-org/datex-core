@@ -21,6 +21,23 @@ impl Runtime {
     fn resolve_reference(&self, address: &PointerAddress) -> Option<Reference> {
         self.memory().borrow().get_reference(&address).cloned()
     }
+    fn as_value_container(
+        &self,
+        val: DIFValueContainer,
+    ) -> Option<ValueContainer> {
+        match val {
+            DIFValueContainer::Value(value) => {
+                Some(ValueContainer::from(value))
+            }
+            DIFValueContainer::Reference(address) => {
+                if let Some(val) = self.resolve_reference(&address) {
+                    Some(ValueContainer::Reference(val))
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 impl DIFInterface for Runtime {
@@ -34,7 +51,7 @@ impl DIFInterface for Runtime {
             .ok_or(DIFUpdateError::ReferenceNotFound)?;
         match update {
             DIFUpdate::UpdateProperty { property, value } => {
-                if !ptr.has_property_access() {
+                if !ptr.supports_property_access() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
                             "Reference does not support property access"
@@ -72,9 +89,30 @@ impl DIFInterface for Runtime {
                 // });
                 Ok(())
             }
-            _ => unreachable!(
-                "only property updates are supported via DIFUpdate"
-            ),
+            DIFUpdate::Replace(new_value) => {
+                ptr.try_set_value(
+                    self.as_value_container(new_value)
+                        .ok_or(DIFUpdateError::ReferenceNotFound)?,
+                )
+                .map_err(DIFUpdateError::TypeError)?;
+                Ok(())
+            }
+            DIFUpdate::Push(new_value) => {
+                if !ptr.supports_push() {
+                    return Err(DIFUpdateError::AccessError(
+                        AccessError::InvalidOperation(
+                            "Reference does not support push operation"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                ptr.try_push_value(
+                    self.as_value_container(new_value)
+                        .ok_or(DIFUpdateError::ReferenceNotFound)?,
+                )
+                .map_err(DIFUpdateError::AccessError)?;
+                Ok(())
+            }
         }
     }
 

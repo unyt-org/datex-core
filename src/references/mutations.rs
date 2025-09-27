@@ -1,4 +1,5 @@
 use crate::dif::value::DIFValueContainer;
+use crate::references::reference::TypeError;
 use crate::{
     dif::{DIFUpdate, value::DIFValue},
     references::reference::{AccessError, Reference},
@@ -27,44 +28,6 @@ impl Reference {
         }
     }
 
-    /// Checks if the reference has property access.
-    /// This is true for objects and structs, arrays and lists and text.
-    /// For other types, this returns false.
-    /// Note that this does not check if a specific property exists, only if property access is
-    /// generally possible.
-    pub fn has_property_access(&self) -> bool {
-        self.with_value(|value| {
-            matches!(
-                value.inner,
-                CoreValue::Map(_)
-                    | CoreValue::Struct(_)
-                    | CoreValue::Array(_)
-                    | CoreValue::List(_)
-                    | CoreValue::Text(_)
-            )
-        })
-        .unwrap_or(false)
-    }
-
-    /// Checks if the reference has text property access.
-    /// This is true for structs.
-    pub fn has_text_property_access(&self) -> bool {
-        self.with_value(|value| matches!(value.inner, CoreValue::Struct(_)))
-            .unwrap_or(false)
-    }
-
-    /// Checks if the reference has numeric property access.
-    /// This is true for arrays and lists and text.
-    pub fn has_numeric_property_access(&self) -> bool {
-        self.with_value(|value| {
-            matches!(
-                value.inner,
-                CoreValue::Array(_) | CoreValue::List(_) | CoreValue::Text(_)
-            )
-        })
-        .unwrap_or(false)
-    }
-
     /// Sets a property on the value if applicable (e.g. for objects and structs)
     pub fn try_set_property(
         &self,
@@ -91,10 +54,9 @@ impl Reference {
                                 ));
                             }
                         } else {
-                            return Err(AccessError::InvalidOperation(format!(
-                                "Cannot use non-text key {:?} for struct property access",
-                                key
-                            )));
+                            return Err(AccessError::InvalidPropertyKeyType(
+                                key.actual_type().to_string(),
+                            ));
                         }
                     } else {
                         return Err(AccessError::CanNotUseReferenceAsKey);
@@ -195,7 +157,7 @@ impl Reference {
     pub fn try_set_value<T: Into<ValueContainer>>(
         &self,
         value: T,
-    ) -> Result<(), String> {
+    ) -> Result<(), TypeError> {
         // TODO: ensure type compatibility with allowed_type
         let value_container = &value.into();
         self.with_value(|core_value| {
@@ -213,6 +175,31 @@ impl Reference {
             self.notify_observers(&dif);
         }
 
+        Ok(())
+    }
+
+    /// Pushes a value to the reference if it is a list or array.
+    pub fn try_push_value<T: Into<ValueContainer>>(
+        &self,
+        value: T,
+    ) -> Result<(), AccessError> {
+        let value_container =
+            value.into().upgrade_combined_value_to_reference();
+        self.with_value(move |core_value| {
+            match &mut core_value.inner {
+                CoreValue::List(list) => {
+                    list.push(self.bind_child(value_container));
+                }
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot push value to non-list/array value: {:?}",
+                        core_value
+                    )));
+                }
+            }
+            Ok(())
+        })
+        .unwrap_or(Err(AccessError::ImmutableReference))?;
         Ok(())
     }
 }

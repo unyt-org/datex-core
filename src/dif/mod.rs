@@ -24,9 +24,9 @@ pub enum DIFUpdate {
     Replace(DIFValueContainer),
     UpdateProperty {
         property: DIFProperty,
-        value: DIFValue,
+        value: DIFValue, // fixme should be DIFValueContainer
     },
-    Push(DIFValue),
+    Push(DIFValueContainer),
 }
 
 #[cfg(test)]
@@ -50,9 +50,11 @@ mod tests {
     use super::*;
 
     fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
-        let dif_value_container: DIFValueContainer = DIFValueContainer::try_from(&value_container).unwrap();
+        let dif_value_container: DIFValueContainer =
+            DIFValueContainer::try_from(&value_container).unwrap();
         let serialized = serde_json::to_string(&dif_value_container).unwrap();
-        let deserialized: DIFValueContainer = serde_json::from_str(&serialized).unwrap();
+        let deserialized: DIFValueContainer =
+            serde_json::from_str(&serialized).unwrap();
         assert_eq!(dif_value_container, deserialized);
         dif_value_container
     }
@@ -88,7 +90,8 @@ mod tests {
             assert_eq!(
                 dif_value.r#type,
                 Some(DIFTypeContainer::Reference(
-                    CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
+                    CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32))
+                        .into()
                 ))
             );
         } else {
@@ -98,7 +101,8 @@ mod tests {
 
     #[test]
     fn from_value_container_text() {
-        let dif_value_container = dif_value_circle(ValueContainer::from("Hello, World!"));
+        let dif_value_container =
+            dif_value_circle(ValueContainer::from("Hello, World!"));
         if let DIFValueContainer::Value(dif_value) = &dif_value_container {
             assert_eq!(
                 dif_value.value,

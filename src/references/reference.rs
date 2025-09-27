@@ -28,6 +28,15 @@ pub enum AccessError {
     PropertyNotFound(String),
     CanNotUseReferenceAsKey,
     IndexOutOfBounds,
+    InvalidPropertyKeyType(String),
+}
+
+#[derive(Debug)]
+pub enum TypeError {
+    TypeMismatch {
+        expected: TypeContainer,
+        found: TypeContainer,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -172,6 +181,52 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 pub enum ReferenceFromValueContainerError {
     InvalidType,
     MutableTypeReference,
+}
+
+impl Reference {
+    /// Checks if the reference has property access.
+    /// This is true for objects and structs, arrays and lists and text.
+    /// For other types, this returns false.
+    /// Note that this does not check if a specific property exists, only if property access is
+    /// generally possible.
+    pub fn supports_property_access(&self) -> bool {
+        self.with_value(|value| {
+            matches!(
+                value.inner,
+                CoreValue::Map(_)
+                    | CoreValue::Struct(_)
+                    | CoreValue::Array(_)
+                    | CoreValue::List(_)
+                    | CoreValue::Text(_)
+            )
+        })
+        .unwrap_or(false)
+    }
+
+    /// Checks if the reference has text property access.
+    /// This is true for structs.
+    pub fn supports_text_property_access(&self) -> bool {
+        self.with_value(|value| matches!(value.inner, CoreValue::Struct(_)))
+            .unwrap_or(false)
+    }
+
+    /// Checks if the reference has numeric property access.
+    /// This is true for arrays and lists and text.
+    pub fn supports_numeric_property_access(&self) -> bool {
+        self.with_value(|value| {
+            matches!(
+                value.inner,
+                CoreValue::Array(_) | CoreValue::List(_) | CoreValue::Text(_)
+            )
+        })
+        .unwrap_or(false)
+    }
+
+    /// Checks if the reference supports push operation
+    pub fn supports_push(&self) -> bool {
+        self.with_value(|value| matches!(value.inner, CoreValue::List(_)))
+            .unwrap_or(false)
+    }
 }
 
 impl Reference {

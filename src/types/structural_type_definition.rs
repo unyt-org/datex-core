@@ -156,7 +156,7 @@ impl StructuralTypeDefinition {
                 StructuralTypeDefinition::Array(type_list),
                 CoreValue::Array(array),
             ) => {
-                if type_list.len() != array.len() {
+                if type_list.len() != array.len() as usize {
                     return false;
                 }
                 type_list
@@ -170,7 +170,7 @@ impl StructuralTypeDefinition {
                 StructuralTypeDefinition::Array(type_list),
                 CoreValue::List(list),
             ) => {
-                if type_list.len() != list.len() {
+                if type_list.len() != list.len() as usize {
                     return false;
                 }
                 type_list
