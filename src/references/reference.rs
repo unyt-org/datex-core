@@ -493,13 +493,18 @@ impl Reference {
     pub fn try_get_property<T: Into<ValueContainer>>(
         &self,
         key: T,
-    ) -> Result<Option<ValueContainer>, AccessError> {
+    ) -> Result<ValueContainer, AccessError> {
         let key = key.into();
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Map(ref mut map) => {
                     // If the value is an object, get the property
-                    Ok(map.get(&key).cloned())
+                    Ok(map
+                        .get(&key)
+                        .ok_or(AccessError::PropertyNotFound(
+                            key.actual_type().to_string(),
+                        ))?
+                        .clone())
                 }
                 CoreValue::Struct(ref mut struct_val) => {
                     if let ValueContainer::Value(value) = &key {
@@ -507,7 +512,7 @@ impl Reference {
                             let key_str = value.cast_to_text().0;
                             // If the value is a struct, get the property
                             if struct_val.has_field(&key_str) {
-                                Ok(struct_val.get(&key_str).cloned())
+                                Ok(struct_val.get_unchecked(&key_str).clone())
                             } else {
                                 Err(AccessError::PropertyNotFound(key_str))
                             }
@@ -537,12 +542,12 @@ impl Reference {
     pub fn get_text_property(
         &self,
         key: &str,
-    ) -> Result<Option<ValueContainer>, AccessError> {
+    ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Struct(ref mut struct_val) => {
                     if struct_val.has_field(&key) {
-                        Ok(struct_val.get(&key).cloned())
+                        Ok(struct_val.get_unchecked(&key).clone())
                     } else {
                         Err(AccessError::PropertyNotFound(key.to_string()))
                     }
@@ -564,27 +569,21 @@ impl Reference {
     pub fn get_numeric_property(
         &self,
         index: u32,
-    ) -> Result<Option<ValueContainer>, AccessError> {
+    ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| match value.inner {
-            CoreValue::Array(ref mut array) => {
-                if index < array.len() {
-                    Ok(array.get(index).cloned())
-                } else {
-                    Err(AccessError::IndexOutOfBounds)
-                }
-            }
-            CoreValue::List(ref mut list) => {
-                if (index) < list.len() {
-                    Ok(list.get(index).cloned())
-                } else {
-                    Err(AccessError::IndexOutOfBounds)
-                }
-            }
+            CoreValue::Array(ref mut array) => array
+                .get(index)
+                .cloned()
+                .ok_or(AccessError::IndexOutOfBounds),
+            CoreValue::List(ref mut list) => list
+                .get(index)
+                .cloned()
+                .ok_or(AccessError::IndexOutOfBounds),
             CoreValue::Text(ref text) => {
                 let char = text
                     .char_at(index as usize)
                     .ok_or(AccessError::IndexOutOfBounds)?;
-                Ok(Some(ValueContainer::from(char.to_string())))
+                Ok(ValueContainer::from(char.to_string()))
             }
             _ => Err(AccessError::InvalidOperation(
                 "Cannot get numeric property".to_string(),
@@ -612,11 +611,11 @@ mod tests {
         object.set("age", ValueContainer::from(30));
         let reference = Reference::from(ValueContainer::from(object));
         assert_eq!(
-            reference.try_get_property("name").unwrap().unwrap(),
+            reference.try_get_property("name").unwrap(),
             ValueContainer::from("Jonas")
         );
         assert_eq!(
-            reference.try_get_property("age").unwrap().unwrap(),
+            reference.try_get_property("age").unwrap(),
             ValueContainer::from(30)
         );
         assert!(reference.try_get_property("nonexistent").is_err());
@@ -634,11 +633,11 @@ mod tests {
         ]);
         let reference = Reference::from(ValueContainer::from(struct_val));
         assert_eq!(
-            reference.get_text_property("name").unwrap().unwrap(),
+            reference.get_text_property("name").unwrap(),
             ValueContainer::from("Jonas")
         );
         assert_eq!(
-            reference.get_text_property("age").unwrap().unwrap(),
+            reference.get_text_property("age").unwrap(),
             ValueContainer::from(30)
         );
         assert!(reference.get_text_property("nonexistent").is_err());
@@ -658,15 +657,15 @@ mod tests {
         let reference = Reference::from(ValueContainer::from(array));
 
         assert_eq!(
-            reference.get_numeric_property(0).unwrap().unwrap(),
+            reference.get_numeric_property(0).unwrap(),
             ValueContainer::from(1)
         );
         assert_eq!(
-            reference.get_numeric_property(1).unwrap().unwrap(),
+            reference.get_numeric_property(1).unwrap(),
             ValueContainer::from(2)
         );
         assert_eq!(
-            reference.get_numeric_property(2).unwrap().unwrap(),
+            reference.get_numeric_property(2).unwrap(),
             ValueContainer::from(3)
         );
         assert!(reference.get_numeric_property(3).is_err());
@@ -678,7 +677,7 @@ mod tests {
 
         let text_ref = Reference::from(ValueContainer::from("hello"));
         assert_eq!(
-            text_ref.get_numeric_property(1).unwrap().unwrap(),
+            text_ref.get_numeric_property(1).unwrap(),
             ValueContainer::from("e".to_string())
         );
         assert!(text_ref.get_numeric_property(5).is_err());
@@ -753,8 +752,7 @@ mod tests {
         // assert that the reference to object_a is set correctly
         object_b_ref
             .with_maybe_reference(|b_ref| {
-                let object_a_ref =
-                    b_ref.try_get_property("a").unwrap().unwrap();
+                let object_a_ref = b_ref.try_get_property("a").unwrap();
                 assert_structural_eq!(object_a_ref, object_a_val);
                 // object_a_ref should be a reference
                 assert_matches!(object_a_ref, ValueContainer::Reference(_));
@@ -762,12 +760,12 @@ mod tests {
                     // object_a_ref.number should be a value
                     assert_matches!(
                         a_ref.try_get_property("number"),
-                        Ok(Some(ValueContainer::Value(_)))
+                        Ok(ValueContainer::Value(_))
                     );
                     // object_a_ref.obj should be a reference
                     assert_matches!(
                         a_ref.try_get_property("obj"),
-                        Ok(Some(ValueContainer::Reference(_)))
+                        Ok(ValueContainer::Reference(_))
                     );
                 });
             })
