@@ -160,7 +160,6 @@ pub trait DIFInterface {
     ) -> Result<DIFValueContainer, DIFApplyError>;
 
     /// Creates a new pointer and stores it in memory.
-    /// The pointer is kept in memory until free_pointer() is called.
     /// Returns the address of the newly created pointer.
     fn create_pointer(
         &self,
@@ -171,7 +170,6 @@ pub trait DIFInterface {
 
     /// Resolves a pointer address of a pointer that may not be in memory.
     /// If the pointer is not in memory, it will be loaded from external storage.
-    /// This automatically keeps the pointer in memory for future accesses until free_pointer() is called.
     async fn resolve_pointer_address_external(
         &self,
         address: PointerAddress,
@@ -179,7 +177,6 @@ pub trait DIFInterface {
 
     /// Resolves a pointer address of a pointer that is currently in memory.
     /// Returns an error if the pointer is not found in memory.
-    /// This automatically keeps the pointer in memory for future accesses until free_pointer() is called.
     fn resolve_pointer_address_in_memory(
         &self,
         address: PointerAddress,
@@ -200,8 +197,4 @@ pub trait DIFInterface {
         address: PointerAddress,
         observer_id: u32,
     ) -> Result<(), DIFObserveError>;
-
-    /// Frees the pointer at the given address, allowing it to be garbage collected.
-    /// Returns an error if the pointer does not exist.
-    fn free_pointer(&self, address: PointerAddress) -> Result<(), DIFFreeError>;
 }

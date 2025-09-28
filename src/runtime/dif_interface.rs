@@ -208,10 +208,6 @@ impl DIFInterface for Runtime {
         ptr.unobserve(observer_id)
             .map_err(DIFObserveError::ObserveError)
     }
-
-    fn free_pointer(&self, address: PointerAddress) -> Result<(), DIFFreeError> {
-        todo!()
-    }
 }
 
 
