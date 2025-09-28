@@ -4,6 +4,7 @@ use crate::dif::r#type::{DIFType, DIFTypeContainer};
 use crate::dif::value::DIFValue;
 use crate::references::observers::ReferenceObserver;
 use crate::references::reference::{AccessError, ReferenceMutability};
+use crate::runtime::RuntimeInternal;
 use crate::types::type_container;
 use crate::{
     dif::{
@@ -19,19 +20,19 @@ use crate::{
     values::{pointer::PointerAddress, value_container::ValueContainer},
 };
 
-impl Runtime {
+impl RuntimeInternal {
     fn resolve_in_memory_reference(
         &self,
         address: &PointerAddress,
     ) -> Option<Reference> {
-        self.memory().borrow().get_reference(address).cloned()
+        self.memory.borrow().get_reference(address).cloned()
     }
     // FIXME TODO
     async fn resolve_reference(
         &self,
         address: &PointerAddress,
     ) -> Option<Reference> {
-        self.memory().borrow().get_reference(address).cloned()
+        self.memory.borrow().get_reference(address).cloned()
     }
 
     // pub fn as_dif_value_container(
@@ -52,7 +53,7 @@ impl Runtime {
     // }
 }
 
-impl DIFInterface for Runtime {
+impl DIFInterface for RuntimeInternal {
     fn update(
         &self,
         address: PointerAddress,
@@ -72,7 +73,7 @@ impl DIFInterface for Runtime {
                     ));
                 }
                 let value_container =
-                    value.to_value_container(&self.memory().borrow())?;
+                    value.to_value_container(&self.memory.borrow())?;
                 match property {
                     DIFProperty::Text(key) => {
                         ptr.try_set_text_property(&key, value_container)
@@ -87,7 +88,7 @@ impl DIFInterface for Runtime {
                     }
                     DIFProperty::Value(key) => {
                         let key =
-                            key.to_value_container(&self.memory().borrow())?;
+                            key.to_value_container(&self.memory.borrow())?;
                         ptr.try_set_property(key, value_container)
                             .map_err(DIFUpdateError::AccessError)?;
                     }
@@ -101,7 +102,7 @@ impl DIFInterface for Runtime {
             }
             DIFUpdate::Replace { value } => {
                 ptr.try_set_value(
-                    value.to_value_container(&self.memory().borrow())?,
+                    value.to_value_container(&self.memory.borrow())?,
                 )
                 .map_err(DIFUpdateError::AssignmentError)?;
 
@@ -118,7 +119,7 @@ impl DIFInterface for Runtime {
                     ));
                 }
                 ptr.try_push_value(
-                    value.to_value_container(&self.memory().borrow())?,
+                    value.to_value_container(&self.memory.borrow())?,
                 )
                 .map_err(DIFUpdateError::AccessError)?;
 
@@ -168,7 +169,7 @@ impl DIFInterface for Runtime {
         allowed_type: Option<DIFTypeContainer>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError> {
-        let container = value.to_value_container(&self.memory().borrow())?;
+        let container = value.to_value_container(&self.memory.borrow())?;
         let type_container = if let Some(allowed_type) = &allowed_type {
             todo!(
                 "FIXME: Implement type_container creation from DIFTypeContainer"
@@ -182,7 +183,7 @@ impl DIFInterface for Runtime {
             None,
             mutability,
         )?;
-        let address = self.memory().borrow_mut().register_reference(reference);
+        let address = self.memory.borrow_mut().register_reference(reference);
         Ok(address)
     }
 
@@ -223,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_create_and_observe_pointer() {
-        let runtime = Runtime::init_native(RuntimeConfig::default());
+        let runtime = Runtime::init_native(RuntimeConfig::default()).internal;
         let pointer_address = runtime
             .create_pointer(
                 DIFValueContainer::Value(DIFValue::from(

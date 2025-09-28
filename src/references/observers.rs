@@ -91,21 +91,21 @@ impl Reference {
 
     /// Notifies all observers of a change represented by the given DIFUpdate.
     pub fn notify_observers(&self, dif: &DIFUpdate) {
-        match self {
-            Reference::TypeReference(_) => {
-                // Type references do not have observers
-            }
+        let observers: Vec<Rc<dyn Fn(&DIFUpdate)>> = match self {
+            Reference::TypeReference(_) => return, // no observers
             Reference::ValueReference(vr) => {
-                // Notify all observers of the update
-                // Clone the observers to avoid borrowing issues if an unobserve is called during observation
-                let observers: Vec<_> = {
-                    let vr_ref = vr.borrow();
-                    vr_ref.observers.iter().map(|(_, f)| f.clone()).collect()
-                };
-                for observer in observers {
-                    observer(dif);
-                }
+                // Clone observers while holding borrow
+                let vr_ref = vr.borrow();
+                vr_ref.observers.iter().map(|(_, f)| f.clone()).collect()
             }
+        };
+
+        // Drop all borrows before calling callbacks
+        let dif_owned = dif.clone();
+
+        // Call each observer synchronously
+        for observer in observers {
+            observer(&dif_owned);
         }
     }
 
