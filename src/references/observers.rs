@@ -98,10 +98,10 @@ impl Reference {
             Reference::ValueReference(vr) => {
                 // Notify all observers of the update
                 // Clone the observers to avoid borrowing issues if an unobserve is called during observation
-                let observers: Vec<_> = vr.borrow().observers
-                    .iter()
-                    .map(|(_, f)| f.clone()).
-                    collect();
+                let observers: Vec<_> = {
+                    let vr_ref = vr.borrow();
+                    vr_ref.observers.iter().map(|(_, f)| f.clone()).collect()
+                };
                 for observer in observers {
                     observer(dif);
                 }
@@ -120,9 +120,7 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
-    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
-    use datex_core::references::value_reference::ValueReference;
-    use datex_core::types::type_container::TypeContainer;
+    use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
     use crate::{
         dif::{
             DIFProperty, DIFUpdate,
@@ -138,7 +136,9 @@ mod tests {
             core_values::r#struct::Struct, value_container::ValueContainer,
         },
     };
-    use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
+    use datex_core::references::value_reference::ValueReference;
+    use datex_core::types::type_container::TypeContainer;
+    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -166,10 +166,7 @@ mod tests {
             ReferenceMutability::Final,
         )
         .unwrap();
-        assert_matches!(
-            r.observe(|_| {}),
-            Err(ObserverError::FinalReference)
-        );
+        assert_matches!(r.observe(|_| {}), Err(ObserverError::FinalReference));
 
         let r = Reference::try_new_from_value_container(
             42.into(),
@@ -178,10 +175,7 @@ mod tests {
             ReferenceMutability::Mutable,
         )
         .unwrap();
-        assert_matches!(
-            r.observe(|_| {}),
-            Ok(_)
-        );
+        assert_matches!(r.observe(|_| {}), Ok(_));
 
         let r = Reference::try_new_from_value_container(
             42.into(),
@@ -189,11 +183,8 @@ mod tests {
             None,
             ReferenceMutability::Immutable,
         )
-            .unwrap();
-        assert_matches!(
-            r.observe(|_| {}),
-            Ok(_)
-        );
+        .unwrap();
+        assert_matches!(r.observe(|_| {}), Ok(_));
     }
 
     #[test]
@@ -235,7 +226,8 @@ mod tests {
 
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate::Replace {
-            value: DIFValueContainer::try_from(&ValueContainer::from(43)).unwrap(),
+            value: DIFValueContainer::try_from(&ValueContainer::from(43))
+                .unwrap(),
         };
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
     }

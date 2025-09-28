@@ -1,5 +1,3 @@
-use std::fmt::Display;
-use datex_core::dif::value::DIFReferenceNotFoundError;
 use crate::dif::DIFUpdate;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::value::DIFValueContainer;
@@ -10,6 +8,8 @@ use crate::references::reference::{
 };
 use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
+use datex_core::dif::value::DIFReferenceNotFoundError;
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
