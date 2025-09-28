@@ -45,5 +45,8 @@ contexts:
     - match: '#\d+'    # Slot
       scope: variable.other.slot.datex
 
+    - match: '\$[0-9a-fA-F]+'    # Pointer Address
+      scope: variable.other.pointer.datex
+
     - match: '@[@+]?\w+'    # Endpoint
       scope: variable.other.endpoint.datex
