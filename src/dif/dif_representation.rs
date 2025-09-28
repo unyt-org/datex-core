@@ -52,7 +52,7 @@ pub enum DIFTypeRepresentation {
 
 
 impl DIFValueRepresentation {
-    
+
     /// Converts a DIFRepresentationValue into a default Value, without considering additional type information.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_default_value(self, memory: &RefCell<Memory>) -> Result<Value, DIFReferenceNotFoundError> {
@@ -178,7 +178,7 @@ impl DIFValueRepresentation {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum DeserializeMapOrArray<T: Serialize + Deserialize>{
+pub enum DeserializeMapOrArray<T>{
     MapEntry(T, T),
     ArrayEntry(T),
 }

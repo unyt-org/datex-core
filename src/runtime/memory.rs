@@ -40,21 +40,24 @@ impl Memory {
     /// If the reference is already registered (has a PointerAddress), the existing address is returned and no new registration is done.
     /// Returns the PointerAddress of the registered reference.
     pub fn register_reference(&mut self, reference: &Reference) -> PointerAddress {
+        let pointer_address = reference.pointer_address();
         // check if reference is already registered (if it has an address, we assume it is registered)
-        if let Some(address) = reference.pointer_address() {
-            // also check if actually registered
-            if !self.pointers.contains_key(&address) {
-                unreachable!("Reference has an address but is not registered in memory: {:?}", address);
-            }
-            return address;
+        if let Some(ref address) = pointer_address && self.pointers.contains_key(address) {
+            return address.clone();
         }
         // auto-generate new local id if no id is set
-        let new_pointer_address = self.get_new_local_address();
-        reference.set_pointer_address(new_pointer_address.clone());
-        self.pointers.insert(new_pointer_address.clone(), reference.clone());
-        new_pointer_address
-    }
+        let pointer_address = if let Some(address) = pointer_address {
+            address
+        } else {
+            let pointer_address = self.get_new_local_address();
+            reference.set_pointer_address(pointer_address.clone());
+            pointer_address
+        };
 
+        self.pointers.insert(pointer_address.clone(), reference.clone());
+        pointer_address
+    }
+    
     /// Returns a reference stored at the given PointerAddress, if it exists.
     pub fn get_reference(
         &self,
