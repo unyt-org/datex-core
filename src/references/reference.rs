@@ -563,14 +563,14 @@ impl Reference {
         }
     }
 
-    /// Returns a mutable reference to the ValueReference if this is a mutable ValueReference.
-    pub fn mutable_value_reference(
+    /// Returns a non-final reference to the ValueReference if this is a non-final ValueReference.
+    pub fn non_final_reference(
         &self,
     ) -> Option<Rc<RefCell<ValueReference>>> {
         match self {
             Reference::TypeReference(_) => None,
             Reference::ValueReference(vr) => {
-                if vr.borrow().is_mutable() {
+                if !vr.borrow().is_final() {
                     Some(vr.clone())
                 } else {
                     None

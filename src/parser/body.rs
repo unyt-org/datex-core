@@ -7,7 +7,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use std::fmt::Display;
 use std::io::{BufRead, Cursor, Read, Seek};
-use datex_core::global::protocol_structures::instructions::RawOriginPointerAddress;
+use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -428,7 +428,7 @@ pub fn iterate_instructions<'a>(
                     }
 
                     InstructionCode::GET_LOCAL_REF => {
-                        let address = RawOriginPointerAddress::read(&mut reader);
+                        let address = RawLocalPointerAddress::read(&mut reader);
                         if let Err(err) = address {
                             Err(err.into())
                         } else {

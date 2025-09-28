@@ -235,10 +235,12 @@ pub fn execute_dxb_sync(
                         address,
                     )?));
             }
-            ExecutionStep::ResolveOriginPointer(address) => {
-                todo!(
-                    "block origin is needed here to resolve the pointer address"
-                )
+            ExecutionStep::ResolveLocalPointer(address) => {
+                // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(
+                        get_local_pointer_value(&runtime_internal, address)?,
+                    ));
             }
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
@@ -277,10 +279,12 @@ pub async fn execute_dxb(
                         address,
                     )?));
             }
-            ExecutionStep::ResolveOriginPointer(address) => {
-                todo!(
-                    "block origin is needed here to resolve the pointer address"
-                )
+            ExecutionStep::ResolveLocalPointer(address) => {
+                // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(
+                        get_local_pointer_value(&runtime_internal, address)?,
+                    ));
             }
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
@@ -371,6 +375,22 @@ fn get_internal_pointer_value(
             .memory
             .borrow()
             .get_reference(&PointerAddress::Internal(address.id))
+            .map(|r| ValueContainer::Reference(r.clone())))
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
+fn get_local_pointer_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    address: RawLocalPointerAddress,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        Ok(runtime
+            .memory
+            .borrow()
+            .get_reference(&PointerAddress::Local(address.id))
             .map(|r| ValueContainer::Reference(r.clone())))
     } else {
         Err(ExecutionError::RequiresRuntime)
@@ -512,7 +532,7 @@ pub enum ExecutionStep {
     InternalTypeReturn(Option<TypeContainer>),
     Return(Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
-    ResolveOriginPointer(RawOriginPointerAddress),
+    ResolveLocalPointer(RawLocalPointerAddress),
     ResolveInternalPointer(RawInternalPointerAddress),
     GetInternalSlot(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
@@ -922,7 +942,7 @@ fn get_result_value_from_instruction(
             Instruction::GetLocalRef(address) => {
                 interrupt_with_result!(
                     interrupt_provider,
-                    ExecutionStep::ResolveOriginPointer(address)
+                    ExecutionStep::ResolveLocalPointer(address)
                 )
             }
 

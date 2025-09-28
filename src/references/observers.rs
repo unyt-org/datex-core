@@ -8,7 +8,7 @@ use crate::{
 #[derive(Debug)]
 pub enum ObserverError {
     ObserverNotFound,
-    ImmutableReference,
+    FinalReference,
 }
 
 impl Display for ObserverError {
@@ -17,8 +17,8 @@ impl Display for ObserverError {
             ObserverError::ObserverNotFound => {
                 write!(f, "Observer not found")
             }
-            ObserverError::ImmutableReference => {
-                write!(f, "Cannot observe an immutable reference")
+            ObserverError::FinalReference => {
+                write!(f, "Cannot observe a final reference")
             }
         }
     }
@@ -36,7 +36,7 @@ impl Reference {
     ) -> Result<u32, ObserverError> {
         // Add the observer to the list of observers
         Ok(self
-            .ensure_mutable_value_reference()?
+            .ensure_non_final_value_reference()?
             .borrow_mut()
             .observers
             .add(Rc::new(observer)))
@@ -48,7 +48,7 @@ impl Reference {
     /// Returns an error if the observer ID is not found or the reference is immutable.
     pub fn unobserve(&self, observer_id: u32) -> Result<(), ObserverError> {
         let removed = self
-            .ensure_mutable_value_reference()?
+            .ensure_non_final_value_reference()?
             .borrow_mut()
             .observers
             .remove(observer_id);
@@ -73,20 +73,20 @@ impl Reference {
     /// Removes all observers from this reference.
     /// Returns an error if the reference is immutable.
     pub fn unobserve_all(&self) -> Result<(), ObserverError> {
-        self.ensure_mutable_value_reference()?;
+        self.ensure_non_final_value_reference()?;
         for id in self.observers_ids() {
             let _ = self.unobserve(id);
         }
         Ok(())
     }
 
-    /// Ensures that this reference is a mutable value reference and returns it.
-    /// Returns an ObserverError if the reference is immutable or a type reference.
-    fn ensure_mutable_value_reference(
+    /// Ensures that this reference is a non-final value reference and returns it.
+    /// Returns an ObserverError if the reference is final or a type reference.
+    fn ensure_non_final_value_reference(
         &self,
     ) -> Result<Rc<RefCell<ValueReference>>, ObserverError> {
-        self.mutable_value_reference()
-            .ok_or(ObserverError::ImmutableReference)
+        self.non_final_reference()
+            .ok_or(ObserverError::FinalReference)
     }
 
     /// Notifies all observers of a change represented by the given DIFUpdate.
@@ -121,7 +121,8 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
-
+    use datex_core::references::value_reference::ValueReference;
+    use datex_core::types::type_container::TypeContainer;
     use crate::{
         dif::{
             DIFProperty, DIFUpdate,
@@ -137,6 +138,7 @@ mod tests {
             core_values::r#struct::Struct, value_container::ValueContainer,
         },
     };
+    use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -156,13 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn immutable_reference_observe_fails() {
-        let r = Reference::from(42);
-        assert_matches!(
-            r.observe(|_| {}),
-            Err(ObserverError::ImmutableReference)
-        );
-
+    fn final_reference_observe_fails() {
         let r = Reference::try_new_from_value_container(
             42.into(),
             None,
@@ -172,7 +168,19 @@ mod tests {
         .unwrap();
         assert_matches!(
             r.observe(|_| {}),
-            Err(ObserverError::ImmutableReference)
+            Err(ObserverError::FinalReference)
+        );
+
+        let r = Reference::try_new_from_value_container(
+            42.into(),
+            None,
+            None,
+            ReferenceMutability::Mutable,
+        )
+        .unwrap();
+        assert_matches!(
+            r.observe(|_| {}),
+            Ok(_)
         );
 
         let r = Reference::try_new_from_value_container(
@@ -181,10 +189,10 @@ mod tests {
             None,
             ReferenceMutability::Immutable,
         )
-        .unwrap();
+            .unwrap();
         assert_matches!(
             r.observe(|_| {}),
-            Err(ObserverError::ImmutableReference)
+            Ok(_)
         );
     }
 

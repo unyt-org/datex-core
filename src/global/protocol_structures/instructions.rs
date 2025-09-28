@@ -81,7 +81,7 @@ pub enum Instruction {
 
     // &ABCDE
     GetRef(RawFullPointerAddress),
-    GetLocalRef(RawOriginPointerAddress),
+    GetLocalRef(RawLocalPointerAddress),
     GetInternalRef(RawInternalPointerAddress),
 
     // &ABCDE := ...
@@ -391,7 +391,7 @@ pub struct RawFullPointerAddress {
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
-pub struct RawOriginPointerAddress {
+pub struct RawLocalPointerAddress {
     pub id: [u8; 5],
 }
 
