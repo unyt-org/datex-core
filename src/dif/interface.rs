@@ -10,6 +10,7 @@ use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
 use datex_core::dif::value::DIFReferenceNotFoundError;
 use std::fmt::Display;
+use datex_core::dif::reference::DIFReference;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -173,14 +174,14 @@ pub trait DIFInterface {
     async fn resolve_pointer_address_external(
         &self,
         address: PointerAddress,
-    ) -> Result<DIFValueContainer, DIFResolveReferenceError>;
+    ) -> Result<DIFReference, DIFResolveReferenceError>;
 
     /// Resolves a pointer address of a pointer that is currently in memory.
     /// Returns an error if the pointer is not found in memory.
     fn resolve_pointer_address_in_memory(
         &self,
         address: PointerAddress,
-    ) -> Result<DIFValueContainer, DIFResolveReferenceError>;
+    ) -> Result<DIFReference, DIFResolveReferenceError>;
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.

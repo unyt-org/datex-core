@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::dif::value::DIFValueContainer;
 use crate::dif::{DIFProperty, DIFUpdate};
 use crate::references::reference::AssignmentError;
@@ -5,6 +6,7 @@ use crate::{
     references::reference::{AccessError, Reference},
     values::{core_value::CoreValue, value_container::ValueContainer},
 };
+use crate::runtime::memory::Memory;
 
 impl Reference {
     /// Sets a property on the value if applicable (e.g. for objects and structs)
@@ -12,16 +14,15 @@ impl Reference {
         &self,
         key: ValueContainer,
         val: ValueContainer,
+        memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
         }
         // FIXME consider immutability of indirect refs
         let val = val.upgrade_combined_value_to_reference();
-        let dif_val =
-            DIFValueContainer::try_from(&val).expect("FIXME: references");
-        let dif_key =
-            DIFValueContainer::try_from(&key).expect("FIXME: references");
+        let dif_val = DIFValueContainer::from_value_container(&val, memory);
+        let dif_key = DIFValueContainer::from_value_container(&key, memory);
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
@@ -72,6 +73,7 @@ impl Reference {
         &self,
         key: &str,
         val: ValueContainer,
+        memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
@@ -79,7 +81,7 @@ impl Reference {
 
         // Ensure the value is a reference if it is a combined value (e.g. an object)
         let val = val.upgrade_combined_value_to_reference();
-        let dif = DIFValueContainer::try_from(&val).expect("FIXME: references");
+        let dif = DIFValueContainer::from_value_container(&val, memory);
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
@@ -118,13 +120,14 @@ impl Reference {
         &self,
         index: u32,
         val: ValueContainer,
+        memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
         }
 
         let val = val.upgrade_combined_value_to_reference();
-        let dif = DIFValueContainer::try_from(&val).expect("FIXME: references");
+        let dif = DIFValueContainer::from_value_container(&val, memory);
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Array(ref mut arr) => {
@@ -169,6 +172,7 @@ impl Reference {
     pub fn try_set_value<T: Into<ValueContainer>>(
         &self,
         value: T,
+        memory: &RefCell<Memory>,
     ) -> Result<(), AssignmentError> {
         if !self.is_mutable() {
             return Err(AssignmentError::ImmutableReference);
@@ -183,7 +187,7 @@ impl Reference {
         })?;
 
         self.notify_observers(&DIFUpdate::Replace {
-            value: DIFValueContainer::try_from(value_container).unwrap()
+            value: DIFValueContainer::from_value_container(value_container, memory),
         });
         Ok(())
     }
@@ -192,6 +196,7 @@ impl Reference {
     pub fn try_push_value<T: Into<ValueContainer>>(
         &self,
         value: T,
+        memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
@@ -199,8 +204,7 @@ impl Reference {
 
         let value_container =
             value.into().upgrade_combined_value_to_reference();
-        let dif = DIFValueContainer::try_from(&value_container)
-            .expect("FIXME: references");
+        let dif = DIFValueContainer::from_value_container(&value_container, memory);
         self.with_value_unchecked(move |core_value| {
             match &mut core_value.inner {
                 CoreValue::List(list) => {
@@ -224,7 +228,7 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-
+    use std::cell::RefCell;
     use crate::references::reference::{
         AccessError, AssignmentError, ReferenceMutability,
     };
@@ -235,9 +239,11 @@ mod tests {
         references::reference::Reference,
         values::value_container::ValueContainer,
     };
+    use crate::runtime::memory::Memory;
 
     #[test]
     fn push() {
+        let memory = &RefCell::new(Memory::default());
         let list = vec![
             ValueContainer::from(1),
             ValueContainer::from(2),
@@ -246,23 +252,25 @@ mod tests {
         let list_ref =
             Reference::try_mut_from(List::from(list).into()).unwrap();
         list_ref
-            .try_push_value(ValueContainer::from(4))
+            .try_push_value(ValueContainer::from(4), memory)
             .expect("Failed to push value to list");
         let updated_value = list_ref.get_numeric_property(3).unwrap();
         assert_eq!(updated_value, ValueContainer::from(4));
 
         // Try to push to non-list value
         let int_ref = Reference::from(42);
-        let result = int_ref.try_push_value(ValueContainer::from(99));
+        let result = int_ref.try_push_value(ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::ImmutableReference));
 
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let result = int_ref.try_push_value(ValueContainer::from(99));
+        let result = int_ref.try_push_value(ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
     #[test]
     fn property() {
+        let memory = &RefCell::new(Memory::default());
+
         let map = Map::from(vec![
             ("key1".to_string(), ValueContainer::from(1)),
             ("key2".to_string(), ValueContainer::from(2)),
@@ -271,7 +279,7 @@ mod tests {
             Reference::try_mut_from(ValueContainer::from(map)).unwrap();
         // Set existing property
         map_ref
-            .try_set_property("key1".into(), ValueContainer::from(42))
+            .try_set_property("key1".into(), ValueContainer::from(42), memory)
             .expect("Failed to set existing property");
         let updated_value = map_ref
             .try_get_property(ValueContainer::from("key1"))
@@ -280,7 +288,7 @@ mod tests {
 
         // Set new property
         let result =
-            map_ref.try_set_property("new".into(), ValueContainer::from(99));
+            map_ref.try_set_property("new".into(), ValueContainer::from(99), memory);
         assert!(result.is_ok());
         let new_value = map_ref
             .try_get_property(ValueContainer::from("new"))
@@ -290,6 +298,8 @@ mod tests {
 
     #[test]
     fn numeric_property() {
+        let memory = &RefCell::new(Memory::default());
+
         let arr = vec![
             ValueContainer::from(1),
             ValueContainer::from(2),
@@ -300,14 +310,14 @@ mod tests {
 
         // Set existing index
         arr_ref
-            .try_set_numeric_property(1, ValueContainer::from(42))
+            .try_set_numeric_property(1, ValueContainer::from(42), memory)
             .expect("Failed to set existing index");
         let updated_value = arr_ref.get_numeric_property(1).unwrap();
         assert_eq!(updated_value, ValueContainer::from(42));
 
         // Try to set out-of-bounds index
         let result =
-            arr_ref.try_set_numeric_property(5, ValueContainer::from(99));
+            arr_ref.try_set_numeric_property(5, ValueContainer::from(99), memory);
         assert_matches!(
             result,
             Err(AccessError::PropertyNotFound(idx)) if idx == "5"
@@ -316,12 +326,14 @@ mod tests {
         // Try to set index on non-array value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result =
-            int_ref.try_set_numeric_property(0, ValueContainer::from(99));
+            int_ref.try_set_numeric_property(0, ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
     #[test]
     fn text_property() {
+        let memory = &RefCell::new(Memory::default());
+
         let struct_val = Struct::new(vec![
             ("name".to_string(), ValueContainer::from("Alice")),
             ("age".to_string(), ValueContainer::from(30)),
@@ -331,7 +343,7 @@ mod tests {
 
         // Set existing property
         struct_ref
-            .try_set_text_property("name", ValueContainer::from("Bob"))
+            .try_set_text_property("name", ValueContainer::from("Bob"), memory)
             .expect("Failed to set existing property");
         let name = struct_ref.try_get_text_property("name").unwrap();
         assert_eq!(name, "Bob".into());
@@ -340,6 +352,7 @@ mod tests {
         let result = struct_ref.try_set_text_property(
             "nonexistent",
             ValueContainer::from("Value"),
+            memory
         );
         assert_matches!(
             result,
@@ -349,15 +362,17 @@ mod tests {
         // Try to set property on non-struct value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result =
-            int_ref.try_set_text_property("name", ValueContainer::from("Bob"));
+            int_ref.try_set_text_property("name", ValueContainer::from("Bob"), memory);
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
     #[test]
     fn immutable_reference_fails() {
+        let memory = &RefCell::new(Memory::default());
+
         let r = Reference::from(42);
         assert_matches!(
-            r.try_set_value(43),
+            r.try_set_value(43, memory),
             Err(AssignmentError::ImmutableReference)
         );
 
@@ -369,7 +384,7 @@ mod tests {
         )
         .unwrap();
         assert_matches!(
-            r.try_set_value(43),
+            r.try_set_value(43, memory),
             Err(AssignmentError::ImmutableReference)
         );
 
@@ -381,7 +396,7 @@ mod tests {
         )
         .unwrap();
         assert_matches!(
-            r.try_set_value(43),
+            r.try_set_value(43, memory),
             Err(AssignmentError::ImmutableReference)
         );
     }

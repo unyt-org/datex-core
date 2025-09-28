@@ -124,7 +124,7 @@ mod tests {
     use crate::{
         dif::{
             DIFProperty, DIFUpdate,
-            dif_representation::DIFRepresentationValue,
+            dif_representation::DIFValueRepresentation,
             r#type::DIFTypeContainer,
             value::{DIFValue, DIFValueContainer},
         },
@@ -139,6 +139,7 @@ mod tests {
     use datex_core::references::value_reference::ValueReference;
     use datex_core::types::type_container::TypeContainer;
     use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
+    use crate::runtime::memory::Memory;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -218,22 +219,25 @@ mod tests {
 
     #[test]
     fn observe_replace() {
+        let memory = &RefCell::new(Memory::default());
+
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let observed_update = record_dif_updates(&int_ref);
 
         // Update the value of the reference
-        int_ref.try_set_value(43).expect("Failed to set value");
+        int_ref.try_set_value(43, memory).expect("Failed to set value");
 
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate::Replace {
-            value: DIFValueContainer::try_from(&ValueContainer::from(43))
-                .unwrap(),
+            value: DIFValueContainer::from_value_container(&ValueContainer::from(43), memory),
         };
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
     }
 
     #[test]
     fn observe_update_property() {
+        let memory = &RefCell::new(Memory::default());
+
         let reference = Reference::try_mut_from(
             Struct::from(vec![
                 ("a".to_string(), ValueContainer::from(1)),
@@ -245,13 +249,13 @@ mod tests {
         let observed_updates = record_dif_updates(&reference);
         // Update a property
         reference
-            .try_set_text_property("a", "val".into())
+            .try_set_text_property("a", "val".into(), memory)
             .expect("Failed to set property");
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate::UpdateProperty {
             property: DIFProperty::Text("a".to_string()),
             value: DIFValue::new(
-                DIFRepresentationValue::String("val".to_string()),
+                DIFValueRepresentation::String("val".to_string()),
                 DIFTypeContainer::none(),
             )
             .as_container(),

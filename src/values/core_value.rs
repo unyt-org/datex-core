@@ -222,7 +222,7 @@ impl From<f64> for CoreValue {
 impl From<&CoreValue> for CoreLibPointerId {
     fn from(value: &CoreValue) -> Self {
         match value {
-            CoreValue::Map(_) => CoreLibPointerId::Struct,
+            CoreValue::Map(_) => CoreLibPointerId::Map,
             CoreValue::List(_) => CoreLibPointerId::List,
             CoreValue::Struct(_) => CoreLibPointerId::Struct,
             CoreValue::Array(_) => CoreLibPointerId::Array,

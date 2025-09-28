@@ -15,6 +15,8 @@ use crate::{
     references::reference::Reference,
     values::pointer::PointerAddress,
 };
+use crate::dif::reference::DIFReference;
+use crate::dif::value::DIFValue;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -69,23 +71,24 @@ impl DIFInterface for RuntimeInternal {
                     ));
                 }
                 let value_container =
-                    value.to_value_container(&self.memory.borrow())?;
+                    value.to_value_container(&self.memory)?;
                 match property {
                     DIFProperty::Text(key) => {
-                        ptr.try_set_text_property(&key, value_container)
+                        ptr.try_set_text_property(&key, value_container, &self.memory)
                             .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Integer(key) => {
                         ptr.try_set_numeric_property(
                             key as u32,
                             value_container,
+                            &self.memory,
                         )
                         .map_err(DIFUpdateError::AccessError)?;
                     }
                     DIFProperty::Value(key) => {
                         let key =
-                            key.to_value_container(&self.memory.borrow())?;
-                        ptr.try_set_property(key, value_container)
+                            key.to_value_container(&self.memory)?;
+                        ptr.try_set_property(key, value_container, &self.memory)
                             .map_err(DIFUpdateError::AccessError)?;
                     }
                 }
@@ -98,7 +101,8 @@ impl DIFInterface for RuntimeInternal {
             }
             DIFUpdate::Replace { value } => {
                 ptr.try_set_value(
-                    value.to_value_container(&self.memory.borrow())?,
+                    value.to_value_container(&self.memory)?,
+                    &self.memory
                 )
                 .map_err(DIFUpdateError::AssignmentError)?;
 
@@ -115,7 +119,8 @@ impl DIFInterface for RuntimeInternal {
                     ));
                 }
                 ptr.try_push_value(
-                    value.to_value_container(&self.memory.borrow())?,
+                    value.to_value_container(&self.memory)?,
+                    &self.memory
                 )
                 .map_err(DIFUpdateError::AccessError)?;
 
@@ -128,11 +133,11 @@ impl DIFInterface for RuntimeInternal {
     async fn resolve_pointer_address_external(
         &self,
         address: PointerAddress,
-    ) -> Result<DIFValueContainer, DIFResolveReferenceError> {
+    ) -> Result<DIFReference, DIFResolveReferenceError> {
         let ptr = self.resolve_in_memory_reference(&address);
         match ptr {
             Some(ptr) => {
-                Ok(DIFValueContainer::try_from(&ptr.value_container()).unwrap())
+                Ok(DIFReference::from_reference(&ptr, &self.memory))
             }
             None => todo!("Implement async resolution of references"),
         }
@@ -141,11 +146,11 @@ impl DIFInterface for RuntimeInternal {
     fn resolve_pointer_address_in_memory(
         &self,
         address: PointerAddress,
-    ) -> Result<DIFValueContainer, DIFResolveReferenceError> {
+    ) -> Result<DIFReference, DIFResolveReferenceError> {
         let ptr = self.resolve_in_memory_reference(&address);
         match ptr {
             Some(ptr) => {
-                Ok(DIFValueContainer::try_from(&ptr.value_container()).unwrap())
+                Ok(DIFReference::from_reference(&ptr, &self.memory))
             }
             None => Err(DIFResolveReferenceError::ReferenceNotFound),
         }
@@ -165,7 +170,7 @@ impl DIFInterface for RuntimeInternal {
         allowed_type: Option<DIFTypeContainer>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError> {
-        let container = value.to_value_container(&self.memory.borrow())?;
+        let container = value.to_value_container(&self.memory)?;
         let type_container = if let Some(allowed_type) = &allowed_type {
             todo!(
                 "FIXME: Implement type_container creation from DIFTypeContainer"
@@ -179,7 +184,7 @@ impl DIFInterface for RuntimeInternal {
             None,
             mutability,
         )?;
-        let address = self.memory.borrow_mut().register_reference(reference);
+        let address = self.memory.borrow_mut().register_reference(&reference);
         Ok(address)
     }
 
@@ -209,7 +214,7 @@ impl DIFInterface for RuntimeInternal {
 
 #[cfg(test)]
 mod tests {
-    use crate::dif::dif_representation::DIFRepresentationValue;
+    use crate::dif::dif_representation::DIFValueRepresentation;
     use crate::dif::interface::DIFInterface;
     use crate::dif::value::{DIFValue, DIFValueContainer};
     use crate::references::reference::ReferenceMutability;
@@ -219,14 +224,17 @@ mod tests {
     use datex_core::runtime::RuntimeConfig;
     use std::cell::RefCell;
     use std::rc::Rc;
+    use crate::runtime::memory::Memory;
+    use crate::values::core_values::endpoint::Endpoint;
 
     #[test]
     fn struct_serde() {
+        let memory = RefCell::new(Memory::new(Endpoint::default()));
         let r#struct = ValueContainer::from(Struct::new(vec![
             ("a".to_string(), 1.into()),
             ("b".to_string(), "text".into()),
         ]));
-        let dif_value = DIFValueContainer::try_from(&r#struct).unwrap();
+        let dif_value = DIFValueContainer::from_value_container(&r#struct, &memory);
         let serialized = serde_json::to_string(&dif_value).unwrap();
         println!("Serialized struct: {}", serialized);
     }
@@ -237,7 +245,7 @@ mod tests {
         let pointer_address = runtime
             .create_pointer(
                 DIFValueContainer::Value(DIFValue::from(
-                    DIFRepresentationValue::String("Hello, world!".to_string()),
+                    DIFValueRepresentation::String("Hello, world!".to_string()),
                 )),
                 None,
                 ReferenceMutability::Mutable,
@@ -275,7 +283,7 @@ mod tests {
                 pointer_address.clone(),
                 crate::dif::DIFUpdate::Replace {
                     value: DIFValueContainer::Value(DIFValue::from(
-                        DIFRepresentationValue::String(
+                        DIFValueRepresentation::String(
                             "Hello, Datex!".to_string(),
                         ),
                     )),
@@ -289,7 +297,7 @@ mod tests {
             *observed_value,
             Some(crate::dif::DIFUpdate::Replace {
                 value: DIFValueContainer::Value(DIFValue::from(
-                    DIFRepresentationValue::String("Hello, Datex!".to_string(),)
+                    DIFValueRepresentation::String("Hello, Datex!".to_string(),)
                 ),)
             })
         );

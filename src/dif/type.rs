@@ -1,15 +1,20 @@
+use std::cell::RefCell;
 use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use crate::{dif::value::DIFValue, references::reference::ReferenceMutability};
 use serde::{Deserialize, Serialize};
+use crate::dif::dif_representation::DIFTypeRepresentation;
+use crate::references::reference::Reference;
+use crate::runtime::memory::Memory;
+use crate::types::structural_type_definition::StructuralTypeDefinition;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def")]
 pub enum DIFTypeDefinition {
     // {x: integer, y: text}
     #[serde(rename = "structural")]
-    Structural(Box<DIFValue>),
+    Structural(Box<DIFStructuralTypeDefinition>),
 
     #[serde(rename = "reference")]
     Reference(PointerAddress),
@@ -33,15 +38,33 @@ pub enum DIFTypeDefinition {
     },
 }
 
-impl From<TypeDefinition> for DIFTypeDefinition {
-    fn from(type_def: TypeDefinition) -> Self {
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DIFStructuralTypeDefinition {
+    pub value: DIFTypeRepresentation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<DIFTypeContainer>,
+}
+
+impl DIFStructuralTypeDefinition {
+    fn from_structural_definition(
+        struct_def: &StructuralTypeDefinition,
+        memory: &RefCell<Memory>,
+    ) -> Self {
+        let value = DIFTypeRepresentation::from_structural_type_definition(struct_def, memory);
+        let type_def = PointerAddress::from(struct_def.get_core_lib_type_pointer_id());
+        DIFStructuralTypeDefinition {
+            value,
+            r#type: Some(DIFTypeContainer::Reference(type_def)),
+        }
+    }
+}
+
+
+impl DIFTypeDefinition {
+    fn from_type_definition(type_def: &TypeDefinition, memory: &RefCell<Memory>) -> Self {
         match type_def {
             TypeDefinition::Structural(struct_def) => {
-                DIFTypeDefinition::Structural(Box::new(DIFValue {
-                    value: struct_def.into(),
-                    r#type: None,
-                    allowed_type: None,
-                }))
+                DIFTypeDefinition::Structural(Box::new(DIFStructuralTypeDefinition::from_structural_definition(struct_def, memory)))
             }
             TypeDefinition::Reference(type_ref) => {
                 DIFTypeDefinition::Reference(
@@ -50,11 +73,11 @@ impl From<TypeDefinition> for DIFTypeDefinition {
             }
             TypeDefinition::Intersection(types) => {
                 DIFTypeDefinition::Intersection(
-                    types.into_iter().map(DIFTypeContainer::from).collect(),
+                    types.iter().map(|t| DIFTypeContainer::from_type_container(t, memory)).collect(),
                 )
             }
             TypeDefinition::Union(types) => DIFTypeDefinition::Union(
-                types.into_iter().map(DIFTypeContainer::from).collect(),
+                types.iter().map(|t| DIFTypeContainer::from_type_container(t, memory)).collect(),
             ),
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
             TypeDefinition::Function {
@@ -62,10 +85,10 @@ impl From<TypeDefinition> for DIFTypeDefinition {
                 return_type,
             } => DIFTypeDefinition::Function {
                 parameters: parameters
-                    .into_iter()
-                    .map(|(name, ty)| (name, ty.into()))
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), DIFTypeContainer::from_type_container(ty, memory)))
                     .collect(),
-                return_type: Box::new((*return_type).into()),
+                return_type: Box::new(DIFTypeContainer::from_type_container(return_type, memory)),
             },
         }
     }
@@ -111,48 +134,38 @@ impl DIFType {
     }
 }
 
-impl From<&TypeContainer> for DIFTypeContainer {
-    fn from(type_container: &TypeContainer) -> Self {
-        match type_container {
-            TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType {
-                name: None,
-                mutability: ty.reference_mutability.clone(),
-                type_definition: ty.type_definition.clone().into(),
-            }),
-            TypeContainer::TypeReference(type_ref) => {
-                DIFTypeContainer::Reference(
-                    type_ref.borrow().pointer_address.clone().unwrap(),
-                )
-            }
+impl From<DIFTypeRepresentation> for DIFType {
+    fn from(value: DIFTypeRepresentation) -> Self {
+        DIFType {
+            name: None,
+            mutability: None,
+            type_definition: DIFTypeDefinition::Structural(Box::new(
+                DIFStructuralTypeDefinition {
+                    value,
+                    r#type: None,
+                },
+            )),
         }
     }
 }
 
-impl From<TypeContainer> for DIFTypeContainer {
-    fn from(type_container: TypeContainer) -> Self {
-        (&type_container).into()
-    }
-}
-impl From<TypeContainer> for DIFType {
-    fn from(type_container: TypeContainer) -> Self {
+
+impl DIFTypeContainer {
+    pub fn from_type_container(type_container: &TypeContainer, memory: &RefCell<Memory>) -> Self {
         match type_container {
-            TypeContainer::Type(ty) => DIFType {
+            TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType {
                 name: None,
-                mutability: ty.reference_mutability,
-                type_definition: ty.type_definition.into(),
-            },
+                mutability: ty.reference_mutability.clone(),
+                type_definition: DIFTypeDefinition::from_type_definition(&ty.type_definition, memory),
+            }),
             TypeContainer::TypeReference(type_ref) => {
-                let type_ref = type_ref.borrow().collapse_reference_chain();
-                let actual_type = type_ref.type_value;
-                let name = type_ref
-                    .nominal_type_declaration
-                    .as_ref()
-                    .map(|decl| decl.name.clone());
-                DIFType {
-                    name,
-                    mutability: actual_type.reference_mutability,
-                    type_definition: actual_type.type_definition.into(),
-                }
+                let type_ref_borrow = type_ref.borrow();
+                let address = if let Some(ref address) = type_ref_borrow.pointer_address {
+                    address
+                } else {
+                    &memory.borrow_mut().register_reference(&Reference::TypeReference(type_ref.clone()))
+                };
+                DIFTypeContainer::Reference(address.clone())
             }
         }
     }
@@ -203,7 +216,7 @@ mod mutability_as_int {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dif::dif_representation::DIFRepresentationValue,
+        dif::dif_representation::DIFValueRepresentation,
         types::structural_type_definition::StructuralTypeDefinition,
     };
 
@@ -213,10 +226,7 @@ mod tests {
         let dif_type = DIFType {
             name: Some("ExampleType".to_string()),
             mutability: Some(ReferenceMutability::Mutable),
-            type_definition: TypeDefinition::Structural(
-                StructuralTypeDefinition::Null,
-            )
-            .into(),
+            type_definition: DIFTypeDefinition::Unit,
         };
         let serialized = serde_json::to_string(&dif_type).unwrap();
         println!("Serialized DIFType: {}", serialized);
@@ -230,22 +240,21 @@ mod tests {
             name: None,
             mutability: None,
             type_definition: DIFTypeDefinition::Structural(Box::new(
-                DIFValue {
-                    value: DIFRepresentationValue::Object(vec![
+                DIFStructuralTypeDefinition {
+                    value: DIFTypeRepresentation::Object(vec![
                         (
                             "field1".to_string(),
-                            DIFValue::from(DIFRepresentationValue::Null)
+                            DIFType::from(DIFTypeRepresentation::Null)
                                 .as_container(),
                         ),
                         (
                             "field2".to_string(),
-                            DIFValue::from(DIFRepresentationValue::Number(
+                            DIFType::from(DIFTypeRepresentation::Number(
                                 42.0,
                             ))
                             .as_container(),
                         ),
                     ]),
-                    allowed_type: None,
                     r#type: None,
                 },
             )),
@@ -262,27 +271,26 @@ mod tests {
             name: None,
             mutability: None,
             type_definition: DIFTypeDefinition::Structural(Box::new(
-                DIFValue {
-                    value: DIFRepresentationValue::Map(vec![
+                DIFStructuralTypeDefinition {
+                    value: DIFTypeRepresentation::Map(vec![
                         (
-                            DIFValue::from(DIFRepresentationValue::String(
+                            DIFType::from(DIFTypeRepresentation::String(
                                 "key1".to_string(),
                             ))
                             .as_container(),
-                            DIFValue::from(DIFRepresentationValue::Number(
+                            DIFType::from(DIFTypeRepresentation::Number(
                                 42.0,
                             ))
                             .as_container(),
                         ),
                         (
-                            DIFValue::from(DIFRepresentationValue::Number(1.0))
+                            DIFType::from(DIFTypeRepresentation::Number(1.0))
                                 .as_container(),
-                            DIFValue::from(DIFRepresentationValue::Number(3.5))
+                            DIFType::from(DIFTypeRepresentation::Number(3.5))
                                 .as_container(),
                         ),
                     ]),
                     r#type: None,
-                    allowed_type: None,
                 },
             )),
         };
@@ -299,17 +307,16 @@ mod tests {
             name: None,
             mutability: None,
             type_definition: DIFTypeDefinition::Structural(Box::new(
-                DIFValue {
-                    value: DIFRepresentationValue::Array(vec![
-                        DIFValue::from(DIFRepresentationValue::Number(1.0))
+                DIFStructuralTypeDefinition {
+                    value: DIFTypeRepresentation::Array(vec![
+                        DIFType::from(DIFTypeRepresentation::Number(1.0))
                             .as_container(),
-                        DIFValue::from(DIFRepresentationValue::Number(2.0))
+                        DIFType::from(DIFTypeRepresentation::Number(2.0))
                             .as_container(),
-                        DIFValue::from(DIFRepresentationValue::Number(3.0))
+                        DIFType::from(DIFTypeRepresentation::Number(3.0))
                             .as_container(),
                     ]),
                     r#type: None,
-                    allowed_type: None,
                 },
             )),
         };

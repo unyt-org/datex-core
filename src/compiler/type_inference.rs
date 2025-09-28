@@ -272,11 +272,6 @@ fn resolve_type_expression_type(
                 .collect::<Result<Vec<_>, TypeError>>()?;
             Some(StructuralTypeDefinition::Array(member_types))
         }
-        TypeExpression::List(entry_type) => {
-            let entry_type =
-                resolve_type_expression_type(entry_type, metadata.clone())?;
-            Some(StructuralTypeDefinition::List(Box::new(entry_type)))
-        }
         _ => None,
     } {
         return Ok(Type::structural(res).as_type_container());

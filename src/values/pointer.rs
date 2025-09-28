@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use log::info;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -23,7 +23,7 @@ impl TryFrom<&str> for PointerAddress {
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         let hex_str = if s.starts_with('$') {&s[1..]} else {s};
         let bytes =
-            hex::decode(hex_str).expect("PointerAddress must be valid hex");
+            hex::decode(hex_str).map_err(|_| "Invalid hex string")?;
         match bytes.len() {
             5 => {
                 let mut arr = [0u8; 5];

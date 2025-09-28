@@ -5,6 +5,7 @@ pub mod dif_representation;
 pub mod interface;
 pub mod r#type;
 pub mod value;
+pub mod reference;
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -36,9 +37,12 @@ pub enum DIFUpdate {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use datex_core::dif::r#type::DIFTypeDefinition;
+    use datex_core::values::core_values::endpoint::Endpoint;
     use crate::{
         dif::{
-            dif_representation::DIFRepresentationValue,
+            dif_representation::DIFValueRepresentation,
             r#type::{DIFType, DIFTypeContainer},
             value::DIFValue,
         },
@@ -52,12 +56,13 @@ mod tests {
             value_container::ValueContainer,
         },
     };
-
+    use crate::runtime::memory::Memory;
     use super::*;
 
     fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
+        let memory = RefCell::new(Memory::new(Endpoint::default()));
         let dif_value_container: DIFValueContainer =
-            DIFValueContainer::try_from(&value_container).unwrap();
+            DIFValueContainer::from_value_container(&value_container, &memory);
         let serialized = serde_json::to_string(&dif_value_container).unwrap();
         let deserialized: DIFValueContainer =
             serde_json::from_str(&serialized).unwrap();
@@ -70,9 +75,8 @@ mod tests {
         // replace
         let dif_update = DIFUpdate::Replace {
             value: DIFValueContainer::Value(DIFValue {
-                value: DIFRepresentationValue::String("Hello".to_string()),
+                value: DIFValueRepresentation::String("Hello".to_string()),
                 r#type: None,
-                allowed_type: None,
             }),
         };
         let serialized = serde_json::to_string(&dif_update).unwrap();
@@ -85,9 +89,8 @@ mod tests {
         let dif_update = DIFUpdate::UpdateProperty {
             property: DIFProperty::Text("name".to_string()),
             value: DIFValueContainer::Value(DIFValue {
-                value: DIFRepresentationValue::Number(42.0),
+                value: DIFValueRepresentation::Number(42.0),
                 r#type: None,
-                allowed_type: None,
             }),
         };
         let serialized = serde_json::to_string(&dif_update).unwrap();
@@ -100,19 +103,15 @@ mod tests {
     #[test]
     fn dif_value_serialization() {
         let value = DIFValue {
-            value: DIFRepresentationValue::Null,
+            value: DIFValueRepresentation::Null,
             r#type: Some(
                 DIFType {
                     mutability: None,
                     name: None,
-                    type_definition: TypeDefinition::Structural(
-                        StructuralTypeDefinition::Null,
-                    )
-                    .into(),
+                    type_definition: DIFTypeDefinition::Unit,
                 }
                 .as_container(),
             ),
-            allowed_type: None,
         };
         let serialized = serde_json::to_string(&value).unwrap();
         println!("Serialized DIFValue: {}", serialized);
@@ -124,7 +123,7 @@ mod tests {
     fn from_value_container_i32() {
         let dif_value_container = dif_value_circle(ValueContainer::from(42i32));
         if let DIFValueContainer::Value(dif_value) = &dif_value_container {
-            assert_eq!(dif_value.value, DIFRepresentationValue::Number(42f64));
+            assert_eq!(dif_value.value, DIFValueRepresentation::Number(42f64));
             assert_eq!(
                 dif_value.r#type,
                 Some(DIFTypeContainer::Reference(
@@ -144,7 +143,7 @@ mod tests {
         if let DIFValueContainer::Value(dif_value) = &dif_value_container {
             assert_eq!(
                 dif_value.value,
-                DIFRepresentationValue::String("Hello, World!".to_string())
+                DIFValueRepresentation::String("Hello, World!".to_string())
             );
             assert_eq!(dif_value.r#type, None);
         } else {

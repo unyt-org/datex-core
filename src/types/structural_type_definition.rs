@@ -11,6 +11,8 @@ use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
 use std::fmt::Display;
 use std::hash::Hash;
+use crate::libs::core::CoreLibPointerId;
+use crate::references::type_reference::TypeReference;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {
@@ -23,9 +25,7 @@ pub enum StructuralTypeDefinition {
     Endpoint(Endpoint),
     Null,
     Array(Vec<TypeContainer>),
-    List(Box<TypeContainer>),
     Struct(Vec<(String, TypeContainer)>),
-    Map(Box<(TypeContainer, TypeContainer)>),
 }
 
 macro_rules! impl_from_typed_int {
@@ -126,19 +126,19 @@ impl StructuralTypeDefinition {
             }
             (StructuralTypeDefinition::Null, CoreValue::Null) => true,
 
-            // Check that all elements in the list match the element type
-            (
-                StructuralTypeDefinition::List(box elem_type),
-                CoreValue::List(list),
-            ) => list.into_iter().all(|item| elem_type.value_matches(item)),
-
-            // Check that all keys and values in the map match their types
-            (
-                StructuralTypeDefinition::Map(box (key_type, value_type)),
-                CoreValue::Map(map),
-            ) => map.iter().all(|(k, v)| {
-                key_type.value_matches(k) && value_type.value_matches(v)
-            }),
+            // // Check that all elements in the list match the element type
+            // (
+            //     StructuralTypeDefinition::List(box elem_type),
+            //     CoreValue::List(list),
+            // ) => list.into_iter().all(|item| elem_type.value_matches(item)),
+            //
+            // // Check that all keys and values in the map match their types
+            // (
+            //     StructuralTypeDefinition::Map(box (key_type, value_type)),
+            //     CoreValue::Map(map),
+            // ) => map.iter().all(|(k, v)| {
+            //     key_type.value_matches(k) && value_type.value_matches(v)
+            // }),
 
             // Check that all fields in the struct are present and match their types
             (
@@ -179,12 +179,32 @@ impl StructuralTypeDefinition {
             }
 
             // list and array
-            (
-                StructuralTypeDefinition::List(box elem_type),
-                CoreValue::Array(array),
-            ) => array.iter().all(|item| elem_type.value_matches(item)),
+            // (
+            //     StructuralTypeDefinition::List(box elem_type),
+            //     CoreValue::Array(array),
+            // ) => array.iter().all(|item| elem_type.value_matches(item)),
 
             _ => unimplemented!("handle complex structural type matching"),
+        }
+    }
+
+    /// Get the core lib type pointer id for this structural type definition
+    pub fn get_core_lib_type_pointer_id(&self) -> CoreLibPointerId {
+        match self {
+            StructuralTypeDefinition::Integer(_) => CoreLibPointerId::Integer(None),
+            StructuralTypeDefinition::TypedInteger(typed) => {
+                CoreLibPointerId::Integer(Some(typed.variant()))
+            }
+            StructuralTypeDefinition::Decimal(_) => CoreLibPointerId::Decimal(None),
+            StructuralTypeDefinition::TypedDecimal(typed) => {
+                CoreLibPointerId::Decimal(Some(typed.variant()))
+            }
+            StructuralTypeDefinition::Text(_) => CoreLibPointerId::Text,
+            StructuralTypeDefinition::Boolean(_) => CoreLibPointerId::Boolean,
+            StructuralTypeDefinition::Endpoint(_) => CoreLibPointerId::Endpoint,
+            StructuralTypeDefinition::Null => CoreLibPointerId::Null,
+            StructuralTypeDefinition::Array(_) => CoreLibPointerId::Array,
+            StructuralTypeDefinition::Struct(_) => CoreLibPointerId::Struct,
         }
     }
 }
@@ -222,12 +242,6 @@ impl Display for StructuralTypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 write!(f, "[{}]", types_str.join(", "))
-            }
-            StructuralTypeDefinition::List(element_type) => {
-                write!(f, "List<{}>", element_type)
-            }
-            StructuralTypeDefinition::Map(box (key_type, value_type)) => {
-                write!(f, "Map<{}, {}>", key_type, value_type)
             }
             StructuralTypeDefinition::Struct(fields) => {
                 let fields_str: Vec<String> = fields
@@ -276,24 +290,6 @@ mod tests {
             ),
         ]);
         assert_eq!(struct_type.to_string(), r#"{id: 42, name: "Hello"}"#);
-
-        let list_type = StructuralTypeDefinition::List(Box::new(
-            Type::structural(StructuralTypeDefinition::Text(Text::from(
-                "Item",
-            )))
-            .into(),
-        ));
-        assert_eq!(list_type.to_string(), r#"List<"Item">"#);
-
-        let map_type = StructuralTypeDefinition::Map(Box::new((
-            Type::structural(StructuralTypeDefinition::Text(Text::from("Key")))
-                .into(),
-            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
-                100,
-            )))
-            .into(),
-        )));
-        assert_eq!(map_type.to_string(), r#"Map<"Key", 100>"#);
     }
 
     #[test]
@@ -308,16 +304,6 @@ mod tests {
             ValueContainer::from(CoreValue::Text(Text::from("Hello")));
         assert!(text_type.value_matches(&text_value));
 
-        let list_type = StructuralTypeDefinition::List(Box::new(
-            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
-                1,
-            )))
-            .into(),
-        ));
-        let list_value = ValueContainer::from(vec![
-            CoreValue::Integer(Integer::from(1)),
-            CoreValue::Integer(Integer::from(1)),
-        ]);
-        assert!(list_type.value_matches(&list_value));
+        
     }
 }

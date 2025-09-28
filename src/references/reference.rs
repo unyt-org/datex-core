@@ -694,6 +694,7 @@ mod tests {
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;
+    use crate::runtime::memory::Memory;
 
     #[test]
     fn property() {
@@ -822,6 +823,8 @@ mod tests {
 
     #[test]
     fn nested_references() {
+        let memory = &RefCell::new(Memory::default());
+
         let mut object_a = Map::default();
         object_a.set("number", ValueContainer::from(42));
         object_a.set("obj", ValueContainer::from(Map::default()));
@@ -835,7 +838,7 @@ mod tests {
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
         object_b_ref.with_maybe_reference(|b_ref| {
-            b_ref.try_set_property("a".into(), object_a_val.clone())
+            b_ref.try_set_property("a".into(), object_a_val.clone(), memory)
         });
 
         println!("Object B Reference: {:#?}", object_b_ref);

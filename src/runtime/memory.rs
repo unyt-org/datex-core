@@ -14,7 +14,7 @@ use std::io::Cursor;
 use std::rc::Rc;
 // FIXME #105 no-std
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Memory {
     local_endpoint: Endpoint,
     local_counter: u64,  // counter for local pointer ids
@@ -37,18 +37,22 @@ impl Memory {
     }
 
     /// Registers a new reference in memory. If the reference has no PointerAddress, a new local one is generated.
-    pub fn register_reference(&mut self, reference: Reference) -> PointerAddress {
-        // auto-generate new local id if no id is set
-        let pointer_address = reference
-            .pointer_address()
-            .clone()
-            .unwrap_or_else(|| self.get_new_local_address());
-        // update address in reference if it was None
-        if reference.pointer_address().is_none() {
-            reference.set_pointer_address(pointer_address.clone());
+    /// If the reference is already registered (has a PointerAddress), the existing address is returned and no new registration is done.
+    /// Returns the PointerAddress of the registered reference.
+    pub fn register_reference(&mut self, reference: &Reference) -> PointerAddress {
+        // check if reference is already registered (if it has an address, we assume it is registered)
+        if let Some(address) = reference.pointer_address() {
+            // also check if actually registered
+            if !self.pointers.contains_key(&address) {
+                unreachable!("Reference has an address but is not registered in memory: {:?}", address);
+            }
+            return address;
         }
-        self.pointers.insert(pointer_address.clone(), reference);
-        pointer_address
+        // auto-generate new local id if no id is set
+        let new_pointer_address = self.get_new_local_address();
+        reference.set_pointer_address(new_pointer_address.clone());
+        self.pointers.insert(new_pointer_address.clone(), reference.clone());
+        new_pointer_address
     }
 
     /// Returns a reference stored at the given PointerAddress, if it exists.
@@ -154,5 +158,15 @@ impl Memory {
             (self.local_counter & 0xFF) as u8,
         ];
         PointerAddress::Local(id)
+    }
+}
+
+
+impl Reference {
+    /// Returns the PointerAddress of this reference, if it has one.
+    /// Otherwise, it registers the reference in the given memory and returns the newly assigned PointerAddress.
+    pub fn ensure_pointer_address(&self, memory: &RefCell<Memory>) -> PointerAddress {
+        self
+            .pointer_address().unwrap_or_else(|| memory.borrow_mut().register_reference(self))
     }
 }

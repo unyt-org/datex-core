@@ -212,7 +212,7 @@ pub fn load_core_lib(memory: &mut Memory) {
                         .unwrap()
                         .to_string();
                     let reference = Reference::TypeReference(def.clone());
-                    memory.register_reference(reference.clone());
+                    memory.register_reference(&reference);
                     (name, ValueContainer::Reference(reference))
                 }
                 _ => panic!("Core lib type is not a TypeReference"),
@@ -223,7 +223,7 @@ pub fn load_core_lib(memory: &mut Memory) {
         let core_struct =
             Reference::from(ValueContainer::from(Map::from_iter(structure)));
         core_struct.set_pointer_address(CoreLibPointerId::Core.into());
-        memory.register_reference(core_struct);
+        memory.register_reference(&core_struct);
     });
 }
 
@@ -367,6 +367,7 @@ mod tests {
 
     use super::*;
     use std::assert_matches::assert_matches;
+    use itertools::Itertools;
 
     #[test]
     fn core_lib() {
@@ -478,5 +479,22 @@ mod tests {
         assert_matches!(integer_again, TypeContainer::TypeReference(_));
         assert_eq!(integer_again.to_string(), "integer");
         assert_eq!(integer_again, integer);
+    }
+
+    #[ignore]
+    #[test]
+    fn print_core_lib_addresses_as_hex() {
+        let sorted_entries = CORE_LIB_TYPES
+            .with(|core|
+                      core.keys()
+                          .map(|k| (k.clone(), PointerAddress::from(k.clone())))
+                          .sorted_by_key(|(_, address)| {
+                              address.bytes().to_vec()
+                          })
+                          .collect::<Vec<_>>()
+            );
+        for (core_lib_id, address) in sorted_entries {
+            println!("{:?}: {}", core_lib_id, address);
+        }
     }
 }
