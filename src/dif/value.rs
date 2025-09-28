@@ -1,10 +1,7 @@
-use indexmap::IndexMap;
-use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::{
     dif_representation::DIFRepresentationValue, r#type::DIFTypeContainer,
 };
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
-use crate::types::definition::TypeDefinition;
+use crate::libs::core::CoreLibPointerId;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -14,10 +11,8 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_value::CoreValue;
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use datex_core::runtime::memory::Memory;
-use crate::dif::interface::DIFCreatePointerError;
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;
@@ -94,7 +89,7 @@ impl DIFValueContainer {
                         .ok_or(DIFReferenceNotFoundError)?
                         .clone(),
                 ),
-                DIFValueContainer::Value(v) => ValueContainer::Value(v.to_value(&memory)?)
+                DIFValueContainer::Value(v) => ValueContainer::Value(v.to_value(memory)?)
             }
         )
     }

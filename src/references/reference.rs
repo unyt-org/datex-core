@@ -12,7 +12,7 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use num_enum::{FromPrimitive, TryFromPrimitive};
+use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;

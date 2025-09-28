@@ -1,11 +1,8 @@
 use crate::dif::DIFProperty;
-use crate::dif::interface::{DIFFreeError, DIFResolveReferenceError};
-use crate::dif::r#type::{DIFType, DIFTypeContainer};
-use crate::dif::value::DIFValue;
-use crate::references::observers::ReferenceObserver;
+use crate::dif::interface::DIFResolveReferenceError;
+use crate::dif::r#type::DIFTypeContainer;
 use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::runtime::RuntimeInternal;
-use crate::types::type_container;
 use crate::{
     dif::{
         DIFUpdate,
@@ -16,8 +13,7 @@ use crate::{
         value::DIFValueContainer,
     },
     references::reference::Reference,
-    runtime::{Runtime, execution::ExecutionError},
-    values::{pointer::PointerAddress, value_container::ValueContainer},
+    values::pointer::PointerAddress,
 };
 
 impl RuntimeInternal {

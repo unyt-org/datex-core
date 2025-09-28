@@ -1,7 +1,7 @@
 use crate::dif::DIFUpdate;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::value::DIFValueContainer;
-use crate::references::observers::{ObserverError, ReferenceObserver};
+use crate::references::observers::ObserverError;
 use crate::references::reference::{
     AccessError, AssignmentError, ReferenceFromValueContainerError,
     ReferenceMutability, TypeError,
