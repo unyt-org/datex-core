@@ -8,6 +8,7 @@ pub mod value;
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value")]
 pub enum DIFProperty {
     /// a simple string property
     Text(String),
@@ -22,14 +23,14 @@ pub enum DIFProperty {
 #[serde(tag = "kind")]
 pub enum DIFUpdate {
     Replace {
-        value: DIFValueContainer
+        value: DIFValueContainer,
     },
     UpdateProperty {
         property: DIFProperty,
         value: DIFValueContainer,
     },
     Push {
-        value: DIFValueContainer
+        value: DIFValueContainer,
     },
 }
 
@@ -66,14 +67,29 @@ mod tests {
 
     #[test]
     fn serde() {
-        let dif_update =
-            DIFUpdate::Replace {
-                value: DIFValueContainer::Value(DIFValue {
-                    value: DIFRepresentationValue::String("Hello".to_string()),
-                    r#type: None,
-                    allowed_type: None,
-                })
-            };
+        // replace
+        let dif_update = DIFUpdate::Replace {
+            value: DIFValueContainer::Value(DIFValue {
+                value: DIFRepresentationValue::String("Hello".to_string()),
+                r#type: None,
+                allowed_type: None,
+            }),
+        };
+        let serialized = serde_json::to_string(&dif_update).unwrap();
+        println!("Serialized DIFUpdate: {}", serialized);
+        let deserialized: DIFUpdate =
+            serde_json::from_str(&serialized).unwrap();
+        assert_eq!(dif_update, deserialized);
+
+        // update property
+        let dif_update = DIFUpdate::UpdateProperty {
+            property: DIFProperty::Text("name".to_string()),
+            value: DIFValueContainer::Value(DIFValue {
+                value: DIFRepresentationValue::Number(42.0),
+                r#type: None,
+                allowed_type: None,
+            }),
+        };
         let serialized = serde_json::to_string(&dif_update).unwrap();
         println!("Serialized DIFUpdate: {}", serialized);
         let deserialized: DIFUpdate =

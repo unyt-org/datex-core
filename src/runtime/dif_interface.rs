@@ -214,9 +214,22 @@ mod tests {
     use crate::dif::value::{DIFValue, DIFValueContainer};
     use crate::references::reference::ReferenceMutability;
     use crate::runtime::Runtime;
+    use crate::values::core_values::r#struct::Struct;
+    use crate::values::value_container::ValueContainer;
     use datex_core::runtime::RuntimeConfig;
     use std::cell::RefCell;
     use std::rc::Rc;
+
+    #[test]
+    fn struct_serde() {
+        let r#struct = ValueContainer::from(Struct::new(vec![
+            ("a".to_string(), 1.into()),
+            ("b".to_string(), "text".into()),
+        ]));
+        let dif_value = DIFValueContainer::try_from(&r#struct).unwrap();
+        let serialized = serde_json::to_string(&dif_value).unwrap();
+        println!("Serialized struct: {}", serialized);
+    }
 
     #[test]
     fn test_create_and_observe_pointer() {
