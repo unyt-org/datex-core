@@ -284,8 +284,6 @@ impl Reference {
             matches!(
                 value.inner,
                 CoreValue::Map(_)
-                    | CoreValue::Struct(_)
-                    | CoreValue::Array(_)
                     | CoreValue::List(_)
                     | CoreValue::Text(_)
             )
@@ -296,7 +294,7 @@ impl Reference {
     /// Checks if the reference has text property access.
     /// This is true for structs.
     pub fn supports_text_property_access(&self) -> bool {
-        self.with_value(|value| matches!(value.inner, CoreValue::Struct(_)))
+        self.with_value(|value| matches!(value.inner, CoreValue::Map(_)))
             .unwrap_or(false)
     }
 
@@ -306,7 +304,7 @@ impl Reference {
         self.with_value(|value| {
             matches!(
                 value.inner,
-                CoreValue::Array(_) | CoreValue::List(_) | CoreValue::Text(_)
+                CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
             )
         })
         .unwrap_or(false)
@@ -597,25 +595,6 @@ impl Reference {
                         .ok_or(AccessError::PropertyNotFound(key.to_string()))?
                         .clone())
                 }
-                CoreValue::Struct(ref mut struct_val) => {
-                    if let ValueContainer::Value(value) = &key {
-                        if value.is_text() {
-                            let key_str = value.cast_to_text().0;
-                            // If the value is a struct, get the property
-                            if struct_val.has_field(&key_str) {
-                                Ok(struct_val.get_unchecked(&key_str).clone())
-                            } else {
-                                Err(AccessError::PropertyNotFound(key_str))
-                            }
-                        } else {
-                            Err(AccessError::InvalidPropertyKeyType(
-                                key.actual_type().to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(AccessError::CanNotUseReferenceAsKey)
-                    }
-                }
                 _ => {
                     // If the value is not an object, we cannot get a property
                     Err(AccessError::InvalidOperation(
@@ -636,12 +615,10 @@ impl Reference {
     ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| {
             match value.inner {
-                CoreValue::Struct(ref mut struct_val) => {
-                    if struct_val.has_field(key) {
-                        Ok(struct_val.get_unchecked(key).clone())
-                    } else {
-                        Err(AccessError::PropertyNotFound(key.to_string()))
-                    }
+                CoreValue::Map(ref mut struct_val) => {
+                    struct_val.get_text(&key).ok_or_else(|| {
+                        AccessError::PropertyNotFound(key.to_string())
+                    }).map(|v| v.clone())
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
@@ -662,10 +639,6 @@ impl Reference {
         index: u32,
     ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| match value.inner {
-            CoreValue::Array(ref mut array) => array
-                .get(index)
-                .cloned()
-                .ok_or(AccessError::IndexOutOfBounds),
             CoreValue::List(ref mut list) => list
                 .get(index)
                 .cloned()
@@ -689,7 +662,6 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::core_values::r#struct::Struct;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
@@ -719,7 +691,7 @@ mod tests {
 
     #[test]
     fn text_property() {
-        let struct_val = Struct::from(vec![
+        let struct_val = Map::from(vec![
             ("name".to_string(), ValueContainer::from("Jonas")),
             ("age".to_string(), ValueContainer::from(30)),
         ]);

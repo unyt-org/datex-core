@@ -48,14 +48,11 @@ pub fn ast_to_source_code(
         DatexExpression::Endpoint(e) => e.to_string(),
         DatexExpression::Null => "null".to_string(),
         DatexExpression::Literal(l) => l.to_string(),
-        DatexExpression::Array(arr) => {
+        DatexExpression::List(arr) => {
             array_to_source_code(arr, decompile_options)
         }
         DatexExpression::Map(map) => {
             map_to_source_code(map, decompile_options)
-        }
-        DatexExpression::Struct(structure) => {
-            struct_to_source_code(structure, decompile_options)
         }
         DatexExpression::List(elements) => {
             list_to_source_code(elements, decompile_options)
@@ -151,7 +148,7 @@ fn key_to_source_code(
     }
 }
 
-/// Converts the contents of a DatexExpression::Array into source code
+/// Converts the contents of a DatexExpression::List into source code
 fn array_to_source_code(
     arr: &[DatexExpression],
     decompile_options: &DecompileOptions,
@@ -197,28 +194,6 @@ fn map_to_source_code(
         })
         .collect();
     join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
-}
-
-fn struct_to_source_code(
-    structure: &[(String, DatexExpression)],
-    decompile_options: &DecompileOptions,
-) -> String {
-    let elements: Vec<String> = structure
-        .iter()
-        .map(|(k, v)| {
-            format!(
-                "{}:{}{}",
-                k,
-                if matches!(decompile_options.formatting, Formatting::Compact) {
-                    ""
-                } else {
-                    " "
-                },
-                ast_to_source_code(v, decompile_options)
-            )
-        })
-        .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Curly)
 }
 
 /// Converts a text string into a properly escaped source code representation
@@ -382,14 +357,14 @@ mod tests {
     }
 
     #[test]
-    fn test_array() {
-        let array_ast = DatexExpression::Array(vec![
+    fn test_list() {
+        let list_ast = DatexExpression::List(vec![
             DatexExpression::Integer(1.into()),
             DatexExpression::Integer(2.into()),
             DatexExpression::Integer(3.into()),
         ]);
         assert_eq!(
-            ast_to_source_code(&array_ast, &DecompileOptions::default()),
+            ast_to_source_code(&list_ast, &DecompileOptions::default()),
             "[1,2,3]"
         );
 
@@ -398,7 +373,7 @@ mod tests {
             ..Default::default()
         };
         // short array should still be single line
-        let array_ast = DatexExpression::Array(vec![
+        let array_ast = DatexExpression::List(vec![
             DatexExpression::Integer(1.into()),
             DatexExpression::Integer(2.into()),
             DatexExpression::Integer(3.into()),
@@ -408,46 +383,20 @@ mod tests {
             "[1, 2, 3]"
         );
 
-        // long array should be multi-line
-        let long_array_ast = DatexExpression::Array(vec![
+        // long list should be multi-line
+        let long_list_ast = DatexExpression::List(vec![
             DatexExpression::Text("This is a long string".to_string()),
             DatexExpression::Text("Another long string".to_string()),
             DatexExpression::Text("Yet another long string".to_string()),
             DatexExpression::Text(
                 "More long strings to increase length".to_string(),
             ),
-            DatexExpression::Text("Final long string in the array".to_string()),
+            DatexExpression::Text("Final long string in the list".to_string()),
         ]);
 
         assert_eq!(
-            ast_to_source_code(&long_array_ast, &compile_options_multiline),
+            ast_to_source_code(&long_list_ast, &compile_options_multiline),
             "[\n    \"This is a long string\",\n    \"Another long string\",\n    \"Yet another long string\",\n    \"More long strings to increase length\",\n    \"Final long string in the array\"\n]"
-        );
-    }
-
-    #[test]
-    fn test_list() {
-        let list_ast = DatexExpression::List(vec![
-            DatexExpression::Integer(1.into()),
-            DatexExpression::Text("two".to_string()),
-            DatexExpression::Boolean(true),
-        ]);
-        assert_eq!(
-            ast_to_source_code(&list_ast, &DecompileOptions::default()),
-            "(1,\"two\",true)"
-        );
-    }
-
-    #[test]
-    fn test_struct() {
-        let struct_ast = DatexExpression::Struct(vec![
-            ("x".to_string(), DatexExpression::Integer(1.into())),
-            ("y".to_string(), DatexExpression::Text("two".to_string())),
-            ("z".to_string(), DatexExpression::Boolean(true)),
-        ]);
-        assert_eq!(
-            ast_to_source_code(&struct_ast, &DecompileOptions::default()),
-            "{x:1,y:\"two\",z:true}"
         );
     }
 

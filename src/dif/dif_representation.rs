@@ -96,15 +96,15 @@ impl DIFValueRepresentation {
                 let mut map = IndexMap::new();
                 for (k, v) in object {
                     map.insert(
-                        k,
+                        ValueContainer::Value(Value::from(k)),
                         v.to_value_container(memory)?,
                     );
                 }
                 Value {
                     actual_type: Box::new(get_core_lib_type(
-                        CoreLibPointerId::Struct,
+                        CoreLibPointerId::Map,
                     )),
-                    inner: CoreValue::Struct(map.into()),
+                    inner: CoreValue::Map(map.into()),
                 }
             }
             DIFValueRepresentation::Map(map) => {
@@ -210,13 +210,16 @@ impl DIFTypeRepresentation {
             StructuralTypeDefinition::Endpoint(endpoint) => {
                 DIFTypeRepresentation::String(endpoint.to_string())
             }
-            StructuralTypeDefinition::Array(arr) => DIFTypeRepresentation::Array(
+            StructuralTypeDefinition::List(arr) => DIFTypeRepresentation::Array(
                 arr.iter().map(|v| DIFTypeContainer::from_type_container(v, memory)).collect(),
             ),
-            StructuralTypeDefinition::Struct(fields) => DIFTypeRepresentation::Object(
+            StructuralTypeDefinition::Map(fields) => DIFTypeRepresentation::Map(
                 fields
                     .into_iter()
-                    .map(|(k, v)| (k.clone(), DIFTypeContainer::from_type_container(v, memory)))
+                    .map(|(k, v)| (
+                        DIFTypeContainer::from_type_container(k, memory),
+                        DIFTypeContainer::from_type_container(v, memory))
+                    )
                     .collect(),
             ),
         }

@@ -8,7 +8,7 @@ pub enum Pattern {
     Any,
     Token(Token),
     Declaration,
-    Array,
+    List,
     Literal,
     EndOfInput,
     SomethingElse,
@@ -37,7 +37,7 @@ impl fmt::Display for Pattern {
         match self {
             Pattern::Custom(name) => write!(f, "{}", name),
             Pattern::Declaration => write!(f, "declaration"),
-            Pattern::Array => write!(f, "array"),
+            Pattern::List => write!(f, "array"),
             Pattern::SomethingElse => write!(f, "something else"),
             Pattern::Any => write!(f, "any"),
             Pattern::Token(token) => write!(f, "{}", token),
@@ -52,7 +52,7 @@ impl Pattern {
         match self {
             Pattern::Custom(name) => name,
             Pattern::Declaration => "declaration",
-            Pattern::Array => "array",
+            Pattern::List => "array",
             Pattern::SomethingElse => "token",
             Pattern::Any => "token",
             Pattern::Token(_) => "token",
@@ -65,7 +65,7 @@ impl Pattern {
         match self {
             Pattern::Custom(name) => name.to_string(),
             Pattern::Declaration => "declaration".to_string(),
-            Pattern::Array => "array".to_string(),
+            Pattern::List => "array".to_string(),
             Pattern::SomethingElse => "something else".to_string(),
             Pattern::Any => "any".to_string(),
             Pattern::Token(token) => token.as_string(),

@@ -22,6 +22,26 @@ impl List {
         self.0.get(index as usize)
     }
 
+    /// Sets the value at the specified index.
+    /// If the index is equal to the current length of the list, the value is pushed to the end.
+    /// If the index is greater than the current length, None is returned.
+    /// Returns the previous value at the index if it was replaced.
+    pub fn set(&mut self, index: u32, value: ValueContainer) -> Option<ValueContainer> {
+        // replace
+        if (index as usize) < self.0.len() {
+            Some(std::mem::replace(&mut self.0[index as usize], value))
+        }
+        // push
+        else if (index as usize) == self.0.len() {
+            self.0.push(value);
+            None
+        }
+        // out of bounds
+        else {
+            None
+        }
+    }
+
     pub fn push<T: Into<ValueContainer>>(&mut self, value: T) {
         self.0.push(value.into());
     }

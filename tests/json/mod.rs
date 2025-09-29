@@ -14,7 +14,6 @@ use json_syntax::Parse;
 use std::path::PathBuf;
 use indexmap::IndexMap;
 use datex_core::assert_structural_eq;
-use datex_core::values::core_values::r#struct::Struct;
 use datex_core::values::traits::structural_eq::StructuralEq;
 
 fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
@@ -58,7 +57,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
                     )),
                 );
             }
-            Value::from(Struct::from(map))
+            Value::from(Map::from(map))
         }
     }
 }

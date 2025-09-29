@@ -145,7 +145,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 just(Token::LeftBracket).padded_by(whitespace()),
                 just(Token::RightBracket).padded_by(whitespace()),
             )
-            .map(|elems: Vec<TypeExpression>| TypeExpression::Array(elems));
+            .map(|elems: Vec<TypeExpression>| TypeExpression::StructuralList(elems));
 
         let array_fixed_inline = ty
             .clone()
@@ -159,7 +159,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 if let Some(n) = integer_to_usize(&size)
                     && n > 0
                 {
-                    Ok(TypeExpression::FixedSizeArray(Box::new(t), n))
+                    Ok(TypeExpression::FixedSizeList(Box::new(t), n))
                 } else {
                     Err(ParseError::new(ErrorKind::InvalidArraySize(format!(
                         "{size:?}"
@@ -186,8 +186,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         //         Type::r#struct(fields).as_type_container()
         //     });
         let struct_field = select! {
-           Token::Identifier(k) => k,
-           Token::StringLiteral(k) => unescape_text(&k),
+           Token::Identifier(k) => TypeExpression::Text(k),
+           Token::StringLiteral(k) => TypeExpression::Text(unescape_text(&k)),
         }
         .then(just(Token::Placeholder).or_not())
         .then_ignore(just(Token::Colon).padded_by(whitespace()))
@@ -200,7 +200,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             }
         });
 
-        let r#struct = struct_field
+        let structural_map = struct_field
             .separated_by(just(Token::Comma).padded_by(whitespace()))
             .allow_trailing()
             .collect()
@@ -208,37 +208,37 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 just(Token::LeftCurly).padded_by(whitespace()),
                 just(Token::RightCurly).padded_by(whitespace()),
             )
-            .map(|fields: Vec<(String, TypeExpression)>| {
-                TypeExpression::Struct(fields)
+            .map(|fields: Vec<(TypeExpression, TypeExpression)>| {
+                TypeExpression::StructuralMap(fields)
             });
 
-        let generic = select! { Token::Identifier(name) => name }
-            .then(
-                ty.clone()
-                    .separated_by(just(Token::Comma).padded_by(whitespace()))
-                    .allow_trailing()
-                    .collect()
-                    .padded_by(whitespace())
-                    .delimited_by(
-                        just(Token::LeftAngle),
-                        just(Token::RightAngle),
-                    ),
-            )
-            .map(|(name, args): (String, Vec<TypeExpression>)| {
-                match name.as_str() {
-                    "List" if args.len() == 1 => {
-                        TypeExpression::List(Box::new(args[0].clone()))
-                    }
-                    "Map" if args.len() == 2 => {
-                        let mut it = args.into_iter();
-                        TypeExpression::Map(
-                            Box::new(it.next().unwrap()),
-                            Box::new(it.next().unwrap()),
-                        )
-                    }
-                    other => TypeExpression::Generic(other.to_owned(), args),
-                }
-            });
+        // let generic = select! { Token::Identifier(name) => name }
+        //     .then(
+        //         ty.clone()
+        //             .separated_by(just(Token::Comma).padded_by(whitespace()))
+        //             .allow_trailing()
+        //             .collect()
+        //             .padded_by(whitespace())
+        //             .delimited_by(
+        //                 just(Token::LeftAngle),
+        //                 just(Token::RightAngle),
+        //             ),
+        //     )
+        //     .map(|(name, args): (String, Vec<TypeExpression>)| {
+        //         match name.as_str() {
+        //             "List" if args.len() == 1 => {
+        //                 TypeExpression::StructuralList(Box::new(args[0].clone()))
+        //             }
+        //             "Map" if args.len() == 2 => {
+        //                 let mut it = args.into_iter();
+        //                 TypeExpression::StructuralMap(
+        //                     Box::new(it.next().unwrap()),
+        //                     Box::new(it.next().unwrap()),
+        //                 )
+        //             }
+        //             other => TypeExpression::Generic(other.to_owned(), args),
+        //         }
+        //     });
 
         let func = key_ident
             .then_ignore(just(Token::Colon).padded_by(whitespace()))
@@ -294,8 +294,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             literal.clone(),
             array_inline.clone(),
             array_fixed_inline.clone(),
-            r#struct.clone(),
-            generic.clone(),
+            structural_map.clone(),
+            // generic.clone(),
             paren_group.clone(),
             type_reference.clone(),
         ));
@@ -366,10 +366,10 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .try_map(|(mut t, arrs), _| {
                 for arr in arrs {
                     t = match arr {
-                        None => TypeExpression::SliceArray(Box::new(t)),
+                        None => TypeExpression::SliceList(Box::new(t)),
                         Some(n) => match integer_to_usize(&n) {
                             Some(size) if size > 0 => {
-                                TypeExpression::FixedSizeArray(
+                                TypeExpression::FixedSizeList(
                                     Box::new(t),
                                     size,
                                 )
@@ -534,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    fn r#struct() {
+    fn structural_map() {
         let src = r#"
 			{
 				"name": text | null,
@@ -544,16 +544,16 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Struct(vec![
+            TypeExpression::StructuralMap(vec![
                 (
-                    "name".to_string(),
+                    TypeExpression::Literal("name".to_string()),
                     TypeExpression::Union(vec![
                         TypeExpression::Literal("text".to_owned()),
                         TypeExpression::Null
                     ])
                 ),
                 (
-                    "age".to_string(),
+                    TypeExpression::Literal("age".to_string()),
                     TypeExpression::Union(vec![
                         TypeExpression::Literal("integer".to_owned()),
                         TypeExpression::Literal("text".to_owned())
@@ -562,54 +562,55 @@ mod tests {
             ])
         );
 
-        let src = r#"
-            {
-                name?: text,
-                friends: List<&text>
-            };
-        "#;
-        let val = parse_type_unwrap(src);
-        assert_eq!(
-            val,
-            TypeExpression::Struct(vec![
-                (
-                    "name".to_string(),
-                    TypeExpression::Union(vec![
-                        TypeExpression::Literal("text".to_owned()),
-                        TypeExpression::Null
-                    ])
-                ),
-                (
-                    "friends".to_string(),
-                    TypeExpression::List(Box::new(TypeExpression::Ref(
-                        Box::new(TypeExpression::Literal("text".to_owned()))
-                    )))
-                ),
-            ])
-        );
-
-        let src = r#"
-			{
-    			name: text,
-				friends: List<&text>
-			}
-		"#;
-        let val = parse_type_unwrap(src);
-        assert_eq!(
-            val,
-            TypeExpression::Struct(vec![
-                (
-                    "name".to_string(),
-                    TypeExpression::Literal("text".to_owned())
-                ),
-                (
-                    "friends".to_string(),
-                    TypeExpression::List(Box::new(TypeExpression::Ref(
-                        Box::new(TypeExpression::Literal("text".to_owned()))
-                    )))
-                ),
-            ])
-        );
+        // TODO: generics
+        // let src = r#"
+        //     {
+        //         name?: text,
+        //         friends: List<&text>
+        //     };
+        // "#;
+        // let val = parse_type_unwrap(src);
+        // assert_eq!(
+        //     val,
+        //     TypeExpression::StructuralMap(vec![
+        //         (
+        //             TypeExpression::Literal("name".to_string()),
+        //             TypeExpression::Union(vec![
+        //                 TypeExpression::Literal("text".to_owned()),
+        //                 TypeExpression::Null
+        //             ])
+        //         ),
+        //         (
+        //             TypeExpression::Literal("friends".to_string()),
+        //             TypeExpression::StructuralList(Box::new(TypeExpression::Ref(
+        //                 Box::new(TypeExpression::Literal("text".to_owned()))
+        //             )))
+        //         ),
+        //     ])
+        // );
+        //
+        // let src = r#"
+		// 	{
+    	// 		name: text,
+		// 		friends: List<&text>
+		// 	}
+		// "#;
+        // let val = parse_type_unwrap(src);
+        // assert_eq!(
+        //     val,
+        //     TypeExpression::StructuralMap(vec![
+        //         (
+        //             "name".to_string(),
+        //             TypeExpression::Literal("text".to_owned())
+        //         ),
+        //         (
+        //             "friends".to_string(),
+        //             TypeExpression::StructuralList(Box::new(TypeExpression::Ref(
+        //                 Box::new(TypeExpression::Literal("text".to_owned()))
+        //             )))
+        //         ),
+        //     ])
+        // );
 
         let src = r#"
             {
@@ -620,13 +621,13 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Struct(vec![
+            TypeExpression::StructuralMap(vec![
                 (
-                    "name".to_string(),
+                    TypeExpression::Literal("name".to_string()),
                     TypeExpression::Literal("text".to_owned())
                 ),
                 (
-                    "age".to_string(),
+                    TypeExpression::Literal("age".to_string()),
                     TypeExpression::RefMut(Box::new(TypeExpression::Literal(
                         "text".to_owned()
                     )))
@@ -724,7 +725,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Array(vec![
+            TypeExpression::StructuralList(vec![
                 TypeExpression::Integer(Integer::from(1)),
                 TypeExpression::Integer(Integer::from(2)),
                 TypeExpression::Integer(Integer::from(3)),
@@ -736,7 +737,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Array(vec![
+            TypeExpression::StructuralList(vec![
                 TypeExpression::Integer(Integer::from(1)),
                 TypeExpression::Integer(Integer::from(2)),
                 TypeExpression::Literal("text".to_owned()),
@@ -747,7 +748,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Array(vec![TypeExpression::Union(vec![
+            TypeExpression::StructuralList(vec![TypeExpression::Union(vec![
                 TypeExpression::Literal("integer".to_owned()),
                 TypeExpression::Literal("text".to_owned()),
             ])])
@@ -760,7 +761,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeArray(
+            TypeExpression::FixedSizeList(
                 Box::new(TypeExpression::Literal("integer".to_owned())),
                 10
             )
@@ -770,7 +771,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeArray(
+            TypeExpression::FixedSizeList(
                 Box::new(TypeExpression::Union(vec![
                     TypeExpression::Literal("integer".to_owned()),
                     TypeExpression::Literal("string".to_owned()),
@@ -786,7 +787,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeArray(
+            TypeExpression::FixedSizeList(
                 Box::new(TypeExpression::Literal("text".to_owned())),
                 4
             )
@@ -796,7 +797,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeArray(
+            TypeExpression::FixedSizeList(
                 Box::new(TypeExpression::Literal("text".to_owned())),
                 42
             )
@@ -806,7 +807,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeArray(
+            TypeExpression::FixedSizeList(
                 Box::new(TypeExpression::Literal("text".to_owned())),
                 10
             )
@@ -819,7 +820,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::SliceArray(Box::new(TypeExpression::Literal(
+            TypeExpression::SliceList(Box::new(TypeExpression::Literal(
                 "text".to_owned()
             )))
         );
@@ -828,48 +829,49 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::SliceArray(Box::new(TypeExpression::SliceArray(
-                Box::new(TypeExpression::SliceArray(Box::new(
+            TypeExpression::SliceList(Box::new(TypeExpression::SliceList(
+                Box::new(TypeExpression::SliceList(Box::new(
                     TypeExpression::Literal("integer".to_owned())
                 )))
             )))
         );
     }
 
-    #[test]
-    fn list() {
-        let src = "List<integer>";
-        let val = parse_type_unwrap(src);
-        assert_eq!(
-            val,
-            TypeExpression::List(Box::new(TypeExpression::Literal(
-                "integer".to_owned()
-            )))
-        );
+    // TODO: generics
+    // #[test]
+    // fn list() {
+    //     let src = "List<integer>";
+    //     let val = parse_type_unwrap(src);
+    //     assert_eq!(
+    //         val,
+    //         TypeExpression::StructuralList(Box::new(TypeExpression::Literal(
+    //             "integer".to_owned()
+    //         )))
+    //     );
+    //
+    //     let src = "List<integer | text>";
+    //     let val = parse_type_unwrap(src);
+    //     assert_eq!(
+    //         val,
+    //         TypeExpression::StructuralList(Box::new(TypeExpression::Union(vec![
+    //             TypeExpression::Literal("integer".to_owned()),
+    //             TypeExpression::Literal("text".to_owned()),
+    //         ])))
+    //     );
+    // }
 
-        let src = "List<integer | text>";
-        let val = parse_type_unwrap(src);
-        assert_eq!(
-            val,
-            TypeExpression::List(Box::new(TypeExpression::Union(vec![
-                TypeExpression::Literal("integer".to_owned()),
-                TypeExpression::Literal("text".to_owned()),
-            ])))
-        );
-    }
-
-    #[test]
-    fn map() {
-        let src = "Map<text, integer>";
-        let val = parse_type_unwrap(src);
-        assert_eq!(
-            val,
-            TypeExpression::Map(
-                Box::new(TypeExpression::Literal("text".to_owned())),
-                Box::new(TypeExpression::Literal("integer".to_owned()))
-            )
-        );
-    }
+    // #[test]
+    // fn map() {
+    //     let src = "Map<text, integer>";
+    //     let val = parse_type_unwrap(src);
+    //     assert_eq!(
+    //         val,
+    //         TypeExpression::StructuralMap(
+    //             Box::new(TypeExpression::Literal("text".to_owned())),
+    //             Box::new(TypeExpression::Literal("integer".to_owned()))
+    //         )
+    //     );
+    // }
 
     #[test]
     fn generic_type() {
@@ -965,7 +967,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Ref(Box::new(TypeExpression::Array(vec![
+            TypeExpression::Ref(Box::new(TypeExpression::StructuralList(vec![
                 TypeExpression::RefMut(Box::new(TypeExpression::Literal(
                     "text".to_owned()
                 ))),

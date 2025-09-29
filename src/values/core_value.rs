@@ -2,7 +2,6 @@ use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::types::type_container::TypeContainer;
-use crate::values::core_values::array::Array;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -11,7 +10,6 @@ use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
-use crate::values::core_values::r#struct::Struct;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
 use crate::values::traits::structural_eq::StructuralEq;
@@ -49,8 +47,6 @@ pub enum CoreValue {
     Endpoint(Endpoint),
     List(List),
     Map(Map),
-    Array(Array),
-    Struct(Struct),
     Type(Type),
 }
 impl StructuralEq for CoreValue {
@@ -99,8 +95,6 @@ impl StructuralEq for CoreValue {
             }
             (CoreValue::List(a), CoreValue::List(b)) => a.structural_eq(b),
             (CoreValue::Map(a), CoreValue::Map(b)) => a.structural_eq(b),
-            (CoreValue::Array(a), CoreValue::Array(b)) => a.structural_eq(b),
-            (CoreValue::Struct(a), CoreValue::Struct(b)) => a.structural_eq(b),
             _ => false,
         }
     }
@@ -137,7 +131,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from(vec: Vec<T>) -> Self {
-        CoreValue::Array(vec.into())
+        CoreValue::List(vec.into())
     }
 }
 
@@ -146,7 +140,7 @@ where
     T: Into<ValueContainer>,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        CoreValue::Array(Array::new(iter.into_iter().map(Into::into).collect()))
+        CoreValue::List(List::new(iter.into_iter().map(Into::into).collect()))
     }
 }
 
@@ -224,8 +218,6 @@ impl From<&CoreValue> for CoreLibPointerId {
         match value {
             CoreValue::Map(_) => CoreLibPointerId::Map,
             CoreValue::List(_) => CoreLibPointerId::List,
-            CoreValue::Struct(_) => CoreLibPointerId::Struct,
-            CoreValue::Array(_) => CoreLibPointerId::Array,
             CoreValue::Text(_) => CoreLibPointerId::Text,
             CoreValue::Boolean(_) => CoreLibPointerId::Boolean,
             CoreValue::TypedInteger(i) => {
@@ -251,15 +243,13 @@ impl CoreValue {
         value.into()
     }
 
-    /// Check if the CoreValue is a combined value type (Array, List, Struct, Map)
+    /// Check if the CoreValue is a combined value type (List, Map)
     /// that consists of multiple CoreValues.
     pub fn is_collection_value(&self) -> bool {
         matches!(
             self,
             CoreValue::List(_)
                 | CoreValue::Map(_)
-                | CoreValue::Struct(_)
-                | CoreValue::Array(_)
         )
     }
 
@@ -347,22 +337,9 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_array(&self) -> Option<Array> {
-        match self {
-            CoreValue::Array(array) => Some(array.clone()),
-            _ => None,
-        }
-    }
-
     pub fn cast_to_map(&self) -> Option<Map> {
         match self {
             CoreValue::Map(map) => Some(map.clone()),
-            _ => None,
-        }
-    }
-    pub fn cast_to_struct(&self) -> Option<Struct> {
-        match self {
-            CoreValue::Struct(structure) => Some(structure.clone()),
             _ => None,
         }
     }
@@ -663,11 +640,7 @@ impl Display for CoreValue {
             CoreValue::Map(map) => write!(f, "{map}"),
             CoreValue::Integer(integer) => write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
-
             CoreValue::List(list) => write!(f, "{list}"),
-            CoreValue::Struct(structure) => write!(f, "{structure}"),
-            CoreValue::Array(array) => write!(f, "{array}"),
-            CoreValue::Map(map) => write!(f, "{map}"),
         }
     }
 }

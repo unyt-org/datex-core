@@ -1,4 +1,4 @@
-pub mod array;
+pub mod list;
 pub mod assignment_operation;
 pub mod atom;
 pub mod binary_operation;
@@ -12,17 +12,15 @@ pub mod function;
 pub mod integer;
 pub mod key;
 pub mod lexer;
-pub mod list;
 pub mod literal;
 pub mod map;
-pub mod structure;
 pub mod text;
 pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
 
-use crate::ast::array::*;
+use crate::ast::list::*;
 use crate::ast::assignment_operation::*;
 use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
@@ -34,14 +32,11 @@ use crate::ast::error::pattern::Pattern;
 use crate::ast::function::*;
 use crate::ast::key::*;
 use crate::ast::map::*;
-use crate::ast::structure::*;
 use crate::ast::r#type::type_expression;
 use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 
-use crate::ast::list::list;
-use crate::values::core_values::array::Array;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -140,18 +135,15 @@ pub enum TypeExpression {
 
     // [integer, text, endpoint]
     // size known to compile time, arbitrary types
-    Array(Vec<TypeExpression>),
+    StructuralList(Vec<TypeExpression>),
 
     // [text; 3], integer[10]
     // fixed size and known to compile time, only one type
-    FixedSizeArray(Box<TypeExpression>, usize),
+    FixedSizeList(Box<TypeExpression>, usize),
 
     // text[], integer[]
     // size not known to compile time, only one type
-    SliceArray(Box<TypeExpression>),
-
-    // { x: integer, y: text }
-    Struct(Vec<(String, TypeExpression)>),
+    SliceList(Box<TypeExpression>),
 
     // text & "test"
     Intersection(Vec<TypeExpression>),
@@ -168,11 +160,8 @@ pub enum TypeExpression {
         return_type: Box<TypeExpression>,
     },
 
-    // List<integer>
-    List(Box<TypeExpression>),
-
-    // Map<integer, text>
-    Map(Box<TypeExpression>, Box<TypeExpression>),
+    // structurally typed map, e.g. { x: integer, y: string }
+    StructuralMap(Vec<(TypeExpression, TypeExpression)>),
 
     // modifiers
     Ref(Box<TypeExpression>),
@@ -208,13 +197,9 @@ pub enum DatexExpression {
 
     /// Endpoint, e.g. @test_a or @test_b
     Endpoint(Endpoint),
-    /// Array, e.g  `[1, 2, 3, "text"]`
-    Array(Vec<DatexExpression>),
-    /// List, e.g  `(1, 2, 3, "text")`, or without brackets: 1, 2, 3, "text"
+    /// List, e.g  `[1, 2, 3, "text"]`
     List(Vec<DatexExpression>),
-    /// Struct, e.g {"key": "value", key2: 2, xy: 10}
-    Struct(Vec<(String, DatexExpression)>),
-    /// Map, e.g (1: 2, 3: 4, xy: "xy") or without brackets: a:3, b:4
+    /// Map, e.g {1: 2, 3: 4, xy: "xy"}
     Map(Vec<(DatexExpression, DatexExpression)>),
     /// One or more statements, e.g (1; 2; 3)
     Statements(Vec<Statement>),
@@ -321,23 +306,6 @@ impl TryFrom<&DatexExpression> for ValueContainer {
                     .collect::<Result<Vec<ValueContainer>, ()>>()?;
                 ValueContainer::from(List::from(entries))
             }
-            DatexExpression::Struct(obj) => {
-                let entries = obj
-                    .iter()
-                    .map(|(k, v)| {
-                        let value = ValueContainer::try_from(v)?;
-                        Ok((k.clone(), value))
-                    })
-                    .collect::<Result<HashMap<String, ValueContainer>, ()>>()?;
-                ValueContainer::from(Map::from(entries))
-            }
-            DatexExpression::Array(arr) => {
-                let entries = arr
-                    .iter()
-                    .map(ValueContainer::try_from)
-                    .collect::<Result<Vec<ValueContainer>, ()>>()?;
-                ValueContainer::from(Array::from(entries))
-            }
             DatexExpression::Map(pairs) => {
                 let entries = pairs
                     .iter()
@@ -423,31 +391,25 @@ where
     // (1: value), "key", 1, (("x"+"y"): 123)
     let key = key(wrapped_expression.clone()).labelled(Pattern::Custom("key"));
 
-    // array
+    // list
     // 1,2,3
     // [1,2,3,4,13434,(1),4,5,7,8]
-    let array = array(expression_without_list.clone());
-
     let list = list(expression_without_list.clone());
 
-    // object
-    let structure = structure(expression_without_list.clone());
-
     // map
-    // Key-value pair
     let map = map(key.clone(), expression_without_list.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom =
-        atom(array.clone(), structure.clone(), wrapped_expression.clone());
+        atom(list.clone(), map.clone(), wrapped_expression.clone());
     let unary = choice((type_expression(), unary(atom.clone())));
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain = chain(
         unary.clone(),
         key.clone(),
-        array.clone(),
-        structure.clone(),
+        list.clone(),
+        map.clone(),
         wrapped_expression.clone(),
         atom.clone(),
         expression.clone(),
@@ -496,8 +458,8 @@ where
             .then(
                 choice((
                     wrapped_expression.clone(),
-                    array.clone(),
-                    structure.clone(),
+                    list.clone(),
+                    map.clone(),
                     statements.clone(),
                     unary.clone(),
                 ))
@@ -509,8 +471,8 @@ where
                     .ignore_then(choice((
                         if_rec.clone(),
                         wrapped_expression.clone(),
-                        array.clone(),
-                        structure.clone(),
+                        list.clone(),
+                        map.clone(),
                         statements.clone(),
                         unary.clone(),
                     )))
@@ -547,8 +509,6 @@ where
     expression.define(
         choice((
             remote_execution,
-            list.clone(),
-            map.clone(),
             expression_without_list.clone(),
         ))
         .padded_by(whitespace()),
@@ -664,19 +624,21 @@ mod tests {
 
         assert_eq!(
             json,
-            DatexExpression::Struct(vec![
+            DatexExpression::Map(vec![
                 (
-                    "name".to_string(),
+                    DatexExpression::Text("name".to_string()),
                     DatexExpression::Text("Test".to_string())
                 ),
                 (
-                    "value".to_string(),
+                    DatexExpression::Text("value".to_string()),
                     DatexExpression::Integer(Integer::from(42))
                 ),
-                ("active".to_string(), DatexExpression::Boolean(true)),
                 (
-                    "items".to_string(),
-                    DatexExpression::Array(vec![
+                    DatexExpression::Text("active".to_string()),
+                    DatexExpression::Boolean(true)),
+                (
+                    DatexExpression::Text("items".to_string()),
+                    DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
@@ -686,10 +648,10 @@ mod tests {
                     ])
                 ),
                 (
-                    "nested".to_string(),
-                    DatexExpression::Struct(
+                    DatexExpression::Text("nested".to_string()),
+                    DatexExpression::Map(
                         vec![(
-                            "key".to_string(),
+                            DatexExpression::Text("key".to_string()),
                             DatexExpression::Text("value".to_string())
                         )]
                         .into_iter()
@@ -718,7 +680,7 @@ mod tests {
         {
             assert_matches!(
                 *value,
-                DatexExpression::Type(TypeExpression::List(_))
+                DatexExpression::Type(TypeExpression::StructuralList(_))
             );
         } else {
             panic!("Expected VariableDeclaration");
@@ -1204,7 +1166,7 @@ mod tests {
                         None,
                     ),
                 ),
-                ApplyOperation::FunctionCall(DatexExpression::Struct(vec![])),
+                ApplyOperation::FunctionCall(DatexExpression::Map(vec![])),
             ],
         );
         assert_eq!(parse_unwrap("User<integer/u8> {}"), expected);
@@ -1301,7 +1263,7 @@ mod tests {
                     then_branch: Box::new(DatexExpression::ApplyChain(
                         Box::new(DatexExpression::Literal("test".to_string())),
                         vec![ApplyOperation::FunctionCall(
-                            DatexExpression::Array(vec![
+                            DatexExpression::List(vec![
                                 DatexExpression::Integer(Integer::from(1)),
                                 DatexExpression::Integer(Integer::from(2)),
                                 DatexExpression::Integer(Integer::from(3)),
@@ -1360,7 +1322,7 @@ mod tests {
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::Literal("User".to_string())),
                     vec![ApplyOperation::FunctionCall(
-                        DatexExpression::Struct(vec![])
+                        DatexExpression::Map(vec![])
                     )]
                 )),
             )
@@ -1499,7 +1461,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_var_declaration_array() {
+    fn test_type_var_declaration_list() {
         let src = "var x: integer[] = 42";
         let val = parse_unwrap(src);
         assert_eq!(
@@ -1507,7 +1469,7 @@ mod tests {
             DatexExpression::VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpression::SliceArray(Box::new(
+                type_annotation: Some(TypeExpression::SliceList(Box::new(
                     TypeExpression::Literal("integer".to_owned())
                 ))),
                 name: "x".to_string(),
@@ -1861,20 +1823,20 @@ mod tests {
     }
 
     #[test]
-    fn empty_array() {
+    fn empty_list() {
         let src = "[]";
         let arr = parse_unwrap(src);
-        assert_eq!(arr, DatexExpression::Array(vec![]));
+        assert_eq!(arr, DatexExpression::List(vec![]));
     }
 
     #[test]
-    fn array_with_values() {
+    fn list_with_values() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
         let arr = parse_unwrap(src);
 
         assert_eq!(
             arr,
-            DatexExpression::Array(vec![
+            DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
                 DatexExpression::Integer(Integer::from(3)),
@@ -1885,77 +1847,22 @@ mod tests {
     }
 
     #[test]
-    fn empty_object() {
+    fn empty_map() {
         let src = "{}";
         let obj = parse_unwrap(src);
 
-        assert_eq!(obj, DatexExpression::Struct(vec![]));
+        assert_eq!(obj, DatexExpression::Map(vec![]));
     }
 
-    #[test]
-    fn list() {
-        let src = "1,2";
-        let list = parse_unwrap(src);
-
-        assert_eq!(
-            list,
-            DatexExpression::List(vec![
-                DatexExpression::Integer(Integer::from(1)),
-                DatexExpression::Integer(Integer::from(2)),
-            ])
-        );
-    }
 
     #[test]
-    fn scoped_list() {
-        let src = "(1, 2)";
-        let list = parse_unwrap(src);
-
-        assert_eq!(
-            list,
-            DatexExpression::List(vec![
-                DatexExpression::Integer(Integer::from(1)),
-                DatexExpression::Integer(Integer::from(2)),
-            ])
-        );
-    }
-
-    #[test]
-    fn map_without_parentheses() {
-        let src = "1: 2, 3: 4, xy:2, 'a b c': 'd'";
-        let map = parse_unwrap(src);
-
-        assert_eq!(
-            map,
-            DatexExpression::Map(vec![
-                (
-                    DatexExpression::Integer(Integer::from(1)),
-                    DatexExpression::Integer(Integer::from(2))
-                ),
-                (
-                    DatexExpression::Integer(Integer::from(3)),
-                    DatexExpression::Integer(Integer::from(4))
-                ),
-                (
-                    DatexExpression::Text("xy".to_string()),
-                    DatexExpression::Integer(Integer::from(2))
-                ),
-                (
-                    DatexExpression::Text("a b c".to_string()),
-                    DatexExpression::Text("d".to_string())
-                ),
-            ])
-        );
-    }
-
-    #[test]
-    fn list_array() {
-        let src = "[(1,2),3,(4,)]";
+    fn list_of_lists() {
+        let src = "[[1,2],3,[4]]";
         let arr = parse_unwrap(src);
 
         assert_eq!(
             arr,
-            DatexExpression::Array(vec![
+            DatexExpression::List(vec![
                 DatexExpression::List(vec![
                     DatexExpression::Integer(Integer::from(1)),
                     DatexExpression::Integer(Integer::from(2)),
@@ -1969,21 +1876,8 @@ mod tests {
     }
 
     #[test]
-    fn single_value_list() {
-        let src = "1,";
-        let list = parse_unwrap(src);
-
-        assert_eq!(
-            list,
-            DatexExpression::List(vec![DatexExpression::Integer(
-                Integer::from(1)
-            )])
-        );
-    }
-
-    #[test]
     fn single_entry_map() {
-        let src = "x: 1";
+        let src = "{x: 1}";
         let map = parse_unwrap(src);
         assert_eq!(
             map,
@@ -2002,13 +1896,13 @@ mod tests {
     }
 
     #[test]
-    fn scoped_array() {
+    fn scoped_list() {
         let src = "(([1, 2, 3]))";
         let arr = parse_unwrap(src);
 
         assert_eq!(
             arr,
-            DatexExpression::Array(vec![
+            DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
                 DatexExpression::Integer(Integer::from(3)),
@@ -2017,22 +1911,25 @@ mod tests {
     }
 
     #[test]
-    fn object_with_key_value_pairs() {
+    fn map_with_key_value_pairs() {
         let src = r#"{"key1": "value1", "key2": 42, "key3": true}"#;
         let obj = parse_unwrap(src);
 
         assert_eq!(
             obj,
-            DatexExpression::Struct(vec![
+            DatexExpression::Map(vec![
                 (
-                    "key1".to_string(),
+                    DatexExpression::Text("key1".to_string()),
                     DatexExpression::Text("value1".to_string())
                 ),
                 (
-                    "key2".to_string(),
+                    DatexExpression::Text("key2".to_string()),
                     DatexExpression::Integer(Integer::from(42))
                 ),
-                ("key3".to_string(), DatexExpression::Boolean(true)),
+                (
+                    DatexExpression::Text("key3".to_string()),
+                    DatexExpression::Boolean(true)
+                ),
             ])
         );
     }
@@ -2087,7 +1984,7 @@ mod tests {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-                    Box::new(DatexExpression::Array(vec![])),
+                    Box::new(DatexExpression::List(vec![])),
                     Box::new(DatexExpression::Literal("x".to_string())),
                     None
                 )),
@@ -2276,7 +2173,7 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Array(vec![DatexExpression::BinaryOperation(
+            DatexExpression::List(vec![DatexExpression::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 Box::new(DatexExpression::Integer(Integer::from(2))),
@@ -2350,13 +2247,13 @@ mod tests {
     }
 
     #[test]
-    fn nested_statements_in_object() {
+    fn nested_statements_in_map() {
         let src = r#"{"key": (1; 2; 3)}"#;
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Struct(vec![(
-                "key".to_string(),
+            DatexExpression::Map(vec![(
+                DatexExpression::Text("key".to_string()),
                 DatexExpression::Statements(vec![
                     Statement {
                         expression: DatexExpression::Integer(Integer::from(1)),
@@ -2648,13 +2545,13 @@ mod tests {
                 expression: DatexExpression::TypeDeclaration {
                     id: None,
                     name: "User".to_string(),
-                    value: TypeExpression::Struct(vec![
+                    value: TypeExpression::StructuralMap(vec![
                         (
-                            "age".to_string(),
+                            TypeExpression::Text("age".to_string()),
                             TypeExpression::Integer(Integer::from(42))
                         ),
                         (
-                            "name".to_string(),
+                            TypeExpression::Text("name".to_string()),
                             TypeExpression::Text("John".to_string())
                         ),
                     ]),
@@ -2670,13 +2567,13 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Statements(vec![Statement {
-                expression: DatexExpression::Struct(vec![
+                expression: DatexExpression::Map(vec![
                     (
-                        "type".to_string(),
+                        DatexExpression::Text("type".to_string()),
                         DatexExpression::Integer(Integer::from(42))
                     ),
                     (
-                        "name".to_string(),
+                        DatexExpression::Text("name".to_string()),
                         DatexExpression::Text("John".to_string())
                     ),
                 ]),
@@ -2763,12 +2660,12 @@ mod tests {
     }
 
     #[test]
-    fn variable_assignment_expression_in_array() {
+    fn variable_assignment_expression_in_list() {
         let src = "[x = 1]";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Array(vec![DatexExpression::VariableAssignment(
+            DatexExpression::List(vec![DatexExpression::VariableAssignment(
                 AssignmentOperator::Assign,
                 None,
                 "x".to_string(),
@@ -2778,12 +2675,12 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_array() {
+    fn apply_in_list() {
         let src = "[myFunc(1)]";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Array(vec![DatexExpression::ApplyChain(
+            DatexExpression::List(vec![DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
                 vec![ApplyOperation::FunctionCall(DatexExpression::Integer(
                     Integer::from(1)
@@ -2979,17 +2876,17 @@ mod tests {
     }
 
     #[test]
-    fn array_to_value_container() {
+    fn list_to_value_container() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
         let val = try_parse_to_value_container(src);
-        let value_container_array: Vec<ValueContainer> = vec![
+        let value_container_list: Vec<ValueContainer> = vec![
             Integer::from(1).into(),
             Integer::from(2).into(),
             Integer::from(3).into(),
             Decimal::from_string("4.5").unwrap().into(),
             "text".to_string().into(),
         ];
-        assert_eq!(val, ValueContainer::from(value_container_array));
+        assert_eq!(val, ValueContainer::from(value_container_list));
     }
 
     #[test]
@@ -3007,7 +2904,7 @@ mod tests {
         "#;
 
         let val = try_parse_to_value_container(src);
-        let value_container_array: Vec<ValueContainer> = vec![
+        let value_container_list: Vec<ValueContainer> = vec![
             Integer::from(1).into(),
             Integer::from(2).into(),
             Integer::from(3).into(),
@@ -3025,7 +2922,7 @@ mod tests {
                     ("name".to_string(), "Test".to_string().into()),
                     ("value".to_string(), Integer::from(42).into()),
                     ("active".to_string(), true.into()),
-                    ("items".to_string(), value_container_array.into()),
+                    ("items".to_string(), value_container_list.into()),
                     ("nested".to_string(), value_container_inner_object),
                 ]
                 .into_iter()
@@ -3366,7 +3263,7 @@ mod tests {
                 name: "x".to_string(),
                 type_annotation: None,
                 init_expression: Box::new(DatexExpression::RefMut(Box::new(
-                    DatexExpression::Array(vec![
+                    DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
@@ -3388,7 +3285,7 @@ mod tests {
                 name: "x".to_string(),
                 type_annotation: None,
                 init_expression: Box::new(DatexExpression::Ref(Box::new(
-                    DatexExpression::Array(vec![
+                    DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),

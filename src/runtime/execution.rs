@@ -27,7 +27,6 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
-use crate::values::core_values::r#struct::Struct;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
@@ -37,7 +36,6 @@ use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
 use datex_core::decompiler::{DecompileOptions, decompile_value};
 use datex_core::references::reference::Reference;
-use datex_core::values::core_values::array::Array;
 use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
@@ -848,28 +846,6 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::ArrayStart => {
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope_with_active_value(
-                        Scope::Collection,
-                        Array::default().into(),
-                    );
-                None
-            }
-
-            Instruction::StructWithFieldNamesStart => {
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope_with_active_value(
-                        Scope::Default,
-                        Struct::default().into(),
-                    );
-                None
-            }
-
             Instruction::KeyValueShortText(ShortTextData(key)) => {
                 context
                     .borrow_mut()
@@ -1218,18 +1194,6 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             list.push(value);
         }
         ValueContainer::Value(Value {
-            inner: CoreValue::Array(array),
-            ..
-        }) => {
-            array._push(value);
-        }
-        ValueContainer::Value(Value {
-            inner: CoreValue::Struct(structure),
-            ..
-        }) => {
-            structure._push(value);
-        }
-        ValueContainer::Value(Value {
             inner: CoreValue::Map(map),
             ..
         }) => {
@@ -1256,24 +1220,6 @@ fn handle_key_value_pair(
         }) => {
             // make sure key is a string
             map.set(key, value);
-        }
-        // Struct
-        ValueContainer::Value(Value {
-            inner: CoreValue::Struct(r#struct),
-            ..
-        }) => {
-            // make sure key is a string (TODO: optimize this)
-            if let ValueContainer::Value(Value {
-                inner: CoreValue::Text(text),
-                ..
-            }) = key
-            {
-                r#struct._set_new_field(text.0, value);
-            } else {
-                return Err(ExecutionError::InvalidProgram(
-                    InvalidProgramError::InvalidKeyValuePair,
-                ));
-            }
         }
         _ => {
             unreachable!(
@@ -1483,7 +1429,7 @@ mod tests {
     use crate::logger::init_logger_debug;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::{
-        assert_structural_eq, assert_value_eq, datex_array, datex_list,
+        assert_structural_eq, assert_value_eq, datex_list,
     };
 
     fn execute_datex_script_debug(
@@ -1626,7 +1572,7 @@ mod tests {
     #[test]
     fn empty_array() {
         let result = execute_datex_script_debug_with_result("[]");
-        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
+        let array: List = result.to_value().borrow().cast_to_list().unwrap();
         assert_eq!(array.len(), 0);
         assert_eq!(result, Vec::<ValueContainer>::new().into());
         assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
@@ -1635,8 +1581,8 @@ mod tests {
     #[test]
     fn array() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
-        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
-        let expected = datex_array![
+        let array: List = result.to_value().borrow().cast_to_list().unwrap();
+        let expected = datex_list![
             Integer::from(1i8),
             Integer::from(2i8),
             Integer::from(3i8)
@@ -1651,7 +1597,7 @@ mod tests {
     fn array_with_nested_scope() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
-        let expected = datex_array![
+        let expected = datex_list![
             Integer::from(1i8),
             Integer::from(5i8),
             Integer::from(4i8)
@@ -1812,7 +1758,7 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
-        let expected = datex_array![
+        let expected = datex_list![
             Integer::from(42i8),
             Integer::from(2i8),
             Integer::from(42i8)
@@ -1904,7 +1850,7 @@ mod tests {
         assert_eq!(result, Integer::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
-        let expected = datex_array![Integer::from(1i8), Integer::from(3i8)];
+        let expected = datex_list![Integer::from(1i8), Integer::from(3i8)];
         assert_eq!(result, expected.into());
     }
 }

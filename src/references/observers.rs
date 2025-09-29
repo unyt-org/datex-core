@@ -132,14 +132,11 @@ mod tests {
             observers::ObserverError,
             reference::{Reference, ReferenceMutability},
         },
-        values::{
-            core_values::r#struct::Struct, value_container::ValueContainer,
-        },
+        values::{value_container::ValueContainer, },
     };
-    use datex_core::references::value_reference::ValueReference;
-    use datex_core::types::type_container::TypeContainer;
     use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
     use crate::runtime::memory::Memory;
+    use crate::values::core_values::map::Map;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -239,7 +236,7 @@ mod tests {
         let memory = &RefCell::new(Memory::default());
 
         let reference = Reference::try_mut_from(
-            Struct::from(vec![
+            Map::from(vec![
                 ("a".to_string(), ValueContainer::from(1)),
                 ("b".to_string(), ValueContainer::from(2)),
             ])

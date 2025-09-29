@@ -425,20 +425,10 @@ fn visit_expression(
                 }
             }
         }
-        DatexExpression::Array(exprs) | DatexExpression::List(exprs) => {
+        DatexExpression::List(exprs) => {
             for expr in exprs {
                 visit_expression(
                     expr,
-                    metadata,
-                    scope_stack,
-                    NewScopeType::NewScope,
-                )?;
-            }
-        }
-        DatexExpression::Struct(properties) => {
-            for (_, val) in properties {
-                visit_expression(
-                    val,
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
@@ -835,7 +825,7 @@ fn visit_type_expression(
         | TypeExpression::TypedDecimal(_)
         | TypeExpression::TypedInteger(_)
         | TypeExpression::GetReference(_) => Ok(()),
-        TypeExpression::Array(inner_type) => {
+        TypeExpression::StructuralList(inner_type) => {
             for ty in inner_type {
                 visit_type_expression(
                     ty,
@@ -846,7 +836,7 @@ fn visit_type_expression(
             }
             Ok(())
         }
-        TypeExpression::Struct(properties) => {
+        TypeExpression::StructuralMap(properties) => {
             for (_, ty) in properties {
                 visit_type_expression(
                     ty,
@@ -866,30 +856,6 @@ fn visit_type_expression(
                     NewScopeType::NewScope,
                 )?;
             }
-            Ok(())
-        }
-        TypeExpression::Map(key_type, value_type) => {
-            visit_type_expression(
-                key_type,
-                metadata,
-                scope_stack,
-                NewScopeType::NewScope,
-            )?;
-            visit_type_expression(
-                value_type,
-                metadata,
-                scope_stack,
-                NewScopeType::NewScope,
-            )?;
-            Ok(())
-        }
-        TypeExpression::List(inner_type) => {
-            visit_type_expression(
-                inner_type,
-                metadata,
-                scope_stack,
-                NewScopeType::NewScope,
-            )?;
             Ok(())
         }
         TypeExpression::Intersection(types) => {
@@ -1024,7 +990,7 @@ mod tests {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
                         name: "User".to_string(),
-                        value: TypeExpression::Struct(vec![]),
+                        value: TypeExpression::StructuralMap(vec![]),
                         hoisted: true,
                     },
                     is_terminated: true,
@@ -1033,7 +999,7 @@ mod tests {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(1),
                         name: "User/admin".to_string(),
-                        value: TypeExpression::Struct(vec![]),
+                        value: TypeExpression::StructuralMap(vec![]),
                         hoisted: true,
                     },
                     is_terminated: true,

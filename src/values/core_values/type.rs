@@ -81,26 +81,16 @@ impl Type {
 
 
     /// Creates a new structural array type.
-    pub fn array(element_types: Vec<TypeContainer>) -> Self {
+    pub fn list(element_types: Vec<TypeContainer>) -> Self {
         Type {
             type_definition: TypeDefinition::Structural(
-                StructuralTypeDefinition::Array(element_types),
+                StructuralTypeDefinition::List(element_types),
             ),
             base_type: None,
             reference_mutability: None,
         }
     }
 
-    /// Creates a new structural struct type.
-    pub fn r#struct(fields: Vec<(String, TypeContainer)>) -> Self {
-        Type {
-            type_definition: TypeDefinition::Structural(
-                StructuralTypeDefinition::Struct(fields),
-            ),
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
 
     /// Creates a new union type.
     pub fn union<T>(types: Vec<T>) -> Self
@@ -351,34 +341,30 @@ impl From<&CoreValue> for Type {
             CoreValue::Endpoint(e) => {
                 Type::structural(StructuralTypeDefinition::Endpoint(e.clone()))
             }
-            CoreValue::List(list) => {
-                todo!()
-            }
-            CoreValue::Array(array) => {
+            CoreValue::List(array) => {
                 let types = array
                     .iter()
                     .map(|v| Type::from(v.to_value().borrow().inner.clone()))
                     .collect::<Vec<_>>();
-                Type::structural(StructuralTypeDefinition::Array(
+                Type::structural(StructuralTypeDefinition::List(
                     types.into_iter().map(TypeContainer::from).collect(),
                 ))
             }
-            CoreValue::Struct(structure) => {
-                let struct_types = structure
+            CoreValue::Map(map) => {
+                let struct_types = map
                     .iter()
                     .map(|(key, value)| {
                         (
-                            key.clone(),
+                            TypeContainer::from(Type::from(
+                                key.to_value().borrow().inner.clone(),
+                            )),
                             TypeContainer::from(Type::from(
                                 value.to_value().borrow().inner.clone(),
                             )),
                         )
                     })
                     .collect::<Vec<_>>();
-                Type::structural(StructuralTypeDefinition::Struct(struct_types))
-            }
-            CoreValue::Map(map) => {
-                todo!()
+                Type::structural(StructuralTypeDefinition::Map(struct_types))
             }
             e => unimplemented!("Type conversion not implemented for {}", e),
         }

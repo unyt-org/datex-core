@@ -23,6 +23,11 @@ impl Map {
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         self.0.get(key)
     }
+    
+    pub fn get_text(&self, key: &str) -> Option<&ValueContainer> {
+        // TODO: optimize for structs later
+        self.0.get(&ValueContainer::from(key.to_string()))
+    }
 
     pub fn has(&self, key: &ValueContainer) -> bool {
         self.0.contains_key(key)
@@ -85,14 +90,14 @@ impl CoreValueTrait for Map {}
 
 impl Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(")?;
+        write!(f, "{{")?;
         for (i, (key, value)) in self.0.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
             write!(f, "{key}: {value}")?;
         }
-        write!(f, ")")
+        write!(f, "}}")
     }
 }
 
@@ -163,6 +168,8 @@ impl From<IndexMap<String, ValueContainer>> for Map {
         )
     }
 }
+
+
 impl TryFrom<CoreValue> for Map {
     type Error = String;
 
@@ -191,7 +198,7 @@ mod tests {
         assert_eq!(map.size(), 2);
         assert_eq!(map.get_owned("key1").unwrap().to_string(), "42");
         assert_eq!(map.get_owned("key2").unwrap().to_string(), "\"value2\"");
-        assert_eq!(map.to_string(), r#"("key1": 42, "key2": "value2")"#);
+        assert_eq!(map.to_string(), r#"{"key1": 42, "key2": "value2"}"#);
     }
 
     #[test]

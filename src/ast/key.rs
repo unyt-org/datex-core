@@ -13,9 +13,6 @@ pub fn key<'a>(
 ) -> impl DatexParserTrait<'a> {
     choice((
         text(),
-        decimal(),
-        integer(),
-        endpoint(),
         // any valid identifiers (equivalent to variable names), mapped to a text
         select! {
             Token::Identifier(s) => DatexExpression::Text(s)

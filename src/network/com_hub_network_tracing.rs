@@ -516,7 +516,7 @@ impl ComHub {
         );
         let hops_datex = execute_dxb_sync(exec_input).unwrap().unwrap();
         if let ValueContainer::Value(Value {
-            inner: CoreValue::Array(array),
+            inner: CoreValue::List(array),
             ..
         }) = hops_datex
         {

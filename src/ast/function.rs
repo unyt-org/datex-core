@@ -20,10 +20,11 @@ fn body<'a>(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
 }
 
+// TODO don't use map here, custom syntax for function params
 fn parameters<'a>(
-    r#struct: impl DatexParserTrait<'a>,
+    r#map: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    r#struct
+    r#map
         .clone()
         .or_not()
         .map(|e| e.unwrap_or(DatexExpression::Map(vec![])))
@@ -35,9 +36,9 @@ fn parameters<'a>(
 
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
-    r#struct: impl DatexParserTrait<'a>,
+    map: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    let function_params = parameters(r#struct);
+    let function_params = parameters(map);
     let function_body = body(statements);
     just(Token::Function)
         .padded_by(whitespace())

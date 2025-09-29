@@ -229,12 +229,10 @@ pub enum InstructionCode {
 
     TIME, // ~2022-10-10~
 
-    // lists, array, structs and maps 0xe0 - 0xef
+    // lists and maps 0xe0 - 0xef
     LIST_START,                   // (1,2,3)
     MAP_START,                    // (a:1, b:2)
-    ARRAY_START,                  // [1,2,3]
-    STRUCT_WITH_FIELDNAMES_START, // {a:1, b:2}
-    STRUCT_START, // {a:1, b:2} - optimized, field names are inferred from struct type
+    STRUCT_START, // {a:1, b:2} - optimized structural map, field names are inferred from struct type
 
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key

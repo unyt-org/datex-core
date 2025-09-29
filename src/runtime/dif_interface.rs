@@ -16,7 +16,6 @@ use crate::{
     values::pointer::PointerAddress,
 };
 use crate::dif::reference::DIFReference;
-use crate::dif::value::DIFValue;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -219,18 +218,18 @@ mod tests {
     use crate::dif::value::{DIFValue, DIFValueContainer};
     use crate::references::reference::ReferenceMutability;
     use crate::runtime::Runtime;
-    use crate::values::core_values::r#struct::Struct;
     use crate::values::value_container::ValueContainer;
     use datex_core::runtime::RuntimeConfig;
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::runtime::memory::Memory;
     use crate::values::core_values::endpoint::Endpoint;
+    use crate::values::core_values::map::Map;
 
     #[test]
     fn struct_serde() {
         let memory = RefCell::new(Memory::new(Endpoint::default()));
-        let r#struct = ValueContainer::from(Struct::new(vec![
+        let r#struct = ValueContainer::from(Map::from(vec![
             ("a".to_string(), 1.into()),
             ("b".to_string(), "text".into()),
         ]));

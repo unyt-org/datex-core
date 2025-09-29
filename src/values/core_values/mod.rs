@@ -7,5 +7,3 @@ pub mod integer;
 pub mod map;
 pub mod text;
 pub mod r#type;
-pub mod array;
-pub mod r#struct;

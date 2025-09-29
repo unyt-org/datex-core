@@ -29,27 +29,6 @@ impl Reference {
                     // If the value is an object, set the property
                     obj.set(key, val);
                 }
-                CoreValue::Struct(ref mut struct_val) => {
-                    if let ValueContainer::Value(value) = &key {
-                        if value.is_text() {
-                            let key_str = value.cast_to_text().0;
-                            // If the value is a struct, set the property if it exists
-                            if struct_val.has_field(&key_str) {
-                                struct_val.set(&key_str, val);
-                            } else {
-                                return Err(AccessError::PropertyNotFound(
-                                    key_str,
-                                ));
-                            }
-                        } else {
-                            return Err(AccessError::InvalidPropertyKeyType(
-                                key.actual_type().to_string(),
-                            ));
-                        }
-                    } else {
-                        return Err(AccessError::CanNotUseReferenceAsKey);
-                    }
-                }
                 _ => {
                     // If the value is not an object, we cannot set a property
                     return Err(AccessError::InvalidOperation(format!(
@@ -88,16 +67,6 @@ impl Reference {
                     // If the value is an object, set the property
                     obj.set(key, val);
                 }
-                CoreValue::Struct(ref mut struct_val) => {
-                    // If the value is a struct, set the property if it exists
-                    if struct_val.has_field(key) {
-                        struct_val.set(key, val);
-                    } else {
-                        return Err(AccessError::PropertyNotFound(
-                            key.to_string(),
-                        ));
-                    }
-                }
                 _ => {
                     // If the value is not an object, we cannot set a property
                     return Err(AccessError::InvalidOperation(format!(
@@ -130,12 +99,10 @@ impl Reference {
         let dif = DIFValueContainer::from_value_container(&val, memory);
         self.with_value_unchecked(|value| {
             match value.inner {
-                CoreValue::Array(ref mut arr) => {
-                    if index < arr.len() {
-                        arr.set(index, self.bind_child(val));
-                    } else {
-                        return Err(AccessError::PropertyNotFound(index.to_string()));
-                    }
+                CoreValue::List(ref mut list) => {
+                    list.set(index, self.bind_child(val)).ok_or_else(|| {
+                        AccessError::IndexOutOfBounds
+                    })?;
                 }
                 CoreValue::Text(ref mut text) => {
                     if let ValueContainer::Value(v) = &val {
@@ -234,7 +201,6 @@ mod tests {
     };
     use crate::values::core_values::list::List;
     use crate::values::core_values::map::Map;
-    use crate::values::core_values::r#struct::Struct;
     use crate::{
         references::reference::Reference,
         values::value_container::ValueContainer,
@@ -334,9 +300,15 @@ mod tests {
     fn text_property() {
         let memory = &RefCell::new(Memory::default());
 
-        let struct_val = Struct::new(vec![
-            ("name".to_string(), ValueContainer::from("Alice")),
-            ("age".to_string(), ValueContainer::from(30)),
+        let struct_val = Map::from(vec![
+            (
+                ValueContainer::from("name"),
+                ValueContainer::from("Alice")
+            ),
+            (
+                ValueContainer::from("age"),
+                ValueContainer::from(30)
+            ),
         ]);
         let struct_ref =
             Reference::try_mut_from(ValueContainer::from(struct_val)).unwrap();

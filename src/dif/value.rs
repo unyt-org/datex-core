@@ -199,21 +199,8 @@ impl DIFValue {
             CoreValue::Endpoint(endpoint) => {
                 DIFValueRepresentation::String(endpoint.to_string())
             }
-            CoreValue::Struct(structure) => DIFValueRepresentation::Object(
-                structure
-                    .iter()
-                    .map(|(key, value)|
-                        (key.clone(), DIFValueContainer::from_value_container(value, &memory))
-                    )
-                    .collect(),
-            ),
             CoreValue::List(list) => DIFValueRepresentation::Array(
                 list.iter()
-                    .map(|v| DIFValueContainer::from_value_container(v, &memory))
-                    .collect()
-            ),
-            CoreValue::Array(arr) => DIFValueRepresentation::Array(
-                arr.iter()
                     .map(|v| DIFValueContainer::from_value_container(v, &memory))
                     .collect()
             ),

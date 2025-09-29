@@ -497,36 +497,6 @@ fn compile_expression(
             compilation_context
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
-        DatexExpression::Array(array) => {
-            compilation_context
-                .append_instruction_code(InstructionCode::ARRAY_START);
-            for item in array {
-                scope = compile_expression(
-                    compilation_context,
-                    AstWithMetadata::new(item, &metadata),
-                    CompileMetadata::default(),
-                    scope,
-                )?;
-            }
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
-        }
-        DatexExpression::Struct(structure) => {
-            compilation_context.append_instruction_code(
-                InstructionCode::STRUCT_WITH_FIELDNAMES_START,
-            );
-            for (key, value) in structure {
-                scope = compile_struct_key_value_entry(
-                    compilation_context,
-                    key,
-                    value,
-                    &metadata,
-                    scope,
-                )?;
-            }
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
-        }
         DatexExpression::Placeholder => {
             compilation_context.insert_value_container(
                 compilation_context
@@ -1712,7 +1682,7 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::STRUCT_WITH_FIELDNAMES_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
@@ -1725,7 +1695,7 @@ pub mod tests {
         let datex_script = "{key: 42}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::STRUCT_WITH_FIELDNAMES_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1745,7 +1715,7 @@ pub mod tests {
         let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::STRUCT_WITH_FIELDNAMES_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             4, // length of "key1"
             b'k',

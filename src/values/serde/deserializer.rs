@@ -1,4 +1,3 @@
-use crate::values::core_values::r#struct::Struct;
 use crate::values::value::Value;
 use crate::{
     compiler::{
@@ -191,32 +190,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     visitor
                         .visit_map(serde::de::value::MapDeserializer::new(map))
                 }
-                CoreValue::Struct(r#struct) => {
-                    let map = r#struct.into_iter().map(|(k, v)| {
-                        (
-                            DatexDeserializer::from_value(k.into()),
-                            DatexDeserializer::from_value(v),
-                        )
-                    });
-                    visitor
-                        .visit_map(serde::de::value::MapDeserializer::new(map))
-
-                    // let vec = structure
-                    //     .values()
-                    //     .cloned()
-                    //     .map(DatexDeserializer::from_value);
-                    // visitor
-                    //     .visit_seq(serde::de::value::SeqDeserializer::new(vec))
-                }
                 CoreValue::List(list) => {
                     let vec =
                         list.into_iter().map(DatexDeserializer::from_value);
-                    visitor
-                        .visit_seq(serde::de::value::SeqDeserializer::new(vec))
-                }
-                CoreValue::Array(array) => {
-                    let vec =
-                        array.into_iter().map(DatexDeserializer::from_value);
                     visitor
                         .visit_seq(serde::de::value::SeqDeserializer::new(vec))
                 }
@@ -272,41 +248,44 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        if let ValueContainer::Value(Value {
-            inner: CoreValue::Array(array),
-            ..
-        }) = self.value
-        {
-            let values = array.into_iter().map(DatexDeserializer::from_value);
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
-        } else if let ValueContainer::Value(Value {
-            inner: CoreValue::Struct(structure),
-            ..
-        }) = &self.value
-        {
-            if structure.size() == 2 {
-                let first_entry = structure.at_unchecked(0);
-                if let ValueContainer::Value(Value {
-                    inner: CoreValue::Text(text),
-                    ..
-                }) = first_entry
-                    && text.0.starts_with("datex::")
-                {
-                    let second_entry = structure.at_unchecked(1);
-                    return visitor.visit_newtype_struct(
-                        DatexDeserializer::from_value(second_entry.clone()),
-                    );
-                }
-            }
-            visitor
-                .visit_newtype_struct(DatexDeserializer::from_value(self.value))
-        } else {
-            visitor.visit_seq(serde::de::value::SeqDeserializer::new(
-                vec![self.value.clone()]
-                    .into_iter()
-                    .map(DatexDeserializer::from_value),
-            ))
-        }
+        // TODO: handle structurally typed maps and lists
+        // if let ValueContainer::Value(Value {
+        //     inner: CoreValue::Array(array),
+        //     ..
+        // }) = self.value
+        // {
+        //     let values = array.into_iter().map(DatexDeserializer::from_value);
+        //     visitor.visit_seq(serde::de::value::SeqDeserializer::new(values))
+        // } else if let ValueContainer::Value(Value {
+        //     inner: CoreValue::Struct(structure),
+        //     ..
+        // }) = &self.value
+        // {
+        //     if structure.size() == 2 {
+        //         let first_entry = structure.at_unchecked(0);
+        //         if let ValueContainer::Value(Value {
+        //             inner: CoreValue::Text(text),
+        //             ..
+        //         }) = first_entry
+        //             && text.0.starts_with("datex::")
+        //         {
+        //             let second_entry = structure.at_unchecked(1);
+        //             return visitor.visit_newtype_struct(
+        //                 DatexDeserializer::from_value(second_entry.clone()),
+        //             );
+        //         }
+        //     }
+        //     visitor
+        //         .visit_newtype_struct(DatexDeserializer::from_value(self.value))
+        // } else {
+        //
+        // }
+
+        visitor.visit_seq(serde::de::value::SeqDeserializer::new(
+            vec![self.value.clone()]
+                .into_iter()
+                .map(DatexDeserializer::from_value),
+        ))
     }
 
     /// Deserialize tuple structs from arrays in the value container
@@ -469,33 +448,34 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             //         ))
             //     }
             // }
-            ValueContainer::Value(Value {
-                inner: CoreValue::Struct(o),
-                ..
-            }) => {
-                if o.size() != 1 {
-                    return Err(DeserializationError::Custom(
-                        "Expected single-key object for enum".to_string(),
-                    ));
-                }
-
-                let (variant_name, value) = o.into_iter().next().unwrap();
-
-                let deserializer = DatexDeserializer::from_value(value);
-                visitor.visit_enum(EnumDeserializer {
-                    variant: variant_name,
-                    value: deserializer,
-                })
-            }
+            // TODO: handle structurally typed maps
+            // ValueContainer::Value(Value {
+            //     inner: CoreValue::Struct(o),
+            //     ..
+            // }) => {
+            //     if o.size() != 1 {
+            //         return Err(DeserializationError::Custom(
+            //             "Expected single-key object for enum".to_string(),
+            //         ));
+            //     }
+            //
+            //     let (variant_name, value) = o.into_iter().next().unwrap();
+            //
+            //     let deserializer = DatexDeserializer::from_value(value);
+            //     visitor.visit_enum(EnumDeserializer {
+            //         variant: variant_name,
+            //         value: deserializer,
+            //     })
+            // }
 
             // unit variants stored directly as text
-            ValueContainer::Value(Value {
-                inner: CoreValue::Text(s),
-                ..
-            }) => visitor.visit_enum(EnumDeserializer {
-                variant: s.0,
-                value: DatexDeserializer::from_value(Struct::default().into()),
-            }),
+            // ValueContainer::Value(Value {
+            //     inner: CoreValue::Text(s),
+            //     ..
+            // }) => visitor.visit_enum(EnumDeserializer {
+            //     variant: s.0,
+            //     value: DatexDeserializer::from_value(Struct::default().into()),
+            // }),
 
             e => Err(DeserializationError::Custom(format!(
                 "Expected enum representation, found: {}",

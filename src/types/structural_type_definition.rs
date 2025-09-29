@@ -12,7 +12,6 @@ use datex_core::values::core_values::integer::integer::Integer;
 use std::fmt::Display;
 use std::hash::Hash;
 use crate::libs::core::CoreLibPointerId;
-use crate::references::type_reference::TypeReference;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {
@@ -24,8 +23,8 @@ pub enum StructuralTypeDefinition {
     Boolean(Boolean),
     Endpoint(Endpoint),
     Null,
-    Array(Vec<TypeContainer>),
-    Struct(Vec<(String, TypeContainer)>),
+    List(Vec<TypeContainer>),
+    Map(Vec<(TypeContainer, TypeContainer)>),
 }
 
 macro_rules! impl_from_typed_int {
@@ -142,31 +141,18 @@ impl StructuralTypeDefinition {
 
             // Check that all fields in the struct are present and match their types
             (
-                StructuralTypeDefinition::Struct(field_types),
-                CoreValue::Struct(structure),
+                StructuralTypeDefinition::Map(field_types),
+                CoreValue::Map(map),
             ) => field_types.iter().all(|(field_name, field_type)| {
-                structure.get(field_name).is_some_and(|field_value| {
-                    field_type.value_matches(field_value)
-                })
+                todo!("handle key matching")
+                // map.get(&field_name_value).is_some_and(|field_value| {
+                //     field_type.value_matches(field_value)
+                // })
             }),
 
-            // Check that all elements in the tuple match their types
+            // list
             (
-                StructuralTypeDefinition::Array(type_list),
-                CoreValue::Array(array),
-            ) => {
-                if type_list.len() != array.len() as usize {
-                    return false;
-                }
-                type_list
-                    .iter()
-                    .zip(array.iter())
-                    .all(|(t, v)| t.value_matches(v))
-            }
-
-            // array and list
-            (
-                StructuralTypeDefinition::Array(type_list),
+                StructuralTypeDefinition::List(type_list),
                 CoreValue::List(list),
             ) => {
                 if type_list.len() != list.len() as usize {
@@ -177,13 +163,6 @@ impl StructuralTypeDefinition {
                     .zip(list.iter())
                     .all(|(t, v)| t.value_matches(v))
             }
-
-            // list and array
-            // (
-            //     StructuralTypeDefinition::List(box elem_type),
-            //     CoreValue::Array(array),
-            // ) => array.iter().all(|item| elem_type.value_matches(item)),
-
             _ => unimplemented!("handle complex structural type matching"),
         }
     }
@@ -203,8 +182,8 @@ impl StructuralTypeDefinition {
             StructuralTypeDefinition::Boolean(_) => CoreLibPointerId::Boolean,
             StructuralTypeDefinition::Endpoint(_) => CoreLibPointerId::Endpoint,
             StructuralTypeDefinition::Null => CoreLibPointerId::Null,
-            StructuralTypeDefinition::Array(_) => CoreLibPointerId::Array,
-            StructuralTypeDefinition::Struct(_) => CoreLibPointerId::Struct,
+            StructuralTypeDefinition::List(_) => CoreLibPointerId::List,
+            StructuralTypeDefinition::Map(_) => CoreLibPointerId::Map,
         }
     }
 }
@@ -238,12 +217,12 @@ impl Display for StructuralTypeDefinition {
                 write!(f, "{}", endpoint)
             }
             StructuralTypeDefinition::Null => write!(f, "null"),
-            StructuralTypeDefinition::Array(types) => {
+            StructuralTypeDefinition::List(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 write!(f, "[{}]", types_str.join(", "))
             }
-            StructuralTypeDefinition::Struct(fields) => {
+            StructuralTypeDefinition::Map(fields) => {
                 let fields_str: Vec<String> = fields
                     .iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
@@ -270,7 +249,7 @@ mod tests {
         let text_type = StructuralTypeDefinition::Text(Text::from("Hello"));
         assert_eq!(text_type.to_string(), r#""Hello""#);
 
-        let array_type = StructuralTypeDefinition::Array(vec![
+        let array_type = StructuralTypeDefinition::List(vec![
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
                 1,
             )))
@@ -282,10 +261,12 @@ mod tests {
         ]);
         assert_eq!(array_type.to_string(), r#"[1, "World"]"#);
 
-        let struct_type = StructuralTypeDefinition::Struct(vec![
-            ("id".to_string(), Type::structural(int_type.clone()).into()),
+        let struct_type = StructuralTypeDefinition::Map(vec![
             (
-                "name".to_string(),
+                Type::structural("name".to_string()).into(),
+                Type::structural(int_type.clone()).into()),
+            (
+                Type::structural("id".to_string()).into(),
                 Type::structural(text_type.clone()).into(),
             ),
         ]);
@@ -304,6 +285,6 @@ mod tests {
             ValueContainer::from(CoreValue::Text(Text::from("Hello")));
         assert!(text_type.value_matches(&text_value));
 
-        
+
     }
 }

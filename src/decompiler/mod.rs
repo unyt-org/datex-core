@@ -143,8 +143,6 @@ impl DecompileOptions {
 pub enum ScopeType {
     #[default]
     Default,
-    Array,
-    Struct,
     List,
     Map,
     SlotAssignment,
@@ -160,10 +158,8 @@ impl ScopeType {
     ) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default => write!(output, "(")?,
-            ScopeType::List => write!(output, "(")?,
-            ScopeType::Map => write!(output, "(")?,
-            ScopeType::Array => write!(output, "[")?,
-            ScopeType::Struct => write!(output, "{{")?,
+            ScopeType::List => write!(output, "[")?,
+            ScopeType::Map => write!(output, "{{")?,
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have a start
             }
@@ -171,8 +167,6 @@ impl ScopeType {
         }
         match self {
             ScopeType::Default
-            | ScopeType::Struct
-            | ScopeType::Array
             | ScopeType::List
             | ScopeType::Map => match formatting {
                 Formatting::Multiline { indent } => {
@@ -195,8 +189,6 @@ impl ScopeType {
     ) -> Result<(), DXBParserError> {
         match self {
             ScopeType::Default
-            | ScopeType::Struct
-            | ScopeType::Array
             | ScopeType::List
             | ScopeType::Map => match formatting {
                 Formatting::Multiline { indent } => {
@@ -212,10 +204,8 @@ impl ScopeType {
         }
         match self {
             ScopeType::Default => write!(output, ")")?,
-            ScopeType::Array => write!(output, "]")?,
-            ScopeType::Struct => write!(output, "}}")?,
-            ScopeType::List => write!(output, ")")?,
-            ScopeType::Map => write!(output, ")")?,
+            ScopeType::List => write!(output, "]")?,
+            ScopeType::Map => write!(output, "}}")?,
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have an end
             }
@@ -622,36 +612,6 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
             }
-            Instruction::StructWithFieldNamesStart => {
-                indentation_levels += 1;
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::Struct);
-                state.get_current_scope().write_start(
-                    &mut output,
-                    &formatting,
-                    indentation_levels,
-                )?;
-            }
-            Instruction::ArrayStart => {
-                indentation_levels += 1;
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::Array);
-                state.get_current_scope().write_start(
-                    &mut output,
-                    &formatting,
-                    indentation_levels,
-                )?;
-            }
             Instruction::ScopeStart => {
                 indentation_levels += 1;
                 handle_before_term(
@@ -670,10 +630,7 @@ fn decompile_loop(
             Instruction::ScopeEnd => {
                 let current_scope_is_collection = matches!(
                     state.get_current_scope().scope_type.0,
-                    ScopeType::List
-                        | ScopeType::Map
-                        | ScopeType::Array
-                        | ScopeType::Struct
+                    ScopeType::List | ScopeType::Map
                 );
                 handle_scope_close(state, &mut output, indentation_levels)?;
                 handle_after_term(state, &mut output, true)?;
@@ -1140,9 +1097,7 @@ fn handle_before_item(
         }
         (
             ScopeType::List
-            | ScopeType::Map
-            | ScopeType::Array
-            | ScopeType::Struct,
+            | ScopeType::Map,
             false,
         ) if !scope.skip_comma_for_next_item => match formatted {
             Formatting::Multiline { indent } => {

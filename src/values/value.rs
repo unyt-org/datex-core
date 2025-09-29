@@ -70,17 +70,11 @@ impl Value {
     pub fn is_bool(&self) -> bool {
         matches!(self.inner, CoreValue::Boolean(_))
     }
-    pub fn is_struct(&self) -> bool {
-        matches!(self.inner, CoreValue::Struct(_))
-    }
     pub fn is_map(&self) -> bool {
         matches!(self.inner, CoreValue::Map(_))
     }
     pub fn is_list(&self) -> bool {
         matches!(self.inner, CoreValue::List(_))
-    }
-    pub fn is_array(&self) -> bool {
-        matches!(self.inner, CoreValue::Array(_))
     }
     pub fn actual_type(&self) -> &TypeContainer {
         self.actual_type.as_ref()

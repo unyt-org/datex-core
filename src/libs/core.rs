@@ -32,10 +32,8 @@ pub enum CoreLibPointerId {
     Decimal(Option<DecimalTypeVariant>), // #core.decimal
     Text,                                // #core.text
     Endpoint,                            // #core.Endpoint
-    Array,                               // #core.Array
     List,                                // #core.List
     Map,                                 // #core.Map
-    Struct,                              // #core.Struct
     Function,                            // #core.Function
     Union,                               // #core.Union
     Unit,                                // #core.unit
@@ -64,10 +62,8 @@ impl Serialize for CoreLibPointerId {
             }
             CoreLibPointerId::Text => serializer.serialize_str("text"),
             CoreLibPointerId::Endpoint => serializer.serialize_str("endpoint"),
-            CoreLibPointerId::Array => serializer.serialize_str("Array"),
             CoreLibPointerId::List => serializer.serialize_str("List"),
             CoreLibPointerId::Map => serializer.serialize_str("Map"),
-            CoreLibPointerId::Struct => serializer.serialize_str("Struct"),
             CoreLibPointerId::Function => serializer.serialize_str("Function"),
             CoreLibPointerId::Union => serializer.serialize_str("Union"),
             CoreLibPointerId::Unit => serializer.serialize_str("Unit"),
@@ -86,9 +82,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Null => 1,
             CoreLibPointerId::Type => 2,
             CoreLibPointerId::Boolean => 3,
-            CoreLibPointerId::Struct => 4,
             CoreLibPointerId::Function => 5,
-            CoreLibPointerId::Array => 6,
             CoreLibPointerId::Endpoint => 7,
             CoreLibPointerId::Text => 8,
             CoreLibPointerId::List => 9,
@@ -114,9 +108,7 @@ impl CoreLibPointerId {
             1 => Some(CoreLibPointerId::Null),
             2 => Some(CoreLibPointerId::Type),
             3 => Some(CoreLibPointerId::Boolean),
-            4 => Some(CoreLibPointerId::Struct),
             5 => Some(CoreLibPointerId::Function),
-            6 => Some(CoreLibPointerId::Array),
             7 => Some(CoreLibPointerId::Endpoint),
             8 => Some(CoreLibPointerId::Text),
             9 => Some(CoreLibPointerId::List),
@@ -246,8 +238,6 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         .chain(vec![
             r#type(),
             text(),
-            r#struct(),
-            array(),
             list(),
             boolean(),
             endpoint(),
@@ -264,12 +254,6 @@ pub fn r#type() -> CoreLibTypeDefinition {
 }
 pub fn null() -> CoreLibTypeDefinition {
     create_core_type("null", None, None, CoreLibPointerId::Null)
-}
-pub fn r#struct() -> CoreLibTypeDefinition {
-    create_core_type("Struct", None, None, CoreLibPointerId::Struct)
-}
-pub fn array() -> CoreLibTypeDefinition {
-    create_core_type("Array", None, None, CoreLibPointerId::Array)
 }
 pub fn list() -> CoreLibTypeDefinition {
     create_core_type("List", None, None, CoreLibPointerId::List)
@@ -374,7 +358,6 @@ mod tests {
         assert!(has_core_lib_type(CoreLibPointerId::Endpoint));
         assert!(has_core_lib_type(CoreLibPointerId::Null));
         assert!(has_core_lib_type(CoreLibPointerId::Boolean));
-        assert!(has_core_lib_type(CoreLibPointerId::Struct));
         assert!(has_core_lib_type(CoreLibPointerId::Integer(None)));
         assert!(has_core_lib_type(CoreLibPointerId::Decimal(None)));
         for variant in IntegerTypeVariant::iter() {

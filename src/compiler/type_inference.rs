@@ -58,27 +58,13 @@ fn infer_expression_type(
             //     StructuralTypeDefinition::Map(entries),
             // ))
         }
-        DatexExpression::Struct(structure) => {
-            let entries = structure
-                .iter_mut()
-                .map(|(k, v)| {
-                    let value =
-                        infer_expression_type(v, metadata.clone()).unwrap();
-                    Ok((k.clone(), value))
-                })
-                .collect::<Result<Vec<(_, _)>, ()>>()
-                .unwrap();
-            TypeContainer::Type(Type::structural(
-                StructuralTypeDefinition::Struct(entries),
-            ))
-        }
-        DatexExpression::Array(arr) => {
+        DatexExpression::List(arr) => {
             let entries = arr
                 .iter_mut()
                 .map(|v| infer_expression_type(v, metadata.clone()).unwrap())
                 .collect::<Vec<_>>();
             TypeContainer::Type(Type::structural(
-                StructuralTypeDefinition::Array(entries),
+                StructuralTypeDefinition::List(entries),
             ))
         }
         // more complex expressions
@@ -254,23 +240,25 @@ fn resolve_type_expression_type(
         TypeExpression::Endpoint(value) => {
             Some(StructuralTypeDefinition::Endpoint(value.clone()))
         }
-        TypeExpression::Struct(fields) => {
+        TypeExpression::StructuralMap(fields) => {
             let entries = fields
                 .iter_mut()
                 .map(|(k, v)| {
                     let value =
                         resolve_type_expression_type(v, metadata.clone())?;
-                    Ok((k.clone(), value))
+                    let key =
+                        resolve_type_expression_type(k, metadata.clone())?;
+                    Ok((key, value))
                 })
                 .collect::<Result<Vec<(_, _)>, TypeError>>()?;
-            Some(StructuralTypeDefinition::Struct(entries))
+            Some(StructuralTypeDefinition::Map(entries))
         }
-        TypeExpression::Array(members) => {
+        TypeExpression::StructuralList(members) => {
             let member_types = members
                 .iter_mut()
                 .map(|m| resolve_type_expression_type(m, metadata.clone()))
                 .collect::<Result<Vec<_>, TypeError>>()?;
-            Some(StructuralTypeDefinition::Array(member_types))
+            Some(StructuralTypeDefinition::List(member_types))
         }
         _ => None,
     } {
@@ -536,7 +524,7 @@ mod tests {
             let bor = var_type_ref.borrow();
             let r#struct = bor.as_type().structural_type().unwrap();
             let fields = match r#struct {
-                StructuralTypeDefinition::Struct(fields) => fields,
+                StructuralTypeDefinition::Map(fields) => fields,
                 _ => unreachable!(),
             };
             let inner_union = match &fields[1].1 {
@@ -713,7 +701,7 @@ mod tests {
         let inferred_type = infer_type_from_str("type X = {}");
         assert_eq!(
             inferred_type,
-            Type::structural(StructuralTypeDefinition::Struct(vec![]))
+            Type::structural(StructuralTypeDefinition::Map(vec![]))
         );
     }
 
@@ -723,15 +711,21 @@ mod tests {
             infer_type_from_str("type X = { a: integer/u8, b: decimal }");
         assert_eq!(
             inferred_type,
-            Type::structural(StructuralTypeDefinition::Struct(vec![
+            Type::structural(StructuralTypeDefinition::Map(vec![
                 (
-                    "a".to_string(),
+                    Type::structural(StructuralTypeDefinition::Text(
+                        "a".to_string().into()
+                    ))
+                    .as_type_container(),
                     get_core_lib_type(CoreLibPointerId::Integer(Some(
                         IntegerTypeVariant::U8
                     )))
                 ),
                 (
-                    "b".to_string(),
+                    Type::structural(StructuralTypeDefinition::Text(
+                        "b".to_string().into()
+                    ))
+                    .as_type_container(),
                     get_core_lib_type(CoreLibPointerId::Decimal(None))
                 )
             ]))
@@ -795,12 +789,12 @@ mod tests {
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Array(vec![
+            infer_get_type(&mut DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
                 DatexExpression::Integer(Integer::from(3))
             ]),),
-            Type::structural(StructuralTypeDefinition::Array(vec![
+            Type::structural(StructuralTypeDefinition::List(vec![
                 TypeContainer::Type(Type::from(CoreValue::from(
                     Integer::from(1)
                 ))),
@@ -814,12 +808,14 @@ mod tests {
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Struct(vec![(
-                "a".to_string(),
+            infer_get_type(&mut DatexExpression::Map(vec![(
+                DatexExpression::Text("a".to_string()),
                 DatexExpression::Integer(Integer::from(1))
             )]),),
-            Type::structural(StructuralTypeDefinition::Struct(vec![(
-                "a".to_string(),
+            Type::structural(StructuralTypeDefinition::Map(vec![(
+                Type::structural(StructuralTypeDefinition::Text(
+                    "a".to_string().into()
+                )).as_type_container(),
                 TypeContainer::Type(Type::from(CoreValue::from(
                     Integer::from(1)
                 )))

@@ -254,22 +254,6 @@ impl<'a> CompilationContext<'a> {
                 }
                 self.append_instruction_code(InstructionCode::SCOPE_END);
             }
-            CoreValue::Array(array) => {
-                self.append_instruction_code(InstructionCode::ARRAY_START);
-                for item in array {
-                    self.insert_value_container(item);
-                }
-                self.append_instruction_code(InstructionCode::SCOPE_END);
-            }
-            CoreValue::Struct(structure) => {
-                self.append_instruction_code(
-                    InstructionCode::STRUCT_WITH_FIELDNAMES_START,
-                );
-                for (key, value) in structure.iter() {
-                    self.insert_struct_key_value_pair(key, value);
-                }
-                self.append_instruction_code(InstructionCode::SCOPE_END);
-            }
         }
     }
 

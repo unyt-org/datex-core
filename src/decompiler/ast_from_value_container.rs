@@ -58,20 +58,11 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
         CoreValue::List(list) => DatexExpression::List(
             list.into_iter().map(DatexExpression::from).collect(),
         ),
-        CoreValue::Array(list) => DatexExpression::Array(
-            list.into_iter().map(DatexExpression::from).collect(),
-        ),
         CoreValue::Map(map) => DatexExpression::Map(
             map.into_iter()
                 .map(|(key, value)| {
                     (DatexExpression::from(key), DatexExpression::from(value))
                 })
-                .collect(),
-        ),
-        CoreValue::Struct(structure) => DatexExpression::Struct(
-            structure
-                .iter()
-                .map(|(key, value)| (key, DatexExpression::from(value)))
                 .collect(),
         ),
         CoreValue::Type(type_value) => {
@@ -164,7 +155,7 @@ mod tests {
         let ast = DatexExpression::from(&value);
         assert_eq!(
             ast,
-            DatexExpression::Array(vec![
+            DatexExpression::List(vec![
                 DatexExpression::Integer(Integer::from(1)),
                 DatexExpression::Integer(Integer::from(2)),
                 DatexExpression::Integer(Integer::from(3)),

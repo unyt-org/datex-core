@@ -5,7 +5,6 @@ use crate::runtime::execution::{
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
-use crate::values::core_values::r#struct::Struct;
 use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use serde::ser::{
@@ -90,7 +89,7 @@ impl SerializeStruct for StructSerializer {
         //     map.set(ValueContainer::from(field), value);
         // }
         // Ok(ValueContainer::from(CoreValue::Map(map)))
-        Ok(Struct::new(self.fields).into())
+        Ok(Map::from(self.fields).into())
     }
 }
 
@@ -210,8 +209,8 @@ impl SerializeTupleVariant for TupleVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Struct(Struct::from(vec![
-            (self.variant.to_string(), self.fields),
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(vec![
+            (self.variant.to_string(), self.fields.into()),
         ]))))
     }
 }
@@ -254,9 +253,9 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(Struct::from(vec![(
+        Ok(Map::from(vec![(
             self.variant.to_string(),
-            Struct::new(self.fields),
+            Map::from(self.fields).into()
         )])
         .into())
     }
@@ -455,7 +454,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        Ok(Struct::default().into())
+        Ok(Map::default().into())
     }
 
     fn serialize_struct(
@@ -470,7 +469,7 @@ impl Serializer for &mut DatexSerializer {
         self,
         name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(Struct::default().into())
+        Ok(Map::default().into())
     }
 
     fn serialize_unit_variant(
@@ -539,7 +538,7 @@ impl Serializer for &mut DatexSerializer {
         T: ?Sized + serde::Serialize,
     {
         let field = value.serialize(&mut *self)?;
-        Ok(ValueContainer::from(CoreValue::Struct(Struct::from(vec![
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(vec![
             (variant.to_string(), field),
         ]))))
     }
@@ -602,7 +601,6 @@ impl Serializer for &mut DatexSerializer {
 mod tests {
     use crate::assert_structural_eq;
     use crate::values::core_values::endpoint::Endpoint;
-    use crate::values::core_values::r#struct::Struct;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::values::{
         core_value::CoreValue,
@@ -612,6 +610,7 @@ mod tests {
     };
     use serde::{Deserialize, Serialize};
     use std::assert_matches::assert_matches;
+    use crate::values::core_values::map::Map;
 
     #[derive(Serialize)]
     struct TestStruct {
@@ -669,7 +668,7 @@ mod tests {
         assert_matches!(
             value_container,
             ValueContainer::Value(Value {
-                inner: CoreValue::Struct(_),
+                inner: CoreValue::Map(_),
                 ..
             })
         );
@@ -815,7 +814,7 @@ mod tests {
         assert_matches!(
             value_container,
             ValueContainer::Value(Value {
-                inner: CoreValue::Struct(_),
+                inner: CoreValue::Map(_),
                 ..
             })
         );
@@ -842,9 +841,9 @@ mod tests {
             result
                 .to_value()
                 .borrow()
-                .cast_to_struct()
+                .cast_to_map()
                 .unwrap()
-                .get("usize")
+                .get_text("usize")
                 .unwrap(),
             ValueContainer::from(42)
         );
@@ -863,7 +862,7 @@ mod tests {
         let result = to_value_container(&test_struct);
         assert!(result.is_ok());
         let result = result.unwrap();
-        let r#struct = Struct::from(vec![(
+        let r#struct = Map::from(vec![(
             "endpoint".to_string(),
             ValueContainer::from(Endpoint::new("@test")),
         )]);
