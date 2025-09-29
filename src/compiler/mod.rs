@@ -1357,7 +1357,8 @@ pub mod tests {
     fn empty_list() {
         init_logger_debug();
         // TODO: support list constructor (apply on type)
-        let datex_script = "List()";
+        let datex_script = "[]";
+        // const x = mut 42;
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
             InstructionCode::LIST_START.into(),
@@ -1605,7 +1606,7 @@ pub mod tests {
     #[test]
     fn dynamic_key_value() {
         init_logger_debug();
-        let datex_script = "(1 + 2): 42";
+        let datex_script = "{(1 + 2): 42}";
         let result = compile_and_log(datex_script);
         let expected = [
             InstructionCode::MAP_START.into(),

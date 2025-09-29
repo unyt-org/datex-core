@@ -1936,7 +1936,7 @@ mod tests {
 
     #[test]
     fn dynamic_map_keys() {
-        let src = r#"((1): "value1", (2): 42, (3): true)"#;
+        let src = r#"{(1): "value1", (2): 42, (3): true}"#;
         let obj = parse_unwrap(src);
         assert_eq!(
             obj,
@@ -3334,7 +3334,7 @@ mod tests {
             )
         );
 
-        let src = "!!(1, 2)";
+        let src = "!![1, 2]";
         let expr = parse_unwrap(src);
         assert_matches!(
             expr,
