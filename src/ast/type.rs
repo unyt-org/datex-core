@@ -623,11 +623,11 @@ mod tests {
             val,
             TypeExpression::StructuralMap(vec![
                 (
-                    TypeExpression::Literal("name".to_string()),
+                    TypeExpression::Text("name".to_string()),
                     TypeExpression::Literal("text".to_owned())
                 ),
                 (
-                    TypeExpression::Literal("age".to_string()),
+                    TypeExpression::Text("age".to_string()),
                     TypeExpression::RefMut(Box::new(TypeExpression::Literal(
                         "text".to_owned()
                     )))

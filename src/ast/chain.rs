@@ -54,14 +54,42 @@ pub fn chain_without_whitespace_apply<'a>(
         })
 }
 
+pub fn keyed_parameters<'a>(
+    key: impl DatexParserTrait<'a>, 
+    expression: impl DatexParserTrait<'a>
+) -> impl DatexParserTrait<'a> {
+    key.then_ignore(just(Token::Colon).padded_by(whitespace()))
+        .then(expression.clone())
+        .separated_by(just(Token::Comma).padded_by(whitespace()))
+        .at_least(0)
+        .allow_trailing()
+        .collect()
+        .padded_by(whitespace())
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .padded_by(whitespace())
+        .map(DatexExpression::Map)
+}
+
+pub fn indexed_parameters<'a>(
+    expression: impl DatexParserTrait<'a>
+) -> impl DatexParserTrait<'a> {
+    expression
+        .clone()
+        .separated_by(just(Token::Comma).padded_by(whitespace()))
+        .at_least(0)
+        .allow_trailing()
+        .collect()
+        .padded_by(whitespace())
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .padded_by(whitespace())
+        .map(DatexExpression::List)
+}
+
 pub fn chain<'a>(
     unary: impl DatexParserTrait<'a>,
     key: impl DatexParserTrait<'a>,
-    array: impl DatexParserTrait<'a>,
-    structure: impl DatexParserTrait<'a>,
-    wrapped_expression: impl DatexParserTrait<'a>,
     atom: impl DatexParserTrait<'a>,
-    any: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     unary
         .clone()
@@ -69,16 +97,17 @@ pub fn chain<'a>(
             choice((
                 // generic access: a<b>
                 just(Token::LeftAngle)
-                    .ignore_then(any.clone())
+                    .ignore_then(expression.clone())
                     .then_ignore(just(Token::RightAngle))
                     .map(ApplyOperation::GenericAccess),
-                // apply #1: a wrapped expression, array, or object - no whitespace required before
-                // x () x [] x {}
-                choice((wrapped_expression, array, structure))
-                    .clone()
-                    .padded_by(whitespace())
-                    .map(ApplyOperation::FunctionCall),
-                // apply #2: an atomic value (e.g. "text") - whitespace or newline required before
+                // apply #1: function call with multiple arguments
+                // x(a: 4, b: 5)
+                choice((
+                    keyed_parameters(key.clone(), expression.clone()),
+                    indexed_parameters(expression.clone()),
+                ))
+                .map(ApplyOperation::FunctionCall),
+                // apply #2: an atomic value (e.g. "text", [1,2,3]) - whitespace or newline required before
                 // print "sdf"
                 just(Token::Whitespace)
                     .repeated()

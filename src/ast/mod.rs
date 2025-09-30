@@ -410,9 +410,6 @@ where
     let chain = chain(
         unary.clone(),
         key.clone(),
-        list.clone(),
-        map.clone(),
-        wrapped_expression.clone(),
         atom.clone(),
         expression.clone(),
     );
@@ -2352,7 +2349,7 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
                 vec![ApplyOperation::FunctionCall(
-                    DatexExpression::Statements(vec![])
+                    DatexExpression::Map(vec![])
                 )],
             )
         );
@@ -2367,9 +2364,9 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
                 vec![
-                    ApplyOperation::FunctionCall(DatexExpression::Integer(
-                        Integer::from(1)
-                    ),),
+                    ApplyOperation::FunctionCall(DatexExpression::List(
+                        vec![DatexExpression::Integer(Integer::from(1))]
+                    )),
                     ApplyOperation::FunctionCall(DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
@@ -2502,8 +2499,8 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
                 vec![
-                    ApplyOperation::FunctionCall(DatexExpression::Integer(
-                        Integer::from(1)
+                    ApplyOperation::FunctionCall(DatexExpression::List(
+                        vec![DatexExpression::Integer(Integer::from(1)),]
                     )),
                     ApplyOperation::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
@@ -2524,7 +2521,9 @@ mod tests {
                     Box::new(DatexExpression::ApplyChain(
                         Box::new(DatexExpression::Literal("x".to_string())),
                         vec![ApplyOperation::FunctionCall(
-                            DatexExpression::Integer(Integer::from(1))
+                            DatexExpression::List(vec![DatexExpression::Integer(
+                                Integer::from(1)
+                            )])
                         )],
                     )),
                     vec![ApplyOperation::PropertyAccess(
@@ -2685,8 +2684,8 @@ mod tests {
             expr,
             DatexExpression::List(vec![DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
-                vec![ApplyOperation::FunctionCall(DatexExpression::Integer(
-                    Integer::from(1)
+                vec![ApplyOperation::FunctionCall(DatexExpression::List(
+                    vec![DatexExpression::Integer(Integer::from(1))]
                 ))]
             ),])
         );

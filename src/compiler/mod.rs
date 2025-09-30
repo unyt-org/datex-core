@@ -1372,7 +1372,7 @@ pub mod tests {
     fn single_element_list() {
         init_logger_debug();
         // TODO: support list constructor (apply on type)
-        let datex_script = "List(42)";
+        let datex_script = "[42]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1389,7 +1389,7 @@ pub mod tests {
     #[test]
     fn multi_element_list() {
         init_logger_debug();
-        let datex_script = "(1, 2, 3)";
+        let datex_script = "[1, 2, 3]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1410,7 +1410,7 @@ pub mod tests {
     #[test]
     fn list_with_expressions() {
         init_logger_debug();
-        let datex_script = "(1 + 2, 3 * 4)";
+        let datex_script = "[1 + 2, 3 * 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1431,56 +1431,11 @@ pub mod tests {
         );
     }
 
-    // Test list with mixed expressions
-    #[test]
-    fn list_with_mixed_expressions() {
-        init_logger_debug();
-        let datex_script = "(1, 2, 3 + 4)";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::INT_8.into(),
-                4,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
-    // Test list
-    #[test]
-    fn list() {
-        init_logger_debug();
-        let datex_script = "(1, 2, 3)";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
     // Nested lists
     #[test]
     fn nested_lists() {
         init_logger_debug();
-        let datex_script = "(1, (2, 3), 4)";
+        let datex_script = "[1, [2, 3], 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1499,54 +1454,13 @@ pub mod tests {
                 InstructionCode::SCOPE_END.into(),
             ]
         );
-    }
-
-    // List without parentheses
-    #[test]
-    fn list_without_parentheses() {
-        init_logger_debug();
-        let datex_script = "1, 2, 3";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
-    // key-value pair
-    #[test]
-    fn key_value_map() {
-        init_logger_debug();
-        let datex_script = "key: 42";
-        let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::MAP_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
     }
 
     // key-value pair with string key
     #[test]
     fn key_value_string() {
         init_logger_debug();
-        let datex_script = "\"key\": 42";
+        let datex_script = "{\"key\": 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::MAP_START.into(),
@@ -1566,7 +1480,7 @@ pub mod tests {
     #[test]
     fn key_value_integer() {
         init_logger_debug();
-        let datex_script = "10: 42";
+        let datex_script = "{(10): 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::MAP_START.into(),
@@ -1585,7 +1499,7 @@ pub mod tests {
     fn key_value_long_text() {
         init_logger_debug();
         let long_key = "a".repeat(300);
-        let datex_script = format!("\"{long_key}\": 42");
+        let datex_script = format!("{{\"{long_key}\": 42}}");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
             InstructionCode::MAP_START.into(),
@@ -1627,7 +1541,7 @@ pub mod tests {
     #[test]
     fn multiple_key_value_pairs() {
         init_logger_debug();
-        let datex_script = "key: 42, 4: 43, (1 + 2): 44";
+        let datex_script = "{key: 42, 4: 43, (1 + 2): 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::MAP_START.into(),
@@ -1651,26 +1565,6 @@ pub mod tests {
             2,
             InstructionCode::INT_8.into(),
             44,
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // key value pair with parentheses
-    #[test]
-    fn key_value_with_parentheses() {
-        init_logger_debug();
-        let datex_script = "(key: 42)";
-        let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::MAP_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
@@ -2046,7 +1940,7 @@ pub mod tests {
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
 
-        let script = r#"(("x" + "y"): 1)"#;
+        let script = r#"{("x" + "y"): 1}"#;
         let compilation_scope = get_compilation_scope(script);
         assert!(*compilation_scope.has_non_static_value.borrow());
 
