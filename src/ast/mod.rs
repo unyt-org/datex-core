@@ -1,4 +1,3 @@
-pub mod list;
 pub mod assignment_operation;
 pub mod atom;
 pub mod binary_operation;
@@ -12,6 +11,7 @@ pub mod function;
 pub mod integer;
 pub mod key;
 pub mod lexer;
+pub mod list;
 pub mod literal;
 pub mod map;
 pub mod text;
@@ -20,7 +20,6 @@ pub mod unary;
 pub mod unary_operation;
 pub mod utils;
 
-use crate::ast::list::*;
 use crate::ast::assignment_operation::*;
 use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
@@ -31,6 +30,7 @@ use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::function::*;
 use crate::ast::key::*;
+use crate::ast::list::*;
 use crate::ast::map::*;
 use crate::ast::r#type::type_expression;
 use crate::ast::unary::*;
@@ -114,7 +114,6 @@ pub enum Slot {
     Named(String),
 }
 
-// TODO: parse TypeExpressions in ast parser
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeExpression {
     Null,
@@ -314,7 +313,7 @@ impl TryFrom<&DatexExpression> for ValueContainer {
                         let value = ValueContainer::try_from(v)?;
                         Ok((key, value))
                     })
-                    .collect::<Result<HashMap<ValueContainer, ValueContainer>, ()>>()?;
+                    .collect::<Result<Vec<(ValueContainer, ValueContainer)>, ()>>()?;
                 ValueContainer::from(Map::from(entries))
             }
             _ => Err(())?,
@@ -402,17 +401,12 @@ where
     let map = map(key.clone(), expression.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
-    let atom =
-        atom(list.clone(), map.clone(), wrapped_expression.clone());
+    let atom = atom(list.clone(), map.clone(), wrapped_expression.clone());
     let unary = choice((type_expression(), unary(atom.clone())));
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
-    let chain = chain(
-        unary.clone(),
-        key.clone(),
-        atom.clone(),
-        expression.clone(),
-    );
+    let chain =
+        chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
     let reference = just(Token::Ampersand)
         .ignore_then(
@@ -508,9 +502,7 @@ where
         .padded_by(whitespace()),
     );
 
-    expression.define(
-        choice((remote_execution, inner_expression.clone()))
-    );
+    expression.define(choice((remote_execution, inner_expression.clone())));
 
     choice((
         // empty script (0-n semicolons)
@@ -633,7 +625,8 @@ mod tests {
                 ),
                 (
                     DatexExpression::Text("active".to_string()),
-                    DatexExpression::Boolean(true)),
+                    DatexExpression::Boolean(true)
+                ),
                 (
                     DatexExpression::Text("items".to_string()),
                     DatexExpression::List(vec![
@@ -965,12 +958,10 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: vec![
-                    (
-                        "x".to_string(),
-                        TypeExpression::Literal("integer".to_owned())
-                    ),
-                ],
+                parameters: vec![(
+                    "x".to_string(),
+                    TypeExpression::Literal("integer".to_owned())
+                ),],
                 return_type: Some(TypeExpression::Union(vec![
                     TypeExpression::Literal("integer".to_owned()),
                     TypeExpression::Literal("text".to_owned())
@@ -1321,9 +1312,9 @@ mod tests {
                 UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::Literal("User".to_string())),
-                    vec![ApplyOperation::FunctionCall(
-                        DatexExpression::Map(vec![])
-                    )]
+                    vec![ApplyOperation::FunctionCall(DatexExpression::Map(
+                        vec![]
+                    ))]
                 )),
             )
         );
@@ -1854,7 +1845,6 @@ mod tests {
         assert_eq!(obj, DatexExpression::Map(vec![]));
     }
 
-
     #[test]
     fn list_of_lists() {
         let src = "[[1,2],3,[4]]";
@@ -2348,9 +2338,9 @@ mod tests {
             expr,
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
-                vec![ApplyOperation::FunctionCall(
-                    DatexExpression::Map(vec![])
-                )],
+                vec![ApplyOperation::FunctionCall(DatexExpression::Map(
+                    vec![]
+                ))],
             )
         );
     }
@@ -2364,9 +2354,9 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
                 vec![
-                    ApplyOperation::FunctionCall(DatexExpression::List(
-                        vec![DatexExpression::Integer(Integer::from(1))]
-                    )),
+                    ApplyOperation::FunctionCall(DatexExpression::List(vec![
+                        DatexExpression::Integer(Integer::from(1))
+                    ])),
                     ApplyOperation::FunctionCall(DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
@@ -2499,9 +2489,9 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::Literal("myFunc".to_string())),
                 vec![
-                    ApplyOperation::FunctionCall(DatexExpression::List(
-                        vec![DatexExpression::Integer(Integer::from(1)),]
-                    )),
+                    ApplyOperation::FunctionCall(DatexExpression::List(vec![
+                        DatexExpression::Integer(Integer::from(1)),
+                    ])),
                     ApplyOperation::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
                     )),
@@ -2521,9 +2511,9 @@ mod tests {
                     Box::new(DatexExpression::ApplyChain(
                         Box::new(DatexExpression::Literal("x".to_string())),
                         vec![ApplyOperation::FunctionCall(
-                            DatexExpression::List(vec![DatexExpression::Integer(
-                                Integer::from(1)
-                            )])
+                            DatexExpression::List(vec![
+                                DatexExpression::Integer(Integer::from(1))
+                            ])
                         )],
                     )),
                     vec![ApplyOperation::PropertyAccess(
@@ -3198,24 +3188,34 @@ mod tests {
         // 3 bytes (internal)
         let src = "$123456";
         let expr = parse_unwrap(src);
-        assert_eq!(expr, DatexExpression::PointerAddress(PointerAddress::Internal([0x12, 0x34, 0x56])));
+        assert_eq!(
+            expr,
+            DatexExpression::PointerAddress(PointerAddress::Internal([
+                0x12, 0x34, 0x56
+            ]))
+        );
 
         // 5 bytes (local)
         let src = "$123456789A";
         let expr = parse_unwrap(src);
-        assert_eq!(expr, DatexExpression::PointerAddress(PointerAddress::Local([0x12, 0x34, 0x56, 0x78, 0x9A])));
+        assert_eq!(
+            expr,
+            DatexExpression::PointerAddress(PointerAddress::Local([
+                0x12, 0x34, 0x56, 0x78, 0x9A
+            ]))
+        );
 
         // 26 bytes (remote)
         let src = "$1234567890ABCDEF123456789000000000000000000000000042";
         let expr = parse_unwrap(src);
-        assert_eq!(expr, DatexExpression::PointerAddress(
-            PointerAddress::Remote([
-                0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF,
-                0x12, 0x34, 0x56, 0x78, 0x90, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x42
-            ])
-        ));
+        assert_eq!(
+            expr,
+            DatexExpression::PointerAddress(PointerAddress::Remote([
+                0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF, 0x12, 0x34,
+                0x56, 0x78, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x42
+            ]))
+        );
 
         // other lengths are invalid
         let src = "$12";
