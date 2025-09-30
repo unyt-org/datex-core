@@ -18,6 +18,7 @@ use crate::{
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use std::path::PathBuf;
+use crate::values::core_values::map::OwnedMapKey;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -183,7 +184,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Map(obj) => {
                     let map = obj.into_iter().map(|(k, v)| {
                         (
-                            DatexDeserializer::from_value(k),
+                            DatexDeserializer::from_value(ValueContainer::from(k)),
                             DatexDeserializer::from_value(v),
                         )
                     });
@@ -331,7 +332,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         {
             let entries = map.into_iter().map(|(k, v)| {
                 (
-                    DatexDeserializer::from_value(k),
+                    DatexDeserializer::from_value(ValueContainer::from(k)),
                     DatexDeserializer::from_value(v),
                 )
             });
@@ -366,12 +367,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }) => {
                 if o.size() == 1 {
                     let (key, _) = o.into_iter().next().unwrap();
-                    if let ValueContainer::Value(Value {
-                        inner: CoreValue::Text(text),
-                        ..
-                    }) = key
+                    if let OwnedMapKey::Text(string) = key
                     {
-                        visitor.visit_string(text.0)
+                        visitor.visit_string(string)
                     } else {
                         Err(DeserializationError::Custom(
                             "Expected text key for identifier".to_string(),

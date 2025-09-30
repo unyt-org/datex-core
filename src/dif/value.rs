@@ -206,9 +206,9 @@ impl DIFValue {
             ),
             CoreValue::Map(map) => {
                 DIFValueRepresentation::Map(
-                    map.iter()
+                    map.into_iter()
                         .map(|(k, v)|
-                            (DIFValueContainer::from_value_container(k, &memory), DIFValueContainer::from_value_container(v, &memory))
+                            (DIFValueContainer::from_value_container(&ValueContainer::from(k), &memory), DIFValueContainer::from_value_container(v, &memory))
                         )
                         .collect()
                 )

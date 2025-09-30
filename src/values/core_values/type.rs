@@ -352,11 +352,11 @@ impl From<&CoreValue> for Type {
             }
             CoreValue::Map(map) => {
                 let struct_types = map
-                    .iter()
+                    .into_iter()
                     .map(|(key, value)| {
                         (
                             TypeContainer::from(Type::from(
-                                key.to_value().borrow().inner.clone(),
+                                ValueContainer::from(key).to_value().borrow().inner.clone(),
                             )),
                             TypeContainer::from(Type::from(
                                 value.to_value().borrow().inner.clone(),

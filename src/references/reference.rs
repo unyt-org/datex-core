@@ -18,6 +18,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use crate::values::core_values::map::Map;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -514,7 +515,7 @@ impl Reference {
             match &mut value.inner {
                 CoreValue::Map(map) => {
                     // Iterate over all properties and upgrade them to references
-                    for (_, prop) in map.iter_mut() {
+                    for (_, prop) in map.into_iter() {
                         // TODO: no clone here, implement some sort of map
                         *prop = self.bind_child(prop.clone());
                     }

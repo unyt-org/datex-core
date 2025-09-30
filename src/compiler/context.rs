@@ -250,7 +250,7 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Map(val) => {
                 self.append_instruction_code(InstructionCode::MAP_START);
                 for (key, value) in val {
-                    self.insert_key_value_pair(key, value);
+                    self.insert_key_value_pair(&ValueContainer::from(key), value);
                 }
                 self.append_instruction_code(InstructionCode::SCOPE_END);
             }
