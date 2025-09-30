@@ -1541,7 +1541,7 @@ pub mod tests {
     #[test]
     fn multiple_key_value_pairs() {
         init_logger_debug();
-        let datex_script = "{key: 42, 4: 43, (1 + 2): 44}";
+        let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::MAP_START.into(),
