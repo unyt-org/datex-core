@@ -4,7 +4,6 @@ use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
-use indexmap::map::MutableKeys;
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
@@ -49,6 +48,10 @@ impl Map {
             Map::Fixed(vec) => vec.len(),
             Map::Structural(vec) => vec.len(),
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
     }
 
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {

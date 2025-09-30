@@ -26,7 +26,11 @@ impl List {
     /// If the index is equal to the current length of the list, the value is pushed to the end.
     /// If the index is greater than the current length, None is returned.
     /// Returns the previous value at the index if it was replaced.
-    pub fn set(&mut self, index: u32, value: ValueContainer) -> Option<ValueContainer> {
+    pub fn set(
+        &mut self,
+        index: u32,
+        value: ValueContainer,
+    ) -> Option<ValueContainer> {
         // replace
         if (index as usize) < self.0.len() {
             Some(std::mem::replace(&mut self.0[index as usize], value))
@@ -46,10 +50,31 @@ impl List {
         self.0.push(value.into());
     }
 
+    pub fn pop(&mut self) -> Option<ValueContainer> {
+        self.0.pop()
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn as_vec(&self) -> &Vec<ValueContainer> {
+        &self.0
+    }
+
+    pub fn as_mut_vec(&mut self) -> &mut Vec<ValueContainer> {
+        &mut self.0
+    }
+
     pub fn iter(&self) -> std::slice::Iter<'_, ValueContainer> {
         self.0.iter()
     }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, ValueContainer> {
+        self.0.iter_mut()
+    }
 }
+
 impl CoreValueTrait for List {}
 
 impl StructuralEq for List {
