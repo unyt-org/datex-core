@@ -11,6 +11,7 @@ use super::super::core_value_trait::CoreValueTrait;
 pub struct Text(pub String);
 
 impl Display for Text {
+    // TODO: escape string content
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "\"{}\"", self.0)
     }

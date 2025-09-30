@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
+use indexmap::map::MutableKeys;
 use crate::values::value::Value;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -139,7 +140,8 @@ impl Map {
 }
 
 pub enum MapKey<'a> {
-    Text(&'a str),
+    // TODO: use str slice instead of String? only workaround due to lifetime issues
+    Text(String),
     Value(&'a ValueContainer),
 }
 
@@ -180,7 +182,8 @@ impl StructuralEq for MapKey<'_> {
 impl Display for MapKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MapKey::Text(text) => write!(f, "{text}"),
+            // TODO: escape string
+            MapKey::Text(string) => write!(f, "\"{}\"", string), 
             MapKey::Value(value) => write!(f, "{value}"),
         }
     }
@@ -214,7 +217,7 @@ pub struct MapIterator<'a> {
     index: usize,
 }
 
-impl <'a> Iterator for MapIterator<'a> {
+impl<'a> Iterator for MapIterator<'a> {
     type Item = (MapKey<'a>, &'a ValueContainer);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -224,7 +227,7 @@ impl <'a> Iterator for MapIterator<'a> {
                 self.index += 1;
                 item.map(|(k, v)| {
                     let key = match k {
-                        ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(&text.0),
+                        ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(text.0.clone()),
                         _ => MapKey::Value(k),
                     };
                     (key, v)
@@ -235,7 +238,7 @@ impl <'a> Iterator for MapIterator<'a> {
                     let item = &vec[self.index];
                     self.index += 1;
                     let key = match &item.0 {
-                        ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(&text.0),
+                        ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(text.0.clone()),
                         _ => MapKey::Value(&item.0),
                     };
                     Some((key, &item.1))
@@ -247,7 +250,7 @@ impl <'a> Iterator for MapIterator<'a> {
                 if self.index < vec.len() {
                     let item = &vec[self.index];
                     self.index += 1;
-                    Some((MapKey::Text(&item.0), &item.1))
+                    Some((MapKey::Text(item.0.clone()), &item.1))
                 } else {
                     None
                 }
@@ -256,51 +259,38 @@ impl <'a> Iterator for MapIterator<'a> {
     }
 }
 
-pub struct MapMutIterator<'a> {
-    map: &'a mut Map,
-    index: usize,
+pub enum MapMutIterator<'a> {
+    Dynamic(indexmap::map::IterMut<'a, ValueContainer, ValueContainer>),
+    Fixed(std::slice::IterMut<'a, (ValueContainer, ValueContainer)>),
+    Structural(std::slice::IterMut<'a, (String, ValueContainer)>),
 }
 
-impl <'a> Iterator for MapMutIterator<'a> {
+impl<'a> Iterator for MapMutIterator<'a> {
     type Item = (MapKey<'a>, &'a mut ValueContainer);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.map {
-            // Map::Dynamic(map) => {
-            //     let item = map.iter_mut().nth(self.index);
-            //     self.index += 1;
-            //     item.map(|(k, v)| {
-            //         let key = match k {
-            //             ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(&text.0),
-            //             _ => MapKey::Value(k),
-            //         };
-            //         (key, v)
-            //     })
-            // }
-            _ => todo!()
-            // Map::Fixed(vec) => {
-            //     if self.index < vec.len() {
-            //         let item = &mut vec[self.index];
-            //         self.index += 1;
-            //         let key = match &item.0 {
-            //             ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(&text.0),
-            //             _ => MapKey::Value(&item.0),
-            //         };
-            //         Some((key, &mut item.1))
-            //     } else {
-            //         None
-            //     }
-            // }
-            // Map::Structural(vec) => {
-            //     if self.index < vec.len() {
-            //         let item = &mut vec[self.index];
-            //         self.index += 1;
-            //         let key = MapKey::Text(&item.0);
-            //         Some((key, &mut item.1))
-            //     } else {
-            //         None
-            //     }
-            // }
+        match self {
+            MapMutIterator::Dynamic(iter) => {
+                iter.next().map(|(k, v)| {
+                    let key = match k {
+                        ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(text.0.clone()),
+                        _ => MapKey::Value(k),
+                    };
+                    (key, v)
+                })
+            }
+            MapMutIterator::Fixed(iter) => {
+                iter.next().map(|(k, v)| {
+                    let key = match k {
+                        ValueContainer::Value(Value { inner: CoreValue::Text(text), .. }) => MapKey::Text(text.0.clone()),
+                        _ => MapKey::Value(k),
+                    };
+                    (key, v)
+                })
+            }
+            MapMutIterator::Structural(iter) => {
+                iter.next().map(|(k, v)| (MapKey::Text(k.clone()), v))
+            }
         }
     }
 }
@@ -429,7 +419,11 @@ impl <'a> IntoIterator for &'a mut Map {
     type IntoIter = MapMutIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        MapMutIterator { map: self, index: 0 }
+        match self {
+            Map::Dynamic(map) => MapMutIterator::Dynamic(map.iter_mut()),
+            Map::Fixed(vec) => MapMutIterator::Fixed(vec.iter_mut()),
+            Map::Structural(vec) => MapMutIterator::Structural(vec.iter_mut()),
+        }
     }
 }
 
