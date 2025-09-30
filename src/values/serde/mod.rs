@@ -321,8 +321,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
-    // FIXME
     fn enum_internal_tagged() {
         let a = TaggedEnum::A { x: 1 };
         let b = TaggedEnum::B("hello".into());

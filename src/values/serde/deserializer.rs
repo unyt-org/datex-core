@@ -1,3 +1,4 @@
+use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::{
     compiler::{
@@ -18,7 +19,6 @@ use crate::{
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use std::path::PathBuf;
-use crate::values::core_values::map::OwnedMapKey;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -184,7 +184,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 CoreValue::Map(obj) => {
                     let map = obj.into_iter().map(|(k, v)| {
                         (
-                            DatexDeserializer::from_value(ValueContainer::from(k)),
+                            DatexDeserializer::from_value(
+                                ValueContainer::from(k),
+                            ),
                             DatexDeserializer::from_value(v),
                         )
                     });
@@ -367,8 +369,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }) => {
                 if o.size() == 1 {
                     let (key, _) = o.into_iter().next().unwrap();
-                    if let OwnedMapKey::Text(string) = key
-                    {
+                    if let OwnedMapKey::Text(string) = key {
                         visitor.visit_string(string)
                     } else {
                         Err(DeserializationError::Custom(
@@ -419,33 +420,29 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }
 
             // Object with single key = variant name
-            // ValueContainer::Value(Value {
-            //     inner: CoreValue::Map(o),
-            //     ..
-            // }) => {
-            //     if o.size() != 1 {
-            //         return Err(DeserializationError::Custom(
-            //             "Expected single-key object for enum".to_string(),
-            //         ));
-            //     }
+            ValueContainer::Value(Value {
+                inner: CoreValue::Map(o),
+                ..
+            }) => {
+                if o.size() != 1 {
+                    return Err(DeserializationError::Custom(
+                        "Expected single-key object for enum".to_string(),
+                    ));
+                }
 
-            //     let (variant_name, value) = o.into_iter().next().unwrap();
-            //     if let ValueContainer::Value(Value {
-            //         inner: CoreValue::Text(variant_text),
-            //         ..
-            //     }) = variant_name
-            //     {
-            //         let deserializer = DatexDeserializer::from_value(value);
-            //         visitor.visit_enum(EnumDeserializer {
-            //             variant: variant_text.0,
-            //             value: deserializer,
-            //         })
-            //     } else {
-            //         Err(DeserializationError::Custom(
-            //             "Expected text variant name".to_string(),
-            //         ))
-            //     }
-            // }
+                let (variant_name, value) = o.into_iter().next().unwrap();
+                if let OwnedMapKey::Text(variant) = variant_name {
+                    let deserializer = DatexDeserializer::from_value(value);
+                    visitor.visit_enum(EnumDeserializer {
+                        variant,
+                        value: deserializer,
+                    })
+                } else {
+                    Err(DeserializationError::Custom(
+                        "Expected text variant name".to_string(),
+                    ))
+                }
+            }
             // TODO: handle structurally typed maps
             // ValueContainer::Value(Value {
             //     inner: CoreValue::Struct(o),
@@ -467,13 +464,13 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             // }
 
             // unit variants stored directly as text
-            // ValueContainer::Value(Value {
-            //     inner: CoreValue::Text(s),
-            //     ..
-            // }) => visitor.visit_enum(EnumDeserializer {
-            //     variant: s.0,
-            //     value: DatexDeserializer::from_value(Struct::default().into()),
-            // }),
+            ValueContainer::Value(Value {
+                inner: CoreValue::Text(s),
+                ..
+            }) => visitor.visit_enum(EnumDeserializer {
+                variant: s.0,
+                value: DatexDeserializer::from_value(Map::default().into()),
+            }),
 
             e => Err(DeserializationError::Custom(format!(
                 "Expected enum representation, found: {}",
