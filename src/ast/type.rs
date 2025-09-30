@@ -145,7 +145,9 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 just(Token::LeftBracket).padded_by(whitespace()),
                 just(Token::RightBracket).padded_by(whitespace()),
             )
-            .map(|elems: Vec<TypeExpression>| TypeExpression::StructuralList(elems));
+            .map(|elems: Vec<TypeExpression>| {
+                TypeExpression::StructuralList(elems)
+            });
 
         let array_fixed_inline = ty
             .clone()
@@ -212,33 +214,21 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 TypeExpression::StructuralMap(fields)
             });
 
-        // let generic = select! { Token::Identifier(name) => name }
-        //     .then(
-        //         ty.clone()
-        //             .separated_by(just(Token::Comma).padded_by(whitespace()))
-        //             .allow_trailing()
-        //             .collect()
-        //             .padded_by(whitespace())
-        //             .delimited_by(
-        //                 just(Token::LeftAngle),
-        //                 just(Token::RightAngle),
-        //             ),
-        //     )
-        //     .map(|(name, args): (String, Vec<TypeExpression>)| {
-        //         match name.as_str() {
-        //             "List" if args.len() == 1 => {
-        //                 TypeExpression::StructuralList(Box::new(args[0].clone()))
-        //             }
-        //             "Map" if args.len() == 2 => {
-        //                 let mut it = args.into_iter();
-        //                 TypeExpression::StructuralMap(
-        //                     Box::new(it.next().unwrap()),
-        //                     Box::new(it.next().unwrap()),
-        //                 )
-        //             }
-        //             other => TypeExpression::Generic(other.to_owned(), args),
-        //         }
-        //     });
+        let generic = select! { Token::Identifier(name) => name }
+            .then(
+                ty.clone()
+                    .separated_by(just(Token::Comma).padded_by(whitespace()))
+                    .allow_trailing()
+                    .collect()
+                    .padded_by(whitespace())
+                    .delimited_by(
+                        just(Token::LeftAngle),
+                        just(Token::RightAngle),
+                    ),
+            )
+            .map(|(name, args): (String, Vec<TypeExpression>)| {
+                TypeExpression::Generic(name.to_owned(), args)
+            });
 
         let func = key_ident
             .then_ignore(just(Token::Colon).padded_by(whitespace()))
@@ -295,7 +285,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             array_inline.clone(),
             array_fixed_inline.clone(),
             structural_map.clone(),
-            // generic.clone(),
+            generic.clone(),
             paren_group.clone(),
             type_reference.clone(),
         ));
@@ -369,10 +359,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                         None => TypeExpression::SliceList(Box::new(t)),
                         Some(n) => match integer_to_usize(&n) {
                             Some(size) if size > 0 => {
-                                TypeExpression::FixedSizeList(
-                                    Box::new(t),
-                                    size,
-                                )
+                                TypeExpression::FixedSizeList(Box::new(t), size)
                             }
                             _ => {
                                 return Err(ParseError::new(
@@ -562,55 +549,60 @@ mod tests {
             ])
         );
 
-        // TODO: generics
-        // let src = r#"
-        //     {
-        //         name?: text,
-        //         friends: List<&text>
-        //     };
-        // "#;
-        // let val = parse_type_unwrap(src);
-        // assert_eq!(
-        //     val,
-        //     TypeExpression::StructuralMap(vec![
-        //         (
-        //             TypeExpression::Literal("name".to_string()),
-        //             TypeExpression::Union(vec![
-        //                 TypeExpression::Literal("text".to_owned()),
-        //                 TypeExpression::Null
-        //             ])
-        //         ),
-        //         (
-        //             TypeExpression::Literal("friends".to_string()),
-        //             TypeExpression::StructuralList(Box::new(TypeExpression::Ref(
-        //                 Box::new(TypeExpression::Literal("text".to_owned()))
-        //             )))
-        //         ),
-        //     ])
-        // );
-        //
-        // let src = r#"
-		// 	{
-    	// 		name: text,
-		// 		friends: List<&text>
-		// 	}
-		// "#;
-        // let val = parse_type_unwrap(src);
-        // assert_eq!(
-        //     val,
-        //     TypeExpression::StructuralMap(vec![
-        //         (
-        //             "name".to_string(),
-        //             TypeExpression::Literal("text".to_owned())
-        //         ),
-        //         (
-        //             "friends".to_string(),
-        //             TypeExpression::StructuralList(Box::new(TypeExpression::Ref(
-        //                 Box::new(TypeExpression::Literal("text".to_owned()))
-        //             )))
-        //         ),
-        //     ])
-        // );
+        let src = r#"
+            {
+                name?: text,
+                friends: List<&text>
+            };
+        "#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::StructuralMap(vec![
+                (
+                    TypeExpression::Text("name".to_string()),
+                    TypeExpression::Union(vec![
+                        TypeExpression::Literal("text".to_owned()),
+                        TypeExpression::Null
+                    ])
+                ),
+                (
+                    TypeExpression::Text("friends".to_string()),
+                    TypeExpression::Generic(
+                        "List".to_owned(),
+                        vec![TypeExpression::Ref(Box::new(
+                            TypeExpression::Literal("text".to_owned())
+                        ))]
+                    )
+                ),
+            ])
+        );
+
+        let src = r#"
+        	{
+        		name: text,
+        		friends: List<&text>
+        	}
+        "#;
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::StructuralMap(vec![
+                (
+                    TypeExpression::Text("name".to_string()),
+                    TypeExpression::Literal("text".to_owned())
+                ),
+                (
+                    TypeExpression::Text("friends".to_string()),
+                    TypeExpression::Generic(
+                        "List".to_owned(),
+                        vec![TypeExpression::Ref(Box::new(
+                            TypeExpression::Literal("text".to_owned())
+                        ))]
+                    )
+                ),
+            ])
+        );
 
         let src = r#"
             {
@@ -837,43 +829,48 @@ mod tests {
         );
     }
 
-    // TODO: generics
-    // #[test]
-    // fn list() {
-    //     let src = "List<integer>";
-    //     let val = parse_type_unwrap(src);
-    //     assert_eq!(
-    //         val,
-    //         TypeExpression::StructuralList(Box::new(TypeExpression::Literal(
-    //             "integer".to_owned()
-    //         )))
-    //     );
-    //
-    //     let src = "List<integer | text>";
-    //     let val = parse_type_unwrap(src);
-    //     assert_eq!(
-    //         val,
-    //         TypeExpression::StructuralList(Box::new(TypeExpression::Union(vec![
-    //             TypeExpression::Literal("integer".to_owned()),
-    //             TypeExpression::Literal("text".to_owned()),
-    //         ])))
-    //     );
-    // }
+    #[test]
+    fn generic_1() {
+        let src = "List<integer>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Generic(
+                "List".to_owned(),
+                vec![TypeExpression::Literal("integer".to_owned())],
+            )
+        );
 
-    // #[test]
-    // fn map() {
-    //     let src = "Map<text, integer>";
-    //     let val = parse_type_unwrap(src);
-    //     assert_eq!(
-    //         val,
-    //         TypeExpression::StructuralMap(
-    //             Box::new(TypeExpression::Literal("text".to_owned())),
-    //             Box::new(TypeExpression::Literal("integer".to_owned()))
-    //         )
-    //     );
-    // }
+        let src = "List<integer | text>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Generic(
+                "List".to_owned(),
+                vec![TypeExpression::Union(vec![
+                    TypeExpression::Literal("integer".to_owned()),
+                    TypeExpression::Literal("text".to_owned()),
+                ]),],
+            )
+        );
+    }
 
-    #[ignore="generics not implemented yet"]
+    #[test]
+    fn generic_2() {
+        let src = "Map<text, integer>";
+        let val = parse_type_unwrap(src);
+        assert_eq!(
+            val,
+            TypeExpression::Generic(
+                "Map".to_owned(),
+                vec![
+                    TypeExpression::Literal("text".to_owned()),
+                    TypeExpression::Literal("integer".to_owned()),
+                ],
+            )
+        );
+    }
+
     #[test]
     fn generic_type() {
         let src = "User<text, integer>";
@@ -968,14 +965,16 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Ref(Box::new(TypeExpression::StructuralList(vec![
-                TypeExpression::RefMut(Box::new(TypeExpression::Literal(
-                    "text".to_owned()
-                ))),
-                TypeExpression::RefMut(Box::new(TypeExpression::Literal(
-                    "integer/u8".to_owned()
-                ))),
-            ])))
+            TypeExpression::Ref(Box::new(TypeExpression::StructuralList(
+                vec![
+                    TypeExpression::RefMut(Box::new(TypeExpression::Literal(
+                        "text".to_owned()
+                    ))),
+                    TypeExpression::RefMut(Box::new(TypeExpression::Literal(
+                        "integer/u8".to_owned()
+                    ))),
+                ]
+            )))
         );
     }
 }
