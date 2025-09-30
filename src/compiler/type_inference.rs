@@ -42,21 +42,17 @@ fn infer_expression_type(
         }
         // composite values
         DatexExpression::Map(map) => {
-            todo!("Map type inference not implemented yet");
-            // let entries = map
-            //     .iter_mut()
-            //     .map(|(k, v)| {
-            //         let key =
-            //             infer_expression_type(k, metadata.clone()).unwrap();
-            //         let value =
-            //             infer_expression_type(v, metadata.clone()).unwrap();
-            //         Ok((key, value))
-            //     })
-            //     .collect::<Result<Vec<(_, _)>, ()>>()
-            //     .unwrap();
-            // TypeContainer::Type(Type::structural(
-            //     StructuralTypeDefinition::Map(entries),
-            // ))
+            let entries = map
+                .iter_mut()
+                .map(|(k, v)| {
+                    let key = infer_expression_type(k, metadata.clone())?;
+                    let value = infer_expression_type(v, metadata.clone())?;
+                    Ok((key, value))
+                })
+                .collect::<Result<Vec<(_, _)>, TypeError>>()?;
+            TypeContainer::Type(Type::structural(
+                StructuralTypeDefinition::Map(entries),
+            ))
         }
         DatexExpression::List(arr) => {
             let entries = arr
@@ -815,7 +811,8 @@ mod tests {
             Type::structural(StructuralTypeDefinition::Map(vec![(
                 Type::structural(StructuralTypeDefinition::Text(
                     "a".to_string().into()
-                )).as_type_container(),
+                ))
+                .as_type_container(),
                 TypeContainer::Type(Type::from(CoreValue::from(
                     Integer::from(1)
                 )))
