@@ -263,14 +263,14 @@ mod tests {
 
         let struct_type = StructuralTypeDefinition::Map(vec![
             (
-                Type::structural("name".to_string()).into(),
+                Type::structural("id".to_string()).into(),
                 Type::structural(int_type.clone()).into()),
             (
-                Type::structural("id".to_string()).into(),
+                Type::structural("name".to_string()).into(),
                 Type::structural(text_type.clone()).into(),
             ),
         ]);
-        assert_eq!(struct_type.to_string(), r#"{id: 42, name: "Hello"}"#);
+        assert_eq!(struct_type.to_string(), r#"{"id": 42, "name": "Hello"}"#);
     }
 
     #[test]

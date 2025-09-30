@@ -25,7 +25,7 @@ pub enum AccessError {
     InvalidOperation(String),
     PropertyNotFound(String),
     CanNotUseReferenceAsKey,
-    IndexOutOfBounds,
+    IndexOutOfBounds(u32),
     InvalidPropertyKeyType(String),
 }
 impl Display for AccessError {
@@ -43,7 +43,9 @@ impl Display for AccessError {
             AccessError::CanNotUseReferenceAsKey => {
                 write!(f, "Cannot use a reference as a property key")
             }
-            AccessError::IndexOutOfBounds => write!(f, "Index out of bounds"),
+            AccessError::IndexOutOfBounds(index) => {
+                write!(f, "Index out of bounds: {}", index)
+            }
             AccessError::InvalidPropertyKeyType(ty) => {
                 write!(f, "Invalid property key type: {}", ty)
             }
@@ -618,7 +620,7 @@ impl Reference {
                 CoreValue::Map(ref mut struct_val) => {
                     struct_val.get_text(&key).ok_or_else(|| {
                         AccessError::PropertyNotFound(key.to_string())
-                    }).map(|v| v.clone())
+                    }).cloned()
                 }
                 _ => {
                     // If the value is not an object, we cannot get a property
@@ -642,11 +644,11 @@ impl Reference {
             CoreValue::List(ref mut list) => list
                 .get(index)
                 .cloned()
-                .ok_or(AccessError::IndexOutOfBounds),
+                .ok_or(AccessError::IndexOutOfBounds(index)),
             CoreValue::Text(ref text) => {
                 let char = text
                     .char_at(index as usize)
-                    .ok_or(AccessError::IndexOutOfBounds)?;
+                    .ok_or(AccessError::IndexOutOfBounds(index))?;
                 Ok(ValueContainer::from(char.to_string()))
             }
             _ => Err(AccessError::InvalidOperation(
@@ -736,7 +738,7 @@ mod tests {
 
         assert_matches!(
             reference.get_numeric_property(100),
-            Err(AccessError::IndexOutOfBounds)
+            Err(AccessError::IndexOutOfBounds(100))
         );
 
         let text_ref = Reference::from(ValueContainer::from("hello"));
@@ -747,7 +749,7 @@ mod tests {
         assert!(text_ref.get_numeric_property(5).is_err());
         assert_matches!(
             text_ref.get_numeric_property(100),
-            Err(AccessError::IndexOutOfBounds)
+            Err(AccessError::IndexOutOfBounds(100))
         );
     }
 
@@ -810,7 +812,7 @@ mod tests {
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
         object_b_ref.with_maybe_reference(|b_ref| {
-            b_ref.try_set_property("a".into(), object_a_val.clone(), memory)
+            b_ref.try_set_property("a".into(), object_a_val.clone(), memory).unwrap();
         });
 
         println!("Object B Reference: {:#?}", object_b_ref);

@@ -1703,12 +1703,12 @@ mod tests {
     fn map() {
         init_logger_debug();
         let result =
-            execute_datex_script_debug_with_result("(x: 1, y: 2, z: 42)");
+            execute_datex_script_debug_with_result("{x: 1, y: 2, z: 42}");
         let map: CoreValue = result.clone().to_value().borrow().clone().inner;
         let map: Map = map.try_into().unwrap();
 
         // form and size
-        assert_eq!(map.to_string(), "(\"x\": 1, \"y\": 2, \"z\": 42)");
+        assert_eq!(map.to_string(), "{\"x\": 1, \"y\": 2, \"z\": 42}");
         assert_eq!(map.size(), 3);
 
         info!("Map: {:?}", map);

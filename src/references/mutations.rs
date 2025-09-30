@@ -101,14 +101,14 @@ impl Reference {
             match value.inner {
                 CoreValue::List(ref mut list) => {
                     list.set(index, self.bind_child(val)).ok_or_else(|| {
-                        AccessError::IndexOutOfBounds
+                        AccessError::IndexOutOfBounds(index)
                     })?;
                 }
                 CoreValue::Text(ref mut text) => {
                     if let ValueContainer::Value(v) = &val {
                         if let CoreValue::Text(new_char) = &v.inner && new_char.0.len() == 1 {
                             let char = new_char.0.chars().next().unwrap_or('\0');
-                            text.set_char_at(index as usize, char).map_err(| _| AccessError::IndexOutOfBounds)?;
+                            text.set_char_at(index as usize, char).map_err(| _| AccessError::IndexOutOfBounds(index))?;
                         } else {
                             return Err(AccessError::InvalidOperation(
                                 "Can only set char character in text".to_string(),
@@ -286,7 +286,7 @@ mod tests {
             arr_ref.try_set_numeric_property(5, ValueContainer::from(99), memory);
         assert_matches!(
             result,
-            Err(AccessError::PropertyNotFound(idx)) if idx == "5"
+            Err(AccessError::IndexOutOfBounds(5))
         );
 
         // Try to set index on non-array value
@@ -328,14 +328,15 @@ mod tests {
         );
         assert_matches!(
             result,
-            Err(AccessError::PropertyNotFound(prop)) if prop == "nonexistent"
+            Ok(())
         );
 
-        // Try to set property on non-struct value
-        let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let result =
-            int_ref.try_set_text_property("name", ValueContainer::from("Bob"), memory);
-        assert_matches!(result, Err(AccessError::InvalidOperation(_)));
+        // TODO: only for strictly typed structs
+        // // Try to set property on non-struct value
+        // let int_ref = Reference::try_mut_from(42.into()).unwrap();
+        // let result =
+        //     int_ref.try_set_text_property("name", ValueContainer::from("Bob"), memory);
+        // assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
     #[test]

@@ -329,7 +329,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{i8}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int16(Int16Data(i16)) => {
                 handle_before_term(
@@ -339,7 +339,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{i16}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int32(Int32Data(i32)) => {
                 handle_before_term(
@@ -349,7 +349,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{i32}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int64(Int64Data(i64)) => {
                 handle_before_term(
@@ -359,7 +359,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{i64}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int128(Int128Data(i128)) => {
                 handle_before_term(
@@ -369,7 +369,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{i128}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt8(UInt8Data(u8)) => {
                 handle_before_term(
@@ -379,7 +379,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{u8}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt16(UInt16Data(u16)) => {
                 handle_before_term(
@@ -389,7 +389,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{u16}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt32(UInt32Data(u32)) => {
                 handle_before_term(
@@ -399,7 +399,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{u32}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt64(UInt64Data(u64)) => {
                 handle_before_term(
@@ -409,7 +409,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{u64}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt128(UInt128Data(u128)) => {
                 handle_before_term(
@@ -419,7 +419,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{u128}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::BigInteger(IntegerData(big_int)) => {
                 handle_before_term(
@@ -429,7 +429,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{big_int}n")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::DecimalF32(Float32Data(f32)) => {
                 handle_before_term(
@@ -443,7 +443,7 @@ fn decompile_loop(
                     "{}",
                     decimal_to_string(f32, state.options.json_compat)
                 )?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::DecimalF64(Float64Data(f64)) => {
                 handle_before_term(
@@ -457,7 +457,7 @@ fn decompile_loop(
                     "{}",
                     decimal_to_string(f64, state.options.json_compat)
                 )?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
                 handle_before_term(
@@ -471,7 +471,7 @@ fn decompile_loop(
                     "{}",
                     decimal_to_string(i16 as f32, state.options.json_compat)
                 )?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
                 handle_before_term(
@@ -485,7 +485,7 @@ fn decompile_loop(
                     "{}",
                     decimal_to_string(i32 as f32, state.options.json_compat)
                 )?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::Decimal(DecimalData(big_decimal)) => {
                 handle_before_term(
@@ -495,7 +495,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 write!(output, "{big_decimal}")?;
-                handle_after_term(state, &mut output, true)?;
+                handle_after_term(state, &mut output, false)?;
             }
             Instruction::ShortText(ShortTextData(text)) => {
                 handle_before_term(

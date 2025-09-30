@@ -396,7 +396,7 @@ mod tests {
 
         assert_eq!(
             ast_to_source_code(&long_list_ast, &compile_options_multiline),
-            "[\n    \"This is a long string\",\n    \"Another long string\",\n    \"Yet another long string\",\n    \"More long strings to increase length\",\n    \"Final long string in the array\"\n]"
+            "[\n    \"This is a long string\",\n    \"Another long string\",\n    \"Yet another long string\",\n    \"More long strings to increase length\",\n    \"Final long string in the list\"\n]"
         );
     }
 

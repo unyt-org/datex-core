@@ -271,7 +271,7 @@ pub async fn default_interface_set_default_interface_first() {
         // This will set the default interface and socket
         com_hub.update_async().await;
         let _ =
-            send_empty_block_and_update(&[TEST_ENDPOINT_B.clone()], &com_hub)
+            send_empty_block_and_update(std::slice::from_ref(&TEST_ENDPOINT_B), &com_hub)
                 .await;
 
         let mockup_interface_out = com_interface.clone();
@@ -471,7 +471,7 @@ pub async fn register_factory() {
     run_async! {
         init_global_context();
         let mut com_hub = ComHub::default();
-        MockupInterface::register_on_com_hub(&mut com_hub);
+        MockupInterface::register_on_com_hub(&com_hub);
 
         assert_eq!(com_hub.interface_factories.borrow().len(), 1);
         assert!(com_hub
