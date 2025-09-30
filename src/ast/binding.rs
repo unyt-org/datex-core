@@ -8,8 +8,8 @@ use crate::ast::lexer::Token;
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
 use crate::ast::{
-    DatexExpression, DatexParserTrait, ParserRecoverExt,
-    TypeExpression, VariableKind,
+    DatexExpression, DatexParserTrait, ParserRecoverExt, TypeExpression,
+    VariableKind,
 };
 use chumsky::prelude::*;
 pub type VariableId = usize;
@@ -90,31 +90,6 @@ pub fn variable_declaration<'a>(
         .labelled(Pattern::Declaration)
         .as_context()
 }
-
-/// A type declaration, e.g. `type MyType = { x: 42, y: "John" };`
-// fn type_declaration<'a>(
-//     union: impl DatexParserTrait<'a>,
-// ) -> impl DatexParserTrait<'a> {
-//     let generic = just(Token::LeftAngle)
-//         .ignore_then(union.clone())
-//         .then_ignore(just(Token::RightAngle))
-//         .or_not();
-
-//     just(Token::Identifier("type".to_string()))
-//         .padded_by(whitespace())
-//         .ignore_then(select! { Token::Identifier(name) => name })
-//         .then(generic)
-//         .then_ignore(just(Token::Assign).padded_by(whitespace()))
-//         .then(union)
-//         .map(|((name, generic), expr)| DatexExpression::TypeDeclaration {
-//             id: None,
-//             generic: generic.map(Box::new),
-//             name: name.to_string(),
-//             value: Box::new(expr),
-//         })
-//         .labelled(Pattern::Declaration)
-//         .as_context()
-// }
 
 /// A declaration or assignment, e.g. `var x = 42;`, `const x = 69`, `x = 43;`, or `type x = 42`
 pub fn declaration_or_assignment<'a>(
