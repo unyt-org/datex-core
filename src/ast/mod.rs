@@ -894,7 +894,7 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Map(vec![])),
+                parameters: Vec::new(),
                 return_type: None,
                 body: Box::new(DatexExpression::Integer(Integer::from(42))),
             }
@@ -913,10 +913,10 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Map(vec![(
-                    DatexExpression::Text("x".to_string()),
-                    DatexExpression::Literal("integer".to_owned())
-                )])),
+                parameters: vec![(
+                    "x".to_string(),
+                    TypeExpression::Literal("integer".to_owned())
+                )],
                 return_type: None,
                 body: Box::new(DatexExpression::Integer(Integer::from(42))),
             }
@@ -932,16 +932,16 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Map(vec![
+                parameters: vec![
                     (
-                        DatexExpression::Text("x".to_string()),
-                        DatexExpression::Literal("integer".to_owned())
+                        "x".to_string(),
+                        TypeExpression::Literal("integer".to_owned())
                     ),
                     (
-                        DatexExpression::Text("y".to_string()),
-                        DatexExpression::Literal("integer".to_owned())
+                        "y".to_string(),
+                        TypeExpression::Literal("integer".to_owned())
                     )
-                ])),
+                ],
                 return_type: None,
                 body: Box::new(DatexExpression::Statements(vec![Statement {
                     expression: DatexExpression::BinaryOperation(
@@ -968,10 +968,12 @@ mod tests {
             val,
             DatexExpression::FunctionDeclaration {
                 name: "myFunction".to_string(),
-                parameters: Box::new(DatexExpression::Map(vec![(
-                    DatexExpression::Text("x".to_string()),
-                    DatexExpression::Literal("integer".to_owned())
-                )])),
+                parameters: vec![
+                    (
+                        "x".to_string(),
+                        TypeExpression::Literal("integer".to_owned())
+                    ),
+                ],
                 return_type: Some(TypeExpression::Union(vec![
                     TypeExpression::Literal("integer".to_owned()),
                     TypeExpression::Literal("text".to_owned())

@@ -36,29 +36,22 @@ fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>> 
     parameter()
         .padded_by(whitespace())
         .separated_by(just(Token::Comma).padded_by(whitespace()))
-        .allow_trailing()
-        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .collect()
+        .padded_by(whitespace())
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
 }
 
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    let function_body = body(statements);
 
     just(Token::Function)
         .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
-        .then(
-            // FIXME why dis not working
-            parameter()
-            .padded_by(whitespace())
-            .separated_by(just(Token::Comma).padded_by(whitespace()))
-            .allow_trailing()
-            .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-            .padded_by(whitespace()))
+        .then(parameters())
         .then(return_type())
-        .then(function_body)
+        .then(body(statements))
         .map(|(((name, params), return_type), body)| {
             DatexExpression::FunctionDeclaration {
                 name,
