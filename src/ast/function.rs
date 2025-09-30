@@ -1,8 +1,9 @@
 use crate::ast::lexer::Token;
 use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait, TypeExpression};
+use crate::ast::{DatexExpression, DatexParserTrait, TokenInput, TypeExpression};
 use chumsky::prelude::*;
+use crate::ast::error::error::ParseError;
 
 fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
     just(Token::Arrow)
@@ -20,36 +21,48 @@ fn body<'a>(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
 }
 
-// TODO don't use map here, custom syntax for function params
-fn parameters<'a>(
-    r#map: impl DatexParserTrait<'a>,
-) -> impl DatexParserTrait<'a> {
-    r#map
-        .clone()
-        .or_not()
-        .map(|e| e.unwrap_or(DatexExpression::Map(vec![])))
-        .delimited_by(
-            just(Token::LeftParen).padded_by(whitespace()), // '(' with spaces/newlines after
-            just(Token::RightParen).padded_by(whitespace()), // ')' with spaces/newlines before
+
+fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
+    select! { Token::Identifier(name) => name }
+        .then(
+            just(Token::Colon)
+                .padded_by(whitespace())
+                .ignore_then(r#type().padded_by(whitespace())),
         )
+        .map(|(name, ty)| (name, ty))
+}
+
+fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>> {
+    parameter()
+        .padded_by(whitespace())
+        .separated_by(just(Token::Comma).padded_by(whitespace()))
+        .allow_trailing()
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .padded_by(whitespace())
 }
 
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
-    map: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    let function_params = parameters(map);
     let function_body = body(statements);
+
     just(Token::Function)
         .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
-        .then(function_params)
+        .then(
+            // FIXME why dis not working
+            parameter()
+            .padded_by(whitespace())
+            .separated_by(just(Token::Comma).padded_by(whitespace()))
+            .allow_trailing()
+            .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+            .padded_by(whitespace()))
         .then(return_type())
         .then(function_body)
         .map(|(((name, params), return_type), body)| {
             DatexExpression::FunctionDeclaration {
                 name,
-                parameters: Box::new(params),
+                parameters: params,
                 return_type,
                 body: Box::new(body),
             }

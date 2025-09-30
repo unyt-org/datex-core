@@ -5,9 +5,9 @@ use crate::ast::{DatexExpression, DatexParserTrait};
 use chumsky::prelude::*;
 
 pub fn list<'a>(
-    expression_without_list: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    expression_without_list
+    expression
         .clone()
         .separated_by(just(Token::Comma).padded_by(whitespace()))
         .at_least(0)

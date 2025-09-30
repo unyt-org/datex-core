@@ -199,7 +199,7 @@ pub enum DatexExpression {
     Endpoint(Endpoint),
     /// List, e.g  `[1, 2, 3, "text"]`
     List(Vec<DatexExpression>),
-    /// Map, e.g {1: 2, 3: 4, xy: "xy"}
+    /// Map, e.g {"xy": 2, (3): 4, xy: "xy"}
     Map(Vec<(DatexExpression, DatexExpression)>),
     /// One or more statements, e.g (1; 2; 3)
     Statements(Vec<Statement>),
@@ -240,7 +240,7 @@ pub enum DatexExpression {
 
     FunctionDeclaration {
         name: String,
-        parameters: Box<DatexExpression>,
+        parameters: Vec<(String, TypeExpression)>,
         return_type: Option<TypeExpression>,
         body: Box<DatexExpression>,
     },
@@ -333,8 +333,10 @@ where
     T: std::cmp::PartialEq + 'a,
 {
     // an expression
+    let mut inner_expression = Recursive::declare();
+
+    // an expression or remote execution
     let mut expression = Recursive::declare();
-    let mut expression_without_list = Recursive::declare();
 
     // a sequence of expressions, separated by semicolons, optionally terminated with a semicolon
     let statements = expression
@@ -394,10 +396,10 @@ where
     // list
     // 1,2,3
     // [1,2,3,4,13434,(1),4,5,7,8]
-    let list = list(expression_without_list.clone());
+    let list = list(expression.clone());
 
     // map
-    let map = map(key.clone(), expression_without_list.clone());
+    let map = map(key.clone(), expression.clone());
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom =
@@ -436,7 +438,7 @@ where
     let union = binary_operation(reference_or_chain);
 
     // FIXME WIP
-    let function_declaration = function(statements.clone(), map.clone());
+    let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
     let comparison = comparison_operation(union.clone());
@@ -490,28 +492,27 @@ where
             .boxed()
     });
 
-    expression_without_list.define(choice((
-        if_expression,
-        declaration_or_assignment,
-        function_declaration,
-        comparison,
-    )));
-
     // expression :: expression
-    let remote_execution = expression_without_list
+    let remote_execution = inner_expression
         .clone()
         .then_ignore(just(Token::DoubleColon).padded_by(whitespace()))
-        .then(expression_without_list.clone())
+        .then(inner_expression.clone())
         .map(|(endpoint, expr)| {
             DatexExpression::RemoteExecution(Box::new(endpoint), Box::new(expr))
         });
 
-    expression.define(
+    inner_expression.define(
         choice((
-            remote_execution,
-            expression_without_list.clone(),
+            if_expression,
+            declaration_or_assignment,
+            function_declaration,
+            comparison,
         ))
         .padded_by(whitespace()),
+    );
+
+    expression.define(
+        choice((remote_execution, inner_expression.clone()))
     );
 
     choice((

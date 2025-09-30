@@ -7,10 +7,10 @@ use chumsky::prelude::*;
 
 pub fn map<'a>(
     key: impl DatexParserTrait<'a>,
-    expression_without_list: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     key.then_ignore(just(Token::Colon).padded_by(whitespace()))
-        .then(expression_without_list.clone())
+        .then(expression.clone())
         .separated_by(just(Token::Comma).padded_by(whitespace()))
         .at_least(0)
         .allow_trailing()
