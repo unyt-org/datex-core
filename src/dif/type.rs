@@ -1,6 +1,7 @@
 use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::Reference;
+use crate::references::reference::mutability_option_as_int;
 use crate::runtime::memory::Memory;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -9,7 +10,6 @@ use crate::values::pointer::PointerAddress;
 use crate::{dif::value::DIFValue, references::reference::ReferenceMutability};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def")]
 pub enum DIFTypeDefinition {
@@ -147,7 +147,7 @@ pub struct DIFType {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "mut")]
     #[serde(default)]
-    #[serde(with = "mutability_as_int")]
+    #[serde(with = "mutability_option_as_int")]
     pub mutability: Option<ReferenceMutability>,
 
     // untagged
@@ -205,48 +205,6 @@ impl DIFTypeContainer {
                 DIFTypeContainer::Reference(address.clone())
             }
         }
-    }
-}
-
-mod mutability_as_int {
-    use super::ReferenceMutability;
-    use serde::de::Error;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S>(
-        value: &Option<ReferenceMutability>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match value {
-            Some(ReferenceMutability::Mutable) => serializer.serialize_u8(0),
-            Some(ReferenceMutability::Immutable) => serializer.serialize_u8(1),
-            Some(ReferenceMutability::Final) => serializer.serialize_u8(2),
-            None => serializer.serialize_none(),
-        }
-    }
-
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<Option<ReferenceMutability>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let opt = Option::<u8>::deserialize(deserializer)?;
-        Ok(match opt {
-            Some(0) => Some(ReferenceMutability::Mutable),
-            Some(1) => Some(ReferenceMutability::Immutable),
-            Some(2) => Some(ReferenceMutability::Final),
-            Some(x) => {
-                return Err(D::Error::custom(format!(
-                    "invalid mutability code: {}",
-                    x
-                )));
-            }
-            None => None,
-        })
     }
 }
 

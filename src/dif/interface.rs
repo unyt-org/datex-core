@@ -49,6 +49,21 @@ impl From<DIFReferenceNotFoundError> for DIFUpdateError {
         DIFUpdateError::ReferenceNotFound
     }
 }
+impl From<AccessError> for DIFUpdateError {
+    fn from(err: AccessError) -> Self {
+        DIFUpdateError::AccessError(err)
+    }
+}
+impl From<AssignmentError> for DIFUpdateError {
+    fn from(err: AssignmentError) -> Self {
+        DIFUpdateError::AssignmentError(err)
+    }
+}
+impl From<TypeError> for DIFUpdateError {
+    fn from(err: TypeError) -> Self {
+        DIFUpdateError::TypeError(err)
+    }
+}
 
 impl Display for DIFUpdateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

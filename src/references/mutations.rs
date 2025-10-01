@@ -185,6 +185,61 @@ impl Reference {
         self.notify_observers(&DIFUpdate::push(dif));
         Ok(())
     }
+
+    /// Tries to delete a property from the reference if it is a map/object.
+    /// Notifies observers if successful.
+    pub fn try_delete_property(
+        &self,
+        key: ValueContainer,
+        memory: &RefCell<Memory>,
+    ) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
+        let key = key.upgrade_combined_value_to_reference();
+        let dif_key = DIFValueContainer::from_value_container(&key, memory);
+        self.with_value_unchecked(|value| {
+            match value.inner {
+                CoreValue::Map(ref mut map) => {
+                    map.remove(&key)?;
+                }
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot delete property '{:?}' on non-object value: {:?}",
+                        key, value
+                    )));
+                }
+            }
+            Ok(())
+        })?;
+
+        self.notify_observers(&DIFUpdate::remove(dif_key));
+        Ok(())
+    }
+
+    pub fn try_clear(&self) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
+
+        self.with_value_unchecked(|value| {
+            match value.inner {
+                CoreValue::Map(ref mut map) => {
+                    map.clear()?;
+                }
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot clear non-list/map value: {:?}",
+                        value
+                    )));
+                }
+            }
+            Ok(())
+        })?;
+
+        self.notify_observers(&DIFUpdate::clear());
+        Ok(())
+    }
 }
 
 #[cfg(test)]

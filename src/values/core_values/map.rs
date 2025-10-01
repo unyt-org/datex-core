@@ -19,14 +19,20 @@ pub enum Map {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MapSetError {
+pub enum MapAccessError {
     KeyNotFound,
+    Immutable,
 }
 
-impl Display for MapSetError {
+impl Display for MapAccessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MapSetError::KeyNotFound => write!(f, "Key not found in fixed map"),
+            MapAccessError::KeyNotFound => {
+                write!(f, "Key not found in fixed map")
+            }
+            MapAccessError::Immutable => {
+                write!(f, "Map is immutable")
+            }
         }
     }
 }
@@ -127,6 +133,32 @@ impl Map {
         }
     }
 
+    pub fn remove(
+        &mut self,
+        key: &ValueContainer,
+    ) -> Result<ValueContainer, MapAccessError> {
+        match self {
+            Map::Dynamic(map) => {
+                map.shift_remove(key).ok_or(MapAccessError::KeyNotFound)
+            }
+            Map::Fixed(_) | Map::Structural(_) => {
+                Err(MapAccessError::Immutable)
+            }
+        }
+    }
+
+    pub fn clear(&mut self) -> Result<(), MapAccessError> {
+        match self {
+            Map::Dynamic(map) => {
+                map.clear();
+                Ok(())
+            }
+            Map::Fixed(_) | Map::Structural(_) => {
+                Err(MapAccessError::Immutable)
+            }
+        }
+    }
+
     pub fn get_owned<T: Into<ValueContainer>>(
         &self,
         key: T,
@@ -138,7 +170,7 @@ impl Map {
         &mut self,
         key: K,
         value: V,
-    ) -> Result<(), MapSetError> {
+    ) -> Result<(), MapAccessError> {
         // self.0.insert(key.into(), value.into());
         match self {
             Map::Dynamic(map) => {
@@ -151,7 +183,7 @@ impl Map {
                     *v = value.into();
                     Ok(())
                 } else {
-                    Err(MapSetError::KeyNotFound)
+                    Err(MapAccessError::KeyNotFound)
                 }
             }
             Map::Structural(vec) => {
@@ -167,10 +199,10 @@ impl Map {
                         *v = value.into();
                         Ok(())
                     } else {
-                        Err(MapSetError::KeyNotFound)
+                        Err(MapAccessError::KeyNotFound)
                     }
                 } else {
-                    Err(MapSetError::KeyNotFound)
+                    Err(MapAccessError::KeyNotFound)
                 }
             }
         }

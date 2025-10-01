@@ -6,6 +6,7 @@ use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::{DIFProperty, DIFUpdate};
 use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::runtime::RuntimeInternal;
+use crate::values::value_container::ValueContainer;
 use crate::{
     dif::{
         interface::{
@@ -77,16 +78,14 @@ impl DIFInterface for RuntimeInternal {
                             &key,
                             value_container,
                             &self.memory,
-                        )
-                        .map_err(DIFUpdateError::AccessError)?;
+                        )?;
                     }
                     DIFProperty::Index(key) => {
                         ptr.try_set_numeric_property(
                             key as u32,
                             value_container,
                             &self.memory,
-                        )
-                        .map_err(DIFUpdateError::AccessError)?;
+                        )?;
                     }
                     DIFProperty::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
@@ -94,25 +93,16 @@ impl DIFInterface for RuntimeInternal {
                             key,
                             value_container,
                             &self.memory,
-                        )
-                        .map_err(DIFUpdateError::AccessError)?;
+                        )?;
                     }
                 }
-
-                // ptr.notify_observers(&DIFUpdate::UpdateProperty {
-                //     property,
-                //     value,
-                // });
                 Ok(())
             }
             DIFUpdate::Replace { value } => {
                 ptr.try_set_value(
                     value.to_value_container(&self.memory)?,
                     &self.memory,
-                )
-                .map_err(DIFUpdateError::AssignmentError)?;
-
-                // ptr.notify_observers(&DIFUpdate::Replace(new_value));
+                )?;
                 Ok(())
             }
             DIFUpdate::Push { value } => {
@@ -127,14 +117,20 @@ impl DIFInterface for RuntimeInternal {
                 ptr.try_push_value(
                     value.to_value_container(&self.memory)?,
                     &self.memory,
-                )
-                .map_err(DIFUpdateError::AccessError)?;
-
-                // ptr.notify_observers(&DIFUpdate::Push(new_value));
+                )?;
                 Ok(())
             }
             DIFUpdate::Clear => {
-                todo!()
+                if !ptr.supports_clear() {
+                    return Err(DIFUpdateError::AccessError(
+                        AccessError::InvalidOperation(
+                            "Reference does not support clear operation"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                ptr.try_clear()?;
+                Ok(())
             }
             DIFUpdate::Remove { key } => {
                 if !ptr.supports_property_access() {
@@ -145,7 +141,24 @@ impl DIFInterface for RuntimeInternal {
                         ),
                     ));
                 }
-                todo!()
+
+                match key {
+                    DIFProperty::Text(key) => ptr.try_delete_property(
+                        ValueContainer::from(key),
+                        &self.memory,
+                    )?,
+                    DIFProperty::Index(key) => {
+                        ptr.try_delete_property(
+                            ValueContainer::from(key),
+                            &self.memory,
+                        )?;
+                    }
+                    DIFProperty::Value(key) => {
+                        let key = key.to_value_container(&self.memory)?;
+                        ptr.try_delete_property(key, &self.memory)?;
+                    }
+                }
+                Ok(())
             }
         }
     }

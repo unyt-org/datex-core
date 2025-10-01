@@ -5,7 +5,7 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 
 use crate::references::value_reference::ValueReference;
-use crate::values::core_values::map::{Map, MapSetError};
+use crate::values::core_values::map::{Map, MapAccessError};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
@@ -28,11 +28,11 @@ pub enum AccessError {
     CanNotUseReferenceAsKey,
     IndexOutOfBounds(u32),
     InvalidPropertyKeyType(String),
-    MapSetError(MapSetError),
+    MapSetError(MapAccessError),
 }
 
-impl From<MapSetError> for AccessError {
-    fn from(err: MapSetError) -> Self {
+impl From<MapAccessError> for AccessError {
+    fn from(err: MapAccessError) -> Self {
         AccessError::MapSetError(err)
     }
 }
@@ -109,6 +109,87 @@ pub enum ReferenceMutability {
     Mutable = 0,
     Immutable = 1,
     Final = 2,
+}
+
+pub mod mutability_as_int {
+    use super::ReferenceMutability;
+    use serde::de::Error;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        value: &ReferenceMutability,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            (ReferenceMutability::Mutable) => serializer.serialize_u8(0),
+            (ReferenceMutability::Immutable) => serializer.serialize_u8(1),
+            (ReferenceMutability::Final) => serializer.serialize_u8(2),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<ReferenceMutability, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let opt = u8::deserialize(deserializer)?;
+        Ok(match opt {
+            (0) => (ReferenceMutability::Mutable),
+            (1) => (ReferenceMutability::Immutable),
+            (2) => (ReferenceMutability::Final),
+            (x) => {
+                return Err(D::Error::custom(format!(
+                    "invalid mutability code: {}",
+                    x
+                )));
+            }
+        })
+    }
+}
+pub mod mutability_option_as_int {
+    use super::ReferenceMutability;
+    use serde::de::Error;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        value: &Option<ReferenceMutability>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            Some(ReferenceMutability::Mutable) => serializer.serialize_u8(0),
+            Some(ReferenceMutability::Immutable) => serializer.serialize_u8(1),
+            Some(ReferenceMutability::Final) => serializer.serialize_u8(2),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<ReferenceMutability>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let opt = Option::<u8>::deserialize(deserializer)?;
+        Ok(match opt {
+            Some(0) => Some(ReferenceMutability::Mutable),
+            Some(1) => Some(ReferenceMutability::Immutable),
+            Some(2) => Some(ReferenceMutability::Final),
+            Some(x) => {
+                return Err(D::Error::custom(format!(
+                    "invalid mutability code: {}",
+                    x
+                )));
+            }
+            None => None,
+        })
+    }
 }
 
 impl Display for ReferenceMutability {
@@ -286,6 +367,18 @@ impl Reference {
         f: F,
     ) -> R {
         self.with_value(f).unwrap()
+    }
+
+    /// Checks if the reference supports clear operation
+    pub fn supports_clear(&self) -> bool {
+        self.with_value(|value| match value.inner {
+            CoreValue::Map(ref mut map) => match map {
+                Map::Dynamic(_) => true,
+                _ => false,
+            },
+            _ => false,
+        })
+        .unwrap_or(false)
     }
 
     /// Checks if the reference has property access.
