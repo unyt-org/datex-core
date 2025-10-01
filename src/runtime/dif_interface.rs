@@ -70,7 +70,7 @@ impl DIFInterface for RuntimeInternal {
                 }
                 let value_container = value.to_value_container(&self.memory)?;
                 match property {
-                    DIFProperty::Text(key) => {
+                    DIFProperty::Key(key) => {
                         ptr.try_set_text_property(
                             &key,
                             value_container,
@@ -78,7 +78,7 @@ impl DIFInterface for RuntimeInternal {
                         )
                         .map_err(DIFUpdateError::AccessError)?;
                     }
-                    DIFProperty::Integer(key) => {
+                    DIFProperty::Index(key) => {
                         ptr.try_set_numeric_property(
                             key as u32,
                             value_container,

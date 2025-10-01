@@ -79,7 +79,7 @@ impl Reference {
         })?;
 
         self.notify_observers(&DIFUpdate::UpdateProperty {
-            property: DIFProperty::Text(key.to_string()),
+            property: DIFProperty::Key(key.to_string()),
             value: dif,
         });
         Ok(())
@@ -129,7 +129,7 @@ impl Reference {
         })?;
 
         self.notify_observers(&DIFUpdate::UpdateProperty {
-            property: DIFProperty::Integer(index as i64),
+            property: DIFProperty::Index(index as i64),
             value: dif,
         });
         Ok(())

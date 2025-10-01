@@ -254,7 +254,7 @@ mod tests {
             .expect("Failed to set property");
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate::UpdateProperty {
-            property: DIFProperty::Text("a".to_string()),
+            property: DIFProperty::Key("a".to_string()),
             value: DIFValue::new(
                 DIFValueRepresentation::String("val".to_string()),
                 DIFTypeContainer::none(),

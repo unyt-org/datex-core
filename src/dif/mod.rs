@@ -61,7 +61,7 @@ mod tests {
 
         // update property
         let dif_update = DIFUpdate::UpdateProperty {
-            property: DIFProperty::Text("name".to_string()),
+            property: DIFProperty::Key("name".to_string()),
             value: DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
                 r#type: None,
