@@ -2,7 +2,7 @@ use binrw::{BinRead, BinWrite};
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{
-        block_header::BlockHeader,
+        block_header::{BlockHeader, BlockType},
         encrypted_header::{self, EncryptedHeader},
         routing_header::{EncryptionType, RoutingHeader},
         serializable::Serializable,
@@ -124,5 +124,14 @@ pub fn dxb_blocks() {
         Endpoint::from_str("@jonas").unwrap(),
         Endpoint::from_str("@ben").unwrap(),
     ]);
+    block.block_header.block_number = 42;
+    block
+        .block_header
+        .flags_and_timestamp
+        .set_block_type(BlockType::TraceBack);
+    block
+        .block_header
+        .flags_and_timestamp
+        .set_has_only_data(true);
     create_dxb_block_artifacts(&block, "receivers".to_string());
 }

@@ -28,17 +28,17 @@ pub enum EncryptionType {
     Encrypted = 0b1,
 }
 
-// 2 bit + 1 bit + 1 bit + 4 bit = 1 byte
+// 2 bit + 1 bit + 2 bit + 1 bit + 1 bit + 1 bit = 1 byte
 #[bitfield]
 #[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
 pub struct Flags {
-    pub signature_type: SignatureType,
-    pub encryption_type: EncryptionType,
-    pub receiver_type: ReceiverType,
-    pub is_bounce_back: bool,
-    pub has_checksum: bool,
+    pub signature_type: SignatureType,   // 2 bit
+    pub encryption_type: EncryptionType, // 1 bit
+    pub receiver_type: ReceiverType,     // 2 bit
+    pub is_bounce_back: bool,            // 1 bit
+    pub has_checksum: bool,              // 1 bit
 
     #[allow(unused)]
     unused_2: bool,
@@ -159,8 +159,16 @@ pub struct ReceiverEndpointsWithKeys {
 }
 
 #[cfg(not(feature = "debug"))]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Default,
+    BinWrite,
+    BinRead,
+    PartialEq,
+)]
 
 pub struct ReceiverEndpointsWithKeys {
     count: u8,

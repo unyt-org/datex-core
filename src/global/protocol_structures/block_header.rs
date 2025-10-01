@@ -7,6 +7,7 @@ use strum_macros::Display;
 // 4 bit
 #[derive(Debug, Display, PartialEq, Clone, Copy, Default, Specifier)]
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
+#[bits = 4]
 pub enum BlockType {
     #[default]
     Request = 0,
@@ -14,28 +15,6 @@ pub enum BlockType {
     Hello = 2,
     Trace = 3,
     TraceBack = 4,
-    #[allow(unused)]
-    Unused3,
-    #[allow(unused)]
-    Unused4,
-    #[allow(unused)]
-    Unused5,
-    #[allow(unused)]
-    Unused6,
-    #[allow(unused)]
-    Unused7,
-    #[allow(unused)]
-    Unused8,
-    #[allow(unused)]
-    Unused9,
-    #[allow(unused)]
-    Unused10,
-    #[allow(unused)]
-    Unused11,
-    #[allow(unused)]
-    Unused12,
-    #[allow(unused)]
-    Unused13,
 }
 
 impl BlockType {
@@ -51,6 +30,7 @@ impl BlockType {
 #[derive(BinWrite, BinRead, Clone, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
+#[brw(little)]
 pub struct FlagsAndTimestamp {
     pub block_type: BlockType,
     pub has_side_effects: bool,
