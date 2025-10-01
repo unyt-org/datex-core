@@ -560,7 +560,10 @@ mod tests {
     };
 
     use super::*;
-    use std::{assert_matches::assert_matches, io, str::FromStr, vec};
+    use std::{
+        assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
+        vec,
+    };
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
