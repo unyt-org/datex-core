@@ -130,6 +130,7 @@ impl TypeContainer {
         get_core_lib_type(CoreLibPointerId::Type)
     }
 }
+
 impl TypeContainer {
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
         Self::value_matches_type(value, self)

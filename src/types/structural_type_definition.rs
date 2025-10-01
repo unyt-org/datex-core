@@ -245,6 +245,7 @@ mod tests {
     use crate::values::core_values::text::Text;
     use crate::values::core_values::r#type::Type;
     use crate::values::value_container::ValueContainer;
+
     #[test]
     fn test_structural_type_display() {
         let int_type = StructuralTypeDefinition::Integer(Integer::from(42));
