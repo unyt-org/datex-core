@@ -164,8 +164,6 @@ pub struct ReceiverEndpointsWithKeys {
 
 #[cfg(not(feature = "debug"))]
 #[derive(
-    serde::Serialize,
-    serde::Deserialize,
     Debug,
     Clone,
     Default,
@@ -177,7 +175,6 @@ pub struct ReceiverEndpointsWithKeys {
 pub struct ReceiverEndpointsWithKeys {
     count: u8,
     #[br(count = count)]
-    #[serde_as(as = "Vec<Bytes>")]
     pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
 }
 
