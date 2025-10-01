@@ -1,3 +1,4 @@
+use crate::libs::core::CoreLibPointerId;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
@@ -11,7 +12,6 @@ use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::integer::Integer;
 use std::fmt::Display;
 use std::hash::Hash;
-use crate::libs::core::CoreLibPointerId;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {
@@ -170,11 +170,15 @@ impl StructuralTypeDefinition {
     /// Get the core lib type pointer id for this structural type definition
     pub fn get_core_lib_type_pointer_id(&self) -> CoreLibPointerId {
         match self {
-            StructuralTypeDefinition::Integer(_) => CoreLibPointerId::Integer(None),
+            StructuralTypeDefinition::Integer(_) => {
+                CoreLibPointerId::Integer(None)
+            }
             StructuralTypeDefinition::TypedInteger(typed) => {
                 CoreLibPointerId::Integer(Some(typed.variant()))
             }
-            StructuralTypeDefinition::Decimal(_) => CoreLibPointerId::Decimal(None),
+            StructuralTypeDefinition::Decimal(_) => {
+                CoreLibPointerId::Decimal(None)
+            }
             StructuralTypeDefinition::TypedDecimal(typed) => {
                 CoreLibPointerId::Decimal(Some(typed.variant()))
             }
@@ -264,7 +268,8 @@ mod tests {
         let struct_type = StructuralTypeDefinition::Map(vec![
             (
                 Type::structural("id".to_string()).into(),
-                Type::structural(int_type.clone()).into()),
+                Type::structural(int_type.clone()).into(),
+            ),
             (
                 Type::structural("name".to_string()).into(),
                 Type::structural(text_type.clone()).into(),
@@ -284,7 +289,5 @@ mod tests {
         let text_value =
             ValueContainer::from(CoreValue::Text(Text::from("Hello")));
         assert!(text_type.value_matches(&text_value));
-
-
     }
 }
