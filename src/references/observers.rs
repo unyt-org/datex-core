@@ -226,12 +226,11 @@ mod tests {
             .expect("Failed to set value");
 
         // Verify the observed update matches the expected change
-        let expected_update = DIFUpdate::Replace {
-            value: DIFValueContainer::from_value_container(
+        let expected_update =
+            DIFUpdate::replace(DIFValueContainer::from_value_container(
                 &ValueContainer::from(43),
                 memory,
-            ),
-        };
+            ));
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
     }
 
@@ -253,14 +252,13 @@ mod tests {
             .try_set_text_property("a", "val".into(), memory)
             .expect("Failed to set property");
         // Verify the observed update matches the expected change
-        let expected_update = DIFUpdate::UpdateProperty {
-            property: DIFProperty::Key("a".to_string()),
-            value: DIFValue::new(
+        let expected_update = DIFUpdate::set(
+            "a",
+            DIFValue::new(
                 DIFValueRepresentation::String("val".to_string()),
                 DIFTypeContainer::none(),
-            )
-            .as_container(),
-        };
+            ),
+        );
         assert_eq!(*observed_updates.borrow(), vec![expected_update]);
     }
 }

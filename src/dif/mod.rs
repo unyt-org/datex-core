@@ -47,12 +47,11 @@ mod tests {
     #[test]
     fn serde() {
         // replace
-        let dif_update = DIFUpdate::Replace {
-            value: DIFValueContainer::Value(DIFValue {
+        let dif_update =
+            DIFUpdate::replace(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::String("Hello".to_string()),
                 r#type: None,
-            }),
-        };
+            }));
         let serialized = serde_json::to_string(&dif_update).unwrap();
         println!("Serialized DIFUpdate: {}", serialized);
         let deserialized: DIFUpdate =
@@ -60,13 +59,13 @@ mod tests {
         assert_eq!(dif_update, deserialized);
 
         // update property
-        let dif_update = DIFUpdate::UpdateProperty {
-            property: DIFProperty::Key("name".to_string()),
-            value: DIFValueContainer::Value(DIFValue {
+        let dif_update = DIFUpdate::set(
+            "name",
+            DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
                 r#type: None,
             }),
-        };
+        );
         let serialized = serde_json::to_string(&dif_update).unwrap();
         println!("Serialized DIFUpdate: {}", serialized);
         let deserialized: DIFUpdate =

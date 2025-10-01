@@ -40,10 +40,7 @@ impl Reference {
             Ok(())
         })?;
         // FIXME: Notify observers about the property update
-        self.notify_observers(&DIFUpdate::UpdateProperty {
-            property: DIFProperty::Value(dif_key),
-            value: dif_val,
-        });
+        self.notify_observers(&DIFUpdate::set(dif_key, dif_val));
         Ok(())
     }
 
@@ -78,10 +75,7 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::UpdateProperty {
-            property: DIFProperty::Key(key.to_string()),
-            value: dif,
-        });
+        self.notify_observers(&DIFUpdate::set(key, dif));
         Ok(())
     }
 
@@ -128,10 +122,10 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::UpdateProperty {
-            property: DIFProperty::Index(index as i64),
-            value: dif,
-        });
+        self.notify_observers(&DIFUpdate::set(
+            DIFProperty::Index(index as i64),
+            dif,
+        ));
         Ok(())
     }
 
@@ -153,12 +147,9 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::Replace {
-            value: DIFValueContainer::from_value_container(
-                value_container,
-                memory,
-            ),
-        });
+        self.notify_observers(&DIFUpdate::replace(
+            DIFValueContainer::from_value_container(value_container, memory),
+        ));
         Ok(())
     }
 
@@ -191,7 +182,7 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::Push { value: dif });
+        self.notify_observers(&DIFUpdate::push(dif));
         Ok(())
     }
 }

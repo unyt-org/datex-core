@@ -1,3 +1,5 @@
+use chumsky::prelude::todo;
+
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;
@@ -59,7 +61,7 @@ impl DIFInterface for RuntimeInternal {
             .resolve_in_memory_reference(&address)
             .ok_or(DIFUpdateError::ReferenceNotFound)?;
         match update {
-            DIFUpdate::UpdateProperty { property, value } => {
+            DIFUpdate::Set { key, value } => {
                 if !ptr.supports_property_access() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
@@ -69,7 +71,7 @@ impl DIFInterface for RuntimeInternal {
                     ));
                 }
                 let value_container = value.to_value_container(&self.memory)?;
-                match property {
+                match key {
                     DIFProperty::Key(key) => {
                         ptr.try_set_text_property(
                             &key,
@@ -103,7 +105,7 @@ impl DIFInterface for RuntimeInternal {
                 // });
                 Ok(())
             }
-            DIFUpdate::Replace { value } => {
+            DIFUpdate::Replace(value) => {
                 ptr.try_set_value(
                     value.to_value_container(&self.memory)?,
                     &self.memory,
@@ -113,7 +115,7 @@ impl DIFInterface for RuntimeInternal {
                 // ptr.notify_observers(&DIFUpdate::Replace(new_value));
                 Ok(())
             }
-            DIFUpdate::Push { value } => {
+            DIFUpdate::Push(value) => {
                 if !ptr.supports_push() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
@@ -130,6 +132,20 @@ impl DIFInterface for RuntimeInternal {
 
                 // ptr.notify_observers(&DIFUpdate::Push(new_value));
                 Ok(())
+            }
+            DIFUpdate::Clear => {
+                todo!()
+            }
+            DIFUpdate::Remove(key) => {
+                if !ptr.supports_property_access() {
+                    return Err(DIFUpdateError::AccessError(
+                        AccessError::InvalidOperation(
+                            "Reference does not support property access"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                todo!()
             }
         }
     }
@@ -283,13 +299,9 @@ mod tests {
         runtime
             .update(
                 pointer_address.clone(),
-                DIFUpdate::Replace {
-                    value: DIFValueContainer::Value(DIFValue::from(
-                        DIFValueRepresentation::String(
-                            "Hello, Datex!".to_string(),
-                        ),
-                    )),
-                },
+                DIFUpdate::replace(DIFValue::from(
+                    DIFValueRepresentation::String("Hello, Datex!".to_string()),
+                )),
             )
             .expect("Failed to update pointer");
 
@@ -297,11 +309,9 @@ mod tests {
         let observed_value = observed.borrow();
         assert_eq!(
             *observed_value,
-            Some(DIFUpdate::Replace {
-                value: DIFValueContainer::Value(DIFValue::from(
-                    DIFValueRepresentation::String("Hello, Datex!".to_string(),)
-                ),)
-            })
+            Some(DIFUpdate::replace(DIFValue::from(
+                DIFValueRepresentation::String("Hello, Datex!".to_string(),)
+            )))
         );
 
         // try unobserve again, should fail
