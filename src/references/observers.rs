@@ -91,7 +91,7 @@ impl Reference {
 
     /// Notifies all observers of a change represented by the given DIFUpdate.
     pub fn notify_observers(&self, dif: &DIFUpdate) {
-        let observers: Vec<Rc<dyn Fn(&DIFUpdate)>> = match self {
+        let observers: Vec<ReferenceObserver> = match self {
             Reference::TypeReference(_) => return, // no observers
             Reference::ValueReference(vr) => {
                 // Clone observers while holding borrow
@@ -120,7 +120,8 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
-    use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+    use crate::runtime::memory::Memory;
+    use crate::values::core_values::map::Map;
     use crate::{
         dif::{
             DIFProperty, DIFUpdate,
@@ -132,11 +133,9 @@ mod tests {
             observers::ObserverError,
             reference::{Reference, ReferenceMutability},
         },
-        values::{value_container::ValueContainer, },
+        values::value_container::ValueContainer,
     };
     use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
-    use crate::runtime::memory::Memory;
-    use crate::values::core_values::map::Map;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -222,11 +221,16 @@ mod tests {
         let observed_update = record_dif_updates(&int_ref);
 
         // Update the value of the reference
-        int_ref.try_set_value(43, memory).expect("Failed to set value");
+        int_ref
+            .try_set_value(43, memory)
+            .expect("Failed to set value");
 
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate::Replace {
-            value: DIFValueContainer::from_value_container(&ValueContainer::from(43), memory),
+            value: DIFValueContainer::from_value_container(
+                &ValueContainer::from(43),
+                memory,
+            ),
         };
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
     }

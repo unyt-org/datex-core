@@ -5,6 +5,7 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 
 use crate::references::value_reference::ValueReference;
+use crate::values::core_values::map::{Map, MapSetError};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::traits::identity::Identity;
@@ -18,7 +19,6 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::values::core_values::map::Map;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -28,10 +28,21 @@ pub enum AccessError {
     CanNotUseReferenceAsKey,
     IndexOutOfBounds(u32),
     InvalidPropertyKeyType(String),
+    MapSetError(MapSetError),
 }
+
+impl From<MapSetError> for AccessError {
+    fn from(err: MapSetError) -> Self {
+        AccessError::MapSetError(err)
+    }
+}
+
 impl Display for AccessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AccessError::MapSetError(err) => {
+                write!(f, "Map set error: {}", err)
+            }
             AccessError::ImmutableReference => {
                 write!(f, "Cannot modify an immutable reference")
             }
@@ -286,9 +297,7 @@ impl Reference {
         self.with_value(|value| {
             matches!(
                 value.inner,
-                CoreValue::Map(_)
-                    | CoreValue::List(_)
-                    | CoreValue::Text(_)
+                CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
             )
         })
         .unwrap_or(false)
@@ -565,9 +574,7 @@ impl Reference {
     }
 
     /// Returns a non-final reference to the ValueReference if this is a non-final ValueReference.
-    pub fn non_final_reference(
-        &self,
-    ) -> Option<Rc<RefCell<ValueReference>>> {
+    pub fn non_final_reference(&self) -> Option<Rc<RefCell<ValueReference>>> {
         match self {
             Reference::TypeReference(_) => None,
             Reference::ValueReference(vr) => {
@@ -618,11 +625,12 @@ impl Reference {
     ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| {
             match value.inner {
-                CoreValue::Map(ref mut struct_val) => {
-                    struct_val.get_text(&key).ok_or_else(|| {
+                CoreValue::Map(ref mut struct_val) => struct_val
+                    .get_text(&key)
+                    .ok_or_else(|| {
                         AccessError::PropertyNotFound(key.to_string())
-                    }).cloned()
-                }
+                    })
+                    .cloned(),
                 _ => {
                     // If the value is not an object, we cannot get a property
                     Err(AccessError::InvalidOperation(
@@ -665,11 +673,11 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::memory::Memory;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;
-    use crate::runtime::memory::Memory;
 
     #[test]
     fn property() {
@@ -813,7 +821,9 @@ mod tests {
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
         object_b_ref.with_maybe_reference(|b_ref| {
-            b_ref.try_set_property("a".into(), object_a_val.clone(), memory).unwrap();
+            b_ref
+                .try_set_property("a".into(), object_a_val.clone(), memory)
+                .unwrap();
         });
 
         println!("Object B Reference: {:#?}", object_b_ref);

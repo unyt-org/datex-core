@@ -23,6 +23,14 @@ pub enum MapSetError {
     KeyNotFound,
 }
 
+impl Display for MapSetError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MapSetError::KeyNotFound => write!(f, "Key not found in fixed map"),
+        }
+    }
+}
+
 impl Default for Map {
     fn default() -> Self {
         Map::Dynamic(IndexMap::new())

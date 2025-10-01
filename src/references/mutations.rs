@@ -1,12 +1,12 @@
-use std::cell::RefCell;
 use crate::dif::value::DIFValueContainer;
 use crate::dif::{DIFProperty, DIFUpdate};
 use crate::references::reference::AssignmentError;
+use crate::runtime::memory::Memory;
 use crate::{
     references::reference::{AccessError, Reference},
     values::{core_value::CoreValue, value_container::ValueContainer},
 };
-use crate::runtime::memory::Memory;
+use std::cell::RefCell;
 
 impl Reference {
     /// Sets a property on the value if applicable (e.g. for objects and structs)
@@ -25,9 +25,9 @@ impl Reference {
         let dif_key = DIFValueContainer::from_value_container(&key, memory);
         self.with_value_unchecked(|value| {
             match value.inner {
-                CoreValue::Map(ref mut obj) => {
+                CoreValue::Map(ref mut map) => {
                     // If the value is an object, set the property
-                    obj.set(key, val);
+                    map.set(key, val)?;
                 }
                 _ => {
                     // If the value is not an object, we cannot set a property
@@ -65,7 +65,7 @@ impl Reference {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
-                    obj.set(key, val);
+                    obj.set(key, val)?;
                 }
                 _ => {
                     // If the value is not an object, we cannot set a property
@@ -100,7 +100,7 @@ impl Reference {
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::List(ref mut list) => {
-                    list.set(index, self.bind_child(val)).ok_or_else(|| {
+                    list.set(index, self.bind_child(val)).ok_or({
                         AccessError::IndexOutOfBounds(index)
                     })?;
                 }
@@ -154,7 +154,10 @@ impl Reference {
         })?;
 
         self.notify_observers(&DIFUpdate::Replace {
-            value: DIFValueContainer::from_value_container(value_container, memory),
+            value: DIFValueContainer::from_value_container(
+                value_container,
+                memory,
+            ),
         });
         Ok(())
     }
@@ -171,7 +174,8 @@ impl Reference {
 
         let value_container =
             value.into().upgrade_combined_value_to_reference();
-        let dif = DIFValueContainer::from_value_container(&value_container, memory);
+        let dif =
+            DIFValueContainer::from_value_container(&value_container, memory);
         self.with_value_unchecked(move |core_value| {
             match &mut core_value.inner {
                 CoreValue::List(list) => {
@@ -187,25 +191,25 @@ impl Reference {
             Ok(())
         })?;
 
-        self.notify_observers(&DIFUpdate::Push{value: dif});
+        self.notify_observers(&DIFUpdate::Push { value: dif });
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
-    use std::cell::RefCell;
     use crate::references::reference::{
         AccessError, AssignmentError, ReferenceMutability,
     };
+    use crate::runtime::memory::Memory;
     use crate::values::core_values::list::List;
     use crate::values::core_values::map::Map;
     use crate::{
         references::reference::Reference,
         values::value_container::ValueContainer,
     };
-    use crate::runtime::memory::Memory;
+    use std::assert_matches::assert_matches;
+    use std::cell::RefCell;
 
     #[test]
     fn push() {
@@ -253,8 +257,11 @@ mod tests {
         assert_eq!(updated_value, 42.into());
 
         // Set new property
-        let result =
-            map_ref.try_set_property("new".into(), ValueContainer::from(99), memory);
+        let result = map_ref.try_set_property(
+            "new".into(),
+            ValueContainer::from(99),
+            memory,
+        );
         assert!(result.is_ok());
         let new_value = map_ref
             .try_get_property(ValueContainer::from("new"))
@@ -282,17 +289,20 @@ mod tests {
         assert_eq!(updated_value, ValueContainer::from(42));
 
         // Try to set out-of-bounds index
-        let result =
-            arr_ref.try_set_numeric_property(5, ValueContainer::from(99), memory);
-        assert_matches!(
-            result,
-            Err(AccessError::IndexOutOfBounds(5))
+        let result = arr_ref.try_set_numeric_property(
+            5,
+            ValueContainer::from(99),
+            memory,
         );
+        assert_matches!(result, Err(AccessError::IndexOutOfBounds(5)));
 
         // Try to set index on non-array value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let result =
-            int_ref.try_set_numeric_property(0, ValueContainer::from(99), memory);
+        let result = int_ref.try_set_numeric_property(
+            0,
+            ValueContainer::from(99),
+            memory,
+        );
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
@@ -301,14 +311,8 @@ mod tests {
         let memory = &RefCell::new(Memory::default());
 
         let struct_val = Map::from(vec![
-            (
-                ValueContainer::from("name"),
-                ValueContainer::from("Alice")
-            ),
-            (
-                ValueContainer::from("age"),
-                ValueContainer::from(30)
-            ),
+            (ValueContainer::from("name"), ValueContainer::from("Alice")),
+            (ValueContainer::from("age"), ValueContainer::from(30)),
         ]);
         let struct_ref =
             Reference::try_mut_from(ValueContainer::from(struct_val)).unwrap();
@@ -324,19 +328,18 @@ mod tests {
         let result = struct_ref.try_set_text_property(
             "nonexistent",
             ValueContainer::from("Value"),
-            memory
+            memory,
         );
-        assert_matches!(
-            result,
-            Ok(())
-        );
+        assert_matches!(result, Ok(()));
 
-        // TODO: only for strictly typed structs
         // // Try to set property on non-struct value
-        // let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        // let result =
-        //     int_ref.try_set_text_property("name", ValueContainer::from("Bob"), memory);
-        // assert_matches!(result, Err(AccessError::InvalidOperation(_)));
+        let int_ref = Reference::try_mut_from(42.into()).unwrap();
+        let result = int_ref.try_set_text_property(
+            "name",
+            ValueContainer::from("Bob"),
+            memory,
+        );
+        assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
     #[test]
