@@ -1,48 +1,21 @@
 use serde::{Deserialize, Serialize};
 
 use crate::dif::value::DIFValueContainer;
-pub mod dif_representation;
 pub mod interface;
-pub mod r#type;
-pub mod value;
 pub mod reference;
-
-/// Represents a property in the Datex Interface Format (DIF).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value")]
-pub enum DIFProperty {
-    /// a simple string property
-    Text(String),
-    /// an integer property (e.g. an array index)
-    Integer(i64),
-    /// any other property type
-    Value(DIFValueContainer),
-}
-
-/// Represents an update operation for a DIF value.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind")]
-pub enum DIFUpdate {
-    Replace {
-        value: DIFValueContainer,
-    },
-    UpdateProperty {
-        property: DIFProperty,
-        value: DIFValueContainer,
-    },
-    Push {
-        value: DIFValueContainer,
-    },
-}
+pub mod representation;
+pub mod r#type;
+pub mod update;
+pub mod value;
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use datex_core::dif::r#type::DIFTypeDefinition;
-    use datex_core::values::core_values::endpoint::Endpoint;
+    use super::*;
+    use crate::dif::update::{DIFProperty, DIFUpdate};
+    use crate::runtime::memory::Memory;
     use crate::{
         dif::{
-            dif_representation::DIFValueRepresentation,
+            representation::DIFValueRepresentation,
             r#type::{DIFType, DIFTypeContainer},
             value::DIFValue,
         },
@@ -56,8 +29,9 @@ mod tests {
             value_container::ValueContainer,
         },
     };
-    use crate::runtime::memory::Memory;
-    use super::*;
+    use datex_core::dif::r#type::DIFTypeDefinition;
+    use datex_core::values::core_values::endpoint::Endpoint;
+    use std::cell::RefCell;
 
     fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
         let memory = RefCell::new(Memory::new(Endpoint::default()));

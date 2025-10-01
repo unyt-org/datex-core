@@ -1,7 +1,7 @@
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::{
-    dif::DIFUpdate,
+    dif::update::DIFUpdate,
     references::{reference::Reference, value_reference::ValueReference},
 };
 
@@ -120,12 +120,12 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
+    use crate::dif::update::{DIFProperty, DIFUpdate};
     use crate::runtime::memory::Memory;
     use crate::values::core_values::map::Map;
     use crate::{
         dif::{
-            DIFProperty, DIFUpdate,
-            dif_representation::DIFValueRepresentation,
+            representation::DIFValueRepresentation,
             r#type::DIFTypeContainer,
             value::{DIFValue, DIFValueContainer},
         },

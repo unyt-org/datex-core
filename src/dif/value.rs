@@ -1,9 +1,8 @@
-use std::cell::{Ref, RefCell};
-use log::info;
 use crate::dif::{
-    dif_representation::DIFValueRepresentation, r#type::DIFTypeContainer,
+    representation::DIFValueRepresentation, r#type::DIFTypeContainer,
 };
 use crate::libs::core::CoreLibPointerId;
+use crate::references::reference::Reference;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -12,10 +11,11 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use datex_core::values::core_value::CoreValue;
-use serde::{Deserialize, Serialize};
 use datex_core::runtime::memory::Memory;
-use crate::references::reference::Reference;
+use datex_core::values::core_value::CoreValue;
+use log::info;
+use serde::{Deserialize, Serialize};
+use std::cell::{Ref, RefCell};
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;
@@ -31,15 +31,15 @@ pub struct DIFValue {
 impl DIFValue {
     /// Converts the DIFValue into a Value, resolving references using the provided memory.
     /// Returns an error if a reference cannot be resolved.
-    pub fn to_value(self, memory: &RefCell<Memory>) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(
-            if let Some(r#type) = &self.r#type {
-                self.value.to_value_with_type(r#type, memory)?
-            }
-            else {
-                self.value.to_default_value(memory)?
-            }
-        )
+    pub fn to_value(
+        self,
+        memory: &RefCell<Memory>,
+    ) -> Result<Value, DIFReferenceNotFoundError> {
+        Ok(if let Some(r#type) = &self.r#type {
+            self.value.to_value_with_type(r#type, memory)?
+        } else {
+            self.value.to_default_value(memory)?
+        })
     }
 }
 
@@ -78,17 +78,22 @@ pub enum DIFValueContainer {
 impl DIFValueContainer {
     /// Converts the DIFValueContainer into a ValueContainer, resolving references using the provided memory.
     /// Returns an error if a reference cannot be resolved.
-    pub fn to_value_container(self, memory: &RefCell<Memory>) -> Result<ValueContainer, DIFReferenceNotFoundError> {
-        Ok(
-            match self {
-                DIFValueContainer::Reference(address) => ValueContainer::Reference(
-                    memory.borrow().get_reference(&address)
-                        .ok_or(DIFReferenceNotFoundError)?
-                        .clone(),
-                ),
-                DIFValueContainer::Value(v) => ValueContainer::Value(v.to_value(memory)?)
+    pub fn to_value_container(
+        self,
+        memory: &RefCell<Memory>,
+    ) -> Result<ValueContainer, DIFReferenceNotFoundError> {
+        Ok(match self {
+            DIFValueContainer::Reference(address) => ValueContainer::Reference(
+                memory
+                    .borrow()
+                    .get_reference(&address)
+                    .ok_or(DIFReferenceNotFoundError)?
+                    .clone(),
+            ),
+            DIFValueContainer::Value(v) => {
+                ValueContainer::Value(v.to_value(memory)?)
             }
-        )
+        })
     }
 }
 
@@ -115,7 +120,10 @@ pub enum TryIntoDIFError {
 }
 
 impl DIFValueContainer {
-    pub fn from_value_container(value_container: &ValueContainer, memory: &RefCell<Memory>) -> Self {
+    pub fn from_value_container(
+        value_container: &ValueContainer,
+        memory: &RefCell<Memory>,
+    ) -> Self {
         match value_container {
             ValueContainer::Reference(reference) => {
                 // get pointer address, if not present register the reference in memory
@@ -201,18 +209,24 @@ impl DIFValue {
             }
             CoreValue::List(list) => DIFValueRepresentation::Array(
                 list.iter()
-                    .map(|v| DIFValueContainer::from_value_container(v, &memory))
-                    .collect()
+                    .map(|v| {
+                        DIFValueContainer::from_value_container(v, &memory)
+                    })
+                    .collect(),
             ),
-            CoreValue::Map(map) => {
-                DIFValueRepresentation::Map(
-                    map.into_iter()
-                        .map(|(k, v)|
-                            (DIFValueContainer::from_value_container(&ValueContainer::from(k), &memory), DIFValueContainer::from_value_container(v, &memory))
+            CoreValue::Map(map) => DIFValueRepresentation::Map(
+                map.into_iter()
+                    .map(|(k, v)| {
+                        (
+                            DIFValueContainer::from_value_container(
+                                &ValueContainer::from(k),
+                                &memory,
+                            ),
+                            DIFValueContainer::from_value_container(v, &memory),
                         )
-                        .collect()
-                )
-            }
+                    })
+                    .collect(),
+            ),
         };
 
         info!("map type {}", &value.actual_type);
@@ -247,7 +261,10 @@ fn get_allowed_type(
 /// - Decimal (f64)
 /// - List
 /// - Map
-fn get_type_if_non_default(type_container: &TypeContainer, memory: &RefCell<Memory>) -> Option<DIFTypeContainer> {
+fn get_type_if_non_default(
+    type_container: &TypeContainer,
+    memory: &RefCell<Memory>,
+) -> Option<DIFTypeContainer> {
     match type_container {
         TypeContainer::TypeReference(inner) => {
             if let Some(Ok(address)) = inner
@@ -267,24 +284,30 @@ fn get_type_if_non_default(type_container: &TypeContainer, memory: &RefCell<Memo
             {
                 None
             } else {
-                Some(DIFTypeContainer::from_type_container(type_container, memory))
+                Some(DIFTypeContainer::from_type_container(
+                    type_container,
+                    memory,
+                ))
             }
         }
-        _ => Some(DIFTypeContainer::from_type_container(type_container, memory)),
+        _ => Some(DIFTypeContainer::from_type_container(
+            type_container,
+            memory,
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
+    use crate::runtime::memory::Memory;
+    use crate::values::core_values::endpoint::Endpoint;
     use crate::{
         dif::{r#type::DIFTypeContainer, value::DIFValue},
         libs::core::CoreLibPointerId,
         values::core_values::integer::typed_integer::IntegerTypeVariant,
     };
     use datex_core::values::value::Value;
-    use crate::runtime::memory::Memory;
-    use crate::values::core_values::endpoint::Endpoint;
+    use std::cell::RefCell;
 
     fn get_mock_memory() -> RefCell<Memory> {
         RefCell::new(Memory::new(Endpoint::default()))

@@ -1,5 +1,5 @@
+use crate::dif::update::{DIFProperty, DIFUpdate};
 use crate::dif::value::DIFValueContainer;
-use crate::dif::{DIFProperty, DIFUpdate};
 use crate::references::reference::AssignmentError;
 use crate::runtime::memory::Memory;
 use crate::{
