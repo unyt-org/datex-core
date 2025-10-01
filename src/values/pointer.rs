@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use log::info;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

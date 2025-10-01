@@ -230,7 +230,7 @@ impl DIFTypeRepresentation {
             StructuralTypeDefinition::Map(fields) => {
                 DIFTypeRepresentation::Map(
                     fields
-                        .into_iter()
+                        .iter()
                         .map(|(k, v)| {
                             (
                                 DIFTypeContainer::from_type_container(

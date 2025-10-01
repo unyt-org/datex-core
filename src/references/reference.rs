@@ -719,7 +719,7 @@ impl Reference {
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Map(ref mut struct_val) => struct_val
-                    .get_text(&key)
+                    .get_text(key)
                     .ok_or_else(|| {
                         AccessError::PropertyNotFound(key.to_string())
                     })

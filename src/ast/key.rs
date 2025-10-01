@@ -1,6 +1,3 @@
-use crate::ast::decimal::decimal;
-use crate::ast::endpoint::endpoint;
-use crate::ast::integer::integer;
 use crate::ast::lexer::Token;
 use crate::ast::text::text;
 use crate::ast::{DatexExpression, DatexParserTrait};

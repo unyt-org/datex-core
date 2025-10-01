@@ -3,7 +3,6 @@ use crate::dif::{
     representation::DIFValueRepresentation, r#type::DIFTypeContainer,
 };
 use crate::libs::core::CoreLibPointerId;
-use crate::references::reference::Reference;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -16,7 +15,7 @@ use datex_core::runtime::memory::Memory;
 use datex_core::values::core_value::CoreValue;
 use log::info;
 use serde::{Deserialize, Serialize};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;
@@ -213,7 +212,7 @@ impl DIFValue {
             CoreValue::List(list) => DIFValueRepresentation::Array(
                 list.iter()
                     .map(|v| {
-                        DIFValueContainer::from_value_container(v, &memory)
+                        DIFValueContainer::from_value_container(v, memory)
                     })
                     .collect(),
             ),
@@ -223,9 +222,9 @@ impl DIFValue {
                         (
                             DIFValueContainer::from_value_container(
                                 &ValueContainer::from(k),
-                                &memory,
+                                memory,
                             ),
-                            DIFValueContainer::from_value_container(v, &memory),
+                            DIFValueContainer::from_value_container(v, memory),
                         )
                     })
                     .collect(),
