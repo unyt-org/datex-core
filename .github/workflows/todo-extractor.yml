@@ -1,28 +1,28 @@
 name: datex-tractor
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - 'release/*'
+    workflow_dispatch:
+    push:
+        branches:
+            - "release/*"
 
 concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
+    group: ${{ github.workflow }}
+    cancel-in-progress: false
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: read
+    contents: write
+    issues: write
+    pull-requests: read
 
 jobs:
-  Datex-tractor:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout own repo
-        uses: actions/checkout@v4
+    Datex-tractor:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout own repo
+              uses: actions/checkout@v4
 
-      - name: Run datex_tractor
-        uses: unyt-org/datex-tractor@r0.0.3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+            - name: Run datex_tractor
+              uses: unyt-org/datex-tractor@r0.0.3
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}

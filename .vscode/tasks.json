@@ -5,7 +5,7 @@
             "label": "Format",
             "type": "shell",
             "command": "deno task fmt && cargo clippy-debug --fix && git add . && git commit -m 'fmt'",
-            "problemMatcher": [],
+            "problemMatcher": []
         },
         {
             "label": "Cargo Test",
@@ -42,12 +42,18 @@
         {
             "label": "Test All",
             "type": "shell",
-            "dependsOn": ["Cargo Test", "Deno Test"],
+            "dependsOn": ["Deno Test", "Cargo Test"],
             "group": {
                 "kind": "test",
                 "isDefault": true
             },
             "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
         },
         {
             "label": "Cargo Build",
@@ -64,6 +70,6 @@
                 "focus": false,
                 "panel": "shared"
             }
-        },
+        }
     ]
 }

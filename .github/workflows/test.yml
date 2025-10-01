@@ -6,48 +6,48 @@ jobs:
         runs-on: ubuntu-latest
         name: Test
         env:
-          PROJECT_NAME_UNDERSCORE: datex_core
-          CARGO_INCREMENTAL: 0
+            PROJECT_NAME_UNDERSCORE: datex_core
+            CARGO_INCREMENTAL: 0
         steps:
             - uses: actions/checkout@v4
 
             - name: Install libudev-dev and pkg-config
               run: |
-                sudo apt update
-                sudo apt install -y libudev-dev pkg-config
+                  sudo apt update
+                  sudo apt install -y libudev-dev pkg-config
 
             - uses: dtolnay/rust-toolchain@stable
               with:
-                toolchain: nightly
-                components: clippy
+                  toolchain: nightly
+                  components: clippy
 
-#            - name: Cache dependencies
-#              uses: actions/cache@v4
-#              env:
-#                cache-name: cache-dependencies
-#              with:
-#                path: |
-#                  ~/.cargo/.crates.toml
-#                  ~/.cargo/.crates2.json
-#                  ~/.cargo/bin
-#                  ~/.cargo/registry/index
-#                  ~/.cargo/registry/cache
-#                  target
-#                key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+            #            - name: Cache dependencies
+            #              uses: actions/cache@v4
+            #              env:
+            #                cache-name: cache-dependencies
+            #              with:
+            #                path: |
+            #                  ~/.cargo/.crates.toml
+            #                  ~/.cargo/.crates2.json
+            #                  ~/.cargo/bin
+            #                  ~/.cargo/registry/index
+            #                  ~/.cargo/registry/cache
+            #                  target
+            #                key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
 
             - name: Check formatting
               run: cargo clippy --features debug
 
             - name: Generate test result and coverage report
               run: |
-                cargo install cargo2junit;
-                cargo test-debug $CARGO_OPTIONS -- -Z unstable-options --report-time --format json | cargo2junit > results.xml;
-                echo "Test results generated in results.xml"
-                ls -l
-                cat results.xml
+                  cargo install cargo2junit;
+                  cargo test-debug $CARGO_OPTIONS -- -Z unstable-options --report-time --format json | cargo2junit > results.xml;
+                  echo "Test results generated in results.xml"
+                  ls -l
+                  cat results.xml
             - name: Upload test results
               uses: EnricoMi/publish-unit-test-result-action@v2
               with:
-                check_name: Test Results
-                github_token: ${{ secrets.GITHUB_TOKEN }}
-                files: results.xml
+                  check_name: Test Results
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  files: results.xml

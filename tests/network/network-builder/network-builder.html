@@ -13,14 +13,14 @@
             }
             body {
                 margin: 0;
-                padding: 0; 
-                overflow: hidden; 
+                padding: 0;
+                overflow: hidden;
                 font-family: Arial, sans-serif;
                 font-size: 14px;
             }
-            #cy { 
-                width: 100vw; 
-                height: 100vh; 
+            #cy {
+                width: 100vw;
+                height: 100vh;
                 display: block;
                 position: fixed;
                 z-index: 0;
@@ -77,16 +77,15 @@
         <div id="cy"></div>
         <dialog id="network-dialog">
             <form method="dialog">
-              <label for="network-select">Choose a network:</label>
-              <select id="network-select" name="network">
-              </select>
-              <div style="margin-top: 10px;">
-                <button value="cancel">Cancel</button>
-                <button data-action="load-network" value="ok">OK</button>
-              </div>
+                <label for="network-select">Choose a network:</label>
+                <select id="network-select" name="network"></select>
+                <div style="margin-top: 10px">
+                    <button value="cancel">Cancel</button>
+                    <button data-action="load-network" value="ok">OK</button>
+                </div>
             </form>
         </dialog>
-        
+
         <div id="top-controls" class="control-panel">
             <button data-action="add-node">Add Node</button>
             <button data-action="add-edge">Add Edge</button>
@@ -99,7 +98,10 @@
             <h3>Link Controls</h3>
             <div>Name: <span id="edge-id"></span></div>
             <label>Priority:
-                <select id="edge-priority-select" data-action="edge-priority-select">
+                <select
+                    id="edge-priority-select"
+                    data-action="edge-priority-select"
+                >
                     <option selected value="-1">none</option>
                     <option value="0">0</option>
                     <option value="1">1</option>
@@ -125,11 +127,19 @@
             <button data-action="remove">Remove</button>
             <label>
                 Bidirectional:
-                <input type="checkbox" id="edge-bidirectional" data-action="edge-bidirectional" />
+                <input
+                    type="checkbox"
+                    id="edge-bidirectional"
+                    data-action="edge-bidirectional"
+                />
             </label>
             <label>
                 With known endpoint:
-                <input type="checkbox" id="with-known-endpoint" data-action="with-known-endpoint" />
+                <input
+                    type="checkbox"
+                    id="with-known-endpoint"
+                    data-action="with-known-endpoint"
+                />
             </label>
         </div>
         <script type="module" src="network-builder.ts"></script>

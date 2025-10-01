@@ -5,6 +5,10 @@
         "fmt": "deno fmt",
         "serve": "deno run -A https://raw.githubusercontent.com/unyt-org/ts-file-server/main/src/run.ts -p tests/network/network-builder -w --minify=false --port 8043"
     },
+    "imports": {
+        "@opentf/obj-diff": "jsr:@opentf/obj-diff@^0.11.0",
+        "@unyt/speck": "jsr:@unyt/speck@^0.0.9"
+    },
     "compilerOptions": {
         "lib": ["dom", "esnext", "deno.ns"]
     },

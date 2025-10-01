@@ -1,32 +1,32 @@
 on:
-  pull_request:
-    types: [opened, reopened, edited, synchronize]
+    pull_request:
+        types: [opened, reopened, edited, synchronize]
 
 jobs:
-  benchmark_pr_branch:
-    name: Continuous Benchmarking PRs
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    permissions:
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: bencherdev/bencher@main
-      - name: Install Dependencies
-        run: |
-          sudo apt update
-          sudo apt install libudev-dev pkg-config
-      - name: Track PR Benchmarks with Bencher
-        run: |
-          bencher run \
-          --project datex-core \
-          --token '${{ secrets.BENCHER_API_TOKEN }}' \
-          --branch "$GITHUB_HEAD_REF" \
-          --start-point main \
-          --start-point-clone-thresholds \
-          --start-point-reset \
-          --testbed ubuntu-latest \
-          --err \
-          --adapter rust_criterion \
-          --github-actions '${{ secrets.GITHUB_TOKEN }}' \
-          cargo bench
+    benchmark_pr_branch:
+        name: Continuous Benchmarking PRs
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        permissions:
+            pull-requests: write
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: bencherdev/bencher@main
+            - name: Install Dependencies
+              run: |
+                  sudo apt update
+                  sudo apt install libudev-dev pkg-config
+            - name: Track PR Benchmarks with Bencher
+              run: |
+                  bencher run \
+                  --project datex-core \
+                  --token '${{ secrets.BENCHER_API_TOKEN }}' \
+                  --branch "$GITHUB_HEAD_REF" \
+                  --start-point main \
+                  --start-point-clone-thresholds \
+                  --start-point-reset \
+                  --testbed ubuntu-latest \
+                  --err \
+                  --adapter rust_criterion \
+                  --github-actions '${{ secrets.GITHUB_TOKEN }}' \
+                  cargo bench

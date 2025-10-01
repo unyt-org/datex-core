@@ -1,6 +1,7 @@
 # Type system considerations
 
 ## Typing
+
 ```
 var jsexport: any = import(x);
 var y = jsexport.x() # error
@@ -21,11 +22,12 @@ val x: text | integer = remote::call() as integer # if text throws
 val x: text | integer = remote::call()
 ```
 
-
 ## Equality concept
 
-* `==` checks that memory is the same, type doesn't matter `User({1,2}) == {1,2}` is true
-* `===` checks that values match and type is identical (for all parts of the concatenation)
+- `==` checks that memory is the same, type doesn't matter
+  `User({1,2}) == {1,2}` is true
+- `===` checks that values match and type is identical (for all parts of the
+  concatenation)
 
 ```
 a == b or Ref<a> == Ref<b> or Ref<a> == b -> soft equality comparison
@@ -87,5 +89,4 @@ x == "test" # true
 (x as {y: 1}).y == 1 # true
 (x as {y: 2}).y == 2 # true
 (x as {y: integer}).y == 2 # ?????
-
 ```
