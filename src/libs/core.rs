@@ -11,7 +11,6 @@ use crate::values::core_values::r#type::Type;
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
-use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::once;
@@ -22,7 +21,7 @@ thread_local! {
     pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CoreLibPointerId {
     Core,                                // #core
     Type,                                // #core.type
@@ -37,39 +36,6 @@ pub enum CoreLibPointerId {
     Function,                            // #core.Function
     Union,                               // #core.Union
     Unit,                                // #core.unit
-}
-
-impl Serialize for CoreLibPointerId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            CoreLibPointerId::Type => serializer.serialize_str("Type"),
-            CoreLibPointerId::Null => serializer.serialize_str("null"),
-            CoreLibPointerId::Boolean => serializer.serialize_str("boolean"),
-            CoreLibPointerId::Integer(None) => {
-                serializer.serialize_str("integer")
-            }
-            CoreLibPointerId::Integer(Some(v)) => {
-                serializer.collect_seq(&["integer", v.as_ref()])
-            }
-            CoreLibPointerId::Decimal(None) => {
-                serializer.serialize_str("decimal")
-            }
-            CoreLibPointerId::Decimal(Some(v)) => {
-                serializer.collect_seq(&["decimal", v.as_ref()])
-            }
-            CoreLibPointerId::Text => serializer.serialize_str("text"),
-            CoreLibPointerId::Endpoint => serializer.serialize_str("endpoint"),
-            CoreLibPointerId::List => serializer.serialize_str("List"),
-            CoreLibPointerId::Map => serializer.serialize_str("Map"),
-            CoreLibPointerId::Function => serializer.serialize_str("Function"),
-            CoreLibPointerId::Union => serializer.serialize_str("Union"),
-            CoreLibPointerId::Unit => serializer.serialize_str("Unit"),
-            CoreLibPointerId::Core => unreachable!("not serializable"),
-        }
-    }
 }
 
 impl CoreLibPointerId {
@@ -350,8 +316,8 @@ mod tests {
     use crate::values::core_values::endpoint::Endpoint;
 
     use super::*;
-    use std::assert_matches::assert_matches;
     use itertools::Itertools;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn core_lib() {
@@ -467,15 +433,12 @@ mod tests {
     #[ignore]
     #[test]
     fn print_core_lib_addresses_as_hex() {
-        let sorted_entries = CORE_LIB_TYPES
-            .with(|core|
-                      core.keys()
-                          .map(|k| (k.clone(), PointerAddress::from(k.clone())))
-                          .sorted_by_key(|(_, address)| {
-                              address.bytes().to_vec()
-                          })
-                          .collect::<Vec<_>>()
-            );
+        let sorted_entries = CORE_LIB_TYPES.with(|core| {
+            core.keys()
+                .map(|k| (k.clone(), PointerAddress::from(k.clone())))
+                .sorted_by_key(|(_, address)| address.bytes().to_vec())
+                .collect::<Vec<_>>()
+        });
         for (core_lib_id, address) in sorted_entries {
             println!("{:?}: {}", core_lib_id, address);
         }
