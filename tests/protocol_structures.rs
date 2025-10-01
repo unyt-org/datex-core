@@ -137,3 +137,8 @@ pub fn dxb_blocks() {
         .set_has_only_data(true);
     create_dxb_block_artifacts(&mut block, "receivers".to_string());
 }
+
+#[test]
+fn xx() {
+    println!("{:?}", Endpoint::from_str("@jonas").unwrap().to_binary());
+}

@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@opentf/obj-diff": "jsr:@opentf/obj-diff@^0.11.0",
+    "@unyt/speck": "jsr:@unyt/speck@^0.0.9"
+  }
+}

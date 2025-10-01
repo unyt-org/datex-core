@@ -2,11 +2,8 @@ import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/mai
   type: "json",
 };
 
-import {
-  parseAndPackStructure,
-  type StructureDefinition,
-} from "jsr:@unyt/speck";
-import { diff } from "jsr:@opentf/obj-diff";
+import { parseAndPackStructure, type StructureDefinition } from "@unyt/speck";
+import { diff } from "@opentf/obj-diff";
 
 function resolvePath(
   object: Record<string, unknown>,
