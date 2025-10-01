@@ -1,3 +1,4 @@
+use crate::dif::DIFConvertible;
 use crate::dif::{
     representation::DIFValueRepresentation, r#type::DIFTypeContainer,
 };
@@ -27,6 +28,7 @@ pub struct DIFValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<DIFTypeContainer>,
 }
+impl DIFConvertible for DIFValue {}
 
 impl DIFValue {
     /// Converts the DIFValue into a Value, resolving references using the provided memory.
@@ -74,6 +76,7 @@ pub enum DIFValueContainer {
     Value(DIFValue),
     Reference(PointerAddress),
 }
+impl DIFConvertible for DIFValueContainer {}
 
 impl DIFValueContainer {
     /// Converts the DIFValueContainer into a ValueContainer, resolving references using the provided memory.
@@ -299,6 +302,7 @@ fn get_type_if_non_default(
 
 #[cfg(test)]
 mod tests {
+    use crate::dif::DIFConvertible;
     use crate::runtime::memory::Memory;
     use crate::values::core_values::endpoint::Endpoint;
     use crate::{
@@ -342,9 +346,9 @@ mod tests {
     fn serde_dif_value() {
         let memory = get_mock_memory();
         let dif = DIFValue::from_value(&Value::from("Hello, world!"), &memory);
-        let serialized = serde_json::to_string(&dif).unwrap();
+        let serialized = dif.as_json();
         println!("Serialized DIFValue: {}", serialized);
-        let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();
+        let deserialized = DIFValue::from_json(&serialized);
         assert_eq!(dif, deserialized);
     }
     // #[test]

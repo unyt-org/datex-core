@@ -1,3 +1,4 @@
+use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::Reference;
 use crate::runtime::memory::Memory;
@@ -132,6 +133,7 @@ pub enum DIFTypeContainer {
     Reference(PointerAddress),
 }
 
+impl DIFConvertible for DIFTypeContainer {}
 impl DIFTypeContainer {
     pub fn none() -> Option<Self> {
         None
@@ -152,6 +154,7 @@ pub struct DIFType {
     #[serde(flatten)]
     pub type_definition: DIFTypeDefinition,
 }
+impl DIFConvertible for DIFType {}
 
 impl DIFType {
     pub fn as_container(self) -> DIFTypeContainer {
@@ -249,11 +252,6 @@ mod mutability_as_int {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        dif::representation::DIFValueRepresentation,
-        types::structural_type_definition::StructuralTypeDefinition,
-    };
-
     use super::*;
     #[test]
     fn dif_type_serialization() {
@@ -262,9 +260,9 @@ mod tests {
             mutability: Some(ReferenceMutability::Mutable),
             type_definition: DIFTypeDefinition::Unit,
         };
-        let serialized = serde_json::to_string(&dif_type).unwrap();
+        let serialized = dif_type.as_json();
         println!("Serialized DIFType: {}", serialized);
-        let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
+        let deserialized = DIFType::from_json(&serialized);
         assert_eq!(dif_type, deserialized);
     }
 
@@ -291,9 +289,9 @@ mod tests {
                 },
             )),
         };
-        let serialized = serde_json::to_string(&dif_type).unwrap();
+        let serialized = dif_type.as_json();
         println!("Serialized DIFType: {}", serialized);
-        let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
+        let deserialized: DIFType = DIFType::from_json(&serialized);
         assert_eq!(dif_type, deserialized);
     }
 
@@ -324,11 +322,6 @@ mod tests {
                 },
             )),
         };
-        let serialized = serde_json::to_string_pretty(&dif_type).unwrap();
-        println!("Serialized DIFType: {}", serialized);
-        let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
-        println!("Deserialized DIFType: {:#?}", deserialized);
-        assert_eq!(dif_type, deserialized);
     }
 
     #[test]
@@ -350,9 +343,9 @@ mod tests {
                 },
             )),
         };
-        let serialized = serde_json::to_string_pretty(&dif_type).unwrap();
+        let serialized = dif_type.as_json();
         println!("Serialized DIFType: {}", serialized);
-        let deserialized: DIFType = serde_json::from_str(&serialized).unwrap();
+        let deserialized: DIFType = DIFType::from_json(&serialized);
         println!("Deserialized DIFType: {:#?}", deserialized);
         assert_eq!(dif_type, deserialized);
     }

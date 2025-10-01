@@ -72,7 +72,7 @@ impl DIFInterface for RuntimeInternal {
                 }
                 let value_container = value.to_value_container(&self.memory)?;
                 match key {
-                    DIFProperty::Key(key) => {
+                    DIFProperty::Text(key) => {
                         ptr.try_set_text_property(
                             &key,
                             value_container,
@@ -105,7 +105,7 @@ impl DIFInterface for RuntimeInternal {
                 // });
                 Ok(())
             }
-            DIFUpdate::Replace(value) => {
+            DIFUpdate::Replace { value } => {
                 ptr.try_set_value(
                     value.to_value_container(&self.memory)?,
                     &self.memory,
@@ -115,7 +115,7 @@ impl DIFInterface for RuntimeInternal {
                 // ptr.notify_observers(&DIFUpdate::Replace(new_value));
                 Ok(())
             }
-            DIFUpdate::Push(value) => {
+            DIFUpdate::Push { value } => {
                 if !ptr.supports_push() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
@@ -136,7 +136,7 @@ impl DIFInterface for RuntimeInternal {
             DIFUpdate::Clear => {
                 todo!()
             }
-            DIFUpdate::Remove(key) => {
+            DIFUpdate::Remove { key } => {
                 if !ptr.supports_property_access() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(

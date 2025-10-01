@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::dif::value::DIFValueContainer;
 pub mod interface;
 pub mod reference;
 pub mod representation;
@@ -8,10 +7,29 @@ pub mod r#type;
 pub mod update;
 pub mod value;
 
+pub trait DIFConvertible: Serialize + for<'de> Deserialize<'de> {
+    fn to_json(self) -> String {
+        self.as_json()
+    }
+    fn to_json_pretty(self) -> String {
+        self.as_json_pretty()
+    }
+    fn from_json(json: &str) -> Self {
+        serde_json::from_str(json).unwrap()
+    }
+    fn as_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+    fn as_json_pretty(&self) -> String {
+        serde_json::to_string_pretty(self).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::dif::update::{DIFProperty, DIFUpdate};
+    use crate::dif::DIFConvertible;
+    use crate::dif::update::DIFUpdate;
+    use crate::dif::value::DIFValueContainer;
     use crate::runtime::memory::Memory;
     use crate::{
         dif::{
@@ -20,10 +38,6 @@ mod tests {
             value::DIFValue,
         },
         libs::core::CoreLibPointerId,
-        types::{
-            definition::TypeDefinition,
-            structural_type_definition::StructuralTypeDefinition,
-        },
         values::{
             core_values::integer::typed_integer::IntegerTypeVariant,
             value_container::ValueContainer,
@@ -37,9 +51,9 @@ mod tests {
         let memory = RefCell::new(Memory::new(Endpoint::default()));
         let dif_value_container: DIFValueContainer =
             DIFValueContainer::from_value_container(&value_container, &memory);
-        let serialized = serde_json::to_string(&dif_value_container).unwrap();
+        let serialized = dif_value_container.as_json();
         let deserialized: DIFValueContainer =
-            serde_json::from_str(&serialized).unwrap();
+            DIFValueContainer::from_json(&serialized);
         assert_eq!(dif_value_container, deserialized);
         dif_value_container
     }
@@ -52,10 +66,9 @@ mod tests {
                 value: DIFValueRepresentation::String("Hello".to_string()),
                 r#type: None,
             }));
-        let serialized = serde_json::to_string(&dif_update).unwrap();
+        let serialized = dif_update.as_json();
         println!("Serialized DIFUpdate: {}", serialized);
-        let deserialized: DIFUpdate =
-            serde_json::from_str(&serialized).unwrap();
+        let deserialized: DIFUpdate = DIFUpdate::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
 
         // update property
@@ -66,10 +79,9 @@ mod tests {
                 r#type: None,
             }),
         );
-        let serialized = serde_json::to_string(&dif_update).unwrap();
+        let serialized = dif_update.as_json();
         println!("Serialized DIFUpdate: {}", serialized);
-        let deserialized: DIFUpdate =
-            serde_json::from_str(&serialized).unwrap();
+        let deserialized: DIFUpdate = DIFUpdate::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 
@@ -86,9 +98,9 @@ mod tests {
                 .as_container(),
             ),
         };
-        let serialized = serde_json::to_string(&value).unwrap();
+        let serialized = value.as_json();
         println!("Serialized DIFValue: {}", serialized);
-        let deserialized: DIFValue = serde_json::from_str(&serialized).unwrap();
+        let deserialized = DIFValue::from_json(&serialized);
         assert_eq!(value, deserialized);
     }
 
@@ -123,13 +135,4 @@ mod tests {
             panic!("Expected DIFValueContainer::Value variant");
         }
     }
-
-    //     #[test]
-    //     fn dif_property_serialization() {
-    //         let property = DIFProperty::Text("example".to_string());
-    //         let serialized = serde_json::to_string(&property).unwrap();
-    //         let deserialized: DIFProperty =
-    //             serde_json::from_str(&serialized).unwrap();
-    //         assert_eq!(property, deserialized);
-    //     }
 }
