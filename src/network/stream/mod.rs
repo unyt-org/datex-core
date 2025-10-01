@@ -1,8 +1,9 @@
-mod Stream;
-mod stream2;
-mod transformer;
 #[cfg(ignored)]
 mod tests {
+    mod stream;
+    mod stream2;
+    mod transformer;
+
     use ntest_timeout::timeout;
     use std::time::Duration;
     use tokio::task::spawn_local;

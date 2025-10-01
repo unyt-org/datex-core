@@ -1,9 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    global::dxb_block::DXBBlock,
-    network::stream::Stream::Stream,
-};
+use crate::{global::dxb_block::DXBBlock, network::stream::stream::Stream};
 
 #[derive(Debug, Clone)]
 pub enum StreamKind {
