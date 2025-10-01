@@ -1,5 +1,92 @@
 {
-  "version": "4",
+  "version": "5",
+  "specifiers": {
+    "jsr:@opentf/obj-diff@*": "0.11.0",
+    "jsr:@opentf/std@0.12.0": "0.12.0",
+    "jsr:@unyt/speck@*": "0.0.8",
+    "npm:github-slugger@2": "2.0.0",
+    "npm:tablemark@^4.1.0": "4.1.0"
+  },
+  "jsr": {
+    "@opentf/obj-diff@0.11.0": {
+      "integrity": "61f2d870b6b437fbf339ea020a0f9920ee889a1236a6618d81027dee73e90b2f",
+      "dependencies": [
+        "jsr:@opentf/std"
+      ]
+    },
+    "@opentf/std@0.12.0": {
+      "integrity": "a78ec5cee300c4379dda0e92458ae372a9e871daef7b2aa2a53cb2314a276980"
+    },
+    "@unyt/speck@0.0.8": {
+      "integrity": "bb4734d9ad69ef6c277843c34387dc20a560b3b0f89503ec576536cf2a732f28",
+      "dependencies": [
+        "npm:github-slugger",
+        "npm:tablemark"
+      ]
+    }
+  },
+  "npm": {
+    "ansi-regex@6.2.2": {
+      "integrity": "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="
+    },
+    "ansi-styles@6.2.3": {
+      "integrity": "sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg=="
+    },
+    "change-case@5.4.4": {
+      "integrity": "sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w=="
+    },
+    "emoji-regex@10.5.0": {
+      "integrity": "sha512-lb49vf1Xzfx080OKA0o6l8DQQpV+6Vg95zyCJX9VB/BqKYlhG7N4wgROUUHRA+ZPUefLnteQOad7z1kT2bV7bg=="
+    },
+    "get-east-asian-width@1.4.0": {
+      "integrity": "sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q=="
+    },
+    "github-slugger@2.0.0": {
+      "integrity": "sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw=="
+    },
+    "string-width@7.2.0": {
+      "integrity": "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==",
+      "dependencies": [
+        "emoji-regex",
+        "get-east-asian-width",
+        "strip-ansi"
+      ]
+    },
+    "string-width@8.1.0": {
+      "integrity": "sha512-Kxl3KJGb/gxkaUMOjRsQ8IrXiGW75O4E3RPjFIINOVH8AMl2SQ/yWdTzWwF3FevIX9LcMAjJW+GRwAlAbTSXdg==",
+      "dependencies": [
+        "get-east-asian-width",
+        "strip-ansi"
+      ]
+    },
+    "strip-ansi@7.1.2": {
+      "integrity": "sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA==",
+      "dependencies": [
+        "ansi-regex"
+      ]
+    },
+    "tablemark@4.1.0": {
+      "integrity": "sha512-B3LDjbDo+ac+D5RwkBOPZZ6ua8716KdT+6NO3DKOCHJq0ezE6vV2r92rjrC1ci2H+ocuysl5ytf1T0QqV65yoA==",
+      "dependencies": [
+        "ansi-regex",
+        "change-case",
+        "string-width@8.1.0",
+        "wordwrapjs",
+        "wrap-ansi"
+      ]
+    },
+    "wordwrapjs@5.1.0": {
+      "integrity": "sha512-JNjcULU2e4KJwUNv6CHgI46UvDGitb6dGryHajXTDiLgg1/RiGoPSDw4kZfYnwGtEXf2ZMeIewDQgFGzkCB2Sg=="
+    },
+    "wrap-ansi@9.0.2": {
+      "integrity": "sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==",
+      "dependencies": [
+        "ansi-styles",
+        "string-width@7.2.0",
+        "strip-ansi"
+      ]
+    }
+  },
   "redirects": {
     "https://esm.sh/@types/cytoscape-fcose@~2.2.4/index.d.ts": "https://esm.sh/@types/cytoscape-fcose@2.2.4/index.d.ts",
     "https://esm.sh/cose-base@^1.0.0?target=denonext": "https://esm.sh/cose-base@1.0.3?target=denonext",
@@ -21,6 +108,7 @@
     "https://esm.sh/layout-base@1.0.2/denonext/layout-base.mjs": "ef685af5af087080271c66164b9e978bbb98a3d0c46926d90ba0dabe32de2db8",
     "https://esm.sh/layout-base@1.0.2?target=denonext": "c9a6855b1712976162fc03bdfeffbde2504932873bc312eb68fc3ae2400e8b37",
     "https://esm.sh/layout-base@2.0.1/denonext/layout-base.mjs": "e779c7a5098bb79d3c6c78bc5b8f8eee0c795c6d39ce07fdf525aaf489f21654",
-    "https://esm.sh/layout-base@2.0.1?target=denonext": "6cae1fb18238190e3f037bc1b1f32ec25a9eac4e8588dd4f81f2fc2e55adb93f"
+    "https://esm.sh/layout-base@2.0.1?target=denonext": "6cae1fb18238190e3f037bc1b1f32ec25a9eac4e8588dd4f81f2fc2e55adb93f",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json": "1c3d837b9a7356bbeaa6f432afa1f4582a650bfe45c03b8061ddb15bd71936c1"
   }
 }

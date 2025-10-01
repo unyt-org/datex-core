@@ -175,7 +175,7 @@ pub struct BlockHeader {
     pub represented_by: Option<Endpoint>,
 
     #[brw(if(flags_and_timestamp.has_iv()))]
-    pub iv: [u8; 16],
+    pub iv: Option<[u8; 16]>,
 }
 
 impl Serializable for BlockHeader {}

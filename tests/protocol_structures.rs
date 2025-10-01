@@ -96,7 +96,7 @@ pub fn parse_dxb_block() {
     assert_eq!(bytes, new_bytes);
 }
 
-fn create_dxb_block_artifacts(block: &DXBBlock, name: String) {
+fn create_dxb_block_artifacts(block: &mut DXBBlock, name: String) {
     // create a file in ./structs/$name/block.bin and ./structs/$name/block.json
     use std::fs;
     use std::path::Path;
@@ -104,7 +104,9 @@ fn create_dxb_block_artifacts(block: &DXBBlock, name: String) {
     fs::create_dir_all(&dir_path).unwrap();
     let bin_path = dir_path.join("block.bin");
     let json_path = dir_path.join("block.json");
-    fs::write(&bin_path, block.to_bytes().unwrap()).unwrap();
+
+    let adjusted_block = block.recalculate_struct();
+    fs::write(&bin_path, adjusted_block.to_bytes().unwrap()).unwrap();
     fs::write(&json_path, serde_json::to_string_pretty(&block).unwrap())
         .unwrap();
 }
@@ -117,7 +119,7 @@ pub fn dxb_blocks() {
         .routing_header
         .flags
         .set_encryption_type(EncryptionType::Encrypted);
-    create_dxb_block_artifacts(&block, "simple".to_string());
+    create_dxb_block_artifacts(&mut block, "simple".to_string());
 
     let mut block = DXBBlock::default();
     block.set_receivers(vec![
@@ -133,5 +135,5 @@ pub fn dxb_blocks() {
         .block_header
         .flags_and_timestamp
         .set_has_only_data(true);
-    create_dxb_block_artifacts(&block, "receivers".to_string());
+    create_dxb_block_artifacts(&mut block, "receivers".to_string());
 }

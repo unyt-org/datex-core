@@ -9,4 +9,5 @@ Cargo.lock
 .idea
 macros/target
 rustc-ice-*
-tests/structs/
+tests/structs/**
+!tests/structs/*.ts

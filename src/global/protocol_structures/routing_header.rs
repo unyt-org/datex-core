@@ -132,8 +132,10 @@ impl Display for PointerId {
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 pub struct ReceiverEndpoints {
+    #[cfg_attr(feature = "debug", serde(rename = "number_of_receivers"))]
     pub count: u8,
     #[br(count = count)]
+    #[cfg_attr(feature = "debug", serde(rename = "receivers"))]
     pub endpoints: Vec<Endpoint>,
 }
 
@@ -152,9 +154,11 @@ impl ReceiverEndpoints {
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 
 pub struct ReceiverEndpointsWithKeys {
+    #[cfg_attr(feature = "debug", serde(rename = "number_of_receivers"))]
     count: u8,
     #[br(count = count)]
     #[serde_as(as = "Vec<(_, Bytes)>")]
+    #[cfg_attr(feature = "debug", serde(rename = "receivers_with_keys"))]
     pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
 }
 
@@ -197,7 +201,7 @@ pub struct RoutingHeader {
     pub flags: Flags,
 
     #[brw(if(flags.has_checksum()))]
-    checksum: u32,
+    checksum: Option<u32>,
 
     pub distance: i8,
     pub ttl: u8,
@@ -208,8 +212,10 @@ pub struct RoutingHeader {
     #[brw(if(flags.receiver_type() == ReceiverType::Pointer))]
     receivers_pointer_id: Option<PointerId>,
     #[brw(if(flags.receiver_type() == ReceiverType::Receivers))]
+    #[cfg_attr(feature = "debug", serde(flatten))]
     receivers_endpoints: Option<ReceiverEndpoints>,
     #[brw(if(flags.receiver_type() == ReceiverType::ReceiversWithKeys))]
+    #[cfg_attr(feature = "debug", serde(flatten))]
     receivers_endpoints_with_keys: Option<ReceiverEndpointsWithKeys>,
 }
 
@@ -222,7 +228,7 @@ impl Default for RoutingHeader {
             distance: 0,
             ttl: 42,
             flags: Flags::new(),
-            checksum: 0,
+            checksum: None,
             block_size: 0,
             sender: Endpoint::default(),
             receivers_pointer_id: None,

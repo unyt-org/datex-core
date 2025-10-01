@@ -1,9 +1,12 @@
 {
     "tasks": {
+        "test": "deno test --allow-read --allow-write --allow-net ./tests/**/*.test.ts",
+        "lint": "deno lint",
+        "fmt": "deno fmt",
         "serve": "deno run -A https://raw.githubusercontent.com/unyt-org/ts-file-server/main/src/run.ts -p tests/network/network-builder -w --minify=false --port 8043"
     },
     "compilerOptions": {
-        "lib": ["dom", "esnext"]
+        "lib": ["dom", "esnext", "deno.ns"]
     },
     "fmt": {
         "indentWidth": 4
