@@ -11,6 +11,8 @@ use datex_core::global::{
 use datex_core::values::core_values::endpoint::{
     Endpoint, EndpointInstance, EndpointType,
 };
+use serde::Serialize;
+use serde_json::ser::{Formatter, PrettyFormatter};
 use std::{
     io::{Cursor, Seek, SeekFrom},
     str::FromStr,
@@ -107,8 +109,16 @@ fn create_dxb_block_artifacts(block: &mut DXBBlock, name: String) {
 
     let adjusted_block = block.recalculate_struct();
     fs::write(&bin_path, adjusted_block.to_bytes().unwrap()).unwrap();
-    fs::write(&json_path, serde_json::to_string_pretty(&block).unwrap())
-        .unwrap();
+
+    let mut buf = Vec::new();
+    let mut ser = serde_json::Serializer::with_formatter(
+        &mut buf,
+        PrettyFormatter::with_indent(b"    "),
+    );
+    block.serialize(&mut ser).unwrap();
+
+    let output = String::from_utf8(buf).unwrap();
+    fs::write(&json_path, format!("{}\n", output)).unwrap();
 }
 
 #[test]
@@ -136,9 +146,4 @@ pub fn dxb_blocks() {
         .flags_and_timestamp
         .set_has_only_data(true);
     create_dxb_block_artifacts(&mut block, "receivers".to_string());
-}
-
-#[test]
-fn xx() {
-    println!("{:?}", Endpoint::from_str("@jonas").unwrap().to_binary());
 }
