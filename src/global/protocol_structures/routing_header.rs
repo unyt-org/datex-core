@@ -5,9 +5,6 @@ use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
 
-#[cfg(feature = "debug")]
-use serde_with::{Bytes, serde_as};
-
 // 2 bit
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
@@ -148,42 +145,42 @@ impl ReceiverEndpoints {
 
 // <count>: 1 byte + (21 byte * count) + (512 byte * count)
 // min: 2 bytes
-#[cfg(feature = "debug")]
-#[cfg_attr(feature = "debug", serde_as)]
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
-
 pub struct ReceiverEndpointsWithKeys {
     #[cfg_attr(feature = "debug", serde(rename = "number_of_receivers"))]
     count: u8,
     #[br(count = count)]
-    #[serde_as(as = "Vec<(_, Bytes)>")]
     #[cfg_attr(feature = "debug", serde(rename = "receivers_with_keys"))]
-    pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
+    pub endpoints_with_keys: Vec<(Endpoint, Key512)>,
 }
 
-#[cfg(not(feature = "debug"))]
-#[derive(
-    Debug,
-    Clone,
-    Default,
-    BinWrite,
-    BinRead,
-    PartialEq,
-)]
-
-pub struct ReceiverEndpointsWithKeys {
-    count: u8,
-    #[br(count = count)]
-    pub endpoints_with_keys: Vec<(Endpoint, [u8; 512])>,
+#[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
+pub struct Key512(#[serde(with = "serde_big_array::BigArray")] [u8; 512]);
+impl Default for Key512 {
+    fn default() -> Self {
+        Key512([0u8; 512])
+    }
+}
+impl From<[u8; 512]> for Key512 {
+    fn from(arr: [u8; 512]) -> Self {
+        Key512(arr)
+    }
 }
 
 impl ReceiverEndpointsWithKeys {
-    pub fn new(endpoints_with_keys: Vec<(Endpoint, [u8; 512])>) -> Self {
+    pub fn new<T>(endpoints_with_keys: Vec<(Endpoint, T)>) -> Self
+    where
+        T: Into<Key512>,
+    {
         let count = endpoints_with_keys.len() as u8;
         ReceiverEndpointsWithKeys {
             count,
-            endpoints_with_keys,
+            endpoints_with_keys: endpoints_with_keys
+                .into_iter()
+                .map(|(ep, key)| (ep, key.into()))
+                .collect(),
         }
     }
 }
@@ -240,7 +237,7 @@ pub enum Receivers {
     None,
     PointerId(PointerId),
     Endpoints(Vec<Endpoint>),
-    EndpointsWithKeys(Vec<(Endpoint, [u8; 512])>),
+    EndpointsWithKeys(Vec<(Endpoint, Key512)>),
 }
 impl Display for Receivers {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -281,12 +278,20 @@ impl From<&[Endpoint]> for Receivers {
         }
     }
 }
-impl From<Vec<(Endpoint, [u8; 512])>> for Receivers {
-    fn from(endpoints_with_keys: Vec<(Endpoint, [u8; 512])>) -> Self {
+impl<T> From<Vec<(Endpoint, T)>> for Receivers
+where
+    T: Into<Key512>,
+{
+    fn from(endpoints_with_keys: Vec<(Endpoint, T)>) -> Self {
         if endpoints_with_keys.is_empty() {
             Receivers::None
         } else {
-            Receivers::EndpointsWithKeys(endpoints_with_keys)
+            Receivers::EndpointsWithKeys(
+                endpoints_with_keys
+                    .into_iter()
+                    .map(|(ep, key)| (ep, key.into()))
+                    .collect(),
+            )
         }
     }
 }

@@ -98,8 +98,7 @@ pub fn parse_dxb_block() {
     assert_eq!(bytes, new_bytes);
 }
 
-fn create_dxb_block_artifacts(block: &mut DXBBlock, name: String) {
-    // create a file in ./structs/$name/block.bin and ./structs/$name/block.json
+fn create_dxb_block_artifacts(block: &mut DXBBlock, name: &str) {
     use std::fs;
     use std::path::Path;
     let dir_path = Path::new("tests").join("structs").join(name);
@@ -124,26 +123,51 @@ fn create_dxb_block_artifacts(block: &mut DXBBlock, name: String) {
 #[test]
 #[ignore = "Only run to create artifacts"]
 pub fn dxb_blocks() {
-    let mut block = DXBBlock::default();
-    block
-        .routing_header
-        .flags
-        .set_encryption_type(EncryptionType::Encrypted);
-    create_dxb_block_artifacts(&mut block, "simple".to_string());
+    {
+        const NAME: &str = "simple";
+        let mut block = DXBBlock::default();
+        block
+            .routing_header
+            .flags
+            .set_encryption_type(EncryptionType::Encrypted);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
 
-    let mut block = DXBBlock::default();
-    block.set_receivers(vec![
-        Endpoint::from_str("@jonas").unwrap(),
-        Endpoint::from_str("@ben").unwrap(),
-    ]);
-    block.block_header.block_number = 42;
-    block
-        .block_header
-        .flags_and_timestamp
-        .set_block_type(BlockType::TraceBack);
-    block
-        .block_header
-        .flags_and_timestamp
-        .set_has_only_data(true);
-    create_dxb_block_artifacts(&mut block, "receivers".to_string());
+    {
+        const NAME: &str = "receivers";
+        let mut block = DXBBlock::default();
+        block.set_receivers(vec![
+            Endpoint::from_str("@jonas").unwrap(),
+            Endpoint::from_str("@ben").unwrap(),
+        ]);
+        block.block_header.block_number = 42;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::TraceBack);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "receivers_with_keys";
+        let mut block = DXBBlock::default();
+        block.set_receivers(vec![
+            (Endpoint::from_str("@jonas").unwrap(), [1u8; 512]),
+            (Endpoint::from_str("@ben").unwrap(), [2u8; 512]),
+        ]);
+        block.block_header.block_number = 43;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::TraceBack);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
 }
