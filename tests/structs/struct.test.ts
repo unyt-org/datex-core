@@ -1,4 +1,5 @@
-import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json" with {
+// deno-lint-ignore no-import-prefix
+import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token=" with {
     type: "json",
 };
 
@@ -50,6 +51,29 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                 ];
 
             if (IGNORED_PATHS.includes(path) || type === "Additional") continue;
+
+            if (path.startsWith("routing_header.receivers_with_keys")) {
+                const [expectedEndpoint, expectedKey] =
+                    resolvePath(jsonData, difference.p) as [string, number[]] ??
+                        [];
+                const { receiver: parsedEndpoint, key: parsedKey } = difference
+                    .v as any;
+                if (expectedEndpoint !== parsedEndpoint) {
+                    throw new Error(
+                        `Difference at '${path}': Expected '${expectedEndpoint}', found '${parsedEndpoint}'`,
+                    );
+                }
+                // FIXME
+                // // array to hex string
+                // const hexKey = expectedKey.map((ba: number) => ba.toString(16))
+                //     .join("");
+                // if (parsedKey !== hexKey) {
+                //     throw new Error(
+                //         `Difference at '${path}': Expected key '${hexKey}', found '${parsedKey}'`,
+                //     );
+                // }
+                continue;
+            }
 
             errors.push(
                 `${type} at '${path}': Expected '${

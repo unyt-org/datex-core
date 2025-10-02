@@ -88,7 +88,10 @@
     }
   },
   "remote": {
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json": "1c3d837b9a7356bbeaa6f432afa1f4582a650bfe45c03b8061ddb15bd71936c1"
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json": "1c3d837b9a7356bbeaa6f432afa1f4582a650bfe45c03b8061ddb15bd71936c1",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token=": "8baecc217a44d57aa3cf5dbb1f9d5f473dabf5a033b30b5264c49a6d648814b7",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=1": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=2": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5"
   },
   "workspace": {
     "dependencies": [
