@@ -1,5 +1,6 @@
 use crate::{
     types::{
+        collection_type_definition::CollectionTypeDefinition,
         structural_type_definition::StructuralTypeDefinition,
         type_container::TypeContainer,
     },
@@ -9,16 +10,21 @@ use datex_core::references::type_reference::TypeReference;
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
-    // {x: integer, y: text}
+    // { x: integer, y: text }
     Structural(StructuralTypeDefinition),
 
+    // e.g. [integer], [integer; 5], Map<string, integer>
+    Collection(CollectionTypeDefinition),
+
+    // type A = B
     Reference(Rc<RefCell<TypeReference>>),
 
-    // e.g. A & B & C
+    // A & B & C
     Intersection(Vec<TypeContainer>),
 
-    // e.g. A | B | C
+    // A | B | C
     Union(Vec<TypeContainer>),
+
     // ()
     Unit,
 
@@ -31,6 +37,9 @@ pub enum TypeDefinition {
 impl Hash for TypeDefinition {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
+            TypeDefinition::Collection(value) => {
+                value.hash(state);
+            }
             TypeDefinition::Structural(value) => {
                 value.hash(state);
             }
@@ -65,6 +74,7 @@ impl Hash for TypeDefinition {
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            TypeDefinition::Collection(value) => write!(f, "{}", value),
             TypeDefinition::Structural(value) => write!(f, "{}", value),
             TypeDefinition::Reference(reference) => {
                 write!(f, "{}", reference.borrow())

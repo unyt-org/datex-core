@@ -1,13 +1,13 @@
 use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::Reference;
+use crate::references::reference::ReferenceMutability;
 use crate::references::reference::mutability_option_as_int;
 use crate::runtime::memory::Memory;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
-use crate::references::reference::ReferenceMutability;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -69,6 +69,9 @@ impl DIFTypeDefinition {
         memory: &RefCell<Memory>,
     ) -> Self {
         match type_def {
+            TypeDefinition::Collection(collection_def) => {
+                todo!("handle collection type conversion");
+            }
             TypeDefinition::Structural(struct_def) => {
                 DIFTypeDefinition::Structural(Box::new(
                     DIFStructuralTypeDefinition::from_structural_definition(

@@ -79,7 +79,6 @@ impl Type {
         }
     }
 
-
     /// Creates a new structural array type.
     pub fn list(element_types: Vec<TypeContainer>) -> Self {
         Type {
@@ -90,7 +89,6 @@ impl Type {
             reference_mutability: None,
         }
     }
-
 
     /// Creates a new union type.
     pub fn union<T>(types: Vec<T>) -> Self
@@ -182,9 +180,9 @@ impl Type {
         //     return None;
         // }
         Some(match &self.type_definition {
-            TypeDefinition::Structural(value) => {
-                get_core_lib_type_reference(value.get_core_lib_type_pointer_id())
-            },
+            TypeDefinition::Structural(value) => get_core_lib_type_reference(
+                value.get_core_lib_type_pointer_id(),
+            ),
             TypeDefinition::Union(types) => {
                 get_core_lib_type_reference(CoreLibPointerId::Union)
             }
@@ -286,6 +284,9 @@ impl Type {
             } => {
                 todo!("handle function type matching");
             }
+            TypeDefinition::Collection(collection_type) => {
+                todo!("handle collection type matching");
+            }
             TypeDefinition::Unit => false, // unit type does not match any value
         }
     }
@@ -356,7 +357,11 @@ impl From<&CoreValue> for Type {
                     .map(|(key, value)| {
                         (
                             TypeContainer::from(Type::from(
-                                ValueContainer::from(key).to_value().borrow().inner.clone(),
+                                ValueContainer::from(key)
+                                    .to_value()
+                                    .borrow()
+                                    .inner
+                                    .clone(),
                             )),
                             TypeContainer::from(Type::from(
                                 value.to_value().borrow().inner.clone(),
