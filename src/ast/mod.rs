@@ -2925,6 +2925,7 @@ mod tests {
             ));
         assert_eq!(val, value_container_object);
     }
+
     #[test]
     fn invalid_value_containers() {
         let src = "1 + 2";
