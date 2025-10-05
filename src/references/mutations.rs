@@ -26,7 +26,7 @@ impl Reference {
             match value.inner {
                 CoreValue::Map(ref mut map) => {
                     // If the value is an object, set the property
-                    map.set(key, val)?;
+                    map.try_set(key, val)?;
                 }
                 _ => {
                     // If the value is not an object, we cannot set a property
@@ -60,7 +60,7 @@ impl Reference {
             match value.inner {
                 CoreValue::Map(ref mut obj) => {
                     // If the value is an object, set the property
-                    obj.set(key, val)?;
+                    obj.try_set(key, val)?;
                 }
                 _ => {
                     // If the value is not an object, we cannot set a property

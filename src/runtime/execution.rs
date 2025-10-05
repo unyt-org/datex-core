@@ -1219,7 +1219,7 @@ fn handle_key_value_pair(
             ..
         }) => {
             // make sure key is a string
-            map.set(key, value);
+            map.try_set(key, value);
         }
         _ => {
             unreachable!(
