@@ -68,6 +68,8 @@ impl Map {
         self.size() == 0
     }
 
+    /// Gets a value in the map by reference.
+    /// Returns None if the key is not found.
     pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
         match self {
             Map::Dynamic(map) => map.get(key),
@@ -89,6 +91,8 @@ impl Map {
         }
     }
 
+    /// Gets a value in the map, where the key is a string.
+    /// Returns None if the key is not found
     pub fn get_text(&self, key: &str) -> Option<&ValueContainer> {
         match self {
             Map::Dynamic(map) => {
@@ -114,6 +118,7 @@ impl Map {
         }
     }
 
+    /// Checks if the map contains the given key.
     pub fn has(&self, key: &ValueContainer) -> bool {
         match self {
             Map::Dynamic(map) => map.contains_key(key),
@@ -133,6 +138,7 @@ impl Map {
         }
     }
 
+    /// Removes a key from the map, returning the value if it existed.
     pub fn remove(
         &mut self,
         key: &ValueContainer,
@@ -147,6 +153,7 @@ impl Map {
         }
     }
 
+    /// Clears all entries in the map, returning an error if the map is not dynamic.
     pub fn clear(&mut self) -> Result<(), MapAccessError> {
         match self {
             Map::Dynamic(map) => {
@@ -159,6 +166,7 @@ impl Map {
         }
     }
 
+    /// Gets a value in the map, taking ownership of the key.
     pub fn get_owned<T: Into<ValueContainer>>(
         &self,
         key: T,
@@ -166,7 +174,19 @@ impl Map {
         self.get(&key.into())
     }
 
+    /// Sets a value in the map, panicking if it fails.
     pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
+        &mut self,
+        key: K,
+        value: V,
+    ) {
+        self.try_set(key, value)
+            .expect("Setting value in map failed");
+    }
+
+    /// Sets a value in the map, returning an error if it fails.
+    /// This is the preferred way to set values in the map.
+    pub(crate) fn try_set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
         &mut self,
         key: K,
         value: V,

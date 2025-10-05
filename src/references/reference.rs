@@ -321,11 +321,15 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 pub enum ReferenceFromValueContainerError {
     InvalidType,
     MutableTypeReference,
+    CannotCreateFinalFromMutableRef,
 }
 
 impl Display for ReferenceFromValueContainerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ReferenceFromValueContainerError::CannotCreateFinalFromMutableRef => {
+                write!(f, "Cannot create final reference from mutable reference")
+            }
             ReferenceFromValueContainerError::InvalidType => {
                 write!(
                     f,
@@ -448,9 +452,13 @@ impl Reference {
         }
     }
 
+    /// Gets the mutability of the reference.
+    /// TypeReferences are always immutable.
     pub(crate) fn mutability(&self) -> ReferenceMutability {
         match self {
             Reference::ValueReference(vr) => vr.borrow().mutability.clone(),
+
+            // Fixme: should we use final instead of immutable here?
             Reference::TypeReference(_) => ReferenceMutability::Immutable,
         }
     }
@@ -487,17 +495,34 @@ impl Reference {
         // FIXME implement type check
         Ok(match value_container {
             ValueContainer::Reference(ref reference) => {
-                let allowed_type =
-                    allowed_type.unwrap_or_else(|| reference.allowed_type());
-                // TODO: make sure allowed type is superset of reference's allowed type
-                Reference::ValueReference(Rc::new(RefCell::new(
-                    ValueReference::new(
-                        value_container,
-                        maybe_pointer_id,
-                        allowed_type,
-                        mutability,
-                    ),
-                )))
+                match reference {
+                    Reference::ValueReference(vr) => {
+                        let allowed_type = allowed_type.unwrap_or_else(|| {
+                            vr.borrow().allowed_type.clone()
+                        });
+                        // TODO: make sure allowed type is superset of reference's allowed type
+                        Reference::ValueReference(Rc::new(RefCell::new(
+                            ValueReference::new(
+                                value_container,
+                                maybe_pointer_id,
+                                allowed_type,
+                                mutability,
+                            ),
+                        )))
+                    }
+                    Reference::TypeReference(tr) => {
+                        if mutability == ReferenceMutability::Mutable {
+                            return Err(ReferenceFromValueContainerError::MutableTypeReference);
+                        }
+                        Reference::TypeReference(
+                            TypeReference::anonymous(
+                                Type::reference(tr.clone(), Some(mutability)),
+                                maybe_pointer_id,
+                            )
+                            .as_ref_cell(),
+                        )
+                    }
+                }
             }
             ValueContainer::Value(value) => {
                 match value.inner {
@@ -561,10 +586,23 @@ impl Reference {
         )
     }
 
+    /// Creates a final reference from a value container.
+    /// If the value container is a reference, it must be a final reference,
+    /// otherwise an error is returned.
+    /// If the value container is a value, a final reference to that value is created.
     pub fn try_final_from(
         value_container: ValueContainer,
     ) -> Result<Self, ReferenceFromValueContainerError> {
-        // TODO: don't allow creating final reference from &mut/& references
+        match &value_container {
+            ValueContainer::Reference(reference) => {
+                // If it points to a non-final reference, forbid it
+                if reference.is_mutable() {
+                    return Err(ReferenceFromValueContainerError::CannotCreateFinalFromMutableRef);
+                }
+            }
+            ValueContainer::Value(_) => {}
+        }
+
         Reference::try_new_from_value_container(
             value_container,
             None,
@@ -781,11 +819,60 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::global_context::{GlobalContext, set_global_context};
     use crate::runtime::memory::Memory;
     use crate::values::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;
+
+    #[test]
+    fn try_final_from() {
+        // creating a final reference from a value should work
+        let value = ValueContainer::from(42);
+        let reference = Reference::try_final_from(value).unwrap();
+        assert_eq!(reference.mutability(), ReferenceMutability::Final);
+
+        // creating a final reference from a immutable reference should work
+        let final_ref =
+            Reference::try_final_from(ValueContainer::from(42)).unwrap();
+        assert!(
+            Reference::try_final_from(ValueContainer::Reference(final_ref))
+                .is_ok()
+        );
+
+        // creating a final reference from a mutable reference should fail
+        let mutable_ref =
+            Reference::try_mut_from(ValueContainer::from(42)).unwrap();
+        assert_matches!(Reference::try_final_from(
+            ValueContainer::Reference(mutable_ref)
+        ), Err(ReferenceFromValueContainerError::CannotCreateFinalFromMutableRef));
+
+        // creating a final reference from a type ref should work
+        let type_value = ValueContainer::Reference(Reference::TypeReference(
+            TypeReference::anonymous(Type::UNIT, None).as_ref_cell(),
+        ));
+        let type_ref = Reference::try_final_from(type_value).unwrap();
+        assert!(type_ref.is_type());
+        assert_eq!(type_ref.mutability(), ReferenceMutability::Immutable);
+    }
+
+    #[test]
+    fn try_mut_from() {
+        // creating a mutable reference from a value should work
+        let value = ValueContainer::from(42);
+        let reference = Reference::try_mut_from(value).unwrap();
+        assert_eq!(reference.mutability(), ReferenceMutability::Mutable);
+
+        // creating a mutable reference from a type should fail
+        let type_value = ValueContainer::Reference(Reference::TypeReference(
+            TypeReference::anonymous(Type::UNIT, None).as_ref_cell(),
+        ));
+        assert_matches!(
+            Reference::try_mut_from(type_value),
+            Err(ReferenceFromValueContainerError::MutableTypeReference)
+        );
+    }
 
     #[test]
     fn property() {
@@ -914,48 +1001,47 @@ mod tests {
 
     #[test]
     fn nested_references() {
+        set_global_context(GlobalContext::native());
         let memory = &RefCell::new(Memory::default());
 
         let mut object_a = Map::default();
         object_a.set("number", ValueContainer::from(42));
-        object_a.set("obj", ValueContainer::from(Map::default()));
+        object_a.set("obj", ValueContainer::new_reference(Map::default()));
 
         // construct object_a as a value first
         let object_a_val = ValueContainer::new_value(object_a);
 
         // create object_b as a reference
-        let object_b_ref = ValueContainer::new_reference(Map::default());
+        let object_b_ref = Reference::try_new_from_value_container(
+            Map::default().into(),
+            None,
+            None,
+            ReferenceMutability::Mutable,
+        )
+        .unwrap();
 
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
-        object_b_ref.with_maybe_reference(|b_ref| {
-            b_ref
-                .try_set_property("a".into(), object_a_val.clone(), memory)
-                .unwrap();
-        });
-
-        println!("Object B Reference: {:#?}", object_b_ref);
+        object_b_ref
+            .try_set_property("a".into(), object_a_val.clone(), memory)
+            .unwrap();
 
         // assert that the reference to object_a is set correctly
-        object_b_ref
-            .with_maybe_reference(|b_ref| {
-                let object_a_ref = b_ref.try_get_property("a").unwrap();
-                assert_structural_eq!(object_a_ref, object_a_val);
-                // object_a_ref should be a reference
-                assert_matches!(object_a_ref, ValueContainer::Reference(_));
-                object_a_ref.with_maybe_reference(|a_ref| {
-                    // object_a_ref.number should be a value
-                    assert_matches!(
-                        a_ref.try_get_property("number"),
-                        Ok(ValueContainer::Value(_))
-                    );
-                    // object_a_ref.obj should be a reference
-                    assert_matches!(
-                        a_ref.try_get_property("obj"),
-                        Ok(ValueContainer::Reference(_))
-                    );
-                });
-            })
-            .expect("object_b_ref should be a reference");
+        let object_a_ref = object_b_ref.try_get_property("a").unwrap();
+        assert_structural_eq!(object_a_ref, object_a_val);
+        // object_a_ref should be a reference
+        assert_matches!(object_a_ref, ValueContainer::Reference(_));
+        object_a_ref.with_maybe_reference(|a_ref| {
+            // object_a_ref.number should be a value
+            assert_matches!(
+                a_ref.try_get_property("number"),
+                Ok(ValueContainer::Value(_))
+            );
+            // object_a_ref.obj should be a reference
+            assert_matches!(
+                a_ref.try_get_property("obj"),
+                Ok(ValueContainer::Reference(_))
+            );
+        });
     }
 }
