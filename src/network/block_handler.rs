@@ -5,7 +5,6 @@ use crate::global::dxb_block::{
     OutgoingSectionIndex,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::global_context::get_global_context;
 use crate::utils::time::Time;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};

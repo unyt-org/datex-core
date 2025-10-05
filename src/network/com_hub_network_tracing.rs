@@ -11,7 +11,6 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
-use crate::runtime::global_context::get_global_context;
 use crate::utils::time::Time;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
