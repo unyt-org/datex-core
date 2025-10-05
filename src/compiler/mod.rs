@@ -716,14 +716,17 @@ fn compile_expression(
                 .ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
+
+            // if const, return error
+            if var_type == VariableKind::Const {
+                return Err(CompilerError::AssignmentToConst(
+                    name.clone(),
+                ));
+            }
+
             match operator {
                 AssignmentOperator::Assign => {
-                    // if const, return error
-                    if var_type == VariableKind::Const {
-                        return Err(CompilerError::AssignmentToConst(
-                            name.clone(),
-                        ));
-                    }
+
 
                     // append binary code to load variable
                     info!(
@@ -731,6 +734,9 @@ fn compile_expression(
                     );
                     compilation_context
                         .append_instruction_code(InstructionCode::SET_SLOT);
+                    // compilation_context.append_instruction_code(
+                    //     InstructionCode::from(&operator),
+                    // );
                 }
                 AssignmentOperator::AddAssign
                 | AssignmentOperator::SubstractAssign => {
@@ -749,6 +755,8 @@ fn compile_expression(
                     //         name.clone(),
                     //     ));
                     // }
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SET_SLOT);
                     compilation_context.append_instruction_code(
                         InstructionCode::from(&operator),
                     );
@@ -764,6 +772,53 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
+            // close assignment scope
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
+        }
+
+        DatexExpression::DerefAssignment {
+            operator,
+            deref_count,
+            deref_expression,
+            assigned_expression
+        } => {
+            compilation_context.mark_has_non_static_value();
+
+            compilation_context
+                .append_instruction_code(InstructionCode::ASSIGN_TO_REF);
+
+            compilation_context.append_instruction_code(
+                InstructionCode::from(&operator),
+            );
+
+            // "*x" must not be dereferenced, x is already the relevant reference that is modified
+            for _ in 0..deref_count - 1 {
+                compilation_context
+                    .append_instruction_code(InstructionCode::DEREF);
+            }
+
+            // compile deref expression
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*deref_expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+
+            for _ in 0..deref_count - 1 {
+                compilation_context
+                    .append_instruction_code(InstructionCode::SCOPE_END);
+            }
+
+            // compile assigned expression
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*assigned_expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+
             // close assignment scope
             compilation_context
                 .append_instruction_code(InstructionCode::SCOPE_END);
@@ -2509,17 +2564,38 @@ pub mod tests {
     }
 
     #[test]
-    fn addition_to_const_ref() {
+    fn internal_assignment_to_const_mut() {
         init_logger_debug();
-        let script = "const a = &mut 42; a += 1";
+        let script = "const a = &mut 42; *a = 43";
         let result = compile_script(script, CompileOptions::default());
         assert_matches!(result, Ok(_));
     }
 
     #[test]
-    fn addition_to_immutable_value() {
+    fn addition_to_const_mut_ref() {
         init_logger_debug();
-        let script = "var a = 42; a += 1";
+        let script = "const a = &mut 42; *a += 1;";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Ok(_));
+    }
+
+    #[test]
+    fn addition_to_const_variable() {
+        init_logger_debug();
+        let script = "const a = 42; a += 1";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToConst { .. })
+        );
+    }
+
+
+    #[ignore = "implement type inference (precompiler)"]
+    #[test]
+    fn mutation_of_immutable_value() {
+        init_logger_debug();
+        let script = "const a = {x: 10}; a.x = 20;";
         let result = compile_script(script, CompileOptions::default());
         assert_matches!(
             result,
@@ -2527,10 +2603,35 @@ pub mod tests {
         );
     }
 
+    #[ignore = "implement type inference (precompiler)"]
+    #[test]
+    fn mutation_of_mutable_value() {
+        init_logger_debug();
+        let script = "const a = mut {x: 10}; a.x = 20;";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToImmutableValue { .. })
+        );
+    }
+
+    /**
+    * var a = 10;
+    * a = 40;
+    * a += 10; // a = a + 10;
+    * var a = &mut 42;;
+    * a = &mut 43; // valid, new ref pointer
+    * *a = 2; // internal deref assignment
+    * *a += 1; // internal deref assignment with addition
+    * a += 1; a = a + 1; // invalid
+    * var obj = &mut {key: 42};
+    * obj.key = 43; // valid, internal deref assignment
+*/
+    #[ignore = "implement type inference (precompiler)"]
     #[test]
     fn addition_to_immutable_ref() {
         init_logger_debug();
-        let script = "const a = &42; a += 1";
+        let script = "const a = &42; *a += 1;";
         let result = compile_script(script, CompileOptions::default());
         assert_matches!(
             result,

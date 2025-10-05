@@ -13,6 +13,9 @@
         "lib": ["dom", "esnext", "deno.ns"]
     },
     "fmt": {
-        "indentWidth": 4
+        "indentWidth": 4,
+        "exclude": [
+            "./tests/json/expected_results/**/*"
+        ]
     }
 }

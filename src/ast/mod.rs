@@ -275,6 +275,12 @@ pub enum DatexExpression {
         String,
         Box<DatexExpression>,
     ),
+    DerefAssignment {
+        operator: AssignmentOperator,
+        deref_count: usize,
+        deref_expression: Box<DatexExpression>,
+        assigned_expression: Box<DatexExpression>,
+    },
     UnaryOperation(UnaryOperator, Box<DatexExpression>),
 
     // apply (e.g. x (1)) or property access
@@ -435,7 +441,7 @@ where
     let comparison = comparison_operation(union.clone());
 
     // declarations or assignments
-    let declaration_or_assignment = declaration_or_assignment(union);
+    let declaration_or_assignment = declaration_or_assignment(expression.clone(), key.clone());
 
     let condition_union = binary_operation(chain_without_whitespace_apply(
         unary.clone(),

@@ -340,6 +340,9 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::MAP_START => Ok(Instruction::MapStart),
                     InstructionCode::SCOPE_START => Ok(Instruction::ScopeStart),
                     InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
+                    
+                    InstructionCode::DEREF => Ok(Instruction::Deref),
+                    InstructionCode::ASSIGN_TO_REF => Ok(Instruction::AssignToReference),
 
                     InstructionCode::KEY_VALUE_SHORT_TEXT => {
                         let short_text_data = get_short_text_data(&mut reader);

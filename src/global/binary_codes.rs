@@ -165,6 +165,10 @@ pub enum InstructionCode {
     CREATE_REF_FINAL, // &final ()
     SET_REF,        // &aa = ...
 
+    ASSIGN_TO_REF, // *x = 10;
+
+    DEREF, // *x
+
     CHILD_GET,           // .y
     CHILD_SET,           // .y = a
     CHILD_SET_REFERENCE, // .y $= a

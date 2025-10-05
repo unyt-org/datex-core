@@ -157,7 +157,10 @@ pub struct ReceiverEndpointsWithKeys {
 
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
-pub struct Key512(#[serde(with = "serde_big_array::BigArray")] [u8; 512]);
+pub struct Key512(
+    #[cfg_attr(feature = "debug", serde(with = "serde_big_array::BigArray"))]
+    [u8; 512]
+);
 impl Default for Key512 {
     fn default() -> Self {
         Key512([0u8; 512])
@@ -170,6 +173,7 @@ impl From<[u8; 512]> for Key512 {
 }
 
 impl ReceiverEndpointsWithKeys {
+
     pub fn new<T>(endpoints_with_keys: Vec<(Endpoint, T)>) -> Self
     where
         T: Into<Key512>,

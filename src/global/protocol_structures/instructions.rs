@@ -92,6 +92,9 @@ pub enum Instruction {
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
 
+    AssignToReference,
+    Deref,
+
     TypeInstructions(Vec<TypeInstruction>),
     TypeExpression(Vec<TypeInstruction>),
 }
@@ -182,6 +185,8 @@ impl Display for Instruction {
             Instruction::SetSlot(address) => {
                 write!(f, "SET_SLOT {}", address.0)
             }
+            Instruction::AssignToReference => write!(f, "ASSIGN_REFERENCE"),
+            Instruction::Deref => write!(f, "DEREF"),
             Instruction::GetRef(address) => {
                 write!(f, "GET_REF [{}:{}]", address.endpoint, hex::encode(address.id))
             }

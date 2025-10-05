@@ -31,14 +31,13 @@ fn create_variable_declaration(
 
 /// A variable assignment (e.g. `x = 42` or `y += 1`)
 pub fn variable_assignment<'a>(
-    union: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let assignment_op = assignment_operation();
-    let comparison = comparison_operation(union.clone());
 
     select! { Token::Identifier(name) => name }
         .then(assignment_op)
-        .then(comparison)
+        .then(expression)
         .map(|((var_name, op), expr)| {
             DatexExpression::VariableAssignment(
                 op,
@@ -50,6 +49,32 @@ pub fn variable_assignment<'a>(
         .labelled(Pattern::Declaration)
         .as_context()
 }
+
+pub fn deref_assignment<'a>(
+    expression: impl DatexParserTrait<'a>,
+    deref_assignment_expression: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    let assignment_op = assignment_operation();
+
+    just(Token::Star)
+        .repeated()
+        .at_least(1)
+        .count()
+        .then(deref_assignment_expression)
+        .then(assignment_op)
+        .then(expression)
+        .map(|(((deref_count, deref_expression), operator), assigned_expression)| {
+            DatexExpression::DerefAssignment {
+                operator,
+                deref_count,
+                deref_expression: Box::new(deref_expression),
+                assigned_expression: Box::new(assigned_expression),
+            }
+        })
+        .labelled(Pattern::Declaration)
+        .as_context()
+}
+
 
 /// A variable declaration (e.g. `var x: u32 = 42` or `const y = "Hello"`)
 pub fn variable_declaration<'a>(
@@ -93,11 +118,13 @@ pub fn variable_declaration<'a>(
 
 /// A declaration or assignment, e.g. `var x = 42;`, `const x = 69`, `x = 43;`, or `type x = 42`
 pub fn declaration_or_assignment<'a>(
-    union: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
+    deref_assignment_expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
         type_declaration(),
-        variable_declaration(union.clone()),
-        variable_assignment(union),
+        variable_declaration(expression.clone()),
+        deref_assignment(expression.clone(), deref_assignment_expression.clone()),
+        variable_assignment(expression),
     ))
 }

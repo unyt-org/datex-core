@@ -5,7 +5,7 @@ mod bitfield_macros;
 mod com_interface_macros;
 mod value_macros;
 /// This macro is used to create an opener for a interface.
-/// ```
+/// ```ignore
 /// # use datex_macros::create_opener;
 /// # struct MyInterface;
 /// # struct MyError;

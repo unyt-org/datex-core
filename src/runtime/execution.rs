@@ -1779,11 +1779,11 @@ mod tests {
     fn ref_add_assignment() {
         init_logger_debug();
         let result =
-            execute_datex_script_debug_with_result("const x = &mut 42; x += 1");
+            execute_datex_script_debug_with_result("const x = &mut 42; *x += 1");
         assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
 
         let result = execute_datex_script_debug_with_result(
-            "const x = &mut 42; x += 1; x",
+            "const x = &mut 42; *x += 1; x",
         );
 
         // FIXME due to addition the resulting value container of the slot
@@ -1796,11 +1796,11 @@ mod tests {
     fn ref_sub_assignment() {
         init_logger_debug();
         let result =
-            execute_datex_script_debug_with_result("const x = &mut 42; x -= 1");
+            execute_datex_script_debug_with_result("const x = &mut 42; *x -= 1");
         assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));
 
         let result = execute_datex_script_debug_with_result(
-            "const x = &mut 42; x -= 1; x",
+            "const x = &mut 42; *x -= 1; x",
         );
 
         // FIXME due to addition the resulting value container of the slot

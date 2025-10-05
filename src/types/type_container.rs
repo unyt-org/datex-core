@@ -53,7 +53,6 @@ impl TypeContainer {
         }
     }
 
-    // FIXME also TypeContainer
     pub fn base_type(&self) -> TypeContainer {
         match self {
             TypeContainer::Type(t) => {

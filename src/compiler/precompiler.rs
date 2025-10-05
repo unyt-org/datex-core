@@ -389,7 +389,7 @@ fn visit_expression(
                 }
             };
         }
-        DatexExpression::VariableAssignment(operator, id, name, expr) => {
+        DatexExpression::VariableAssignment(_, id, name, expr) => {
             visit_expression(
                 expr,
                 metadata,
@@ -399,6 +399,25 @@ fn visit_expression(
             *id = Some(
                 scope_stack.get_variable_and_update_metadata(name, metadata)?,
             );
+        }
+        DatexExpression::DerefAssignment {
+            operator: _,
+            deref_count: _,
+            deref_expression,
+            assigned_expression,
+        } => {
+            visit_expression(
+                deref_expression,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+            visit_expression(
+                assigned_expression,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
         }
         DatexExpression::ApplyChain(expr, applies) => {
             visit_expression(

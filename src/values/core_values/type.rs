@@ -176,9 +176,9 @@ impl Type {
         }
         // unit type has no base type
         // FIXME
-        // if self.is_unit() {
-        //     return None;
-        // }
+        if self.is_unit() {
+            return None;
+        }
         Some(match &self.type_definition {
             TypeDefinition::Structural(value) => get_core_lib_type_reference(
                 value.get_core_lib_type_pointer_id(),
