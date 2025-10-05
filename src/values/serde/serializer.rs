@@ -209,9 +209,10 @@ impl SerializeTupleVariant for TupleVariantSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueContainer::from(CoreValue::Map(Map::from(vec![
-            (self.variant.to_string(), self.fields.into()),
-        ]))))
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(vec![(
+            self.variant.to_string(),
+            self.fields.into(),
+        )]))))
     }
 }
 
@@ -255,7 +256,7 @@ impl SerializeStructVariant for StructVariantSerializer {
     fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(Map::from(vec![(
             self.variant.to_string(),
-            Map::from(self.fields).into()
+            Map::from(self.fields).into(),
         )])
         .into())
     }
@@ -350,7 +351,7 @@ impl SerializeMap for MapSerializer {
         let mut map = Map::default();
         for (key, value) in self.entries.iter() {
             if let Some(value) = value {
-                map.set(key.clone(), value.clone());
+                map.try_set(key.clone(), value.clone());
             } else {
                 return Err(SerializationError::Custom(
                     "Map entry without value".to_string(),
@@ -538,9 +539,10 @@ impl Serializer for &mut DatexSerializer {
         T: ?Sized + serde::Serialize,
     {
         let field = value.serialize(&mut *self)?;
-        Ok(ValueContainer::from(CoreValue::Map(Map::from(vec![
-            (variant.to_string(), field),
-        ]))))
+        Ok(ValueContainer::from(CoreValue::Map(Map::from(vec![(
+            variant.to_string(),
+            field,
+        )]))))
     }
 
     fn serialize_seq(
@@ -601,6 +603,7 @@ impl Serializer for &mut DatexSerializer {
 mod tests {
     use crate::assert_structural_eq;
     use crate::values::core_values::endpoint::Endpoint;
+    use crate::values::core_values::map::Map;
     use crate::values::traits::structural_eq::StructuralEq;
     use crate::values::{
         core_value::CoreValue,
@@ -610,7 +613,6 @@ mod tests {
     };
     use serde::{Deserialize, Serialize};
     use std::assert_matches::assert_matches;
-    use crate::values::core_values::map::Map;
 
     #[derive(Serialize)]
     struct TestStruct {
