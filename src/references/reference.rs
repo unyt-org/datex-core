@@ -374,7 +374,7 @@ impl Reference {
         self.with_value(|value| match value.inner {
             CoreValue::Map(ref mut map) => match map {
                 Map::Dynamic(_) => true,
-                _ => false,
+                Map::Fixed(_) | Map::Structural(_) => false,
             },
             _ => false,
         })
@@ -454,8 +454,27 @@ impl Reference {
             Reference::TypeReference(_) => ReferenceMutability::Immutable,
         }
     }
+
+    /// Checks if the reference is mutable.
+    /// A reference is mutable if it is a mutable ValueReference and all references in the chain are mutable.
+    /// TypeReferences are always immutable.
     pub fn is_mutable(&self) -> bool {
-        self.mutability() == ReferenceMutability::Mutable
+        match self {
+            Reference::TypeReference(_) => false, // type references are always immutable
+            Reference::ValueReference(vr) => {
+                let vr_borrow = vr.borrow();
+                // if the current reference is immutable, whole chain is immutable
+                if vr_borrow.mutability != ReferenceMutability::Mutable {
+                    return false;
+                }
+
+                // otherwise, check if ref is pointing to another reference
+                match &vr_borrow.value_container {
+                    ValueContainer::Reference(inner) => inner.is_mutable(),
+                    ValueContainer::Value(_) => true,
+                }
+            }
+        }
     }
 
     /// Creates a new reference from a value container
@@ -465,10 +484,6 @@ impl Reference {
         maybe_pointer_id: Option<PointerAddress>,
         mutability: ReferenceMutability,
     ) -> Result<Self, ReferenceFromValueContainerError> {
-        /**
-        * val a: &mut text = &mut "hello" // Reference<mutable, type: text>
-        * val b: &&mut text = &a     // Reference<immutable, type: Reference<&mut text>>
-        #*/
         // FIXME implement type check
         Ok(match value_container {
             ValueContainer::Reference(ref reference) => {
