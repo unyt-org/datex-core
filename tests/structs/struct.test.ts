@@ -1,5 +1,5 @@
 // deno-lint-ignore no-import-prefix
-import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token=" with {
+import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token" with {
     type: "json",
 };
 
@@ -18,7 +18,6 @@ function resolvePath(
 
 const BASE = new URL("./", import.meta.url);
 const IGNORED_PATHS = [
-    "routing_header.magic_number",
     "body",
 ];
 
@@ -49,8 +48,7 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                 (["Missing field", "Additional", "Different value"] as const)[
                     difference.t
                 ];
-
-            if (IGNORED_PATHS.includes(path) || type === "Additional") continue;
+            if (IGNORED_PATHS.includes(path) || difference.v === null) continue;
 
             if (path.startsWith("routing_header.receivers_with_keys")) {
                 const [expectedEndpoint, expectedKey] =
@@ -63,15 +61,15 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                         `Difference at '${path}': Expected '${expectedEndpoint}', found '${parsedEndpoint}'`,
                     );
                 }
-                // FIXME
-                // // array to hex string
-                // const hexKey = expectedKey.map((ba: number) => ba.toString(16))
-                //     .join("");
-                // if (parsedKey !== hexKey) {
-                //     throw new Error(
-                //         `Difference at '${path}': Expected key '${hexKey}', found '${parsedKey}'`,
-                //     );
-                // }
+                const hexKey = expectedKey.map((ba: number) =>
+                    ba.toString(16).padStart(2, "0")
+                )
+                    .join("");
+                if (parsedKey !== hexKey) {
+                    errors.push(
+                        `Difference at '${path}': Expected key '${hexKey}', found '${parsedKey}'`,
+                    );
+                }
                 continue;
             }
 
