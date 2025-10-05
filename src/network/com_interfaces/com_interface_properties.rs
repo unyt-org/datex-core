@@ -1,5 +1,5 @@
-use crate::runtime::global_context::get_global_context;
 use crate::stdlib::time::Duration;
+use crate::utils::time::Time;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::{DurationMilliSeconds, DurationSeconds};
@@ -101,7 +101,7 @@ impl ReconnectionConfig {
             Some(ts) => ts,
             None => return false,
         };
-        let now = get_global_context().time.lock().unwrap().now();
+        let now = Time::now();
         let elapsed = Duration::from_millis(now - close_timestamp);
         if elapsed < *timeout {
             return false;

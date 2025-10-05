@@ -3,6 +3,7 @@ use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
+use crate::utils::time::Time;
 
 use futures::channel::oneshot::Sender;
 use futures_util::StreamExt;
@@ -810,7 +811,7 @@ impl ComHub {
         endpoint_sockets.push((
             socket_uuid,
             DynamicEndpointProperties {
-                known_since: get_global_context().time.lock().unwrap().now(),
+                known_since: Time::now(),
                 distance,
                 is_direct,
                 channel_factor,
@@ -957,6 +958,7 @@ impl ComHub {
     /// - then direct sockets
     /// - then sort by channel channel_factor (latency, bandwidth)
     /// - then sort by socket connect_timestamp
+    ///
     /// When the global debug flag `enable_deterministic_behavior` is set,
     /// Sockets are not sorted by their connect_timestamp to make sure that the order of
     /// received blocks has no effect on the routing priorities
@@ -1293,7 +1295,7 @@ impl ComHub {
     /// TODO @Norbert
     fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
         // TODO #188 signature & encryption
-        let now = get_global_context().clone().time.lock().unwrap().now();
+        let now = Time::now();
         block.routing_header.sender = self.endpoint.clone();
         block
             .block_header

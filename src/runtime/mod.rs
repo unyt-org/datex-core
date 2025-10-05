@@ -14,13 +14,14 @@ use crate::runtime::execution_context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use crate::utils::time::Time;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::serde::serializer::to_value_container;
 use crate::values::value_container::ValueContainer;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::values::serde::error::SerializationError;
 use futures::channel::oneshot::Sender;
-use global_context::{GlobalContext, get_global_context, set_global_context};
+use global_context::{GlobalContext, set_global_context};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -408,7 +409,7 @@ impl Runtime {
         }
         info!(
             "Runtime initialized - Version {VERSION} Time: {}",
-            get_global_context().time.lock().unwrap().now()
+            Time::now()
         );
         Self::new(config)
     }
@@ -434,10 +435,7 @@ impl Runtime {
 
         Self::init(
             config,
-            GlobalContext::new(
-                Arc::new(Mutex::new(CryptoNative)),
-                Arc::new(Mutex::new(TimeNative)),
-            ),
+            GlobalContext::new(Arc::new(CryptoNative), Arc::new(TimeNative)),
         )
     }
 

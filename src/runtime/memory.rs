@@ -4,9 +4,9 @@ use crate::references::type_reference::TypeReference;
 use crate::references::value_reference::ValueReference;
 use crate::types::error::IllegalTypeError;
 use crate::types::type_container::TypeContainer;
+use crate::utils::time::Time;
 use crate::values::pointer::PointerAddress;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
-use datex_core::runtime::global_context::get_global_context;
 use datex_core::values::core_values::endpoint::Endpoint;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -39,10 +39,15 @@ impl Memory {
     /// Registers a new reference in memory. If the reference has no PointerAddress, a new local one is generated.
     /// If the reference is already registered (has a PointerAddress), the existing address is returned and no new registration is done.
     /// Returns the PointerAddress of the registered reference.
-    pub fn register_reference(&mut self, reference: &Reference) -> PointerAddress {
+    pub fn register_reference(
+        &mut self,
+        reference: &Reference,
+    ) -> PointerAddress {
         let pointer_address = reference.pointer_address();
         // check if reference is already registered (if it has an address, we assume it is registered)
-        if let Some(ref address) = pointer_address && self.pointers.contains_key(address) {
+        if let Some(ref address) = pointer_address
+            && self.pointers.contains_key(address)
+        {
             return address.clone();
         }
         // auto-generate new local id if no id is set
@@ -54,10 +59,11 @@ impl Memory {
             pointer_address
         };
 
-        self.pointers.insert(pointer_address.clone(), reference.clone());
+        self.pointers
+            .insert(pointer_address.clone(), reference.clone());
         pointer_address
     }
-    
+
     /// Returns a reference stored at the given PointerAddress, if it exists.
     pub fn get_reference(
         &self,
@@ -140,7 +146,7 @@ impl Memory {
 
     /// Creates a new unique local PointerAddress.
     pub fn get_new_local_address(&mut self) -> PointerAddress {
-        let timestamp = get_global_context().time.lock().unwrap().now(); // TODO: better way to get current time?
+        let timestamp = Time::now();
         // new timestamp, reset counter
         if timestamp != self.last_timestamp {
             self.last_timestamp = timestamp;
@@ -164,12 +170,14 @@ impl Memory {
     }
 }
 
-
 impl Reference {
     /// Returns the PointerAddress of this reference, if it has one.
     /// Otherwise, it registers the reference in the given memory and returns the newly assigned PointerAddress.
-    pub fn ensure_pointer_address(&self, memory: &RefCell<Memory>) -> PointerAddress {
-        self
-            .pointer_address().unwrap_or_else(|| memory.borrow_mut().register_reference(self))
+    pub fn ensure_pointer_address(
+        &self,
+        memory: &RefCell<Memory>,
+    ) -> PointerAddress {
+        self.pointer_address()
+            .unwrap_or_else(|| memory.borrow_mut().register_reference(self))
     }
 }

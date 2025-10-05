@@ -12,6 +12,7 @@ use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
 use crate::runtime::global_context::get_global_context;
+use crate::utils::time::Time;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::endpoint::Endpoint;
@@ -276,8 +277,7 @@ impl ComHub {
         };
 
         // measure round trip time
-        let start_time =
-            get_global_context().clone().time.lock().unwrap().now();
+        let start_time = Time::now();
 
         let responses = self
             .send_own_block_await_response(
@@ -285,7 +285,7 @@ impl ComHub {
                 options.response_options,
             )
             .await;
-        let end_time = get_global_context().clone().time.lock().unwrap().now();
+        let end_time = Time::now();
         let round_trip_time = Duration::from_millis(end_time - start_time);
 
         let mut results = vec![];
