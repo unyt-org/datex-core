@@ -1,6 +1,4 @@
-use crate::{
-    crypto::crypto::CryptoTrait, utils::time::TimeTrait,
-};
+use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use std::{
     cell::RefCell,
     sync::{Arc, Mutex},
@@ -29,6 +27,20 @@ pub struct GlobalContext {
 
     #[cfg(feature = "debug")]
     pub debug_flags: DebugFlags,
+}
+
+impl GlobalContext {
+    pub fn native() -> GlobalContext {
+        use crate::{
+            crypto::crypto_native::CryptoNative, utils::time_native::TimeNative,
+        };
+        GlobalContext {
+            crypto: Arc::new(Mutex::new(CryptoNative)),
+            time: Arc::new(Mutex::new(TimeNative)),
+            #[cfg(feature = "debug")]
+            debug_flags: DebugFlags::default(),
+        }
+    }
 }
 
 impl GlobalContext {
