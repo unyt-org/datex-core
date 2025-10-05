@@ -19,7 +19,6 @@ impl Reference {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
         }
-        // FIXME consider immutability of indirect refs
         let val = val.upgrade_combined_value_to_reference();
         let dif_val = DIFValueContainer::from_value_container(&val, memory);
         let dif_key = DIFValueContainer::from_value_container(&key, memory);
@@ -39,7 +38,6 @@ impl Reference {
             }
             Ok(())
         })?;
-        // FIXME: Notify observers about the property update
         self.notify_observers(&DIFUpdate::set(dif_key, dif_val));
         Ok(())
     }
