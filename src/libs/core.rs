@@ -35,7 +35,7 @@ pub enum CoreLibPointerId {
     Map,                                 // #core.Map
     Function,                            // #core.Function
     Union,                               // #core.Union
-    Unit,                                // #core.unit
+    Unit,                                // #core.Unit
 }
 
 impl CoreLibPointerId {
@@ -65,9 +65,9 @@ impl CoreLibPointerId {
                 let v: u8 = (*v).into();
                 CoreLibPointerId::Decimal(None).to_u16() + v as u16
             }
-            e => panic!("Unsupported CoreLibPointerId : {:?}", e),
         }
     }
+
     pub fn from_u16(id: u16) -> Option<Self> {
         match id {
             0 => Some(CoreLibPointerId::Core),
@@ -190,28 +190,29 @@ pub fn load_core_lib(memory: &mut Memory) {
 pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
     let integer = integer();
     let decimal = decimal();
-    once(null())
-        .chain(once(integer.clone()))
-        .chain(
-            IntegerTypeVariant::iter()
-                .map(|variant| integer_variant(integer.1.clone(), variant)),
-        )
-        .chain(once(decimal.clone()))
-        .chain(
-            DecimalTypeVariant::iter()
-                .map(|variant| decimal_variant(decimal.1.clone(), variant)),
-        )
-        .chain(vec![
-            r#type(),
-            text(),
-            list(),
-            boolean(),
-            endpoint(),
-            union(),
-            unit(),
-            map(),
-        ])
-        .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
+    vec![
+        r#type(),
+        text(),
+        list(),
+        boolean(),
+        endpoint(),
+        union(),
+        unit(),
+        map(),
+        null(),
+    ]
+    .into_iter()
+    .chain(once(integer.clone()))
+    .chain(
+        IntegerTypeVariant::iter()
+            .map(|variant| integer_variant(integer.1.clone(), variant)),
+    )
+    .chain(once(decimal.clone()))
+    .chain(
+        DecimalTypeVariant::iter()
+            .map(|variant| decimal_variant(decimal.1.clone(), variant)),
+    )
+    .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
 }
 
 type CoreLibTypeDefinition = (CoreLibPointerId, TypeContainer);
@@ -267,6 +268,7 @@ pub fn text() -> CoreLibTypeDefinition {
 pub fn integer() -> CoreLibTypeDefinition {
     create_core_type("integer", None, None, CoreLibPointerId::Integer(None))
 }
+
 pub fn integer_variant(
     base_type: TypeContainer,
     variant: IntegerTypeVariant,
