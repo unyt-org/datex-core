@@ -43,6 +43,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use crate::references::reference::AssignmentError;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -425,7 +426,7 @@ impl Display for InvalidProgramError {
 
 #[derive(Debug)]
 pub enum ExecutionError {
-    ParserError(DXBParserError),
+    DXBParserError(DXBParserError),
     ValueError(ValueError),
     InvalidProgram(InvalidProgramError),
     Unknown,
@@ -438,11 +439,13 @@ pub enum ExecutionError {
     CompilerError(CompilerError),
     IllegalTypeError(IllegalTypeError),
     ReferenceNotFound,
+    DerefOfNonReference,
+    AssignmentError(AssignmentError)
 }
 
 impl From<DXBParserError> for ExecutionError {
     fn from(error: DXBParserError) -> Self {
-        ExecutionError::ParserError(error)
+        ExecutionError::DXBParserError(error)
     }
 }
 
@@ -476,6 +479,12 @@ impl From<CompilerError> for ExecutionError {
     }
 }
 
+impl From<AssignmentError> for ExecutionError {
+    fn from(error: AssignmentError) -> Self {
+        ExecutionError::AssignmentError(error)
+    }
+}
+
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -485,7 +494,7 @@ impl Display for ExecutionError {
             ExecutionError::CompilerError(err) => {
                 write!(f, "Compiler error: {err}")
             }
-            ExecutionError::ParserError(err) => {
+            ExecutionError::DXBParserError(err) => {
                 write!(f, "Parser error: {err}")
             }
             ExecutionError::Unknown => write!(f, "Unknown execution error"),
@@ -519,6 +528,12 @@ impl Display for ExecutionError {
             }
             ExecutionError::IllegalTypeError(err) => {
                 write!(f, "Illegal type: {err}")
+            }
+            ExecutionError::DerefOfNonReference => {
+                write!(f, "Tried to dereference a non-reference value")
+            }
+            ExecutionError::AssignmentError(err) => {
+                write!(f, "Assignment error: {err}")
             }
         }
     }
@@ -908,6 +923,22 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::AssignToReference(operator) => {
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::AssignToReference { reference: None, operator });
+                None
+            }
+
+            Instruction::Deref => {
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::Deref);
+                None
+            }
+
             Instruction::GetRef(address) => {
                 interrupt_with_result!(
                     interrupt_provider,
@@ -943,7 +974,7 @@ fn get_result_value_from_instruction(
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::AssignmentOperation {
                         address,
-                        operator: AssignmentOperator::SubstractAssign,
+                        operator: AssignmentOperator::SubtractAssign,
                     },
                 );
                 None
@@ -1059,7 +1090,7 @@ fn handle_value(
 ) -> Result<(), ExecutionError> {
     let scope_container = context.scope_stack.get_current_scope_mut();
 
-    let result_value = match &scope_container.scope {
+    let result_value = match &mut scope_container.scope {
         Scope::KeyValuePair => {
             let key = &scope_container.active_value;
             match key {
@@ -1092,6 +1123,36 @@ fn handle_value(
             let address = *address;
             context.set_slot_value(address, value_container.clone())?;
             Some(value_container)
+        }
+
+        Scope::Deref => {
+            // set value for slot
+            if let ValueContainer::Reference(reference) = value_container {
+                Some(reference.value_container())
+            } else {
+                return Err(ExecutionError::DerefOfNonReference)
+            }
+        }
+
+        Scope::AssignToReference { operator, reference} => {
+            if (reference.is_none()) {
+                // set value for slot
+                if let ValueContainer::Reference(new_reference) = value_container {
+                    reference.replace(new_reference);
+                    None
+                } else {
+                    return Err(ExecutionError::DerefOfNonReference)
+                }
+            }
+            else {
+                let operator = *operator;
+                let reference = reference.as_ref().unwrap();
+                let lhs = reference.value_container();
+                let res =
+                    handle_assignment_operation(lhs, value_container, operator)?;
+                reference.set_value_container(res)?;
+                Some(ValueContainer::Reference(reference.clone()))
+            }
         }
 
         Scope::AssignmentOperation { operator, address } => {
@@ -1236,6 +1297,7 @@ fn handle_unary_reference_operation(
     operator: ReferenceUnaryOperator,
     value_container: ValueContainer,
 ) -> ValueContainer {
+    // TODO: don't panic, pass result
     match operator {
         ReferenceUnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
@@ -1248,6 +1310,13 @@ fn handle_unary_reference_operation(
             Reference::try_mut_from(value_container)
                 .expect("Could not create mutable reference"),
         ),
+        ReferenceUnaryOperator::Deref => {
+            if let ValueContainer::Reference(reference) = value_container {
+                reference.value_container()
+            } else {
+                panic!("Tried to deref a non-reference value")
+            }
+        }
     }
 }
 fn handle_unary_logical_operation(
@@ -1335,7 +1404,7 @@ fn handle_assignment_operation(
     // apply operation to active value
     match operator {
         AssignmentOperator::AddAssign => Ok((lhs + rhs)?),
-        AssignmentOperator::SubstractAssign => Ok((lhs - rhs)?),
+        AssignmentOperator::SubtractAssign => Ok((lhs - rhs)?),
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);
         }
@@ -1764,6 +1833,15 @@ mod tests {
             Integer::from(42i8)
         ];
         assert_eq!(result, expected.into());
+    }
+
+
+    #[test]
+    fn deref() {
+        init_logger_debug();
+        let result =
+            execute_datex_script_debug_with_result("const x = &42; *x");
+        assert_eq!(result, ValueContainer::from(Integer::from(42i8)));
     }
 
     #[test]

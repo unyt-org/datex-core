@@ -739,7 +739,7 @@ fn compile_expression(
                     // );
                 }
                 AssignmentOperator::AddAssign
-                | AssignmentOperator::SubstractAssign => {
+                | AssignmentOperator::SubtractAssign => {
                     // TODO: handle mut type
                     // // if immutable reference, return error
                     // if mut_type == Some(ReferenceMutability::Immutable) {
@@ -956,6 +956,20 @@ fn compile_expression(
                 metadata,
                 scope,
             )?;
+        }
+        
+        DatexExpression::Deref(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_instruction_code(InstructionCode::DEREF);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         _ => return Err(CompilerError::UnexpectedTerm(Box::new(ast_with_metadata.ast))),
@@ -2653,6 +2667,23 @@ pub mod tests {
                 0xff,
                 0xff,
                 0xff
+            ]
+        );
+    }
+
+    #[test]
+    fn deref() {
+        let script = "*10";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::DEREF.into(),
+                InstructionCode::INT_8.into(),
+                // integer as u8
+                10,
+                InstructionCode::SCOPE_END.into(),
             ]
         );
     }

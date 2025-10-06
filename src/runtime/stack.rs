@@ -5,6 +5,7 @@ use crate::ast::unary_operation::UnaryOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;
+use datex_core::references::reference::Reference;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
@@ -18,6 +19,11 @@ pub enum Scope {
     Default,
     Collection,
     RemoteExecution,
+    Deref,
+    AssignToReference {
+        reference: Option<Reference>,
+        operator: AssignmentOperator,
+    },
     ComparisonOperation {
         operator: ComparisonOperator,
     },

@@ -7,6 +7,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use std::fmt::Display;
 use std::io::{BufRead, Cursor, Read, Seek};
+use datex_core::ast::assignment_operation::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
@@ -139,22 +140,12 @@ pub fn iterate_instructions<'a>(
                     return;
                 }
 
-                let instruction_code = {
-                    let instruction_code = u8::read(&mut reader);
-                    if let Err(err) = instruction_code {
-                        yield Err(err.into());
-                        return;
-                    }
-
-                    let instruction_code =
-                        InstructionCode::try_from(instruction_code.unwrap());
-                    if instruction_code.is_err() {
-                        yield Err(DXBParserError::FailedToReadInstructionCode);
-                        return;
-                    }
-                    instruction_code.unwrap()
-                };
-                //info!("Instruction code: {:?}", instruction_code);
+                let instruction_code = get_next_instruction_code(&mut reader);
+                if let Err(err) = instruction_code {
+                    yield Err(err);
+                    return;
+                }
+                let instruction_code = instruction_code.unwrap();
 
                 yield match instruction_code {
                     InstructionCode::UINT_8 => {
@@ -342,7 +333,20 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
                     
                     InstructionCode::DEREF => Ok(Instruction::Deref),
-                    InstructionCode::ASSIGN_TO_REF => Ok(Instruction::AssignToReference),
+                    InstructionCode::ASSIGN_TO_REF => {
+                        let operator = get_next_instruction_code(&mut reader);
+                        if let Err(err) = operator {
+                            yield Err(err);
+                            return;
+                        }
+                        let operator = AssignmentOperator::try_from(operator.unwrap())
+                            .map_err(|_| DXBParserError::InvalidBinaryCode(instruction_code as u8));
+                        if let Err(err) = operator {
+                            yield Err(err);
+                            return;
+                        }
+                        Ok(Instruction::AssignToReference(operator.unwrap()))
+                    }
 
                     InstructionCode::KEY_VALUE_SHORT_TEXT => {
                         let short_text_data = get_short_text_data(&mut reader);
@@ -491,6 +495,14 @@ pub fn iterate_instructions<'a>(
             }
         },
     )
+}
+
+fn get_next_instruction_code(
+mut reader: &mut Cursor<&[u8]>,
+) -> Result<InstructionCode, DXBParserError> {
+    let instruction_code = u8::read(&mut reader).map_err(|err| DXBParserError::FailedToReadInstructionCode)?;
+
+    Ok(InstructionCode::try_from(instruction_code).map_err(|_| DXBParserError::FailedToReadInstructionCode)?)
 }
 
 

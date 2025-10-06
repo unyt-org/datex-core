@@ -5,7 +5,7 @@ use crate::values::core_values::{
 };
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
-
+use crate::ast::assignment_operation::AssignmentOperator;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -92,7 +92,7 @@ pub enum Instruction {
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
 
-    AssignToReference,
+    AssignToReference(AssignmentOperator),
     Deref,
 
     TypeInstructions(Vec<TypeInstruction>),
@@ -185,7 +185,7 @@ impl Display for Instruction {
             Instruction::SetSlot(address) => {
                 write!(f, "SET_SLOT {}", address.0)
             }
-            Instruction::AssignToReference => write!(f, "ASSIGN_REFERENCE"),
+            Instruction::AssignToReference(operator) => write!(f, "ASSIGN_REFERENCE ({})", operator),
             Instruction::Deref => write!(f, "DEREF"),
             Instruction::GetRef(address) => {
                 write!(f, "GET_REF [{}:{}]", address.endpoint, hex::encode(address.id))

@@ -519,7 +519,7 @@ impl Reference {
                                 Type::reference(tr.clone(), Some(mutability)),
                                 maybe_pointer_id,
                             )
-                            .as_ref_cell(),
+                                .as_ref_cell(),
                         )
                     }
                 }
@@ -732,8 +732,31 @@ impl Reference {
             }
         }
     }
-}
 
+    /// Sets the value container of the reference if it is mutable.
+    /// If the reference is immutable, an error is returned.
+    pub fn set_value_container(
+        &self,
+        new_value_container: ValueContainer,
+    ) -> Result<(), AssignmentError> {
+        match &self {
+            Reference::TypeReference(_) => {
+                Err(AssignmentError::ImmutableReference)
+            }
+            Reference::ValueReference(vr) => {
+                if self.is_mutable()
+                {
+                    // TODO: check type compatibility, handle observers
+                    vr.borrow_mut().value_container = new_value_container;
+                    Ok(())
+                }
+                else {
+                    Err(AssignmentError::ImmutableReference)
+                }
+            }
+        }
+    }
+}
 /// Getter for references
 impl Reference {
     /// Gets a property on the value if applicable (e.g. for map and structs)

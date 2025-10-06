@@ -146,22 +146,10 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn remap_virtual_slots(&self) {
-        info!("remapping, bytes before: {:?}", self.buffer.borrow());
-        info!(
-            "decompiled: {:?}",
-            decompile_body(&self.buffer.borrow(), Default::default())
-                .expect("Failed to decompile body")
-        );
-
-        info!("slot indices: {:#?}", self.slot_indices.borrow());
-
         let mut slot_address = 0;
 
         // parent slots
         for byte_indices in self.get_slot_byte_indices(true) {
-            info!(
-                "remapping slot address: {slot_address}, indices: {byte_indices:?}"
-            );
             for byte_index in byte_indices {
                 self.set_u32_at_index(slot_address, byte_index as usize);
             }
@@ -170,19 +158,11 @@ impl<'a> CompilationContext<'a> {
 
         // local slots
         for byte_indices in self.get_slot_byte_indices(false) {
-            info!(
-                "remapping local slot address: {slot_address}, indices: {byte_indices:?}"
-            );
             for byte_index in byte_indices {
                 self.set_u32_at_index(slot_address, byte_index as usize);
             }
             slot_address += 1;
         }
-        info!(
-            "decompiled after: {:?}",
-            decompile_body(&self.buffer.borrow(), Default::default())
-                .expect("Failed to decompile body")
-        );
     }
 
     // This method writes a placeholder value for the slot

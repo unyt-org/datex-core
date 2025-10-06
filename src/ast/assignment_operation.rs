@@ -10,7 +10,7 @@ use chumsky::prelude::*;
 pub enum AssignmentOperator {
     Assign,           // =
     AddAssign,        // +=
-    SubstractAssign,  // -=
+    SubtractAssign,  // -=
     MultiplyAssign,   // *=
     DivideAssign,     // /=
     ModuloAssign,     // %=
@@ -26,7 +26,7 @@ impl Display for AssignmentOperator {
             match self {
                 AssignmentOperator::Assign => "=",
                 AssignmentOperator::AddAssign => "+=",
-                AssignmentOperator::SubstractAssign => "-=",
+                AssignmentOperator::SubtractAssign => "-=",
                 AssignmentOperator::MultiplyAssign => "*=",
                 AssignmentOperator::DivideAssign => "/=",
                 AssignmentOperator::ModuloAssign => "%=",
@@ -43,7 +43,7 @@ impl From<&AssignmentOperator> for InstructionCode {
         match op {
             AssignmentOperator::Assign => InstructionCode::ASSIGN,
             AssignmentOperator::AddAssign => InstructionCode::ADD_ASSIGN,
-            AssignmentOperator::SubstractAssign => {
+            AssignmentOperator::SubtractAssign => {
                 InstructionCode::SUBTRACT_ASSIGN
             }
             AssignmentOperator::MultiplyAssign => {
@@ -58,12 +58,30 @@ impl From<&AssignmentOperator> for InstructionCode {
     }
 }
 
+impl TryFrom<InstructionCode> for AssignmentOperator {
+    type Error = ();
+    fn try_from(code: InstructionCode) -> Result<Self, Self::Error> {
+        Ok(match code {
+            InstructionCode::ASSIGN => AssignmentOperator::Assign,
+            InstructionCode::ADD_ASSIGN => AssignmentOperator::AddAssign,
+            InstructionCode::SUBTRACT_ASSIGN => {
+                AssignmentOperator::SubtractAssign
+            }
+            InstructionCode::MULTIPLY_ASSIGN => {
+                AssignmentOperator::MultiplyAssign
+            }
+            InstructionCode::DIVIDE_ASSIGN => AssignmentOperator::DivideAssign,
+            _ => return Err(()),
+        })
+    }
+}
+
 pub fn assignment_operation<'a>()
 -> impl DatexParserTrait<'a, AssignmentOperator> {
     select! {
         Token::Assign      => AssignmentOperator::Assign,
         Token::AddAssign   => AssignmentOperator::AddAssign,
-        Token::SubAssign   => AssignmentOperator::SubstractAssign,
+        Token::SubAssign   => AssignmentOperator::SubtractAssign,
         Token::MulAssign   => AssignmentOperator::MultiplyAssign,
         Token::DivAssign   => AssignmentOperator::DivideAssign,
         Token::ModAssign   => AssignmentOperator::ModuloAssign,

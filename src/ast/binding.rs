@@ -49,10 +49,9 @@ pub fn variable_assignment<'a>(
         .labelled(Pattern::Declaration)
         .as_context()
 }
-
 pub fn deref_assignment<'a>(
     expression: impl DatexParserTrait<'a>,
-    deref_assignment_expression: impl DatexParserTrait<'a>,
+    unary: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let assignment_op = assignment_operation();
 
@@ -60,7 +59,7 @@ pub fn deref_assignment<'a>(
         .repeated()
         .at_least(1)
         .count()
-        .then(deref_assignment_expression)
+        .then(unary)
         .then(assignment_op)
         .then(expression)
         .map(|(((deref_count, deref_expression), operator), assigned_expression)| {
@@ -119,12 +118,12 @@ pub fn variable_declaration<'a>(
 /// A declaration or assignment, e.g. `var x = 42;`, `const x = 69`, `x = 43;`, or `type x = 42`
 pub fn declaration_or_assignment<'a>(
     expression: impl DatexParserTrait<'a>,
-    deref_assignment_expression: impl DatexParserTrait<'a>,
+    unary: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
         type_declaration(),
         variable_declaration(expression.clone()),
-        deref_assignment(expression.clone(), deref_assignment_expression.clone()),
+        deref_assignment(expression.clone(), unary.clone()),
         variable_assignment(expression),
     ))
 }

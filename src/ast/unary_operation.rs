@@ -24,6 +24,7 @@ pub enum ReferenceUnaryOperator {
     CreateRef,      // &
     CreateRefMut,   // &mut
     CreateRefFinal, // &final
+    Deref,          // *
 }
 
 impl Display for ReferenceUnaryOperator {
@@ -32,6 +33,7 @@ impl Display for ReferenceUnaryOperator {
             ReferenceUnaryOperator::CreateRef => write!(f, "&"),
             ReferenceUnaryOperator::CreateRefMut => write!(f, "&mut"),
             ReferenceUnaryOperator::CreateRefFinal => write!(f, "&final"),
+            ReferenceUnaryOperator::Deref => write!(f, "*"),
         }
     }
 }

@@ -419,6 +419,14 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
+        DatexExpression::Deref(expr) => {
+            visit_expression(
+                expr,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+            )?;
+        }
         DatexExpression::ApplyChain(expr, applies) => {
             visit_expression(
                 expr,

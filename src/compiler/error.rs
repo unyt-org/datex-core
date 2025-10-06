@@ -3,7 +3,7 @@ use std::fmt::Display;
 #[derive(Debug)]
 pub enum CompilerError {
     UnexpectedTerm(Box<DatexExpression>),
-    ParserErrors(Vec<ParseError>),
+    ParseErrors(Vec<ParseError>),
     SerializationError(binrw::Error),
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
@@ -21,7 +21,7 @@ pub enum CompilerError {
 }
 impl From<Vec<ParseError>> for CompilerError {
     fn from(value: Vec<ParseError>) -> Self {
-        CompilerError::ParserErrors(value)
+        CompilerError::ParseErrors(value)
     }
 }
 
@@ -34,7 +34,7 @@ impl Display for CompilerError {
             CompilerError::UnexpectedTerm(rule) => {
                 write!(f, "Unexpected term: {rule:?}")
             }
-            CompilerError::ParserErrors(error) => {
+            CompilerError::ParseErrors(error) => {
                 for e in error {
                     writeln!(f, "{}", e.message())?;
                 }

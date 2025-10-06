@@ -251,6 +251,9 @@ pub enum DatexExpression {
     /// Final reference, e.g. &final x
     RefFinal(Box<DatexExpression>),
 
+    /// Deref
+    Deref(Box<DatexExpression>),
+
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),
     /// Slot assignment
@@ -408,40 +411,22 @@ where
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom = atom(list.clone(), map.clone(), wrapped_expression.clone());
-    let unary = choice((type_expression(), unary(atom.clone())));
+    let unary = unary(atom.clone());
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
     let chain =
         chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
-    let reference = just(Token::Ampersand)
-        .ignore_then(
-            just(Token::Mutable)
-                .or(just(Token::Final))
-                .or_not()
-                .padded_by(whitespace()),
-        )
-        .then(chain.clone())
-        .map(|(ref_type, expr)| match ref_type {
-            Some(Token::Mutable) => DatexExpression::RefMut(Box::new(expr)),
-            Some(Token::Final) => DatexExpression::RefFinal(Box::new(expr)),
-            None => DatexExpression::Ref(Box::new(expr)),
-            _ => unreachable!(),
-        });
-
-    let unary = reference.clone().or(unary);
-    let reference_or_chain = reference.or(chain.clone());
-
-    let union = binary_operation(reference_or_chain);
+    let binary = binary_operation(chain);
 
     // FIXME WIP
     let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
-    let comparison = comparison_operation(union.clone());
+    let comparison = comparison_operation(binary.clone());
 
     // declarations or assignments
-    let declaration_or_assignment = declaration_or_assignment(expression.clone(), key.clone());
+    let declaration_or_assignment = declaration_or_assignment(expression.clone(), unary.clone());
 
     let condition_union = binary_operation(chain_without_whitespace_apply(
         unary.clone(),
@@ -500,6 +485,7 @@ where
 
     inner_expression.define(
         choice((
+            type_expression(),
             if_expression,
             declaration_or_assignment,
             function_declaration,
@@ -3187,6 +3173,26 @@ mod tests {
     }
 
     #[test]
+    fn deref() {
+        let src = "*x";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Deref(Box::new(DatexExpression::Literal("x".to_string())))
+        );
+    }
+
+    #[test]
+    fn deref_multiple() {
+        let src = "**x";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::Deref(Box::new(DatexExpression::Deref(Box::new(DatexExpression::Literal("x".to_string())))))
+        );
+    }
+
+    #[test]
     fn addressed_slot() {
         let src = "#123";
         let expr = parse_unwrap(src);
@@ -3255,7 +3261,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::VariableAssignment(
-                AssignmentOperator::SubstractAssign,
+                AssignmentOperator::SubtractAssign,
                 None,
                 "x".to_string(),
                 Box::new(DatexExpression::Integer(Integer::from(42))),
