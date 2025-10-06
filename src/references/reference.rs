@@ -12,13 +12,15 @@ use crate::values::traits::identity::Identity;
 use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
+use crate::values::value_container::{ValueContainer, ValueError};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use crate::runtime::execution::ExecutionError;
+use crate::values::traits::apply::Apply;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -836,6 +838,19 @@ impl Reference {
         .unwrap_or(Err(AccessError::InvalidOperation(
             "Cannot get numeric property on invalid reference".to_string(),
         )))
+    }
+}
+
+impl Apply for Reference {
+    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+        todo!()
+    }
+
+    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self {
+            Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
+            Reference::ValueReference(vr) => todo!()
+        }
     }
 }
 

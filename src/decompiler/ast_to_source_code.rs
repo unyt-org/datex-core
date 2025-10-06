@@ -40,9 +40,9 @@ pub fn ast_to_source_code(
 ) -> String {
     match ast {
         DatexExpression::Integer(i) => i.to_string(),
-        DatexExpression::TypedInteger(ti) => ti.to_string(),
+        DatexExpression::TypedInteger(ti) => ti.to_string_with_suffix(),
         DatexExpression::Decimal(d) => d.to_string(),
-        DatexExpression::TypedDecimal(td) => td.to_string(),
+        DatexExpression::TypedDecimal(td) => td.to_string_with_suffix(),
         DatexExpression::Boolean(b) => b.to_string(),
         DatexExpression::Text(t) => text_to_source_code(t),
         DatexExpression::Endpoint(e) => e.to_string(),
@@ -299,7 +299,7 @@ mod tests {
         let typed_int_ast = DatexExpression::TypedInteger(42i8.into());
         assert_eq!(
             ast_to_source_code(&typed_int_ast, &DecompileOptions::default()),
-            "42"
+            "42i8"
         );
 
         let decimal_ast = DatexExpression::Decimal(
@@ -334,7 +334,7 @@ mod tests {
                 &typed_decimal_ast,
                 &DecompileOptions::default()
             ),
-            "2.71"
+            "2.71f32"
         );
 
         let bool_ast = DatexExpression::Boolean(true);

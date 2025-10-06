@@ -22,6 +22,7 @@ use std::cell::{Cell, RefCell};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
+use crate::libs::core::CoreLibPointerId;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -203,11 +204,10 @@ impl<'a> CompilationContext<'a> {
             }
             CoreValue::Integer(integer) => {
                 let integer = integer.to_smallest_fitting();
-                self.insert_typed_integer(&integer);
+                self.insert_encoded_integer(&integer);
             }
             CoreValue::TypedInteger(integer) => {
-                let integer = integer.to_smallest_fitting();
-                self.insert_typed_integer(&integer);
+                self.insert_typed_integer(integer);
             }
 
             CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
@@ -311,7 +311,7 @@ impl<'a> CompilationContext<'a> {
         }
     }
 
-    pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
+    pub fn insert_encoded_decimal(&self, decimal: &TypedDecimal) {
         fn insert_f32_or_f64(
             scope: &CompilationContext,
             decimal: &TypedDecimal,
@@ -347,6 +347,12 @@ impl<'a> CompilationContext<'a> {
             }
             None => insert_f32_or_f64(self, decimal),
         }
+    }
+    
+    pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
+        self.append_instruction_code(InstructionCode::APPLY_SINGLE);
+        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(decimal)));
+        self.insert_encoded_decimal(decimal);
     }
 
     pub fn insert_float32(&self, float32: f32) {
@@ -424,7 +430,8 @@ impl<'a> CompilationContext<'a> {
         self.index.update(|x| x + byte_count - original_length);
     }
 
-    pub fn insert_typed_integer(&self, integer: &TypedInteger) {
+    /// Inserts an encoded integer without explicit type casts
+    pub fn insert_encoded_integer(&self, integer: &TypedInteger) {
         match integer {
             TypedInteger::I8(val) => {
                 self.insert_i8(*val);
@@ -461,6 +468,13 @@ impl<'a> CompilationContext<'a> {
                 self.insert_big_integer(val);
             }
         }
+    }
+
+    /// Inserts a typed integer with explicit type casts
+    pub fn insert_typed_integer(&self, integer: &TypedInteger) {
+        self.append_instruction_code(InstructionCode::APPLY_SINGLE);
+        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(integer)));
+        self.insert_encoded_integer(&integer.to_smallest_fitting());
     }
     
     pub fn insert_decimal(&self, decimal: &Decimal) {

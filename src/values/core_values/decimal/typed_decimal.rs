@@ -15,6 +15,7 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
+use crate::libs::core::CoreLibPointerId;
 use crate::values::traits::value_eq::ValueEq;
 
 /// The decimal type variants to be used as a inline
@@ -183,9 +184,26 @@ impl PartialEq for TypedDecimal {
     }
 }
 
+impl From<&TypedDecimal> for CoreLibPointerId {
+    fn from(value: &TypedDecimal) -> Self {
+        CoreLibPointerId::Decimal(Some(value.variant()))
+    }
+}
+
+
 /// Parses a string into an f32, ensuring the value is finite and within the range of f32.
 /// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
+    println!("Parsing f32 from string: {}", s);
+
+    // handle special cases
+    match s {
+        "inf" => return Ok(f32::INFINITY),
+        "-inf" => return Ok(f32::NEG_INFINITY),
+        "NaN" => return Ok(f32::NAN),
+        _ => {}
+    }
+
     let v: f64 = s
         .parse()
         .map_err(|e: ParseFloatError| NumberParseError::InvalidFormat)?;
@@ -198,6 +216,15 @@ fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
 /// Parses a string into an f64, ensuring the value is finite and within the range of f64.
 /// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f64(s: &str) -> Result<f64, NumberParseError> {
+
+    // handle special cases
+    match s {
+        "inf" => return Ok(f64::INFINITY),
+        "-inf" => return Ok(f64::NEG_INFINITY),
+        "NaN" => return Ok(f64::NAN),
+        _ => {}
+    }
+
     let v: Decimal = Decimal::from_string(s)?;
     let res = v.try_into_f64();
     if let Some(v) = res {
@@ -421,6 +448,14 @@ impl TypedDecimal {
             TypedDecimal::F32(_) => DecimalTypeVariant::F32,
             TypedDecimal::F64(_) => DecimalTypeVariant::F64,
             TypedDecimal::Decimal(_) => DecimalTypeVariant::Big,
+        }
+    }
+
+    pub fn to_string_with_suffix(&self) -> String {
+        match self {
+            TypedDecimal::F32(value) => format!("{}f32", value.into_inner()),
+            TypedDecimal::F64(value) => format!("{}f64", value.into_inner()),
+            TypedDecimal::Decimal(value) => format!("{}big", value),
         }
     }
 }

@@ -41,6 +41,10 @@ pub enum Scope {
     SlotAssignment {
         address: u32,
     },
+    Apply {
+        arg_count: u16,
+        args: Vec<ValueContainer>,
+    }
 }
 
 impl ScopeContainer {

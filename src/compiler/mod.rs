@@ -434,7 +434,7 @@ fn compile_expression(
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
             compilation_context
-                .insert_typed_integer(&int.to_smallest_fitting());
+                .insert_encoded_integer(&int.to_smallest_fitting());
         }
         DatexExpression::TypedInteger(typed_int) => {
             compilation_context.insert_typed_integer(&typed_int);
@@ -957,7 +957,7 @@ fn compile_expression(
                 scope,
             )?;
         }
-        
+
         DatexExpression::Deref(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
@@ -1930,7 +1930,7 @@ pub mod tests {
         init_logger_debug();
         let result = compile_template(
             "? + ?",
-            &[1.into(), 2.into()],
+            &[Integer::from(1).into(), Integer::from(2).into()],
             CompileOptions::default(),
         );
         assert_eq!(
@@ -1948,7 +1948,7 @@ pub mod tests {
     #[test]
     fn compile_macro() {
         init_logger_debug();
-        let a = 1;
+        let a = Integer::from(1);
         let result = compile!("?", a);
         assert_eq!(result.unwrap().0, vec![InstructionCode::INT_8.into(), 1,]);
     }
@@ -1956,7 +1956,7 @@ pub mod tests {
     #[test]
     fn compile_macro_multi() {
         init_logger_debug();
-        let result = compile!("? + ?", 1, 2);
+        let result = compile!("? + ?", Integer::from(1), Integer::from(2));
         assert_eq!(
             result.unwrap().0,
             vec![

@@ -59,6 +59,8 @@ pub enum Instruction {
     Divide,
     Union,
 
+    Apply(ApplyData),
+
     // comparison operator
     Is,
     Matches,
@@ -114,6 +116,8 @@ impl Display for Instruction {
             Instruction::UInt32(data) => write!(f, "UINT_32 {}", data.0),
             Instruction::UInt64(data) => write!(f, "UINT_64 {}", data.0),
             Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
+
+            Instruction::Apply(count) => write!(f, "APPLY {}", count.arg_count),
 
             Instruction::BigInteger(data) => {
                 write!(f, "BIG_INTEGER {}", data.0)
@@ -420,4 +424,11 @@ pub struct ExecutionBlockData {
     pub injected_slots: Vec<u32>,
     #[br(count = length)]
     pub body: Vec<u8>,
+}
+
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ApplyData {
+    pub arg_count: u16
 }

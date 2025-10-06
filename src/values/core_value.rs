@@ -4,10 +4,10 @@ use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
-use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::decimal::typed_decimal::{DecimalTypeVariant, TypedDecimal};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
-use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::integer::typed_integer::{IntegerTypeVariant, TypedInteger};
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::text::Text;
@@ -220,12 +220,8 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::List(_) => CoreLibPointerId::List,
             CoreValue::Text(_) => CoreLibPointerId::Text,
             CoreValue::Boolean(_) => CoreLibPointerId::Boolean,
-            CoreValue::TypedInteger(i) => {
-                CoreLibPointerId::Integer(Some(i.variant()))
-            }
-            CoreValue::TypedDecimal(d) => {
-                CoreLibPointerId::Decimal(Some(d.variant()))
-            }
+            CoreValue::TypedInteger(i) => CoreLibPointerId::from(i),
+            CoreValue::TypedDecimal(d) => CoreLibPointerId::from(d),
             CoreValue::Integer(_) => CoreLibPointerId::Integer(None),
             CoreValue::Decimal(_) => CoreLibPointerId::Decimal(None),
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
@@ -285,21 +281,39 @@ impl CoreValue {
         }
     }
 
-    pub fn cast_to_float(&self) -> Option<TypedDecimal> {
+    pub fn cast_to_decimal(&self) -> Option<Decimal> {
         match self {
             CoreValue::Text(text) => {
-                text.to_string().parse::<f64>().ok().map(TypedDecimal::from)
+                text.to_string().parse::<f64>().ok().map(Decimal::from)
             }
             CoreValue::TypedInteger(int) => {
-                Some(TypedDecimal::from(int.as_i128()? as f64))
+                Some(Decimal::from(int.as_i128()? as f64))
             }
-            CoreValue::TypedDecimal(decimal) => Some(decimal.clone()),
+            CoreValue::TypedDecimal(decimal) => Some(Decimal::from(decimal.clone())),
+            CoreValue::Integer(int) => Some(Decimal::from(int.as_i128()? as f64)),
+            CoreValue::Decimal(decimal) => Some(decimal.clone()),
+            _ => None,
+        }
+    }
+    
+    pub fn cast_to_typed_decimal(&self, variant: DecimalTypeVariant) -> Option<TypedDecimal> {
+        println!("Casting {:?} to typed decimal {:?}", self, variant);
+        match self {
+            CoreValue::Text(text) => {
+                TypedDecimal::from_string_and_variant_in_range(text.as_str(), variant).ok()
+            }
+            CoreValue::TypedInteger(int) => {
+                Some(TypedDecimal::from_string_and_variant_in_range(&int.to_string(), variant).ok()?)
+            }
+            CoreValue::TypedDecimal(decimal) => Some(TypedDecimal::from_string_and_variant_in_range(&decimal.to_string(), variant).ok()?),
+            CoreValue::Integer(int) => Some(TypedDecimal::from_string_and_variant_in_range(&int.to_string(), variant).ok()?),
+            CoreValue::Decimal(decimal) => Some(TypedDecimal::from_string_and_variant_in_range(&decimal.to_string(), variant).ok()?),
             _ => None,
         }
     }
 
     // FIXME discuss here - shall we fit the integer in the minimum viable type?
-    pub fn cast_to_integer(&self) -> Option<TypedInteger> {
+    pub fn _cast_to_integer_internal(&self) -> Option<TypedInteger> {
         match self {
             CoreValue::Text(text) => Integer::from_string(&text.to_string())
                 .map(|x| Some(x.to_smallest_fitting()))
@@ -318,6 +332,32 @@ impl CoreValue {
                 TypedInteger::from(decimal.as_f64() as i64)
                     .to_smallest_fitting(),
             ),
+            _ => None,
+        }
+    }
+    
+    pub fn cast_to_integer(&self) -> Option<Integer> {
+        match self {
+            CoreValue::Text(text) => Integer::from_string(&text.to_string()).ok(),
+            CoreValue::TypedInteger(int) => Some(int.as_integer()),
+            CoreValue::Integer(int) => Some(int.clone()),
+            CoreValue::Decimal(decimal) => Some(Integer::from(
+                decimal.try_into_f64()? as i128,
+            )),
+            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(|i| Integer::from(i)),
+            _ => None,
+        }
+    }
+    
+    pub fn cast_to_typed_integer(&self, variant: IntegerTypeVariant) -> Option<TypedInteger> {
+        match self {
+            CoreValue::Text(text) => TypedInteger::from_string_with_variant(text.as_str(), variant).ok(),
+            CoreValue::TypedInteger(int) => TypedInteger::from_string_with_variant(&int.to_string(), variant).ok(),
+            CoreValue::Integer(int) => TypedInteger::from_string_with_variant(int.to_string().as_str(), variant).ok(),
+            CoreValue::Decimal(decimal) => Some(TypedInteger::from(
+                decimal.try_into_f64()? as i128,
+            )),
+            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(|i| TypedInteger::from(i)),
             _ => None,
         }
     }
@@ -387,7 +427,7 @@ impl Add for CoreValue {
                 }
                 CoreValue::Decimal(_) => {
                     let integer = rhs
-                        .cast_to_integer()
+                        ._cast_to_integer_internal()
                         .ok_or(ValueError::InvalidOperation)?;
                     Ok(CoreValue::Integer((lhs.clone() + integer.as_integer())))
                 }
@@ -407,7 +447,7 @@ impl Add for CoreValue {
                 }
                 CoreValue::Decimal(_) => {
                     let integer = rhs
-                        .cast_to_integer()
+                        ._cast_to_integer_internal()
                         .ok_or(ValueError::InvalidOperation)?;
                     Ok(CoreValue::TypedInteger(
                         (lhs + &integer).ok_or(ValueError::IntegerOverflow)?,
@@ -511,7 +551,7 @@ impl Sub for CoreValue {
                 }
                 CoreValue::Decimal(_) => {
                     let integer = rhs
-                        .cast_to_integer()
+                        ._cast_to_integer_internal()
                         .ok_or(ValueError::InvalidOperation)?;
                     Ok(CoreValue::Integer((lhs - &integer.as_integer())))
                 }
@@ -534,7 +574,7 @@ impl Sub for CoreValue {
                 // ))
                 CoreValue::Decimal(_) => {
                     let integer = rhs
-                        .cast_to_integer()
+                        ._cast_to_integer_internal()
                         .ok_or(ValueError::InvalidOperation)?;
                     Ok(CoreValue::TypedInteger(
                         (lhs - &integer).ok_or(ValueError::IntegerOverflow)?,

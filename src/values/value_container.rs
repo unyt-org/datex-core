@@ -13,6 +13,8 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
+use crate::runtime::execution::ExecutionError;
+use crate::values::traits::apply::Apply;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -251,6 +253,23 @@ impl ValueContainer {
         }
     }
 }
+
+impl Apply for ValueContainer {
+    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self {
+            ValueContainer::Value(value) => todo!("implement apply for Value"),
+            ValueContainer::Reference(reference) => reference.apply(args)
+        }
+    }
+
+    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self {
+            ValueContainer::Value(value) => todo!("implement apply_single for Value"),
+            ValueContainer::Reference(reference) => reference.apply_single(arg)
+        }
+    }
+}
+
 
 impl<T: Into<Value>> From<T> for ValueContainer {
     fn from(value: T) -> Self {

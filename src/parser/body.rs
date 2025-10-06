@@ -1,6 +1,6 @@
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::{InstructionCode, TypeSpaceInstructionCode};
-use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, RawFullPointerAddress, RawInternalPointerAddress, TypeTagData, TypeInstruction};
+use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, RawFullPointerAddress, RawInternalPointerAddress, TypeTagData, TypeInstruction, ApplyData};
 use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
@@ -331,7 +331,19 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::MAP_START => Ok(Instruction::MapStart),
                     InstructionCode::SCOPE_START => Ok(Instruction::ScopeStart),
                     InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
-                    
+
+                    InstructionCode::APPLY_ZERO => Ok(Instruction::Apply(ApplyData {arg_count: 0})),
+                    InstructionCode::APPLY_SINGLE => Ok(Instruction::Apply(ApplyData {arg_count: 1})),
+
+                    InstructionCode::APPLY => {
+                        let apply_data = ApplyData::read(&mut reader);
+                        if let Err(err) = apply_data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Apply(apply_data.unwrap()))
+                        }
+                    }
+
                     InstructionCode::DEREF => Ok(Instruction::Deref),
                     InstructionCode::ASSIGN_TO_REF => {
                         let operator = get_next_instruction_code(&mut reader);

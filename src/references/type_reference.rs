@@ -10,6 +10,11 @@ use std::{
     fmt::{Display, Formatter},
     rc::Rc,
 };
+use log::info;
+use crate::libs::core::CoreLibPointerId;
+use crate::runtime::execution::ExecutionError;
+use crate::values::traits::apply::Apply;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {
@@ -121,6 +126,46 @@ impl TypeReference {
         todo!("implement type matching");
     }
 }
+
+impl Apply for TypeReference {
+    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+        todo!()
+    }
+
+    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+        // TODO: ensure that we can guarantee that pointer_address is always Some here
+        let core_lib_id = CoreLibPointerId::try_from(self.pointer_address.as_ref().unwrap());
+        if let Ok(core_lib_id) = core_lib_id {
+            match core_lib_id {
+                CoreLibPointerId::Integer(None) => {
+                    arg.to_value().borrow().cast_to_integer()
+                        .map(|i| Some(ValueContainer::from(i)))
+                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
+                }
+                CoreLibPointerId::Integer(Some(variant)) => {
+                    arg.to_value().borrow().cast_to_typed_integer(variant)
+                        .map(|i| Some(ValueContainer::from(i)))
+                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
+                }
+                CoreLibPointerId::Decimal(None) => {
+                    arg.to_value().borrow().cast_to_decimal()
+                        .map(|d| Some(ValueContainer::from(d)))
+                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
+                }
+                CoreLibPointerId::Decimal(Some(variant)) => {
+                    arg.to_value().borrow().cast_to_typed_decimal(variant)
+                        .map(|d| Some(ValueContainer::from(d)))
+                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
+                }
+                _ => todo!()
+            }
+        }
+        else {
+            todo!()
+        }
+    }
+}
+
 impl Display for TypeReference {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(nominal) = &self.nominal_type_declaration {

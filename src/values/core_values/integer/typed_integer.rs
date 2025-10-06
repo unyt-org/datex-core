@@ -19,6 +19,7 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
+use crate::libs::core::CoreLibPointerId;
 
 /// The integer type variants to be used as a inline
 /// definition in DATEX (such as 42u32 or -42i64).
@@ -91,6 +92,12 @@ impl Serialize for TypedInteger {
     }
 }
 
+impl From<&TypedInteger> for CoreLibPointerId {
+    fn from(value: &TypedInteger) -> Self {
+        CoreLibPointerId::Integer(Some(value.variant()))
+    }
+}
+
 impl<'de> Deserialize<'de> for TypedInteger {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -138,6 +145,8 @@ impl Hash for TypedInteger {
 }
 
 impl TypedInteger {
+    // TODO: add from_integer_with_variant
+
     /// Parses a string into a TypedInteger with the given variant.
     /// If the string is not a valid integer, returns an error.
     pub fn from_string_with_variant(
@@ -397,6 +406,22 @@ impl TypedInteger {
             TypedInteger::U32(_) => IntegerTypeVariant::U32,
             TypedInteger::U64(_) => IntegerTypeVariant::U64,
             TypedInteger::U128(_) => IntegerTypeVariant::U128,
+        }
+    }
+
+    pub fn to_string_with_suffix(&self) -> String {
+        match self {
+            TypedInteger::I8(v) => format!("{v}i8"),
+            TypedInteger::I16(v) => format!("{v}i16"),
+            TypedInteger::I32(v) => format!("{v}i32"),
+            TypedInteger::I64(v) => format!("{v}i64"),
+            TypedInteger::I128(v) => format!("{v}i128"),
+            TypedInteger::U8(v) => format!("{v}u8"),
+            TypedInteger::U16(v) => format!("{v}u16"),
+            TypedInteger::U32(v) => format!("{v}u32"),
+            TypedInteger::U64(v) => format!("{v}u64"),
+            TypedInteger::U128(v) => format!("{v}u128"),
+            TypedInteger::Big(v) => format!("{v}big"),
         }
     }
 }
@@ -861,7 +886,7 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
                 integer
                     .to_value()
                     .borrow()
-                    .cast_to_integer()
+                    ._cast_to_integer_internal()
                     .ok_or(ValueError::TypeConversionError)
             }
             None => Err(ValueError::IsVoid),

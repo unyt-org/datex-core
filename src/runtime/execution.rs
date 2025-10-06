@@ -43,7 +43,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
 use crate::references::reference::AssignmentError;
+use crate::values::traits::apply::Apply;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -244,7 +246,7 @@ pub fn execute_dxb_sync(
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(
-                        get_internal_pointer_value(&runtime_internal, address)?,
+                        get_internal_pointer_value(address)?,
                     ));
             }
             ExecutionStep::GetInternalSlot(slot) => {
@@ -288,7 +290,7 @@ pub async fn execute_dxb(
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(
-                        get_internal_pointer_value(&runtime_internal, address)?,
+                        get_internal_pointer_value(address)?,
                     ));
             }
             ExecutionStep::RemoteExecution(receivers, body) => {
@@ -365,19 +367,12 @@ fn get_pointer_value(
 }
 
 fn get_internal_pointer_value(
-    runtime_internal: &Option<Rc<RuntimeInternal>>,
     address: RawInternalPointerAddress,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
-    if let Some(runtime) = &runtime_internal {
-        // convert slot to InternalSlot enum
-        Ok(runtime
-            .memory
-            .borrow()
-            .get_reference(&PointerAddress::Internal(address.id))
-            .map(|r| ValueContainer::Reference(r.clone())))
-    } else {
-        Err(ExecutionError::RequiresRuntime)
-    }
+    let core_lib_id = CoreLibPointerId::try_from(&PointerAddress::Internal(address.id));
+    core_lib_id
+        .map_err(|_| ExecutionError::ReferenceNotFound)
+        .map(|id| Some(ValueContainer::Reference(Reference::TypeReference(get_core_lib_type_reference(id)))))
 }
 
 fn get_local_pointer_value(
@@ -440,6 +435,7 @@ pub enum ExecutionError {
     IllegalTypeError(IllegalTypeError),
     ReferenceNotFound,
     DerefOfNonReference,
+    InvalidTypeCast,
     AssignmentError(AssignmentError)
 }
 
@@ -534,6 +530,9 @@ impl Display for ExecutionError {
             }
             ExecutionError::AssignmentError(err) => {
                 write!(f, "Assignment error: {err}")
+            }
+            ExecutionError::InvalidTypeCast => {
+                write!(f, "Invalid type cast")
             }
         }
     }
@@ -828,6 +827,15 @@ fn get_result_value_from_instruction(
 
             Instruction::CloseAndStore => {
                 let _ = context.borrow_mut().scope_stack.pop_active_value();
+                None
+            }
+
+            Instruction::Apply(ApplyData {arg_count}) => {
+                info!("APPLY!");
+                context
+                    .borrow_mut()
+                    .scope_stack
+                    .create_scope(Scope::Apply { arg_count, args: vec![] });
                 None
             }
 
@@ -1155,6 +1163,35 @@ fn handle_value(
             }
         }
 
+        Scope::Apply { args, arg_count } => {
+            // collect callee as active value if not set yet and we have args to collect
+            if scope_container.active_value.is_none() {
+                // directly apply if no args to collect
+                if *arg_count == 0 {
+                    context.pop_next_scope = true;
+                    handle_apply(&value_container, &args)?
+                }
+                // set callee as active value
+                else {
+                    Some(value_container)
+                }
+            }
+            else {
+                let callee = scope_container.active_value.as_ref().unwrap();
+                // callee already exists, collect args
+                args.push(value_container);
+
+                // all args collected, apply function
+                if args.len() == *arg_count as usize {
+                    context.pop_next_scope = true;
+                    handle_apply(callee, args)?
+                }
+                else {
+                    Some(callee.clone())
+                }
+            }
+        }
+
         Scope::AssignmentOperation { operator, address } => {
             let operator = *operator;
             let address = *address;
@@ -1243,6 +1280,19 @@ fn handle_value(
     }
 
     Ok(())
+}
+
+fn handle_apply(
+    callee: &ValueContainer,
+    args: &[ValueContainer]
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    // callee is guaranteed to be Some here
+    // apply_single if one arg, apply otherwise
+    Ok(if args.len() == 1 {
+        callee.apply_single(&args[0])?
+    } else {
+        callee.apply(args)?
+    })
 }
 
 fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
@@ -1491,7 +1541,7 @@ mod tests {
     use std::vec;
 
     use log::debug;
-
+    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
@@ -1506,6 +1556,7 @@ mod tests {
     ) -> Option<ValueContainer> {
         let (dxb, _) =
             compile_script(datex_script, CompileOptions::default()).unwrap();
+        info!("DXB: {:?}", dxb);
         let context = ExecutionInput::new_with_dxb_and_options(
             &dxb,
             ExecutionOptions { verbose: true },
@@ -1714,49 +1765,47 @@ mod tests {
         assert_structural_eq!(result, ValueContainer::from(2_i8));
     }
 
-    // FIXME these shall produce TypedInteger values, not Integer
-    // but this will only work once the compiler supports the type system
     #[test]
     fn typed_integer() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("-2i16");
-        assert_eq!(result, Integer::from(-2i16).into());
+        assert_eq!(result, TypedInteger::from(-2i16).into());
         assert_structural_eq!(result, ValueContainer::from(-2_i16));
 
         let result = execute_datex_script_debug_with_result("2i32");
-        assert_eq!(result, Integer::from(2i32).into());
+        assert_eq!(result, TypedInteger::from(2i32).into());
         assert_structural_eq!(result, ValueContainer::from(2_i32));
 
         let result = execute_datex_script_debug_with_result("-2i64");
-        assert_eq!(result, Integer::from(-2i64).into());
+        assert_eq!(result, TypedInteger::from(-2i64).into());
         assert_structural_eq!(result, ValueContainer::from(-2_i64));
 
         let result = execute_datex_script_debug_with_result("2i128");
-        assert_eq!(result, Integer::from(2i128).into());
+        assert_eq!(result, TypedInteger::from(2i128).into());
         assert_structural_eq!(result, ValueContainer::from(2_i128));
 
         let result = execute_datex_script_debug_with_result("2u8");
-        assert_eq!(result, Integer::from(2_u8).into());
+        assert_eq!(result, TypedInteger::from(2_u8).into());
         assert_structural_eq!(result, ValueContainer::from(2_u8));
 
         let result = execute_datex_script_debug_with_result("2u16");
-        assert_eq!(result, Integer::from(2_u16).into());
+        assert_eq!(result, TypedInteger::from(2_u16).into());
         assert_structural_eq!(result, ValueContainer::from(2_u16));
 
         let result = execute_datex_script_debug_with_result("2u32");
-        assert_eq!(result, Integer::from(2_u32).into());
+        assert_eq!(result, TypedInteger::from(2_u32).into());
         assert_structural_eq!(result, ValueContainer::from(2_u32));
 
         let result = execute_datex_script_debug_with_result("2u64");
-        assert_eq!(result, Integer::from(2_u64).into());
+        assert_eq!(result, TypedInteger::from(2_u64).into());
         assert_structural_eq!(result, ValueContainer::from(2_u64));
 
         let result = execute_datex_script_debug_with_result("2u128");
-        assert_eq!(result, Integer::from(2_u128).into());
+        assert_eq!(result, TypedInteger::from(2_u128).into());
         assert_structural_eq!(result, ValueContainer::from(2_u128));
 
         let result = execute_datex_script_debug_with_result("2big");
-        assert_eq!(result, Integer::from(2).into());
+        assert_eq!(result, TypedInteger::Big(Integer::from(2)).into());
         assert_structural_eq!(result, ValueContainer::from(2));
     }
 

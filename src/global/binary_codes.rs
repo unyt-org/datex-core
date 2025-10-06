@@ -64,6 +64,10 @@ pub enum InstructionCode {
     VAR_LOCATION,
     VAR_ENV,
 
+    APPLY_ZERO,
+    APPLY_SINGLE,
+    APPLY,
+
     // runtime commands 0x50 - 0x7f
     RETURN,         // return
     TEMPLATE,       // template
