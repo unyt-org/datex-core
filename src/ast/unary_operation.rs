@@ -1,11 +1,25 @@
 use std::fmt::{Display, Formatter};
 
+use crate::global::binary_codes::InstructionCode;
+
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
     Reference(ReferenceUnaryOperator),
     Arithmetic(ArithmeticUnaryOperator),
     Bitwise(BitwiseUnaryOperator),
     Logical(LogicalUnaryOperator),
+}
+
+impl From<&UnaryOperator> for InstructionCode {
+    fn from(op: &UnaryOperator) -> Self {
+        match op {
+            UnaryOperator::Arithmetic(op) => InstructionCode::from(op),
+            UnaryOperator::Reference(op) => InstructionCode::from(op),
+            UnaryOperator::Logical(op) => InstructionCode::from(op),
+            UnaryOperator::Bitwise(op) => InstructionCode::from(op),
+            UnaryOperator::Reference(op) => InstructionCode::from(op),
+        }
+    }
 }
 
 impl Display for UnaryOperator {
@@ -27,6 +41,21 @@ pub enum ReferenceUnaryOperator {
     Deref,          // *
 }
 
+impl From<&ReferenceUnaryOperator> for InstructionCode {
+    fn from(op: &ReferenceUnaryOperator) -> Self {
+        match op {
+            ReferenceUnaryOperator::CreateRef => InstructionCode::CREATE_REF,
+            ReferenceUnaryOperator::CreateRefMut => {
+                InstructionCode::CREATE_REF_MUT
+            }
+            ReferenceUnaryOperator::CreateRefFinal => {
+                InstructionCode::CREATE_REF_FINAL
+            }
+            ReferenceUnaryOperator::Deref => InstructionCode::DEREF,
+        }
+    }
+}
+
 impl Display for ReferenceUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
@@ -46,6 +75,17 @@ pub enum ArithmeticUnaryOperator {
     Minus,     // -
 }
 
+impl From<&ArithmeticUnaryOperator> for InstructionCode {
+    fn from(op: &ArithmeticUnaryOperator) -> Self {
+        match op {
+            ArithmeticUnaryOperator::Increment => InstructionCode::INCREMENT,
+            ArithmeticUnaryOperator::Decrement => InstructionCode::DECREMENT,
+            ArithmeticUnaryOperator::Plus => InstructionCode::UNARY_PLUS,
+            ArithmeticUnaryOperator::Minus => InstructionCode::UNARY_MINUS,
+        }
+    }
+}
+
 impl Display for ArithmeticUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
@@ -62,6 +102,14 @@ pub enum BitwiseUnaryOperator {
     Negation, // ~
 }
 
+impl From<&BitwiseUnaryOperator> for InstructionCode {
+    fn from(op: &BitwiseUnaryOperator) -> Self {
+        match op {
+            BitwiseUnaryOperator::Negation => InstructionCode::BITWISE_NOT,
+        }
+    }
+}
+
 impl Display for BitwiseUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
@@ -74,6 +122,15 @@ impl Display for BitwiseUnaryOperator {
 pub enum LogicalUnaryOperator {
     Not, // !
 }
+
+impl From<&LogicalUnaryOperator> for InstructionCode {
+    fn from(op: &LogicalUnaryOperator) -> Self {
+        match op {
+            LogicalUnaryOperator::Not => InstructionCode::NOT,
+        }
+    }
+}
+
 impl Display for LogicalUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
