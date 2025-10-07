@@ -6,9 +6,7 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::ast::{
-    DatexExpression, DatexScriptParser, VariableKind, parse,
-};
+use crate::ast::{DatexExpression, DatexScriptParser, VariableKind, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::precompiler::{
@@ -567,6 +565,19 @@ fn compile_expression(
             }
         }
 
+        // unary operations (negation, not, etc.)
+        DatexExpression::UnaryOperation(operator, expr) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_instruction_code(InstructionCode::from(&operator));
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expr, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
         // operations (add, subtract, multiply, divide, etc.)
         DatexExpression::BinaryOperation(operator, a, b, _) => {
             compilation_context.mark_has_non_static_value();
@@ -703,12 +714,7 @@ fn compile_expression(
         }
 
         // assignment
-        DatexExpression::VariableAssignment(
-            operator,
-            id,
-            name,
-            expression,
-        ) => {
+        DatexExpression::VariableAssignment(operator, id, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, var_type) = scope
@@ -719,15 +725,11 @@ fn compile_expression(
 
             // if const, return error
             if var_type == VariableKind::Const {
-                return Err(CompilerError::AssignmentToConst(
-                    name.clone(),
-                ));
+                return Err(CompilerError::AssignmentToConst(name.clone()));
             }
 
             match operator {
                 AssignmentOperator::Assign => {
-
-
                     // append binary code to load variable
                     info!(
                         "append variable virtual slot: {virtual_slot:?}, name: {name}"
@@ -781,16 +783,15 @@ fn compile_expression(
             operator,
             deref_count,
             deref_expression,
-            assigned_expression
+            assigned_expression,
         } => {
             compilation_context.mark_has_non_static_value();
 
             compilation_context
                 .append_instruction_code(InstructionCode::ASSIGN_TO_REF);
 
-            compilation_context.append_instruction_code(
-                InstructionCode::from(&operator),
-            );
+            compilation_context
+                .append_instruction_code(InstructionCode::from(&operator));
 
             // "*x" must not be dereferenced, x is already the relevant reference that is modified
             for _ in 0..deref_count - 1 {
@@ -906,7 +907,7 @@ fn compile_expression(
                 }
             }
         }
-        
+
         // pointer address
         DatexExpression::PointerAddress(address) => {
             compilation_context.insert_get_ref(address);
@@ -960,8 +961,7 @@ fn compile_expression(
 
         DatexExpression::Deref(expression) => {
             compilation_context.mark_has_non_static_value();
-            compilation_context
-                .append_instruction_code(InstructionCode::DEREF);
+            compilation_context.append_instruction_code(InstructionCode::DEREF);
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*expression, &metadata),
@@ -972,7 +972,11 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
-        _ => return Err(CompilerError::UnexpectedTerm(Box::new(ast_with_metadata.ast))),
+        _ => {
+            return Err(CompilerError::UnexpectedTerm(Box::new(
+                ast_with_metadata.ast,
+            )));
+        }
     }
 
     Ok(scope)
@@ -1044,15 +1048,15 @@ pub mod tests {
     use std::vec;
 
     use crate::ast::parse;
+    use crate::global::binary_codes::TypeSpaceInstructionCode;
+    use crate::libs::core::CoreLibPointerId;
     use crate::values::core_values::integer::integer::Integer;
+    use crate::values::pointer::PointerAddress;
     use crate::{
         global::binary_codes::InstructionCode, logger::init_logger_debug,
     };
     use datex_core::compiler::error::CompilerError;
     use log::*;
-    use crate::global::binary_codes::TypeSpaceInstructionCode;
-    use crate::libs::core::CoreLibPointerId;
-    use crate::values::pointer::PointerAddress;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
@@ -2598,12 +2602,8 @@ pub mod tests {
         init_logger_debug();
         let script = "const a = 42; a += 1";
         let result = compile_script(script, CompileOptions::default());
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToConst { .. })
-        );
+        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
-
 
     #[ignore = "implement type inference (precompiler)"]
     #[test]
@@ -2630,17 +2630,17 @@ pub mod tests {
     }
 
     /**
-    * var a = 10;
-    * a = 40;
-    * a += 10; // a = a + 10;
-    * var a = &mut 42;;
-    * a = &mut 43; // valid, new ref pointer
-    * *a = 2; // internal deref assignment
-    * *a += 1; // internal deref assignment with addition
-    * a += 1; a = a + 1; // invalid
-    * var obj = &mut {key: 42};
-    * obj.key = 43; // valid, internal deref assignment
-*/
+     * var a = 10;
+     * a = 40;
+     * a += 10; // a = a + 10;
+     * var a = &mut 42;;
+     * a = &mut 43; // valid, new ref pointer
+     * *a = 2; // internal deref assignment
+     * *a += 1; // internal deref assignment with addition
+     * a += 1; a = a + 1; // invalid
+     * var obj = &mut {key: 42};
+     * obj.key = 43; // valid, internal deref assignment
+    */
     #[ignore = "implement type inference (precompiler)"]
     #[test]
     fn addition_to_immutable_ref() {
@@ -2699,7 +2699,12 @@ pub mod tests {
                 InstructionCode::TYPE_EXPRESSION.into(),
                 TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER.into(),
                 // slot index as u32
-                2, 1, 0, 0, 0, 1
+                2,
+                1,
+                0,
+                0,
+                0,
+                1
             ]
         );
     }
@@ -2709,14 +2714,15 @@ pub mod tests {
         let script = "integer";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
-        let mut instructions: Vec<u8> = vec![
-            InstructionCode::GET_INTERNAL_REF.into(),
-        ];
+        let mut instructions: Vec<u8> =
+            vec![InstructionCode::GET_INTERNAL_REF.into()];
         // pointer id
-        instructions.append(&mut PointerAddress::from(CoreLibPointerId::Integer(None)).bytes().clone().to_vec());
-        assert_eq!(
-            res,
-            instructions
+        instructions.append(
+            &mut PointerAddress::from(CoreLibPointerId::Integer(None))
+                .bytes()
+                .clone()
+                .to_vec(),
         );
+        assert_eq!(res, instructions);
     }
 }
