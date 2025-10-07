@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{ToTokens, quote};
-use syn::{DeriveInput, Ident, ImplItemFn, ItemImpl};
+use quote::quote;
+use syn::DeriveInput;
 pub fn derive_bitfield_serde(input: DeriveInput) -> TokenStream {
     let ident = input.ident;
 
