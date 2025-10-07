@@ -2,27 +2,23 @@ use crate::ast::lexer::Token;
 use crate::ast::unary_operation::{
     ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
 };
+use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
 use chumsky::prelude::*;
-use crate::ast::utils::whitespace;
 
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     recursive(|unary| {
-        // unary minus
-        let minus = just(Token::Minus).then(unary.clone()).map(|(_, expr)| {
-            DatexExpression::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
-                Box::new(expr),
-            )
-        });
-        // unary plus
-        let plus = just(Token::Plus).then(unary.clone()).map(|(_, expr)| {
-            DatexExpression::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
-                Box::new(expr),
-            )
-        });
+        // prefix minus/plus/not
+        let prefix_op = choice((
+            just(Token::Minus)
+                .to(UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus)),
+            just(Token::Plus)
+                .to(UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus)),
+            just(Token::Exclamation)
+                .to(UnaryOperator::Logical(LogicalUnaryOperator::Not)),
+        ));
 
+        // references and deref as prefix forms that consume the next unary
         let reference = just(Token::Ampersand)
             .ignore_then(
                 just(Token::Mutable)
@@ -38,23 +34,16 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
                 _ => unreachable!(),
             });
 
-        let deref = just(Token::Star).then(unary.clone()).map(|(_, expr)| {
-            DatexExpression::Deref(
-                Box::new(expr),
-            )
+        let deref = just(Token::Star)
+            .then(unary.clone())
+            .map(|(_, expr)| DatexExpression::Deref(Box::new(expr)));
+
+        // apply prefix operators repeatedly (e.g. --x or !-x)
+        let prefixes = prefix_op.then(unary.clone()).map(|(op, expr)| {
+            DatexExpression::UnaryOperation(op, Box::new(expr))
         });
 
-        // logical NOT
-        let logical_not =
-            just(Token::Exclamation)
-                .then(unary.clone())
-                .map(|(_, expr)| {
-                    DatexExpression::UnaryOperation(
-                        UnaryOperator::Logical(LogicalUnaryOperator::Not),
-                        Box::new(expr),
-                    )
-                });
-
-        choice((minus, plus, logical_not, atom, reference, deref))
+        // try prefix forms first, fall back to atom
+        choice((prefixes, reference, deref, atom))
     })
 }
