@@ -1,4 +1,3 @@
-use crate::references::reference::ReferenceFromValueContainerError;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
