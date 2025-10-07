@@ -11,6 +11,19 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              env:
+                cache-name: cache-dependencies
+              with:
+                path: |
+                  ~/.cargo/.crates.toml
+                  ~/.cargo/.crates2.json
+                  ~/.cargo/bin
+                  ~/.cargo/registry/index
+                  ~/.cargo/registry/cache
+                  target
+                key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
             - uses: bencherdev/bencher@main
             - name: Install Dependencies
               run: |
