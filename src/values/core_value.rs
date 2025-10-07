@@ -344,7 +344,7 @@ impl CoreValue {
             CoreValue::Decimal(decimal) => Some(Integer::from(
                 decimal.try_into_f64()? as i128,
             )),
-            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(|i| Integer::from(i)),
+            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(Integer::from),
             _ => None,
         }
     }
@@ -357,7 +357,7 @@ impl CoreValue {
             CoreValue::Decimal(decimal) => Some(TypedInteger::from(
                 decimal.try_into_f64()? as i128,
             )),
-            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(|i| TypedInteger::from(i)),
+            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(TypedInteger::from),
             _ => None,
         }
     }

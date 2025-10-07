@@ -1,7 +1,6 @@
 use crate::ast::assignment_operation::{
     AssignmentOperator, assignment_operation,
 };
-use crate::ast::comparison_operation::comparison_operation;
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;

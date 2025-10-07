@@ -1169,7 +1169,7 @@ fn handle_value(
                 // directly apply if no args to collect
                 if *arg_count == 0 {
                     context.pop_next_scope = true;
-                    handle_apply(&value_container, &args)?
+                    handle_apply(&value_container, args)?
                 }
                 // set callee as active value
                 else {

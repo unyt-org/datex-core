@@ -14,7 +14,7 @@ use crate::values::core_values::map::{Map, MapAccessError};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
-use crate::values::value_container::{ValueContainer, ValueError};
+use crate::values::value_container::ValueContainer;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;

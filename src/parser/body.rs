@@ -514,7 +514,7 @@ mut reader: &mut Cursor<&[u8]>,
 ) -> Result<InstructionCode, DXBParserError> {
     let instruction_code = u8::read(&mut reader).map_err(|err| DXBParserError::FailedToReadInstructionCode)?;
 
-    Ok(InstructionCode::try_from(instruction_code).map_err(|_| DXBParserError::FailedToReadInstructionCode)?)
+    InstructionCode::try_from(instruction_code).map_err(|_| DXBParserError::FailedToReadInstructionCode)
 }
 
 

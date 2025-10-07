@@ -10,7 +10,6 @@ use std::{
     fmt::{Display, Formatter},
     rc::Rc,
 };
-use log::info;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::execution::ExecutionError;
 use crate::traits::apply::Apply;
