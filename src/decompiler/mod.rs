@@ -166,17 +166,17 @@ impl ScopeType {
             ScopeType::Transparent => {}
         }
         match self {
-            ScopeType::Default
-            | ScopeType::List
-            | ScopeType::Map => match formatting {
-                Formatting::Multiline { indent } => {
-                    write!(output, "\r\n")?;
-                    for _ in 0..(indentation_levels * indent) {
-                        write!(output, " ")?;
+            ScopeType::Default | ScopeType::List | ScopeType::Map => {
+                match formatting {
+                    Formatting::Multiline { indent } => {
+                        write!(output, "\r\n")?;
+                        for _ in 0..(indentation_levels * indent) {
+                            write!(output, " ")?;
+                        }
                     }
+                    Formatting::Compact => {}
                 }
-                Formatting::Compact => {}
-            },
+            }
             _ => {}
         }
         Ok(())
@@ -188,18 +188,19 @@ impl ScopeType {
         indentation_levels: usize,
     ) -> Result<(), DXBParserError> {
         match self {
-            ScopeType::Default
-            | ScopeType::List
-            | ScopeType::Map => match formatting {
-                Formatting::Multiline { indent } => {
-                    write!(output, "\r\n")?;
-                    for _ in 0..(indentation_levels.saturating_sub(1) * indent)
-                    {
-                        write!(output, " ")?;
+            ScopeType::Default | ScopeType::List | ScopeType::Map => {
+                match formatting {
+                    Formatting::Multiline { indent } => {
+                        write!(output, "\r\n")?;
+                        for _ in
+                            0..(indentation_levels.saturating_sub(1) * indent)
+                        {
+                            write!(output, " ")?;
+                        }
                     }
+                    Formatting::Compact => {}
                 }
-                Formatting::Compact => {}
-            },
+            }
             _ => {}
         }
         match self {
@@ -690,6 +691,20 @@ fn decompile_loop(
                     Some((instruction, true));
             }
 
+            Instruction::UnaryMinus
+            | Instruction::UnaryPlus
+            | Instruction::BitwiseNot => {
+                handle_before_term(
+                    state,
+                    &mut output,
+                    false,
+                    indentation_levels,
+                )?;
+                state.new_scope(ScopeType::Transparent);
+                state.get_current_scope().active_operator =
+                    Some((instruction, false));
+            }
+
             // slots
             Instruction::AllocateSlot(address) => {
                 handle_before_term(
@@ -1095,22 +1110,22 @@ fn handle_before_item(
             // if first is true, set to false
             scope.scope_type.1 = false;
         }
-        (
-            ScopeType::List
-            | ScopeType::Map,
-            false,
-        ) if !scope.skip_comma_for_next_item => match formatted {
-            Formatting::Multiline { indent } => {
-                write!(output, ",\r\n")?;
-                let current_indent = indentation_levels * indent;
-                for _ in 0..current_indent {
-                    write!(output, " ")?;
+        (ScopeType::List | ScopeType::Map, false)
+            if !scope.skip_comma_for_next_item =>
+        {
+            match formatted {
+                Formatting::Multiline { indent } => {
+                    write!(output, ",\r\n")?;
+                    let current_indent = indentation_levels * indent;
+                    for _ in 0..current_indent {
+                        write!(output, " ")?;
+                    }
+                }
+                Formatting::Compact => {
+                    write!(output, ",")?;
                 }
             }
-            Formatting::Compact => {
-                write!(output, ",")?;
-            }
-        },
+        }
         _ => {
             // don't insert comma for default scope
         }
@@ -1159,8 +1174,20 @@ fn handle_before_operand(
                 write_operator(state, output, "::")?;
                 state.get_current_scope().close_scope_after_term = false;
             }
+            (Instruction::UnaryMinus, false) => {
+                write!(output, "-")?;
+                state.get_current_scope().close_scope_after_term = true;
+            }
+            (Instruction::UnaryPlus, false) => {
+                write!(output, "+")?;
+                state.get_current_scope().close_scope_after_term = true;
+            }
+            (Instruction::BitwiseNot, false) => {
+                write!(output, "~")?;
+                state.get_current_scope().close_scope_after_term = true;
+            }
             _ => {
-                panic!("Invalid operator: {operator:?}");
+                todo!("Invalid operator: {operator:?}");
             }
         }
     }
