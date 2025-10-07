@@ -170,7 +170,7 @@ mod tests {
         logger::init_logger_debug,
         values::core_values::{
             endpoint::Endpoint,
-            integer::{integer::Integer, typed_integer::TypedInteger},
+            integer::{Integer, typed_integer::TypedInteger},
             list::List,
         },
     };

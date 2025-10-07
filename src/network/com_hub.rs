@@ -1,6 +1,5 @@
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
-use crate::runtime::global_context::get_global_context;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
@@ -9,7 +8,7 @@ use futures::channel::oneshot::Sender;
 use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::cmp::{Ordering, PartialEq};
+use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
@@ -672,6 +671,7 @@ impl ComHub {
                 let is_trusted = {
                     cfg_if::cfg_if! {
                         if #[cfg(feature = "debug")] {
+                            use crate::runtime::global_context::get_global_context;
                             get_global_context().debug_flags.allow_unsigned_blocks
                         }
                         else {
@@ -976,6 +976,8 @@ impl ComHub {
                     || {
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "debug")] {
+                                use crate::runtime::global_context::get_global_context;
+                                use std::cmp::Ordering;
                                 if get_global_context().debug_flags.enable_deterministic_behavior {
                                     Ordering::Equal
                                 }

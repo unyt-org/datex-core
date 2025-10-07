@@ -598,7 +598,7 @@ mod tests {
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::map::Map;
     use crate::values::value_container::ValueContainer;
-    use datex_core::values::core_values::decimal::decimal::Decimal;
+    use datex_core::values::core_values::decimal::Decimal;
 
     #[test]
     fn test_map() {

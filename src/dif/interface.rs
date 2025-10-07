@@ -186,10 +186,12 @@ pub trait DIFInterface {
 
     /// Resolves a pointer address of a pointer that may not be in memory.
     /// If the pointer is not in memory, it will be loaded from external storage.
-    async fn resolve_pointer_address_external(
+    fn resolve_pointer_address_external(
         &self,
         address: PointerAddress,
-    ) -> Result<DIFReference, DIFResolveReferenceError>;
+    ) -> impl std::future::Future<
+        Output = Result<DIFReference, DIFResolveReferenceError>,
+    >;
 
     /// Resolves a pointer address of a pointer that is currently in memory.
     /// Returns an error if the pointer is not found in memory.

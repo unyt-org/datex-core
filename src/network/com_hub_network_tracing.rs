@@ -386,14 +386,14 @@ impl ComHub {
         // create trace back block
         let trace_back_block = self.create_trace_block(
             hops,
-            &[sender.clone()],
+            std::slice::from_ref(&sender),
             BlockType::TraceBack,
             block.block_header.context_id,
             None,
         );
 
         // send trace back block
-        self.send_own_block(trace_back_block);
+        let _ = self.send_own_block(trace_back_block);
 
         Some(())
     }
@@ -690,19 +690,19 @@ impl ComHub {
         for hop in hops {
             let mut data_map = Map::default();
 
-            data_map.try_set("endpoint", hop.endpoint);
-            data_map.try_set("distance", hop.distance);
+            data_map.set("endpoint", hop.endpoint);
+            data_map.set("distance", hop.distance);
 
             let mut socket_obj = Map::default();
-            socket_obj.try_set("interface_type", hop.socket.interface_type);
-            socket_obj.try_set("interface_name", hop.socket.interface_name);
-            socket_obj.try_set("channel", hop.socket.channel);
-            socket_obj.try_set("socket_uuid", hop.socket.socket_uuid);
+            socket_obj.set("interface_type", hop.socket.interface_type);
+            socket_obj.set("interface_name", hop.socket.interface_name);
+            socket_obj.set("channel", hop.socket.channel);
+            socket_obj.set("socket_uuid", hop.socket.socket_uuid);
 
-            data_map.try_set("socket", ValueContainer::from(socket_obj));
-            data_map.try_set("direction", hop.direction.to_string());
-            data_map.try_set("fork_nr", hop.fork_nr);
-            data_map.try_set("bounce_back", hop.bounce_back);
+            data_map.set("socket", ValueContainer::from(socket_obj));
+            data_map.set("direction", hop.direction.to_string());
+            data_map.set("fork_nr", hop.fork_nr);
+            data_map.set("bounce_back", hop.bounce_back);
             hops_datex.push(ValueContainer::from(data_map));
         }
 

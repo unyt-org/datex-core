@@ -83,9 +83,9 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
 #[cfg(test)]
 mod tests {
     use crate::ast::DatexExpression;
-    use crate::values::core_values::decimal::decimal::Decimal;
+    use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-    use crate::values::core_values::integer::integer::Integer;
+    use crate::values::core_values::integer::Integer;
     use crate::values::core_values::integer::typed_integer::TypedInteger;
     use crate::values::value::Value;
     use crate::values::value_container::ValueContainer;

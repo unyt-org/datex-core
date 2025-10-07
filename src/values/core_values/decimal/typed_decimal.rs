@@ -2,7 +2,7 @@ use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::values::core_value_trait::CoreValueTrait;
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::error::NumberParseError;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
@@ -579,7 +579,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use super::*;
-    use crate::values::core_values::decimal::decimal::Decimal;
+    use crate::values::core_values::decimal::Decimal;
     use crate::{assert_structural_eq, assert_value_eq};
     use ordered_float::OrderedFloat;
 

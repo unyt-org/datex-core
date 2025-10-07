@@ -1,14 +1,15 @@
 use crate::global::binary_codes::InstructionCode;
+use crate::libs::core::CoreLibPointerId;
 use crate::references::reference::ReferenceMutability;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_i32, append_i64,
     append_i128, append_u8, append_u32, append_u128,
 };
 use crate::values::core_value::{CoreValue, TypeTag};
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::pointer::PointerAddress;
@@ -20,7 +21,6 @@ use std::cell::{Cell, RefCell};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
-use crate::libs::core::CoreLibPointerId;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -228,7 +228,10 @@ impl<'a> CompilationContext<'a> {
             CoreValue::Map(val) => {
                 self.append_instruction_code(InstructionCode::MAP_START);
                 for (key, value) in val {
-                    self.insert_key_value_pair(&ValueContainer::from(key), value);
+                    self.insert_key_value_pair(
+                        &ValueContainer::from(key),
+                        value,
+                    );
                 }
                 self.append_instruction_code(InstructionCode::SCOPE_END);
             }
@@ -346,10 +349,12 @@ impl<'a> CompilationContext<'a> {
             None => insert_f32_or_f64(self, decimal),
         }
     }
-    
+
     pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
         self.append_instruction_code(InstructionCode::APPLY_SINGLE);
-        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(decimal)));
+        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(
+            decimal,
+        )));
         self.insert_encoded_decimal(decimal);
     }
 
@@ -471,10 +476,12 @@ impl<'a> CompilationContext<'a> {
     /// Inserts a typed integer with explicit type casts
     pub fn insert_typed_integer(&self, integer: &TypedInteger) {
         self.append_instruction_code(InstructionCode::APPLY_SINGLE);
-        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(integer)));
+        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(
+            integer,
+        )));
         self.insert_encoded_integer(&integer.to_smallest_fitting());
     }
-    
+
     pub fn insert_decimal(&self, decimal: &Decimal) {
         self.append_instruction_code(InstructionCode::DECIMAL_BIG);
         // big_decimal binrw write into buffer
@@ -607,7 +614,6 @@ impl<'a> CompilationContext<'a> {
         (*self.buffer.borrow_mut()).extend_from_slice(buffer);
         self.index.update(|x| x + buffer.len());
     }
-
 
     pub fn insert_get_ref(&self, address: PointerAddress) {
         match address {

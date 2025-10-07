@@ -2,10 +2,12 @@
 /// and executing them, both locally and remotely.
 use datex_core::compile;
 use datex_core::logger::init_logger_debug;
-use datex_core::runtime::execution::{execute_dxb_sync, ExecutionInput, ExecutionOptions};
-use datex_core::values::core_values::decimal::decimal::Decimal;
+use datex_core::runtime::execution::{
+    ExecutionInput, ExecutionOptions, execute_dxb_sync,
+};
+use datex_core::values::core_values::decimal::Decimal;
 use datex_core::values::core_values::decimal::typed_decimal::TypedDecimal;
-use datex_core::values::core_values::integer::integer::Integer;
+use datex_core::values::core_values::integer::Integer;
 use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 use datex_core::values::core_values::list::List;
 use datex_core::values::core_values::map::Map;
@@ -17,7 +19,9 @@ fn compile_and_execute(input: ValueContainer) -> ValueContainer {
     execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
         &dxb,
         ExecutionOptions { verbose: true },
-    )).unwrap().unwrap()
+    ))
+    .unwrap()
+    .unwrap()
 }
 
 #[test]
@@ -56,7 +60,6 @@ fn test_compile_and_execute_typed_decimals() {
     let result = compile_and_execute(input.clone());
     assert_eq!(result, input);
 }
-
 
 #[test]
 fn test_compile_and_execute_string() {

@@ -2,6 +2,7 @@ use crate::ast::DatexExpression;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
+use crate::traits::structural_eq::StructuralEq;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
@@ -9,7 +10,6 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::text::Text;
-use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -419,7 +419,7 @@ impl TryFrom<&DatexExpression> for Type {
 mod tests {
     use crate::values::{
         core_values::{
-            integer::{integer::Integer, typed_integer::TypedInteger},
+            integer::{Integer, typed_integer::TypedInteger},
             list::List,
             text::Text,
             r#type::Type,

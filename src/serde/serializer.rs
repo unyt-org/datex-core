@@ -351,7 +351,11 @@ impl SerializeMap for MapSerializer {
         let mut map = Map::default();
         for (key, value) in self.entries.iter() {
             if let Some(value) = value {
-                map.try_set(key.clone(), value.clone());
+                map.try_set(key.clone(), value.clone()).map_err(|e| {
+                    SerializationError::Custom(format!(
+                        "Failed to set map entry: {e}"
+                    ))
+                })?;
             } else {
                 return Err(SerializationError::Custom(
                     "Map entry without value".to_string(),

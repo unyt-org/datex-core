@@ -1,13 +1,12 @@
 use crate::stdlib::{future::Future, pin::Pin, usize};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
-use crate::runtime::global_context::get_global_context;
-use rand::{rngs::OsRng, Rng};
+use rand::{Rng, rngs::OsRng};
 use rsa::{
-    pkcs8::{EncodePrivateKey, EncodePublicKey},
     RsaPrivateKey, RsaPublicKey,
+    pkcs8::{EncodePrivateKey, EncodePublicKey},
 };
 use uuid::Uuid;
 
@@ -66,6 +65,7 @@ impl CryptoTrait for CryptoNative {
         // use pseudo-random UUID for testing
         cfg_if::cfg_if! {
             if #[cfg(feature = "debug")] {
+                use crate::runtime::global_context::get_global_context;
                 if get_global_context().debug_flags.enable_deterministic_behavior {
                     generate_pseudo_uuid()
                 }

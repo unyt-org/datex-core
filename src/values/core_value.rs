@@ -5,12 +5,12 @@ use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::boolean::Boolean;
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
 use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::{
     IntegerTypeVariant, TypedInteger,
 };

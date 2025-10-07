@@ -1,10 +1,10 @@
 use crate::crypto::random;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
+use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
-use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 use binrw::{BinRead, BinWrite};
 use hex::decode;
@@ -442,8 +442,7 @@ impl Endpoint {
                 continue;
             }
             // only allowed ranges 0-9, a-z, "_" and "-"
-            if !(*c >= 0x30 && *c <= 0x39) && // 0-9
-                !(*c >= 0x61 && *c <= 0x7A) && // a-z
+            if !(*c >= 0x30 && *c <= 0x39 || *c >= 0x61 && *c <= 0x7A) && // a-z
                 *c != 0x2D && // -
                 *c != 0x5F
             {

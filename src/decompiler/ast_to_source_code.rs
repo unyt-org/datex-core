@@ -286,7 +286,7 @@ fn key_to_string(key: &str, options: &DecompileOptions) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::core_values::decimal::decimal::Decimal;
+    use crate::values::core_values::decimal::Decimal;
 
     #[test]
     fn test_primitives() {

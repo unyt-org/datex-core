@@ -3,7 +3,9 @@ use crate::ast::chain::ApplyOperation;
 use crate::ast::{DatexExpression, TypeExpression};
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
-use crate::references::type_reference::{NominalTypeDeclaration, TypeReference};
+use crate::references::type_reference::{
+    NominalTypeDeclaration, TypeReference,
+};
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
@@ -906,7 +908,7 @@ mod tests {
     use crate::ast::{Statement, error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
-    use datex_core::values::core_values::integer::integer::Integer;
+    use datex_core::values::core_values::integer::Integer;
     use std::assert_matches::assert_matches;
     use std::io;
 

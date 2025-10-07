@@ -37,10 +37,10 @@ use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;

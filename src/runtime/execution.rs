@@ -30,9 +30,9 @@ use crate::types::error::IllegalTypeError;
 use crate::types::type_container::TypeContainer;
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
@@ -1389,7 +1389,8 @@ fn handle_key_value_pair(
             ..
         }) => {
             // make sure key is a string
-            map.try_set(key, value);
+            map.try_set(key, value)
+                .expect("Failed to set key-value pair in map");
         }
         _ => {
             unreachable!(

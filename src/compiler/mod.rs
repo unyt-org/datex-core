@@ -16,7 +16,7 @@ use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::libs::core::CoreLibPointerId;
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::Slot;
@@ -1050,7 +1050,7 @@ pub mod tests {
     use crate::ast::parse;
     use crate::global::binary_codes::TypeSpaceInstructionCode;
     use crate::libs::core::CoreLibPointerId;
-    use crate::values::core_values::integer::integer::Integer;
+    use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
     use crate::{
         global::binary_codes::InstructionCode, logger::init_logger_debug,
@@ -2640,7 +2640,7 @@ pub mod tests {
      * a += 1; a = a + 1; // invalid
      * var obj = &mut {key: 42};
      * obj.key = 43; // valid, internal deref assignment
-    */
+     */
     #[ignore = "implement type inference (precompiler)"]
     #[test]
     fn addition_to_immutable_ref() {

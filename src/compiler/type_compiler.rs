@@ -1,22 +1,23 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use datex_core::compiler::precompiler::AstMetadata;
 use crate::ast::TypeExpression;
 use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
-use crate::global::binary_codes::{TypeSpaceInstructionCode};
-use crate::values::core_values::integer::integer::Integer;
+use crate::global::binary_codes::TypeSpaceInstructionCode;
+use crate::values::core_values::integer::Integer;
+use datex_core::compiler::precompiler::AstMetadata;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 /// Compilation functions for type expressions.
 impl<'a> CompilationContext<'a> {
-
     pub fn append_type_instruction_code(&self, code: TypeSpaceInstructionCode) {
         self.append_u8(code as u8);
     }
-    
+
     pub fn insert_type_literal_integer(&self, integer: &Integer) {
-        self.append_type_instruction_code(TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER);
+        self.append_type_instruction_code(
+            TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER,
+        );
         self.insert_big_integer(integer);
     }
 }
@@ -31,7 +32,7 @@ pub fn compile_type_expression(
         TypeExpression::Integer(integer) => {
             ctx.insert_type_literal_integer(integer);
         }
-        _ => todo!()
+        _ => todo!(),
     }
     Ok(scope)
 }

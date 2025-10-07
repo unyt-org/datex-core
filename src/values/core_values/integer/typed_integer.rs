@@ -3,7 +3,7 @@ use crate::values::{
     core_values::{
         error::NumberParseError,
         integer::{
-            integer::Integer,
+            Integer,
             utils::{smallest_fitting_signed, smallest_fitting_unsigned},
         },
     },
@@ -251,7 +251,7 @@ impl TypedInteger {
     /// Converts the integer to an i8 if it fits, otherwise returns None.
     pub fn as_i8(&self) -> Option<i8> {
         match self {
-            TypedInteger::I8(v) => i8::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(*v),
             TypedInteger::I16(v) => i8::try_from(*v).ok(),
             TypedInteger::I32(v) => i8::try_from(*v).ok(),
             TypedInteger::I64(v) => i8::try_from(*v).ok(),
@@ -270,13 +270,13 @@ impl TypedInteger {
     /// Converts the integer to an i16 if it fits, otherwise returns None.
     pub fn as_i16(&self) -> Option<i16> {
         match self {
-            TypedInteger::I8(v) => i16::try_from(*v).ok(),
-            TypedInteger::I16(v) => i16::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(i16::from(*v)),
+            TypedInteger::I16(v) => Some(*v),
             TypedInteger::I32(v) => i16::try_from(*v).ok(),
             TypedInteger::I64(v) => i16::try_from(*v).ok(),
             TypedInteger::I128(v) => i16::try_from(*v).ok(),
 
-            TypedInteger::U8(v) => i16::try_from(*v).ok(),
+            TypedInteger::U8(v) => Some(i16::from(*v)),
             TypedInteger::U16(v) => i16::try_from(*v).ok(),
             TypedInteger::U32(v) => i16::try_from(*v).ok(),
             TypedInteger::U64(v) => i16::try_from(*v).ok(),
@@ -288,14 +288,14 @@ impl TypedInteger {
     /// Converts the integer to an i32 if it fits, otherwise returns None.
     pub fn as_i32(&self) -> Option<i32> {
         match self {
-            TypedInteger::I8(v) => i32::try_from(*v).ok(),
-            TypedInteger::I16(v) => i32::try_from(*v).ok(),
-            TypedInteger::I32(v) => i32::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(i32::from(*v)),
+            TypedInteger::I16(v) => Some(i32::from(*v)),
+            TypedInteger::I32(v) => Some(*v),
             TypedInteger::I64(v) => i32::try_from(*v).ok(),
             TypedInteger::I128(v) => i32::try_from(*v).ok(),
 
-            TypedInteger::U8(v) => i32::try_from(*v).ok(),
-            TypedInteger::U16(v) => i32::try_from(*v).ok(),
+            TypedInteger::U8(v) => Some(i32::from(*v)),
+            TypedInteger::U16(v) => Some(i32::from(*v)),
             TypedInteger::U32(v) => i32::try_from(*v).ok(),
             TypedInteger::U64(v) => i32::try_from(*v).ok(),
             TypedInteger::U128(v) => i32::try_from(*v).ok(),
@@ -306,15 +306,15 @@ impl TypedInteger {
     /// Converts the integer to a i64 if it fits, otherwise returns None.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
-            TypedInteger::I8(v) => i64::try_from(*v).ok(),
-            TypedInteger::I16(v) => i64::try_from(*v).ok(),
-            TypedInteger::I32(v) => i64::try_from(*v).ok(),
-            TypedInteger::I64(v) => i64::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(i64::from(*v)),
+            TypedInteger::I16(v) => Some(i64::from(*v)),
+            TypedInteger::I32(v) => Some(i64::from(*v)),
+            TypedInteger::I64(v) => Some(*v),
             TypedInteger::I128(v) => i64::try_from(*v).ok(),
 
-            TypedInteger::U8(v) => i64::try_from(*v).ok(),
-            TypedInteger::U16(v) => i64::try_from(*v).ok(),
-            TypedInteger::U32(v) => i64::try_from(*v).ok(),
+            TypedInteger::U8(v) => Some(i64::from(*v)),
+            TypedInteger::U16(v) => Some(i64::from(*v)),
+            TypedInteger::U32(v) => Some(i64::from(*v)),
             TypedInteger::U64(v) => i64::try_from(*v).ok(),
             TypedInteger::U128(v) => i64::try_from(*v).ok(),
             TypedInteger::Big(v) => v.as_i64(),
@@ -358,7 +358,7 @@ impl TypedInteger {
 
     /// Returns true if the integer is of a signed type.
     pub fn is_signed(&self) -> bool {
-        if let TypedInteger::Big(v) = self {
+        if let TypedInteger::Big(_) = self {
             return true;
         }
         matches!(
@@ -521,9 +521,7 @@ impl Add for TypedInteger {
                     i8::try_from((v1 as i128).checked_add(v2.try_into().ok()?)?)
                         .ok()?
                 }
-                TypedInteger::Big(v2) => {
-                    i8::try_from((v1).checked_add(v2.as_i8()?)?).ok()?
-                }
+                TypedInteger::Big(v2) => (v1).checked_add(v2.as_i8()?)?,
             }),
             TypedInteger::I16(v1) => TypedInteger::I16(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i16)?,
@@ -537,9 +535,7 @@ impl Add for TypedInteger {
                 TypedInteger::I128(v2) => {
                     i16::try_from((v1 as i128).checked_add(v2)?).ok()?
                 }
-                TypedInteger::U8(v2) => {
-                    i16::try_from(v1.checked_add(v2 as i16)?).ok()?
-                }
+                TypedInteger::U8(v2) => v1.checked_add(v2 as i16)?,
                 TypedInteger::U16(v2) => {
                     i16::try_from((v1 as i32).checked_add(v2 as i32)?).ok()?
                 }
@@ -553,9 +549,7 @@ impl Add for TypedInteger {
                     (v1 as i128).checked_add(v2.try_into().ok()?)?,
                 )
                 .ok()?,
-                TypedInteger::Big(v2) => {
-                    i16::try_from(v1.checked_add(v2.as_i16()?)?).ok()?
-                }
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i16()?)?,
             }),
             TypedInteger::I32(v1) => TypedInteger::I32(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i32)?,
@@ -579,9 +573,7 @@ impl Add for TypedInteger {
                     (v1 as i128).checked_add(v2.try_into().ok()?)?,
                 )
                 .ok()?,
-                TypedInteger::Big(v2) => {
-                    i32::try_from(v1.checked_add(v2.as_i32()?)?).ok()?
-                }
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i32()?)?,
             }),
             TypedInteger::I64(v1) => TypedInteger::I64(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i64)?,
@@ -592,14 +584,12 @@ impl Add for TypedInteger {
                     i64::try_from((v1 as i128).checked_add(v2)?).ok()?
                 }
                 TypedInteger::U8(v2) => {
-                    i64::try_from((v1 as i16).checked_add(v2 as i16)?).ok()?
+                    i64::from((v1 as i16).checked_add(v2 as i16)?)
                 }
                 TypedInteger::U16(v2) => {
-                    i64::try_from((v1 as i32).checked_add(v2 as i32)?).ok()?
+                    i64::from((v1 as i32).checked_add(v2 as i32)?)
                 }
-                TypedInteger::U32(v2) => {
-                    i64::try_from(v1.checked_add(v2 as i64)?).ok()?
-                }
+                TypedInteger::U32(v2) => v1.checked_add(v2 as i64)?,
                 TypedInteger::U64(v2) => {
                     i64::try_from((v1 as i128).checked_add(v2 as i128)?).ok()?
                 }
@@ -607,9 +597,7 @@ impl Add for TypedInteger {
                     (v1 as i128).checked_add(v2.try_into().ok()?)?,
                 )
                 .ok()?,
-                TypedInteger::Big(v2) => {
-                    i64::try_from(v1.checked_add(v2.as_i64()?)?).ok()?
-                }
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i64()?)?,
             }),
             TypedInteger::I128(v1) => TypedInteger::I128(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i128)?,
@@ -814,7 +802,7 @@ impl Sub for TypedInteger {
             }
             TypedInteger::Big(v) => TypedInteger::Big(v.neg()),
         };
-        self + neg_rhs
+        self.add(neg_rhs)
     }
 }
 

@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerAddress {
@@ -20,9 +20,12 @@ impl TryFrom<String> for PointerAddress {
 impl TryFrom<&str> for PointerAddress {
     type Error = &'static str;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let hex_str = if s.starts_with('$') {&s[1..]} else {s};
-        let bytes =
-            hex::decode(hex_str).map_err(|_| "Invalid hex string")?;
+        let hex_str = if let Some(stripped) = s.strip_prefix('$') {
+            stripped
+        } else {
+            s
+        };
+        let bytes = hex::decode(hex_str).map_err(|_| "Invalid hex string")?;
         match bytes.len() {
             5 => {
                 let mut arr = [0u8; 5];

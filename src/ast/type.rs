@@ -20,9 +20,9 @@ use crate::{
     },
     references::reference::ReferenceMutability,
     values::core_values::{
-        decimal::{decimal::Decimal, typed_decimal::TypedDecimal},
+        decimal::{Decimal, typed_decimal::TypedDecimal},
         endpoint::Endpoint,
-        integer::{integer::Integer, typed_integer::TypedInteger},
+        integer::{Integer, typed_integer::TypedInteger},
     },
 };
 
