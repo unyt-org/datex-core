@@ -186,7 +186,7 @@ impl HTTPServerNativeInterface {
         };
         self.remove_socket(&socket_uuid);
         let mut map = self.channels.write().await;
-        if let Some(_) = map.get(route) {
+        if map.get(route).is_some() {
             map.remove(route);
         }
     }
