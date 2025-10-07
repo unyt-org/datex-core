@@ -40,14 +40,11 @@ jobs:
 
             - name: Generate test result and coverage report
               run: |
-                  cargo install cargo2junit;
-                  cargo test-debug $CARGO_OPTIONS -- -Z unstable-options --report-time --format json | cargo2junit > results.xml;
-                  echo "Test results generated in results.xml"
-                  ls -l
-                  cat results.xml
+                  cargo install cargo-nextest;
+                  cargo nextest run --profile ci --features debug;
             - name: Upload test results
               uses: EnricoMi/publish-unit-test-result-action@v2
               with:
                   check_name: Test Results
                   github_token: ${{ secrets.GITHUB_TOKEN }}
-                  files: results.xml
+                  files: target/nextest/ci/report.xml
