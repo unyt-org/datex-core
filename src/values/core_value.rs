@@ -1,22 +1,26 @@
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::decimal::Decimal;
-use crate::values::core_values::decimal::typed_decimal::{DecimalTypeVariant, TypedDecimal};
+use crate::values::core_values::decimal::typed_decimal::{
+    DecimalTypeVariant, TypedDecimal,
+};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::integer::Integer;
-use crate::values::core_values::integer::typed_integer::{IntegerTypeVariant, TypedInteger};
+use crate::values::core_values::integer::typed_integer::{
+    IntegerTypeVariant, TypedInteger,
+};
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
-use crate::traits::structural_eq::StructuralEq;
-use crate::traits::value_eq::ValueEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Not, Sub};
+use std::ops::{Add, AddAssign, Neg, Not, Sub};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TypeTag {
@@ -242,11 +246,7 @@ impl CoreValue {
     /// Check if the CoreValue is a combined value type (List, Map)
     /// that consists of multiple CoreValues.
     pub fn is_collection_value(&self) -> bool {
-        matches!(
-            self,
-            CoreValue::List(_)
-                | CoreValue::Map(_)
-        )
+        matches!(self, CoreValue::List(_) | CoreValue::Map(_))
     }
 
     /// Get the default type of the CoreValue as a TypeContainer.
@@ -289,25 +289,58 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => {
                 Some(Decimal::from(int.as_i128()? as f64))
             }
-            CoreValue::TypedDecimal(decimal) => Some(Decimal::from(decimal.clone())),
-            CoreValue::Integer(int) => Some(Decimal::from(int.as_i128()? as f64)),
+            CoreValue::TypedDecimal(decimal) => {
+                Some(Decimal::from(decimal.clone()))
+            }
+            CoreValue::Integer(int) => {
+                Some(Decimal::from(int.as_i128()? as f64))
+            }
             CoreValue::Decimal(decimal) => Some(decimal.clone()),
             _ => None,
         }
     }
-    
-    pub fn cast_to_typed_decimal(&self, variant: DecimalTypeVariant) -> Option<TypedDecimal> {
+
+    pub fn cast_to_typed_decimal(
+        &self,
+        variant: DecimalTypeVariant,
+    ) -> Option<TypedDecimal> {
         println!("Casting {:?} to typed decimal {:?}", self, variant);
         match self {
             CoreValue::Text(text) => {
-                TypedDecimal::from_string_and_variant_in_range(text.as_str(), variant).ok()
+                TypedDecimal::from_string_and_variant_in_range(
+                    text.as_str(),
+                    variant,
+                )
+                .ok()
             }
-            CoreValue::TypedInteger(int) => {
-                Some(TypedDecimal::from_string_and_variant_in_range(&int.to_string(), variant).ok()?)
-            }
-            CoreValue::TypedDecimal(decimal) => Some(TypedDecimal::from_string_and_variant_in_range(&decimal.to_string(), variant).ok()?),
-            CoreValue::Integer(int) => Some(TypedDecimal::from_string_and_variant_in_range(&int.to_string(), variant).ok()?),
-            CoreValue::Decimal(decimal) => Some(TypedDecimal::from_string_and_variant_in_range(&decimal.to_string(), variant).ok()?),
+            CoreValue::TypedInteger(int) => Some(
+                TypedDecimal::from_string_and_variant_in_range(
+                    &int.to_string(),
+                    variant,
+                )
+                .ok()?,
+            ),
+            CoreValue::TypedDecimal(decimal) => Some(
+                TypedDecimal::from_string_and_variant_in_range(
+                    &decimal.to_string(),
+                    variant,
+                )
+                .ok()?,
+            ),
+            CoreValue::Integer(int) => Some(
+                TypedDecimal::from_string_and_variant_in_range(
+                    &int.to_string(),
+                    variant,
+                )
+                .ok()?,
+            ),
+            CoreValue::Decimal(decimal) => Some(
+                TypedDecimal::from_string_and_variant_in_range(
+                    &decimal.to_string(),
+                    variant,
+                )
+                .ok()?,
+            ),
             _ => None,
         }
     }
@@ -335,29 +368,51 @@ impl CoreValue {
             _ => None,
         }
     }
-    
+
     pub fn cast_to_integer(&self) -> Option<Integer> {
         match self {
-            CoreValue::Text(text) => Integer::from_string(&text.to_string()).ok(),
+            CoreValue::Text(text) => {
+                Integer::from_string(&text.to_string()).ok()
+            }
             CoreValue::TypedInteger(int) => Some(int.as_integer()),
             CoreValue::Integer(int) => Some(int.clone()),
-            CoreValue::Decimal(decimal) => Some(Integer::from(
-                decimal.try_into_f64()? as i128,
-            )),
-            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(Integer::from),
+            CoreValue::Decimal(decimal) => {
+                Some(Integer::from(decimal.try_into_f64()? as i128))
+            }
+            CoreValue::TypedDecimal(decimal) => {
+                decimal.as_integer().map(Integer::from)
+            }
             _ => None,
         }
     }
-    
-    pub fn cast_to_typed_integer(&self, variant: IntegerTypeVariant) -> Option<TypedInteger> {
+
+    pub fn cast_to_typed_integer(
+        &self,
+        variant: IntegerTypeVariant,
+    ) -> Option<TypedInteger> {
         match self {
-            CoreValue::Text(text) => TypedInteger::from_string_with_variant(text.as_str(), variant).ok(),
-            CoreValue::TypedInteger(int) => TypedInteger::from_string_with_variant(&int.to_string(), variant).ok(),
-            CoreValue::Integer(int) => TypedInteger::from_string_with_variant(int.to_string().as_str(), variant).ok(),
-            CoreValue::Decimal(decimal) => Some(TypedInteger::from(
-                decimal.try_into_f64()? as i128,
-            )),
-            CoreValue::TypedDecimal(decimal) => decimal.as_integer().map(TypedInteger::from),
+            CoreValue::Text(text) => {
+                TypedInteger::from_string_with_variant(text.as_str(), variant)
+                    .ok()
+            }
+            CoreValue::TypedInteger(int) => {
+                TypedInteger::from_string_with_variant(
+                    &int.to_string(),
+                    variant,
+                )
+                .ok()
+            }
+            CoreValue::Integer(int) => TypedInteger::from_string_with_variant(
+                int.to_string().as_str(),
+                variant,
+            )
+            .ok(),
+            CoreValue::Decimal(decimal) => {
+                Some(TypedInteger::from(decimal.try_into_f64()? as i128))
+            }
+            CoreValue::TypedDecimal(decimal) => {
+                decimal.as_integer().map(TypedInteger::from)
+            }
             _ => None,
         }
     }
@@ -663,6 +718,26 @@ impl Not for CoreValue {
         match self {
             CoreValue::Boolean(bool) => Some(CoreValue::Boolean(!bool)),
             _ => None, // Not applicable for other types
+        }
+    }
+}
+
+impl Neg for CoreValue {
+    type Output = Result<CoreValue, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            CoreValue::TypedInteger(int) => {
+                Ok(CoreValue::TypedInteger(int.neg()?))
+            }
+            CoreValue::Integer(int) => Ok(CoreValue::Integer(int.neg())),
+            CoreValue::TypedDecimal(decimal) => {
+                Ok(CoreValue::TypedDecimal(decimal.neg()))
+            }
+            CoreValue::Decimal(decimal) => {
+                Ok(CoreValue::Decimal(decimal.neg()))
+            }
+            _ => Err(ValueError::InvalidOperation), // Negation not applicable for other types
         }
     }
 }
