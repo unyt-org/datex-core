@@ -208,7 +208,7 @@ fn compare_with_expected() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "Only run this test to update expected results"]
 /// This test is used to update the expected results for the JSON test cases.
 /// It will overwrite the expected results with the current decompiled output.
 fn update_expected() {
