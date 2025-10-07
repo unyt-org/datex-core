@@ -138,7 +138,8 @@ pub enum Token {
     //   - `-123.45`, `+123.45`
     //   - `-Infinity`, `+Infinity`
     //   - `-3.e10`, `+3.e10`
-    #[regex(r"[+-]?(((0|[1-9])(\d|_)*)?\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)?", parse_typed_literal::<DecimalTypeVariant>)] DecimalLiteral(DecimalLiteral),
+    #[regex(r"(((0|[1-9])(\d|_)*)?\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)?", parse_typed_literal::<DecimalTypeVariant>)] 
+    DecimalLiteral(DecimalLiteral),
     // integer
     // ### Supported formats:
     // - Hexadecimal integers:
@@ -159,16 +160,21 @@ pub enum Token {
     // - Decimal integers with leading zeros:
     // - `0123`
     // - `-0123`
-    #[regex(r"[+-]?(0|[1-9])(\d|_)*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] DecimalIntegerLiteral(IntegerLiteral),
+    #[regex(r"(0|[1-9])(\d|_)*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+    DecimalIntegerLiteral(IntegerLiteral),
     // binary integer
-    #[regex(r"0[bB][01_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] BinaryIntegerLiteral(IntegerLiteral),
+    #[regex(r"0[bB][01_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+    BinaryIntegerLiteral(IntegerLiteral),
     // octal integer
-    #[regex(r"0[oO][0-7_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] OctalIntegerLiteral(IntegerLiteral),
+    #[regex(r"0[oO][0-7_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+    OctalIntegerLiteral(IntegerLiteral),
     // hexadecimal integer
-    #[regex(r"0[xX][0-9a-fA-F_]+*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] HexadecimalIntegerLiteral(IntegerLiteral),
+    #[regex(r"0[xX][0-9a-fA-F_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+    HexadecimalIntegerLiteral(IntegerLiteral),
 
     // fraction (e.g. 1/2)
-    #[regex(r"[+-]?\d+/\d+", allocated_string)] FractionLiteral(String),
+    #[regex(r"\d+/\d+", allocated_string)] 
+    FractionLiteral(String),
 
     #[regex(r#"[a-z0-9]*("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*')"#, allocated_string)] StringLiteral(String),
 
@@ -490,16 +496,16 @@ mod tests {
             Ok(Token::FractionLiteral("1/2".to_string()))
         );
 
-        let mut lexer = Token::lexer("-3/4");
+        let mut lexer = Token::lexer("3/4");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::FractionLiteral("-3/4".to_string()))
+            Ok(Token::FractionLiteral("3/4".to_string()))
         );
 
-        let mut lexer = Token::lexer("+5/6");
+        let mut lexer = Token::lexer("5111/6");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::FractionLiteral("+5/6".to_string()))
+            Ok(Token::FractionLiteral("5111/6".to_string()))
         );
     }
 
@@ -647,25 +653,6 @@ mod tests {
             }))
         );
         assert_eq!(lexer.next(), None);
-    }
-
-    #[test]
-    fn invalid_add() {
-        let mut lexer = Token::lexer("1+2");
-        assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::DecimalIntegerLiteral(IntegerLiteral {
-                value: "1".to_string(),
-                variant: None
-            }))
-        );
-        assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::DecimalIntegerLiteral(IntegerLiteral {
-                value: "+2".to_string(),
-                variant: None
-            }))
-        );
     }
 
     #[test]
