@@ -14,23 +14,32 @@ crate and provides a command line interface for the DATEX Runtime.
 ## Project Structure
 
 - [src/](./src) - Contains the source code of the crate
-  - [compiler/](./src/compiler) - Contains the compiler for the DATEX language
-  - [crypto/](./src/crypto) - Contains the cryptographic trait and a native
-    implementation
-  - [values/](./src/values) - Contains the value types and traits
-  - [global/](./src/global) - Contains global constants and structures
-  - [network/](./src/network) - Contains the network protocol implementation and
-    interfaces
-  - [parser/](./src/parser) - Contains the DXB parser
-  - [runtime/](./src/runtime) - Contains the runtime for executing scripts
-  - [utils/](./src/utils) - Contains utility functions and traits
-- [benches/](./benches) - Contains benchmarks for the crate for performance
-  testing
-- [tests/](./tests) - Contains integration tests for the crate
-- [macros/](./macros) - Contains procedural macros for the crate
-- [docs/](./docs) - Contains the documentation for the crate
-  - [guide/](./docs/guide) - Contains a collection of guides for contributing to
-    the crate
+  - [ast/](./src/ast) - Abstract syntax tree (AST) modules
+  - [compiler/](./src/compiler) - Compiler for the DATEX language
+  - [crypto/](./src/crypto) - Cryptographic trait and a native implementation
+  - [decompiler/](./src/decompiler) - Decompiler for the DATEX language
+  - [dif/](./src/dif) - Abstract data interface for data exchange with external
+    systems
+  - [global/](./src/global) - Global constants and structures
+  - [libs/](./src/libs) - Library modules such as core library and standard
+    library
+  - [network/](./src/network) - Network protocol implementation and
+    communication interfaces
+  - [parser/](./src/parser) - DXB parser and instruction handler
+  - [references/](./src/references) - Reference implementation, observers and
+    mutators
+  - [runtime/](./src/runtime) - Runtime for executing DXB
+  - [serde/](./src/serde) - Serialization and deserialization of DATEX values
+  - [traits/](./src/traits) - Shared traits for values, types and references
+  - [types/](./src/types) - Type system implementation
+  - [utils/](./src/utils) - Utility functions and traits
+  - [values/](./src/values) - Value implementation, core values and value
+    containers
+- [benches/](./benches) - Benchmarks for the crate for performance testing
+- [tests/](./tests) - Integration tests for the crate
+- [macros/](./macros) - Procedural macros for the crate
+- [docs/](./docs) - Documentation for the crate
+  - [guide/](./docs/guide) - Collection of guides for contributing to the crate
 
 ## Environment
 
@@ -67,7 +76,7 @@ crate and provides a command line interface for the DATEX Runtime.
 ### Building the Project
 
 The project is build with Rust Nightly
-([`rustc 1.88.0-nightly`](https://releases.rs/docs/1.88.0/)). To build the
+([`rustc 1.91.0-nightly`](https://releases.rs/docs/1.91.0/)). To build the
 project, run:
 
 ```bash
