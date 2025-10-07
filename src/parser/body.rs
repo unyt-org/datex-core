@@ -1,14 +1,21 @@
 use crate::decompiler::ScopeType;
 use crate::global::binary_codes::{InstructionCode, TypeSpaceInstructionCode};
-use crate::global::protocol_structures::instructions::{DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, RawFullPointerAddress, RawInternalPointerAddress, TypeTagData, TypeInstruction, ApplyData};
+use crate::global::protocol_structures::instructions::{
+    ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
+    FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
+    Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress,
+    RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress,
+    TextData, TextDataRaw, TypeInstruction, TypeTagData, UInt8Data, UInt16Data,
+    UInt32Data, UInt64Data, UInt128Data,
+};
 use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
-use std::fmt::Display;
-use std::io::{BufRead, Cursor, Read, Seek};
 use datex_core::ast::assignment_operation::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
+use std::fmt::Display;
+use std::io::{BufRead, Cursor, Read, Seek};
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -332,8 +339,12 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::SCOPE_START => Ok(Instruction::ScopeStart),
                     InstructionCode::SCOPE_END => Ok(Instruction::ScopeEnd),
 
-                    InstructionCode::APPLY_ZERO => Ok(Instruction::Apply(ApplyData {arg_count: 0})),
-                    InstructionCode::APPLY_SINGLE => Ok(Instruction::Apply(ApplyData {arg_count: 1})),
+                    InstructionCode::APPLY_ZERO => {
+                        Ok(Instruction::Apply(ApplyData { arg_count: 0 }))
+                    }
+                    InstructionCode::APPLY_SINGLE => {
+                        Ok(Instruction::Apply(ApplyData { arg_count: 1 }))
+                    }
 
                     InstructionCode::APPLY => {
                         let apply_data = ApplyData::read(&mut reader);
@@ -351,8 +362,13 @@ pub fn iterate_instructions<'a>(
                             yield Err(err);
                             return;
                         }
-                        let operator = AssignmentOperator::try_from(operator.unwrap())
-                            .map_err(|_| DXBParserError::InvalidBinaryCode(instruction_code as u8));
+                        let operator =
+                            AssignmentOperator::try_from(operator.unwrap())
+                                .map_err(|_| {
+                                    DXBParserError::InvalidBinaryCode(
+                                        instruction_code as u8,
+                                    )
+                                });
                         if let Err(err) = operator {
                             yield Err(err);
                             return;
@@ -386,6 +402,10 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
                     InstructionCode::UNION => Ok(Instruction::Union),
 
+                    InstructionCode::UNARY_MINUS => Ok(Instruction::UnaryMinus),
+                    InstructionCode::UNARY_PLUS => Ok(Instruction::UnaryPlus),
+                    InstructionCode::BITWISE_NOT => Ok(Instruction::BitwiseNot),
+
                     // equality
                     InstructionCode::STRUCTURAL_EQUAL => {
                         Ok(Instruction::StructuralEqual)
@@ -398,8 +418,12 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::IS => Ok(Instruction::Is),
                     InstructionCode::MATCHES => Ok(Instruction::Matches),
                     InstructionCode::CREATE_REF => Ok(Instruction::CreateRef),
-                    InstructionCode::CREATE_REF_MUT =>  Ok(Instruction::CreateRefMut),
-                    InstructionCode::CREATE_REF_FINAL =>  Ok(Instruction::CreateRefFinal),
+                    InstructionCode::CREATE_REF_MUT => {
+                        Ok(Instruction::CreateRefMut)
+                    }
+                    InstructionCode::CREATE_REF_FINAL => {
+                        Ok(Instruction::CreateRefFinal)
+                    }
 
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {
@@ -454,14 +478,14 @@ pub fn iterate_instructions<'a>(
                     }
 
                     InstructionCode::GET_INTERNAL_REF => {
-                        let address = RawInternalPointerAddress::read(&mut reader);
+                        let address =
+                            RawInternalPointerAddress::read(&mut reader);
                         if let Err(err) = address {
                             Err(err.into())
                         } else {
                             Ok(Instruction::GetInternalRef(address.unwrap()))
                         }
                     }
-
 
                     InstructionCode::ADD_ASSIGN => {
                         let address = SlotAddress::read(&mut reader);
@@ -483,7 +507,11 @@ pub fn iterate_instructions<'a>(
 
                     InstructionCode::TYPED_VALUE => {
                         // collect type space instructions
-                        let result: Result<Vec<TypeInstruction>, DXBParserError> = iterate_type_space_instructions(&mut reader).collect();
+                        let result: Result<
+                            Vec<TypeInstruction>,
+                            DXBParserError,
+                        > = iterate_type_space_instructions(&mut reader)
+                            .collect();
                         if let Err(err) = result {
                             Err(err)
                         } else {
@@ -492,7 +520,11 @@ pub fn iterate_instructions<'a>(
                     }
                     InstructionCode::TYPE_EXPRESSION => {
                         // collect type space instructions
-                        let result: Result<Vec<TypeInstruction>, DXBParserError> = iterate_type_space_instructions(&mut reader).collect();
+                        let result: Result<
+                            Vec<TypeInstruction>,
+                            DXBParserError,
+                        > = iterate_type_space_instructions(&mut reader)
+                            .collect();
                         if let Err(err) = result {
                             Err(err)
                         } else {
@@ -510,16 +542,17 @@ pub fn iterate_instructions<'a>(
 }
 
 fn get_next_instruction_code(
-mut reader: &mut Cursor<&[u8]>,
+    mut reader: &mut Cursor<&[u8]>,
 ) -> Result<InstructionCode, DXBParserError> {
-    let instruction_code = u8::read(&mut reader).map_err(|err| DXBParserError::FailedToReadInstructionCode)?;
+    let instruction_code = u8::read(&mut reader)
+        .map_err(|err| DXBParserError::FailedToReadInstructionCode)?;
 
-    InstructionCode::try_from(instruction_code).map_err(|_| DXBParserError::FailedToReadInstructionCode)
+    InstructionCode::try_from(instruction_code)
+        .map_err(|_| DXBParserError::FailedToReadInstructionCode)
 }
 
-
 fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
-    reader: &mut R
+    reader: &mut R,
 ) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
     std::iter::from_coroutine(
         #[coroutine]
@@ -536,8 +569,9 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
                     return;
                 }
 
-                let instruction_code =
-                    TypeSpaceInstructionCode::try_from(instruction_code.unwrap());
+                let instruction_code = TypeSpaceInstructionCode::try_from(
+                    instruction_code.unwrap(),
+                );
                 if instruction_code.is_err() {
                     yield Err(DXBParserError::FailedToReadInstructionCode);
                     return;
@@ -546,16 +580,20 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
                 //info!("Instruction code: {:?}", instruction_code);
 
                 yield match instruction_code {
-                    TypeSpaceInstructionCode::TYPE_ARRAY_START => Ok(TypeInstruction::ArrayStart),
+                    TypeSpaceInstructionCode::TYPE_ARRAY_START => {
+                        Ok(TypeInstruction::ArrayStart)
+                    }
                     TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER => {
                         let integer_data = IntegerData::read(reader);
                         if let Err(err) = integer_data {
                             Err(err.into())
                         } else {
-                            Ok(TypeInstruction::LiteralInteger(integer_data.unwrap()))
+                            Ok(TypeInstruction::LiteralInteger(
+                                integer_data.unwrap(),
+                            ))
                         }
-                    },
-                    _ => todo!()
+                    }
+                    _ => todo!(),
                 }
             }
         },

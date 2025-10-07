@@ -6,18 +6,26 @@ use crate::ast::binary_operation::{
 };
 use crate::ast::comparison_operation::ComparisonOperator;
 use crate::ast::unary_operation::{
-    ArithmeticUnaryOperator, LogicalUnaryOperator, ReferenceUnaryOperator,
-    UnaryOperator,
+    ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
+    ReferenceUnaryOperator, UnaryOperator,
 };
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
 use crate::global::binary_codes::{InstructionCode, InternalSlot};
 use crate::global::protocol_structures::instructions::*;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::references::reference::{
+    AssignmentError, ReferenceFromValueContainerError,
+};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
+use crate::traits::apply::Apply;
+use crate::traits::identity::Identity;
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
 use crate::types::error::IllegalTypeError;
 use crate::types::type_container::TypeContainer;
 use crate::utils::buffers::append_u32;
@@ -29,9 +37,6 @@ use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use crate::traits::identity::Identity;
-use crate::traits::structural_eq::StructuralEq;
-use crate::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
 use datex_core::decompiler::{DecompileOptions, decompile_value};
@@ -43,9 +48,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
-use crate::references::reference::AssignmentError;
-use crate::traits::apply::Apply;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -239,9 +241,10 @@ pub fn execute_dxb_sync(
             ExecutionStep::ResolveLocalPointer(address) => {
                 // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(
-                        get_local_pointer_value(&runtime_internal, address)?,
-                    ));
+                    Some(InterruptProvider::Result(get_local_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
             }
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
@@ -283,9 +286,10 @@ pub async fn execute_dxb(
             ExecutionStep::ResolveLocalPointer(address) => {
                 // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(
-                        get_local_pointer_value(&runtime_internal, address)?,
-                    ));
+                    Some(InterruptProvider::Result(get_local_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
             }
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
@@ -369,10 +373,15 @@ fn get_pointer_value(
 fn get_internal_pointer_value(
     address: RawInternalPointerAddress,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
-    let core_lib_id = CoreLibPointerId::try_from(&PointerAddress::Internal(address.id));
+    let core_lib_id =
+        CoreLibPointerId::try_from(&PointerAddress::Internal(address.id));
     core_lib_id
         .map_err(|_| ExecutionError::ReferenceNotFound)
-        .map(|id| Some(ValueContainer::Reference(Reference::TypeReference(get_core_lib_type_reference(id)))))
+        .map(|id| {
+            Some(ValueContainer::Reference(Reference::TypeReference(
+                get_core_lib_type_reference(id),
+            )))
+        })
 }
 
 fn get_local_pointer_value(
@@ -436,7 +445,13 @@ pub enum ExecutionError {
     ReferenceNotFound,
     DerefOfNonReference,
     InvalidTypeCast,
-    AssignmentError(AssignmentError)
+    AssignmentError(AssignmentError),
+    ReferenceFromValueContainerError(ReferenceFromValueContainerError),
+}
+impl From<ReferenceFromValueContainerError> for ExecutionError {
+    fn from(error: ReferenceFromValueContainerError) -> Self {
+        ExecutionError::ReferenceFromValueContainerError(error)
+    }
 }
 
 impl From<DXBParserError> for ExecutionError {
@@ -484,6 +499,9 @@ impl From<AssignmentError> for ExecutionError {
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ExecutionError::ReferenceFromValueContainerError(err) => {
+                write!(f, "Reference from value container error: {err}")
+            }
             ExecutionError::ReferenceNotFound => {
                 write!(f, "Reference not found")
             }
@@ -767,6 +785,38 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            // unary operations
+            Instruction::UnaryPlus => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Plus,
+                        ),
+                    },
+                );
+                None
+            }
+            Instruction::UnaryMinus => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Minus,
+                        ),
+                    },
+                );
+                None
+            }
+            Instruction::BitwiseNot => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Bitwise(
+                            BitwiseUnaryOperator::Negation,
+                        ),
+                    },
+                );
+                None
+            }
+
             // equality operations
             Instruction::Is
             | Instruction::Matches
@@ -830,12 +880,11 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::Apply(ApplyData {arg_count}) => {
-                info!("APPLY!");
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope(Scope::Apply { arg_count, args: vec![] });
+            Instruction::Apply(ApplyData { arg_count }) => {
+                context.borrow_mut().scope_stack.create_scope(Scope::Apply {
+                    arg_count,
+                    args: vec![],
+                });
                 None
             }
 
@@ -932,18 +981,17 @@ fn get_result_value_from_instruction(
             }
 
             Instruction::AssignToReference(operator) => {
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope(Scope::AssignToReference { reference: None, operator });
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignToReference {
+                        reference: None,
+                        operator,
+                    },
+                );
                 None
             }
 
             Instruction::Deref => {
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope(Scope::Deref);
+                context.borrow_mut().scope_stack.create_scope(Scope::Deref);
                 None
             }
 
@@ -1138,26 +1186,33 @@ fn handle_value(
             if let ValueContainer::Reference(reference) = value_container {
                 Some(reference.value_container())
             } else {
-                return Err(ExecutionError::DerefOfNonReference)
+                return Err(ExecutionError::DerefOfNonReference);
             }
         }
 
-        Scope::AssignToReference { operator, reference} => {
+        Scope::AssignToReference {
+            operator,
+            reference,
+        } => {
             if (reference.is_none()) {
                 // set value for slot
-                if let ValueContainer::Reference(new_reference) = value_container {
+                if let ValueContainer::Reference(new_reference) =
+                    value_container
+                {
                     reference.replace(new_reference);
                     None
                 } else {
-                    return Err(ExecutionError::DerefOfNonReference)
+                    return Err(ExecutionError::DerefOfNonReference);
                 }
-            }
-            else {
+            } else {
                 let operator = *operator;
                 let reference = reference.as_ref().unwrap();
                 let lhs = reference.value_container();
-                let res =
-                    handle_assignment_operation(lhs, value_container, operator)?;
+                let res = handle_assignment_operation(
+                    lhs,
+                    value_container,
+                    operator,
+                )?;
                 reference.set_value_container(res)?;
                 Some(ValueContainer::Reference(reference.clone()))
             }
@@ -1175,8 +1230,7 @@ fn handle_value(
                 else {
                     Some(value_container)
                 }
-            }
-            else {
+            } else {
                 let callee = scope_container.active_value.as_ref().unwrap();
                 // callee already exists, collect args
                 args.push(value_container);
@@ -1185,8 +1239,7 @@ fn handle_value(
                 if args.len() == *arg_count as usize {
                     context.pop_next_scope = true;
                     handle_apply(callee, args)?
-                }
-                else {
+                } else {
                     Some(callee.clone())
                 }
             }
@@ -1209,7 +1262,13 @@ fn handle_value(
         Scope::UnaryOperation { operator } => {
             let operator = *operator;
             context.pop_next_scope = true;
-            Some(handle_unary_operation(operator, value_container))
+            let result = handle_unary_operation(operator, value_container);
+            if let Ok(val) = result {
+                Some(val)
+            } else {
+                // handle error
+                return Err(result.unwrap_err());
+            }
         }
 
         Scope::BinaryOperation { operator } => {
@@ -1284,7 +1343,7 @@ fn handle_value(
 
 fn handle_apply(
     callee: &ValueContainer,
-    args: &[ValueContainer]
+    args: &[ValueContainer],
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     // callee is guaranteed to be Some here
     // apply_single if one arg, apply otherwise
@@ -1346,33 +1405,30 @@ fn handle_key_value_pair(
 fn handle_unary_reference_operation(
     operator: ReferenceUnaryOperator,
     value_container: ValueContainer,
-) -> ValueContainer {
-    // TODO: don't panic, pass result
-    match operator {
+) -> Result<ValueContainer, ExecutionError> {
+    Ok(match operator {
         ReferenceUnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
         ReferenceUnaryOperator::CreateRefFinal => ValueContainer::Reference(
-            Reference::try_final_from(value_container)
-                .expect("Could not create final reference"),
+            Reference::try_final_from(value_container)?,
         ),
-        ReferenceUnaryOperator::CreateRefMut => ValueContainer::Reference(
-            Reference::try_mut_from(value_container)
-                .expect("Could not create mutable reference"),
-        ),
+        ReferenceUnaryOperator::CreateRefMut => {
+            ValueContainer::Reference(Reference::try_mut_from(value_container)?)
+        }
         ReferenceUnaryOperator::Deref => {
             if let ValueContainer::Reference(reference) = value_container {
                 reference.value_container()
             } else {
-                panic!("Tried to deref a non-reference value")
+                return Err(ExecutionError::DerefOfNonReference);
             }
         }
-    }
+    })
 }
 fn handle_unary_logical_operation(
     operator: LogicalUnaryOperator,
     value_container: ValueContainer,
-) -> ValueContainer {
+) -> Result<ValueContainer, ExecutionError> {
     unimplemented!(
         "Logical unary operations are not implemented yet: {operator:?}"
     )
@@ -1380,16 +1436,20 @@ fn handle_unary_logical_operation(
 fn handle_unary_arithmetic_operation(
     operator: ArithmeticUnaryOperator,
     value_container: ValueContainer,
-) -> ValueContainer {
-    unimplemented!(
-        "Arithmetic unary operations are not implemented yet: {operator:?}"
-    )
+) -> Result<ValueContainer, ExecutionError> {
+    match operator {
+        ArithmeticUnaryOperator::Minus => Ok((-value_container)?),
+        ArithmeticUnaryOperator::Plus => Ok(value_container),
+        _ => unimplemented!(
+            "Arithmetic unary operations are not implemented yet: {operator:?}"
+        ),
+    }
 }
 
 fn handle_unary_operation(
     operator: UnaryOperator,
     value_container: ValueContainer,
-) -> ValueContainer {
+) -> Result<ValueContainer, ExecutionError> {
     match operator {
         UnaryOperator::Reference(reference) => {
             handle_unary_reference_operation(reference, value_container)
@@ -1540,16 +1600,14 @@ mod tests {
     use std::assert_matches::assert_matches;
     use std::vec;
 
-    use log::debug;
-    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger_debug;
     use crate::traits::structural_eq::StructuralEq;
-    use crate::{
-        assert_structural_eq, assert_value_eq, datex_list,
-    };
+    use crate::{assert_structural_eq, assert_value_eq, datex_list};
+    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
+    use log::debug;
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -1884,7 +1942,6 @@ mod tests {
         assert_eq!(result, expected.into());
     }
 
-
     #[test]
     fn deref() {
         init_logger_debug();
@@ -1905,8 +1962,9 @@ mod tests {
     #[test]
     fn ref_add_assignment() {
         init_logger_debug();
-        let result =
-            execute_datex_script_debug_with_result("const x = &mut 42; *x += 1");
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; *x += 1",
+        );
         assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
 
         let result = execute_datex_script_debug_with_result(
@@ -1922,8 +1980,9 @@ mod tests {
     #[test]
     fn ref_sub_assignment() {
         init_logger_debug();
-        let result =
-            execute_datex_script_debug_with_result("const x = &mut 42; *x -= 1");
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; *x -= 1",
+        );
         assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));
 
         let result = execute_datex_script_debug_with_result(
