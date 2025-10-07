@@ -37,6 +37,7 @@ use crate::ast::unary::*;
 use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 
+use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -52,6 +53,7 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 use lexer::Token;
 use logos::Logos;
+use std::ops::Neg;
 use std::ops::Range;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
@@ -301,6 +303,24 @@ impl TryFrom<&DatexExpression> for ValueContainer {
 
     fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
         Ok(match expr {
+            DatexExpression::UnaryOperation(op, expr) => {
+                let value = ValueContainer::try_from(expr.as_ref())?;
+                match value {
+                    ValueContainer::Value(Value {
+                        inner: CoreValue::Integer(_) | CoreValue::Decimal(_),
+                        ..
+                    }) => match op {
+                        UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Plus,
+                        ) => value,
+                        UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Minus,
+                        ) => value.neg().map_err(|_| ())?,
+                        _ => Err(())?,
+                    },
+                    _ => Err(())?,
+                }
+            }
             DatexExpression::Null => ValueContainer::Value(Value::null()),
             DatexExpression::Boolean(b) => ValueContainer::from(*b),
             DatexExpression::Text(s) => ValueContainer::from(s.clone()),

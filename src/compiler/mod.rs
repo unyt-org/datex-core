@@ -567,7 +567,6 @@ fn compile_expression(
 
         // unary operations (negation, not, etc.)
         DatexExpression::UnaryOperation(operator, expr) => {
-            compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
@@ -2035,6 +2034,10 @@ pub mod tests {
         assert!(!*compilation_scope.has_non_static_value.borrow());
 
         let script = "{a: 2}";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
+
+        let script = "-42";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
     }
