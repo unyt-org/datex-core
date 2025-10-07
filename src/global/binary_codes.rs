@@ -23,7 +23,7 @@ pub enum InstructionCode {
     CACHE_RESET,     // reset dxb scope cache
 
     TYPE_TAG, // e.g. Tag('integer')
-    
+
     // internal variables and other shorthands 0x30 - 0x4f
     VAR_RESULT,
     SET_VAR_RESULT,
@@ -134,6 +134,11 @@ pub enum InstructionCode {
     POWER,     // ^
     INCREMENT, // ++
     DECREMENT, // --
+
+    UNARY_PLUS,
+    UNARY_MINUS,
+    BITWISE_NOT, // ~
+
     UNION, // | // TODO: maybe create a union collection of multiple values, instead of using this as a binary operator?
 
     // assignment operators
@@ -164,10 +169,10 @@ pub enum InstructionCode {
     GET_LOCAL_REF, // $x, containing only the id, origin id is inferred from sender
     GET_OR_INIT_REF, // $aa := ...
     POINTER_ACTION, // $aa += ...
-    CREATE_REF,     // &()
+    CREATE_REF,    // &()
     CREATE_REF_MUT, // &mut ()
     CREATE_REF_FINAL, // &final ()
-    SET_REF,        // &aa = ...
+    SET_REF,       // &aa = ...
 
     ASSIGN_TO_REF, // *x = 10;
 
@@ -184,7 +189,6 @@ pub enum InstructionCode {
     /// type byte codes --> switch to Type Space
     TYPED_VALUE,
     TYPE_EXPRESSION, // type()
-
 
     CONJUNCTION, // x&y&z
     DISJUNCTION, // x|y|z
@@ -234,12 +238,11 @@ pub enum InstructionCode {
 
     URL, //file://... , https://...
 
-
     TIME, // ~2022-10-10~
 
     // lists and maps 0xe0 - 0xef
-    LIST_START,                   // (1,2,3)
-    MAP_START,                    // (a:1, b:2)
+    LIST_START,   // (1,2,3)
+    MAP_START,    // (a:1, b:2)
     STRUCT_START, // {a:1, b:2} - optimized structural map, field names are inferred from struct type
 
     KEY_VALUE_SHORT_TEXT,
@@ -279,8 +282,6 @@ pub enum InternalSlot {
     ENDPOINT = 0xffffff00,
 }
 
-
-
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -294,12 +295,11 @@ pub enum InternalSlot {
 )]
 #[repr(u8)]
 pub enum TypeSpaceInstructionCode {
-    
     TYPE_REFERENCE,
-    
+
     TYPE_ARRAY_START,
     TYPE_SCOPE_END,
-    
+
     TYPE_LITERAL_INTEGER,
     TYPE_LITERAL_TEXT,
     TYPE_STRUCT,
