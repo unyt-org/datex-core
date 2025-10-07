@@ -1,9 +1,12 @@
 on:
     pull_request:
         types: [opened, reopened, edited, synchronize]
-
+        
 jobs:
     benchmark_pr_branch:
+        concurrency:
+            group: ${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
         name: Continuous Benchmarking PRs
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         permissions:

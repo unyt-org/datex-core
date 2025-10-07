@@ -5,6 +5,9 @@ jobs:
     test:
         runs-on: ubuntu-latest
         name: Test
+        concurrency:
+            group: ${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
         env:
             PROJECT_NAME_UNDERSCORE: datex_core
             CARGO_INCREMENTAL: 0
