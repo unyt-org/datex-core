@@ -1,3 +1,4 @@
+use crate::ast::assignment_operation::AssignmentOperator;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::integer::integer::Integer;
 use crate::values::core_values::{
@@ -5,7 +6,6 @@ use crate::values::core_values::{
 };
 use binrw::{BinRead, BinWrite};
 use std::fmt::Display;
-use crate::ast::assignment_operation::AssignmentOperator;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -59,6 +59,12 @@ pub enum Instruction {
     Divide,
     Union,
 
+    // unary operator
+    // TODO add missing unary operators
+    UnaryMinus,
+    UnaryPlus,
+    BitwiseNot,
+
     Apply(ApplyData),
 
     // comparison operator
@@ -100,7 +106,6 @@ pub enum Instruction {
     TypeInstructions(Vec<TypeInstruction>),
     TypeExpression(Vec<TypeInstruction>),
 }
-
 
 impl Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -156,7 +161,16 @@ impl Display for Instruction {
                 write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
             }
             Instruction::TypeTag(data) => {
-                write!(f, "TYPE_TAG {}/({})", data.name, data.variants.iter().map(|v| v.name.as_str()).collect::<Vec<&str>>().join("|"))
+                write!(
+                    f,
+                    "TYPE_TAG {}/({})",
+                    data.name,
+                    data.variants
+                        .iter()
+                        .map(|v| v.name.as_str())
+                        .collect::<Vec<&str>>()
+                        .join("|")
+                )
             }
             Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
 
@@ -189,25 +203,52 @@ impl Display for Instruction {
             Instruction::SetSlot(address) => {
                 write!(f, "SET_SLOT {}", address.0)
             }
-            Instruction::AssignToReference(operator) => write!(f, "ASSIGN_REFERENCE ({})", operator),
+            Instruction::AssignToReference(operator) => {
+                write!(f, "ASSIGN_REFERENCE ({})", operator)
+            }
             Instruction::Deref => write!(f, "DEREF"),
             Instruction::GetRef(address) => {
-                write!(f, "GET_REF [{}:{}]", address.endpoint, hex::encode(address.id))
+                write!(
+                    f,
+                    "GET_REF [{}:{}]",
+                    address.endpoint,
+                    hex::encode(address.id)
+                )
             }
             Instruction::GetLocalRef(address) => {
-                write!(f, "GET_LOCAL_REF [origin_id: {}]", hex::encode(address.id))
+                write!(
+                    f,
+                    "GET_LOCAL_REF [origin_id: {}]",
+                    hex::encode(address.id)
+                )
             }
             Instruction::GetInternalRef(address) => {
-                write!(f, "GET_INTERNAL_REF [internal_id: {}]", hex::encode(address.id))
+                write!(
+                    f,
+                    "GET_INTERNAL_REF [internal_id: {}]",
+                    hex::encode(address.id)
+                )
             }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
             Instruction::CreateRefMut => write!(f, "CREATE_REF_MUT"),
             Instruction::CreateRefFinal => write!(f, "CREATE_REF_FINAL"),
             Instruction::GetOrCreateRef(data) => {
-                write!(f, "GET_OR_CREATE_REF [{}:{}, block_size: {}]", data.address.endpoint, hex::encode(data.address.id), data.create_block_size)
+                write!(
+                    f,
+                    "GET_OR_CREATE_REF [{}:{}, block_size: {}]",
+                    data.address.endpoint,
+                    hex::encode(data.address.id),
+                    data.create_block_size
+                )
             }
             Instruction::GetOrCreateRefMut(data) => {
-                write!(f, "GET_OR_CREATE_REF_MUT [{}:{}, block_size: {}]", data.address.endpoint, hex::encode(data.address.id), data.create_block_size)
+                write!(
+                    f,
+                    "GET_OR_CREATE_REF_MUT [{}:{}, block_size: {}]",
+                    data.address.endpoint,
+                    hex::encode(data.address.id),
+                    data.create_block_size
+                )
             }
             Instruction::ExecutionBlock(block) => {
                 write!(
@@ -230,19 +271,21 @@ impl Display for Instruction {
                 write!(f, "DIVIDE_ASSIGN {}", address.0)
             }
             Instruction::TypeInstructions(instr) => {
-                let instr_strings: Vec<String> = instr.iter().map(|i| i.to_string()).collect();
+                let instr_strings: Vec<String> =
+                    instr.iter().map(|i| i.to_string()).collect();
                 write!(f, "TYPE_INSTRUCTIONS [{}]", instr_strings.join(", "))
             }
             Instruction::TypeExpression(instr) => {
-                let instr_strings: Vec<String> = instr.iter().map(|i| i.to_string()).collect();
+                let instr_strings: Vec<String> =
+                    instr.iter().map(|i| i.to_string()).collect();
                 write!(f, "TYPE_EXPRESSION [{}]", instr_strings.join(", "))
             }
+            Instruction::UnaryMinus => write!(f, "-"),
+            Instruction::UnaryPlus => write!(f, "+"),
+            Instruction::BitwiseNot => write!(f, "BITWISE_NOT"),
         }
     }
 }
-
-
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeInstruction {
@@ -252,19 +295,20 @@ pub enum TypeInstruction {
     ScopeEnd,
 }
 
-
 impl Display for TypeInstruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeInstruction::LiteralText(data) => write!(f, "LITERAL_TEXT {}", data.0),
-            TypeInstruction::LiteralInteger(data) => write!(f, "LITERAL_INTEGER {}", data.0),
+            TypeInstruction::LiteralText(data) => {
+                write!(f, "LITERAL_TEXT {}", data.0)
+            }
+            TypeInstruction::LiteralInteger(data) => {
+                write!(f, "LITERAL_INTEGER {}", data.0)
+            }
             TypeInstruction::ArrayStart => write!(f, "ARRAY_START"),
             TypeInstruction::ScopeEnd => write!(f, "SCOPE_END"),
         }
     }
 }
-
-
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
@@ -346,7 +390,6 @@ pub struct TextDataRaw {
     pub text: Vec<u8>,
 }
 
-
 #[derive(BinRead, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct TypeTagData {
@@ -369,7 +412,6 @@ pub struct TypeTagVariant {
     #[br(map = |bytes: Vec<u8>| String::from_utf8(bytes).unwrap())]
     pub name: String,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ShortTextData(pub String);
@@ -410,10 +452,8 @@ pub struct RawInternalPointerAddress {
 #[brw(little)]
 pub struct GetOrCreateRefData {
     pub address: RawFullPointerAddress,
-    pub create_block_size: u64
+    pub create_block_size: u64,
 }
-
-
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
@@ -426,9 +466,8 @@ pub struct ExecutionBlockData {
     pub body: Vec<u8>,
 }
 
-
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct ApplyData {
-    pub arg_count: u16
+    pub arg_count: u16,
 }
