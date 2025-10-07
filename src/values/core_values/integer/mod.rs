@@ -228,7 +228,7 @@ impl BinWrite for Integer {
     fn write_options<W: std::io::Write + Seek>(
         &self,
         writer: &mut W,
-        endian: Endian,
+        _endian: Endian,
         _: Self::Args<'_>,
     ) -> BinResult<()> {
         let (sign, bytes) = self.0.to_bytes_be();
@@ -245,7 +245,7 @@ impl BinRead for Integer {
 
     fn read_options<R: Read + Seek>(
         reader: &mut R,
-        endian: Endian,
+        _endian: Endian,
         _: Self::Args<'_>,
     ) -> BinResult<Self> {
         let sign = reader.read_le::<u8>()?;

@@ -34,7 +34,7 @@ impl Default for BlockCollector {
 }
 
 impl BlockCollector {
-    pub fn new<'a>(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
+    pub fn new(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
         BlockCollector {
             receive_queue,
             ..Default::default()

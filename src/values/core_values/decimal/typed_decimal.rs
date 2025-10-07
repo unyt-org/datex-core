@@ -210,7 +210,7 @@ fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
 
     let v: f64 = s
         .parse()
-        .map_err(|e: ParseFloatError| NumberParseError::InvalidFormat)?;
+        .map_err(|_: ParseFloatError| NumberParseError::InvalidFormat)?;
     if v > f32::MAX as f64 || v < f32::MIN as f64 {
         return Err(NumberParseError::OutOfRange);
     }

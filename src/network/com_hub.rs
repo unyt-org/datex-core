@@ -62,6 +62,15 @@ impl Default for ComHubOptions {
     }
 }
 
+type SocketMap = HashMap<
+    ComInterfaceSocketUUID,
+    (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
+>;
+type InterfaceMap = HashMap<
+    ComInterfaceUUID,
+    (Rc<RefCell<dyn ComInterface>>, InterfacePriority),
+>;
+
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
@@ -73,21 +82,11 @@ pub struct ComHub {
     pub interface_factories: RefCell<HashMap<String, ComInterfaceFactoryFn>>,
 
     /// a list of all available interfaces, keyed by their UUID
-    pub interfaces: RefCell<
-        HashMap<
-            ComInterfaceUUID,
-            (Rc<RefCell<dyn ComInterface>>, InterfacePriority),
-        >,
-    >,
+    pub interfaces: RefCell<InterfaceMap>,
 
     /// a list of all available sockets, keyed by their UUID
     /// contains the socket itself and a list of endpoints currently associated with it
-    pub sockets: RefCell<
-        HashMap<
-            ComInterfaceSocketUUID,
-            (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
-        >,
-    >,
+    pub sockets: RefCell<SocketMap>,
 
     /// a blacklist of sockets that are not allowed to be used for a specific endpoint
     pub endpoint_sockets_blacklist:
@@ -227,7 +226,7 @@ impl ComHub {
     /// Creates a new interface instance using the registered factory
     /// for the specified interface type if it exists.
     /// The interface is opened and added to the ComHub.
-    pub async fn create_interface<'a>(
+    pub async fn create_interface(
         &self,
         interface_type: &str,
         setup_data: ValueContainer,
@@ -479,7 +478,7 @@ impl ComHub {
     /// excluding the local endpoint
     fn get_remote_receivers(
         &self,
-        receiver_endpoints: &Vec<Endpoint>,
+        receiver_endpoints: &[Endpoint],
     ) -> Vec<Endpoint> {
         receiver_endpoints
             .iter()
@@ -1825,8 +1824,8 @@ pub enum ResponseResolutionStrategy {
 
     /// Promise.all
     /// - For know fixed receivers:
-    ///  return after all known sends are finished successfully
-    ///  return immediately if one send fails early (e.g. endpoint not reachable)
+    ///   return after all known sends are finished successfully
+    ///   return immediately if one send fails early (e.g. endpoint not reachable)
     /// - For unknown receiver count:
     ///   return after timeout
     ///

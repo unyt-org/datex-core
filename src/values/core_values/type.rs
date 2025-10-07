@@ -183,7 +183,7 @@ impl Type {
             TypeDefinition::Structural(value) => get_core_lib_type_reference(
                 value.get_core_lib_type_pointer_id(),
             ),
-            TypeDefinition::Union(types) => {
+            TypeDefinition::Union(_) => {
                 get_core_lib_type_reference(CoreLibPointerId::Union)
             }
             TypeDefinition::Reference(reference) => {

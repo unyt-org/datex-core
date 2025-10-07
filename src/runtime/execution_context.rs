@@ -4,7 +4,10 @@ use crate::compiler::{CompileOptions, compile_template};
 use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::RuntimeInternal;
-use crate::runtime::execution::{ExecutionError, ExecutionInput, ExecutionOptions, RuntimeExecutionContext, execute_dxb, execute_dxb_sync, MemoryDump};
+use crate::runtime::execution::{
+    ExecutionError, ExecutionInput, ExecutionOptions, MemoryDump,
+    RuntimeExecutionContext, execute_dxb, execute_dxb_sync,
+};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
@@ -84,10 +87,7 @@ impl LocalExecutionContext {
     pub fn debug(once: bool) -> Self {
         LocalExecutionContext {
             compile_scope: CompilationScope::new(once),
-            execution_options: ExecutionOptions {
-                verbose: true,
-                ..ExecutionOptions::default()
-            },
+            execution_options: ExecutionOptions { verbose: true },
             verbose: true,
             ..Default::default()
         }
@@ -102,12 +102,8 @@ impl LocalExecutionContext {
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::new(runtime_internal),
             )),
-            execution_options: ExecutionOptions {
-                verbose: true,
-                ..ExecutionOptions::default()
-            },
+            execution_options: ExecutionOptions { verbose: true },
             verbose: true,
-            ..Default::default()
         }
     }
 
@@ -132,7 +128,7 @@ impl LocalExecutionContext {
             .borrow_mut()
             .set_runtime_internal(runtime_internal);
     }
-    
+
     /// Returns a memory dump of the current state of the execution context.
     pub fn memory_dump(&self) -> MemoryDump {
         self.runtime_execution_context.borrow().memory_dump()
@@ -351,7 +347,7 @@ impl ExecutionContext {
             .await
             .map_err(ScriptExecutionError::from)
     }
-    
+
     /// Returns a memory dump of the current state of the execution context if available.
     pub fn memory_dump(&self) -> Option<MemoryDump> {
         match self {

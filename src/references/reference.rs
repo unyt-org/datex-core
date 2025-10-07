@@ -89,7 +89,7 @@ impl Display for TypeError {
 #[derive(Debug)]
 pub enum AssignmentError {
     ImmutableReference,
-    TypeError(TypeError),
+    TypeError(Box<TypeError>),
 }
 
 impl Display for AssignmentError {

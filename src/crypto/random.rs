@@ -1,5 +1,3 @@
-use crate::stdlib::usize;
-
 use crate::runtime::global_context::get_global_context;
 
 pub fn random_bytes_slice<const SIZE: usize>() -> [u8; SIZE] {

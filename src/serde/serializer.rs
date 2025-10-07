@@ -140,13 +140,13 @@ impl SerializeTuple for TupleSerializer {
 /// will be serialized as:
 /// {"MyStruct": [i32, String]}
 pub struct TupleStructSerializer {
-    name: &'static str,
+    _name: &'static str,
     fields: List,
 }
 impl TupleStructSerializer {
     pub fn new(name: &'static str) -> Self {
         Self {
-            name,
+            _name: name,
             fields: List::default(),
         }
     }
@@ -439,7 +439,7 @@ impl Serializer for &mut DatexSerializer {
         Ok(ValueContainer::from(v))
     }
 
-    fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
+    fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok, Self::Error> {
         todo!("#134 Undescribed by author.")
     }
 
@@ -472,15 +472,15 @@ impl Serializer for &mut DatexSerializer {
 
     fn serialize_unit_struct(
         self,
-        name: &'static str,
+        _name: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
         Ok(Map::default().into())
     }
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
         Ok(ValueContainer::from(variant))
@@ -534,8 +534,8 @@ impl Serializer for &mut DatexSerializer {
     /// {"Variant2": [100, "hello"]}
     fn serialize_newtype_variant<T>(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
@@ -551,14 +551,14 @@ impl Serializer for &mut DatexSerializer {
 
     fn serialize_seq(
         self,
-        len: Option<usize>,
+        _len: Option<usize>,
     ) -> Result<Self::SerializeSeq, Self::Error> {
         Ok(SeqSerializer::new())
     }
 
     fn serialize_tuple(
         self,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeTuple, Self::Error> {
         Ok(TupleSerializer::new())
     }
@@ -566,34 +566,34 @@ impl Serializer for &mut DatexSerializer {
     fn serialize_tuple_struct(
         self,
         name: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
         Ok(TupleStructSerializer::new(name))
     }
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
         Ok(TupleVariantSerializer::new(variant))
     }
 
     fn serialize_map(
         self,
-        len: Option<usize>,
+        _len: Option<usize>,
     ) -> Result<Self::SerializeMap, Self::Error> {
         Ok(MapSerializer::new())
     }
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Ok(StructVariantSerializer::new(variant))
     }

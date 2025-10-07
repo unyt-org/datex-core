@@ -462,7 +462,6 @@ impl WebRTCNativeInterface {
                         .credential
                         .clone()
                         .unwrap_or("".to_string()),
-                    ..Default::default()
                 })
                 .collect()
         }

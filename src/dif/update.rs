@@ -35,8 +35,6 @@ impl From<DIFValueContainer> for DIFProperty {
     }
 }
 
-type DIFPath = Vec<DIFProperty>;
-
 /// Represents an update operation for a DIF value.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]

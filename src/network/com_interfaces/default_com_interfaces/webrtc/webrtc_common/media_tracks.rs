@@ -75,15 +75,14 @@ impl<T> MediaTrack<T> {
     }
 }
 
+type OnMediaTrackAddedCallback<T> =
+    dyn Fn(
+        Rc<RefCell<MediaTrack<T>>>,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static>>;
+
 pub struct MediaTracks<T> {
     pub tracks: HashMap<String, Rc<RefCell<MediaTrack<T>>>>,
-    pub on_add: Option<
-        Box<
-            dyn Fn(
-                Rc<RefCell<MediaTrack<T>>>,
-            ) -> Pin<Box<dyn Future<Output = ()> + 'static>>,
-        >,
-    >,
+    pub on_add: Option<Box<OnMediaTrackAddedCallback<T>>>,
 }
 
 impl<T> Default for MediaTracks<T> {

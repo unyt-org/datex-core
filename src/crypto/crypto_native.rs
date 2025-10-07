@@ -1,4 +1,4 @@
-use crate::stdlib::{future::Future, pin::Pin, usize};
+use crate::stdlib::{future::Future, pin::Pin};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 

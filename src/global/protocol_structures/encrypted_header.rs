@@ -48,8 +48,12 @@ pub enum UserAgent {
 pub struct Flags {
     pub user_agent: UserAgent,
     pub has_on_behalf_of: bool,
+
+    #[allow(unused)]
     unused_0: bool,
+    #[allow(unused)]
     unused_1: bool,
+    #[allow(unused)]
     unused_2: bool,
 }
 

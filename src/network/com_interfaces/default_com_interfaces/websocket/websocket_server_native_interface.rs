@@ -43,16 +43,14 @@ use super::websocket_common::{
 use crate::runtime::global_context::{get_global_context, set_global_context};
 use tokio_tungstenite::WebSocketStream;
 
+type WebsocketStreamMap = HashMap<
+    ComInterfaceSocketUUID,
+    SplitSink<WebSocketStream<TcpStream>, Message>,
+>;
+
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
-    websocket_streams: Arc<
-        Mutex<
-            HashMap<
-                ComInterfaceSocketUUID,
-                SplitSink<WebSocketStream<TcpStream>, Message>,
-            >,
-        >,
-    >,
+    websocket_streams: Arc<Mutex<WebsocketStreamMap>>,
     info: ComInterfaceInfo,
     shutdown_signal: Arc<Notify>,
     handle: Option<JoinHandle<()>>,
@@ -218,8 +216,11 @@ impl ComInterfaceFactory<WebSocketServerInterfaceSetupData>
     fn create(
         setup_data: WebSocketServerInterfaceSetupData,
     ) -> Result<WebSocketServerNativeInterface, ComInterfaceError> {
-        WebSocketServerNativeInterface::new(setup_data.port, setup_data.secure.unwrap_or(true))
-            .map_err(|_| ComInterfaceError::InvalidSetupData)
+        WebSocketServerNativeInterface::new(
+            setup_data.port,
+            setup_data.secure.unwrap_or(true),
+        )
+        .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
 
     fn get_default_properties() -> InterfaceProperties {

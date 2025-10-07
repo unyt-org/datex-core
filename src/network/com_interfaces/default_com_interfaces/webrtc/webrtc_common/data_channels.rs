@@ -1,17 +1,15 @@
 use std::{
-    cell::RefCell,
-    collections::HashMap,
-    future::Future,
-    pin::Pin,
-    rc::Rc,
+    cell::RefCell, collections::HashMap, future::Future, pin::Pin, rc::Rc,
 };
 
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 
+type OnMessageCallback = dyn Fn(Vec<u8>);
+
 pub struct DataChannel<T> {
     pub label: String,
     pub data_channel: T,
-    pub on_message: RefCell<Option<Box<dyn Fn(Vec<u8>)>>>,
+    pub on_message: RefCell<Option<Box<OnMessageCallback>>>,
     pub open_channel: RefCell<Option<Box<dyn Fn()>>>,
     pub on_close: Option<Box<dyn Fn()>>,
     pub socket_uuid: RefCell<Option<ComInterfaceSocketUUID>>,
@@ -38,15 +36,14 @@ impl<T> DataChannel<T> {
     }
 }
 
+type OnDataChannelAddedCallback<T> =
+    dyn Fn(
+        Rc<RefCell<DataChannel<T>>>,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static>>;
+
 pub struct DataChannels<T> {
     pub data_channels: HashMap<String, Rc<RefCell<DataChannel<T>>>>,
-    pub on_add: Option<
-        Box<
-            dyn Fn(
-                Rc<RefCell<DataChannel<T>>>,
-            ) -> Pin<Box<dyn Future<Output = ()> + 'static>>,
-        >,
-    >,
+    pub on_add: Option<Box<OnDataChannelAddedCallback<T>>>,
 }
 impl<T> Default for DataChannels<T> {
     fn default() -> Self {

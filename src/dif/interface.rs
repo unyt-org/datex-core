@@ -41,7 +41,7 @@ pub enum DIFUpdateError {
     InvalidUpdate,
     AccessError(AccessError),
     AssignmentError(AssignmentError),
-    TypeError(TypeError),
+    TypeError(Box<TypeError>),
 }
 
 impl From<DIFReferenceNotFoundError> for DIFUpdateError {
@@ -61,7 +61,7 @@ impl From<AssignmentError> for DIFUpdateError {
 }
 impl From<TypeError> for DIFUpdateError {
     fn from(err: TypeError) -> Self {
-        DIFUpdateError::TypeError(err)
+        DIFUpdateError::TypeError(Box::new(err))
     }
 }
 
