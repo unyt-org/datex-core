@@ -29,9 +29,9 @@ use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use crate::values::traits::identity::Identity;
-use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::traits::value_eq::ValueEq;
+use crate::traits::identity::Identity;
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
 use datex_core::decompiler::{DecompileOptions, decompile_value};
@@ -45,7 +45,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
 use crate::references::reference::AssignmentError;
-use crate::values::traits::apply::Apply;
+use crate::traits::apply::Apply;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -1546,7 +1546,7 @@ mod tests {
     use crate::compiler::{CompileOptions, compile_script};
     use crate::global::binary_codes::InstructionCode;
     use crate::logger::init_logger_debug;
-    use crate::values::traits::structural_eq::StructuralEq;
+    use crate::traits::structural_eq::StructuralEq;
     use crate::{
         assert_structural_eq, assert_value_eq, datex_list,
     };

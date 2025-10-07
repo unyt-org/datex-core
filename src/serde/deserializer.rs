@@ -5,13 +5,13 @@ use crate::{
         CompileOptions, compile_script, extract_static_value_from_script,
     },
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
+    serde::error::DeserializationError,
     values::{
         core_value::CoreValue,
         core_values::{
             decimal::typed_decimal::TypedDecimal,
             integer::typed_integer::TypedInteger,
         },
-        serde::error::DeserializationError,
         value,
         value_container::ValueContainer,
     },
@@ -568,7 +568,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::serde::serializer::to_bytes;
+    use crate::serde::serializer::to_bytes;
     use crate::{logger::init_logger, values::core_values::endpoint::Endpoint};
     use serde::{Deserialize, Serialize};
 

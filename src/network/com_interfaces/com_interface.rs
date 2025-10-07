@@ -5,7 +5,7 @@ use super::{
     },
 };
 use crate::utils::{time::Time, uuid::UUID};
-use crate::values::serde::deserializer::from_value_container;
+use crate::serde::deserializer::from_value_container;
 use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::ComHub;
 use crate::{stdlib::fmt::Display, values::core_values::endpoint::Endpoint};

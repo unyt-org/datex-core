@@ -1,12 +1,12 @@
 use crate::types::type_container::TypeContainer;
-use crate::values::traits::identity::Identity;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::identity::Identity;
+use crate::traits::structural_eq::StructuralEq;
 use std::cell::RefCell;
 
 use super::value::Value;
 use crate::compiler::compile_value;
-use crate::values::serde::deserializer::DatexDeserializer;
-use crate::values::traits::value_eq::ValueEq;
+use crate::serde::deserializer::DatexDeserializer;
+use crate::traits::value_eq::ValueEq;
 use datex_core::references::reference::Reference;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -14,7 +14,7 @@ use std::hash::Hash;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
 use crate::runtime::execution::ExecutionError;
-use crate::values::traits::apply::Apply;
+use crate::traits::apply::Apply;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {

@@ -3,11 +3,10 @@ use std::collections::VecDeque;
 use log::error;
 use serde::{Deserialize, Serialize};
 
-use crate::values::{
-    core_values::endpoint::Endpoint, serde::serializer::to_bytes,
-};
+use crate::values::core_values::endpoint::Endpoint;
 
 use super::structures::{RTCIceCandidateInitDX, RTCIceServer};
+use crate::serde::serializer::to_bytes;
 
 pub struct WebRTCCommon {
     pub endpoint: Endpoint,

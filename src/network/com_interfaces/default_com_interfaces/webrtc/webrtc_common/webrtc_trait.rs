@@ -19,10 +19,8 @@ use crate::{
             MediaKind, MediaTrack, MediaTracks,
         },
     },
-    values::{
-        core_values::endpoint::Endpoint,
-        serde::{deserializer::from_bytes, serializer::to_bytes},
-    },
+    serde::{deserializer::from_bytes, serializer::to_bytes},
+    values::core_values::endpoint::Endpoint,
 };
 
 use super::{

@@ -4,7 +4,7 @@ use crate::stdlib::hash::Hash;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 use binrw::{BinRead, BinWrite};
 use hex::decode;

@@ -13,7 +13,7 @@ use std::{
 use log::info;
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::execution::ExecutionError;
-use crate::values::traits::apply::Apply;
+use crate::traits::apply::Apply;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

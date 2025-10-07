@@ -1,3 +1,4 @@
+use datex_core::serde::serializer::to_value_container;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::block_header::BlockHeader;
@@ -34,7 +35,6 @@ use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
 };
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
-use datex_core::values::serde::serializer::to_value_container;
 
 #[tokio::test]
 pub async fn test_add_and_remove() {
@@ -270,9 +270,11 @@ pub async fn default_interface_set_default_interface_first() {
         // Update to let the com_hub know about the socket and call the add_socket method
         // This will set the default interface and socket
         com_hub.update_async().await;
-        let _ =
-            send_empty_block_and_update(std::slice::from_ref(&TEST_ENDPOINT_B), &com_hub)
-                .await;
+        let _ = send_empty_block_and_update(
+            std::slice::from_ref(&TEST_ENDPOINT_B),
+            &com_hub,
+        )
+        .await;
 
         let mockup_interface_out = com_interface.clone();
         let mockup_interface_out = mockup_interface_out.borrow();

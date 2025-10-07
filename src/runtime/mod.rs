@@ -13,13 +13,13 @@ use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution_context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
+use crate::serde::error::SerializationError;
+use crate::serde::serializer::to_value_container;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::utils::time::Time;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::values::serde::serializer::to_value_container;
 use crate::values::value_container::ValueContainer;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
-use datex_core::values::serde::error::SerializationError;
 use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
 use log::{error, info};

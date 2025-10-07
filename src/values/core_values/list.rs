@@ -1,11 +1,11 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::values::{
     core_value::CoreValue,
-    traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };
 use std::{fmt, ops::Index};
 
+use crate::traits::structural_eq::StructuralEq;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);
 impl List {

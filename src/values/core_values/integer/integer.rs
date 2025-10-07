@@ -1,12 +1,11 @@
-use crate::values::{
-    core_values::{
-        error::NumberParseError, integer::typed_integer::TypedInteger,
-    },
-    traits::structural_eq::StructuralEq,
+use crate::traits::structural_eq::StructuralEq;
+use crate::values::core_values::{
+    error::NumberParseError, integer::typed_integer::TypedInteger,
 };
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::{BigInt, Num};
 use num_traits::ToPrimitive;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     hash::Hash,
@@ -14,7 +13,6 @@ use std::{
     ops::{Add, Neg, Sub},
     str::FromStr,
 };
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
@@ -37,7 +35,6 @@ impl<'de> Deserialize<'de> for Integer {
         Integer::from_string(&s).map_err(serde::de::Error::custom)
     }
 }
-
 
 impl Integer {
     /// Parse an integer from a string in base 10.

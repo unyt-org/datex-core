@@ -5,12 +5,14 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 
 use crate::references::value_reference::ValueReference;
+use crate::runtime::execution::ExecutionError;
+use crate::traits::apply::Apply;
+use crate::traits::identity::Identity;
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
 use crate::values::core_values::map::{Map, MapAccessError};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use crate::values::traits::identity::Identity;
-use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
 use num_enum::TryFromPrimitive;
@@ -19,8 +21,6 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::runtime::execution::ExecutionError;
-use crate::values::traits::apply::Apply;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -521,7 +521,7 @@ impl Reference {
                                 Type::reference(tr.clone(), Some(mutability)),
                                 maybe_pointer_id,
                             )
-                                .as_ref_cell(),
+                            .as_ref_cell(),
                         )
                     }
                 }
@@ -746,13 +746,11 @@ impl Reference {
                 Err(AssignmentError::ImmutableReference)
             }
             Reference::ValueReference(vr) => {
-                if self.is_mutable()
-                {
+                if self.is_mutable() {
                     // TODO: check type compatibility, handle observers
                     vr.borrow_mut().value_container = new_value_container;
                     Ok(())
-                }
-                else {
+                } else {
                     Err(AssignmentError::ImmutableReference)
                 }
             }
@@ -842,14 +840,20 @@ impl Reference {
 }
 
 impl Apply for Reference {
-    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         todo!()
     }
 
-    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
-            Reference::ValueReference(vr) => todo!()
+            Reference::ValueReference(vr) => todo!(),
         }
     }
 }
@@ -859,7 +863,7 @@ mod tests {
     use super::*;
     use crate::runtime::global_context::{GlobalContext, set_global_context};
     use crate::runtime::memory::Memory;
-    use crate::values::traits::value_eq::ValueEq;
+    use crate::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;

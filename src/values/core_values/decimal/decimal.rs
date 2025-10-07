@@ -1,7 +1,7 @@
 use super::rational::Rational;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::error::NumberParseError;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::structural_eq::StructuralEq;
 use bigdecimal::BigDecimal;
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::BigInt;
@@ -15,7 +15,7 @@ use std::io::{Read, Seek};
 use std::ops::{Add, Neg, Sub};
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
-use crate::values::traits::value_eq::ValueEq;
+use crate::traits::value_eq::ValueEq;
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum Decimal {

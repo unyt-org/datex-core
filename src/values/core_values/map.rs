@@ -1,6 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::values::core_value::CoreValue;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;

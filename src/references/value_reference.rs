@@ -3,7 +3,7 @@ use crate::references::reference::ReferenceMutability;
 use crate::types::type_container::TypeContainer;
 use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
-use crate::values::traits::value_eq::ValueEq;
+use crate::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;

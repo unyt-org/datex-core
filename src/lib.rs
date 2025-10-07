@@ -31,7 +31,11 @@ pub mod network;
 pub mod parser;
 pub mod references;
 pub mod runtime;
+
+#[cfg(feature = "serde")]
+pub mod serde;
 pub mod task;
+pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod values;

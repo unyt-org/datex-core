@@ -7,11 +7,11 @@ mod tests {
     use crate::assert_structural_eq;
     use crate::decompiler::DecompileOptions;
     use crate::logger::init_logger_debug;
-    use crate::values::serde::{
+    use crate::traits::structural_eq::StructuralEq;
+    use crate::serde::{
         deserializer::{from_bytes, from_value_container},
         serializer::{to_bytes, to_value_container},
     };
-    use crate::values::traits::structural_eq::StructuralEq;
     use crate::values::value_container::ValueContainer;
     use datex_core::decompiler::decompile_body;
     use log::info;

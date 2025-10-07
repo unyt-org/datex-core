@@ -1,11 +1,13 @@
+use crate::libs::core::CoreLibPointerId;
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
+use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::decimal::decimal::Decimal;
 use crate::values::core_values::error::NumberParseError;
-use crate::values::{
-    core_value_trait::CoreValueTrait, traits::structural_eq::StructuralEq,
-};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
+use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::num::ParseFloatError;
 use std::ops::Neg;
@@ -13,10 +15,7 @@ use std::{
     fmt::Display,
     ops::{Add, AddAssign, Sub},
 };
-use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
-use crate::libs::core::CoreLibPointerId;
-use crate::values::traits::value_eq::ValueEq;
 
 /// The decimal type variants to be used as a inline
 /// definition in DATEX (such as 42.4f32 or -42.4f32).
@@ -58,8 +57,12 @@ impl Serialize for TypedDecimal {
         S: serde::Serializer,
     {
         match self {
-            TypedDecimal::F32(value) => serializer.serialize_f32(value.into_inner()),
-            TypedDecimal::F64(value) => serializer.serialize_f64(value.into_inner()),
+            TypedDecimal::F32(value) => {
+                serializer.serialize_f32(value.into_inner())
+            }
+            TypedDecimal::F64(value) => {
+                serializer.serialize_f64(value.into_inner())
+            }
             TypedDecimal::Decimal(value) => value.serialize(serializer),
         }
     }
@@ -148,7 +151,9 @@ impl ValueEq for TypedDecimal {
                 a.into_inner() == b.into_inner()
             }
             // Big and Big
-            (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => a.value_eq(b),
+            (TypedDecimal::Decimal(a), TypedDecimal::Decimal(b)) => {
+                a.value_eq(b)
+            }
             _ => false,
         }
     }
@@ -190,7 +195,6 @@ impl From<&TypedDecimal> for CoreLibPointerId {
     }
 }
 
-
 /// Parses a string into an f32, ensuring the value is finite and within the range of f32.
 /// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
@@ -216,7 +220,6 @@ fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
 /// Parses a string into an f64, ensuring the value is finite and within the range of f64.
 /// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f64(s: &str) -> Result<f64, NumberParseError> {
-
     // handle special cases
     match s {
         "inf" => return Ok(f64::INFINITY),
@@ -565,8 +568,8 @@ mod tests {
 
     use super::*;
     use crate::values::core_values::decimal::decimal::Decimal;
-    use ordered_float::OrderedFloat;
     use crate::{assert_structural_eq, assert_value_eq};
+    use ordered_float::OrderedFloat;
 
     #[test]
     fn zero_sign() {

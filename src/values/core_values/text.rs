@@ -1,4 +1,4 @@
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::structural_eq::StructuralEq;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,

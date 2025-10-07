@@ -1,4 +1,4 @@
-use super::mockup_interface::{store_sender_and_receiver, MockupInterface};
+use super::mockup_interface::{MockupInterface, store_sender_and_receiver};
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
 use core::panic;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
@@ -6,7 +6,9 @@ use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::{Runtime, RuntimeConfig};
+use datex_core::serde::serializer::to_value_container;
 use datex_core::values::core_values::endpoint::Endpoint;
+use datex_core::values::value_container::ValueContainer;
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -17,9 +19,6 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
-use datex_core::values::serde::deserializer::from_value_container;
-use datex_core::values::serde::serializer::to_value_container;
-use datex_core::values::value_container::ValueContainer;
 
 pub struct InterfaceConnection {
     interface_type: String,
@@ -540,16 +539,24 @@ impl Network {
                 mockup_interface_channels,
                 setup_data.name.clone(),
             );
-                   match setup_data.direction {
+            match setup_data.direction {
                 InterfaceDirection::In => {
-                    setup_data.channel_index = Some(store_sender_and_receiver(None, Some(channel.receiver)));
+                    setup_data.channel_index = Some(store_sender_and_receiver(
+                        None,
+                        Some(channel.receiver),
+                    ));
                 }
                 InterfaceDirection::Out => {
-                    setup_data.channel_index = Some(store_sender_and_receiver(Some(channel.sender), None));
+                    setup_data.channel_index = Some(store_sender_and_receiver(
+                        Some(channel.sender),
+                        None,
+                    ));
                 }
                 InterfaceDirection::InOut => {
-                    setup_data.channel_index =
-                        Some(store_sender_and_receiver(Some(channel.sender), Some(channel.receiver)));
+                    setup_data.channel_index = Some(store_sender_and_receiver(
+                        Some(channel.sender),
+                        Some(channel.receiver),
+                    ));
                 }
             }
 
@@ -604,7 +611,9 @@ impl Network {
 
         // create new runtimes for each endpoint
         for endpoint in self.endpoints.iter_mut() {
-            let runtime = Rc::new(Runtime::new(RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone())));
+            let runtime = Rc::new(Runtime::new(
+                RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone()),
+            ));
 
             // register factories
             for (interface_type, factory) in self.com_interface_factories.iter()
@@ -621,7 +630,10 @@ impl Network {
                     .com_hub()
                     .create_interface(
                         &connection.interface_type,
-                        to_value_container(&connection.setup_data.take().unwrap()).unwrap(),
+                        to_value_container(
+                            &connection.setup_data.take().unwrap(),
+                        )
+                        .unwrap(),
                         connection.priority,
                     )
                     .await

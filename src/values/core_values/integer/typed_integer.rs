@@ -7,19 +7,20 @@ use crate::values::{
             utils::{smallest_fitting_signed, smallest_fitting_unsigned},
         },
     },
-    traits::structural_eq::StructuralEq,
     value_container::{ValueContainer, ValueError},
 };
+
+use crate::libs::core::CoreLibPointerId;
+use crate::traits::structural_eq::StructuralEq;
 use core::panic;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
-use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
-use crate::libs::core::CoreLibPointerId;
 
 /// The integer type variants to be used as a inline
 /// definition in DATEX (such as 42u32 or -42i64).
@@ -101,7 +102,7 @@ impl From<&TypedInteger> for CoreLibPointerId {
 impl<'de> Deserialize<'de> for TypedInteger {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>
+        D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         // Try to parse as Integer (big)

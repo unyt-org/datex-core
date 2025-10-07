@@ -9,7 +9,7 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::text::Text;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 use std::fmt::Display;

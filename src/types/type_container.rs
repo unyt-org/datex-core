@@ -3,7 +3,7 @@ use crate::references::type_reference::TypeReference;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 use std::fmt::Display;

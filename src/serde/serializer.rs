@@ -2,10 +2,10 @@ use crate::compiler::compile_value;
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
+use crate::serde::error::SerializationError;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
-use crate::values::serde::error::SerializationError;
 use crate::values::value_container::ValueContainer;
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct,
@@ -602,14 +602,15 @@ impl Serializer for &mut DatexSerializer {
 #[cfg(test)]
 mod tests {
     use crate::assert_structural_eq;
+    use crate::serde::serializer::{
+        DatexSerializer, to_bytes, to_value_container,
+    };
+    use crate::traits::structural_eq::StructuralEq;
     use crate::values::core_values::endpoint::Endpoint;
     use crate::values::core_values::map::Map;
-    use crate::values::traits::structural_eq::StructuralEq;
+
     use crate::values::{
-        core_value::CoreValue,
-        serde::serializer::{DatexSerializer, to_bytes, to_value_container},
-        value::Value,
-        value_container::ValueContainer,
+        core_value::CoreValue, value::Value, value_container::ValueContainer,
     };
     use serde::{Deserialize, Serialize};
     use std::assert_matches::assert_matches;

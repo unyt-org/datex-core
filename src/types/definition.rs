@@ -1,10 +1,10 @@
 use crate::{
+    traits::structural_eq::StructuralEq,
     types::{
         collection_type_definition::CollectionTypeDefinition,
         structural_type_definition::StructuralTypeDefinition,
         type_container::TypeContainer,
     },
-    values::traits::structural_eq::StructuralEq,
 };
 use datex_core::references::type_reference::TypeReference;
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};

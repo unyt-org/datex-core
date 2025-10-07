@@ -1,20 +1,20 @@
+use datex_core::assert_structural_eq;
 use datex_core::compiler::{CompileOptions, compile_script};
 use datex_core::decompiler::{DecompileOptions, Formatting, decompile_body};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
+use datex_core::traits::structural_eq::StructuralEq;
 use datex_core::values::core_value::CoreValue;
 use datex_core::values::core_values::decimal::decimal::Decimal;
 use datex_core::values::core_values::integer::integer::Integer;
 use datex_core::values::core_values::map::Map;
 use datex_core::values::value::Value;
 use datex_core::values::value_container::ValueContainer;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use json_syntax::Parse;
 use std::path::PathBuf;
-use indexmap::IndexMap;
-use datex_core::assert_structural_eq;
-use datex_core::values::traits::structural_eq::StructuralEq;
 
 fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
     match json {
@@ -86,7 +86,10 @@ fn compare_datex_result_with_json(json_string: &str) {
         " Converted JSON Value: {json_value_converted} ({})",
         json_value_converted.actual_type
     );
-    assert_structural_eq!(json_value_converted, *datex_value.to_value().borrow());
+    assert_structural_eq!(
+        json_value_converted,
+        *datex_value.to_value().borrow()
+    );
 }
 
 fn get_datex_decompiled_from_json(json_string: &str) -> String {
