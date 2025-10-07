@@ -426,7 +426,8 @@ where
     let comparison = comparison_operation(binary.clone());
 
     // declarations or assignments
-    let declaration_or_assignment = declaration_or_assignment(expression.clone(), unary.clone());
+    let declaration_or_assignment =
+        declaration_or_assignment(expression.clone(), unary.clone());
 
     let condition_union = binary_operation(chain_without_whitespace_apply(
         unary.clone(),
@@ -1584,8 +1585,11 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Integer(
-                Integer::from_string("-123456789123456789").unwrap()
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                Box::new(DatexExpression::Integer(
+                    Integer::from_string("123456789123456789").unwrap()
+                ))
             )
         );
     }
@@ -1668,7 +1672,7 @@ mod tests {
             ("1_000.000_001", "1000.000001"),
             ("3.14_15e+1_0", "31415000000.0"),
             ("0.0_0_1", "0.001"),
-            ("+1_000.0", "1000.0"),
+            ("1_000.0", "1000.0"),
         ];
 
         for (src, expected_str) in cases {
@@ -1689,7 +1693,12 @@ mod tests {
         let num = parse_unwrap(src);
         assert_eq!(
             num,
-            DatexExpression::Decimal(Decimal::from_string("-123.4").unwrap())
+            DatexExpression::UnaryOperation(
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                Box::new(DatexExpression::Decimal(
+                    Decimal::from_string("123.4").unwrap()
+                ))
+            )
         );
     }
 
@@ -1987,6 +1996,42 @@ mod tests {
     #[test]
     fn subtract() {
         let src = "5 - 3";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
+                Box::new(DatexExpression::Integer(Integer::from(5))),
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
+            )
+        );
+
+        let src = "5-3";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
+                Box::new(DatexExpression::Integer(Integer::from(5))),
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
+            )
+        );
+
+        let src = "5- 3";
+        let expr = parse_unwrap(src);
+        assert_eq!(
+            expr,
+            DatexExpression::BinaryOperation(
+                BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
+                Box::new(DatexExpression::Integer(Integer::from(5))),
+                Box::new(DatexExpression::Integer(Integer::from(3))),
+                None
+            )
+        );
+
+        let src = "5 -3";
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
@@ -2943,16 +2988,6 @@ mod tests {
     }
 
     #[test]
-    fn invalid_add() {
-        let src = "1+2";
-        let res = parse(src);
-        assert!(
-            res.unwrap_err().len() == 1,
-            "Expected error when parsing expression"
-        );
-    }
-
-    #[test]
     fn decimal_nan() {
         let src = "NaN";
         let num = parse_unwrap(src);
@@ -3178,7 +3213,9 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Deref(Box::new(DatexExpression::Literal("x".to_string())))
+            DatexExpression::Deref(Box::new(DatexExpression::Literal(
+                "x".to_string()
+            )))
         );
     }
 
@@ -3188,7 +3225,9 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Deref(Box::new(DatexExpression::Deref(Box::new(DatexExpression::Literal("x".to_string())))))
+            DatexExpression::Deref(Box::new(DatexExpression::Deref(Box::new(
+                DatexExpression::Literal("x".to_string())
+            ))))
         );
     }
 
