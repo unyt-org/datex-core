@@ -1,20 +1,21 @@
-use crate::types::type_container::TypeContainer;
+use crate::references::reference::ReferenceFromValueContainerError;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
+use crate::types::type_container::TypeContainer;
 use std::cell::RefCell;
 
 use super::value::Value;
 use crate::compiler::compile_value;
+use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
+use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
 use datex_core::references::reference::Reference;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Neg, Sub};
 use std::rc::Rc;
-use crate::runtime::execution::ExecutionError;
-use crate::traits::apply::Apply;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -255,21 +256,28 @@ impl ValueContainer {
 }
 
 impl Apply for ValueContainer {
-    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ValueContainer::Value(value) => todo!("implement apply for Value"),
-            ValueContainer::Reference(reference) => reference.apply(args)
+            ValueContainer::Reference(reference) => reference.apply(args),
         }
     }
 
-    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => todo!("implement apply_single for Value"),
-            ValueContainer::Reference(reference) => reference.apply_single(arg)
+            ValueContainer::Value(value) => {
+                todo!("implement apply_single for Value")
+            }
+            ValueContainer::Reference(reference) => reference.apply_single(arg),
         }
     }
 }
-
 
 impl<T: Into<Value>> From<T> for ValueContainer {
     fn from(value: T) -> Self {
@@ -399,6 +407,20 @@ impl Sub<&ValueContainer> for &ValueContainer {
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
                 let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (&lhs_value - rhs).map(ValueContainer::Value)
+            }
+        }
+    }
+}
+
+impl Neg for ValueContainer {
+    type Output = Result<ValueContainer, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            ValueContainer::Value(value) => (-value).map(ValueContainer::Value),
+            ValueContainer::Reference(reference) => {
+                let value = reference.collapse_to_value().borrow().clone();
+                (-value).map(ValueContainer::Value)
             }
         }
     }

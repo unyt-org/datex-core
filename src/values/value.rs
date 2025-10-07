@@ -1,12 +1,12 @@
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::traits::structural_eq::StructuralEq;
-use crate::traits::value_eq::ValueEq;
 use crate::values::value_container::ValueError;
 use log::error;
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Deref, Not, Sub};
+use std::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -106,6 +106,14 @@ impl Sub for &Value {
     type Output = Result<Value, ValueError>;
     fn sub(self, rhs: &Value) -> Self::Output {
         Value::sub(self.clone(), rhs.clone())
+    }
+}
+
+impl Neg for Value {
+    type Output = Result<Value, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        (-self.inner).map(Value::from)
     }
 }
 

@@ -537,6 +537,18 @@ impl Sub for TypedDecimal {
     }
 }
 
+impl Neg for TypedDecimal {
+    type Output = TypedDecimal;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            TypedDecimal::F32(value) => TypedDecimal::F32(value.neg()),
+            TypedDecimal::F64(value) => TypedDecimal::F64(value.neg()),
+            TypedDecimal::Decimal(value) => TypedDecimal::Decimal(value.neg()),
+        }
+    }
+}
+
 impl Sub for &TypedDecimal {
     type Output = TypedDecimal;
 

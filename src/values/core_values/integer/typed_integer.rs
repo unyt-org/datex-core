@@ -895,6 +895,23 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
     }
 }
 
+// FIXME shall we allow negation of unsigned integers and wrap around?
+impl Neg for TypedInteger {
+    type Output = Result<TypedInteger, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            TypedInteger::I8(v) => Ok(TypedInteger::I8(v.neg())),
+            TypedInteger::I16(v) => Ok(TypedInteger::I16(v.neg())),
+            TypedInteger::I32(v) => Ok(TypedInteger::I32(v.neg())),
+            TypedInteger::I64(v) => Ok(TypedInteger::I64(v.neg())),
+            TypedInteger::I128(v) => Ok(TypedInteger::I128(v.neg())),
+            TypedInteger::Big(v) => Ok(TypedInteger::Big(v.neg())),
+            _ => Err(ValueError::InvalidOperation),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
