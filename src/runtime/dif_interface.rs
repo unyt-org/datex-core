@@ -246,17 +246,19 @@ impl DIFInterface for RuntimeInternal {
 
     fn update_observer_options(
         &self,
-        transceiver_id: TransceiverId,
         address: PointerAddress,
         observer_id: u32,
         options: ObserveOptions
     ) -> Result<(), DIFObserveError> {
-        todo!()
+        let ptr = self
+            .resolve_in_memory_reference(&address)
+            .ok_or(DIFObserveError::ReferenceNotFound)?;
+        ptr.update_observer_options(observer_id, options)
+            .map_err(DIFObserveError::ObserveError)
     }
 
     fn unobserve_pointer(
         &self,
-        transceiver_id: TransceiverId,
         address: PointerAddress,
         observer_id: u32,
     ) -> Result<(), DIFObserveError> {
@@ -328,7 +330,6 @@ mod tests {
                     // unobserve after first update
                     runtime_clone
                         .unobserve_pointer(
-                            0,
                             pointer_address_clone.clone(),
                             observer_id_clone.borrow().unwrap(),
                         )
@@ -364,7 +365,6 @@ mod tests {
         assert!(
             runtime
                 .unobserve_pointer(
-                    0,
                     pointer_address.clone(),
                     observer_id.borrow().unwrap()
                 )

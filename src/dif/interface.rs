@@ -203,7 +203,6 @@ pub trait DIFInterface {
     /// If the observer does not exist, an error is returned.
     fn update_observer_options(
         &self,
-        transceiver_id: TransceiverId,
         address: PointerAddress,
         observer_id: u32,
         options: ObserveOptions,
@@ -213,7 +212,6 @@ pub trait DIFInterface {
     /// If no other references to the pointer exist, it may be garbage collected after this call.
     fn unobserve_pointer(
         &self,
-        transceiver_id: TransceiverId,
         address: PointerAddress,
         observer_id: u32,
     ) -> Result<(), DIFObserveError>;

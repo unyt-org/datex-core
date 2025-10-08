@@ -89,6 +89,23 @@ impl Reference {
             Err(ObserverError::ObserverNotFound)
         }
     }
+    
+    /// Updates the options for an existing observer by its ID.
+    /// Returns an error if the observer ID is not found or the reference is immutable.
+    pub fn update_observer_options(
+        &self,
+        observer_id: u32,
+        options: ObserveOptions,
+    ) -> Result<(), ObserverError> {
+        let vr = self.ensure_non_final_value_reference()?;
+        let mut vr_borrow = vr.borrow_mut();
+        if let Some(observer) = vr_borrow.observers.get_mut(&observer_id) {
+            observer.options = options;
+            Ok(())
+        } else {
+            Err(ObserverError::ObserverNotFound)
+        }
+    }
 
     /// Returns a list of all observer IDs currently registered to this reference.
     /// A type reference or immutable reference will always return an empty list.
@@ -300,7 +317,7 @@ mod tests {
             .try_set_value(0, 43, memory)
             .expect("Failed to set value");
 
-        // No update triggered, same source id
+        // No update triggered, same transceiver id
         assert_eq!(*observed_update.borrow(), vec![]);
     }
 
@@ -320,7 +337,7 @@ mod tests {
             .try_set_value(0, 43, memory)
             .expect("Failed to set value");
 
-        // Verify the observed update matches the expected change
+        // update triggered, same transceiver id but relay_own_updates enabled
         let expected_update = DIFUpdate {
             source_id: 0,
             data: DIFUpdateData::replace(DIFValueContainer::from_value_container(
