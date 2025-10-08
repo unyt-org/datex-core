@@ -1065,7 +1065,7 @@ mod tests {
         // set object_a as property of b. This should create a reference to a clone of object_a that
         // is upgraded to a reference
         object_b_ref
-            .try_set_property("a".into(), object_a_val.clone(), memory)
+            .try_set_property(0, "a".into(), object_a_val.clone(), memory)
             .unwrap();
 
         // assert that the reference to object_a is set correctly

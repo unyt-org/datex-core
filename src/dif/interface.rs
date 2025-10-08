@@ -1,7 +1,7 @@
 use crate::dif::r#type::DIFTypeContainer;
-use crate::dif::update::DIFUpdate;
+use crate::dif::update::DIFUpdateData;
 use crate::dif::value::DIFValueContainer;
-use crate::references::observers::ObserverError;
+use crate::references::observers::{ObserveOptions, ObserverError, TransceiverId};
 use crate::references::reference::{
     AccessError, AssignmentError, ReferenceFromValueContainerError,
     ReferenceMutability, TypeError,
@@ -11,6 +11,7 @@ use crate::values::pointer::PointerAddress;
 use datex_core::dif::reference::DIFReference;
 use datex_core::dif::value::DIFReferenceNotFoundError;
 use std::fmt::Display;
+use datex_core::dif::update::DIFUpdate;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -140,19 +141,6 @@ impl Display for DIFResolveReferenceError {
     }
 }
 
-#[derive(Debug)]
-pub enum DIFFreeError {
-    ReferenceNotFound,
-}
-impl Display for DIFFreeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DIFFreeError::ReferenceNotFound => {
-                write!(f, "Reference not found")
-            }
-        }
-    }
-}
 
 impl From<ReferenceFromValueContainerError> for DIFCreatePointerError {
     fn from(err: ReferenceFromValueContainerError) -> Self {
@@ -164,8 +152,9 @@ pub trait DIFInterface {
     /// Applies a DIF update to the value at the given pointer address.
     fn update(
         &self,
+        source_id: TransceiverId,
         address: PointerAddress,
-        update: DIFUpdate,
+        update: DIFUpdateData,
     ) -> Result<(), DIFUpdateError>;
 
     /// Executes an apply operation, applying the `value` to the `callee`.
@@ -189,7 +178,7 @@ pub trait DIFInterface {
     fn resolve_pointer_address_external(
         &self,
         address: PointerAddress,
-    ) -> impl std::future::Future<
+    ) -> impl Future<
         Output = Result<DIFReference, DIFResolveReferenceError>,
     >;
 
@@ -204,14 +193,27 @@ pub trait DIFInterface {
     /// As long as the pointer is observed, it will not be garbage collected.
     fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
         &self,
+        transceiver_id: TransceiverId,
         address: PointerAddress,
+        options: ObserveOptions,
         observer: F,
     ) -> Result<u32, DIFObserveError>;
+
+    /// Updates the options for an existing observer on the pointer at the given address.
+    /// If the observer does not exist, an error is returned.
+    fn update_observer_options(
+        &self,
+        transceiver_id: TransceiverId,
+        address: PointerAddress,
+        observer_id: u32,
+        options: ObserveOptions,
+    ) -> Result<(), DIFObserveError>;
 
     /// Stops observing changes to the pointer at the given address.
     /// If no other references to the pointer exist, it may be garbage collected after this call.
     fn unobserve_pointer(
         &self,
+        transceiver_id: TransceiverId,
         address: PointerAddress,
         observer_id: u32,
     ) -> Result<(), DIFObserveError>;

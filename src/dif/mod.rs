@@ -28,7 +28,7 @@ pub trait DIFConvertible: Serialize + for<'de> Deserialize<'de> {
 #[cfg(test)]
 mod tests {
     use crate::dif::DIFConvertible;
-    use crate::dif::update::DIFUpdate;
+    use crate::dif::update::DIFUpdateData;
     use crate::dif::value::DIFValueContainer;
     use crate::runtime::memory::Memory;
     use crate::{
@@ -62,17 +62,17 @@ mod tests {
     fn serde() {
         // replace
         let dif_update =
-            DIFUpdate::replace(DIFValueContainer::Value(DIFValue {
+            DIFUpdateData::replace(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::String("Hello".to_string()),
                 r#type: None,
             }));
         let serialized = dif_update.as_json();
         println!("Serialized DIFUpdate: {}", serialized);
-        let deserialized: DIFUpdate = DIFUpdate::from_json(&serialized);
+        let deserialized: DIFUpdateData = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
 
         // update property
-        let dif_update = DIFUpdate::set(
+        let dif_update = DIFUpdateData::set(
             "name",
             DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
@@ -81,7 +81,7 @@ mod tests {
         );
         let serialized = dif_update.as_json();
         println!("Serialized DIFUpdate: {}", serialized);
-        let deserialized: DIFUpdate = DIFUpdate::from_json(&serialized);
+        let deserialized: DIFUpdateData = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 

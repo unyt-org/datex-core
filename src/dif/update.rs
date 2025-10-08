@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::dif::{DIFConvertible, value::DIFValueContainer};
+use crate::references::observers::TransceiverId;
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -35,10 +36,23 @@ impl From<DIFValueContainer> for DIFProperty {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DIFUpdate {
+    pub source_id: TransceiverId,
+    pub data: DIFUpdateData,
+}
+
+impl DIFUpdate {
+    /// Creates a new `DIFUpdate` with the given source ID and update data.
+    pub fn new(source_id: TransceiverId, data: DIFUpdateData) -> Self {
+        DIFUpdate { source_id, data }
+    }
+}
+
 /// Represents an update operation for a DIF value.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
-pub enum DIFUpdate {
+pub enum DIFUpdateData {
     /// Represents a replacement operation for a DIF value.
     Replace { value: DIFValueContainer },
 
@@ -59,41 +73,48 @@ pub enum DIFUpdate {
     Push { value: DIFValueContainer },
 }
 
-impl DIFConvertible for DIFUpdate {}
+impl DIFConvertible for DIFUpdateData {}
 
-impl DIFUpdate {
-    /// Creates a new `DIFUpdate::Replace` variant with the given value.
+impl DIFUpdateData {
+    /// Creates a new `DIFUpdateData::Replace` variant with the given value.
     pub fn replace(value: impl Into<DIFValueContainer>) -> Self {
-        DIFUpdate::Replace {
+        DIFUpdateData::Replace {
             value: value.into(),
         }
     }
 
-    /// Creates a new `DIFUpdate::Set` variant with the given key and value.
+    /// Creates a new `DIFUpdateData::Set` variant with the given key and value.
     pub fn set(
         key: impl Into<DIFProperty>,
         value: impl Into<DIFValueContainer>,
     ) -> Self {
-        DIFUpdate::Set {
+        DIFUpdateData::Set {
             key: key.into(),
             value: value.into(),
         }
     }
 
-    /// Creates a new `DIFUpdate::Remove` variant with the given key.
+    /// Creates a new `DIFUpdateData::Remove` variant with the given key.
     pub fn remove(key: impl Into<DIFProperty>) -> Self {
-        DIFUpdate::Remove { key: key.into() }
+        DIFUpdateData::Remove { key: key.into() }
     }
 
-    /// Creates a new `DIFUpdate::Clear` variant.
+    /// Creates a new `DIFUpdateData::Clear` variant.
     pub fn clear() -> Self {
-        DIFUpdate::Clear
+        DIFUpdateData::Clear
     }
 
-    /// Creates a new `DIFUpdate::Push` variant with the given value.
+    /// Creates a new `DIFUpdateData::Push` variant with the given value.
     pub fn push(value: impl Into<DIFValueContainer>) -> Self {
-        DIFUpdate::Push {
+        DIFUpdateData::Push {
             value: value.into(),
+        }
+    }
+    
+    pub fn with_source(self, source_id: TransceiverId) -> DIFUpdate {
+        DIFUpdate {
+            source_id,
+            data: self,
         }
     }
 }
@@ -107,7 +128,7 @@ mod tests {
     #[test]
     fn serialize_replace() {
         let dif_update =
-            DIFUpdate::replace(DIFValueContainer::Value(DIFValue {
+            DIFUpdateData::replace(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::String("Hello".to_string()),
                 r#type: None,
             }));
@@ -116,13 +137,13 @@ mod tests {
             serialized,
             r#"{"kind":"replace","value":{"value":"Hello"}}"#
         );
-        let deserialized = DIFUpdate::from_json(&serialized);
+        let deserialized = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 
     #[test]
     fn serialize_set() {
-        let dif_update = DIFUpdate::set(
+        let dif_update = DIFUpdateData::set(
             "name",
             DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
@@ -134,40 +155,40 @@ mod tests {
             serialized,
             r#"{"kind":"set","key":{"kind":"text","value":"name"},"value":{"value":42.0}}"#
         );
-        let deserialized = DIFUpdate::from_json(&serialized);
+        let deserialized = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 
     #[test]
     fn serialize_remove() {
-        let dif_update = DIFUpdate::remove("age");
+        let dif_update = DIFUpdateData::remove("age");
         let serialized = dif_update.as_json();
         assert_eq!(
             serialized,
             r#"{"kind":"remove","key":{"kind":"text","value":"age"}}"#
         );
-        let deserialized = DIFUpdate::from_json(&serialized);
+        let deserialized = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 
     #[test]
     fn serialize_clear() {
-        let dif_update = DIFUpdate::clear();
+        let dif_update = DIFUpdateData::clear();
         let serialized = dif_update.as_json();
         assert_eq!(serialized, r#"{"kind":"clear"}"#);
-        let deserialized = DIFUpdate::from_json(&serialized);
+        let deserialized = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 
     #[test]
     fn serialize_push() {
-        let dif_update = DIFUpdate::push(DIFValueContainer::Value(DIFValue {
+        let dif_update = DIFUpdateData::push(DIFValueContainer::Value(DIFValue {
             value: DIFValueRepresentation::Boolean(true),
             r#type: None,
         }));
         let serialized = dif_update.as_json();
         assert_eq!(serialized, r#"{"kind":"push","value":{"value":true}}"#);
-        let deserialized = DIFUpdate::from_json(&serialized);
+        let deserialized = DIFUpdateData::from_json(&serialized);
         assert_eq!(dif_update, deserialized);
     }
 }

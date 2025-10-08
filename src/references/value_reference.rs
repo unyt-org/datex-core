@@ -1,4 +1,4 @@
-use crate::references::observers::ReferenceObserver;
+use crate::references::observers::{Observer, ObserverCallback};
 use crate::references::reference::ReferenceMutability;
 use crate::types::type_container::TypeContainer;
 use crate::utils::freemap::FreeHashMap;
@@ -18,7 +18,7 @@ pub struct ValueReference {
     /// custom type for the pointer that the Datex value is allowed to reference
     pub allowed_type: TypeContainer,
     /// list of observer callbacks
-    pub observers: FreeHashMap<u32, ReferenceObserver>,
+    pub observers: FreeHashMap<u32, Observer>,
     pub mutability: ReferenceMutability,
 }
 
