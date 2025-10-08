@@ -1,5 +1,5 @@
 use std::{cell::RefCell, fmt::Display, rc::Rc};
-
+use serde::{Deserialize, Serialize};
 use crate::{
     dif::update::DIFUpdateData,
     references::{reference::Reference, value_reference::ValueReference},
@@ -27,9 +27,11 @@ impl Display for ObserverError {
 
 pub type ObserverCallback = Rc<dyn Fn(&DIFUpdate)>;
 
+/// unique identifier for a transceiver (source of updates)
+/// 0-255 are reserved for DIF clients
 pub type TransceiverId = u32;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ObserveOptions {
     /// If true, the transceiver will be notified of changes that originated from itself
     pub relay_own_updates: bool,
@@ -89,7 +91,7 @@ impl Reference {
             Err(ObserverError::ObserverNotFound)
         }
     }
-    
+
     /// Updates the options for an existing observer by its ID.
     /// Returns an error if the observer ID is not found or the reference is immutable.
     pub fn update_observer_options(
