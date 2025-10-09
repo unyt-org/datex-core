@@ -1932,10 +1932,8 @@ pub mod tests {
     #[test]
     fn json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
-        println!("JSON file read");
-        let (dxb, _) = compile_script(&json, CompileOptions::default())
+        let _ = compile_script(&json, CompileOptions::default())
             .expect("Failed to parse JSON string");
-        println!("DXB: {:?}", dxb.len());
     }
 
     #[test]
