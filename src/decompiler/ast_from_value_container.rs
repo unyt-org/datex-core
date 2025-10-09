@@ -15,17 +15,17 @@ impl From<&ValueContainer> for DatexExpression {
             ValueContainer::Reference(reference) => {
                 match reference.mutability() {
                     ReferenceMutability::Mutable => {
-                        DatexExpression::RefMut(Box::new(
+                        DatexExpression::CreateRefMut(Box::new(
                             DatexExpression::from(&reference.value_container()),
                         ))
                     }
                     ReferenceMutability::Immutable => {
-                        DatexExpression::Ref(Box::new(DatexExpression::from(
-                            &reference.value_container(),
-                        )))
+                        DatexExpression::CreateRef(Box::new(
+                            DatexExpression::from(&reference.value_container()),
+                        ))
                     }
                     ReferenceMutability::Final => {
-                        DatexExpression::RefFinal(Box::new(
+                        DatexExpression::CreateRefFinal(Box::new(
                             DatexExpression::from(&reference.value_container()),
                         ))
                     }

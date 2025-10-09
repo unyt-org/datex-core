@@ -52,13 +52,13 @@ pub fn ast_to_source_code(
         DatexExpression::List(elements) => {
             list_to_source_code(elements, decompile_options)
         }
-        DatexExpression::Ref(expr) => {
+        DatexExpression::CreateRef(expr) => {
             format!("&{}", ast_to_source_code(expr, decompile_options))
         }
-        DatexExpression::RefMut(expr) => {
+        DatexExpression::CreateRefMut(expr) => {
             format!("&mut {}", ast_to_source_code(expr, decompile_options))
         }
-        DatexExpression::RefFinal(expr) => {
+        DatexExpression::CreateRefFinal(expr) => {
             format!("&final {}", ast_to_source_code(expr, decompile_options))
         }
         DatexExpression::BinaryOperation(operator, left, right, _type) => {

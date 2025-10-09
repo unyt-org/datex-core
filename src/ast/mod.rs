@@ -247,12 +247,13 @@ pub enum DatexExpression {
         body: Box<DatexExpression>,
     },
 
+    // TODO combine
     /// Reference, e.g. &x
-    Ref(Box<DatexExpression>),
+    CreateRef(Box<DatexExpression>),
     /// Mutable reference, e.g. &mut x
-    RefMut(Box<DatexExpression>),
+    CreateRefMut(Box<DatexExpression>),
     /// Final reference, e.g. &final x
-    RefFinal(Box<DatexExpression>),
+    CreateRefFinal(Box<DatexExpression>),
 
     /// Deref
     Deref(Box<DatexExpression>),
@@ -3343,13 +3344,13 @@ mod tests {
                 kind: VariableKind::Const,
                 name: "x".to_string(),
                 type_annotation: None,
-                init_expression: Box::new(DatexExpression::RefMut(Box::new(
-                    DatexExpression::List(vec![
+                init_expression: Box::new(DatexExpression::CreateRefMut(
+                    Box::new(DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
-                    ])
-                ))),
+                    ]))
+                )),
             }
         );
     }
@@ -3365,13 +3366,13 @@ mod tests {
                 kind: VariableKind::Const,
                 name: "x".to_string(),
                 type_annotation: None,
-                init_expression: Box::new(DatexExpression::Ref(Box::new(
-                    DatexExpression::List(vec![
+                init_expression: Box::new(DatexExpression::CreateRef(
+                    Box::new(DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1)),
                         DatexExpression::Integer(Integer::from(2)),
                         DatexExpression::Integer(Integer::from(3)),
-                    ])
-                ))),
+                    ]))
+                )),
             }
         );
     }

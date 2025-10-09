@@ -914,7 +914,7 @@ fn compile_expression(
         }
 
         // refs
-        DatexExpression::Ref(expression) => {
+        DatexExpression::CreateRef(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::CREATE_REF);
@@ -925,7 +925,7 @@ fn compile_expression(
                 scope,
             )?;
         }
-        DatexExpression::RefMut(expression) => {
+        DatexExpression::CreateRefMut(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::CREATE_REF_MUT);
@@ -936,7 +936,7 @@ fn compile_expression(
                 scope,
             )?;
         }
-        DatexExpression::RefFinal(expression) => {
+        DatexExpression::CreateRefFinal(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::CREATE_REF_FINAL);

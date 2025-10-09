@@ -28,9 +28,13 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
             )
             .then(unary.clone())
             .map(|(ref_type, expr)| match ref_type {
-                Some(Token::Mutable) => DatexExpression::RefMut(Box::new(expr)),
-                Some(Token::Final) => DatexExpression::RefFinal(Box::new(expr)),
-                None => DatexExpression::Ref(Box::new(expr)),
+                Some(Token::Mutable) => {
+                    DatexExpression::CreateRefMut(Box::new(expr))
+                }
+                Some(Token::Final) => {
+                    DatexExpression::CreateRefFinal(Box::new(expr))
+                }
+                None => DatexExpression::CreateRef(Box::new(expr)),
                 _ => unreachable!(),
             });
 

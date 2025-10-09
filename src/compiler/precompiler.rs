@@ -710,9 +710,9 @@ fn visit_expression(
                 NewScopeType::NewScope,
             )?;
         }
-        DatexExpression::RefMut(expr)
-        | DatexExpression::RefFinal(expr)
-        | DatexExpression::Ref(expr) => {
+        DatexExpression::CreateRefMut(expr)
+        | DatexExpression::CreateRefFinal(expr)
+        | DatexExpression::CreateRef(expr) => {
             visit_expression(
                 expr,
                 metadata,
