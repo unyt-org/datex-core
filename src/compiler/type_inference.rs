@@ -461,7 +461,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn structural() {
         let src = r#"
         typedef A = integer;
