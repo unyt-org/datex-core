@@ -14,6 +14,8 @@ impl<'a> CompilationContext<'a> {
         self.append_u8(code as u8);
     }
 
+    // TODO: Handle other types
+
     pub fn insert_type_literal_integer(&self, integer: &Integer) {
         self.append_type_instruction_code(
             TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER,
