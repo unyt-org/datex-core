@@ -50,6 +50,9 @@ impl DIFUpdate {
     }
 }
 
+// TODO optimize structural representation by using integer values for enum variants
+// and shrink down keys (kind: 0, 1, 2 instead of "clear", "set", "remove", ...)
+
 /// Represents an update operation for a DIF value.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
