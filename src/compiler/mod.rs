@@ -89,14 +89,14 @@ impl From<VariableRepresentation> for VariableModel {
 }
 
 impl VariableModel {
-    /// Determines the variable model based on the variable type and metadata.
+    /// Determines the variable model based on the variable kind and metadata.
     pub fn infer(
-        variable_type: VariableKind,
+        variable_kind: VariableKind,
         variable_metadata: Option<VariableMetadata>,
         is_end_of_source_text: bool,
     ) -> Self {
         // const variables are always constant
-        if variable_type == VariableKind::Const {
+        if variable_kind == VariableKind::Const {
             VariableModel::Constant
         }
         // for cross-realm variables, we always use VariableReference
@@ -118,13 +118,13 @@ impl VariableModel {
     pub fn infer_from_ast_metadata_and_type(
         ast_metadata: &AstMetadata,
         variable_id: Option<VariableId>,
-        variable_type: VariableKind,
+        variable_kind: VariableKind,
         is_end_of_source_text: bool,
     ) -> Self {
         let variable_metadata =
             variable_id.and_then(|id| ast_metadata.variable_metadata(id));
         Self::infer(
-            variable_type,
+            variable_kind,
             variable_metadata.cloned(),
             is_end_of_source_text,
         )

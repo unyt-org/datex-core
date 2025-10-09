@@ -133,7 +133,7 @@ fn infer_expression_type(
             // infer the type of the value expression
             let init_type = infer_expression_type(value, metadata.clone())?;
 
-            let variable_type = if let Some(type_annotation) = type_annotation {
+            let variable_kind = if let Some(type_annotation) = type_annotation {
                 // match the inferred type against the annotation
                 let annotated_type = resolve_type_expression_type(
                     type_annotation,
@@ -161,9 +161,9 @@ fn infer_expression_type(
                 .borrow_mut()
                 .variable_metadata_mut(var_id)
                 .expect("VariableDeclaration should have variable metadata")
-                .var_type = Some(variable_type.clone());
+                .var_type = Some(variable_kind.clone());
 
-            variable_type
+            variable_kind
         }
         DatexExpression::VariableAssignment(operator, id, _, value) => {
             let var_id = id.unwrap();
