@@ -386,7 +386,7 @@ fn visit_expression(
                 ResolvedVariable::VariableId(id) => {
                     DatexExpression::Variable(id, name.clone())
                 }
-                ResolvedVariable::PointerId(pointer_address) => {
+                ResolvedVariable::PointerAddress(pointer_address) => {
                     DatexExpression::GetReference(pointer_address)
                 }
             };
@@ -599,7 +599,7 @@ fn visit_expression(
                     ));
                 }
                 *expression = match resolved_variable.unwrap() {
-                    ResolvedVariable::PointerId(pointer_address) => {
+                    ResolvedVariable::PointerAddress(pointer_address) => {
                         DatexExpression::GetReference(pointer_address)
                     }
                     // FIXME is variable User/whatever allowed here, or
@@ -774,7 +774,7 @@ fn add_new_variable(
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ResolvedVariable {
     VariableId(usize),
-    PointerId(PointerAddress),
+    PointerAddress(PointerAddress),
 }
 
 /// Resolves a variable name to either a local variable ID if it was already declared (or hoisted),
@@ -807,7 +807,7 @@ fn resolve_variable(
         match core_variable {
             ValueContainer::Reference(reference) => {
                 if let Some(pointer_id) = reference.pointer_address() {
-                    Ok(ResolvedVariable::PointerId(pointer_id))
+                    Ok(ResolvedVariable::PointerAddress(pointer_id))
                 } else {
                     unreachable!(
                         "Core variable reference must have a pointer ID"
@@ -837,7 +837,7 @@ fn visit_type_expression(
                 ResolvedVariable::VariableId(id) => {
                     TypeExpression::Variable(id, name.clone())
                 }
-                ResolvedVariable::PointerId(pointer_address) => {
+                ResolvedVariable::PointerAddress(pointer_address) => {
                     TypeExpression::GetReference(pointer_address)
                 }
             };
