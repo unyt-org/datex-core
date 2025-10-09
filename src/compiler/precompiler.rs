@@ -379,7 +379,7 @@ fn visit_expression(
                 scope_stack,
             ));
         }
-        DatexExpression::Literal(name) => {
+        DatexExpression::Identifier(name) => {
             let resolved_variable =
                 resolve_variable(name, metadata, scope_stack)?;
             *expression = match resolved_variable {
@@ -493,22 +493,23 @@ fn visit_expression(
         }
         DatexExpression::BinaryOperation(operator, left, right, _) => {
             if matches!(operator, BinaryOperator::VariantAccess) {
-                let lit_left = if let DatexExpression::Literal(name) = &**left {
-                    name.clone()
-                } else {
-                    unreachable!(
-                        "Left side of variant access must be a literal"
-                    );
-                };
+                let lit_left =
+                    if let DatexExpression::Identifier(name) = &**left {
+                        name.clone()
+                    } else {
+                        unreachable!(
+                            "Left side of variant access must be a literal"
+                        );
+                    };
 
-                let lit_right = if let DatexExpression::Literal(name) = &**right
-                {
-                    name.clone()
-                } else {
-                    unreachable!(
-                        "Right side of variant access must be a literal"
-                    );
-                };
+                let lit_right =
+                    if let DatexExpression::Identifier(name) = &**right {
+                        name.clone()
+                    } else {
+                        unreachable!(
+                            "Right side of variant access must be a literal"
+                        );
+                    };
                 let full_name = format!("{lit_left}/{lit_right}");
                 // if get_variable_kind(lhs) == Value
                 // 1. user value lhs, whatever rhs -> division

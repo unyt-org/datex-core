@@ -1,7 +1,7 @@
 use crate::ast::DatexExpression;
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
-use crate::ast::utils::is_literal;
+use crate::ast::utils::is_identifier;
 use crate::ast::utils::operation;
 use crate::global::binary_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
@@ -170,8 +170,8 @@ fn product<'a>(chain: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
             .repeated(),
             |lhs, (op, rhs)| {
                 let effective_op = if matches!(op, ArithmeticOperator::Divide)
-                    && is_literal(&lhs)
-                    && is_literal(&rhs)
+                    && is_identifier(&lhs)
+                    && is_identifier(&rhs)
                 {
                     BinaryOperator::VariantAccess
                 } else {

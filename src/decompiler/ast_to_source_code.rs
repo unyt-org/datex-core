@@ -47,7 +47,7 @@ pub fn ast_to_source_code(
         DatexExpression::Text(t) => text_to_source_code(t),
         DatexExpression::Endpoint(e) => e.to_string(),
         DatexExpression::Null => "null".to_string(),
-        DatexExpression::Literal(l) => l.to_string(),
+        DatexExpression::Identifier(l) => l.to_string(),
         DatexExpression::Map(map) => map_to_source_code(map, decompile_options),
         DatexExpression::List(elements) => {
             list_to_source_code(elements, decompile_options)

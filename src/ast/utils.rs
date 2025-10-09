@@ -12,8 +12,8 @@ pub fn operation<'a>(c: Token) -> impl DatexParserTrait<'a, Token> {
         .ignore_then(just(c))
         .then_ignore(just(Token::Whitespace).repeated())
 }
-pub fn is_literal(expr: &DatexExpression) -> bool {
-    matches!(expr, DatexExpression::Literal { .. })
+pub fn is_identifier(expr: &DatexExpression) -> bool {
+    matches!(expr, DatexExpression::Identifier { .. })
 }
 pub fn unwrap_single_statement(expr: DatexExpression) -> DatexExpression {
     match expr {

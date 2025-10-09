@@ -194,7 +194,7 @@ pub enum DatexExpression {
     TypedInteger(TypedInteger),
 
     // Literal type, e.g. string, User or integer/u8
-    Literal(String),
+    Identifier(String),
 
     /// Endpoint, e.g. @test_a or @test_b
     Endpoint(Endpoint),
@@ -1049,10 +1049,10 @@ mod tests {
                     BinaryOperator::Bitwise(BitwiseOperator::And),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::VariantAccess,
-                        Box::new(DatexExpression::Literal(
+                        Box::new(DatexExpression::Identifier(
                             "integer".to_owned()
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                        Box::new(DatexExpression::Identifier("u8".to_owned())),
                         None
                     )),
                     Box::new(DatexExpression::Integer(Integer::from(6))),
@@ -1089,10 +1089,10 @@ mod tests {
                     BinaryOperator::Bitwise(BitwiseOperator::Or),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::VariantAccess,
-                        Box::new(DatexExpression::Literal(
+                        Box::new(DatexExpression::Identifier(
                             "integer".to_owned()
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                        Box::new(DatexExpression::Identifier("u8".to_owned())),
                         None
                     )),
                     Box::new(DatexExpression::Integer(Integer::from(6))),
@@ -1161,15 +1161,15 @@ mod tests {
     #[test]
     fn generic_assessor() {
         let expected = DatexExpression::ApplyChain(
-            Box::new(DatexExpression::Literal("User".to_string())),
+            Box::new(DatexExpression::Identifier("User".to_string())),
             vec![
                 ApplyOperation::GenericAccess(
                     DatexExpression::BinaryOperation(
                         BinaryOperator::VariantAccess,
-                        Box::new(DatexExpression::Literal(
+                        Box::new(DatexExpression::Identifier(
                             "integer".to_owned(),
                         )),
-                        Box::new(DatexExpression::Literal("u8".to_owned())),
+                        Box::new(DatexExpression::Identifier("u8".to_owned())),
                         None,
                     ),
                 ),
@@ -1268,7 +1268,9 @@ mod tests {
                         Box::new(DatexExpression::Integer(Integer::from(2)))
                     )),
                     then_branch: Box::new(DatexExpression::ApplyChain(
-                        Box::new(DatexExpression::Literal("test".to_string())),
+                        Box::new(DatexExpression::Identifier(
+                            "test".to_string()
+                        )),
                         vec![ApplyOperation::FunctionCall(
                             DatexExpression::List(vec![
                                 DatexExpression::Integer(Integer::from(1)),
@@ -1299,14 +1301,14 @@ mod tests {
             DatexExpression::Conditional {
                 condition: Box::new(DatexExpression::ComparisonOperation(
                     ComparisonOperator::StructuralEqual,
-                    Box::new(DatexExpression::Literal("x".to_string())),
+                    Box::new(DatexExpression::Identifier("x".to_string())),
                     Box::new(DatexExpression::Integer(Integer::from(4)))
                 )),
                 then_branch: Box::new(DatexExpression::Text("4".to_string())),
                 else_branch: Some(Box::new(DatexExpression::Conditional {
                     condition: Box::new(DatexExpression::ComparisonOperation(
                         ComparisonOperator::StructuralEqual,
-                        Box::new(DatexExpression::Literal("x".to_string())),
+                        Box::new(DatexExpression::Identifier("x".to_string())),
                         Box::new(DatexExpression::Text("hello".to_string()))
                     )),
                     then_branch: Box::new(DatexExpression::Text(
@@ -1327,7 +1329,7 @@ mod tests {
             DatexExpression::UnaryOperation(
                 UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
                 Box::new(DatexExpression::ApplyChain(
-                    Box::new(DatexExpression::Literal("User".to_string())),
+                    Box::new(DatexExpression::Identifier("User".to_string())),
                     vec![ApplyOperation::FunctionCall(DatexExpression::Map(
                         vec![]
                     ))]
@@ -1361,7 +1363,7 @@ mod tests {
                             UnaryOperator::Arithmetic(
                                 ArithmeticUnaryOperator::Minus
                             ),
-                            Box::new(DatexExpression::Literal(
+                            Box::new(DatexExpression::Identifier(
                                 "myVal".to_string()
                             ))
                         ))
@@ -1999,7 +2001,7 @@ mod tests {
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                     Box::new(DatexExpression::List(vec![])),
-                    Box::new(DatexExpression::Literal("x".to_string())),
+                    Box::new(DatexExpression::Identifier("x".to_string())),
                     None
                 )),
                 Box::new(DatexExpression::BinaryOperation(
@@ -2353,7 +2355,7 @@ mod tests {
     fn variable_expression() {
         let src = "myVar";
         let expr = parse_unwrap(src);
-        assert_eq!(expr, DatexExpression::Literal("myVar".to_string()));
+        assert_eq!(expr, DatexExpression::Identifier("myVar".to_string()));
     }
 
     #[test]
@@ -2364,7 +2366,7 @@ mod tests {
             expr,
             DatexExpression::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-                Box::new(DatexExpression::Literal("myVar".to_string())),
+                Box::new(DatexExpression::Identifier("myVar".to_string())),
                 Box::new(DatexExpression::Integer(Integer::from(1))),
                 None
             )
@@ -2378,7 +2380,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myFunc".to_string())),
+                Box::new(DatexExpression::Identifier("myFunc".to_string())),
                 vec![ApplyOperation::FunctionCall(DatexExpression::List(
                     vec![
                         DatexExpression::Integer(Integer::from(1)),
@@ -2397,7 +2399,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myFunc".to_string())),
+                Box::new(DatexExpression::Identifier("myFunc".to_string())),
                 vec![ApplyOperation::FunctionCall(DatexExpression::Map(
                     vec![]
                 ))],
@@ -2412,7 +2414,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myFunc".to_string())),
+                Box::new(DatexExpression::Identifier("myFunc".to_string())),
                 vec![
                     ApplyOperation::FunctionCall(DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1))
@@ -2433,7 +2435,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("print".to_string())),
+                Box::new(DatexExpression::Identifier("print".to_string())),
                 vec![ApplyOperation::FunctionCall(DatexExpression::Text(
                     "test".to_string()
                 ))],
@@ -2448,7 +2450,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myObj".to_string())),
+                Box::new(DatexExpression::Identifier("myObj".to_string())),
                 vec![ApplyOperation::PropertyAccess(DatexExpression::Text(
                     "myProp".to_string()
                 ))],
@@ -2463,7 +2465,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myObj".to_string())),
+                Box::new(DatexExpression::Identifier("myObj".to_string())),
                 vec![ApplyOperation::PropertyAccess(DatexExpression::Integer(
                     Integer::from(1)
                 ))],
@@ -2478,7 +2480,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myObj".to_string())),
+                Box::new(DatexExpression::Identifier("myObj".to_string())),
                 vec![
                     ApplyOperation::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
@@ -2501,13 +2503,13 @@ mod tests {
                     ApplyOperation::PropertyAccess(
                         DatexExpression::Statements(vec![
                             Statement {
-                                expression: DatexExpression::Literal(
+                                expression: DatexExpression::Identifier(
                                     "x".to_string()
                                 ),
                                 is_terminated: true,
                             },
                             Statement {
-                                expression: DatexExpression::Literal(
+                                expression: DatexExpression::Identifier(
                                     "y".to_string()
                                 ),
                                 is_terminated: false,
@@ -2526,7 +2528,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myObj".to_string())),
+                Box::new(DatexExpression::Identifier("myObj".to_string())),
                 vec![
                     ApplyOperation::PropertyAccess(DatexExpression::Text(
                         "myProp".to_string()
@@ -2547,7 +2549,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myFunc".to_string())),
+                Box::new(DatexExpression::Identifier("myFunc".to_string())),
                 vec![
                     ApplyOperation::FunctionCall(DatexExpression::List(vec![
                         DatexExpression::Integer(Integer::from(1)),
@@ -2569,7 +2571,7 @@ mod tests {
             DatexExpression::ApplyChain(
                 Box::new(DatexExpression::ApplyChain(
                     Box::new(DatexExpression::ApplyChain(
-                        Box::new(DatexExpression::Literal("x".to_string())),
+                        Box::new(DatexExpression::Identifier("x".to_string())),
                         vec![ApplyOperation::FunctionCall(
                             DatexExpression::List(vec![
                                 DatexExpression::Integer(Integer::from(1))
@@ -2733,7 +2735,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::List(vec![DatexExpression::ApplyChain(
-                Box::new(DatexExpression::Literal("myFunc".to_string())),
+                Box::new(DatexExpression::Identifier("myFunc".to_string())),
                 vec![ApplyOperation::FunctionCall(DatexExpression::List(
                     vec![DatexExpression::Integer(Integer::from(1))]
                 ))]
@@ -2748,8 +2750,8 @@ mod tests {
             res,
             DatexExpression::BinaryOperation(
                 BinaryOperator::VariantAccess,
-                Box::new(DatexExpression::Literal("integer".to_string())),
-                Box::new(DatexExpression::Literal("u8".to_string())),
+                Box::new(DatexExpression::Identifier("integer".to_string())),
+                Box::new(DatexExpression::Identifier("u8".to_string())),
                 None
             )
         );
@@ -2759,8 +2761,8 @@ mod tests {
             res,
             DatexExpression::BinaryOperation(
                 BinaryOperator::VariantAccess,
-                Box::new(DatexExpression::Literal("undeclared".to_string())),
-                Box::new(DatexExpression::Literal("u8".to_string())),
+                Box::new(DatexExpression::Identifier("undeclared".to_string())),
+                Box::new(DatexExpression::Identifier("u8".to_string())),
                 None
             )
         );
@@ -3121,8 +3123,8 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Literal("a".to_string())),
-                Box::new(DatexExpression::Literal("b".to_string()))
+                Box::new(DatexExpression::Identifier("a".to_string())),
+                Box::new(DatexExpression::Identifier("b".to_string()))
             )
         );
     }
@@ -3133,8 +3135,8 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Literal("a".to_string())),
-                Box::new(DatexExpression::Literal("b".to_string()))
+                Box::new(DatexExpression::Identifier("a".to_string())),
+                Box::new(DatexExpression::Identifier("b".to_string()))
             )
         );
     }
@@ -3146,15 +3148,15 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Literal("a".to_string())),
+                Box::new(DatexExpression::Identifier("a".to_string())),
                 Box::new(DatexExpression::BinaryOperation(
                     BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-                    Box::new(DatexExpression::Literal("b".to_string())),
+                    Box::new(DatexExpression::Identifier("b".to_string())),
                     Box::new(DatexExpression::BinaryOperation(
                         BinaryOperator::Arithmetic(
                             ArithmeticOperator::Multiply
                         ),
-                        Box::new(DatexExpression::Literal("c".to_string())),
+                        Box::new(DatexExpression::Identifier("c".to_string())),
                         Box::new(DatexExpression::Integer(Integer::from(2))),
                         None
                     )),
@@ -3173,8 +3175,8 @@ mod tests {
             DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::RemoteExecution(
-                        Box::new(DatexExpression::Literal("a".to_string())),
-                        Box::new(DatexExpression::Literal("b".to_string()))
+                        Box::new(DatexExpression::Identifier("a".to_string())),
+                        Box::new(DatexExpression::Identifier("b".to_string()))
                     ),
                     is_terminated: true,
                 },
@@ -3193,7 +3195,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::RemoteExecution(
-                Box::new(DatexExpression::Literal("a".to_string())),
+                Box::new(DatexExpression::Identifier("a".to_string())),
                 Box::new(DatexExpression::Statements(vec![
                     Statement {
                         expression: DatexExpression::Integer(Integer::from(1)),
@@ -3233,7 +3235,7 @@ mod tests {
         let expr = parse_unwrap(src);
         assert_eq!(
             expr,
-            DatexExpression::Deref(Box::new(DatexExpression::Literal(
+            DatexExpression::Deref(Box::new(DatexExpression::Identifier(
                 "x".to_string()
             )))
         );
@@ -3246,7 +3248,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpression::Deref(Box::new(DatexExpression::Deref(Box::new(
-                DatexExpression::Literal("x".to_string())
+                DatexExpression::Identifier("x".to_string())
             ))))
         );
     }
@@ -3397,7 +3399,7 @@ mod tests {
             expr,
             DatexExpression::UnaryOperation(
                 UnaryOperator::Logical(LogicalUnaryOperator::Not),
-                Box::new(DatexExpression::Literal("x".to_string()))
+                Box::new(DatexExpression::Identifier("x".to_string()))
             )
         );
 
