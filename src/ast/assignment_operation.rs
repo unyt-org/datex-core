@@ -3,14 +3,14 @@ use std::fmt::Display;
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
-use crate::global::binary_codes::InstructionCode;
+use crate::global::instruction_codes::InstructionCode;
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {
     Assign,           // =
     AddAssign,        // +=
-    SubtractAssign,  // -=
+    SubtractAssign,   // -=
     MultiplyAssign,   // *=
     DivideAssign,     // /=
     ModuloAssign,     // %=

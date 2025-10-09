@@ -3,7 +3,7 @@ use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
 use crate::ast::utils::is_identifier;
 use crate::ast::utils::operation;
-use crate::global::binary_codes::InstructionCode;
+use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
 use std::fmt::Display;

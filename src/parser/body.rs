@@ -1,5 +1,5 @@
 use crate::decompiler::ScopeType;
-use crate::global::binary_codes::{InstructionCode, TypeSpaceInstructionCode};
+use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
@@ -8,6 +8,7 @@ use crate::global::protocol_structures::instructions::{
     TextData, TextDataRaw, TypeInstruction, TypeTagData, UInt8Data, UInt16Data,
     UInt32Data, UInt64Data, UInt128Data,
 };
+use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;

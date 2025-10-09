@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use crate::global::binary_codes::InstructionCode;
+use crate::global::instruction_codes::InstructionCode;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {

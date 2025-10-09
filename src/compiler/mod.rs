@@ -14,7 +14,8 @@ use crate::compiler::precompiler::{
 };
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
-use crate::global::binary_codes::{InstructionCode, InternalSlot};
+use crate::global::instruction_codes::InstructionCode;
+use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
@@ -1047,12 +1048,12 @@ pub mod tests {
     use std::vec;
 
     use crate::ast::parse;
-    use crate::global::binary_codes::TypeSpaceInstructionCode;
+    use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
     use crate::libs::core::CoreLibPointerId;
     use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
     use crate::{
-        global::binary_codes::InstructionCode, logger::init_logger_debug,
+        global::instruction_codes::InstructionCode, logger::init_logger_debug,
     };
     use datex_core::compiler::error::CompilerError;
     use log::*;

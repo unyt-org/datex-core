@@ -1,4 +1,4 @@
-use crate::global::binary_codes::InstructionCode;
+use crate::global::instruction_codes::InstructionCode;
 use crate::libs::core::CoreLibPointerId;
 use crate::references::reference::ReferenceMutability;
 use crate::utils::buffers::{

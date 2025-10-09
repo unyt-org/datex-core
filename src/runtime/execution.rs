@@ -11,8 +11,9 @@ use crate::ast::unary_operation::{
 };
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
-use crate::global::binary_codes::{InstructionCode, InternalSlot};
+use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::*;
+use crate::global::slots::InternalSlot;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
@@ -1603,7 +1604,7 @@ mod tests {
 
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
-    use crate::global::binary_codes::InstructionCode;
+    use crate::global::instruction_codes::InstructionCode;
     use crate::logger::init_logger_debug;
     use crate::traits::structural_eq::StructuralEq;
     use crate::{assert_structural_eq, assert_value_eq, datex_list};

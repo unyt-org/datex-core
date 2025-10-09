@@ -2,7 +2,7 @@ use crate::ast::TypeExpression;
 use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
-use crate::global::binary_codes::TypeSpaceInstructionCode;
+use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::values::core_values::integer::Integer;
 use datex_core::compiler::precompiler::AstMetadata;
 use std::cell::RefCell;
