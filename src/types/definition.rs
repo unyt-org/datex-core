@@ -13,6 +13,7 @@ pub enum TypeDefinition {
     // { x: integer, y: text }
     Structural(StructuralTypeDefinition),
 
+    // TODO: Rename to generic?
     // e.g. [integer], [integer; 5], Map<string, integer>
     Collection(CollectionTypeDefinition),
 
