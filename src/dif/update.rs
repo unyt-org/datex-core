@@ -10,6 +10,7 @@ pub enum DIFProperty {
     /// a simple string property
     Text(String),
     /// an integer property (e.g. an array index)
+    // FIXME use usize or u32
     Index(i64),
     /// any other property type
     Value(DIFValueContainer),
@@ -110,7 +111,7 @@ impl DIFUpdateData {
             value: value.into(),
         }
     }
-    
+
     pub fn with_source(self, source_id: TransceiverId) -> DIFUpdate {
         DIFUpdate {
             source_id,
@@ -182,10 +183,11 @@ mod tests {
 
     #[test]
     fn serialize_push() {
-        let dif_update = DIFUpdateData::push(DIFValueContainer::Value(DIFValue {
-            value: DIFValueRepresentation::Boolean(true),
-            r#type: None,
-        }));
+        let dif_update =
+            DIFUpdateData::push(DIFValueContainer::Value(DIFValue {
+                value: DIFValueRepresentation::Boolean(true),
+                r#type: None,
+            }));
         let serialized = dif_update.as_json();
         assert_eq!(serialized, r#"{"kind":"push","value":{"value":true}}"#);
         let deserialized = DIFUpdateData::from_json(&serialized);
