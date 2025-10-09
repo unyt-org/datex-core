@@ -18,9 +18,7 @@ use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
-use crate::references::reference::{
-    AssignmentError, ReferenceFromValueContainerError,
-};
+use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
 use crate::traits::apply::Apply;
@@ -447,10 +445,10 @@ pub enum ExecutionError {
     DerefOfNonReference,
     InvalidTypeCast,
     AssignmentError(AssignmentError),
-    ReferenceFromValueContainerError(ReferenceFromValueContainerError),
+    ReferenceFromValueContainerError(ReferenceCreationError),
 }
-impl From<ReferenceFromValueContainerError> for ExecutionError {
-    fn from(error: ReferenceFromValueContainerError) -> Self {
+impl From<ReferenceCreationError> for ExecutionError {
+    fn from(error: ReferenceCreationError) -> Self {
         ExecutionError::ReferenceFromValueContainerError(error)
     }
 }

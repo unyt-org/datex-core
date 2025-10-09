@@ -1,17 +1,19 @@
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::DIFUpdateData;
 use crate::dif::value::DIFValueContainer;
-use crate::references::observers::{ObserveOptions, ObserverError, TransceiverId};
+use crate::references::observers::{
+    ObserveOptions, ObserverError, TransceiverId,
+};
 use crate::references::reference::{
-    AccessError, AssignmentError, ReferenceFromValueContainerError,
-    ReferenceMutability, TypeError,
+    AccessError, AssignmentError, ReferenceCreationError, ReferenceMutability,
+    TypeError,
 };
 use crate::runtime::execution::ExecutionError;
 use crate::values::pointer::PointerAddress;
 use datex_core::dif::reference::DIFReference;
+use datex_core::dif::update::DIFUpdate;
 use datex_core::dif::value::DIFReferenceNotFoundError;
 use std::fmt::Display;
-use datex_core::dif::update::DIFUpdate;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -105,7 +107,7 @@ impl Display for DIFApplyError {
 #[derive(Debug)]
 pub enum DIFCreatePointerError {
     ReferenceNotFound,
-    ReferenceFromValueContainerError(ReferenceFromValueContainerError),
+    ReferenceCreationError(ReferenceCreationError),
 }
 
 impl From<DIFReferenceNotFoundError> for DIFCreatePointerError {
@@ -120,7 +122,7 @@ impl Display for DIFCreatePointerError {
             DIFCreatePointerError::ReferenceNotFound => {
                 write!(f, "Reference not found")
             }
-            DIFCreatePointerError::ReferenceFromValueContainerError(e) => {
+            DIFCreatePointerError::ReferenceCreationError(e) => {
                 write!(f, "Reference from value container error: {}", e)
             }
         }
@@ -141,10 +143,9 @@ impl Display for DIFResolveReferenceError {
     }
 }
 
-
-impl From<ReferenceFromValueContainerError> for DIFCreatePointerError {
-    fn from(err: ReferenceFromValueContainerError) -> Self {
-        DIFCreatePointerError::ReferenceFromValueContainerError(err)
+impl From<ReferenceCreationError> for DIFCreatePointerError {
+    fn from(err: ReferenceCreationError) -> Self {
+        DIFCreatePointerError::ReferenceCreationError(err)
     }
 }
 
@@ -178,9 +179,7 @@ pub trait DIFInterface {
     fn resolve_pointer_address_external(
         &self,
         address: PointerAddress,
-    ) -> impl Future<
-        Output = Result<DIFReference, DIFResolveReferenceError>,
-    >;
+    ) -> impl Future<Output = Result<DIFReference, DIFResolveReferenceError>>;
 
     /// Resolves a pointer address of a pointer that is currently in memory.
     /// Returns an error if the pointer is not found in memory.

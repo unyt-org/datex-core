@@ -320,25 +320,25 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ReferenceFromValueContainerError {
+pub enum ReferenceCreationError {
     InvalidType,
     MutableTypeReference,
     CannotCreateFinalFromMutableRef,
 }
 
-impl Display for ReferenceFromValueContainerError {
+impl Display for ReferenceCreationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReferenceFromValueContainerError::CannotCreateFinalFromMutableRef => {
+            ReferenceCreationError::CannotCreateFinalFromMutableRef => {
                 write!(f, "Cannot create final reference from mutable reference")
             }
-            ReferenceFromValueContainerError::InvalidType => {
+            ReferenceCreationError::InvalidType => {
                 write!(
                     f,
                     "Cannot create reference from value container: invalid type"
                 )
             }
-            ReferenceFromValueContainerError::MutableTypeReference => {
+            ReferenceCreationError::MutableTypeReference => {
                 write!(f, "Cannot create mutable reference to type")
             }
         }
@@ -493,7 +493,7 @@ impl Reference {
         allowed_type: Option<TypeContainer>,
         maybe_pointer_id: Option<PointerAddress>,
         mutability: ReferenceMutability,
-    ) -> Result<Self, ReferenceFromValueContainerError> {
+    ) -> Result<Self, ReferenceCreationError> {
         // FIXME implement type check
         Ok(match value_container {
             ValueContainer::Reference(ref reference) => {
@@ -514,7 +514,7 @@ impl Reference {
                     }
                     Reference::TypeReference(tr) => {
                         if mutability == ReferenceMutability::Mutable {
-                            return Err(ReferenceFromValueContainerError::MutableTypeReference);
+                            return Err(ReferenceCreationError::MutableTypeReference);
                         }
                         Reference::TypeReference(
                             TypeReference::anonymous(
@@ -533,11 +533,11 @@ impl Reference {
                         // TODO: allowed_type "Type" is also allowed
                         if allowed_type.is_some() {
                             return Err(
-                                ReferenceFromValueContainerError::InvalidType,
+                                ReferenceCreationError::InvalidType,
                             );
                         }
                         if mutability == ReferenceMutability::Mutable {
-                            return Err(ReferenceFromValueContainerError::MutableTypeReference);
+                            return Err(ReferenceCreationError::MutableTypeReference);
                         }
                         Reference::new_from_type(
                             type_value,
@@ -579,7 +579,7 @@ impl Reference {
 
     pub fn try_mut_from(
         value_container: ValueContainer,
-    ) -> Result<Self, ReferenceFromValueContainerError> {
+    ) -> Result<Self, ReferenceCreationError> {
         Reference::try_new_from_value_container(
             value_container,
             None,
@@ -594,12 +594,12 @@ impl Reference {
     /// If the value container is a value, a final reference to that value is created.
     pub fn try_final_from(
         value_container: ValueContainer,
-    ) -> Result<Self, ReferenceFromValueContainerError> {
+    ) -> Result<Self, ReferenceCreationError> {
         match &value_container {
             ValueContainer::Reference(reference) => {
                 // If it points to a non-final reference, forbid it
                 if reference.is_mutable() {
-                    return Err(ReferenceFromValueContainerError::CannotCreateFinalFromMutableRef);
+                    return Err(ReferenceCreationError::CannotCreateFinalFromMutableRef);
                 }
             }
             ValueContainer::Value(_) => {}
@@ -888,7 +888,7 @@ mod tests {
             Reference::try_mut_from(ValueContainer::from(42)).unwrap();
         assert_matches!(Reference::try_final_from(
             ValueContainer::Reference(mutable_ref)
-        ), Err(ReferenceFromValueContainerError::CannotCreateFinalFromMutableRef));
+        ), Err(ReferenceCreationError::CannotCreateFinalFromMutableRef));
 
         // creating a final reference from a type ref should work
         let type_value = ValueContainer::Reference(Reference::TypeReference(
@@ -912,7 +912,7 @@ mod tests {
         ));
         assert_matches!(
             Reference::try_mut_from(type_value),
-            Err(ReferenceFromValueContainerError::MutableTypeReference)
+            Err(ReferenceCreationError::MutableTypeReference)
         );
     }
 
