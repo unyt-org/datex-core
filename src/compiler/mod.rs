@@ -2723,7 +2723,6 @@ pub mod tests {
         instructions.append(
             &mut PointerAddress::from(CoreLibPointerId::Integer(None))
                 .bytes()
-                .clone()
                 .to_vec(),
         );
         assert_eq!(res, instructions);
