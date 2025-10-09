@@ -1399,7 +1399,7 @@ pub mod tests {
     fn short_text() {
         init_logger_debug();
         let val = "unyt";
-        let datex_script = format!("\"{val}\""); // "42"
+        let datex_script = format!("\"{val}\""); // "unyt"
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> =
             vec![InstructionCode::SHORT_TEXT.into(), val.len() as u8];
