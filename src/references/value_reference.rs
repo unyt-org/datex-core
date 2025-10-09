@@ -1,4 +1,4 @@
-use crate::references::observers::{Observer, ObserverCallback};
+use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
 use crate::types::type_container::TypeContainer;
 use crate::utils::freemap::FreeHashMap;

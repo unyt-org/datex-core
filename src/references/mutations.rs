@@ -1,6 +1,5 @@
 use crate::dif::update::{DIFProperty, DIFUpdateData};
 use crate::dif::value::DIFValueContainer;
-use crate::references::reference::AssignmentError;
 use crate::runtime::memory::Memory;
 use crate::{
     references::reference::{AccessError, Reference},

@@ -1,9 +1,6 @@
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 use serde::{Deserialize, Serialize};
-use crate::{
-    dif::update::DIFUpdateData,
-    references::{reference::Reference, value_reference::ValueReference},
-};
+use crate::references::{reference::Reference, value_reference::ValueReference};
 use crate::dif::update::DIFUpdate;
 
 #[derive(Debug)]
