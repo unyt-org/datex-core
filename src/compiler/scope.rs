@@ -95,13 +95,11 @@ impl CompilationScope {
                 } => container_slot,
                 VariableRepresentation::VariableSlot(slot) => slot,
             };
-            Some((slot, variable.var_type))
+            Some((slot, variable.kind))
         } else if let Some(external_parent) = &self.external_parent_scope {
             external_parent
                 .resolve_variable_name_to_virtual_slot(name)
-                .map(|(virt_slot, var_type)| {
-                    (virt_slot.downgrade(), var_type)
-                })
+                .map(|(virt_slot, var_type)| (virt_slot.downgrade(), var_type))
         } else if let Some(parent) = &self.parent_scope {
             parent.resolve_variable_name_to_virtual_slot(name)
         } else {

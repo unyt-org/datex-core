@@ -147,7 +147,7 @@ pub enum VariableRepresentation {
 #[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
-    pub var_type: VariableKind,
+    pub kind: VariableKind,
     pub representation: VariableRepresentation,
 }
 
@@ -155,32 +155,32 @@ impl Variable {
     pub fn new_const(name: String, slot: VirtualSlot) -> Self {
         Variable {
             name,
-            var_type: VariableKind::Const,
+            kind: VariableKind::Const,
             representation: VariableRepresentation::Constant(slot),
         }
     }
 
     pub fn new_variable_slot(
         name: String,
-        var_type: VariableKind,
+        kind: VariableKind,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
-            var_type,
+            kind,
             representation: VariableRepresentation::VariableSlot(slot),
         }
     }
 
     pub fn new_variable_reference(
         name: String,
-        var_type: VariableKind,
+        kind: VariableKind,
         variable_slot: VirtualSlot,
         container_slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
-            var_type,
+            kind,
             representation: VariableRepresentation::VariableReference {
                 variable_slot,
                 container_slot,
@@ -717,14 +717,14 @@ fn compile_expression(
         DatexExpression::VariableAssignment(operator, id, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
-            let (virtual_slot, var_type) = scope
+            let (virtual_slot, kind) = scope
                 .resolve_variable_name_to_virtual_slot(&name)
                 .ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
 
             // if const, return error
-            if var_type == VariableKind::Const {
+            if kind == VariableKind::Const {
                 return Err(CompilerError::AssignmentToConst(name.clone()));
             }
 
