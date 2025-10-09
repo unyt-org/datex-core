@@ -633,7 +633,6 @@ mod tests {
         );
     }
 
-    // WIP
     #[test]
     fn struct_from_bytes() {
         let data = to_bytes(&TestStruct {

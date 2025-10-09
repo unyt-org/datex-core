@@ -76,7 +76,6 @@ fn infer_expression_type(
             value,
             hoisted: _,
         } => {
-            // WIP
             let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
             let type_def = {
                 let metadata = metadata.borrow();
@@ -99,7 +98,6 @@ fn infer_expression_type(
 
             println!("Inferring type declaration id {:#?}", reference);
             // let inner_ref = reference.borrow();
-            // WIP
             match inferred_type_def {
                 TypeContainer::Type(t) => {
                     reference.borrow_mut().type_value = t;

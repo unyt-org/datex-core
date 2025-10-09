@@ -755,7 +755,6 @@ mod tests {
     use super::*;
 
     #[test]
-    // WIP
     fn type_construct() {
         init_logger_debug();
         let a = CoreValue::from(42i32);
