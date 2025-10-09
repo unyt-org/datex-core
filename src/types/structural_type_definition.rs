@@ -19,8 +19,8 @@ pub enum StructuralTypeDefinition {
     TypedInteger(TypedInteger),
     Decimal(Decimal),
     TypedDecimal(TypedDecimal),
-    Text(Text),
-    Boolean(Boolean),
+    Text(Text),       // FIXME use String
+    Boolean(Boolean), // FIXME use bool
     Endpoint(Endpoint),
     Null,
     List(Vec<TypeContainer>),
