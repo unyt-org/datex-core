@@ -903,6 +903,7 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::VariableKind;
     use crate::ast::{Statement, error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
@@ -1092,7 +1093,7 @@ mod tests {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
                         name: "MyInt".to_string(),
-                        value: TypeExpression::Integer(Integer::from(1).into()),
+                        value: TypeExpression::Integer(Integer::from(1)),
                         hoisted: true,
                     },
                     is_terminated: true,
@@ -1100,7 +1101,7 @@ mod tests {
                 Statement {
                     expression: DatexExpression::VariableDeclaration {
                         id: Some(1),
-                        kind: crate::ast::VariableKind::Var,
+                        kind: VariableKind::Var,
                         name: "x".to_string(),
                         // must refer to variable id 0
                         init_expression: Box::new(DatexExpression::Variable(
@@ -1126,7 +1127,7 @@ mod tests {
                 Statement {
                     expression: DatexExpression::VariableDeclaration {
                         id: Some(1),
-                        kind: crate::ast::VariableKind::Var,
+                        kind: VariableKind::Var,
                         name: "x".to_string(),
                         // must refer to variable id 0
                         init_expression: Box::new(DatexExpression::Variable(
@@ -1141,7 +1142,7 @@ mod tests {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
                         name: "MyInt".to_string(),
-                        value: TypeExpression::Integer(Integer::from(1).into()),
+                        value: TypeExpression::Integer(Integer::from(1)),
                         hoisted: true,
                     },
                     is_terminated: true,
