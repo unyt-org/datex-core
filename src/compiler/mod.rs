@@ -1528,9 +1528,9 @@ pub mod tests {
         );
     }
 
-    // key-value pair with string key
+    // map with text key
     #[test]
-    fn key_value_string() {
+    fn map_with_text_key() {
         init_logger_debug();
         let datex_script = "{\"key\": 42}";
         let result = compile_and_log(datex_script);
