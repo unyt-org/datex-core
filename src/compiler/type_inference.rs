@@ -924,12 +924,4 @@ mod tests {
             ),
         );
     }
-
-    #[test]
-    fn infer_expression_with_variable() {
-        /*
-        var x = 10;
-        x;
-         */
-    }
 }
