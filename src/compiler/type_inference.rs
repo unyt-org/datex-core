@@ -518,8 +518,9 @@ mod tests {
                 _ => unreachable!(),
             };
             let bor = var_type_ref.borrow();
-            let r#struct = bor.as_type().structural_type().unwrap();
-            let fields = match r#struct {
+            let structural_type_definition =
+                bor.as_type().structural_type().unwrap();
+            let fields = match structural_type_definition {
                 StructuralTypeDefinition::Map(fields) => fields,
                 _ => unreachable!(),
             };

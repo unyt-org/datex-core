@@ -139,7 +139,7 @@ impl StructuralTypeDefinition {
             //     key_type.value_matches(k) && value_type.value_matches(v)
             // }),
 
-            // Check that all fields in the struct are present and match their types
+            // Check that all fields in the map are present and match their types
             (
                 StructuralTypeDefinition::Map(field_types),
                 CoreValue::Map(map),

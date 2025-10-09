@@ -1,9 +1,8 @@
-use std::rc::Rc;
-use datex_core::dif::update::DIFUpdate;
-use crate::dif::interface::{DIFResolveReferenceError};
+use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::{DIFProperty, DIFUpdateData};
+use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
 use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::runtime::RuntimeInternal;
 use crate::values::value_container::ValueContainer;
@@ -18,7 +17,8 @@ use crate::{
     references::reference::Reference,
     values::pointer::PointerAddress,
 };
-use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
+use datex_core::dif::update::DIFUpdate;
+use std::rc::Rc;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -75,22 +75,18 @@ impl DIFInterface for RuntimeInternal {
                 }
                 let value_container = value.to_value_container(&self.memory)?;
                 match key {
-                    DIFProperty::Text(key) => {
-                        ptr.try_set_text_property(
-                            source_id,
-                            &key,
-                            value_container,
-                            &self.memory,
-                        )?
-                    }
-                    DIFProperty::Index(key) => {
-                        ptr.try_set_numeric_property(
-                            source_id,
-                            key as u32,
-                            value_container,
-                            &self.memory,
-                        )?
-                    }
+                    DIFProperty::Text(key) => ptr.try_set_text_property(
+                        source_id,
+                        &key,
+                        value_container,
+                        &self.memory,
+                    )?,
+                    DIFProperty::Index(key) => ptr.try_set_numeric_property(
+                        source_id,
+                        key as u32,
+                        value_container,
+                        &self.memory,
+                    )?,
                     DIFProperty::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
                         ptr.try_set_property(
@@ -102,13 +98,11 @@ impl DIFInterface for RuntimeInternal {
                     }
                 }
             }
-            DIFUpdateData::Replace { value } => {
-                ptr.try_set_value(
-                    source_id,
-                    value.to_value_container(&self.memory)?,
-                    &self.memory,
-                )?
-            }
+            DIFUpdateData::Replace { value } => ptr.try_set_value(
+                source_id,
+                value.to_value_container(&self.memory)?,
+                &self.memory,
+            )?,
             DIFUpdateData::Push { value } => {
                 if !ptr.supports_push() {
                     return Err(DIFUpdateError::AccessError(
@@ -151,20 +145,14 @@ impl DIFInterface for RuntimeInternal {
                         ValueContainer::from(key),
                         &self.memory,
                     )?,
-                    DIFProperty::Index(key) => {
-                        ptr.try_delete_property(
-                            source_id,
-                            ValueContainer::from(key),
-                            &self.memory,
-                        )?
-                    }
+                    DIFProperty::Index(key) => ptr.try_delete_property(
+                        source_id,
+                        ValueContainer::from(key),
+                        &self.memory,
+                    )?,
                     DIFProperty::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
-                        ptr.try_delete_property(
-                            source_id,
-                            key,
-                            &self.memory
-                        )?
+                        ptr.try_delete_property(source_id, key, &self.memory)?
                     }
                 }
             }
@@ -248,7 +236,7 @@ impl DIFInterface for RuntimeInternal {
         &self,
         address: PointerAddress,
         observer_id: u32,
-        options: ObserveOptions
+        options: ObserveOptions,
     ) -> Result<(), DIFObserveError> {
         let ptr = self
             .resolve_in_memory_reference(&address)
@@ -272,10 +260,11 @@ impl DIFInterface for RuntimeInternal {
 
 #[cfg(test)]
 mod tests {
-    use crate::dif::interface::{DIFInterface};
+    use crate::dif::interface::DIFInterface;
     use crate::dif::representation::DIFValueRepresentation;
     use crate::dif::update::{DIFUpdate, DIFUpdateData};
     use crate::dif::value::{DIFValue, DIFValueContainer};
+    use crate::references::observers::ObserveOptions;
     use crate::references::reference::ReferenceMutability;
     use crate::runtime::Runtime;
     use crate::runtime::memory::Memory;
@@ -285,19 +274,16 @@ mod tests {
     use datex_core::runtime::RuntimeConfig;
     use std::cell::RefCell;
     use std::rc::Rc;
-    use crate::references::observers::ObserveOptions;
 
     #[test]
     fn struct_serde() {
         let memory = RefCell::new(Memory::new(Endpoint::default()));
-        let r#struct = ValueContainer::from(Map::from(vec![
+        let map = ValueContainer::from(Map::from(vec![
             ("a".to_string(), 1.into()),
             ("b".to_string(), "text".into()),
         ]));
-        let dif_value =
-            DIFValueContainer::from_value_container(&r#struct, &memory);
-        let serialized = serde_json::to_string(&dif_value).unwrap();
-        println!("Serialized struct: {}", serialized);
+        let dif_value = DIFValueContainer::from_value_container(&map, &memory);
+        let _ = serde_json::to_string(&dif_value).unwrap();
     }
 
     #[test]
@@ -324,17 +310,22 @@ mod tests {
         // Observe the pointer
         observer_id.replace(Some(
             runtime
-                .observe_pointer(0, pointer_address_clone.clone(), ObserveOptions::default(), move |update| {
-                    println!("Observed pointer value: {:?}", update);
-                    observed_clone.replace(Some(update.clone()));
-                    // unobserve after first update
-                    runtime_clone
-                        .unobserve_pointer(
-                            pointer_address_clone.clone(),
-                            observer_id_clone.borrow().unwrap(),
-                        )
-                        .unwrap();
-                })
+                .observe_pointer(
+                    0,
+                    pointer_address_clone.clone(),
+                    ObserveOptions::default(),
+                    move |update| {
+                        println!("Observed pointer value: {:?}", update);
+                        observed_clone.replace(Some(update.clone()));
+                        // unobserve after first update
+                        runtime_clone
+                            .unobserve_pointer(
+                                pointer_address_clone.clone(),
+                                observer_id_clone.borrow().unwrap(),
+                            )
+                            .unwrap();
+                    },
+                )
                 .expect("Failed to observe pointer"),
         ));
 

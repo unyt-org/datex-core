@@ -1548,9 +1548,9 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // key-value pair with integer key
+    // map with integer key
     #[test]
-    fn key_value_integer() {
+    fn map_integer_key() {
         init_logger_debug();
         let datex_script = "{(10): 42}";
         let result = compile_and_log(datex_script);
@@ -1566,9 +1566,9 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // key-value pair with long text key (>255 bytes)
+    // map with long text key (>255 bytes)
     #[test]
-    fn key_value_long_text() {
+    fn map_with_long_text_key() {
         init_logger_debug();
         let long_key = "a".repeat(300);
         let datex_script = format!("{{\"{long_key}\": 42}}");
@@ -1588,9 +1588,9 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // dynamic key-value pair
+    // map with dynamic key (expression)
     #[test]
-    fn dynamic_key_value() {
+    fn map_with_dynamic_key() {
         init_logger_debug();
         let datex_script = "{(1 + 2): 42}";
         let result = compile_and_log(datex_script);
@@ -1609,9 +1609,9 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // multiple key-value pairs
+    // map with multiple keys (text, integer, expression)
     #[test]
-    fn multiple_key_value_pairs() {
+    fn map_with_multiple_keys() {
         init_logger_debug();
         let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
         let result = compile_and_log(datex_script);
@@ -1642,71 +1642,14 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // empty struct
+    // empty map
     #[test]
-    fn empty_struct() {
+    fn empty_map() {
         init_logger_debug();
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
             InstructionCode::MAP_START.into(),
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // struct with single key-value pair
-    #[test]
-    fn single_key_value_struct() {
-        init_logger_debug();
-        let datex_script = "{key: 42}";
-        let result = compile_and_log(datex_script);
-        let expected: Vec<u8> = vec![
-            InstructionCode::MAP_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // struct with multiple key-value pairs
-    #[test]
-    fn multi_key_value_struct() {
-        init_logger_debug();
-        let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
-        let result = compile_and_log(datex_script);
-        let expected: Vec<u8> = vec![
-            InstructionCode::MAP_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key1"
-            b'k',
-            b'e',
-            b'y',
-            b'1',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key2"
-            b'k',
-            b'e',
-            b'y',
-            b'2',
-            InstructionCode::INT_8.into(),
-            43,
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key3"
-            b'k',
-            b'e',
-            b'y',
-            b'3',
-            InstructionCode::INT_8.into(),
-            44,
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);

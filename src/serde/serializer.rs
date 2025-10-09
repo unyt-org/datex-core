@@ -869,11 +869,11 @@ mod tests {
         let result = to_value_container(&test_struct);
         assert!(result.is_ok());
         let result = result.unwrap();
-        let r#struct = Map::from(vec![(
+        let map = Map::from(vec![(
             "endpoint".to_string(),
             ValueContainer::from(Endpoint::new("@test")),
         )]);
-        assert_eq!(result, ValueContainer::from(r#struct));
+        assert_eq!(result, ValueContainer::from(map));
     }
 
     #[derive(Serialize)]

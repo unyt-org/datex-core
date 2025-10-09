@@ -228,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn r#struct() {
+    fn object() {
         let dif_type = DIFType {
             name: None,
             mutability: None,
@@ -251,7 +251,6 @@ mod tests {
             )),
         };
         let serialized = dif_type.as_json();
-        println!("Serialized DIFType: {}", serialized);
         let deserialized: DIFType = DIFType::from_json(&serialized);
         assert_eq!(dif_type, deserialized);
     }
@@ -283,6 +282,9 @@ mod tests {
                 },
             )),
         };
+        let serialized = dif_type.as_json();
+        let deserialized: DIFType = DIFType::from_json(&serialized);
+        assert_eq!(dif_type, deserialized);
     }
 
     #[test]
