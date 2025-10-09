@@ -174,7 +174,7 @@ fn map_to_source_code(
             )
         })
         .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
+    join_elements(elements, &decompile_options.formatting, BraceStyle::Curly)
 }
 
 /// Converts a text string into a properly escaped source code representation
@@ -389,7 +389,7 @@ mod tests {
         ]);
         assert_eq!(
             ast_to_source_code(&map_ast, &DecompileOptions::default()),
-            "(key1:1,key2:\"two\",42:true)"
+            "{key1:1,key2:\"two\",42:true}"
         );
     }
 }
