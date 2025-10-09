@@ -5,7 +5,7 @@ use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_i32, append_i64,
     append_i128, append_u8, append_u32, append_u128,
 };
-use crate::values::core_value::{CoreValue, TypeTag};
+use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -372,23 +372,6 @@ impl<'a> CompilationContext<'a> {
     pub fn insert_endpoint(&self, endpoint: &Endpoint) {
         self.append_instruction_code(InstructionCode::ENDPOINT);
         self.append_buffer(&endpoint.to_binary());
-    }
-
-    pub fn insert_type_tag(&self, tag: &TypeTag) {
-        let bytes = tag.name.as_bytes();
-        let len = bytes.len();
-        let variant_count = tag.variants.len();
-
-        self.append_instruction_code(InstructionCode::TYPE_TAG);
-        self.append_u8(len as u8);
-        self.append_u32(variant_count as u32);
-        self.append_buffer(bytes);
-        for variant in &tag.variants {
-            let bytes = variant.as_bytes();
-            let len = bytes.len();
-            self.append_u8(len as u8);
-            self.append_buffer(bytes);
-        }
     }
 
     // TODO: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions

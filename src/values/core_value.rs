@@ -22,23 +22,6 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Neg, Not, Sub};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeTag {
-    // human-readable name of the type tag, e.g. "integer"
-    pub name: String,
-    // allowed variants for this type tag, e.g. ["i8", "i16", ...]
-    pub variants: Vec<String>,
-}
-
-impl TypeTag {
-    pub fn new(name: &str, variants: &[&str]) -> Self {
-        TypeTag {
-            name: name.to_string(),
-            variants: variants.iter().map(|s| s.to_string()).collect(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
     Null,
