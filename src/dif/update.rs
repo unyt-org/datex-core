@@ -10,7 +10,7 @@ pub enum DIFProperty {
     /// a simple string property
     Text(String),
     /// an integer property (e.g. an array index)
-    // FIXME use usize or u32
+    // FIXME use usize or u32 u64
     Index(i64),
     /// any other property type
     Value(DIFValueContainer),
