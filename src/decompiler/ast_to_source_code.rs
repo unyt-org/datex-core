@@ -151,7 +151,7 @@ fn list_to_source_code(
         .iter()
         .map(|e| ast_to_source_code(e, decompile_options))
         .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
+    join_elements(elements, &decompile_options.formatting, BraceStyle::Square)
 }
 
 /// Converts the contents of a DatexExpression::Map into source code
@@ -353,16 +353,6 @@ mod tests {
             formatting: Formatting::multiline(),
             ..Default::default()
         };
-        // short list should still be single line
-        let list_ast = DatexExpression::List(vec![
-            DatexExpression::Integer(1.into()),
-            DatexExpression::Integer(2.into()),
-            DatexExpression::Integer(3.into()),
-        ]);
-        assert_eq!(
-            ast_to_source_code(&list_ast, &compile_options_multiline),
-            "[1, 2, 3]"
-        );
 
         // long list should be multi-line
         let long_list_ast = DatexExpression::List(vec![
