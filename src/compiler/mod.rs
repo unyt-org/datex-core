@@ -2616,6 +2616,7 @@ pub mod tests {
         );
     }
 
+    // this is not a valid Datex script, just testing the compiler
     #[test]
     fn deref() {
         let script = "*10";
