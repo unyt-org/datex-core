@@ -155,6 +155,11 @@ fn infer_expression_type(
                 init_type
             };
 
+            // TODO: Implement type broadened inference for example for maps
+            // like var x = &mut {a: 4, y: 10} --> type Map<string, integer>
+            // like var x = &mut {a: 4, y: 10} --> type {a: integer, y: integer}
+            // var x = {a: 4, y: 10} --> type {a: 4, y: 10}
+
             // store type information for the variable in metadata
             let var_id = id.expect("VariableDeclaration should have an id assigned during precompilation");
             metadata
