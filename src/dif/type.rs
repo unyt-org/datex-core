@@ -123,12 +123,6 @@ impl DIFTypeDefinition {
     }
 }
 
-impl From<DIFTypeContainer> for TypeContainer {
-    fn from(dif_type_container: DIFTypeContainer) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DIFTypeContainer {
