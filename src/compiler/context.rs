@@ -190,6 +190,8 @@ impl<'a> CompilationContext<'a> {
                 } else {
                     self.append_instruction_code(InstructionCode::CREATE_REF);
                 }
+                // insert pointer id + value or only id
+                // add pointer to memory if not there yet
                 self.insert_value(&reference.collapse_to_value().borrow())
             }
         }
