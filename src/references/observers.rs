@@ -1,7 +1,9 @@
-use std::{cell::RefCell, fmt::Display, rc::Rc};
-use serde::{Deserialize, Serialize};
-use crate::references::{reference::Reference, value_reference::ValueReference};
 use crate::dif::update::DIFUpdate;
+use crate::references::{
+    reference::Reference, value_reference::ValueReference,
+};
+use serde::{Deserialize, Serialize};
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 #[derive(Debug)]
 pub enum ObserverError {
@@ -38,15 +40,13 @@ pub struct ObserveOptions {
 pub struct Observer {
     pub transceiver_id: TransceiverId,
     pub options: ObserveOptions,
-    pub callback: ObserverCallback
+    pub callback: ObserverCallback,
 }
 
 impl Observer {
     /// Creates a new observer with the given callback function,
     /// using default options and a transceiver ID of 0.
-    pub fn new<F: Fn(&DIFUpdate) + 'static>(
-        callback: F,
-    ) -> Self {
+    pub fn new<F: Fn(&DIFUpdate) + 'static>(callback: F) -> Self {
         Observer {
             transceiver_id: 0,
             options: ObserveOptions::default(),
@@ -55,15 +55,11 @@ impl Observer {
     }
 }
 
-
 impl Reference {
     /// Adds an observer to this reference that will be notified on value changes.
     /// Returns an error if the reference is immutable or a type reference.
     /// The returned u32 is an observer ID that can be used to remove the observer later.
-    pub fn observe(
-        &self,
-        observer: Observer,
-    ) -> Result<u32, ObserverError> {
+    pub fn observe(&self, observer: Observer) -> Result<u32, ObserverError> {
         // Add the observer to the list of observers
         Ok(self
             .ensure_non_final_value_reference()?
@@ -143,7 +139,9 @@ impl Reference {
             Reference::ValueReference(vr) => {
                 // Clone observers while holding borrow
                 let vr_ref = vr.borrow();
-                vr_ref.observers.iter()
+                vr_ref
+                    .observers
+                    .iter()
                     .filter(|(_, f)| {
                         // Filter out bounced back transceiver updates if relay_own_updates not enabled
                         f.options.relay_own_updates
@@ -172,6 +170,7 @@ impl Reference {
 #[cfg(test)]
 mod tests {
     use crate::dif::update::{DIFUpdate, DIFUpdateData};
+    use crate::references::observers::{ObserveOptions, TransceiverId};
     use crate::runtime::memory::Memory;
     use crate::values::core_values::map::Map;
     use crate::{
@@ -186,9 +185,8 @@ mod tests {
         },
         values::value_container::ValueContainer,
     };
-    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
     use datex_core::references::observers::Observer;
-    use crate::references::observers::{ObserveOptions, TransceiverId};
+    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -207,7 +205,7 @@ mod tests {
                 options: observe_options,
                 callback: Rc::new(move |update| {
                     updates_clone.borrow_mut().push(update.clone());
-                })
+                }),
             })
             .expect("Failed to attach observer");
         updates
@@ -222,7 +220,10 @@ mod tests {
             ReferenceMutability::Final,
         )
         .unwrap();
-        assert_matches!(r.observe(Observer::new(|_| {})), Err(ObserverError::FinalReference));
+        assert_matches!(
+            r.observe(Observer::new(|_| {})),
+            Err(ObserverError::FinalReference)
+        );
 
         let r = Reference::try_new_from_value_container(
             42.into(),
@@ -277,11 +278,8 @@ mod tests {
         let memory = &RefCell::new(Memory::default());
 
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let observed_update = record_dif_updates(
-            &int_ref,
-            0,
-            ObserveOptions::default()
-        );
+        let observed_update =
+            record_dif_updates(&int_ref, 0, ObserveOptions::default());
 
         // Update the value of the reference
         int_ref
@@ -291,10 +289,12 @@ mod tests {
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate {
             source_id: 1,
-            data: DIFUpdateData::replace(DIFValueContainer::from_value_container(
-                &ValueContainer::from(43),
-                memory,
-            ))
+            data: DIFUpdateData::replace(
+                DIFValueContainer::from_value_container(
+                    &ValueContainer::from(43),
+                    memory,
+                ),
+            ),
         };
 
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
@@ -305,11 +305,8 @@ mod tests {
         let memory = &RefCell::new(Memory::default());
 
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let observed_update = record_dif_updates(
-            &int_ref,
-            0,
-            ObserveOptions::default(),
-        );
+        let observed_update =
+            record_dif_updates(&int_ref, 0, ObserveOptions::default());
 
         // Update the value of the reference
         int_ref
@@ -328,7 +325,9 @@ mod tests {
         let observed_update = record_dif_updates(
             &int_ref,
             0,
-            ObserveOptions { relay_own_updates: true },
+            ObserveOptions {
+                relay_own_updates: true,
+            },
         );
 
         // Update the value of the reference
@@ -339,10 +338,12 @@ mod tests {
         // update triggered, same transceiver id but relay_own_updates enabled
         let expected_update = DIFUpdate {
             source_id: 0,
-            data: DIFUpdateData::replace(DIFValueContainer::from_value_container(
-                &ValueContainer::from(43),
-                memory,
-            ))
+            data: DIFUpdateData::replace(
+                DIFValueContainer::from_value_container(
+                    &ValueContainer::from(43),
+                    memory,
+                ),
+            ),
         };
 
         assert_eq!(*observed_update.borrow(), vec![expected_update]);
@@ -360,11 +361,8 @@ mod tests {
             .into(),
         )
         .unwrap();
-        let observed_updates = record_dif_updates(
-            &reference,
-            0,
-            ObserveOptions::default()
-        );
+        let observed_updates =
+            record_dif_updates(&reference, 0, ObserveOptions::default());
         // Update a property
         reference
             .try_set_text_property(1, "a", "val".into(), memory)
@@ -376,9 +374,9 @@ mod tests {
                 "a",
                 DIFValue::new(
                     DIFValueRepresentation::String("val".to_string()),
-                    DIFTypeContainer::none(),
+                    None as Option<DIFTypeContainer>,
                 ),
-            )
+            ),
         };
         assert_eq!(*observed_updates.borrow(), vec![expected_update]);
     }

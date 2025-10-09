@@ -131,11 +131,6 @@ pub enum DIFTypeContainer {
 }
 
 impl DIFConvertible for DIFTypeContainer {}
-impl DIFTypeContainer {
-    pub fn none() -> Option<Self> {
-        None
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFType {
@@ -147,7 +142,6 @@ pub struct DIFType {
     #[serde(with = "mutability_option_as_int")]
     pub mutability: Option<ReferenceMutability>,
 
-    // untagged
     #[serde(flatten)]
     pub type_definition: DIFTypeDefinition,
 }
