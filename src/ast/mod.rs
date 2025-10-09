@@ -185,6 +185,7 @@ pub enum DatexExpression {
     /// Decimal, e.g 123.456789123456
     Decimal(Decimal),
 
+    /// Typed Decimal, e.g. 123.456i8
     TypedDecimal(TypedDecimal),
 
     /// Integer, e.g 123456789123456789
@@ -193,7 +194,7 @@ pub enum DatexExpression {
     /// Typed Integer, e.g. 123i8
     TypedInteger(TypedInteger),
 
-    // Literal type, e.g. string, User or integer/u8
+    /// Identifier (variable / core type usage)
     Identifier(String),
 
     /// Endpoint, e.g. @test_a or @test_b
