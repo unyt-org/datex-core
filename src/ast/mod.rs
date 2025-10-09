@@ -226,6 +226,9 @@ pub enum DatexExpression {
         init_expression: Box<DatexExpression>,
     },
 
+    // TODO: Shall we avoid hoisting for type aliases?
+    // This would remove the ability to have recursive type
+    // definitions.
     /// Type declaration, e.g. type MyType = { x: 42, y: "John" };
     TypeDeclaration {
         id: Option<VariableId>,
