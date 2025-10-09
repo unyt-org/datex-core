@@ -1459,6 +1459,23 @@ pub mod tests {
                 InstructionCode::SCOPE_END.into(),
             ]
         );
+
+        // trailing comma
+        let datex_script = "[1, 2, 3,]";
+        let result = compile_and_log(datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::LIST_START.into(),
+                InstructionCode::INT_8.into(),
+                1,
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::SCOPE_END.into(),
+            ]
+        );
     }
 
     // Test list with expressions inside
