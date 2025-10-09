@@ -482,6 +482,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Map(map) => {
+            // TODO: Handle string keyed maps (structs)
             compilation_context
                 .append_instruction_code(InstructionCode::MAP_START);
             for (key, value) in map {
@@ -1006,25 +1007,6 @@ fn compile_key_value_entry(
             )?;
         }
     };
-    // insert value
-    scope = compile_expression(
-        compilation_scope,
-        AstWithMetadata::new(value, metadata),
-        CompileMetadata::default(),
-        scope,
-    )?;
-    Ok(scope)
-}
-
-fn compile_struct_key_value_entry(
-    compilation_scope: &CompilationContext,
-    key: String,
-    value: DatexExpression,
-    metadata: &Rc<RefCell<AstMetadata>>,
-    mut scope: CompilationScope,
-) -> Result<CompilationScope, CompilerError> {
-    // insert key string
-    compilation_scope.insert_key_string(&key);
     // insert value
     scope = compile_expression(
         compilation_scope,
