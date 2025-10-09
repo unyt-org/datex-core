@@ -264,6 +264,7 @@ pub enum DatexExpression {
 
     PointerAddress(PointerAddress),
 
+    // TODO struct instead of tuple
     BinaryOperation(
         BinaryOperator,
         Box<DatexExpression>,
