@@ -15,7 +15,8 @@
     "fmt": {
         "indentWidth": 4,
         "exclude": [
-            "./tests/json/expected_results/**/*"
+            "./tests/json/expected_results/**/*",
+            "./benches/json/**.json"
         ]
     }
 }
