@@ -217,6 +217,7 @@ pub enum DatexExpression {
         else_branch: Option<Box<DatexExpression>>,
     },
 
+    // TODO: Give information on type kind (nominal & structural)
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
     VariableDeclaration {
         id: Option<VariableId>,
