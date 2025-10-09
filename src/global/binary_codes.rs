@@ -297,7 +297,7 @@ pub enum InternalSlot {
 pub enum TypeSpaceInstructionCode {
     TYPE_REFERENCE,
 
-    TYPE_ARRAY_START,
+    TYPE_LIST_START,
     TYPE_SCOPE_END,
 
     TYPE_LITERAL_INTEGER,

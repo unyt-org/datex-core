@@ -7,11 +7,11 @@ mod tests {
     use crate::assert_structural_eq;
     use crate::decompiler::DecompileOptions;
     use crate::logger::init_logger_debug;
-    use crate::traits::structural_eq::StructuralEq;
     use crate::serde::{
         deserializer::{from_bytes, from_value_container},
         serializer::{to_bytes, to_value_container},
     };
+    use crate::traits::structural_eq::StructuralEq;
     use crate::values::value_container::ValueContainer;
     use datex_core::decompiler::decompile_body;
     use log::info;
@@ -143,14 +143,14 @@ mod tests {
         let deserialized: bool = from_bytes(&result.unwrap()).unwrap();
         assert_eq!(val, deserialized);
 
-        // null
+        // option
         let val: Option<()> = None;
         let result = to_bytes(&val);
         assert!(result.is_ok());
         let deserialized: Option<()> = from_bytes(&result.unwrap()).unwrap();
         assert_eq!(val, deserialized);
 
-        // array
+        // vec
         let val = vec![1, 2, 3];
         let result = to_bytes(&val);
         assert!(result.is_ok());

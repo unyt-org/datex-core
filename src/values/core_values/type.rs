@@ -79,7 +79,7 @@ impl Type {
         }
     }
 
-    /// Creates a new structural array type.
+    /// Creates a new structural list type.
     pub fn list(element_types: Vec<TypeContainer>) -> Self {
         Type {
             type_definition: TypeDefinition::Structural(
@@ -168,7 +168,7 @@ impl Type {
     /// integer -> integer
     /// 42u8 -> integer
     /// 42 -> integer
-    /// Array<string> -> Array
+    /// User/variant -> User
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
         // has direct base type (e.g. integer/u8 -> integer)
         if let Some(base_type) = &self.base_type {
@@ -342,8 +342,8 @@ impl From<&CoreValue> for Type {
             CoreValue::Endpoint(e) => {
                 Type::structural(StructuralTypeDefinition::Endpoint(e.clone()))
             }
-            CoreValue::List(array) => {
-                let types = array
+            CoreValue::List(list) => {
+                let types = list
                     .iter()
                     .map(|v| Type::from(v.to_value().borrow().inner.clone()))
                     .collect::<Vec<_>>();

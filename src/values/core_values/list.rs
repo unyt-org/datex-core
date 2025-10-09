@@ -161,8 +161,8 @@ macro_rules! datex_list {
 impl TryFrom<CoreValue> for List {
     type Error = ValueError;
     fn try_from(value: CoreValue) -> Result<Self, Self::Error> {
-        if let Some(array) = value.cast_to_list() {
-            return Ok(array);
+        if let Some(list) = value.cast_to_list() {
+            return Ok(list);
         }
         Err(ValueError::TypeConversionError)
     }

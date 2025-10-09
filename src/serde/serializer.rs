@@ -811,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    fn serializer_into_inner_object() {
+    fn serializer_into_inner_map() {
         let mut serializer = DatexSerializer::new();
         let s = TestStruct {
             field1: "Hello".to_string(),

@@ -1122,7 +1122,7 @@ fn iterate_type_instructions(
     gen move {
         for instruction in instructions {
             match instruction {
-                TypeInstruction::ArrayStart => {
+                TypeInstruction::ListStart => {
                     interrupt_with_result!(
                         interrupt_provider,
                         ExecutionStep::Pause
@@ -1360,14 +1360,14 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             inner: CoreValue::List(list),
             ..
         }) => {
-            // append value to array
+            // append value to list
             list.push(value);
         }
         ValueContainer::Value(Value {
             inner: CoreValue::Map(map),
             ..
         }) => {
-            // append value to array
+            // append value to list
             panic!("append {:?}", value);
         }
         _ => {
@@ -1749,31 +1749,31 @@ mod tests {
     }
 
     #[test]
-    fn empty_array() {
+    fn empty_list() {
         let result = execute_datex_script_debug_with_result("[]");
-        let array: List = result.to_value().borrow().cast_to_list().unwrap();
-        assert_eq!(array.len(), 0);
+        let list: List = result.to_value().borrow().cast_to_list().unwrap();
+        assert_eq!(list.len(), 0);
         assert_eq!(result, Vec::<ValueContainer>::new().into());
         assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
     }
 
     #[test]
-    fn array() {
+    fn list() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
-        let array: List = result.to_value().borrow().cast_to_list().unwrap();
+        let list: List = result.to_value().borrow().cast_to_list().unwrap();
         let expected = datex_list![
             Integer::from(1i8),
             Integer::from(2i8),
             Integer::from(3i8)
         ];
-        assert_eq!(array.len(), 3);
+        assert_eq!(list.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
         assert_structural_eq!(result, ValueContainer::from(vec![1, 2, 3]));
     }
 
     #[test]
-    fn array_with_nested_scope() {
+    fn list_with_nested_scope() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
         let expected = datex_list![

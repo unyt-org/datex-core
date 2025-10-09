@@ -1,14 +1,11 @@
 use crate::ast::error::pattern::Pattern;
+use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexParserTrait};
-use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApplyOperation {
-    /// Apply an array type to an argument
-    ArrayType,
-
     /// Apply a function to an argument
     FunctionCall(DatexExpression),
     /// Apply a property access to an argument
@@ -37,9 +34,6 @@ pub fn chain_without_whitespace_apply<'a>(
                     .padded_by(whitespace())
                     .ignore_then(key)
                     .map(ApplyOperation::PropertyAccess),
-                just(Token::LeftBracket)
-                    .ignore_then(just(Token::RightBracket))
-                    .map(|_| ApplyOperation::ArrayType),
             ))
             .repeated()
             .collect::<Vec<_>>(),
@@ -55,8 +49,8 @@ pub fn chain_without_whitespace_apply<'a>(
 }
 
 pub fn keyed_parameters<'a>(
-    key: impl DatexParserTrait<'a>, 
-    expression: impl DatexParserTrait<'a>
+    key: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     key.then_ignore(just(Token::Colon).padded_by(whitespace()))
         .then(expression.clone())
@@ -71,7 +65,7 @@ pub fn keyed_parameters<'a>(
 }
 
 pub fn indexed_parameters<'a>(
-    expression: impl DatexParserTrait<'a>
+    expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     expression
         .clone()
@@ -119,9 +113,6 @@ pub fn chain<'a>(
                     .padded_by(whitespace())
                     .ignore_then(key)
                     .map(ApplyOperation::PropertyAccess),
-                just(Token::LeftBracket)
-                    .ignore_then(just(Token::RightBracket))
-                    .map(|_| ApplyOperation::ArrayType),
             ))
             .repeated()
             .collect::<Vec<_>>(),

@@ -1,10 +1,10 @@
-// object
+// map
 {'x':1 };
 
-// array
+// list
 [1,2,x];
 
-// nested array
+// nested list
 [1,2, [1,2,[3,4, (1,4)]]];
 
 // tuple

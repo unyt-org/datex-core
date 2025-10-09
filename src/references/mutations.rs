@@ -25,7 +25,7 @@ impl Reference {
         Ok(())
     }
 
-    /// Sets a property on the value if applicable (e.g. for objects and structs)
+    /// Sets a property on the value if applicable (e.g. for maps)
     pub fn try_set_property(
         &self,
         source_id: TransceiverId,
@@ -38,13 +38,13 @@ impl Reference {
             self.with_value_unchecked(|value| {
                 match value.inner {
                     CoreValue::Map(ref mut map) => {
-                        // If the value is an object, set the property
+                        // If the value is an map, set the property
                         map.try_set(key.clone(), val.clone())?;
                     }
                     _ => {
-                        // If the value is not an object, we cannot set a property
+                        // If the value is not an map, we cannot set a property
                         return Err(AccessError::InvalidOperation(format!(
-                            "Cannot set property '{}' on non-object value: {:?}",
+                            "Cannot set property '{}' on non-map value: {:?}",
                             key, value
                         )));
                     }
@@ -66,18 +66,18 @@ impl Reference {
         memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
         self.handle_update(source_id, move || {
-            // Ensure the value is a reference if it is a combined value (e.g. an object)
+            // Ensure the value is a reference if it is a combined value (e.g. a map)
             let val = val.upgrade_combined_value_to_reference();
             self.with_value_unchecked(|value| {
                 match value.inner {
-                    CoreValue::Map(ref mut obj) => {
-                        // If the value is an object, set the property
-                        obj.try_set(key, val.clone())?;
+                    CoreValue::Map(ref mut map) => {
+                        // If the value is an map, set the property
+                        map.try_set(key, val.clone())?;
                     }
                     _ => {
-                        // If the value is not an object, we cannot set a property
+                        // If the value is not an map, we cannot set a property
                         return Err(AccessError::InvalidOperation(format!(
-                            "Cannot set property '{}' on non-object value: {:?}",
+                            "Cannot set property '{}' on non-map value: {:?}",
                             key, value
                         )));
                     }
@@ -121,7 +121,7 @@ impl Reference {
                     }
                     _ => {
                         return Err(AccessError::InvalidOperation(format!(
-                            "Cannot set numeric property '{}' on non-array/list/text value: {:?}",
+                            "Cannot set numeric property '{}' on non-list/text value: {:?}",
                             index, value
                         )));
                     }
@@ -156,7 +156,7 @@ impl Reference {
         })
     }
 
-    /// Pushes a value to the reference if it is a list or array.
+    /// Pushes a value to the reference if it is a list.
     pub fn try_push_value<T: Into<ValueContainer>>(
         &self,
         source_id: TransceiverId,
@@ -173,7 +173,7 @@ impl Reference {
                     }
                     _ => {
                         return Err(AccessError::InvalidOperation(format!(
-                            "Cannot push value to non-list/array value: {:?}",
+                            "Cannot push value to non-list value: {:?}",
                             core_value
                         )));
                     }
@@ -183,7 +183,7 @@ impl Reference {
         })        
     }
 
-    /// Tries to delete a property from the reference if it is a map/object.
+    /// Tries to delete a property from the reference if it is a map.
     /// Notifies observers if successful.
     pub fn try_delete_property(
         &self,
@@ -200,7 +200,7 @@ impl Reference {
                     }
                     _ => {
                         return Err(AccessError::InvalidOperation(format!(
-                            "Cannot delete property '{:?}' on non-object value: {:?}",
+                            "Cannot delete property '{:?}' on non-map value: {:?}",
                             key, value
                         )));
                     }
@@ -333,7 +333,7 @@ mod tests {
         );
         assert_matches!(result, Err(AccessError::IndexOutOfBounds(5)));
 
-        // Try to set index on non-array value
+        // Try to set index on non-map value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result = int_ref.try_set_numeric_property(
             0,

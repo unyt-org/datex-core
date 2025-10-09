@@ -1,8 +1,8 @@
+use crate::ast::TypeExpression;
 use crate::ast::chain::ApplyOperation;
 use crate::decompiler::DecompileOptions;
 use datex_core::ast::DatexExpression;
 use datex_core::decompiler::Formatting;
-use crate::ast::TypeExpression;
 
 #[derive(Clone, Default)]
 enum BraceStyle {
@@ -48,12 +48,7 @@ pub fn ast_to_source_code(
         DatexExpression::Endpoint(e) => e.to_string(),
         DatexExpression::Null => "null".to_string(),
         DatexExpression::Literal(l) => l.to_string(),
-        DatexExpression::List(arr) => {
-            array_to_source_code(arr, decompile_options)
-        }
-        DatexExpression::Map(map) => {
-            map_to_source_code(map, decompile_options)
-        }
+        DatexExpression::Map(map) => map_to_source_code(map, decompile_options),
         DatexExpression::List(elements) => {
             list_to_source_code(elements, decompile_options)
         }
@@ -134,7 +129,6 @@ fn type_expression_to_source_code(
     }
 }
 
-
 /// Converts a DatexExpression key into source code, adding parentheses if necessary
 fn key_to_source_code(
     key: &DatexExpression,
@@ -149,18 +143,6 @@ fn key_to_source_code(
 }
 
 /// Converts the contents of a DatexExpression::List into source code
-fn array_to_source_code(
-    arr: &[DatexExpression],
-    decompile_options: &DecompileOptions,
-) -> String {
-    let elements: Vec<String> = arr
-        .iter()
-        .map(|e| ast_to_source_code(e, decompile_options))
-        .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Square)
-}
-
-/// Converts the contents of a DatexExpression::List into source code
 fn list_to_source_code(
     arr: &[DatexExpression],
     decompile_options: &DecompileOptions,
@@ -171,7 +153,6 @@ fn list_to_source_code(
         .collect();
     join_elements(elements, &decompile_options.formatting, BraceStyle::Paren)
 }
-
 
 /// Converts the contents of a DatexExpression::Map into source code
 fn map_to_source_code(
@@ -372,14 +353,14 @@ mod tests {
             formatting: Formatting::multiline(),
             ..Default::default()
         };
-        // short array should still be single line
-        let array_ast = DatexExpression::List(vec![
+        // short list should still be single line
+        let list_ast = DatexExpression::List(vec![
             DatexExpression::Integer(1.into()),
             DatexExpression::Integer(2.into()),
             DatexExpression::Integer(3.into()),
         ]);
         assert_eq!(
-            ast_to_source_code(&array_ast, &compile_options_multiline),
+            ast_to_source_code(&list_ast, &compile_options_multiline),
             "[1, 2, 3]"
         );
 

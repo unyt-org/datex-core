@@ -61,7 +61,10 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
         CoreValue::Map(map) => DatexExpression::Map(
             map.into_iter()
                 .map(|(key, value)| {
-                    (DatexExpression::from(&ValueContainer::from(key)), DatexExpression::from(value))
+                    (
+                        DatexExpression::from(&ValueContainer::from(key)),
+                        DatexExpression::from(value),
+                    )
                 })
                 .collect(),
         ),
@@ -146,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn test_array_to_ast() {
+    fn test_list_to_ast() {
         let value = ValueContainer::from(vec![
             Integer::from(1),
             Integer::from(2),

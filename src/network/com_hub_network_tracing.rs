@@ -515,12 +515,12 @@ impl ComHub {
         );
         let hops_datex = execute_dxb_sync(exec_input).unwrap().unwrap();
         if let ValueContainer::Value(Value {
-            inner: CoreValue::List(array),
+            inner: CoreValue::List(list),
             ..
         }) = hops_datex
         {
             let mut hops: Vec<NetworkTraceHop> = vec![];
-            for value in array {
+            for value in list {
                 if let ValueContainer::Value(Value {
                     inner: CoreValue::Map(obj),
                     ..

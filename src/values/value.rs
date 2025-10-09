@@ -224,7 +224,6 @@ mod tests {
         assert_eq!(c[0], 1.into());
         assert_eq!(c[1], "test".into());
         assert_eq!(c[2], 3.into());
-        debug!("Array: {c}");
     }
 
     #[test]

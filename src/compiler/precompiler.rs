@@ -448,9 +448,6 @@ fn visit_expression(
                             NewScopeType::NewScope,
                         )?;
                     }
-                    ApplyOperation::ArrayType => {
-                        todo!("Handle ArrayType in precompiler")
-                    }
                 }
             }
         }

@@ -8,7 +8,7 @@ pub enum CollectionTypeDefinition {
     List(Box<TypeContainer>),
 
     // e.g. [integer; 5]
-    ArraySlice(Box<TypeContainer>, usize),
+    ListSlice(Box<TypeContainer>, usize),
 
     // e.g. {string: integer}
     Map {
@@ -21,7 +21,7 @@ impl Display for CollectionTypeDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CollectionTypeDefinition::List(ty) => write!(f, "[{}]", ty),
-            CollectionTypeDefinition::ArraySlice(ty, size) => {
+            CollectionTypeDefinition::ListSlice(ty, size) => {
                 write!(f, "[{}; {}]", ty, size)
             }
             CollectionTypeDefinition::Map { key, value } => {

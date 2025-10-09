@@ -580,8 +580,8 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
                 //info!("Instruction code: {:?}", instruction_code);
 
                 yield match instruction_code {
-                    TypeSpaceInstructionCode::TYPE_ARRAY_START => {
-                        Ok(TypeInstruction::ArrayStart)
+                    TypeSpaceInstructionCode::TYPE_LIST_START => {
+                        Ok(TypeInstruction::ListStart)
                     }
                     TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER => {
                         let integer_data = IntegerData::read(reader);

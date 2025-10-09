@@ -30,7 +30,7 @@ impl From<usize> for SpanOrToken {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
     Custom(HashSet<String>),
-    InvalidArraySize(String),
+    InvalidListSize(String),
     InvalidEndpoint(InvalidEndpointError),
     NumberParseError(NumberParseError),
     UnexpectedEnd,
@@ -192,8 +192,8 @@ impl ParseError {
 
     pub fn message(&self) -> String {
         match &self.kind {
-            ErrorKind::InvalidArraySize(size) => {
-                format!("Invalid array size: {}", size)
+            ErrorKind::InvalidListSize(size) => {
+                format!("Invalid list size: {}", size)
             }
             ErrorKind::Custom(msg) => {
                 msg.iter().cloned().collect::<Vec<_>>().join(" | ")
@@ -237,8 +237,8 @@ impl ParseError {
     pub fn label(&self) -> String {
         use ariadne::{Color, Fmt};
         match &self.kind {
-            ErrorKind::InvalidArraySize(size) => {
-                format!("Invalid array size: {}", size.fg(Color::Red))
+            ErrorKind::InvalidListSize(size) => {
+                format!("Invalid list size: {}", size.fg(Color::Red))
             }
             ErrorKind::NumberParseError(_) => "Number parse error".to_string(),
             ErrorKind::UnexpectedEnd => "End of input".to_string(),

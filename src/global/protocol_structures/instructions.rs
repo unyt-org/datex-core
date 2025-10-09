@@ -291,7 +291,7 @@ impl Display for Instruction {
 pub enum TypeInstruction {
     LiteralText(TextData),
     LiteralInteger(IntegerData),
-    ArrayStart,
+    ListStart,
     ScopeEnd,
 }
 
@@ -304,7 +304,7 @@ impl Display for TypeInstruction {
             TypeInstruction::LiteralInteger(data) => {
                 write!(f, "LITERAL_INTEGER {}", data.0)
             }
-            TypeInstruction::ArrayStart => write!(f, "ARRAY_START"),
+            TypeInstruction::ListStart => write!(f, "LIST_START"),
             TypeInstruction::ScopeEnd => write!(f, "SCOPE_END"),
         }
     }

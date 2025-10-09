@@ -135,7 +135,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 			))
 			.padded_by(whitespace());
 
-        let array_inline = ty
+        let list_inline = ty
             .clone()
             .padded_by(whitespace())
             .separated_by(just(Token::Comma))
@@ -149,7 +149,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 TypeExpression::StructuralList(elems)
             });
 
-        let array_fixed_inline = ty
+        let list_fixed_inline = ty
             .clone()
             .then_ignore(just(Token::Semicolon).padded_by(whitespace()))
             .then(integer().clone())
@@ -163,7 +163,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 {
                     Ok(TypeExpression::FixedSizeList(Box::new(t), n))
                 } else {
-                    Err(ParseError::new(ErrorKind::InvalidArraySize(format!(
+                    Err(ParseError::new(ErrorKind::InvalidListSize(format!(
                         "{size:?}"
                     ))))
                 }
@@ -282,8 +282,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             reference.clone(),
             func.clone(),
             literal.clone(),
-            array_inline.clone(),
-            array_fixed_inline.clone(),
+            list_inline.clone(),
+            list_fixed_inline.clone(),
             structural_map.clone(),
             generic.clone(),
             paren_group.clone(),
@@ -344,6 +344,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 .map(Some),
         )));
 
+        // TODO: consider and update accordingly
         let postfix_array = just(Token::LeftBracket).ignore_then(choice((
             // Slice: []
             just(Token::RightBracket).to(None),
@@ -363,7 +364,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                             }
                             _ => {
                                 return Err(ParseError::new(
-                                    ErrorKind::InvalidArraySize(format!(
+                                    ErrorKind::InvalidListSize(format!(
                                         "{n:?}"
                                     )),
                                 ));
@@ -712,7 +713,7 @@ mod tests {
     }
 
     #[test]
-    fn array() {
+    fn structural_list() {
         let src = "[1, 2, 3, 4]";
         let val = parse_type_unwrap(src);
         assert_eq!(
@@ -748,7 +749,7 @@ mod tests {
     }
 
     #[test]
-    fn array_sized_1() {
+    fn fixed_sized_list_1() {
         let src = "integer[10]";
         let val = parse_type_unwrap(src);
         assert_eq!(
@@ -774,7 +775,7 @@ mod tests {
     }
 
     #[test]
-    fn array_sized_2() {
+    fn fixed_sized_list_2() {
         let src = "[text; 4]";
         let val = parse_type_unwrap(src);
         assert_eq!(
@@ -807,7 +808,7 @@ mod tests {
     }
 
     #[test]
-    fn array_slice() {
+    fn slice_list() {
         let src = "text[]";
         let val = parse_type_unwrap(src);
         assert_eq!(

@@ -417,7 +417,7 @@ where
     //.labelled(Pattern::Custom("wrapped"))
     //.as_context();
 
-    // a valid object/list key
+    // a valid map/list key
     // (1: value), "key", 1, (("x"+"y"): 123)
     let key = key(wrapped_expression.clone()).labelled(Pattern::Custom("key"));
 
@@ -2962,25 +2962,25 @@ mod tests {
             Integer::from(3).into(),
             Decimal::from_string("0.5").unwrap().into(),
         ];
-        let value_container_inner_object: ValueContainer =
+        let value_container_inner_map: ValueContainer =
             ValueContainer::from(Map::from(
                 vec![("key".to_string(), "value".to_string().into())]
                     .into_iter()
                     .collect::<HashMap<String, ValueContainer>>(),
             ));
-        let value_container_object: ValueContainer =
+        let value_container_map: ValueContainer =
             ValueContainer::from(Map::from(
                 vec![
                     ("name".to_string(), "Test".to_string().into()),
                     ("value".to_string(), Integer::from(42).into()),
                     ("active".to_string(), true.into()),
                     ("items".to_string(), value_container_list.into()),
-                    ("nested".to_string(), value_container_inner_object),
+                    ("nested".to_string(), value_container_inner_map),
                 ]
                 .into_iter()
                 .collect::<HashMap<String, ValueContainer>>(),
             ));
-        assert_eq!(val, value_container_object);
+        assert_eq!(val, value_container_map);
     }
 
     #[test]

@@ -213,7 +213,7 @@ fn resolve_type_expression_type(
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, TypeError> {
     // First, try to directly match the type expression to a structural type definition.
-    // This covers literals and composite types like structs and arrays.
+    // This covers literals and composite types like maps and lists.
     // If that fails, handle more complex type expressions like variables, unions, and intersections.
     if let Some(res) = match ast {
         TypeExpression::Integer(value) => {

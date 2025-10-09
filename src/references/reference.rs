@@ -388,7 +388,7 @@ impl Reference {
     }
 
     /// Checks if the reference has property access.
-    /// This is true for objects and structs, arrays and lists and text.
+    /// This is true for maps, lists and text.
     /// For other types, this returns false.
     /// Note that this does not check if a specific property exists, only if property access is
     /// generally possible.
@@ -410,7 +410,7 @@ impl Reference {
     }
 
     /// Checks if the reference has numeric property access.
-    /// This is true for arrays and lists and text.
+    /// This is true for maps, lists and text.
     pub fn supports_numeric_property_access(&self) -> bool {
         self.with_value(|value| {
             matches!(
@@ -666,7 +666,7 @@ impl Reference {
         }
     }
 
-    /// upgrades all inner combined values (e.g. object properties) to references
+    /// upgrades all inner combined values (e.g. map properties) to references
     pub fn upgrade_inner_combined_values_to_references(&self) {
         self.with_value(|value| {
             match &mut value.inner {
@@ -679,7 +679,7 @@ impl Reference {
                 }
                 // TODO: other combined value types should be added here
                 _ => {
-                    // If the value is not an object, we do not need to upgrade anything
+                    // If the value is not an map, we do not need to upgrade anything
                 }
             }
         });
@@ -768,14 +768,14 @@ impl Reference {
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Map(ref mut map) => {
-                    // If the value is an object, get the property
+                    // If the value is an map, get the property
                     Ok(map
                         .get(&key)
                         .ok_or(AccessError::PropertyNotFound(key.to_string()))?
                         .clone())
                 }
                 _ => {
-                    // If the value is not an object, we cannot get a property
+                    // If the value is not an map, we cannot get a property
                     Err(AccessError::InvalidOperation(
                         "Cannot get property".to_string(),
                     ))
@@ -801,7 +801,7 @@ impl Reference {
                     })
                     .cloned(),
                 _ => {
-                    // If the value is not an object, we cannot get a property
+                    // If the value is not an map, we cannot get a property
                     Err(AccessError::InvalidOperation(
                         "Cannot get property".to_string(),
                     ))
@@ -813,7 +813,7 @@ impl Reference {
         )))
     }
 
-    /// Gets a numeric property from the value if applicable (e.g. for arrays, lists and text)
+    /// Gets a numeric property from the value if applicable (e.g. for lists and text)
     pub fn get_numeric_property(
         &self,
         index: u32,
@@ -918,10 +918,10 @@ mod tests {
 
     #[test]
     fn property() {
-        let mut object = Map::default();
-        object.set("name", ValueContainer::from("Jonas"));
-        object.set("age", ValueContainer::from(30));
-        let reference = Reference::from(ValueContainer::from(object));
+        let mut map = Map::default();
+        map.set("name", ValueContainer::from("Jonas"));
+        map.set("age", ValueContainer::from(30));
+        let reference = Reference::from(ValueContainer::from(map));
         assert_eq!(
             reference.try_get_property("name").unwrap(),
             ValueContainer::from("Jonas")
@@ -961,12 +961,12 @@ mod tests {
 
     #[test]
     fn numeric_property() {
-        let array = vec![
+        let list = vec![
             ValueContainer::from(1),
             ValueContainer::from(2),
             ValueContainer::from(3),
         ];
-        let reference = Reference::from(ValueContainer::from(array));
+        let reference = Reference::from(ValueContainer::from(list));
 
         assert_eq!(
             reference.get_numeric_property(0).unwrap(),
@@ -1046,15 +1046,15 @@ mod tests {
         set_global_context(GlobalContext::native());
         let memory = &RefCell::new(Memory::default());
 
-        let mut object_a = Map::default();
-        object_a.set("number", ValueContainer::from(42));
-        object_a.set("obj", ValueContainer::new_reference(Map::default()));
+        let mut map_a = Map::default();
+        map_a.set("number", ValueContainer::from(42));
+        map_a.set("obj", ValueContainer::new_reference(Map::default()));
 
-        // construct object_a as a value first
-        let object_a_val = ValueContainer::new_value(object_a);
+        // construct map_a as a value first
+        let map_a_val = ValueContainer::new_value(map_a);
 
-        // create object_b as a reference
-        let object_b_ref = Reference::try_new_from_value_container(
+        // create map_b as a reference
+        let map_b_ref = Reference::try_new_from_value_container(
             Map::default().into(),
             None,
             None,
@@ -1062,24 +1062,24 @@ mod tests {
         )
         .unwrap();
 
-        // set object_a as property of b. This should create a reference to a clone of object_a that
+        // set map_a as property of b. This should create a reference to a clone of map_a that
         // is upgraded to a reference
-        object_b_ref
-            .try_set_property(0, "a".into(), object_a_val.clone(), memory)
+        map_b_ref
+            .try_set_property(0, "a".into(), map_a_val.clone(), memory)
             .unwrap();
 
-        // assert that the reference to object_a is set correctly
-        let object_a_ref = object_b_ref.try_get_property("a").unwrap();
-        assert_structural_eq!(object_a_ref, object_a_val);
-        // object_a_ref should be a reference
-        assert_matches!(object_a_ref, ValueContainer::Reference(_));
-        object_a_ref.with_maybe_reference(|a_ref| {
-            // object_a_ref.number should be a value
+        // assert that the reference to map_a is set correctly
+        let map_a_ref = map_b_ref.try_get_property("a").unwrap();
+        assert_structural_eq!(map_a_ref, map_a_val);
+        // map_a_ref should be a reference
+        assert_matches!(map_a_ref, ValueContainer::Reference(_));
+        map_a_ref.with_maybe_reference(|a_ref| {
+            // map_a_ref.number should be a value
             assert_matches!(
                 a_ref.try_get_property("number"),
                 Ok(ValueContainer::Value(_))
             );
-            // object_a_ref.obj should be a reference
+            // map_a_ref.obj should be a reference
             assert_matches!(
                 a_ref.try_get_property("obj"),
                 Ok(ValueContainer::Reference(_))

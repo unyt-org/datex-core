@@ -1,4 +1,5 @@
 use crate::libs::core::CoreLibPointerId;
+use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
@@ -6,7 +7,6 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
-use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
@@ -254,7 +254,7 @@ mod tests {
         let text_type = StructuralTypeDefinition::Text(Text::from("Hello"));
         assert_eq!(text_type.to_string(), r#""Hello""#);
 
-        let array_type = StructuralTypeDefinition::List(vec![
+        let list_type = StructuralTypeDefinition::List(vec![
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
                 1,
             )))
@@ -264,7 +264,7 @@ mod tests {
             )))
             .into(),
         ]);
-        assert_eq!(array_type.to_string(), r#"[1, "World"]"#);
+        assert_eq!(list_type.to_string(), r#"[1, "World"]"#);
 
         let struct_type = StructuralTypeDefinition::Map(vec![
             (

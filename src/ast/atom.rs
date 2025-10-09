@@ -7,13 +7,13 @@ use crate::ast::text::text;
 use chumsky::prelude::*;
 
 pub fn atom<'a>(
-    array: impl DatexParserTrait<'a>,
-    object: impl DatexParserTrait<'a>,
+    list: impl DatexParserTrait<'a>,
+    map: impl DatexParserTrait<'a>,
     wrapped_expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
-        array,
-        object,
+        list,
+        map,
         literal(),
         decimal(),
         integer(),

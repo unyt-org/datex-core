@@ -91,7 +91,7 @@ impl<'de> DatexDeserializer {
     /// This will extract a static value from the script without executing it
     /// and use that value for deserialization
     /// If no static value is found, an error is returned
-    /// This is useful for deserializing simple values like integers, strings, arrays, objects
+    /// This is useful for deserializing simple values like integer, text, map and list
     /// without the need to execute the script
     /// Note: This does not support expressions or computations in the script
     /// For example, the script `{ "key": 42 }` will work, but the script `{ "key": 40 + 2 }` will not
@@ -291,7 +291,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         ))
     }
 
-    /// Deserialize tuple structs from arrays in the value container
+    /// Deserialize tuple structs from a list in the value container
     /// For example:
     ///     struct MyTupleStruct(i32, String);
     /// will be deserialized from:
@@ -315,7 +315,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             ))
         } else {
             Err(DeserializationError::Custom(
-                "expected object for tuple struct".to_string(),
+                "expected map for tuple struct".to_string(),
             ))
         }
     }
@@ -346,7 +346,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
 
     /// Deserialize identifiers from various formats:
     /// - Direct text: "identifier"
-    /// - Single-key object: {"Identifier": ...}
+    /// - Single-key map: {"Identifier": ...}
     /// - Tuple with single text element: ("identifier", ...)
     fn deserialize_identifier<V>(
         self,
@@ -362,7 +362,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 ..
             }) => visitor.visit_string(s.0),
 
-            // Single-key object {"Identifier": ...}
+            // Single-key map {"Identifier": ...}
             ValueContainer::Value(Value {
                 inner: CoreValue::Map(o),
                 ..
@@ -378,7 +378,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     }
                 } else {
                     Err(DeserializationError::Custom(
-                        "Expected single-key object for identifier".to_string(),
+                        "Expected single-key map for identifier".to_string(),
                     ))
                 }
             }
@@ -419,14 +419,14 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 })
             }
 
-            // Object with single key = variant name
+            // Map with single key = variant name
             ValueContainer::Value(Value {
                 inner: CoreValue::Map(o),
                 ..
             }) => {
                 if o.size() != 1 {
                     return Err(DeserializationError::Custom(
-                        "Expected single-key object for enum".to_string(),
+                        "Expected single-key map for enum".to_string(),
                     ));
                 }
 
