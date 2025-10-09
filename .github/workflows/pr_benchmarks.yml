@@ -1,7 +1,7 @@
 on:
     pull_request:
         types: [opened, reopened, edited, synchronize]
-        
+
 jobs:
     benchmark_pr_branch:
         concurrency:
@@ -17,16 +17,16 @@ jobs:
             - name: Cache dependencies
               uses: actions/cache@v4
               env:
-                cache-name: cache-dependencies
+                  cache-name: cache-dependencies
               with:
-                path: |
-                  ~/.cargo/.crates.toml
-                  ~/.cargo/.crates2.json
-                  ~/.cargo/bin
-                  ~/.cargo/registry/index
-                  ~/.cargo/registry/cache
-                  target
-                key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+                  path: |
+                      ~/.cargo/.crates.toml
+                      ~/.cargo/.crates2.json
+                      ~/.cargo/bin
+                      ~/.cargo/registry/index
+                      ~/.cargo/registry/cache
+                      target
+                  key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
             - uses: bencherdev/bencher@main
             - name: Install Dependencies
               run: |
