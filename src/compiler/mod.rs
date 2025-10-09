@@ -1978,6 +1978,7 @@ pub mod tests {
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
 
+        // because of unary - 42
         let script = "-42";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
