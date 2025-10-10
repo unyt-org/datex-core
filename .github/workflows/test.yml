@@ -19,6 +19,11 @@ jobs:
                   sudo apt update
                   sudo apt install -y libudev-dev pkg-config
 
+            - name: Install Deno
+              uses: denoland/setup-deno@v2
+              with:
+                deno-version: v2.x
+
             - uses: dtolnay/rust-toolchain@stable
               with:
                   toolchain: nightly
