@@ -1,7 +1,8 @@
-/// End-to-end execution tests, including compiling values
-/// and executing them, both locally and remotely.
+/// Runtime execution tests that validate that values are consistent through
+/// the compile and execution process.
+/// Any value passed as input should be returned exactly as it was passed in after compilation and execution.
+
 use datex_core::compile;
-use datex_core::logger::init_logger_debug;
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };

@@ -75,7 +75,7 @@ crate and provides a command line interface for the DATEX Runtime.
 
 ### Building the Project
 
-The project is build with Rust Nightly
+The project is built with Rust Nightly
 ([`rustc 1.91.0-nightly`](https://releases.rs/docs/1.91.0/)). To build the
 project, run:
 
