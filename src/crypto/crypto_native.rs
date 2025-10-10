@@ -1,4 +1,5 @@
 use crate::stdlib::{future::Future, pin::Pin};
+use rand::Rng;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
