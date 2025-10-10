@@ -45,6 +45,8 @@ jobs:
               run: |
                   cargo install cargo-nextest;
                   cargo nextest run --profile ci --features debug;
+            - name: Run Struct Tests
+              run: deno task test
             - name: Upload test results
               uses: EnricoMi/publish-unit-test-result-action@v2
               with:
