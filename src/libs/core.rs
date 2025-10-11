@@ -175,8 +175,9 @@ pub fn load_core_lib(memory: &mut Memory) {
                 _ => panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
-        // TODO: dont store variants as separate entries (e.g., integer/u8, integer/i32)
-        // TODO: Instantiate variants directly from base type (e.g., integer -> integer/u8)
+
+        // TODO: dont store variants as separate entries in core_struct (e.g., integer/u8, integer/i32, only keep integer)
+        // Import variants directly by variant access operator from base type (e.g., integer -> integer/u8)
         let core_struct =
             Reference::from(ValueContainer::from(Map::from_iter(structure)));
         core_struct.set_pointer_address(CoreLibPointerId::Core.into());
