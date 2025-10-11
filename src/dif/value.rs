@@ -289,6 +289,8 @@ mod tests {
     use crate::dif::DIFConvertible;
     use crate::runtime::memory::Memory;
     use crate::values::core_values::endpoint::Endpoint;
+    use crate::values::core_values::map::Map;
+    use crate::values::value_container::ValueContainer;
     use crate::{
         dif::{r#type::DIFTypeContainer, value::DIFValue},
         libs::core::CoreLibPointerId,
@@ -309,6 +311,27 @@ mod tests {
 
         let dif = DIFValue::from_value(&Value::from("hello"), &memory);
         assert!(dif.r#type.is_none());
+
+        let dif = DIFValue::from_value(&Value::null(), &memory);
+        assert!(dif.r#type.is_none());
+
+        let dif = DIFValue::from_value(&Value::from(3.5f64), &memory);
+        assert!(dif.r#type.is_none());
+
+        let dif = DIFValue::from_value(
+            &Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]),
+            &memory,
+        );
+        assert!(dif.r#type.is_none());
+
+        let dif = DIFValue::from_value(
+            &Value::from(Map::from(vec![
+                ("a".to_string(), ValueContainer::from(1)),
+                ("b".to_string(), ValueContainer::from(2)),
+            ])),
+            &memory,
+        );
+        assert!(dif.r#type.is_none());
     }
 
     #[test]
@@ -320,6 +343,17 @@ mod tests {
             assert_eq!(
                 reference,
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::U16)).into()
+            );
+        } else {
+            panic!("Expected reference type");
+        }
+
+        let dif = DIFValue::from_value(&Value::from(123i64), &memory);
+        assert!(dif.r#type.is_some());
+        if let DIFTypeContainer::Reference(reference) = dif.r#type.unwrap() {
+            assert_eq!(
+                reference,
+                CoreLibPointerId::Integer(Some(IntegerTypeVariant::I64)).into()
             );
         } else {
             panic!("Expected reference type");
