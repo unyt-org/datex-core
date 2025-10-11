@@ -560,29 +560,6 @@ fn decompile_loop(
                 write!(output, "{endpoint}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::TypeTag(tag_data) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                write!(output, "Tag(")?;
-                // write tag name
-                write!(output, "'{}'", tag_data.name)?;
-                // write tag parameters if any
-                if !tag_data.variants.is_empty() {
-                    write!(output, ",")?;
-                    for (i, param) in tag_data.variants.iter().enumerate() {
-                        if i > 0 {
-                            write!(output, "|")?;
-                        }
-                        write!(output, "'{}'", param.name)?;
-                    }
-                }
-                write!(output, ")")?;
-                handle_after_term(state, &mut output, false)?;
-            }
             Instruction::ListStart => {
                 indentation_levels += 1;
                 handle_before_term(

@@ -22,8 +22,6 @@ pub enum InstructionCode {
     CACHE_POINT,     // cache dxb from this point on
     CACHE_RESET,     // reset dxb scope cache
 
-    TYPE_TAG, // e.g. Tag('integer')
-
     // internal variables and other shorthands 0x30 - 0x4f
     VAR_RESULT,
     SET_VAR_RESULT,

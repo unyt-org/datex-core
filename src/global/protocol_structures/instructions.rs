@@ -27,7 +27,6 @@ pub enum Instruction {
     BigInteger(IntegerData),
 
     Endpoint(Endpoint),
-    TypeTag(TypeTagData),
 
     DecimalF32(Float32Data),
     DecimalF64(Float64Data),
@@ -159,18 +158,6 @@ impl Display for Instruction {
             Instruction::KeyValueDynamic => write!(f, "KEY_VALUE_DYNAMIC"),
             Instruction::KeyValueShortText(data) => {
                 write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
-            }
-            Instruction::TypeTag(data) => {
-                write!(
-                    f,
-                    "TYPE_TAG {}/({})",
-                    data.name,
-                    data.variants
-                        .iter()
-                        .map(|v| v.name.as_str())
-                        .collect::<Vec<&str>>()
-                        .join("|")
-                )
             }
             Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
 
@@ -388,20 +375,6 @@ pub struct TextDataRaw {
     pub length: u32,
     #[br(count = length)]
     pub text: Vec<u8>,
-}
-
-#[derive(BinRead, Clone, Debug, PartialEq)]
-#[brw(little)]
-pub struct TypeTagData {
-    pub name_length: u8,
-    pub variant_count: u32,
-    // name string
-    #[br(count = name_length)]
-    #[br(map = |bytes: Vec<u8>| String::from_utf8(bytes).unwrap())]
-    pub name: String,
-    // variant strings
-    #[br(count = variant_count)]
-    pub variants: Vec<TypeTagVariant>,
 }
 
 #[derive(BinRead, Clone, Debug, PartialEq)]

@@ -5,8 +5,8 @@ use crate::global::protocol_structures::instructions::{
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
     Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress,
     RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress,
-    TextData, TextDataRaw, TypeInstruction, TypeTagData, UInt8Data, UInt16Data,
-    UInt32Data, UInt64Data, UInt128Data,
+    TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data,
+    UInt64Data, UInt128Data,
 };
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::stdlib::fmt;
@@ -311,15 +311,6 @@ pub fn iterate_instructions<'a>(
 
                     InstructionCode::ENDPOINT => get_endpoint_data(&mut reader)
                         .map(Instruction::Endpoint),
-
-                    InstructionCode::TYPE_TAG => {
-                        let type_tag = TypeTagData::read(&mut reader);
-                        if let Err(err) = type_tag {
-                            Err(err.into())
-                        } else {
-                            Ok(Instruction::TypeTag(type_tag.unwrap()))
-                        }
-                    }
 
                     InstructionCode::TEXT => {
                         let text_data = get_text_data(&mut reader);
