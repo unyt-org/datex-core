@@ -54,8 +54,8 @@ fn infer_expression_type(
                 StructuralTypeDefinition::Map(entries),
             ))
         }
-        DatexExpression::List(arr) => {
-            let entries = arr
+        DatexExpression::List(list) => {
+            let entries = list
                 .iter_mut()
                 .map(|v| infer_expression_type(v, metadata.clone()).unwrap())
                 .collect::<Vec<_>>();

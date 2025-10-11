@@ -144,10 +144,10 @@ fn key_to_source_code(
 
 /// Converts the contents of a DatexExpression::List into source code
 fn list_to_source_code(
-    arr: &[DatexExpression],
+    list: &[DatexExpression],
     decompile_options: &DecompileOptions,
 ) -> String {
-    let elements: Vec<String> = arr
+    let elements: Vec<String> = list
         .iter()
         .map(|e| ast_to_source_code(e, decompile_options))
         .collect();

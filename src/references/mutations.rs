@@ -311,23 +311,23 @@ mod tests {
     fn numeric_property() {
         let memory = &RefCell::new(Memory::default());
 
-        let arr = vec![
+        let list = vec![
             ValueContainer::from(1),
             ValueContainer::from(2),
             ValueContainer::from(3),
         ];
-        let arr_ref =
-            Reference::try_mut_from(ValueContainer::from(arr)).unwrap();
+        let list_ref =
+            Reference::try_mut_from(ValueContainer::from(list)).unwrap();
 
         // Set existing index
-        arr_ref
+        list_ref
             .try_set_numeric_property(0, 1, ValueContainer::from(42), memory)
             .expect("Failed to set existing index");
-        let updated_value = arr_ref.get_numeric_property(1).unwrap();
+        let updated_value = list_ref.get_numeric_property(1).unwrap();
         assert_eq!(updated_value, ValueContainer::from(42));
 
         // Try to set out-of-bounds index
-        let result = arr_ref.try_set_numeric_property(
+        let result = list_ref.try_set_numeric_property(
             0,
             5,
             ValueContainer::from(99),
