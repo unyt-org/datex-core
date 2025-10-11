@@ -376,15 +376,6 @@ pub struct TextDataRaw {
     pub text: Vec<u8>,
 }
 
-#[derive(BinRead, Clone, Debug, PartialEq)]
-#[brw(little)]
-pub struct TypeTagVariant {
-    pub length: u8,
-    #[br(count = length)]
-    #[br(map = |bytes: Vec<u8>| String::from_utf8(bytes).unwrap())]
-    pub name: String,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct ShortTextData(pub String);
 
