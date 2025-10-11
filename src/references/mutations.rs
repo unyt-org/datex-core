@@ -169,6 +169,7 @@ impl Reference {
             self.with_value_unchecked(move |core_value| {
                 match &mut core_value.inner {
                     CoreValue::List(list) => {
+                        // TODO: Can we avoid the clone?
                         list.push(value_container.clone());
                     }
                     _ => {
