@@ -536,6 +536,7 @@ where
     ))
 }
 
+/// Parse the given source code into a DatexExpression AST.
 pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
