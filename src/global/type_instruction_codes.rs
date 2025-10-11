@@ -24,7 +24,9 @@ pub enum TypeSpaceInstructionCode {
     TYPE_STRUCT,
 
     // TODO: Do we need std_type for optimization purpose?
-    // Rename to CORE_ and implement
+    // Rename to CORE_ and implement if required
+    // but TYPE TYPE_TEXT is already two bytes which is not a great benefit over the three
+    // bytes for the internal pointer address + GETREF
     STD_TYPE_TEXT,
     STD_TYPE_INT,
     STD_TYPE_FLOAT,
