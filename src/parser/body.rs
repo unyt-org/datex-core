@@ -160,6 +160,7 @@ pub fn iterate_instructions<'a>(
                 let instruction_code = instruction_code.unwrap();
 
                 yield match instruction_code {
+                    // TODO: Refactor with macros to reduce code duplication
                     InstructionCode::UINT_8 => {
                         let data = UInt8Data::read(&mut reader);
                         if let Err(err) = data {
