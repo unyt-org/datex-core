@@ -115,12 +115,6 @@ impl From<PointerAddress> for DIFValueContainer {
     }
 }
 
-#[derive(Debug)]
-pub enum TryIntoDIFError {
-    /// If the ValueContainer contains a Reference that has no pointer address assigned
-    MissingReferenceAddress,
-}
-
 impl DIFValueContainer {
     pub fn from_value_container(
         value_container: &ValueContainer,
@@ -211,9 +205,7 @@ impl DIFValue {
             }
             CoreValue::List(list) => DIFValueRepresentation::Array(
                 list.iter()
-                    .map(|v| {
-                        DIFValueContainer::from_value_container(v, memory)
-                    })
+                    .map(|v| DIFValueContainer::from_value_container(v, memory))
                     .collect(),
             ),
             CoreValue::Map(map) => DIFValueRepresentation::Map(
