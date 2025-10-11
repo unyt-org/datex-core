@@ -144,8 +144,12 @@ pub fn iterate_instructions<'a>(
             let mut reader = Cursor::new(dxb_body);
             loop {
                 // if cursor is at the end, break
-                if !reader.has_data_left().unwrap() {
-                    return;
+                // rationale: We can use safe unwrap here, as our stream is no IO, but only
+                // bytes stream, so we can always access.
+                unsafe {
+                    if !reader.has_data_left().unwrap_unchecked() {
+                        return;
+                    }
                 }
 
                 let instruction_code = get_next_instruction_code(&mut reader);
@@ -550,8 +554,12 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
         move || {
             loop {
                 // if cursor is at the end, break
-                if !reader.has_data_left().unwrap() {
-                    return;
+                unsafe {
+                    // rationale: We can use safe unwrap here, as our stream is no IO, but only
+                    // bytes stream, so we can always access.
+                    if !reader.has_data_left().unwrap_unchecked() {
+                        return;
+                    }
                 }
 
                 let instruction_code = u8::read(reader);
