@@ -222,8 +222,6 @@ impl DIFValue {
             ),
         };
 
-        info!("map type {}", &value.actual_type);
-
         DIFValue {
             value: dif_core_value,
             r#type: get_type_if_non_default(&value.actual_type, memory),
