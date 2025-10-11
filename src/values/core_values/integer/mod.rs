@@ -54,8 +54,6 @@ impl Integer {
         s: &str,
         radix: u32,
     ) -> Result<Self, NumberParseError> {
-        // remove all underscores
-        let s = &s.replace('_', "");
         BigInt::from_str_radix(s, radix)
             .map(Integer)
             .map_err(|_| NumberParseError::InvalidFormat)
