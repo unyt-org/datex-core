@@ -8,6 +8,7 @@ use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::map::MapKey;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -211,10 +212,20 @@ impl DIFValue {
                 map.into_iter()
                     .map(|(k, v)| {
                         (
-                            DIFValueContainer::from_value_container(
-                                &ValueContainer::from(k),
-                                memory,
-                            ),
+                            match k {
+                                MapKey::Text(text_key) => {
+                                    DIFValueContainer::Value(
+                                        DIFValueRepresentation::String(
+                                            text_key.to_string(),
+                                        )
+                                        .into(),
+                                    )
+                                }
+                                _ => DIFValueContainer::from_value_container(
+                                    &ValueContainer::from(k),
+                                    memory,
+                                ),
+                            },
                             DIFValueContainer::from_value_container(v, memory),
                         )
                     })
