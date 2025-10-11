@@ -184,7 +184,7 @@ impl Type {
                 value.get_core_lib_type_pointer_id(),
             ),
             TypeDefinition::Union(_) => {
-                get_core_lib_type_reference(CoreLibPointerId::Union)
+                todo!("handle union base type"); // generic type base type / type
             }
             TypeDefinition::Reference(reference) => {
                 todo!("handle reference base type");

@@ -34,7 +34,6 @@ pub enum CoreLibPointerId {
     List,                                // #core.List
     Map,                                 // #core.Map
     Function,                            // #core.Function
-    Union,                               // #core.Union
     Unit,                                // #core.Unit
 }
 
@@ -52,7 +51,6 @@ impl CoreLibPointerId {
             CoreLibPointerId::Endpoint => 7,
             CoreLibPointerId::Text => 8,
             CoreLibPointerId::List => 9,
-            CoreLibPointerId::Union => 10,
             CoreLibPointerId::Unit => 11,
             CoreLibPointerId::Map => 12,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
@@ -78,7 +76,6 @@ impl CoreLibPointerId {
             7 => Some(CoreLibPointerId::Endpoint),
             8 => Some(CoreLibPointerId::Text),
             9 => Some(CoreLibPointerId::List),
-            10 => Some(CoreLibPointerId::Union),
             11 => Some(CoreLibPointerId::Unit),
             12 => Some(CoreLibPointerId::Map),
 
@@ -196,7 +193,6 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         list(),
         boolean(),
         endpoint(),
-        union(),
         unit(),
         map(),
         null(),
@@ -227,10 +223,6 @@ pub fn list() -> CoreLibTypeDefinition {
 }
 pub fn map() -> CoreLibTypeDefinition {
     create_core_type("Map", None, None, CoreLibPointerId::Map)
-}
-
-pub fn union() -> CoreLibTypeDefinition {
-    create_core_type("Union", None, None, CoreLibPointerId::Union)
 }
 
 pub fn unit() -> CoreLibTypeDefinition {
