@@ -32,6 +32,7 @@ mod precompiler;
 pub mod scope;
 mod type_compiler;
 mod type_inference;
+pub mod workspace;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -377,11 +378,11 @@ macro_rules! compile {
     }
 }
 
-pub fn compile_ast(
-    compilation_context: &CompilationContext,
+/// Precompiles a DATEX expression AST into an AST with metadata.
+pub fn precompile_to_ast_with_metadata(
     ast: DatexExpression,
-    mut scope: CompilationScope,
-) -> Result<CompilationScope, CompilerError> {
+    scope: &mut CompilationScope,
+) -> Result<AstWithMetadata, CompilerError> {
     // if once is set to true in already used, return error
     if scope.once {
         if scope.was_used {
@@ -403,8 +404,19 @@ pub fn compile_ast(
             AstWithMetadata::new_without_metadata(ast)
         };
 
+    Ok(ast_with_metadata)
+}
+
+/// Compiles a DATEX expression AST into a DXB body, using the provided compilation context and scope.
+pub fn compile_ast(
+    compilation_context: &CompilationContext,
+    ast: DatexExpression,
+    mut scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    let ast_with_metadata = precompile_to_ast_with_metadata(ast, &mut scope)?;
     compile_ast_with_metadata(compilation_context, ast_with_metadata, scope)
 }
+
 
 pub fn compile_ast_with_metadata(
     compilation_context: &CompilationContext,
