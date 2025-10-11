@@ -99,29 +99,16 @@ pub enum ReceiverType {
     ReceiversWithKeys = 0b11,
 }
 
+// TODO directly use bytes / pointer address instead of whole struct here
 // 1 byte + 18 byte + 2 byte + 4 byte + 1 byte = 26 bytes
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
-pub struct PointerId {
+pub struct PointerAddress {
     pub pointer_type: u8,
     pub identifier: [u8; 18],
     pub instance: u16,
     pub timestamp: u32,
     pub counter: u8,
-}
-
-impl Display for PointerId {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "PointerId({}, {:?}, {}, {}, {})",
-            self.pointer_type,
-            self.identifier,
-            self.instance,
-            self.timestamp,
-            self.counter
-        )
-    }
 }
 
 // <count>: 1 byte + (21 byte * count)
@@ -159,7 +146,7 @@ pub struct ReceiverEndpointsWithKeys {
 #[derive(Debug, Clone, BinWrite, BinRead, PartialEq)]
 pub struct Key512(
     #[cfg_attr(feature = "debug", serde(with = "serde_big_array::BigArray"))]
-    [u8; 512]
+    [u8; 512],
 );
 impl Default for Key512 {
     fn default() -> Self {
@@ -173,7 +160,6 @@ impl From<[u8; 512]> for Key512 {
 }
 
 impl ReceiverEndpointsWithKeys {
-
     pub fn new<T>(endpoints_with_keys: Vec<(Endpoint, T)>) -> Self
     where
         T: Into<Key512>,
@@ -208,7 +194,7 @@ pub struct RoutingHeader {
 
     // TODO #115: add custom match receiver queries
     #[brw(if(flags.receiver_type() == ReceiverType::Pointer))]
-    receivers_pointer_id: Option<PointerId>,
+    receivers_pointer_id: Option<PointerAddress>,
     #[brw(if(flags.receiver_type() == ReceiverType::Receivers))]
     #[cfg_attr(feature = "debug", serde(flatten))]
     receivers_endpoints: Option<ReceiverEndpoints>,
@@ -239,7 +225,8 @@ impl Default for RoutingHeader {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Receivers {
     None,
-    PointerId(PointerId),
+    // TODO rename to PointerAddress
+    PointerId(PointerAddress),
     Endpoints(Vec<Endpoint>),
     EndpointsWithKeys(Vec<(Endpoint, Key512)>),
 }
@@ -247,7 +234,7 @@ impl Display for Receivers {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Receivers::None => write!(f, "No receivers"),
-            Receivers::PointerId(pid) => write!(f, "PointerId: {}", pid),
+            Receivers::PointerId(pid) => write!(f, "Pointer ID: {:?}", pid),
             Receivers::Endpoints(endpoints) => {
                 write!(f, "Endpoints: {:?}", endpoints)
             }
@@ -258,8 +245,8 @@ impl Display for Receivers {
     }
 }
 
-impl From<PointerId> for Receivers {
-    fn from(pid: PointerId) -> Self {
+impl From<PointerAddress> for Receivers {
+    fn from(pid: PointerAddress) -> Self {
         Receivers::PointerId(pid)
     }
 }
