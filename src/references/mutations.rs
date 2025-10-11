@@ -246,7 +246,6 @@ mod tests {
     };
     use std::assert_matches::assert_matches;
     use std::cell::RefCell;
-    use crate::dif::update::DIFUpdateData;
 
     #[test]
     fn push() {
@@ -264,11 +263,12 @@ mod tests {
         let updated_value = list_ref.get_numeric_property(3).unwrap();
         assert_eq!(updated_value, ValueContainer::from(4));
 
-        // Try to push to non-list value
-        let int_ref = Reference::from(42);
+        // Try to push to immutable value
+        let int_ref = Reference::from(List::from(vec![ValueContainer::from(42)]));
         let result = int_ref.try_push_value(0, ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::ImmutableReference));
 
+        // Try to push to non-list value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result = int_ref.try_push_value(0, ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
