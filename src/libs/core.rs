@@ -30,7 +30,7 @@ pub enum CoreLibPointerId {
     Integer(Option<IntegerTypeVariant>), // #core.integer
     Decimal(Option<DecimalTypeVariant>), // #core.decimal
     Text,                                // #core.text
-    Endpoint,                            // #core.Endpoint
+    Endpoint,                            // #core.endpoint
     List,                                // #core.List
     Map,                                 // #core.Map
     Function,                            // #core.Function
