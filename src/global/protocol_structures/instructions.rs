@@ -61,6 +61,7 @@ pub enum Instruction {
     // unary operator
     // TODO add missing unary operators
     UnaryMinus,
+    // TODO: Do we need this for op overloading or can we avoid?
     UnaryPlus,
     BitwiseNot,
 
