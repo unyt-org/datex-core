@@ -103,9 +103,8 @@ impl CoreLibPointerId {
 
 impl From<CoreLibPointerId> for PointerAddress {
     fn from(id: CoreLibPointerId) -> Self {
-        let id_bytes: [u8; 3] = (id.to_u16() as u32).to_le_bytes()[0..3]
-            .try_into()
-            .expect("Failed to convert u16 to [u8; 3]");
+        let id_bytes: [u8; 3] =
+            (id.to_u16() as u32).to_le_bytes()[0..3].try_into().unwrap();
         PointerAddress::Internal(id_bytes)
     }
 }
