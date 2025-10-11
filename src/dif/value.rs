@@ -365,23 +365,7 @@ mod tests {
         let memory = get_mock_memory();
         let dif = DIFValue::from_value(&Value::from("Hello, world!"), &memory);
         let serialized = dif.as_json();
-        println!("Serialized DIFValue: {}", serialized);
         let deserialized = DIFValue::from_json(&serialized);
         assert_eq!(dif, deserialized);
     }
-    // #[test]
-    // fn allowed_type() {
-    //     let dif = DIFValue::from(ValueContainer::Reference(
-    //         CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into(),
-    //         Some(CoreLibPointerId::Number.into()),
-    //     ));
-    //     assert!(dif.allowed_type.is_some());
-    //     if let DIFTypeContainer::Reference(reference) =
-    //         dif.allowed_type.unwrap()
-    //     {
-    //         assert_eq!(reference, CoreLibPointerId::Number.into());
-    //     } else {
-    //         panic!("Expected reference type");
-    //     }
-    // }
 }
