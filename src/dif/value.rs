@@ -241,11 +241,11 @@ impl DIFValue {
 }
 
 /// Returns the type if it is not the default type for the value, None otherwise
-/// We treet the following types as default:
-/// - Boolean
-/// - Text
-/// - Null
-/// - Decimal (f64)
+/// We treat the following types as default:
+/// - boolean
+/// - text
+/// - null
+/// - decimal (f64)
 /// - List
 /// - Map
 fn get_type_if_non_default(
