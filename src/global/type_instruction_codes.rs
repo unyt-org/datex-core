@@ -23,6 +23,8 @@ pub enum TypeSpaceInstructionCode {
     TYPE_LITERAL_TEXT,
     TYPE_STRUCT,
 
+    // TODO: Do we need std_type for optimization purpose?
+    // Rename to CORE_ and implement
     STD_TYPE_TEXT,
     STD_TYPE_INT,
     STD_TYPE_FLOAT,
