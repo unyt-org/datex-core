@@ -655,8 +655,7 @@ fn decompile_loop(
             Instruction::Add
             | Instruction::Subtract
             | Instruction::Multiply
-            | Instruction::Divide
-            | Instruction::Union => {
+            | Instruction::Divide => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -1141,10 +1140,6 @@ fn handle_before_operand(
             }
             (Instruction::Divide, false) => {
                 write_operator(state, output, "/")?;
-                state.get_current_scope().close_scope_after_term = true;
-            }
-            (Instruction::Union, false) => {
-                write_operator(state, output, "|")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::RemoteExecution, false) => {

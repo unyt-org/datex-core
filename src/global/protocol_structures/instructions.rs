@@ -56,7 +56,6 @@ pub enum Instruction {
     Subtract,
     Multiply,
     Divide,
-    Union,
 
     // unary operator
     // TODO add missing unary operators
@@ -167,7 +166,6 @@ impl Display for Instruction {
             Instruction::Subtract => write!(f, "SUBTRACT"),
             Instruction::Multiply => write!(f, "MULTIPLY"),
             Instruction::Divide => write!(f, "DIVIDE"),
-            Instruction::Union => write!(f, "UNION"),
 
             // equality checks
             Instruction::StructuralEqual => write!(f, "STRUCTURAL_EQUAL"),

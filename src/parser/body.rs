@@ -392,7 +392,6 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::SUBTRACT => Ok(Instruction::Subtract),
                     InstructionCode::MULTIPLY => Ok(Instruction::Multiply),
                     InstructionCode::DIVIDE => Ok(Instruction::Divide),
-                    InstructionCode::UNION => Ok(Instruction::Union),
 
                     InstructionCode::UNARY_MINUS => Ok(Instruction::UnaryMinus),
                     InstructionCode::UNARY_PLUS => Ok(Instruction::UnaryPlus),

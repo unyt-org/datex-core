@@ -311,7 +311,6 @@ impl From<&Instruction> for BinaryOperator {
             Instruction::Divide => {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide)
             }
-            Instruction::Union => BinaryOperator::Bitwise(BitwiseOperator::Or),
             _ => {
                 todo!(
                     "#155 Binary operator for instruction {:?} not implemented",

@@ -774,8 +774,7 @@ fn get_result_value_from_instruction(
             Instruction::Add
             | Instruction::Subtract
             | Instruction::Multiply
-            | Instruction::Divide
-            | Instruction::Union => {
+            | Instruction::Divide => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::BinaryOperation {
                         operator: BinaryOperator::from(instruction),
