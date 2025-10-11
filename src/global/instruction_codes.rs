@@ -188,9 +188,6 @@ pub enum InstructionCode {
     TYPED_VALUE,
     TYPE_EXPRESSION, // type()
 
-    CONJUNCTION, // x&y&z
-    DISJUNCTION, // x|y|z
-
     // ...
 
     // values 0xc0 - 0xdf
