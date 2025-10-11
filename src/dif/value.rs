@@ -240,21 +240,6 @@ impl DIFValue {
     }
 }
 
-// TODO: handle allowed type for references (must be set after try_from<Value> for references)
-/// Returns the allowed type for references, None for other value containers
-fn get_allowed_type(
-    value_container: &ValueContainer,
-    memory: &RefCell<Memory>,
-) -> Option<DIFTypeContainer> {
-    match &value_container {
-        ValueContainer::Reference(reference) => {
-            let allowed_type = reference.allowed_type();
-            Some(DIFTypeContainer::from_type_container(&allowed_type, memory))
-        }
-        _ => None,
-    }
-}
-
 /// Returns the type if it is not the default type for the value, None otherwise
 /// We treet the following types as default:
 /// - Boolean
@@ -281,7 +266,7 @@ fn get_type_if_non_default(
                         | CoreLibPointerId::Text
                         | CoreLibPointerId::List
                         | CoreLibPointerId::Map
-                        | CoreLibPointerId::Null // | CoreLibPointerId::Struct
+                        | CoreLibPointerId::Null
                 )
             {
                 None
