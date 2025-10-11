@@ -146,7 +146,6 @@ impl DIFValue {
                 DIFValueRepresentation::String(integer.to_string())
             }
             CoreValue::TypedInteger(integer) => {
-                // Some(DIFCoreValue::Number(integer.as_i64().unwrap() as f64))
                 match integer {
                     TypedInteger::I8(i) => {
                         DIFValueRepresentation::Number(*i as f64)
