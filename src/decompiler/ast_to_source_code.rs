@@ -1,7 +1,7 @@
-use crate::ast::TypeExpression;
+use crate::ast::{DatexExpression, TypeExpression};
 use crate::ast::chain::ApplyOperation;
 use crate::decompiler::DecompileOptions;
-use datex_core::ast::DatexExpression;
+use datex_core::ast::DatexExpressionData;
 use datex_core::decompiler::Formatting;
 
 #[derive(Clone, Default)]
@@ -38,30 +38,30 @@ pub fn ast_to_source_code(
     ast: &DatexExpression,
     decompile_options: &DecompileOptions,
 ) -> String {
-    match ast {
-        DatexExpression::Integer(i) => i.to_string(),
-        DatexExpression::TypedInteger(ti) => ti.to_string_with_suffix(),
-        DatexExpression::Decimal(d) => d.to_string(),
-        DatexExpression::TypedDecimal(td) => td.to_string_with_suffix(),
-        DatexExpression::Boolean(b) => b.to_string(),
-        DatexExpression::Text(t) => text_to_source_code(t),
-        DatexExpression::Endpoint(e) => e.to_string(),
-        DatexExpression::Null => "null".to_string(),
-        DatexExpression::Identifier(l) => l.to_string(),
-        DatexExpression::Map(map) => map_to_source_code(map, decompile_options),
-        DatexExpression::List(elements) => {
+    match &ast.data {
+        DatexExpressionData::Integer(i) => i.to_string(),
+        DatexExpressionData::TypedInteger(ti) => ti.to_string_with_suffix(),
+        DatexExpressionData::Decimal(d) => d.to_string(),
+        DatexExpressionData::TypedDecimal(td) => td.to_string_with_suffix(),
+        DatexExpressionData::Boolean(b) => b.to_string(),
+        DatexExpressionData::Text(t) => text_to_source_code(t),
+        DatexExpressionData::Endpoint(e) => e.to_string(),
+        DatexExpressionData::Null => "null".to_string(),
+        DatexExpressionData::Identifier(l) => l.to_string(),
+        DatexExpressionData::Map(map) => map_to_source_code(map, decompile_options),
+        DatexExpressionData::List(elements) => {
             list_to_source_code(elements, decompile_options)
         }
-        DatexExpression::CreateRef(expr) => {
+        DatexExpressionData::CreateRef(expr) => {
             format!("&{}", ast_to_source_code(expr, decompile_options))
         }
-        DatexExpression::CreateRefMut(expr) => {
+        DatexExpressionData::CreateRefMut(expr) => {
             format!("&mut {}", ast_to_source_code(expr, decompile_options))
         }
-        DatexExpression::CreateRefFinal(expr) => {
+        DatexExpressionData::CreateRefFinal(expr) => {
             format!("&final {}", ast_to_source_code(expr, decompile_options))
         }
-        DatexExpression::BinaryOperation(operator, left, right, _type) => {
+        DatexExpressionData::BinaryOperation(operator, left, right, _type) => {
             let left_code = key_to_source_code(left, decompile_options);
             let right_code = key_to_source_code(right, decompile_options);
             let space = if matches!(
@@ -74,7 +74,7 @@ pub fn ast_to_source_code(
             };
             format!("{}{}{}{}{}", left_code, space, operator, space, right_code)
         }
-        DatexExpression::ApplyChain(operand, applies) => {
+        DatexExpressionData::ApplyChain(operand, applies) => {
             let mut applies_code = vec![];
             for apply in applies {
                 match apply {
@@ -108,7 +108,7 @@ pub fn ast_to_source_code(
             )
         }
 
-        DatexExpression::TypeExpression(type_expr) => {
+        DatexExpressionData::TypeExpression(type_expr) => {
             format!(
                 "type({})",
                 type_expression_to_source_code(type_expr, decompile_options)
@@ -134,10 +134,10 @@ fn key_to_source_code(
     key: &DatexExpression,
     decompile_options: &DecompileOptions,
 ) -> String {
-    match key {
-        DatexExpression::Text(t) => key_to_string(t, decompile_options),
-        DatexExpression::Integer(i) => i.to_string(),
-        DatexExpression::TypedInteger(ti) => ti.to_string(),
+    match &key.data {
+        DatexExpressionData::Text(t) => key_to_string(t, decompile_options),
+        DatexExpressionData::Integer(i) => i.to_string(),
+        DatexExpressionData::TypedInteger(ti) => ti.to_string(),
         _ => format!("({})", ast_to_source_code(key, decompile_options)),
     }
 }
@@ -272,81 +272,81 @@ mod tests {
 
     #[test]
     fn test_primitives() {
-        let int_ast = DatexExpression::Integer(42.into());
+        let int_ast = DatexExpressionData::Integer(42.into());
         assert_eq!(
-            ast_to_source_code(&int_ast, &DecompileOptions::default()),
+            ast_to_source_code(&int_ast.with_default_span(), &DecompileOptions::default()),
             "42"
         );
 
-        let typed_int_ast = DatexExpression::TypedInteger(42i8.into());
+        let typed_int_ast = DatexExpressionData::TypedInteger(42i8.into());
         assert_eq!(
-            ast_to_source_code(&typed_int_ast, &DecompileOptions::default()),
+            ast_to_source_code(&typed_int_ast.with_default_span(), &DecompileOptions::default()),
             "42i8"
         );
 
-        let decimal_ast = DatexExpression::Decimal(
+        let decimal_ast = DatexExpressionData::Decimal(
             Decimal::from_string("1.23").unwrap().into(),
         );
         assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
+            ast_to_source_code(&decimal_ast.with_default_span(), &DecompileOptions::default()),
             "1.23"
         );
 
-        let decimal_ast = DatexExpression::Decimal(Decimal::Infinity.into());
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::Infinity.into());
         assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
+            ast_to_source_code(&decimal_ast.with_default_span(), &DecompileOptions::default()),
             "infinity"
         );
 
-        let decimal_ast = DatexExpression::Decimal(Decimal::NegInfinity.into());
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::NegInfinity.into());
         assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
+            ast_to_source_code(&decimal_ast.with_default_span(), &DecompileOptions::default()),
             "-infinity"
         );
 
-        let decimal_ast = DatexExpression::Decimal(Decimal::NaN.into());
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::NaN.into());
         assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
+            ast_to_source_code(&decimal_ast.with_default_span(), &DecompileOptions::default()),
             "nan"
         );
 
-        let typed_decimal_ast = DatexExpression::TypedDecimal(2.71f32.into());
+        let typed_decimal_ast = DatexExpressionData::TypedDecimal(2.71f32.into());
         assert_eq!(
             ast_to_source_code(
-                &typed_decimal_ast,
+                &typed_decimal_ast.with_default_span(),
                 &DecompileOptions::default()
             ),
             "2.71f32"
         );
 
-        let bool_ast = DatexExpression::Boolean(true);
+        let bool_ast = DatexExpressionData::Boolean(true);
         assert_eq!(
-            ast_to_source_code(&bool_ast, &DecompileOptions::default()),
+            ast_to_source_code(&bool_ast.with_default_span(), &DecompileOptions::default()),
             "true"
         );
 
-        let text_ast = DatexExpression::Text("Hello".to_string());
+        let text_ast = DatexExpressionData::Text("Hello".to_string());
         assert_eq!(
-            ast_to_source_code(&text_ast, &DecompileOptions::default()),
+            ast_to_source_code(&text_ast.with_default_span(), &DecompileOptions::default()),
             "\"Hello\""
         );
 
-        let null_ast = DatexExpression::Null;
+        let null_ast = DatexExpressionData::Null;
         assert_eq!(
-            ast_to_source_code(&null_ast, &DecompileOptions::default()),
+            ast_to_source_code(&null_ast.with_default_span(), &DecompileOptions::default()),
             "null"
         );
     }
 
     #[test]
     fn test_list() {
-        let list_ast = DatexExpression::List(vec![
-            DatexExpression::Integer(1.into()),
-            DatexExpression::Integer(2.into()),
-            DatexExpression::Integer(3.into()),
+        let list_ast = DatexExpressionData::List(vec![
+            DatexExpressionData::Integer(1.into()).with_default_span(),
+            DatexExpressionData::Integer(2.into()).with_default_span(),
+            DatexExpressionData::Integer(3.into()).with_default_span(),
         ]);
         assert_eq!(
-            ast_to_source_code(&list_ast, &DecompileOptions::default()),
+            ast_to_source_code(&list_ast.with_default_span(), &DecompileOptions::default()),
             "[1,2,3]"
         );
 
@@ -356,40 +356,40 @@ mod tests {
         };
 
         // long list should be multi-line
-        let long_list_ast = DatexExpression::List(vec![
-            DatexExpression::Text("This is a long string".to_string()),
-            DatexExpression::Text("Another long string".to_string()),
-            DatexExpression::Text("Yet another long string".to_string()),
-            DatexExpression::Text(
+        let long_list_ast = DatexExpressionData::List(vec![
+            DatexExpressionData::Text("This is a long string".to_string()).with_default_span(),
+            DatexExpressionData::Text("Another long string".to_string()).with_default_span(),
+            DatexExpressionData::Text("Yet another long string".to_string()).with_default_span(),
+            DatexExpressionData::Text(
                 "More long strings to increase length".to_string(),
-            ),
-            DatexExpression::Text("Final long string in the list".to_string()),
+            ).with_default_span(),
+            DatexExpressionData::Text("Final long string in the list".to_string()).with_default_span(),
         ]);
 
         assert_eq!(
-            ast_to_source_code(&long_list_ast, &compile_options_multiline),
+            ast_to_source_code(&long_list_ast.with_default_span(), &compile_options_multiline),
             "[\n    \"This is a long string\",\n    \"Another long string\",\n    \"Yet another long string\",\n    \"More long strings to increase length\",\n    \"Final long string in the list\"\n]"
         );
     }
 
     #[test]
     fn test_map() {
-        let map_ast = DatexExpression::Map(vec![
+        let map_ast = DatexExpressionData::Map(vec![
             (
-                DatexExpression::Text("key1".to_string()),
-                DatexExpression::Integer(1.into()),
+                DatexExpressionData::Text("key1".to_string()).with_default_span(),
+                DatexExpressionData::Integer(1.into()).with_default_span(),
             ),
             (
-                DatexExpression::Text("key2".to_string()),
-                DatexExpression::Text("two".to_string()),
+                DatexExpressionData::Text("key2".to_string()).with_default_span(),
+                DatexExpressionData::Text("two".to_string()).with_default_span(),
             ),
             (
-                DatexExpression::Integer(42.into()),
-                DatexExpression::Boolean(true),
+                DatexExpressionData::Integer(42.into()).with_default_span(),
+                DatexExpressionData::Boolean(true).with_default_span(),
             ),
         ]);
         assert_eq!(
-            ast_to_source_code(&map_ast, &DecompileOptions::default()),
+            ast_to_source_code(&map_ast.with_default_span(), &DecompileOptions::default()),
             "{key1:1,key2:\"two\",42:true}"
         );
     }

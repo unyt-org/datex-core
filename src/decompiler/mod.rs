@@ -8,7 +8,7 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
-use crate::ast::DatexExpression;
+use crate::ast::DatexExpressionData;
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;
 use crate::global::protocol_structures::instructions::UInt8Data;
@@ -58,7 +58,7 @@ pub fn decompile_value(
     value: &ValueContainer,
     options: DecompileOptions,
 ) -> String {
-    let ast = DatexExpression::from(value);
+    let ast = DatexExpressionData::from(value).with_default_span();
     let source_code = ast_to_source_code::ast_to_source_code(&ast, &options);
     // add syntax highlighting
     if options.colorized {

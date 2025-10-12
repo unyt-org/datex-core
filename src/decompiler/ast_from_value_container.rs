@@ -1,4 +1,4 @@
-use crate::ast::{DatexExpression, TypeExpression};
+use crate::ast::{DatexExpressionData, TypeExpression};
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -6,7 +6,7 @@ use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
-impl From<&ValueContainer> for DatexExpression {
+impl From<&ValueContainer> for DatexExpressionData {
     /// Converts a ValueContainer into a DatexExpression AST.
     /// This AST can then be further processed or decompiled into human-readable DATEX code.
     fn from(value: &ValueContainer) -> Self {
@@ -15,18 +15,18 @@ impl From<&ValueContainer> for DatexExpression {
             ValueContainer::Reference(reference) => {
                 match reference.mutability() {
                     ReferenceMutability::Mutable => {
-                        DatexExpression::CreateRefMut(Box::new(
-                            DatexExpression::from(&reference.value_container()),
+                        DatexExpressionData::CreateRefMut(Box::new(
+                            DatexExpressionData::from(&reference.value_container()).with_default_span(),
                         ))
                     }
                     ReferenceMutability::Immutable => {
-                        DatexExpression::CreateRef(Box::new(
-                            DatexExpression::from(&reference.value_container()),
+                        DatexExpressionData::CreateRef(Box::new(
+                            DatexExpressionData::from(&reference.value_container()).with_default_span(),
                         ))
                     }
                     ReferenceMutability::Final => {
-                        DatexExpression::CreateRefFinal(Box::new(
-                            DatexExpression::from(&reference.value_container()),
+                        DatexExpressionData::CreateRefFinal(Box::new(
+                            DatexExpressionData::from(&reference.value_container()).with_default_span(),
                         ))
                     }
                 }
@@ -35,41 +35,44 @@ impl From<&ValueContainer> for DatexExpression {
     }
 }
 
-fn value_to_datex_expression(value: &Value) -> DatexExpression {
+fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
     match &value.inner {
         CoreValue::Integer(integer) => {
-            DatexExpression::Integer(integer.clone())
+            DatexExpressionData::Integer(integer.clone())
         }
         CoreValue::TypedInteger(typed_integer) => {
-            DatexExpression::TypedInteger(typed_integer.clone())
+            DatexExpressionData::TypedInteger(typed_integer.clone())
         }
         CoreValue::Decimal(decimal) => {
-            DatexExpression::Decimal(decimal.clone())
+            DatexExpressionData::Decimal(decimal.clone())
         }
         CoreValue::TypedDecimal(typed_decimal) => {
-            DatexExpression::TypedDecimal(typed_decimal.clone())
+            DatexExpressionData::TypedDecimal(typed_decimal.clone())
         }
-        CoreValue::Boolean(boolean) => DatexExpression::Boolean(boolean.0),
-        CoreValue::Text(text) => DatexExpression::Text(text.0.clone()),
+        CoreValue::Boolean(boolean) => DatexExpressionData::Boolean(boolean.0),
+        CoreValue::Text(text) => DatexExpressionData::Text(text.0.clone()),
         CoreValue::Endpoint(endpoint) => {
-            DatexExpression::Endpoint(endpoint.clone())
+            DatexExpressionData::Endpoint(endpoint.clone())
         }
-        CoreValue::Null => DatexExpression::Null,
-        CoreValue::List(list) => DatexExpression::List(
-            list.into_iter().map(DatexExpression::from).collect(),
+        CoreValue::Null => DatexExpressionData::Null,
+        CoreValue::List(list) => DatexExpressionData::List(
+            list.into_iter()
+                .map(DatexExpressionData::from)
+                .map(|data| data.with_default_span())
+                .collect(),
         ),
-        CoreValue::Map(map) => DatexExpression::Map(
+        CoreValue::Map(map) => DatexExpressionData::Map(
             map.into_iter()
                 .map(|(key, value)| {
                     (
-                        DatexExpression::from(&ValueContainer::from(key)),
-                        DatexExpression::from(value),
+                        DatexExpressionData::from(&ValueContainer::from(key)).with_default_span(),
+                        DatexExpressionData::from(value).with_default_span(),
                     )
                 })
                 .collect(),
         ),
         CoreValue::Type(type_value) => {
-            DatexExpression::TypeExpression(match &type_value.type_definition {
+            DatexExpressionData::TypeExpression(match &type_value.type_definition {
                 TypeDefinition::Structural(struct_type) => match struct_type {
                     StructuralTypeDefinition::Integer(integer) => {
                         TypeExpression::Integer(integer.clone())
@@ -85,7 +88,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::DatexExpression;
+    use crate::ast::DatexExpressionData;
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;
@@ -96,56 +99,56 @@ mod tests {
     #[test]
     fn test_integer_to_ast() {
         let value = ValueContainer::from(Integer::from(42));
-        let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::Integer(Integer::from(42)));
+        let ast = DatexExpressionData::from(&value);
+        assert_eq!(ast, DatexExpressionData::Integer(Integer::from(42)));
     }
 
     #[test]
     fn test_typed_integer_to_ast() {
         let value = ValueContainer::from(TypedInteger::from(42i8));
-        let ast = DatexExpression::from(&value);
+        let ast = DatexExpressionData::from(&value);
         assert_eq!(
             ast,
-            DatexExpression::TypedInteger(TypedInteger::from(42i8))
+            DatexExpressionData::TypedInteger(TypedInteger::from(42i8))
         );
     }
 
     #[test]
     fn test_decimal_to_ast() {
         let value = ValueContainer::from(Decimal::from(1.23));
-        let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::Decimal(Decimal::from(1.23)));
+        let ast = DatexExpressionData::from(&value);
+        assert_eq!(ast, DatexExpressionData::Decimal(Decimal::from(1.23)));
     }
 
     #[test]
     fn test_typed_decimal_to_ast() {
         let value = ValueContainer::from(TypedDecimal::from(2.71f32));
-        let ast = DatexExpression::from(&value);
+        let ast = DatexExpressionData::from(&value);
         assert_eq!(
             ast,
-            DatexExpression::TypedDecimal(TypedDecimal::from(2.71f32))
+            DatexExpressionData::TypedDecimal(TypedDecimal::from(2.71f32))
         );
     }
 
     #[test]
     fn test_boolean_to_ast() {
         let value = ValueContainer::from(true);
-        let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::Boolean(true));
+        let ast = DatexExpressionData::from(&value);
+        assert_eq!(ast, DatexExpressionData::Boolean(true));
     }
 
     #[test]
     fn test_text_to_ast() {
         let value = ValueContainer::from("Hello, World!".to_string());
-        let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::Text("Hello, World!".to_string()));
+        let ast = DatexExpressionData::from(&value);
+        assert_eq!(ast, DatexExpressionData::Text("Hello, World!".to_string()));
     }
 
     #[test]
     fn test_null_to_ast() {
         let value = ValueContainer::Value(Value::null());
-        let ast = DatexExpression::from(&value);
-        assert_eq!(ast, DatexExpression::Null);
+        let ast = DatexExpressionData::from(&value);
+        assert_eq!(ast, DatexExpressionData::Null);
     }
 
     #[test]
@@ -155,13 +158,13 @@ mod tests {
             Integer::from(2),
             Integer::from(3),
         ]);
-        let ast = DatexExpression::from(&value);
+        let ast = DatexExpressionData::from(&value);
         assert_eq!(
             ast,
-            DatexExpression::List(vec![
-                DatexExpression::Integer(Integer::from(1)),
-                DatexExpression::Integer(Integer::from(2)),
-                DatexExpression::Integer(Integer::from(3)),
+            DatexExpressionData::List(vec![
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
             ])
         );
     }

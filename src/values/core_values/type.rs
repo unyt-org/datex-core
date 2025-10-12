@@ -1,4 +1,4 @@
-use crate::ast::DatexExpression;
+use crate::ast::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
@@ -362,25 +362,25 @@ impl From<CoreValue> for Type {
     }
 }
 
-impl TryFrom<&DatexExpression> for StructuralTypeDefinition {
+impl TryFrom<&DatexExpressionData> for StructuralTypeDefinition {
     type Error = ();
 
-    fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
+    fn try_from(expr: &DatexExpressionData) -> Result<Self, Self::Error> {
         Ok(match expr {
-            DatexExpression::Null => StructuralTypeDefinition::Null,
-            DatexExpression::Boolean(b) => {
+            DatexExpressionData::Null => StructuralTypeDefinition::Null,
+            DatexExpressionData::Boolean(b) => {
                 StructuralTypeDefinition::Boolean(Boolean::from(*b))
             }
-            DatexExpression::Text(s) => {
+            DatexExpressionData::Text(s) => {
                 StructuralTypeDefinition::Text(Text::from(s.clone()))
             }
-            DatexExpression::Decimal(d) => {
+            DatexExpressionData::Decimal(d) => {
                 StructuralTypeDefinition::Decimal(d.clone())
             }
-            DatexExpression::Integer(i) => {
+            DatexExpressionData::Integer(i) => {
                 StructuralTypeDefinition::Integer(i.clone())
             }
-            DatexExpression::Endpoint(e) => {
+            DatexExpressionData::Endpoint(e) => {
                 StructuralTypeDefinition::Endpoint(e.clone())
             }
             _ => return Err(()),
@@ -388,10 +388,10 @@ impl TryFrom<&DatexExpression> for StructuralTypeDefinition {
     }
 }
 
-impl TryFrom<&DatexExpression> for Type {
+impl TryFrom<&DatexExpressionData> for Type {
     type Error = ();
 
-    fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
+    fn try_from(expr: &DatexExpressionData) -> Result<Self, Self::Error> {
         Ok(Type::structural(StructuralTypeDefinition::try_from(expr)?))
     }
 }

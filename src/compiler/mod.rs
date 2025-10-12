@@ -6,7 +6,7 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::ast::{DatexExpression, DatexScriptParser, VariableKind, parse};
+use crate::ast::{DatexExpressionData, DatexScriptParser, VariableKind, parse, DatexExpression};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::precompiler::{
@@ -302,7 +302,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
         compile_ast(&compilation_context, ast.clone(), options.compile_scope)?;
     if return_static_value {
         if !*compilation_context.has_non_static_value.borrow() {
-            if let Ok(value) = ValueContainer::try_from(&ast) {
+            if let Ok(value) = ValueContainer::try_from(&ast.data) {
                 return Ok((
                     StaticValueOrDXB::StaticValue(Some(value.clone())),
                     scope,
@@ -353,10 +353,10 @@ pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
 fn extract_static_value_from_ast(
     ast: DatexExpression,
 ) -> Result<ValueContainer, CompilerError> {
-    if let DatexExpression::Placeholder = ast {
+    if let DatexExpressionData::Placeholder = ast.data {
         return Err(CompilerError::NonStaticValue);
     }
-    ValueContainer::try_from(&ast).map_err(|_| CompilerError::NonStaticValue)
+    ValueContainer::try_from(&ast.data).map_err(|_| CompilerError::NonStaticValue)
 }
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
@@ -443,15 +443,15 @@ fn compile_expression(
 ) -> Result<CompilationScope, CompilerError> {
     let metadata = ast_with_metadata.metadata;
     // TODO: no clone
-    match ast_with_metadata.ast.as_ref().unwrap().clone() {
-        DatexExpression::Integer(int) => {
+    match ast_with_metadata.ast.as_ref().unwrap().clone().data {
+        DatexExpressionData::Integer(int) => {
             compilation_context
                 .insert_encoded_integer(&int.to_smallest_fitting());
         }
-        DatexExpression::TypedInteger(typed_int) => {
+        DatexExpressionData::TypedInteger(typed_int) => {
             compilation_context.insert_typed_integer(&typed_int);
         }
-        DatexExpression::Decimal(decimal) => match &decimal {
+        DatexExpressionData::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
                 if let Some(int) = big_decimal.to_i16() {
                     compilation_context.insert_float_as_i16(int);
@@ -465,22 +465,22 @@ fn compile_expression(
                 compilation_context.insert_decimal(&decimal);
             }
         },
-        DatexExpression::TypedDecimal(typed_decimal) => {
+        DatexExpressionData::TypedDecimal(typed_decimal) => {
             compilation_context.insert_typed_decimal(&typed_decimal);
         }
-        DatexExpression::Text(text) => {
+        DatexExpressionData::Text(text) => {
             compilation_context.insert_text(&text);
         }
-        DatexExpression::Boolean(boolean) => {
+        DatexExpressionData::Boolean(boolean) => {
             compilation_context.insert_boolean(boolean);
         }
-        DatexExpression::Endpoint(endpoint) => {
+        DatexExpressionData::Endpoint(endpoint) => {
             compilation_context.insert_endpoint(&endpoint);
         }
-        DatexExpression::Null => {
+        DatexExpressionData::Null => {
             compilation_context.append_instruction_code(InstructionCode::NULL);
         }
-        DatexExpression::List(list) => {
+        DatexExpressionData::List(list) => {
             compilation_context
                 .append_instruction_code(InstructionCode::LIST_START);
             for item in list {
@@ -494,7 +494,7 @@ fn compile_expression(
             compilation_context
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
-        DatexExpression::Map(map) => {
+        DatexExpressionData::Map(map) => {
             // TODO #434: Handle string keyed maps (structs)
             compilation_context
                 .append_instruction_code(InstructionCode::MAP_START);
@@ -510,7 +510,7 @@ fn compile_expression(
             compilation_context
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
-        DatexExpression::Placeholder => {
+        DatexExpressionData::Placeholder => {
             compilation_context.insert_value_container(
                 compilation_context
                     .inserted_values
@@ -522,7 +522,7 @@ fn compile_expression(
         }
 
         // statements
-        DatexExpression::Statements(mut statements) => {
+        DatexExpressionData::Statements(mut statements) => {
             compilation_context.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !statements[0].is_terminated {
@@ -581,7 +581,7 @@ fn compile_expression(
         }
 
         // unary operations (negation, not, etc.)
-        DatexExpression::UnaryOperation(operator, expr) => {
+        DatexExpressionData::UnaryOperation(operator, expr) => {
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
@@ -593,7 +593,7 @@ fn compile_expression(
         }
 
         // operations (add, subtract, multiply, divide, etc.)
-        DatexExpression::BinaryOperation(operator, a, b, _) => {
+        DatexExpressionData::BinaryOperation(operator, a, b, _) => {
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
@@ -613,7 +613,7 @@ fn compile_expression(
         }
 
         // comparisons (e.g., equal, not equal, greater than, etc.)
-        DatexExpression::ComparisonOperation(operator, a, b) => {
+        DatexExpressionData::ComparisonOperation(operator, a, b) => {
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
@@ -633,14 +633,14 @@ fn compile_expression(
         }
 
         // apply
-        DatexExpression::ApplyChain(val, operands) => {
+        DatexExpressionData::ApplyChain(val, operands) => {
             compilation_context.mark_has_non_static_value();
             // TODO #150
         }
 
         // variables
         // declaration
-        DatexExpression::VariableDeclaration {
+        DatexExpressionData::VariableDeclaration {
             id,
             name,
             kind,
@@ -722,13 +722,13 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
-        DatexExpression::GetReference(address) => {
+        DatexExpressionData::GetReference(address) => {
             compilation_context.mark_has_non_static_value();
             compilation_context.insert_get_ref(address);
         }
 
         // assignment
-        DatexExpression::VariableAssignment(operator, id, name, expression) => {
+        DatexExpressionData::VariableAssignment(operator, id, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, kind) = scope
@@ -793,7 +793,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
-        DatexExpression::DerefAssignment {
+        DatexExpressionData::DerefAssignment {
             operator,
             deref_count,
             deref_expression,
@@ -840,7 +840,7 @@ fn compile_expression(
         }
 
         // variable access
-        DatexExpression::Variable(id, name) => {
+        DatexExpressionData::Variable(id, name) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, ..) = scope
@@ -855,7 +855,7 @@ fn compile_expression(
         }
 
         // remote execution
-        DatexExpression::RemoteExecution(caller, script) => {
+        DatexExpressionData::RemoteExecution(caller, script) => {
             compilation_context.mark_has_non_static_value();
 
             // insert remote execution code
@@ -904,7 +904,7 @@ fn compile_expression(
         }
 
         // named slot
-        DatexExpression::Slot(Slot::Named(name)) => {
+        DatexExpressionData::Slot(Slot::Named(name)) => {
             match name.as_str() {
                 "endpoint" => {
                     compilation_context
@@ -923,12 +923,12 @@ fn compile_expression(
         }
 
         // pointer address
-        DatexExpression::PointerAddress(address) => {
+        DatexExpressionData::PointerAddress(address) => {
             compilation_context.insert_get_ref(address);
         }
 
         // refs
-        DatexExpression::CreateRef(expression) => {
+        DatexExpressionData::CreateRef(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::CREATE_REF);
@@ -939,7 +939,7 @@ fn compile_expression(
                 scope,
             )?;
         }
-        DatexExpression::CreateRefMut(expression) => {
+        DatexExpressionData::CreateRefMut(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::CREATE_REF_MUT);
@@ -950,7 +950,7 @@ fn compile_expression(
                 scope,
             )?;
         }
-        DatexExpression::CreateRefFinal(expression) => {
+        DatexExpressionData::CreateRefFinal(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
                 .append_instruction_code(InstructionCode::CREATE_REF_FINAL);
@@ -962,7 +962,7 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpression::Type(type_expression) => {
+        DatexExpressionData::Type(type_expression) => {
             compilation_context
                 .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
             scope = compile_type_expression(
@@ -973,7 +973,7 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpression::Deref(expression) => {
+        DatexExpressionData::Deref(expression) => {
             compilation_context.mark_has_non_static_value();
             compilation_context.append_instruction_code(InstructionCode::DEREF);
             scope = compile_expression(
@@ -1003,9 +1003,9 @@ fn compile_key_value_entry(
     metadata: &Rc<RefCell<AstMetadata>>,
     mut scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    match key {
+    match key.data {
         // text -> insert key string
-        DatexExpression::Text(text) => {
+        DatexExpressionData::Text(text) => {
             compilation_scope.insert_key_string(&text);
         }
         // other -> insert key as dynamic
