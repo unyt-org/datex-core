@@ -44,7 +44,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
 #[repr(u8)]
 #[strum(serialize_all = "lowercase")]
 pub enum IntegerTypeVariant {
-    U8 = 1,
+    U8 = 1, // rationale: We need to start with 1 here, as the core lib pointer id for the base type is using OFFSET_X + variant as index
     U16,
     U32,
     U64,
@@ -106,7 +106,7 @@ impl<'de> Deserialize<'de> for TypedInteger {
     {
         let s = String::deserialize(deserializer)?;
         // Try to parse as Integer (big)
-        if let Ok(big_integer) = Integer::from_string_radix(&s, 10) {
+        if let Ok(big_integer) = Integer::from_string(&s) {
             return Ok(TypedInteger::Big(big_integer));
         }
 
@@ -164,7 +164,6 @@ impl TypedInteger {
         radix: u32,
         variant: IntegerTypeVariant,
     ) -> Result<TypedInteger, NumberParseError> {
-        let s = &s.replace('_', "");
         if matches!(variant, IntegerTypeVariant::Big) {
             return Ok(TypedInteger::Big(Integer::from_string_radix(
                 s, radix,
@@ -220,7 +219,7 @@ impl TypedInteger {
 
     /// Converts the integer to the smallest fitting TypedInteger variant.
     pub fn to_smallest_fitting(&self) -> TypedInteger {
-        if self.is_unsigned()
+        if self.is_unsigned_variant()
             && let Some(u128) = self.as_u128()
         {
             smallest_fitting_unsigned(u128)
@@ -357,7 +356,7 @@ impl TypedInteger {
     }
 
     /// Returns true if the integer is of a signed type.
-    pub fn is_signed(&self) -> bool {
+    pub fn is_signed_variant(&self) -> bool {
         if let TypedInteger::Big(_) = self {
             return true;
         }
@@ -371,12 +370,29 @@ impl TypedInteger {
         )
     }
 
+    pub fn is_zero(&self) -> bool {
+        match self {
+            TypedInteger::Big(v) => v.is_zero(),
+            TypedInteger::I8(v) => *v == 0,
+            TypedInteger::I16(v) => *v == 0,
+            TypedInteger::I32(v) => *v == 0,
+            TypedInteger::I64(v) => *v == 0,
+            TypedInteger::I128(v) => *v == 0,
+            TypedInteger::U8(v) => *v == 0,
+            TypedInteger::U16(v) => *v == 0,
+            TypedInteger::U32(v) => *v == 0,
+            TypedInteger::U64(v) => *v == 0,
+            TypedInteger::U128(v) => *v == 0,
+        }
+    }
+
     /// Returns true if the integer is of an unsigned type.
-    pub fn is_unsigned(&self) -> bool {
-        !self.is_signed()
+    pub fn is_unsigned_variant(&self) -> bool {
+        !self.is_signed_variant()
     }
 
     /// Returns true if the integer is positive.
+    /// Zero is not considered positive.
     pub fn is_positive(&self) -> bool {
         if let TypedInteger::Big(v) = self {
             return v.is_positive();
@@ -386,6 +402,7 @@ impl TypedInteger {
     }
 
     /// Returns true if the integer is negative.
+    /// Zero is not considered negative.
     pub fn is_negative(&self) -> bool {
         if let TypedInteger::Big(v) = self {
             return v.is_negative();
@@ -772,6 +789,7 @@ impl Add for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn add(self, rhs: Self) -> Self::Output {
+        // FIXME optimize to avoid cloning
         TypedInteger::add(self.clone(), rhs.clone())
     }
 }
@@ -810,6 +828,7 @@ impl Sub for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        // Fixme optimize to avoid cloning
         TypedInteger::sub(self.clone(), rhs.clone())
     }
 }

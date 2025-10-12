@@ -27,13 +27,6 @@ pub struct GlobalContext {
 }
 
 impl GlobalContext {
-    // #[deprecated(note = "use Time::now() instead")]
-    // pub fn now() -> u64 {
-    //     get_global_context().time.now()
-    // }
-}
-
-impl GlobalContext {
     pub fn new(
         crypto: Arc<dyn CryptoTrait>,
         time: Arc<dyn TimeTrait>,

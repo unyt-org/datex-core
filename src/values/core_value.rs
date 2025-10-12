@@ -227,7 +227,7 @@ impl CoreValue {
     }
 
     /// Check if the CoreValue is a combined value type (List, Map)
-    /// that consists of multiple CoreValues.
+    /// that contains inner ValueContainers.
     pub fn is_collection_value(&self) -> bool {
         matches!(self, CoreValue::List(_) | CoreValue::Map(_))
     }
@@ -236,10 +236,12 @@ impl CoreValue {
     /// This method uses the CoreLibPointerId to retrieve the corresponding
     /// type reference from the core library.
     /// For example, a CoreValue::TypedInteger(i32) will return the type ref integer/i32
-    pub fn get_default_type(&self) -> TypeContainer {
+    pub fn default_type(&self) -> TypeContainer {
         get_core_lib_type(CoreLibPointerId::from(self))
     }
 
+    // TODO: allow cast of any CoreValue to Type, as structural type can always be constructed?
+    // This method may be not required, the cast should be performed on the ValueContainer level
     pub fn cast_to_type(&self) -> Option<&Type> {
         match self {
             CoreValue::Type(ty) => Some(ty),
@@ -287,7 +289,6 @@ impl CoreValue {
         &self,
         variant: DecimalTypeVariant,
     ) -> Option<TypedDecimal> {
-        println!("Casting {:?} to typed decimal {:?}", self, variant);
         match self {
             CoreValue::Text(text) => {
                 TypedDecimal::from_string_and_variant_in_range(
@@ -341,7 +342,7 @@ impl CoreValue {
                 Some(TypedInteger::Big(int.clone()).to_smallest_fitting())
             }
             CoreValue::Decimal(decimal) => Some(
-                TypedInteger::from(decimal.try_into_f64()? as i128)
+                TypedInteger::from(decimal.into_f64() as i128)
                     .to_smallest_fitting(),
             ),
             CoreValue::TypedDecimal(decimal) => Some(
@@ -352,6 +353,7 @@ impl CoreValue {
         }
     }
 
+    // TODO improve conversion logic
     pub fn cast_to_integer(&self) -> Option<Integer> {
         match self {
             CoreValue::Text(text) => {
@@ -360,7 +362,9 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => Some(int.as_integer()),
             CoreValue::Integer(int) => Some(int.clone()),
             CoreValue::Decimal(decimal) => {
-                Some(Integer::from(decimal.try_into_f64()? as i128))
+                // FIXME currently bad as f64 can be infinity or nan
+                // convert decimal directly to integer into_f64 is wrong here
+                Some(Integer::from(decimal.into_f64() as i128))
             }
             CoreValue::TypedDecimal(decimal) => {
                 decimal.as_integer().map(Integer::from)
@@ -391,7 +395,7 @@ impl CoreValue {
             )
             .ok(),
             CoreValue::Decimal(decimal) => {
-                Some(TypedInteger::from(decimal.try_into_f64()? as i128))
+                Some(TypedInteger::from(decimal.into_f64() as i128))
             }
             CoreValue::TypedDecimal(decimal) => {
                 decimal.as_integer().map(TypedInteger::from)
@@ -758,8 +762,8 @@ mod tests {
     fn type_construct() {
         init_logger_debug();
         let a = CoreValue::from(42i32);
-        assert_eq!(a.get_default_type().to_string(), "integer/i32");
-        assert_eq!(a.get_default_type().base_type().to_string(), "integer");
+        assert_eq!(a.default_type().to_string(), "integer/i32");
+        assert_eq!(a.default_type().base_type().to_string(), "integer");
     }
 
     #[test]

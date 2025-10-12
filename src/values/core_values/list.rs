@@ -26,6 +26,7 @@ impl List {
     /// If the index is equal to the current length of the list, the value is pushed to the end.
     /// If the index is greater than the current length, None is returned.
     /// Returns the previous value at the index if it was replaced.
+    // FIXME: Add set error when out of bounds, deprecate push case here?
     pub fn set(
         &mut self,
         index: u32,

@@ -205,7 +205,6 @@ fn infer_expression_type(
             get_core_lib_type(CoreLibPointerId::Unit)
         }
         e => panic!("Type inference not implemented for expression: {:?}", e),
-        // _ => get_core_lib_type(CoreLibPointerId::Unit), // other expressions not handled yet
     })
 }
 
@@ -326,7 +325,7 @@ fn infer_binary_expression_type(
             let integer = get_core_lib_type(CoreLibPointerId::Integer(None));
             let decimal = get_core_lib_type(CoreLibPointerId::Decimal(None));
 
-            // // TODO: keep the type as specific as possible here? E.g. 1 + 2 -> 3, not integer
+            // TODO: keep the type as specific as possible here? E.g. 1 + 2 -> 3, not integer
             // lhs and rhs are both integer -> result is integer
             if lhs_base_type == integer && rhs_base_type == integer {
                 Ok(integer)

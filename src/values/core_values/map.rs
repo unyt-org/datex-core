@@ -15,7 +15,7 @@ pub enum Map {
     // for fixed-size maps with known keys and values on construction
     Fixed(Vec<(ValueContainer, ValueContainer)>),
     // for maps with string keys
-    Structural(Vec<(String, ValueContainer)>), // for structs
+    Structural(Vec<(String, ValueContainer)>), // for structural maps with string keys
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +52,7 @@ impl Map {
         matches!(self, Map::Structural(_))
     }
 
-    pub fn has_fix_size(&self) -> bool {
+    pub fn has_fixed_size(&self) -> bool {
         matches!(self, Map::Fixed(_) | Map::Structural(_))
     }
 
@@ -191,7 +191,6 @@ impl Map {
         key: K,
         value: V,
     ) -> Result<(), MapAccessError> {
-        // self.0.insert(key.into(), value.into());
         match self {
             Map::Dynamic(map) => {
                 map.insert(key.into(), value.into());
@@ -541,14 +540,20 @@ impl<'a> IntoIterator for &'a mut Map {
 }
 
 impl From<Vec<(ValueContainer, ValueContainer)>> for Map {
+    /// Create a dynamic map from a vector of value containers.
     fn from(vec: Vec<(ValueContainer, ValueContainer)>) -> Self {
         Map::new(vec.into_iter().collect())
     }
 }
 
 impl From<Vec<(String, ValueContainer)>> for Map {
+    /// Create a dynamic map from a vector of string keys and value containers.
     fn from(vec: Vec<(String, ValueContainer)>) -> Self {
-        Map::new(vec.into_iter().map(|(k, v)| (k.into(), v)).collect())
+        Map::new(
+            vec.into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+        )
     }
 }
 

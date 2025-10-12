@@ -910,7 +910,7 @@ fn get_result_value_from_instruction(
                     .borrow_mut()
                     .scope_stack
                     .create_scope_with_active_value(
-                        Scope::Default,
+                        Scope::Collection,
                         Map::default().into(),
                     );
                 None
@@ -1120,6 +1120,7 @@ fn iterate_type_instructions(
     gen move {
         for instruction in instructions {
             match instruction {
+                // TODO: Implement type instructions iteration
                 TypeInstruction::ListStart => {
                     interrupt_with_result!(
                         interrupt_provider,
@@ -1365,7 +1366,7 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             inner: CoreValue::Map(map),
             ..
         }) => {
-            // append value to list
+            // TODO: Implement map collector for optimized structural maps
             panic!("append {:?}", value);
         }
         _ => {
@@ -1379,7 +1380,7 @@ fn handle_key_value_pair(
     key: ValueContainer,
     value: ValueContainer,
 ) -> Result<(), ExecutionError> {
-    // insert key value pair into active map/struct
+    // insert key value pair into active map
     match active_container {
         // Map
         ValueContainer::Value(Value {
@@ -1495,6 +1496,7 @@ fn handle_comparison_operation(
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Matches => {
+            // TODO: Fix matches, rhs will always be a type, so actual_type() call is wrong
             let v_type = value_container.actual_type(); // Type::try_from(value_container)?;
             let val = v_type.value_matches(active_value_container);
             Ok(ValueContainer::from(val))
@@ -1613,7 +1615,6 @@ mod tests {
     ) -> Option<ValueContainer> {
         let (dxb, _) =
             compile_script(datex_script, CompileOptions::default()).unwrap();
-        info!("DXB: {:?}", dxb);
         let context = ExecutionInput::new_with_dxb_and_options(
             &dxb,
             ExecutionOptions { verbose: true },
@@ -1931,6 +1932,7 @@ mod tests {
     #[test]
     fn val_assignment_inside_scope() {
         init_logger_debug();
+        // FIXME: This should be probably disallowed (we can not use x in this scope due to hoisting behavior)
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
         let expected = datex_list![

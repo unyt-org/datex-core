@@ -539,8 +539,11 @@ where
 pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
-        let end_of_line = src.find('\n').unwrap_or(src.len());
-        src = &src[end_of_line + 1..];
+        if let Some(pos) = src.find('\n') {
+            src = &src[pos + 1..];
+        } else {
+            src = "";
+        }
     }
 
     let tokens = Token::lexer(src);

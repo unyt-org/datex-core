@@ -30,6 +30,7 @@ pub enum TypeDefinition {
     Unit,
 
     Function {
+        // FIXME: Include error type definition
         parameters: Vec<(String, TypeContainer)>,
         return_type: Box<TypeContainer>,
     },

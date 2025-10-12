@@ -41,7 +41,7 @@ impl Deref for Value {
 impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
-        let new_type = inner.get_default_type();
+        let new_type = inner.default_type();
         Value {
             inner,
             actual_type: Box::new(new_type),
@@ -64,7 +64,7 @@ impl Value {
     pub fn is_text(&self) -> bool {
         matches!(self.inner, CoreValue::Text(_))
     }
-    pub fn is_i8(&self) -> bool {
+    pub fn is_integer_i8(&self) -> bool {
         matches!(&self.inner, CoreValue::TypedInteger(TypedInteger::I8(_)))
     }
     pub fn is_bool(&self) -> bool {
@@ -300,7 +300,7 @@ mod tests {
         let b = Value::from(42i8);
 
         assert!(a.is_text());
-        assert!(b.is_i8());
+        assert!(b.is_integer_i8());
 
         let a_plus_b = (a.clone() + b.clone()).unwrap();
         let b_plus_a = (b.clone() + a.clone()).unwrap();
@@ -319,7 +319,7 @@ mod tests {
     fn structural_equality() {
         let a = Value::from(42_i8);
         let b = Value::from(42_i32);
-        assert!(a.is_i8());
+        assert!(a.is_integer_i8());
 
         assert_structural_eq!(a, b);
 

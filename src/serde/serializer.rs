@@ -32,7 +32,6 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
-    // println!("Value container: {value_container}");
     compile_value(&value_container).map_err(|e| e.into())
 }
 pub fn to_value_container<T>(
@@ -81,15 +80,7 @@ impl SerializeStruct for StructSerializer {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        // rational: we want to map to json representation
-        // so other JSON serde still works. Otherwise we'd
-        // use a Struct here (see setup data transfer from JS)
-        // let mut map = Map::default();
-        // for (field, value) in self.fields.into_iter() {
-        //     map.set(ValueContainer::from(field), value);
-        // }
-        // Ok(ValueContainer::from(CoreValue::Map(map)))
-        Ok(Map::from(self.fields).into())
+        Ok(Map::Structural(self.fields).into())
     }
 }
 
@@ -97,7 +88,7 @@ impl SerializeStruct for StructSerializer {
 /// For example:
 /// (i32, String)
 /// will be serialized as:
-/// (i32, String)
+/// [i32, String]
 #[derive(Default)]
 pub struct TupleSerializer {
     elements: Vec<ValueContainer>,
@@ -138,7 +129,7 @@ impl SerializeTuple for TupleSerializer {
 /// For example:
 /// struct MyStruct(i32, String);
 /// will be serialized as:
-/// {"MyStruct": [i32, String]}
+/// [i32, String]
 pub struct TupleStructSerializer {
     _name: &'static str,
     fields: List,
@@ -349,13 +340,9 @@ impl SerializeMap for MapSerializer {
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         let mut map = Map::default();
-        for (key, value) in self.entries.iter() {
+        for (key, value) in self.entries.into_iter() {
             if let Some(value) = value {
-                map.try_set(key.clone(), value.clone()).map_err(|e| {
-                    SerializationError::Custom(format!(
-                        "Failed to set map entry: {e}"
-                    ))
-                })?;
+                map.set(key, value);
             } else {
                 return Err(SerializationError::Custom(
                     "Map entry without value".to_string(),
@@ -516,9 +503,9 @@ impl Serializer for &mut DatexSerializer {
             // {"datex::field": value}
             // instead of
             // value
-            let mut a = StructSerializer::new();
-            a.serialize_field(name, value)?;
-            a.end()
+            let mut struct_serializer = StructSerializer::new();
+            struct_serializer.serialize_field(name, value)?;
+            struct_serializer.end()
         } else {
             Ok(value.serialize(&mut *self)?)
         }
@@ -869,7 +856,7 @@ mod tests {
         let result = to_value_container(&test_struct);
         assert!(result.is_ok());
         let result = result.unwrap();
-        let map = Map::from(vec![(
+        let map = Map::Structural(vec![(
             "endpoint".to_string(),
             ValueContainer::from(Endpoint::new("@test")),
         )]);

@@ -27,30 +27,13 @@ impl RuntimeInternal {
     ) -> Option<Reference> {
         self.memory.borrow().get_reference(address).cloned()
     }
-    // FIXME TODO
+    // FIXME implement async resolution
     async fn resolve_reference(
         &self,
         address: &PointerAddress,
     ) -> Option<Reference> {
         self.memory.borrow().get_reference(address).cloned()
     }
-
-    // pub fn as_dif_value_container(
-    //     &self,
-    //     val: &ValueContainer,
-    // ) -> Option<DIFValueContainer> {
-    //     match val {
-    //         ValueContainer::Value(value) => {
-    //             DIFValue::try_from(value).ok().map(DIFValueContainer::Value)
-    //         }
-    //         ValueContainer::Reference(address) => Some(DIFValueContainer::Reference(
-    //             address
-    //                 .pointer_address()
-    //                 .expect("Reference in ValueContainer must have a pointer address")
-    //                 .clone(),
-    //         )),
-    //     }
-    // }
 }
 
 impl DIFInterface for RuntimeInternal {
@@ -60,12 +43,12 @@ impl DIFInterface for RuntimeInternal {
         address: PointerAddress,
         update: DIFUpdateData,
     ) -> Result<(), DIFUpdateError> {
-        let ptr = self
+        let reference = self
             .resolve_in_memory_reference(&address)
             .ok_or(DIFUpdateError::ReferenceNotFound)?;
         match update {
             DIFUpdateData::Set { key, value } => {
-                if !ptr.supports_property_access() {
+                if !reference.supports_property_access() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
                             "Reference does not support property access"
@@ -75,21 +58,22 @@ impl DIFInterface for RuntimeInternal {
                 }
                 let value_container = value.to_value_container(&self.memory)?;
                 match key {
-                    DIFProperty::Text(key) => ptr.try_set_text_property(
+                    DIFProperty::Text(key) => reference.try_set_text_property(
                         source_id,
                         &key,
                         value_container,
                         &self.memory,
                     )?,
-                    DIFProperty::Index(key) => ptr.try_set_numeric_property(
-                        source_id,
-                        key as u32,
-                        value_container,
-                        &self.memory,
-                    )?,
+                    DIFProperty::Index(key) => reference
+                        .try_set_numeric_property(
+                            source_id,
+                            key as u32,
+                            value_container,
+                            &self.memory,
+                        )?,
                     DIFProperty::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
-                        ptr.try_set_property(
+                        reference.try_set_property(
                             source_id,
                             key,
                             value_container,
@@ -98,13 +82,13 @@ impl DIFInterface for RuntimeInternal {
                     }
                 }
             }
-            DIFUpdateData::Replace { value } => ptr.try_set_value(
+            DIFUpdateData::Replace { value } => reference.try_set_value(
                 source_id,
                 value.to_value_container(&self.memory)?,
                 &self.memory,
             )?,
             DIFUpdateData::Push { value } => {
-                if !ptr.supports_push() {
+                if !reference.supports_push() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
                             "Reference does not support push operation"
@@ -112,14 +96,14 @@ impl DIFInterface for RuntimeInternal {
                         ),
                     ));
                 }
-                ptr.try_push_value(
+                reference.try_push_value(
                     source_id,
                     value.to_value_container(&self.memory)?,
                     &self.memory,
                 )?
             }
             DIFUpdateData::Clear => {
-                if !ptr.supports_clear() {
+                if !reference.supports_clear() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
                             "Reference does not support clear operation"
@@ -127,10 +111,10 @@ impl DIFInterface for RuntimeInternal {
                         ),
                     ));
                 }
-                ptr.try_clear(source_id)?
+                reference.try_clear(source_id)?
             }
             DIFUpdateData::Remove { key } => {
-                if !ptr.supports_property_access() {
+                if !reference.supports_property_access() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
                             "Reference does not support property access"
@@ -140,19 +124,23 @@ impl DIFInterface for RuntimeInternal {
                 }
 
                 match key {
-                    DIFProperty::Text(key) => ptr.try_delete_property(
+                    DIFProperty::Text(key) => reference.try_delete_property(
                         source_id,
                         ValueContainer::from(key),
                         &self.memory,
                     )?,
-                    DIFProperty::Index(key) => ptr.try_delete_property(
+                    DIFProperty::Index(key) => reference.try_delete_property(
                         source_id,
                         ValueContainer::from(key),
                         &self.memory,
                     )?,
                     DIFProperty::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
-                        ptr.try_delete_property(source_id, key, &self.memory)?
+                        reference.try_delete_property(
+                            source_id,
+                            key,
+                            &self.memory,
+                        )?
                     }
                 }
             }
@@ -165,8 +153,8 @@ impl DIFInterface for RuntimeInternal {
         &self,
         address: PointerAddress,
     ) -> Result<DIFReference, DIFResolveReferenceError> {
-        let ptr = self.resolve_in_memory_reference(&address);
-        match ptr {
+        let reference = self.resolve_in_memory_reference(&address);
+        match reference {
             Some(ptr) => Ok(DIFReference::from_reference(&ptr, &self.memory)),
             None => todo!("Implement async resolution of references"),
         }
@@ -176,8 +164,8 @@ impl DIFInterface for RuntimeInternal {
         &self,
         address: PointerAddress,
     ) -> Result<DIFReference, DIFResolveReferenceError> {
-        let ptr = self.resolve_in_memory_reference(&address);
-        match ptr {
+        let reference = self.resolve_in_memory_reference(&address);
+        match reference {
             Some(ptr) => Ok(DIFReference::from_reference(&ptr, &self.memory)),
             None => Err(DIFResolveReferenceError::ReferenceNotFound),
         }
@@ -222,10 +210,10 @@ impl DIFInterface for RuntimeInternal {
         options: ObserveOptions,
         callback: F,
     ) -> Result<u32, DIFObserveError> {
-        let ptr = self
+        let reference = self
             .resolve_in_memory_reference(&address)
             .ok_or(DIFObserveError::ReferenceNotFound)?;
-        Ok(ptr.observe(Observer {
+        Ok(reference.observe(Observer {
             transceiver_id,
             options,
             callback: Rc::new(callback),
@@ -238,10 +226,11 @@ impl DIFInterface for RuntimeInternal {
         observer_id: u32,
         options: ObserveOptions,
     ) -> Result<(), DIFObserveError> {
-        let ptr = self
+        let reference = self
             .resolve_in_memory_reference(&address)
             .ok_or(DIFObserveError::ReferenceNotFound)?;
-        ptr.update_observer_options(observer_id, options)
+        reference
+            .update_observer_options(observer_id, options)
             .map_err(DIFObserveError::ObserveError)
     }
 
@@ -250,10 +239,11 @@ impl DIFInterface for RuntimeInternal {
         address: PointerAddress,
         observer_id: u32,
     ) -> Result<(), DIFObserveError> {
-        let ptr = self
+        let reference = self
             .resolve_in_memory_reference(&address)
             .ok_or(DIFObserveError::ReferenceNotFound)?;
-        ptr.unobserve(observer_id)
+        reference
+            .unobserve(observer_id)
             .map_err(DIFObserveError::ObserveError)
     }
 }

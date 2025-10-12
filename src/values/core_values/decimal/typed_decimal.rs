@@ -39,7 +39,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum DecimalTypeVariant {
-    F32 = 1,
+    F32 = 1, // rationale: We need to start with 1 here, as the core lib pointer id for the base type is using OFFSET_X + variant as index
     F64,
     Big,
 }
@@ -61,6 +61,7 @@ impl Serialize for TypedDecimal {
                 serializer.serialize_f32(value.into_inner())
             }
             TypedDecimal::F64(value) => {
+                // FIXME: Improve serialization, as this can take references instead of copying (maybe :D)
                 serializer.serialize_f64(value.into_inner())
             }
             TypedDecimal::Decimal(value) => value.serialize(serializer),
@@ -198,8 +199,6 @@ impl From<&TypedDecimal> for CoreLibPointerId {
 /// Parses a string into an f32, ensuring the value is finite and within the range of f32.
 /// Returns an error if the value is out of range, NaN, or cannot be parsed.
 fn parse_checked_f32(s: &str) -> Result<f32, NumberParseError> {
-    println!("Parsing f32 from string: {}", s);
-
     // handle special cases
     match s {
         "inf" => return Ok(f32::INFINITY),
@@ -229,13 +228,9 @@ fn parse_checked_f64(s: &str) -> Result<f64, NumberParseError> {
     }
 
     let v: Decimal = Decimal::from_string(s)?;
-    let res = v.try_into_f64();
-    if let Some(v) = res {
-        if v.is_finite() {
-            Ok(v)
-        } else {
-            Err(NumberParseError::OutOfRange)
-        }
+    let res = v.into_f64();
+    if res.is_finite() {
+        Ok(res)
     } else {
         Err(NumberParseError::OutOfRange)
     }
@@ -316,9 +311,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.into_inner(),
             TypedDecimal::F64(value) => value.into_inner() as f32,
-            TypedDecimal::Decimal(value) => {
-                value.try_into_f32().unwrap_or(f32::NAN)
-            }
+            TypedDecimal::Decimal(value) => value.into_f32(),
         }
     }
 
@@ -328,9 +321,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.into_inner() as f64,
             TypedDecimal::F64(value) => value.into_inner(),
-            TypedDecimal::Decimal(value) => {
-                value.try_into_f64().unwrap_or(f64::NAN)
-            }
+            TypedDecimal::Decimal(value) => value.into_f64(),
         }
     }
 
@@ -360,8 +351,7 @@ impl TypedDecimal {
             }
             TypedDecimal::Decimal(value) => match value {
                 Decimal::Finite(big_value) => {
-                    big_value.is_integer()
-                        && big_value.to_f64().unwrap_or(f64::NAN).is_finite()
+                    big_value.is_integer() && big_value.to_f64().is_finite()
                 }
                 Decimal::Zero => true,
                 Decimal::NegZero => true,
@@ -454,6 +444,8 @@ impl TypedDecimal {
         }
     }
 
+    // TODO: Handle nan and infinity cases as nanf32 is ugly
+    // Let's use nan_f32 or TBD
     pub fn to_string_with_suffix(&self) -> String {
         match self {
             TypedDecimal::F32(value) => format!("{}f32", value.into_inner()),
@@ -485,11 +477,7 @@ impl Add for TypedDecimal {
                 )),
                 TypedDecimal::Decimal(b) => {
                     let result = Decimal::from(a.into_inner()) + b;
-                    if let Some(result_f32) = result.try_into_f32() {
-                        TypedDecimal::F32(result_f32.into())
-                    } else {
-                        TypedDecimal::F32(f32::NAN.into())
-                    }
+                    TypedDecimal::F32(result.into_f32().into())
                 }
             },
             TypedDecimal::F64(a) => match rhs {
@@ -499,11 +487,7 @@ impl Add for TypedDecimal {
                 TypedDecimal::F64(b) => TypedDecimal::F64(a + b),
                 TypedDecimal::Decimal(b) => {
                     let result = Decimal::from(a.into_inner()) + b;
-                    if let Some(result_f64) = result.try_into_f64() {
-                        TypedDecimal::F64(result_f64.into())
-                    } else {
-                        TypedDecimal::F64(f64::NAN.into())
-                    }
+                    TypedDecimal::F64(result.into_f64().into())
                 }
             },
             TypedDecimal::Decimal(a) => {
@@ -517,6 +501,7 @@ impl Add for &TypedDecimal {
     type Output = TypedDecimal;
 
     fn add(self, rhs: Self) -> Self::Output {
+        // FIXME: Avoid cloning, as add should be applicable for refs only
         TypedDecimal::add(self.clone(), rhs.clone())
     }
 }
@@ -553,6 +538,7 @@ impl Sub for &TypedDecimal {
     type Output = TypedDecimal;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        // FIXME: Avoid cloning, as sub should be applicable for refs only
         TypedDecimal::sub(self.clone(), rhs.clone())
     }
 }

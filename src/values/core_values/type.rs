@@ -142,24 +142,6 @@ impl Type {
             reference_mutability: None,
         }
     }
-
-    /// Creates a new structural map type.
-    pub fn map(
-        key_type: impl Into<TypeContainer>,
-        value_type: impl Into<TypeContainer>,
-    ) -> Self {
-        todo!()
-        // Type {
-        //     type_definition: TypeDefinition::Structural(
-        //         StructuralTypeDefinition::Map(Box::new((
-        //             key_type.into(),
-        //             value_type.into(),
-        //         ))),
-        //     ),
-        //     base_type: None,
-        //     reference_mutability: None,
-        // }
-    }
 }
 
 impl Type {
@@ -175,7 +157,6 @@ impl Type {
             return Some(base_type.clone());
         }
         // unit type has no base type
-        // FIXME
         if self.is_unit() {
             return None;
         }

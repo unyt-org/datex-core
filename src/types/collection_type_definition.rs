@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::types::type_container::TypeContainer;
 
+// TODO: Rename to Generic type definition?
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum CollectionTypeDefinition {
     // e.g. [integer]

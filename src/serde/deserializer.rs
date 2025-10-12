@@ -320,9 +320,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
         }
     }
 
-    /// Deserialize maps from tuples of key-value pairs
+    /// Deserialize maps from list of key-value pairs
     /// For example:
-    ///     ("key1": value1, "key2": value2)
+    ///     {"key1": value1, "key2": value2}
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,

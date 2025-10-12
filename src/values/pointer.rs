@@ -78,7 +78,6 @@ impl<'de> Deserialize<'de> for PointerAddress {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        println!("Deserializing PointerAddress from string: {}", s);
         PointerAddress::try_from(s.as_str()).map_err(|e| {
             serde::de::Error::custom(format!(
                 "Failed to parse PointerAddress: {}",

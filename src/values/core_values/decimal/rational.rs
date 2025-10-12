@@ -3,9 +3,9 @@ use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{Signed, ToPrimitive, Zero};
 use pad::PadStr;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::ops::{Add, Neg};
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {
@@ -31,14 +31,13 @@ impl<'de> Deserialize<'de> for Rational {
         if let Ok(big_rational) = s.parse::<BigRational>() {
             return Ok(Rational { big_rational });
         }
-        
+
         Err(serde::de::Error::custom(format!(
             "Failed to parse '{}' as Rational",
             s
         )))
     }
 }
-
 
 impl Rational {
     pub(crate) fn is_integer(&self) -> bool {
@@ -53,8 +52,8 @@ impl Rational {
     pub(crate) fn to_i64(&self) -> Option<i64> {
         self.big_rational.to_i64()
     }
-    pub(crate) fn to_f32(&self) -> Option<f32> {
-        self.big_rational.to_f32()
+    pub(crate) fn to_f32(&self) -> f32 {
+        self.big_rational.to_f32().unwrap_or(f32::NAN)
     }
 
     pub(crate) fn is_positive(&self) -> bool {
@@ -65,8 +64,8 @@ impl Rational {
         self.big_rational.is_negative()
     }
 
-    pub(crate) fn to_f64(&self) -> Option<f64> {
-        self.big_rational.to_f64()
+    pub(crate) fn to_f64(&self) -> f64 {
+        self.big_rational.to_f64().unwrap_or(f64::NAN)
     }
 
     pub(crate) fn from_big_rational(big_rational: BigRational) -> Self {
@@ -81,6 +80,7 @@ impl Rational {
     }
 
     // TODO #128: support e-notation for large numbers
+    // FIXME: Improve this, pass args as reference and non mutable
     pub(crate) fn finite_fraction_to_decimal_string(
         mut numerator: BigInt,
         denominator: BigInt,

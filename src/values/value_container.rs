@@ -228,7 +228,7 @@ impl ValueContainer {
     }
 
     /// Returns a reference to the contained Reference, panics if it is not a Reference.
-    pub fn unsafe_reference(&self) -> &Reference {
+    pub fn reference_unchecked(&self) -> &Reference {
         match self {
             ValueContainer::Reference(reference) => reference,
             _ => panic!("Cannot convert ValueContainer to Reference"),
@@ -418,7 +418,7 @@ impl Neg for ValueContainer {
         match self {
             ValueContainer::Value(value) => (-value).map(ValueContainer::Value),
             ValueContainer::Reference(reference) => {
-                let value = reference.collapse_to_value().borrow().clone();
+                let value = reference.collapse_to_value().borrow().clone(); // FIXME: Avoid clone
                 (-value).map(ValueContainer::Value)
             }
         }

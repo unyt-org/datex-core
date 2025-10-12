@@ -61,36 +61,34 @@ impl PartialEq for Decimal {
 
 impl Decimal {
     /// Attempts to convert the Decimal to an f32.
-    /// Returns None if the value cannot be represented as f32.
-    /// If an overflow occurs, returns Some(infinity) or Some(-infinity).
-    pub fn try_into_f32(&self) -> Option<f32> {
+    /// If an overflow occurs, returns infinity or -infinity.
+    pub fn into_f32(&self) -> f32 {
         match self {
             Decimal::Finite(value) => value.to_f32(),
-            Decimal::Zero => Some(0.0),
-            Decimal::NegZero => Some(-0.0),
-            Decimal::Infinity => Some(f32::INFINITY),
-            Decimal::NegInfinity => Some(f32::NEG_INFINITY),
-            Decimal::NaN => Some(f32::NAN),
+            Decimal::Zero => 0.0,
+            Decimal::NegZero => -0.0,
+            Decimal::Infinity => f32::INFINITY,
+            Decimal::NegInfinity => f32::NEG_INFINITY,
+            Decimal::NaN => f32::NAN,
         }
     }
 
     /// Attempts to convert the Decimal to an f64.
-    /// Returns None if the value cannot be represented as f64.
-    /// If an overflow occurs, returns Some(infinity) or Some(-infinity).
-    pub fn try_into_f64(&self) -> Option<f64> {
+    /// If an overflow occurs, returns infinity or -infinity.
+    pub fn into_f64(&self) -> f64 {
         match self {
             Decimal::Finite(value) => value.to_f64(),
-            Decimal::Zero => Some(0.0),
-            Decimal::NegZero => Some(-0.0),
-            Decimal::Infinity => Some(f64::INFINITY),
-            Decimal::NegInfinity => Some(f64::NEG_INFINITY),
-            Decimal::NaN => Some(f64::NAN),
+            Decimal::Zero => 0.0,
+            Decimal::NegZero => -0.0,
+            Decimal::Infinity => f64::INFINITY,
+            Decimal::NegInfinity => f64::NEG_INFINITY,
+            Decimal::NaN => f64::NAN,
         }
     }
 
     /// Returns true if the value is finite (not NaN or Infinity).
     pub fn is_finite(&self) -> bool {
-        matches!(self, Decimal::Finite(_))
+        matches!(self, Decimal::Finite(_) | Decimal::Zero | Decimal::NegZero)
     }
 
     /// Returns true if the value is infinite (positive or negative).
@@ -261,6 +259,7 @@ impl Add for &Decimal {
     type Output = Decimal;
 
     fn add(self, rhs: Self) -> Self::Output {
+        // FIXME: Avoid cloning, as add should be applicable for refs only
         Decimal::add(self.clone(), rhs.clone())
     }
 }
@@ -277,6 +276,7 @@ impl Sub for &Decimal {
     type Output = Decimal;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        // FIXME: Avoid cloning, as sub should be applicable for refs only
         Decimal::sub(self.clone(), rhs.clone())
     }
 }
@@ -443,6 +443,8 @@ impl From<f32> for Decimal {
             Decimal::Zero
         } else {
             Decimal::Finite(Rational::from_big_rational(
+                // FIXME: We should be able to use unwrap_unchecked here
+                // as we know that the f32 is finite
                 BigRational::from_f32(value).unwrap(),
             ))
         }

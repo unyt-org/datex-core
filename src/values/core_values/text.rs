@@ -110,6 +110,7 @@ impl Text {
         self.0.insert_str(index, s);
         Ok(())
     }
+    // TODO: Add proper error handling, also for insert and other analog to MapAccessError
     pub fn remove(&mut self, index: usize) -> Result<char, String> {
         if index >= self.0.len() {
             return Err("Index out of bounds".to_string());

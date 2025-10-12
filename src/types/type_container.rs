@@ -1,9 +1,9 @@
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::references::type_reference::TypeReference;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
-use crate::traits::structural_eq::StructuralEq;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -148,7 +148,7 @@ impl TypeContainer {
         }
     }
 
-    /// Matches if one type can be assigned to another
+    /// Matches if one type matches the other
     pub fn matches_type(&self, other: &Self) -> bool {
         match (self, other) {
             (TypeContainer::Type(a), TypeContainer::Type(b)) => {

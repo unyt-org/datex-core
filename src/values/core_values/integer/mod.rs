@@ -25,7 +25,7 @@ impl Serialize for Integer {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.0.to_str_radix(10))
+        serializer.serialize_str(&self.0.to_string())
     }
 }
 
@@ -194,6 +194,7 @@ impl Add for &Integer {
     type Output = Integer;
 
     fn add(self, rhs: Self) -> Self::Output {
+        // FIXME: Optimize to avoid cloning if possible
         Integer::add(self.clone(), rhs.clone())
     }
 }
@@ -210,6 +211,7 @@ impl Sub for &Integer {
     type Output = Integer;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        // FIXME: Optimize to avoid cloning if possible
         Integer::sub(self.clone(), rhs.clone())
     }
 }

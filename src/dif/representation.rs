@@ -207,7 +207,7 @@ impl DIFTypeRepresentation {
                 DIFTypeRepresentation::Number(i.as_i128().unwrap() as f64)
             }
             StructuralTypeDefinition::Decimal(d) => {
-                DIFTypeRepresentation::Number(d.try_into_f64().unwrap())
+                DIFTypeRepresentation::Number(d.into_f64())
             }
             StructuralTypeDefinition::TypedDecimal(d) => {
                 DIFTypeRepresentation::Number(d.as_f64())
