@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::{DatexExpression, TypeExpression};
+use crate::ast::{DatexExpression, DatexExpressionData, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -27,21 +27,21 @@ pub fn infer_expression_type(
     ast: &mut DatexExpression,
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, TypeError> {
-    Ok(match ast {
-        DatexExpression::Null
-        | DatexExpression::Boolean(_)
-        | DatexExpression::Text(_)
-        | DatexExpression::Decimal(_)
-        | DatexExpression::Integer(_)
-        | DatexExpression::TypedInteger(_)
-        | DatexExpression::TypedDecimal(_)
-        | DatexExpression::Endpoint(_) => {
+    Ok(match &mut ast.data {
+        DatexExpressionData::Null
+        | DatexExpressionData::Boolean(_)
+        | DatexExpressionData::Text(_)
+        | DatexExpressionData::Decimal(_)
+        | DatexExpressionData::Integer(_)
+        | DatexExpressionData::TypedInteger(_)
+        | DatexExpressionData::TypedDecimal(_)
+        | DatexExpressionData::Endpoint(_) => {
             // TODO #446: this unwrap asserts that try_from succeeds in all cases, but this is not yet guaranteed and tested
-            let value = Type::try_from(ast as &_).unwrap();
+            let value = Type::try_from(&ast.data).unwrap();
             TypeContainer::Type(value)
         }
         // composite values
-        DatexExpression::Map(map) => {
+        DatexExpressionData::Map(map) => {
             let entries = map
                 .iter_mut()
                 .map(|(k, v)| {
@@ -54,7 +54,7 @@ pub fn infer_expression_type(
                 StructuralTypeDefinition::Map(entries),
             ))
         }
-        DatexExpression::List(list) => {
+        DatexExpressionData::List(list) => {
             let entries = list
                 .iter_mut()
                 .map(|v| infer_expression_type(v, metadata.clone()).unwrap())
@@ -64,13 +64,13 @@ pub fn infer_expression_type(
             ))
         }
         // more complex expressions
-        DatexExpression::BinaryOperation(operator, lhs, rhs, cached_type) => {
+        DatexExpressionData::BinaryOperation(operator, lhs, rhs, cached_type) => {
             infer_binary_expression_type(operator, lhs, rhs, metadata)?
         }
-        DatexExpression::TypeExpression(type_expr) => {
+        DatexExpressionData::TypeExpression(type_expr) => {
             resolve_type_expression_type(type_expr, metadata)?
         }
-        DatexExpression::TypeDeclaration {
+        DatexExpressionData::TypeDeclaration {
             id,
             name: _,
             value,
@@ -111,7 +111,7 @@ pub fn infer_expression_type(
 
             type_def
         }
-        DatexExpression::Variable(id, _) => {
+        DatexExpressionData::Variable(id, _) => {
             let var_id = *id;
             let metadata = metadata.borrow();
             metadata
@@ -121,7 +121,7 @@ pub fn infer_expression_type(
                 .clone()
                 .expect("Variable type should have been inferred already")
         }
-        DatexExpression::VariableDeclaration {
+        DatexExpressionData::VariableDeclaration {
             id,
             kind: _,
             name: _,
@@ -169,7 +169,7 @@ pub fn infer_expression_type(
 
             variable_kind
         }
-        DatexExpression::VariableAssignment(operator, id, _, value) => {
+        DatexExpressionData::VariableAssignment(operator, id, _, value) => {
             let var_id = id.unwrap();
             let metadata_borrowed = metadata.borrow();
             let var_metadata = metadata_borrowed
@@ -198,7 +198,7 @@ pub fn infer_expression_type(
                 op => todo!("#448 handle other assignment operators: {:?}", op),
             }
         }
-        DatexExpression::Statements(statements) => {
+        DatexExpressionData::Statements(statements) => {
             for stmt in statements.iter_mut() {
                 infer_expression_type(&mut stmt.expression, metadata.clone())?;
             }
@@ -432,8 +432,8 @@ mod tests {
         let ast_with_metadata = parse_and_precompile_unwrap(src);
         let mut expr = ast_with_metadata.ast;
         resolve_type_expression_type(
-            match &mut expr.unwrap() {
-                DatexExpression::TypeDeclaration { value, .. } => value,
+            match &mut expr.unwrap().data {
+                DatexExpressionData::TypeDeclaration { value, .. } => value,
                 _ => unreachable!(),
             },
             ast_with_metadata.metadata,
@@ -759,40 +759,40 @@ mod tests {
     #[test]
     fn infer_literal_types() {
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Boolean(true)),
+            infer_get_type(&mut DatexExpressionData::Boolean(true).with_default_span()),
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Boolean(false)),
+            infer_get_type(&mut DatexExpressionData::Boolean(false).with_default_span()),
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(false)))
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Null),
+            infer_get_type(&mut DatexExpressionData::Null.with_default_span()),
             Type::structural(StructuralTypeDefinition::Null)
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Decimal(Decimal::from(1.23)),),
+            infer_get_type(&mut DatexExpressionData::Decimal(Decimal::from(1.23)).with_default_span()),
             Type::structural(StructuralTypeDefinition::Decimal(Decimal::from(
                 1.23
             )))
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Integer(Integer::from(42)),),
+            infer_get_type(&mut DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
                 42
             )))
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::List(vec![
-                DatexExpression::Integer(Integer::from(1)),
-                DatexExpression::Integer(Integer::from(2)),
-                DatexExpression::Integer(Integer::from(3))
-            ]),),
+            infer_get_type(&mut DatexExpressionData::List(vec![
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(3)).with_default_span()
+            ]).with_default_span()),
             Type::structural(StructuralTypeDefinition::List(vec![
                 TypeContainer::Type(Type::from(CoreValue::from(
                     Integer::from(1)
@@ -807,10 +807,10 @@ mod tests {
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpression::Map(vec![(
-                DatexExpression::Text("a".to_string()),
-                DatexExpression::Integer(Integer::from(1))
-            )]),),
+            infer_get_type(&mut DatexExpressionData::Map(vec![(
+                DatexExpressionData::Text("a".to_string()).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span()
+            )]).with_default_span()),
             Type::structural(StructuralTypeDefinition::Map(vec![(
                 Type::structural(StructuralTypeDefinition::Text(
                     "a".to_string().into()
@@ -829,12 +829,12 @@ mod tests {
         let decimal = get_core_lib_type(CoreLibPointerId::Decimal(None));
 
         // integer - integer = integer
-        let mut expr = DatexExpression::BinaryOperation(
+        let mut expr = DatexExpressionData::BinaryOperation(
             BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
-            Box::new(DatexExpression::Integer(Integer::from(1))),
-            Box::new(DatexExpression::Integer(Integer::from(2))),
+            Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
+            Box::new(DatexExpressionData::Integer(Integer::from(2)).with_default_span()),
             None,
-        );
+        ).with_default_span();
 
         assert_eq!(
             infer_expression_type(
@@ -846,12 +846,12 @@ mod tests {
         );
 
         // decimal + decimal = decimal
-        let mut expr = DatexExpression::BinaryOperation(
+        let mut expr = DatexExpressionData::BinaryOperation(
             BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-            Box::new(DatexExpression::Decimal(Decimal::from(1.0))),
-            Box::new(DatexExpression::Decimal(Decimal::from(2.0))),
+            Box::new(DatexExpressionData::Decimal(Decimal::from(1.0)).with_default_span()),
+            Box::new(DatexExpressionData::Decimal(Decimal::from(2.0)).with_default_span()),
             None,
-        );
+        ).with_default_span();
         assert_eq!(
             infer_expression_type(
                 &mut expr,
@@ -862,12 +862,12 @@ mod tests {
         );
 
         // integer + decimal = type error
-        let mut expr = DatexExpression::BinaryOperation(
+        let mut expr = DatexExpressionData::BinaryOperation(
             BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-            Box::new(DatexExpression::Integer(Integer::from(1))),
-            Box::new(DatexExpression::Decimal(Decimal::from(2.0))),
+            Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
+            Box::new(DatexExpressionData::Decimal(Decimal::from(2.0)).with_default_span()),
             None,
-        );
+        ).with_default_span();
         assert!(matches!(
             infer_expression_type(
                 &mut expr,
@@ -882,15 +882,15 @@ mod tests {
         /*
         const x = 10
         */
-        let expr = DatexExpression::VariableDeclaration {
+        let expr = DatexExpressionData::VariableDeclaration {
             id: None,
             kind: VariableKind::Const,
             name: "x".to_string(),
             type_annotation: None,
-            init_expression: Box::new(DatexExpression::Integer(Integer::from(
+            init_expression: Box::new(DatexExpressionData::Integer(Integer::from(
                 10,
-            ))),
-        };
+            )).with_default_span()),
+        }.with_default_span();
 
         let ast_with_metadata = precompile_ast(
             expr,

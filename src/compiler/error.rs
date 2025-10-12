@@ -1,4 +1,4 @@
-use crate::ast::{DatexExpression, error::error::ParseError};
+use crate::ast::{DatexExpressionData, error::error::ParseError, DatexExpression};
 use std::fmt::Display;
 use crate::compiler::type_inference::TypeError;
 

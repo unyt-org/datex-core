@@ -5,10 +5,10 @@ use chumsky::{
     prelude::{choice, just, recursive},
     select,
 };
-
+use datex_core::ast::DatexExpression;
 use crate::{
     ast::{
-        DatexExpression, DatexParserTrait, TypeExpression,
+        DatexExpressionData, DatexParserTrait, TypeExpression,
         error::{
             error::{ErrorKind, ParseError},
             pattern::Pattern,
@@ -436,12 +436,12 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
         .padded_by(whitespace())
-        .map(|((name, generic), expr)| DatexExpression::TypeDeclaration {
+        .map_with(|((name, generic), expr), e| DatexExpressionData::TypeDeclaration {
             id: None,
             name: name.to_string(),
             value: expr,
             hoisted: false,
-        })
+        }.with_span(e.span()))
         .labelled(Pattern::Declaration)
         .as_context()
 }
@@ -451,12 +451,12 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
         .ignore_then(select! { Token::Identifier(name) => name })
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
-        .map(|(name, expr)| DatexExpression::TypeDeclaration {
+        .map_with(|(name, expr), e| DatexExpressionData::TypeDeclaration {
             id: None,
             name: name.to_string(),
             value: expr,
             hoisted: false,
-        })
+        }.with_span(e.span()))
         .labelled(Pattern::Declaration)
         .as_context()
 }
@@ -473,7 +473,7 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
         .ignore_then(r#type())
         .padded_by(whitespace())
         .then_ignore(just(Token::RightParen).padded_by(whitespace()))
-        .map(DatexExpression::Type)
+        .map_with(|expr, e| DatexExpressionData::Type(expr).with_span(e.span()))
 }
 
 #[cfg(test)]
@@ -483,7 +483,7 @@ mod tests {
     use super::*;
     use std::{io, str::FromStr};
 
-    fn parse_unwrap(src: &str) -> DatexExpression {
+    fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();
         let res = parse(src);
         if let Err(errors) = res {
@@ -493,17 +493,17 @@ mod tests {
             });
             panic!("Parsing errors found");
         }
-        res.unwrap()
+        res.unwrap().data
     }
     fn parse_type_unwrap(src: &str) -> TypeExpression {
         let value = parse_unwrap(format!("type T = {}", src).as_str());
-        if let DatexExpression::TypeDeclaration { value, .. } = value {
+        if let DatexExpressionData::TypeDeclaration { value, .. } = value {
             value
-        } else if let DatexExpression::Statements(statements) = &value
+        } else if let DatexExpressionData::Statements(statements) = &value
             && statements.len() == 1
         {
-            match &statements[0].expression {
-                DatexExpression::TypeDeclaration { value, .. } => value.clone(),
+            match &statements[0].expression.data {
+                DatexExpressionData::TypeDeclaration { value, .. } => value.clone(),
                 _ => panic!(
                     "Expected TypeDeclaration, got {:?}",
                     statements[0].expression

@@ -1,7 +1,7 @@
 use crate::ast::lexer::Token;
 use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait, TypeExpression};
+use crate::ast::{DatexExpressionData, DatexParserTrait, TypeExpression};
 use chumsky::prelude::*;
 
 fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
@@ -52,12 +52,12 @@ pub fn function<'a>(
         .then(parameters())
         .then(return_type())
         .then(body(statements))
-        .map(|(((name, params), return_type), body)| {
-            DatexExpression::FunctionDeclaration {
+        .map_with(|(((name, params), return_type), body), e| {
+            DatexExpressionData::FunctionDeclaration {
                 name,
                 parameters: params,
                 return_type,
                 body: Box::new(body),
-            }
+            }.with_span(e.span())
         })
 }

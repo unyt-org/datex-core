@@ -3,7 +3,7 @@ use crate::ast::unary_operation::{
     ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
 };
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait};
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
@@ -27,24 +27,24 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
                     .padded_by(whitespace()),
             )
             .then(unary.clone())
-            .map(|(ref_type, expr)| match ref_type {
+            .map_with(|(ref_type, expr), e| match ref_type {
                 Some(Token::Mutable) => {
-                    DatexExpression::CreateRefMut(Box::new(expr))
+                    DatexExpressionData::CreateRefMut(Box::new(expr))
                 }
                 Some(Token::Final) => {
-                    DatexExpression::CreateRefFinal(Box::new(expr))
+                    DatexExpressionData::CreateRefFinal(Box::new(expr))
                 }
-                None => DatexExpression::CreateRef(Box::new(expr)),
+                None => DatexExpressionData::CreateRef(Box::new(expr)),
                 _ => unreachable!(),
-            });
+            }.with_span(e.span()));
 
         let deref = just(Token::Star)
             .then(unary.clone())
-            .map(|(_, expr)| DatexExpression::Deref(Box::new(expr)));
+            .map_with(|(_, expr), e| DatexExpressionData::Deref(Box::new(expr)).with_span(e.span()));
 
         // apply prefix operators repeatedly (e.g. --x or !-x)
-        let prefixes = prefix_op.then(unary.clone()).map(|(op, expr)| {
-            DatexExpression::UnaryOperation(op, Box::new(expr))
+        let prefixes = prefix_op.then(unary.clone()).map_with(|(op, expr), e| {
+            DatexExpressionData::UnaryOperation(op, Box::new(expr)).with_span(e.span())
         });
 
         // try prefix forms first, fall back to atom

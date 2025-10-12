@@ -1,12 +1,13 @@
-use crate::ast::DatexExpression;
+use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 
 pub fn text<'a>() -> impl DatexParserTrait<'a> {
     select! {
-        Token::StringLiteral(s) => DatexExpression::Text(unescape_text(&s))
+        Token::StringLiteral(s) => DatexExpressionData::Text(unescape_text(&s))
     }
+    .map_with(|data, e| data.with_span(e.span()))
 }
 
 /// Takes a literal text string input, e.g. ""Hello, world!"" or "'Hello, world!' or ""x\"""

@@ -1,7 +1,7 @@
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait};
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 
 pub fn list<'a>(
@@ -15,7 +15,9 @@ pub fn list<'a>(
         .collect()
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(DatexExpression::List)
+        .map_with(|elements, e| {
+            DatexExpressionData::List(elements).with_span(e.span())
+        })
         .labelled(Pattern::List)
         .as_context()
 }
