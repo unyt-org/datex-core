@@ -796,7 +796,7 @@ fn resolve_variable(
         .runtime
         .memory()
         .borrow()
-        .get_reference(&CoreLibPointerId::Core.into())
+        .get_reference(&CoreLibPointerId::Core.into()) // FIXME: don't use core struct here, but better access with one of our mappings already present
         && let Some(core_variable) = core
             .collapse_to_value()
             .borrow()

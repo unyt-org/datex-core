@@ -199,6 +199,7 @@ fn sum<'a>(product: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
         .boxed()
 }
 
+/// FIXME: Rethink syntax for bitwise operations, due to colission with type system syntax
 fn bitwise_and<'a>(
     sum: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {

@@ -8,6 +8,8 @@ use chumsky::prelude::*;
 pub enum ApplyOperation {
     /// Apply a function to an argument
     FunctionCall(DatexExpression),
+
+    // TODO: Implement MultiFunctionCall(Vec<DatexExpression>),
     /// Apply a property access to an argument
     PropertyAccess(DatexExpression),
 
@@ -109,6 +111,15 @@ pub fn chain<'a>(
                     .ignore_then(atom.padded_by(whitespace()))
                     .map(ApplyOperation::FunctionCall),
                 // property access
+                // TODO: allow integer index access and ranges in dot access notation
+                /*
+                whatever.0x10.test -> not allowed
+                whatever.10.test -> allowed
+                whatever.10u8.test -> disallowed
+                whatever.1e10.test -> disallowed
+                whatever.-1.test -> ?
+                whatever.2..5.test -> later, but allowed
+                */
                 just(Token::Dot)
                     .padded_by(whitespace())
                     .ignore_then(key)

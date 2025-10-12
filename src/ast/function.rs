@@ -20,7 +20,6 @@ fn body<'a>(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
 }
 
-
 fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
     select! { Token::Identifier(name) => name }
         .then(
@@ -31,7 +30,8 @@ fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
         .map(|(name, ty)| (name, ty))
 }
 
-fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>> {
+fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>>
+{
     parameter()
         .padded_by(whitespace())
         .separated_by(just(Token::Comma).padded_by(whitespace()))
@@ -44,6 +44,7 @@ fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>> 
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
+    // TODO: support error notation
 
     just(Token::Function)
         .padded_by(whitespace())

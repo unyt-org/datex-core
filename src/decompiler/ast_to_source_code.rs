@@ -179,6 +179,7 @@ fn map_to_source_code(
 
 /// Converts a text string into a properly escaped source code representation
 fn text_to_source_code(text: &str) -> String {
+    // TODO: Move this to text (as unescape_text is required in the Display)
     // escape quotes and backslashes in text
     let text = text
         .replace('\\', r#"\\"#)

@@ -4,7 +4,7 @@ use crate::ast::{DatexExpression, DatexParserTrait};
 use chumsky::prelude::*;
 
 /// A valid map key
-/// (1: value), "key", 1, (("x"+"y"): 123)
+/// abc, a, "1", "test", (1 + 2), ...
 pub fn key<'a>(
     wrapped_expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {

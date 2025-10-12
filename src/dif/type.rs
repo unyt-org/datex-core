@@ -11,28 +11,22 @@ use crate::values::pointer::PointerAddress;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "def")]
+#[serde(tag = "kind", content = "def", rename_all = "lowercase")]
 pub enum DIFTypeDefinition {
     // {x: integer, y: text}
-    #[serde(rename = "structural")]
     Structural(Box<DIFStructuralTypeDefinition>),
 
-    #[serde(rename = "reference")]
     Reference(PointerAddress),
 
     // e.g. A & B & C
-    #[serde(rename = "intersection")]
     Intersection(Vec<DIFTypeContainer>),
 
     // e.g. A | B | C
-    #[serde(rename = "union")]
     Union(Vec<DIFTypeContainer>),
 
     // ()
-    #[serde(rename = "unit")]
     Unit,
 
-    #[serde(rename = "function")]
     Function {
         parameters: Vec<(String, DIFTypeContainer)>,
         return_type: Box<DIFTypeContainer>,

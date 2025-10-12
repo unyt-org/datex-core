@@ -30,20 +30,20 @@ pub enum AccessError {
     CanNotUseReferenceAsKey,
     IndexOutOfBounds(u32),
     InvalidPropertyKeyType(String),
-    MapSetError(MapAccessError),
+    MapAccessError(Box<MapAccessError>),
 }
 
 impl From<MapAccessError> for AccessError {
     fn from(err: MapAccessError) -> Self {
-        AccessError::MapSetError(err)
+        AccessError::MapAccessError(Box::new(err))
     }
 }
 
 impl Display for AccessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AccessError::MapSetError(err) => {
-                write!(f, "Map set error: {}", err)
+            AccessError::MapAccessError(err) => {
+                write!(f, "Map access error: {}", err)
             }
             AccessError::ImmutableReference => {
                 write!(f, "Cannot modify an immutable reference")
@@ -330,7 +330,10 @@ impl Display for ReferenceCreationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReferenceCreationError::CannotCreateFinalFromMutableRef => {
-                write!(f, "Cannot create final reference from mutable reference")
+                write!(
+                    f,
+                    "Cannot create final reference from mutable reference"
+                )
             }
             ReferenceCreationError::InvalidType => {
                 write!(
@@ -514,7 +517,9 @@ impl Reference {
                     }
                     Reference::TypeReference(tr) => {
                         if mutability == ReferenceMutability::Mutable {
-                            return Err(ReferenceCreationError::MutableTypeReference);
+                            return Err(
+                                ReferenceCreationError::MutableTypeReference,
+                            );
                         }
                         Reference::TypeReference(
                             TypeReference::anonymous(
@@ -532,12 +537,12 @@ impl Reference {
                     CoreValue::Type(type_value) => {
                         // TODO: allowed_type "Type" is also allowed
                         if allowed_type.is_some() {
-                            return Err(
-                                ReferenceCreationError::InvalidType,
-                            );
+                            return Err(ReferenceCreationError::InvalidType);
                         }
                         if mutability == ReferenceMutability::Mutable {
-                            return Err(ReferenceCreationError::MutableTypeReference);
+                            return Err(
+                                ReferenceCreationError::MutableTypeReference,
+                            );
                         }
                         Reference::new_from_type(
                             type_value,
@@ -599,7 +604,9 @@ impl Reference {
             ValueContainer::Reference(reference) => {
                 // If it points to a non-final reference, forbid it
                 if reference.is_mutable() {
-                    return Err(ReferenceCreationError::CannotCreateFinalFromMutableRef);
+                    return Err(
+                        ReferenceCreationError::CannotCreateFinalFromMutableRef,
+                    );
                 }
             }
             ValueContainer::Value(_) => {}
@@ -886,9 +893,10 @@ mod tests {
         // creating a final reference from a mutable reference should fail
         let mutable_ref =
             Reference::try_mut_from(ValueContainer::from(42)).unwrap();
-        assert_matches!(Reference::try_final_from(
-            ValueContainer::Reference(mutable_ref)
-        ), Err(ReferenceCreationError::CannotCreateFinalFromMutableRef));
+        assert_matches!(
+            Reference::try_final_from(ValueContainer::Reference(mutable_ref)),
+            Err(ReferenceCreationError::CannotCreateFinalFromMutableRef)
+        );
 
         // creating a final reference from a type ref should work
         let type_value = ValueContainer::Reference(Reference::TypeReference(

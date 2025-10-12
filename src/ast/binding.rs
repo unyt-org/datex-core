@@ -61,18 +61,23 @@ pub fn deref_assignment<'a>(
         .then(unary)
         .then(assignment_op)
         .then(expression)
-        .map(|(((deref_count, deref_expression), operator), assigned_expression)| {
-            DatexExpression::DerefAssignment {
-                operator,
-                deref_count,
-                deref_expression: Box::new(deref_expression),
-                assigned_expression: Box::new(assigned_expression),
-            }
-        })
+        .map(
+            |(
+                ((deref_count, deref_expression), operator),
+                assigned_expression,
+            )| {
+                DatexExpression::DerefAssignment {
+                    operator,
+                    deref_count,
+                    deref_expression: Box::new(deref_expression),
+                    assigned_expression: Box::new(assigned_expression),
+                }
+            },
+        )
+        // FIXME assignment instead of declaration
         .labelled(Pattern::Declaration)
         .as_context()
 }
-
 
 /// A variable declaration (e.g. `var x: u32 = 42` or `const y = "Hello"`)
 pub fn variable_declaration<'a>(
@@ -84,9 +89,10 @@ pub fn variable_declaration<'a>(
         .or_not();
 
     let assignment_op = assignment_operation();
-    let keyword = just(Token::Const)
-        .map(|_| VariableKind::Const)
-        .or(just(Token::Variable).map(|_| VariableKind::Var));
+    let keyword = select! {
+        Token::Variable => VariableKind::Var,
+        Token::Const    => VariableKind::Const,
+    };
 
     keyword
         .padded_by(whitespace())
@@ -122,7 +128,7 @@ pub fn declaration_or_assignment<'a>(
     choice((
         type_declaration(),
         variable_declaration(expression.clone()),
-        deref_assignment(expression.clone(), unary.clone()),
+        deref_assignment(expression.clone(), unary),
         variable_assignment(expression),
     ))
 }

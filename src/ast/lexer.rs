@@ -110,6 +110,7 @@ pub enum Token {
     #[regex(r"\$(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{10}|[0-9a-fA-F]{52})", allocated_string)] PointerAddress(String),
 
     // decimal literals (infinity, nan)
+    // FIXME remove +- from lexing and let it be handled by unary operators as for other numbers
     #[regex(r"[+-]?[Ii]nfinity", allocated_string)] Infinity(String),
     #[regex(r"[+-]?(?:nan|NaN)")] Nan,
 
@@ -460,6 +461,7 @@ mod tests {
             Ok(Token::Infinity("infinity".to_string()))
         );
 
+        // FIXME, this is not ideal, should be handled by unary minus
         let mut lexer = Token::lexer("-Infinity");
         assert_eq!(
             lexer.next().unwrap(),

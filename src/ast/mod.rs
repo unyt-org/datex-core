@@ -161,7 +161,7 @@ pub enum TypeExpression {
         return_type: Box<TypeExpression>,
     },
 
-    // structurally typed map, e.g. { x: integer, y: string }
+    // structurally typed map, e.g. { x: integer, y: text }
     StructuralMap(Vec<(TypeExpression, TypeExpression)>),
 
     // modifiers
@@ -425,7 +425,7 @@ where
     //.as_context();
 
     // a valid map/list key
-    // (1: value), "key", 1, (("x"+"y"): 123)
+    /// abc, a, "1", "test", (1 + 2), ...
     let key = key(wrapped_expression.clone()).labelled(Pattern::Custom("key"));
 
     // list

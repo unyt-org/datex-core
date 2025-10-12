@@ -1,6 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::DeriveInput;
+/// Unfinished and broken, for serde use only to convert bitfield structs to/from json
 pub fn derive_bitfield_serde(input: DeriveInput) -> TokenStream {
     let ident = input.ident;
 
