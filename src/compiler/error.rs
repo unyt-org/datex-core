@@ -1,5 +1,7 @@
 use crate::ast::{DatexExpression, error::error::ParseError};
 use std::fmt::Display;
+use crate::compiler::type_inference::TypeError;
+
 #[derive(Debug)]
 pub enum CompilerError {
     UnexpectedTerm(Box<DatexExpression>),
@@ -18,10 +20,17 @@ pub enum CompilerError {
     AssignmentToImmutableReference(String),
     AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
+    TypeError(TypeError)
 }
 impl From<Vec<ParseError>> for CompilerError {
     fn from(value: Vec<ParseError>) -> Self {
         CompilerError::ParseErrors(value)
+    }
+}
+
+impl From<TypeError> for CompilerError {
+    fn from(value: TypeError) -> Self {
+        CompilerError::TypeError(value)
     }
 }
 
@@ -81,6 +90,9 @@ impl Display for CompilerError {
             }
             CompilerError::AssignmentToImmutableReference(name) => {
                 write!(f, "Cannot assign to immutable reference: {name}")
+            }
+            CompilerError::TypeError(err) => {
+                write!(f, "Type error: {:?}", err)
             }
         }
     }

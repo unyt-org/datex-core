@@ -23,7 +23,7 @@ pub enum TypeError {
 
 /// Infers the type of an expression as precisely as possible.
 /// Uses cached type information if available.
-fn infer_expression_type(
+pub fn infer_expression_type(
     ast: &mut DatexExpression,
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, TypeError> {
@@ -415,7 +415,7 @@ mod tests {
 
             let mut expr = ast_with_metadata.ast;
             infer_expression_type(
-                &mut expr,
+                &mut expr.as_mut().unwrap(),
                 ast_with_metadata.metadata.clone(),
             )
             .unwrap();
@@ -432,7 +432,7 @@ mod tests {
         let ast_with_metadata = parse_and_precompile_unwrap(src);
         let mut expr = ast_with_metadata.ast;
         resolve_type_expression_type(
-            match &mut expr {
+            match &mut expr.unwrap() {
                 DatexExpression::TypeDeclaration { value, .. } => value,
                 _ => unreachable!(),
             },
@@ -582,7 +582,7 @@ mod tests {
         let ast_with_metadata = parse_and_precompile_unwrap(&src);
         let mut expr = ast_with_metadata.ast;
         let result = infer_expression_type(
-            &mut expr,
+            &mut expr.as_mut().unwrap(),
             ast_with_metadata.metadata.clone(),
         );
         assert_matches!(
@@ -903,7 +903,7 @@ mod tests {
 
         // check that the expression type is inferred correctly
         assert_eq!(
-            infer_expression_type(&mut expr, metadata.clone()).unwrap(),
+            infer_expression_type(&mut expr.as_mut().unwrap(), metadata.clone()).unwrap(),
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
                 10
             )))
