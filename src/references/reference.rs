@@ -279,6 +279,7 @@ impl ValueEq for Reference {
     fn value_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Reference::TypeReference(a), Reference::TypeReference(b)) => {
+                // FIXME: Implement value_eq for type and use here instead (recursive)
                 a.borrow().type_value.structural_eq(&b.borrow().type_value)
             }
             (Reference::ValueReference(a), Reference::ValueReference(b)) => a
@@ -342,7 +343,7 @@ impl Display for ReferenceCreationError {
                 )
             }
             ReferenceCreationError::MutableTypeReference => {
-                write!(f, "Cannot create mutable reference to type")
+                write!(f, "Cannot create mutable reference for type")
             }
         }
     }
@@ -355,7 +356,6 @@ impl Reference {
         f: F,
     ) -> Option<R> {
         let reference = self.collapse_reference_chain();
-
         match reference {
             Reference::ValueReference(vr) => {
                 match &mut vr.borrow_mut().value_container {
@@ -371,11 +371,12 @@ impl Reference {
         }
     }
 
+    // TODO: Mark as unsafe function
     pub(crate) fn with_value_unchecked<R, F: FnOnce(&mut Value) -> R>(
         &self,
         f: F,
     ) -> R {
-        self.with_value(f).unwrap()
+        unsafe { self.with_value(f).unwrap_unchecked() }
     }
 
     /// Checks if the reference supports clear operation
@@ -406,7 +407,7 @@ impl Reference {
     }
 
     /// Checks if the reference has text property access.
-    /// This is true for structs.
+    /// This is true for maps.
     pub fn supports_text_property_access(&self) -> bool {
         self.with_value(|value| matches!(value.inner, CoreValue::Map(_)))
             .unwrap_or(false)
@@ -441,6 +442,8 @@ impl Reference {
         }
     }
 
+    /// Sets the pointer address of the reference.
+    /// Panics if the reference already has a pointer address.
     pub fn set_pointer_address(&self, pointer_address: PointerAddress) {
         if self.pointer_address().is_some() {
             panic!(
@@ -471,6 +474,8 @@ impl Reference {
     /// Checks if the reference is mutable.
     /// A reference is mutable if it is a mutable ValueReference and all references in the chain are mutable.
     /// TypeReferences are always immutable.
+    /// FIXME: Do we really need this? Probably we already collapse the ref and then change it's value and perform
+    /// the mutability check on the most inner ref.
     pub fn is_mutable(&self) -> bool {
         match self {
             Reference::TypeReference(_) => false, // type references are always immutable
@@ -603,6 +608,7 @@ impl Reference {
         match &value_container {
             ValueContainer::Reference(reference) => {
                 // If it points to a non-final reference, forbid it
+                // Is is_mutable correct here? Probably should use !is_final once implemented
                 if reference.is_mutable() {
                     return Err(
                         ReferenceCreationError::CannotCreateFinalFromMutableRef,
@@ -623,6 +629,7 @@ impl Reference {
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
         match self {
+            // FIXME: Can we optimize this to avoid creating rc ref cells?
             Reference::TypeReference(tr) => Reference::TypeReference(Rc::new(
                 RefCell::new(tr.borrow().collapse_reference_chain()),
             )),
@@ -767,6 +774,12 @@ impl Reference {
 /// Getter for references
 impl Reference {
     /// Gets a property on the value if applicable (e.g. for map and structs)
+    // FIXME make this return a reference to a value container
+    // Just for later as myRef.x += 1
+    // key_ref = myRef.x // myRef.try_get_property("x".into())
+    // key_val = &key_ref.value()
+    // &key_ref.set_value(key_val + 1)
+    // -> we could avoid some clones if so (as get, addition, set would all be a clone)
     pub fn try_get_property<T: Into<ValueContainer>>(
         &self,
         key: T,

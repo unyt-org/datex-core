@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use crate::libs::core::CoreLibPointerId;
+use crate::runtime::execution::ExecutionError;
+use crate::traits::apply::Apply;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
+use crate::values::value_container::ValueContainer;
 use crate::{
     types::definition::TypeDefinition, values::core_values::r#type::Type,
 };
@@ -10,10 +14,6 @@ use std::{
     fmt::{Display, Formatter},
     rc::Rc,
 };
-use crate::libs::core::CoreLibPointerId;
-use crate::runtime::execution::ExecutionError;
-use crate::traits::apply::Apply;
-use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {
@@ -27,10 +27,13 @@ impl From<String> for NominalTypeDeclaration {
 }
 impl From<&str> for NominalTypeDeclaration {
     fn from(name_and_variant: &str) -> Self {
-        let parts: Vec<&str> = name_and_variant.split('/').collect();
+        let mut parts = name_and_variant.split('/');
         NominalTypeDeclaration {
-            name: parts[0].to_string(),
-            variant: parts.get(1).map(|&s| s.to_string()),
+            name: unsafe {
+                // rationale: at least one part always exists
+                parts.next().unwrap_unchecked().to_string()
+            },
+            variant: parts.next().map(|s| s.to_string()),
         }
     }
 }
@@ -127,39 +130,49 @@ impl TypeReference {
 }
 
 impl Apply for TypeReference {
-    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         todo!()
     }
 
-    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         // TODO: ensure that we can guarantee that pointer_address is always Some here
-        let core_lib_id = CoreLibPointerId::try_from(self.pointer_address.as_ref().unwrap());
+        let core_lib_id =
+            CoreLibPointerId::try_from(self.pointer_address.as_ref().unwrap());
         if let Ok(core_lib_id) = core_lib_id {
             match core_lib_id {
-                CoreLibPointerId::Integer(None) => {
-                    arg.to_value().borrow().cast_to_integer()
-                        .map(|i| Some(ValueContainer::from(i)))
-                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
-                }
-                CoreLibPointerId::Integer(Some(variant)) => {
-                    arg.to_value().borrow().cast_to_typed_integer(variant)
-                        .map(|i| Some(ValueContainer::from(i)))
-                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
-                }
-                CoreLibPointerId::Decimal(None) => {
-                    arg.to_value().borrow().cast_to_decimal()
-                        .map(|d| Some(ValueContainer::from(d)))
-                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
-                }
-                CoreLibPointerId::Decimal(Some(variant)) => {
-                    arg.to_value().borrow().cast_to_typed_decimal(variant)
-                        .map(|d| Some(ValueContainer::from(d)))
-                        .ok_or_else(|| ExecutionError::InvalidTypeCast)
-                }
-                _ => todo!()
+                CoreLibPointerId::Integer(None) => arg
+                    .to_value()
+                    .borrow()
+                    .cast_to_integer()
+                    .map(|i| Some(ValueContainer::from(i)))
+                    .ok_or_else(|| ExecutionError::InvalidTypeCast),
+                CoreLibPointerId::Integer(Some(variant)) => arg
+                    .to_value()
+                    .borrow()
+                    .cast_to_typed_integer(variant)
+                    .map(|i| Some(ValueContainer::from(i)))
+                    .ok_or_else(|| ExecutionError::InvalidTypeCast),
+                CoreLibPointerId::Decimal(None) => arg
+                    .to_value()
+                    .borrow()
+                    .cast_to_decimal()
+                    .map(|d| Some(ValueContainer::from(d)))
+                    .ok_or_else(|| ExecutionError::InvalidTypeCast),
+                CoreLibPointerId::Decimal(Some(variant)) => arg
+                    .to_value()
+                    .borrow()
+                    .cast_to_typed_decimal(variant)
+                    .map(|d| Some(ValueContainer::from(d)))
+                    .ok_or_else(|| ExecutionError::InvalidTypeCast),
+                _ => todo!(),
             }
-        }
-        else {
+        } else {
             todo!()
         }
     }

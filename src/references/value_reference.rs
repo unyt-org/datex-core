@@ -1,9 +1,9 @@
 use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
+use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
-use crate::traits::value_eq::ValueEq;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::cell::RefCell;
@@ -64,7 +64,7 @@ impl Debug for ValueReference {
 
 impl PartialEq for ValueReference {
     fn eq(&self, other: &Self) -> bool {
-        // Two ReferenceData are equal if their value containers are equal
+        // Two value references are equal if their value containers are equal
         self.value_container.value_eq(&other.value_container)
     }
 }
