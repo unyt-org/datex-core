@@ -396,7 +396,7 @@ pub fn precompile_to_ast_with_metadata(
             // precompile the AST, adding metadata for variables etc.
             precompile_ast(
                 ast,
-                precompiler_data.ast_metadata.clone(),
+                precompiler_data.ast_with_metadata.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
             )?
         } else {
@@ -442,7 +442,8 @@ fn compile_expression(
     mut scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
     let metadata = ast_with_metadata.metadata;
-    match ast_with_metadata.ast {
+    // TODO: no clone
+    match ast_with_metadata.ast.as_ref().unwrap().clone() {
         DatexExpression::Integer(int) => {
             compilation_context
                 .insert_encoded_integer(&int.to_smallest_fitting());
@@ -987,7 +988,7 @@ fn compile_expression(
 
         _ => {
             return Err(CompilerError::UnexpectedTerm(Box::new(
-                ast_with_metadata.ast,
+                ast_with_metadata.ast.unwrap(),
             )));
         }
     }

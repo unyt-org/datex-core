@@ -50,9 +50,9 @@ impl AstMetadata {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AstWithMetadata {
-    pub ast: DatexExpression,
+    pub ast: Option<DatexExpression>,
     pub metadata: Rc<RefCell<AstMetadata>>,
 }
 
@@ -215,14 +215,14 @@ impl AstWithMetadata {
         metadata: &Rc<RefCell<AstMetadata>>,
     ) -> Self {
         AstWithMetadata {
-            ast,
+            ast: Some(ast),
             metadata: metadata.clone(),
         }
     }
 
     pub fn new_without_metadata(ast: DatexExpression) -> Self {
         AstWithMetadata {
-            ast,
+            ast: Some(ast),
             metadata: Rc::new(RefCell::new(AstMetadata::default())),
         }
     }
@@ -243,7 +243,7 @@ pub fn precompile_ast(
 
     Ok(AstWithMetadata {
         metadata: ast_metadata,
-        ast,
+        ast: Some(ast),
     })
 }
 
@@ -947,7 +947,7 @@ mod tests {
             result,
             Ok(
                 AstWithMetadata {
-                    ast: DatexExpression::GetReference(pointer_id),
+                    ast: Some(DatexExpression::GetReference(pointer_id)),
                     ..
                 }
             ) if pointer_id == CoreLibPointerId::Boolean.into()
@@ -957,7 +957,7 @@ mod tests {
             result,
             Ok(
                 AstWithMetadata {
-                    ast: DatexExpression::GetReference(pointer_id),
+                    ast: Some(DatexExpression::GetReference(pointer_id)),
                     ..
                 }
             ) if pointer_id == CoreLibPointerId::Integer(None).into()
@@ -968,7 +968,7 @@ mod tests {
             result,
             Ok(
                 AstWithMetadata {
-                    ast: DatexExpression::GetReference(pointer_id),
+                    ast: Some(DatexExpression::GetReference(pointer_id)),
                     ..
                 }
             ) if pointer_id == CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
@@ -982,9 +982,9 @@ mod tests {
             parse_and_precompile("integer/u8").expect("Precompilation failed");
         assert_eq!(
             result.ast,
-            DatexExpression::GetReference(
+            Some(DatexExpression::GetReference(
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
-            )
+            ))
         );
 
         // core type with bad variant should error
@@ -1013,7 +1013,7 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
+            Some(DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
@@ -1039,14 +1039,14 @@ mod tests {
                     ),
                     is_terminated: false,
                 }
-            ])
+            ]))
         );
 
         // value shall be interpreted as division
         let result = parse_and_precompile("var a = 42; var b = 69; a/b");
         assert!(result.is_ok());
         let statements =
-            if let DatexExpression::Statements(stmts) = result.unwrap().ast {
+            if let DatexExpression::Statements(stmts) = result.unwrap().ast.unwrap() {
                 stmts
             } else {
                 panic!("Expected statements");
@@ -1065,7 +1065,7 @@ mod tests {
         let result = parse_and_precompile("var a = 10; type b = 42; a/b");
         assert!(result.is_ok());
         let statements =
-            if let DatexExpression::Statements(stmts) = result.unwrap().ast {
+            if let DatexExpression::Statements(stmts) = result.unwrap().ast.unwrap() {
                 stmts
             } else {
                 panic!("Expected statements");
@@ -1088,7 +1088,7 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
+            Some(DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
@@ -1112,7 +1112,7 @@ mod tests {
                     },
                     is_terminated: true,
                 },
-            ])
+            ]))
         )
     }
 
@@ -1123,7 +1123,7 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
+            Some(DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::VariableDeclaration {
                         id: Some(1),
@@ -1147,7 +1147,7 @@ mod tests {
                     },
                     is_terminated: true,
                 },
-            ])
+            ]))
         )
     }
 
@@ -1158,7 +1158,7 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
+            Some(DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
@@ -1177,7 +1177,7 @@ mod tests {
                     },
                     is_terminated: true,
                 },
-            ])
+            ]))
         )
     }
 
@@ -1197,7 +1197,7 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
+            Some(DatexExpression::Statements(vec![
                 Statement {
                     expression: DatexExpression::TypeDeclaration {
                         id: Some(0),
@@ -1232,7 +1232,7 @@ mod tests {
                     ]),
                     is_terminated: false,
                 }
-            ])
+            ]))
         )
     }
 
@@ -1243,14 +1243,14 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            DatexExpression::TypeDeclaration {
+            Some(DatexExpression::TypeDeclaration {
                 id: Some(0),
                 name: "x".to_string(),
                 value: TypeExpression::GetReference(PointerAddress::from(
                     CoreLibPointerId::Integer(None)
                 )),
                 hoisted: false,
-            }
+            })
         );
     }
 }

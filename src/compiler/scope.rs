@@ -5,11 +5,12 @@ use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use datex_core::compiler::precompiler::AstWithMetadata;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PrecompilerData {
     // precompiler ast metadata
-    pub ast_metadata: Rc<RefCell<AstMetadata>>,
+    pub ast_with_metadata: AstWithMetadata,
     // precompiler scope stack
     pub precompiler_scope_stack: RefCell<PrecompilerScopeStack>,
 }
