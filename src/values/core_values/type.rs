@@ -1,5 +1,5 @@
 use crate::ast::DatexExpression;
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
+use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
 use crate::traits::structural_eq::StructuralEq;

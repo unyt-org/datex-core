@@ -14,7 +14,6 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::runtime::memory::Memory;
 use datex_core::values::core_value::CoreValue;
-use log::info;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 
