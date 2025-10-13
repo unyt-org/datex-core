@@ -478,22 +478,25 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{error::src::SrcId, parse};
+    use crate::ast::{error::src::SrcId, parse, DatexParseResult};
 
     use super::*;
     use std::{io, str::FromStr};
+    use crate::ast::parse_result::{InvalidDatexParseResult, ValidDatexParseResult};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();
         let res = parse(src);
-        if let Err(errors) = res {
-            errors.iter().for_each(|e| {
-                let cache = ariadne::sources(vec![(src_id, src)]);
-                e.clone().write(cache, io::stdout());
-            });
-            panic!("Parsing errors found");
+        match res {
+            DatexParseResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
+                errors.iter().for_each(|e| {
+                    let cache = ariadne::sources(vec![(src_id, src)]);
+                    e.clone().write(cache, io::stdout());
+                });
+                panic!("Parsing errors found");
+            },
+            DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => ast.data
         }
-        res.unwrap().data
     }
     fn parse_type_unwrap(src: &str) -> TypeExpression {
         let value = parse_unwrap(format!("type T = {}", src).as_str());

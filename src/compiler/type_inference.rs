@@ -370,6 +370,7 @@ mod tests {
     };
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::Decimal;
+    use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult};
 
     /// Helper to infer the type of an expression and return it directly as Type.
     /// Panics if type inference fails or if the inferred type is not a Type.
@@ -386,12 +387,18 @@ mod tests {
     fn parse_and_precompile(
         src: &str,
     ) -> Result<AstWithMetadata, CompilerError> {
-        let ast = parse(src).expect("Invalid expression");
-        precompile_ast(
-            ast,
-            Rc::new(RefCell::new(AstMetadata::default())),
-            &mut PrecompilerScopeStack::default(),
-        )
+        let parse_result = parse(src);
+        match parse_result {
+            DatexParseResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
+                panic!("Parsing failed: {:?}", errors)
+            }
+            DatexParseResult::Valid(valid_parse_result) => precompile_ast(
+                valid_parse_result,
+                Rc::new(RefCell::new(AstMetadata::default())),
+                &mut PrecompilerScopeStack::default(),
+            ),
+        }
+
     }
 
     /// Parses the given source code into an AST with metadata.
@@ -405,9 +412,9 @@ mod tests {
     fn parse_and_precompile_metadata(src: &str) -> AstMetadata {
         let cell = Rc::new(RefCell::new(AstMetadata::default()));
         {
-            let ast = parse(src).expect("Invalid expression");
+            let valid_parse_result = parse(src).unwrap();
             let ast_with_metadata = precompile_ast(
-                ast,
+                valid_parse_result,
                 cell.clone(),
                 &mut PrecompilerScopeStack::default(),
             )
@@ -893,7 +900,10 @@ mod tests {
         }.with_default_span();
 
         let ast_with_metadata = precompile_ast(
-            expr,
+            ValidDatexParseResult {
+                ast: expr,
+                spans: vec![0..1]
+            },
             Rc::new(RefCell::new(AstMetadata::default())),
             &mut PrecompilerScopeStack::default(),
         )

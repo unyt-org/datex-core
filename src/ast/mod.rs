@@ -19,6 +19,7 @@ pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
+pub mod parse_result;
 
 use crate::ast::assignment_operation::*;
 use crate::ast::atom::*;
@@ -56,11 +57,11 @@ use logos::Logos;
 use std::ops::Neg;
 use std::ops::Range;
 use chumsky::span::Span;
+use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult};
 
 pub type TokenInput<'a, X = Token> = &'a [X];
-pub trait DatexParserTrait<'a, T = DatexExpression, X = Token> =
-Parser<'a, TokenInput<'a, Token>, T, Err<ParseError>> + Clone + 'a
-    where X: PartialEq + 'a;
+pub trait DatexParserTrait<'a, T = DatexExpression> =
+    Parser<'a, TokenInput<'a>, T, Err<ParseError>> + Clone + 'a;
 
 pub type DatexScriptParser<'a> =
     Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<ParseError>>;
@@ -383,15 +384,9 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
     }
 }
 
-pub struct DatexParseResult {
-    pub expression: DatexExpressionData,
-    pub is_static_value: bool,
-}
 
-pub fn create_parser<'a, T>()
--> impl DatexParserTrait<'a, DatexExpression, Token>
-where
-    T: std::cmp::PartialEq + 'a,
+pub fn create_parser<'a>()
+-> impl DatexParserTrait<'a, DatexExpression>
 {
     // an expression
     let mut inner_expression = Recursive::declare();
@@ -562,8 +557,10 @@ where
     ))
 }
 
+
 /// Parse the given source code into a DatexExpression AST.
-pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
+/// Returns either the AST and the spans of each token, or a list of parse errors if parsing failed.
+pub fn parse(mut src: &str) -> DatexParseResult {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
         if let Some(pos) = src.find('\n') {
@@ -573,34 +570,55 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
         }
     }
 
+    // lex the source code
     let tokens = Token::lexer(src);
-    let tokens_spanned: Vec<(Token, Range<usize>)> = tokens
+    let tokens_spanned_result: Result<Vec<(Token, Range<usize>)>, _> = tokens
         .spanned()
         .map(|(tok, span)| {
             tok.map(|t| (t, span.clone()))
                 .map_err(|_| ParseError::new_unexpected_with_span(None, span))
         })
-        .collect::<Result<_, _>>()
-        .map_err(|e| vec![e])?;
+        .collect::<Result<_, _>>();
+    // return early if lexing failed
+    if let Err(err) = &tokens_spanned_result {
+        return DatexParseResult::Invalid(InvalidDatexParseResult {
+            ast: None,
+            errors: vec![err.clone()],
+            spans: vec![],
+        });
+    }
+    let tokens_spanned = tokens_spanned_result.unwrap();
 
     let (tokens, spans): (Vec<_>, Vec<_>) = tokens_spanned.into_iter().unzip();
-    let parser = create_parser::<'_, Token>();
-    parser.parse(&tokens).into_result().map_err(|err| {
-        err.into_iter()
-            .map(|e| {
-                let mut owned_error: ParseError = e.clone();
-                let mut index = owned_error.token_pos().unwrap();
-                if index >= spans.len() {
-                    // FIXME #364 how to show file end?
-                    index = spans.len() - 1;
-                }
-                let span = spans.get(index).unwrap();
-                owned_error.set_span(span.clone());
-                owned_error
-            })
-            .collect()
-    })
+    let parser = create_parser();
+    let result = parser.parse(&tokens);
+    if !result.has_errors() {
+        DatexParseResult::Valid(ValidDatexParseResult { ast: result.into_output().unwrap(), spans })
+    }
+    else {
+        DatexParseResult::Invalid(InvalidDatexParseResult {
+            errors: result
+                .errors()
+                .into_iter()
+                .map(|e| {
+                    let mut owned_error: ParseError = e.clone();
+                    let mut index = owned_error.token_pos().unwrap();
+                    if index >= spans.len() {
+                        // FIXME #364 how to show file end?
+                        index = spans.len() - 1;
+                    }
+                    let span = spans.get(index).unwrap();
+                    owned_error.set_span(span.clone());
+                    owned_error
+                })
+                .collect(),
+            ast: result.into_output(),
+            spans,
+        })
+    }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -615,17 +633,23 @@ mod tests {
         vec,
     };
 
-    fn parse_unwrap(src: &str) -> DatexExpressionData {
+    fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
         let res = parse(src);
-        if let Err(errors) = res {
-            errors.iter().for_each(|e| {
-                let cache = ariadne::sources(vec![(src_id, src)]);
-                e.clone().write(cache, io::stdout());
-            });
-            panic!("Parsing errors found");
+        match res {
+            DatexParseResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
+                errors.iter().for_each(|e| {
+                    let cache = ariadne::sources(vec![(src_id, src)]);
+                    e.clone().write(cache, io::stdout());
+                });
+                panic!("Parsing errors found");
+            },
+            DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => ast,
         }
-        res.unwrap().data
+    }
+
+    fn parse_unwrap_data(src: &str) -> DatexExpressionData {
+        parse_unwrap(src).data
     }
 
     fn parse_print_error(
@@ -633,17 +657,20 @@ mod tests {
     ) -> Result<DatexExpression, Vec<ParseError>> {
         let src_id = SrcId::test();
         let res = parse(src);
-        if let Err(errors) = &res {
-            errors.iter().for_each(|e| {
-                let cache = ariadne::sources(vec![(src_id, src)]);
-                e.clone().write(cache, io::stdout());
-            });
+        match res {
+            DatexParseResult::Invalid(InvalidDatexParseResult{ errors, .. }) => {
+                errors.iter().for_each(|e| {
+                    let cache = ariadne::sources(vec![(src_id, src)]);
+                    e.clone().write(cache, io::stdout());
+                });
+                Err(errors)
+            },
+            DatexParseResult::Valid(ValidDatexParseResult{ ast, .. }) => Ok(ast),
         }
-        res
     }
 
     fn try_parse_to_value_container(src: &str) -> ValueContainer {
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         ValueContainer::try_from(&expr).unwrap_or_else(|_| {
             panic!("Failed to convert expression to ValueContainer")
         })
@@ -663,7 +690,7 @@ mod tests {
             }
         "#;
 
-        let json = parse_unwrap(src);
+        let json = parse_unwrap_data(src);
 
         assert_eq!(
             json,
@@ -955,7 +982,7 @@ mod tests {
                 42
             )
         "#;
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::FunctionDeclaration {
@@ -974,7 +1001,7 @@ mod tests {
                 42
             )
         "#;
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::FunctionDeclaration {
@@ -993,7 +1020,7 @@ mod tests {
                 1 + 2;
             )
         "#;
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::FunctionDeclaration {
@@ -1029,7 +1056,7 @@ mod tests {
                 42
             )
         "#;
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::FunctionDeclaration {
@@ -1050,7 +1077,7 @@ mod tests {
     #[test]
     fn type_var_declaration() {
         let src = "var x: 5 = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1067,7 +1094,7 @@ mod tests {
         );
 
         let src = "var x: integer/u8 = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1088,7 +1115,7 @@ mod tests {
     #[test]
     fn intersection() {
         let src = "5 & 6";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1100,7 +1127,7 @@ mod tests {
         );
 
         let src = "(integer/u8 & 6) & 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1128,7 +1155,7 @@ mod tests {
     #[test]
     fn union() {
         let src = "5 | 6";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1140,7 +1167,7 @@ mod tests {
         );
 
         let src = "(integer/u8 | 6) | 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1167,7 +1194,7 @@ mod tests {
     #[test]
     fn binary_operator_precedence() {
         let src = "1 + 2 * 3";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1184,7 +1211,7 @@ mod tests {
         );
 
         let src = "1 + 2 & 3";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1201,7 +1228,7 @@ mod tests {
         );
 
         let src = "1 + 2 | 3";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::BinaryOperation(
@@ -1236,10 +1263,10 @@ mod tests {
                 ApplyOperation::FunctionCall(DatexExpressionData::Map(vec![]).with_default_span()),
             ],
         );
-        assert_eq!(parse_unwrap("User<integer/u8> {}"), expected);
-        assert_eq!(parse_unwrap("User< integer/u8 > {}"), expected);
-        assert_eq!(parse_unwrap("User<integer/u8 > {}"), expected);
-        assert!(parse("User <integer/u8> {}").is_err());
+        assert_eq!(parse_unwrap_data("User<integer/u8> {}"), expected);
+        assert_eq!(parse_unwrap_data("User< integer/u8 > {}"), expected);
+        assert_eq!(parse_unwrap_data("User<integer/u8 > {}"), expected);
+        assert!(!parse("User <integer/u8> {}").is_valid());
     }
 
     #[test]
@@ -1254,7 +1281,7 @@ mod tests {
             "if true 1 else (2)",
         ];
         for s in src {
-            let val = parse_unwrap(s);
+            let val = parse_unwrap_data(s);
             assert_eq!(
                 val,
                 DatexExpressionData::Conditional {
@@ -1279,7 +1306,7 @@ mod tests {
         ];
         for s in src {
             println!("{}", s);
-            let val = parse_unwrap(s);
+            let val = parse_unwrap_data(s);
             assert_eq!(
                 val,
                 DatexExpressionData::Conditional {
@@ -1311,7 +1338,7 @@ mod tests {
             "if true + 1 == 2 (test [1,2,3])",
         ];
         for s in src {
-            let val = parse_unwrap(s);
+            let val = parse_unwrap_data(s);
             assert_eq!(
                 val,
                 DatexExpressionData::Conditional {
@@ -1355,7 +1382,7 @@ mod tests {
             ) else null;
         "#;
 
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::Conditional {
@@ -1383,7 +1410,7 @@ mod tests {
     #[test]
     fn unary_operator() {
         let src = "+(User {})";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::UnaryOperation(
@@ -1398,7 +1425,7 @@ mod tests {
         );
 
         let src = "-(5)";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::UnaryOperation(
@@ -1408,7 +1435,7 @@ mod tests {
         );
 
         let src = "+-+-myVal";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::UnaryOperation(
@@ -1436,7 +1463,7 @@ mod tests {
     #[test]
     fn var_declaration_with_type_simple() {
         let src = "var x: integer = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1453,7 +1480,7 @@ mod tests {
         );
 
         let src = "var x: User = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1470,7 +1497,7 @@ mod tests {
         );
 
         let src = "var x: integer/u8 = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1490,7 +1517,7 @@ mod tests {
     #[test]
     fn var_declaration_with_type_union() {
         let src = "var x: integer/u8 | text = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1511,7 +1538,7 @@ mod tests {
     #[test]
     fn var_declaration_with_type_intersection() {
         let src = "var x: 5 & 6 = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1532,7 +1559,7 @@ mod tests {
     #[test]
     fn test_type_var_declaration_list() {
         let src = "var x: integer[] = 42";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::VariableDeclaration {
@@ -1552,7 +1579,7 @@ mod tests {
     #[test]
     fn equal_operators() {
         let src = "3 == 1 + 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::ComparisonOperation(
@@ -1568,7 +1595,7 @@ mod tests {
         );
 
         let src = "3 === 1 + 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::ComparisonOperation(
@@ -1584,7 +1611,7 @@ mod tests {
         );
 
         let src = "5 != 1 + 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::ComparisonOperation(
@@ -1599,7 +1626,7 @@ mod tests {
             )
         );
         let src = "5 !== 1 + 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::ComparisonOperation(
@@ -1615,7 +1642,7 @@ mod tests {
         );
 
         let src = "5 is 1 + 2";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(
             val,
             DatexExpressionData::ComparisonOperation(
@@ -1634,25 +1661,25 @@ mod tests {
     #[test]
     fn null() {
         let src = "null";
-        let val = parse_unwrap(src);
+        let val = parse_unwrap_data(src);
         assert_eq!(val, DatexExpressionData::Null);
     }
 
     #[test]
     fn boolean() {
         let src_true = "true";
-        let val_true = parse_unwrap(src_true);
+        let val_true = parse_unwrap_data(src_true);
         assert_eq!(val_true, DatexExpressionData::Boolean(true));
 
         let src_false = "false";
-        let val_false = parse_unwrap(src_false);
+        let val_false = parse_unwrap_data(src_false);
         assert_eq!(val_false, DatexExpressionData::Boolean(false));
     }
 
     #[test]
     fn integer() {
         let src = "123456789123456789";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Integer(
@@ -1664,7 +1691,7 @@ mod tests {
     #[test]
     fn negative_integer() {
         let src = "-123456789123456789";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::UnaryOperation(
@@ -1679,7 +1706,7 @@ mod tests {
     #[test]
     fn integer_with_underscores() {
         let src = "123_456";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Integer(Integer::from_string("123456").unwrap())
@@ -1689,7 +1716,7 @@ mod tests {
     #[test]
     fn hex_integer() {
         let src = "0x1A2B3C4D5E6F";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Integer(
@@ -1701,7 +1728,7 @@ mod tests {
     #[test]
     fn octal_integer() {
         let src = "0o755";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Integer(
@@ -1713,7 +1740,7 @@ mod tests {
     #[test]
     fn binary_integer() {
         let src = "0b101010";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Integer(
@@ -1725,7 +1752,7 @@ mod tests {
     #[test]
     fn integer_with_exponent() {
         let src = "2e10";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -1737,7 +1764,7 @@ mod tests {
     #[test]
     fn decimal() {
         let src = "123.456789123456";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -1758,7 +1785,7 @@ mod tests {
         ];
 
         for (src, expected_str) in cases {
-            let num = parse_unwrap(src);
+            let num = parse_unwrap_data(src);
             assert_eq!(
                 num,
                 DatexExpressionData::Decimal(
@@ -1772,7 +1799,7 @@ mod tests {
     #[test]
     fn negative_decimal() {
         let src = "-123.4";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::UnaryOperation(
@@ -1787,7 +1814,7 @@ mod tests {
     #[test]
     fn decimal_with_exponent() {
         let src = "1.23456789123456e2";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -1799,7 +1826,7 @@ mod tests {
     #[test]
     fn decimal_with_negative_exponent() {
         let src = "1.23456789123456e-2";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -1811,7 +1838,7 @@ mod tests {
     #[test]
     fn decimal_with_positive_exponent() {
         let src = "1.23456789123456E+2";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -1823,7 +1850,7 @@ mod tests {
     #[test]
     fn decimal_with_trailing_point() {
         let src = "123.";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(Decimal::from_string("123.0").unwrap())
@@ -1833,7 +1860,7 @@ mod tests {
     #[test]
     fn decimal_with_leading_point() {
         let src = ".456789123456";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -1842,7 +1869,7 @@ mod tests {
         );
 
         let src = ".423e-2";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(Decimal::from_string("0.00423").unwrap())
@@ -1852,14 +1879,14 @@ mod tests {
     #[test]
     fn text_double_quotes() {
         let src = r#""Hello, world!""#;
-        let text = parse_unwrap(src);
+        let text = parse_unwrap_data(src);
         assert_eq!(text, DatexExpressionData::Text("Hello, world!".to_string()));
     }
 
     #[test]
     fn text_single_quotes() {
         let src = r#"'Hello, world!'"#;
-        let text = parse_unwrap(src);
+        let text = parse_unwrap_data(src);
         assert_eq!(text, DatexExpressionData::Text("Hello, world!".to_string()));
     }
 
@@ -1867,7 +1894,7 @@ mod tests {
     fn text_escape_sequences() {
         let src =
             r#""Hello, \"world\"! \n New line \t tab \uD83D\uDE00 \u2764""#;
-        let text = parse_unwrap(src);
+        let text = parse_unwrap_data(src);
 
         assert_eq!(
             text,
@@ -1881,35 +1908,35 @@ mod tests {
     fn text_escape_sequences_2() {
         let src =
             r#""\u0048\u0065\u006C\u006C\u006F, \u2764\uFE0F, \uD83D\uDE00""#;
-        let text = parse_unwrap(src);
+        let text = parse_unwrap_data(src);
         assert_eq!(text, DatexExpressionData::Text("Hello, ❤️, 😀".to_string()));
     }
 
     #[test]
     fn text_nested_escape_sequences() {
         let src = r#""\\\\""#;
-        let text = parse_unwrap(src);
+        let text = parse_unwrap_data(src);
         assert_eq!(text, DatexExpressionData::Text("\\\\".to_string()));
     }
 
     #[test]
     fn text_nested_escape_sequences_2() {
         let src = r#""\\\"""#;
-        let text = parse_unwrap(src);
+        let text = parse_unwrap_data(src);
         assert_eq!(text, DatexExpressionData::Text("\\\"".to_string()));
     }
 
     #[test]
     fn empty_list() {
         let src = "[]";
-        let arr = parse_unwrap(src);
+        let arr = parse_unwrap_data(src);
         assert_eq!(arr, DatexExpressionData::List(vec![]));
     }
 
     #[test]
     fn list_with_values() {
         let src = "[1, 2, 3, 4.5, \"text\"]";
-        let arr = parse_unwrap(src);
+        let arr = parse_unwrap_data(src);
 
         assert_eq!(
             arr,
@@ -1926,7 +1953,7 @@ mod tests {
     #[test]
     fn empty_map() {
         let src = "{}";
-        let obj = parse_unwrap(src);
+        let obj = parse_unwrap_data(src);
 
         assert_eq!(obj, DatexExpressionData::Map(vec![]));
     }
@@ -1934,7 +1961,7 @@ mod tests {
     #[test]
     fn list_of_lists() {
         let src = "[[1,2],3,[4]]";
-        let arr = parse_unwrap(src);
+        let arr = parse_unwrap_data(src);
 
         assert_eq!(
             arr,
@@ -1954,7 +1981,7 @@ mod tests {
     #[test]
     fn single_entry_map() {
         let src = "{x: 1}";
-        let map = parse_unwrap(src);
+        let map = parse_unwrap_data(src);
         assert_eq!(
             map,
             DatexExpressionData::Map(vec![(
@@ -1967,14 +1994,14 @@ mod tests {
     #[test]
     fn scoped_atom() {
         let src = "(1)";
-        let atom = parse_unwrap(src);
+        let atom = parse_unwrap_data(src);
         assert_eq!(atom, DatexExpressionData::Integer(Integer::from(1)));
     }
 
     #[test]
     fn scoped_list() {
         let src = "(([1, 2, 3]))";
-        let arr = parse_unwrap(src);
+        let arr = parse_unwrap_data(src);
 
         assert_eq!(
             arr,
@@ -1989,7 +2016,7 @@ mod tests {
     #[test]
     fn map_with_key_value_pairs() {
         let src = r#"{"key1": "value1", "key2": 42, "key3": true}"#;
-        let obj = parse_unwrap(src);
+        let obj = parse_unwrap_data(src);
 
         assert_eq!(
             obj,
@@ -2013,7 +2040,7 @@ mod tests {
     #[test]
     fn dynamic_map_keys() {
         let src = r#"{(1): "value1", (2): 42, (3): true}"#;
-        let obj = parse_unwrap(src);
+        let obj = parse_unwrap_data(src);
         assert_eq!(
             obj,
             DatexExpressionData::Map(vec![
@@ -2037,7 +2064,7 @@ mod tests {
     fn add() {
         // Test with escaped characters in text
         let src = "1 + 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2053,7 +2080,7 @@ mod tests {
     fn add_complex_values() {
         // Test with escaped characters in text
         let src = "[] + x + (1 + 2)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2078,7 +2105,7 @@ mod tests {
     #[test]
     fn subtract() {
         let src = "5 - 3";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2090,7 +2117,7 @@ mod tests {
         );
 
         let src = "5-3";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2102,7 +2129,7 @@ mod tests {
         );
 
         let src = "5- 3";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2114,7 +2141,7 @@ mod tests {
         );
 
         let src = "5 -3";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2129,7 +2156,7 @@ mod tests {
     #[test]
     fn multiply() {
         let src = "4 * 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2144,7 +2171,7 @@ mod tests {
     #[test]
     fn divide() {
         let src = "8 / 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2156,7 +2183,7 @@ mod tests {
         );
 
         let src = "8 /2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2168,7 +2195,7 @@ mod tests {
         );
 
         let src = "8u8/2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2185,7 +2212,7 @@ mod tests {
     #[test]
     fn complex_calculation() {
         let src = "1 + 2 * 3 + 4";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2212,7 +2239,7 @@ mod tests {
     #[test]
     fn nested_addition() {
         let src = "1 + (2 + 3)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2233,7 +2260,7 @@ mod tests {
     fn add_statements_1() {
         // Test with escaped characters in text
         let src = "1 + (2;3)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2258,7 +2285,7 @@ mod tests {
     fn add_statements_2() {
         // Test with escaped characters in text
         let src = "(1;2) + 3";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2282,7 +2309,7 @@ mod tests {
     #[test]
     fn nested_expressions() {
         let src = "[1 + 2]";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::List(vec![DatexExpressionData::BinaryOperation(
@@ -2297,7 +2324,7 @@ mod tests {
     #[test]
     fn multi_statement_expression() {
         let src = "1;2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![
@@ -2316,7 +2343,7 @@ mod tests {
     #[test]
     fn nested_scope_statements() {
         let src = "(1; 2; 3)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![
@@ -2338,7 +2365,7 @@ mod tests {
     #[test]
     fn nested_scope_statements_closed() {
         let src = "(1; 2; 3;)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![
@@ -2361,7 +2388,7 @@ mod tests {
     #[test]
     fn nested_statements_in_map() {
         let src = r#"{"key": (1; 2; 3)}"#;
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Map(vec![(
@@ -2387,7 +2414,7 @@ mod tests {
     #[test]
     fn single_statement() {
         let src = "1;";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![Statement {
@@ -2400,28 +2427,28 @@ mod tests {
     #[test]
     fn empty_statement() {
         let src = ";";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(expr, DatexExpressionData::Statements(vec![]));
     }
 
     #[test]
     fn empty_statement_multiple() {
         let src = ";;;";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(expr, DatexExpressionData::Statements(vec![]));
     }
 
     #[test]
     fn variable_expression() {
         let src = "myVar";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(expr, DatexExpressionData::Identifier("myVar".to_string()));
     }
 
     #[test]
     fn variable_expression_with_operations() {
         let src = "myVar + 1";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -2436,7 +2463,7 @@ mod tests {
     #[test]
     fn apply_expression() {
         let src = "myFunc(1, 2, 3)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2455,7 +2482,7 @@ mod tests {
     #[test]
     fn apply_empty() {
         let src = "myFunc()";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2470,7 +2497,7 @@ mod tests {
     #[test]
     fn apply_multiple() {
         let src = "myFunc(1)(2, 3)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2491,7 +2518,7 @@ mod tests {
     #[test]
     fn apply_atom() {
         let src = "print 'test'";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2506,7 +2533,7 @@ mod tests {
     #[test]
     fn property_access() {
         let src = "myObj.myProp";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2521,7 +2548,7 @@ mod tests {
     #[test]
     fn property_access_scoped() {
         let src = "myObj.(1)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2536,7 +2563,7 @@ mod tests {
     #[test]
     fn property_access_multiple() {
         let src = "myObj.myProp.anotherProp.(1 + 2).(x;y)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2584,7 +2611,7 @@ mod tests {
     #[test]
     fn property_access_and_apply() {
         let src = "myObj.myProp(1, 2)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2605,7 +2632,7 @@ mod tests {
     #[test]
     fn apply_and_property_access() {
         let src = "myFunc(1).myProp";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2625,7 +2652,7 @@ mod tests {
     #[test]
     fn nested_apply_and_property_access() {
         let src = "((x(1)).y).z";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::ApplyChain(
@@ -2652,7 +2679,7 @@ mod tests {
     #[test]
     fn type_declaration_statement() {
         let src = "type User = { age: 42, name: \"John\" };";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![Statement {
@@ -2677,7 +2704,7 @@ mod tests {
 
         // make sure { type: 42, name: "John" } is not parsed as type declaration
         let src = r#"{ type: 42, name: "John" };"#;
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![Statement {
@@ -2699,7 +2726,7 @@ mod tests {
     #[test]
     fn variable_declaration_statement() {
         let src = "const x = 42;";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![Statement {
@@ -2720,7 +2747,7 @@ mod tests {
     #[test]
     fn variable_declaration_with_expression() {
         let src = "var x = 1 + 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableDeclaration {
@@ -2741,7 +2768,7 @@ mod tests {
     #[test]
     fn variable_assignment() {
         let src = "x = 42";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableAssignment(
@@ -2756,7 +2783,7 @@ mod tests {
     #[test]
     fn variable_assignment_expression() {
         let src = "x = (y = 1)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableAssignment(
@@ -2776,7 +2803,7 @@ mod tests {
     #[test]
     fn variable_assignment_expression_in_list() {
         let src = "[x = 1]";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::List(vec![DatexExpressionData::VariableAssignment(
@@ -2791,7 +2818,7 @@ mod tests {
     #[test]
     fn apply_in_list() {
         let src = "[myFunc(1)]";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::List(vec![DatexExpressionData::ApplyChain(
@@ -2805,7 +2832,7 @@ mod tests {
 
     #[test]
     fn variant_accessor() {
-        let res = parse_unwrap("integer/u8");
+        let res = parse_unwrap_data("integer/u8");
         assert_eq!(
             res,
             DatexExpressionData::BinaryOperation(
@@ -2816,7 +2843,7 @@ mod tests {
             )
         );
 
-        let res = parse_unwrap("undeclared/u8");
+        let res = parse_unwrap_data("undeclared/u8");
         assert_eq!(
             res,
             DatexExpressionData::BinaryOperation(
@@ -2831,7 +2858,7 @@ mod tests {
     #[test]
     fn fraction() {
         // fraction
-        let res = parse_unwrap("42/3");
+        let res = parse_unwrap_data("42/3");
         assert_eq!(
             res,
             DatexExpressionData::Decimal(Decimal::from_string("42/3").unwrap())
@@ -2845,7 +2872,7 @@ mod tests {
         );
 
         // divison
-        let res = parse_unwrap("42.4/3");
+        let res = parse_unwrap_data("42.4/3");
         assert_eq!(
             res,
             DatexExpressionData::BinaryOperation(
@@ -2858,7 +2885,7 @@ mod tests {
             )
         );
 
-        let res = parse_unwrap("42 /3");
+        let res = parse_unwrap_data("42 /3");
         assert_eq!(
             res,
             DatexExpressionData::BinaryOperation(
@@ -2869,7 +2896,7 @@ mod tests {
             )
         );
 
-        let res = parse_unwrap("42/ 3");
+        let res = parse_unwrap_data("42/ 3");
         assert_eq!(
             res,
             DatexExpressionData::BinaryOperation(
@@ -2911,7 +2938,7 @@ mod tests {
     #[test]
     fn variable_declaration_and_assignment() {
         let src = "var x = 42; x = 100 * 10;";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![
@@ -2954,7 +2981,7 @@ mod tests {
     #[test]
     fn placeholder() {
         let src = "?";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(expr, DatexExpressionData::Placeholder);
     }
 
@@ -3048,21 +3075,21 @@ mod tests {
     #[test]
     fn invalid_value_containers() {
         let src = "1 + 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert!(
             ValueContainer::try_from(&expr).is_err(),
             "Expected error when converting expression to ValueContainer"
         );
 
         let src = "xy";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert!(
             ValueContainer::try_from(&expr).is_err(),
             "Expected error when converting expression to ValueContainer"
         );
 
         let src = "x()";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert!(
             ValueContainer::try_from(&expr).is_err(),
             "Expected error when converting expression to ValueContainer"
@@ -3072,37 +3099,37 @@ mod tests {
     #[test]
     fn decimal_nan() {
         let src = "NaN";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_matches!(num, DatexExpressionData::Decimal(Decimal::NaN));
 
         let src = "nan";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_matches!(num, DatexExpressionData::Decimal(Decimal::NaN));
     }
 
     #[test]
     fn decimal_infinity() {
         let src = "Infinity";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(num, DatexExpressionData::Decimal(Decimal::Infinity));
 
         let src = "-Infinity";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(num, DatexExpressionData::Decimal(Decimal::NegInfinity));
 
         let src = "infinity";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(num, DatexExpressionData::Decimal(Decimal::Infinity));
 
         let src = "-infinity";
-        let num = parse_unwrap(src);
+        let num = parse_unwrap_data(src);
         assert_eq!(num, DatexExpressionData::Decimal(Decimal::NegInfinity));
     }
 
     #[test]
     fn comment() {
         let src = "// This is a comment\n1 + 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -3114,7 +3141,7 @@ mod tests {
         );
 
         let src = "1 + //test\n2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -3129,7 +3156,7 @@ mod tests {
     #[test]
     fn multiline_comment() {
         let src = "/* This is a\nmultiline comment */\n1 + 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -3141,7 +3168,7 @@ mod tests {
         );
 
         let src = "1 + /*test*/ 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -3156,7 +3183,7 @@ mod tests {
     #[test]
     fn shebang() {
         let src = "#!/usr/bin/env datex\n1 + 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::BinaryOperation(
@@ -3171,7 +3198,7 @@ mod tests {
         // syntax error
         let res = parse(src);
         assert!(
-            res.is_err(),
+            !res.is_valid(),
             "Expected error when parsing expression with shebang"
         );
     }
@@ -3179,7 +3206,7 @@ mod tests {
     #[test]
     fn remote_execution() {
         let src = "a :: b";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::RemoteExecution(
@@ -3191,7 +3218,7 @@ mod tests {
     #[test]
     fn remote_execution_no_space() {
         let src = "a::b";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::RemoteExecution(
@@ -3204,7 +3231,7 @@ mod tests {
     #[test]
     fn remote_execution_complex() {
         let src = "a :: b + c * 2";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::RemoteExecution(
@@ -3229,7 +3256,7 @@ mod tests {
     #[test]
     fn remote_execution_statements() {
         let src = "a :: b; 1";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Statements(vec![
@@ -3251,7 +3278,7 @@ mod tests {
     #[test]
     fn remote_execution_inline_statements() {
         let src = "a :: (1; 2 + 3)";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::RemoteExecution(
@@ -3282,7 +3309,7 @@ mod tests {
     #[test]
     fn named_slot() {
         let src = "#endpoint";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Slot(Slot::Named("endpoint".to_string()))
@@ -3292,7 +3319,7 @@ mod tests {
     #[test]
     fn deref() {
         let src = "*x";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Deref(Box::new(DatexExpressionData::Identifier(
@@ -3304,7 +3331,7 @@ mod tests {
     #[test]
     fn deref_multiple() {
         let src = "**x";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::Deref(Box::new(DatexExpressionData::Deref(Box::new(
@@ -3316,7 +3343,7 @@ mod tests {
     #[test]
     fn addressed_slot() {
         let src = "#123";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(expr, DatexExpressionData::Slot(Slot::Addressed(123)));
     }
 
@@ -3324,7 +3351,7 @@ mod tests {
     fn pointer_address() {
         // 3 bytes (internal)
         let src = "$123456";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::PointerAddress(PointerAddress::Internal([
@@ -3334,7 +3361,7 @@ mod tests {
 
         // 5 bytes (local)
         let src = "$123456789A";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::PointerAddress(PointerAddress::Local([
@@ -3344,7 +3371,7 @@ mod tests {
 
         // 26 bytes (remote)
         let src = "$1234567890ABCDEF123456789000000000000000000000000042";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::PointerAddress(PointerAddress::Remote([
@@ -3357,13 +3384,13 @@ mod tests {
         // other lengths are invalid
         let src = "$12";
         let res = parse(src);
-        assert!(res.is_err());
+        assert!(!res.is_valid());
     }
 
     #[test]
     fn variable_add_assignment() {
         let src = "x += 42";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableAssignment(
@@ -3378,7 +3405,7 @@ mod tests {
     #[test]
     fn variable_sub_assignment() {
         let src = "x -= 42";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableAssignment(
@@ -3393,7 +3420,7 @@ mod tests {
     #[test]
     fn variable_declaration_mut() {
         let src = "const x = &mut [1, 2, 3]";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableDeclaration {
@@ -3415,7 +3442,7 @@ mod tests {
     #[test]
     fn variable_declaration_ref() {
         let src = "const x = &[1, 2, 3]";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableDeclaration {
@@ -3436,7 +3463,7 @@ mod tests {
     #[test]
     fn variable_declaration() {
         let src = "const x = 1";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::VariableDeclaration {
@@ -3454,7 +3481,7 @@ mod tests {
     #[test]
     fn negation() {
         let src = "!x";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::UnaryOperation(
@@ -3464,7 +3491,7 @@ mod tests {
         );
 
         let src = "!true";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
             DatexExpressionData::UnaryOperation(
@@ -3474,7 +3501,7 @@ mod tests {
         );
 
         let src = "!![1, 2]";
-        let expr = parse_unwrap(src);
+        let expr = parse_unwrap_data(src);
         assert_matches!(
             expr,
             DatexExpressionData::UnaryOperation(
@@ -3489,5 +3516,22 @@ mod tests {
                 },
             )
         );
+    }
+
+    #[test]
+    fn token_spans() {
+        let src = "'test'+'x'";
+        let expr = parse_unwrap(src);
+        println!("Expr: {:#?}", expr);
+        assert_eq!(expr.span.start, 0);
+        assert_eq!(expr.span.end, 3);
+        if let DatexExpressionData::BinaryOperation(_, left, right, _) = expr.data {
+            assert_eq!(left.span.start, 0);
+            assert_eq!(left.span.end, 1);
+            assert_eq!(right.span.start, 2);
+            assert_eq!(right.span.end, 3);
+        } else {
+            panic!("Expected BinaryOperation");
+        }
     }
 }
