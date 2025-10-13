@@ -354,7 +354,7 @@ impl ExecutionContext {
             ExecutionContext::Local(local_context) => {
                 Some(local_context.memory_dump())
             }
-            // TODO: also support remote memory dump if possible
+            // TODO #397: also support remote memory dump if possible
             ExecutionContext::Remote(_) => None,
         }
     }

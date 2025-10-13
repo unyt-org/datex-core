@@ -58,9 +58,9 @@ pub enum Instruction {
     Divide,
 
     // unary operator
-    // TODO add missing unary operators
+    // TODO #432 add missing unary operators
     UnaryMinus,
-    // TODO: Do we need this for op overloading or can we avoid?
+    // TODO #433: Do we need this for op overloading or can we avoid?
     UnaryPlus,
     BitwiseNot,
 

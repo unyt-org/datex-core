@@ -29,7 +29,7 @@ pub fn unescape_text(text: &str) -> String {
     decode_json_unicode_escapes(&escaped)
 }
 
-// TODO: double check if this works correctly for all edge cases
+// TODO #352: double check if this works correctly for all edge cases
 /// Decodes JSON-style unicode escape sequences, including surrogate pairs
 fn decode_json_unicode_escapes(input: &str) -> String {
     let mut output = String::new();

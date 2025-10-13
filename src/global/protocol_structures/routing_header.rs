@@ -99,7 +99,7 @@ pub enum ReceiverType {
     ReceiversWithKeys = 0b11,
 }
 
-// TODO directly use bytes / pointer address instead of whole struct here
+// TODO #430 directly use bytes / pointer address instead of whole struct here
 // 1 byte + 18 byte + 2 byte + 4 byte + 1 byte = 26 bytes
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
@@ -225,7 +225,7 @@ impl Default for RoutingHeader {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Receivers {
     None,
-    // TODO rename to PointerAddress
+    // TODO #431 rename to PointerAddress
     PointerId(PointerAddress),
     Endpoints(Vec<Endpoint>),
     EndpointsWithKeys(Vec<(Endpoint, Key512)>),

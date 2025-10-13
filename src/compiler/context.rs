@@ -200,7 +200,7 @@ impl<'a> CompilationContext<'a> {
     pub fn insert_value(&self, value: &Value) {
         match &value.inner {
             CoreValue::Type(ty) => {
-                todo!("Type value not supported in CompilationContext");
+                todo!("#439 Type value not supported in CompilationContext");
             }
             CoreValue::Integer(integer) => {
                 let integer = integer.to_smallest_fitting();
@@ -374,7 +374,7 @@ impl<'a> CompilationContext<'a> {
         self.append_buffer(&endpoint.to_binary());
     }
 
-    // TODO: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
+    // TODO #440: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
     // pub fn insert_union(&self, union: &Union) {
     //     // insert values as nested UNION binary operations
 

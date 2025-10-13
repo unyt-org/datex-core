@@ -275,7 +275,7 @@ impl StructuralEq for MapKey<'_> {
 impl Display for MapKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            // TODO: escape string
+            // TODO #331: escape string
             MapKey::Text(string) => write!(f, "\"{}\"", string),
             MapKey::Value(value) => write!(f, "{value}"),
         }
@@ -405,7 +405,7 @@ impl Iterator for IntoMapIterator {
     type Item = (OwnedMapKey, ValueContainer);
 
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: optimize to avoid cloning keys and values
+        // TODO #332: optimize to avoid cloning keys and values
         match &self.map {
             Map::Dynamic(map) => {
                 let item = map.iter().nth(self.index);

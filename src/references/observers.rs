@@ -67,7 +67,7 @@ impl Reference {
             .observers
             .add(observer))
 
-        // TODO: also set observers on child references if not yet active, keep track of active observers
+        // TODO #299: also set observers on child references if not yet active, keep track of active observers
     }
 
     /// Removes an observer by its ID.

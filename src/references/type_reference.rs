@@ -114,7 +114,7 @@ impl TypeReference {
     }
 
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        todo!("implement type matching");
+        todo!("#300 implement type matching");
     }
 
     pub fn matches_type(&self, other: &Type) -> bool {
@@ -125,7 +125,7 @@ impl TypeReference {
             return *self == *base.borrow();
         }
 
-        todo!("implement type matching");
+        todo!("#301 implement type matching");
     }
 }
 
@@ -134,14 +134,14 @@ impl Apply for TypeReference {
         &self,
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        todo!()
+        todo!("#302 Undescribed by author.")
     }
 
     fn apply_single(
         &self,
         arg: &ValueContainer,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        // TODO: ensure that we can guarantee that pointer_address is always Some here
+        // TODO #303: ensure that we can guarantee that pointer_address is always Some here
         let core_lib_id =
             CoreLibPointerId::try_from(self.pointer_address.as_ref().unwrap());
         if let Ok(core_lib_id) = core_lib_id {
@@ -170,10 +170,10 @@ impl Apply for TypeReference {
                     .cast_to_typed_decimal(variant)
                     .map(|d| Some(ValueContainer::from(d)))
                     .ok_or_else(|| ExecutionError::InvalidTypeCast),
-                _ => todo!(),
+                _ => todo!("#304 Undescribed by author."),
             }
         } else {
-            todo!()
+            todo!("#305 Undescribed by author.")
         }
     }
 }

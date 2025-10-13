@@ -44,7 +44,7 @@ fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>>
 pub fn function<'a>(
     statements: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    // TODO: support error notation
+    // TODO #358: support error notation
 
     just(Token::Function)
         .padded_by(whitespace())

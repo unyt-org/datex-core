@@ -63,7 +63,7 @@ impl Serialize for TypedDecimal {
                 serializer.serialize_f32(value.into_inner())
             }
             TypedDecimal::F64(value) => {
-                // FIXME: Improve serialization, as this can take references instead of copying (maybe :D)
+                // FIXME #337: Improve serialization, as this can take references instead of copying (maybe :D)
                 serializer.serialize_f64(value.into_inner())
             }
             TypedDecimal::Decimal(value) => value.serialize(serializer),
@@ -446,7 +446,7 @@ impl TypedDecimal {
         }
     }
 
-    // TODO: Handle nan and infinity cases as nanf32 is ugly
+    // TODO #338: Handle nan and infinity cases as nanf32 is ugly
     // Let's use nan_f32 or TBD
     pub fn to_string_with_suffix(&self) -> String {
         match self {
@@ -503,7 +503,7 @@ impl Add for &TypedDecimal {
     type Output = TypedDecimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        // FIXME: Avoid cloning, as add should be applicable for refs only
+        // FIXME #339: Avoid cloning, as add should be applicable for refs only
         TypedDecimal::add(self.clone(), rhs.clone())
     }
 }
@@ -540,7 +540,7 @@ impl Sub for &TypedDecimal {
     type Output = TypedDecimal;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // FIXME: Avoid cloning, as sub should be applicable for refs only
+        // FIXME #340: Avoid cloning, as sub should be applicable for refs only
         TypedDecimal::sub(self.clone(), rhs.clone())
     }
 }

@@ -98,7 +98,7 @@ pub fn ast_to_source_code(
                             key_to_source_code(prop, decompile_options)
                         ));
                     }
-                    _ => todo!(),
+                    _ => todo!("#419 Undescribed by author."),
                 }
             }
             format!(
@@ -115,7 +115,7 @@ pub fn ast_to_source_code(
             )
         }
 
-        _ => todo!(),
+        _ => todo!("#420 Undescribed by author."),
     }
 }
 
@@ -125,7 +125,7 @@ fn type_expression_to_source_code(
 ) -> String {
     match type_expr {
         TypeExpression::Integer(ti) => ti.to_string(),
-        _ => todo!(),
+        _ => todo!("#421 Undescribed by author."),
     }
 }
 
@@ -179,7 +179,7 @@ fn map_to_source_code(
 
 /// Converts a text string into a properly escaped source code representation
 fn text_to_source_code(text: &str) -> String {
-    // TODO: Move this to text (as unescape_text is required in the Display)
+    // TODO #422: Move this to text (as unescape_text is required in the Display)
     // escape quotes and backslashes in text
     let text = text
         .replace('\\', r#"\\"#)

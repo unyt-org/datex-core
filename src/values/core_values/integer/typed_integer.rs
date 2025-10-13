@@ -148,7 +148,7 @@ impl Hash for TypedInteger {
 }
 
 impl TypedInteger {
-    // TODO: add from_integer_with_variant
+    // TODO #342: add from_integer_with_variant
 
     /// Parses a string into a TypedInteger with the given variant.
     /// If the string is not a valid integer, returns an error.
@@ -465,7 +465,7 @@ impl Display for TypedInteger {
 }
 
 impl CoreValueTrait for TypedInteger {}
-// FIXME discuss on structural vs partial equality for integers
+// FIXME #343 discuss on structural vs partial equality for integers
 impl StructuralEq for TypedInteger {
     fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -791,13 +791,13 @@ impl Add for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        // FIXME optimize to avoid cloning
+        // FIXME #344 optimize to avoid cloning
         TypedInteger::add(self.clone(), rhs.clone())
     }
 }
 
 impl AddAssign for TypedInteger {
-    // FIXME error handling / wrapping if out of bounds
+    // FIXME #345 error handling / wrapping if out of bounds
     fn add_assign(&mut self, rhs: Self) {
         *self = TypedInteger::add(self.clone(), rhs).expect("Failed to add");
     }
@@ -830,7 +830,7 @@ impl Sub for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // Fixme optimize to avoid cloning
+        // Fixme #346 optimize to avoid cloning
         TypedInteger::sub(self.clone(), rhs.clone())
     }
 }
@@ -904,7 +904,7 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
     }
 }
 
-// FIXME shall we allow negation of unsigned integers and wrap around?
+// FIXME #347 shall we allow negation of unsigned integers and wrap around?
 impl Neg for TypedInteger {
     type Output = Result<TypedInteger, ValueError>;
 

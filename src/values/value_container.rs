@@ -260,7 +260,7 @@ impl Apply for ValueContainer {
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => todo!("implement apply for Value"),
+            ValueContainer::Value(value) => todo!("#309 implement apply for Value"),
             ValueContainer::Reference(reference) => reference.apply(args),
         }
     }
@@ -271,7 +271,7 @@ impl Apply for ValueContainer {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ValueContainer::Value(value) => {
-                todo!("implement apply_single for Value")
+                todo!("#310 implement apply_single for Value")
             }
             ValueContainer::Reference(reference) => reference.apply_single(arg),
         }
@@ -418,7 +418,7 @@ impl Neg for ValueContainer {
         match self {
             ValueContainer::Value(value) => (-value).map(ValueContainer::Value),
             ValueContainer::Reference(reference) => {
-                let value = reference.collapse_to_value().borrow().clone(); // FIXME: Avoid clone
+                let value = reference.collapse_to_value().borrow().clone(); // FIXME #311: Avoid clone
                 (-value).map(ValueContainer::Value)
             }
         }

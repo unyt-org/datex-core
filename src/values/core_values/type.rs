@@ -165,10 +165,10 @@ impl Type {
                 value.get_core_lib_type_pointer_id(),
             ),
             TypeDefinition::Union(_) => {
-                todo!("handle union base type"); // generic type base type / type
+                todo!("#322 handle union base type"); // generic type base type / type
             }
             TypeDefinition::Reference(reference) => {
-                todo!("handle reference base type");
+                todo!("#323 handle reference base type");
                 // return reference.collapse_to_value().borrow()
             }
             _ => panic!("Unhandled type definition for base type"),
@@ -188,7 +188,7 @@ impl Type {
     /// integer matches 1 -> false
     /// integer matches integer -> true
     pub fn matches_type(&self, other: &Type) -> bool {
-        // TODO
+        // TODO #324
         println!("Matching types: {} and {}", self, other);
 
         let other_base_type =
@@ -215,7 +215,7 @@ impl Type {
                 }
                 return true;
             }
-            // TODO
+            // TODO #325
             _ => {}
         }
 
@@ -225,7 +225,7 @@ impl Type {
         false
     }
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        todo!("implement type reference matching");
+        todo!("#326 implement type reference matching");
         // self.type_matches(&other.type_value)
     }
 
@@ -256,17 +256,17 @@ impl Type {
                 structural_type.value_matches(value)
             }
             TypeDefinition::Reference(reference) => {
-                todo!("handle reference type matching");
+                todo!("#327 handle reference type matching");
                 //reference.value_matches(value)
             }
             TypeDefinition::Function {
                 parameters,
                 return_type,
             } => {
-                todo!("handle function type matching");
+                todo!("#328 handle function type matching");
             }
             TypeDefinition::Collection(collection_type) => {
-                todo!("handle collection type matching");
+                todo!("#329 handle collection type matching");
             }
             TypeDefinition::Unit => false, // unit type does not match any value
         }
@@ -447,7 +447,7 @@ mod tests {
         ))
     }
 
-    // TODO
+    // TODO #330
     // #[test]
     // fn test_match_combined_type() {
     //     // [1, 1] matches List<1>

@@ -14,7 +14,7 @@ impl<'a> CompilationContext<'a> {
         self.append_u8(code as u8);
     }
 
-    // TODO: Handle other types
+    // TODO #452: Handle other types
 
     pub fn insert_type_literal_integer(&self, integer: &Integer) {
         self.append_type_instruction_code(
@@ -34,7 +34,7 @@ pub fn compile_type_expression(
         TypeExpression::Integer(integer) => {
             ctx.insert_type_literal_integer(integer);
         }
-        _ => todo!(),
+        _ => todo!("#453 Undescribed by author."),
     }
     Ok(scope)
 }

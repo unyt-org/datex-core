@@ -19,7 +19,7 @@ impl<T: StructuralEq> StructuralEq for Option<T> {
         match (self, other) {
             (Some(a), Some(b)) => a.structural_eq(b),
             (None, None) => {
-                todo!("decide if None is structurally equal to None")
+                todo!("#350 decide if None is structurally equal to None")
             }
             _ => false,
         }

@@ -64,7 +64,7 @@ impl DIFTypeDefinition {
     ) -> Self {
         match type_def {
             TypeDefinition::Collection(collection_def) => {
-                todo!("handle collection type conversion");
+                todo!("#387 handle collection type conversion");
             }
             TypeDefinition::Structural(struct_def) => {
                 DIFTypeDefinition::Structural(Box::new(

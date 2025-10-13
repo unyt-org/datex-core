@@ -326,7 +326,7 @@ impl<'a> Error<'a, TokenInput<'a>> for ParseError {
         //
 
         if other.context.is_some() {
-            // TODO, if Pattern::Reset, clear context, otherwise keep
+            // TODO #370, if Pattern::Reset, clear context, otherwise keep
             if false {
                 let self_ctx_str =
                     self.context.as_ref().map(|(_, s)| s.clone());

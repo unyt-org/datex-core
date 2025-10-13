@@ -9,7 +9,7 @@ pub enum ApplyOperation {
     /// Apply a function to an argument
     FunctionCall(DatexExpression),
 
-    // TODO: Implement MultiFunctionCall(Vec<DatexExpression>),
+    // TODO #356: Implement MultiFunctionCall(Vec<DatexExpression>),
     /// Apply a property access to an argument
     PropertyAccess(DatexExpression),
 
@@ -111,7 +111,7 @@ pub fn chain<'a>(
                     .ignore_then(atom.padded_by(whitespace()))
                     .map(ApplyOperation::FunctionCall),
                 // property access
-                // TODO: allow integer index access and ranges in dot access notation
+                // TODO #357: allow integer index access and ranges in dot access notation
                 /*
                 whatever.0x10.test -> not allowed
                 whatever.10.test -> allowed

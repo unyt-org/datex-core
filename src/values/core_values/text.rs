@@ -11,7 +11,7 @@ use super::super::core_value_trait::CoreValueTrait;
 pub struct Text(pub String);
 
 impl Display for Text {
-    // TODO: escape string content
+    // TODO #319: escape string content
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "\"{}\"", self.0)
     }
@@ -110,7 +110,7 @@ impl Text {
         self.0.insert_str(index, s);
         Ok(())
     }
-    // TODO: Add proper error handling, also for insert and other analog to MapAccessError
+    // TODO #320: Add proper error handling, also for insert and other analog to MapAccessError
     pub fn remove(&mut self, index: usize) -> Result<char, String> {
         if index >= self.0.len() {
             return Err("Index out of bounds".to_string());

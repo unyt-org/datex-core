@@ -10,7 +10,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::rc::Rc;
 
-// TODO: move match logic and other type stuff here
+// TODO #376: move match logic and other type stuff here
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeContainer {
     Type(Type),

@@ -79,6 +79,6 @@ pub fn compile_expressions() {
     compare_compiled_with_decompiled("{\"a b\":42}");
     compare_compiled_with_decompiled("{\"1\":42}");
     compare_compiled_with_decompiled("{(1 + 2):42}");
-    // FIXME: not working with old decompiler, replace in future
+    // FIXME #280: not working with old decompiler, replace in future
     // compare_compiled_with_decompiled("{(1):42,(1 + 2):42,(true):42}");
 }

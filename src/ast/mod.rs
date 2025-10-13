@@ -217,7 +217,7 @@ pub enum DatexExpression {
         else_branch: Option<Box<DatexExpression>>,
     },
 
-    // TODO: Give information on type kind (nominal & structural)
+    // TODO #359: Give information on type kind (nominal & structural)
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
     VariableDeclaration {
         id: Option<VariableId>,
@@ -227,7 +227,7 @@ pub enum DatexExpression {
         init_expression: Box<DatexExpression>,
     },
 
-    // TODO: Shall we avoid hoisting for type aliases?
+    // TODO #360: Shall we avoid hoisting for type aliases?
     // This would remove the ability to have recursive type
     // definitions.
     /// Type declaration, e.g. type MyType = { x: 42, y: "John" };
@@ -251,7 +251,7 @@ pub enum DatexExpression {
         body: Box<DatexExpression>,
     },
 
-    // TODO combine
+    // TODO #361 combine
     /// Reference, e.g. &x
     CreateRef(Box<DatexExpression>),
     /// Mutable reference, e.g. &mut x
@@ -269,7 +269,7 @@ pub enum DatexExpression {
 
     PointerAddress(PointerAddress),
 
-    // TODO struct instead of tuple
+    // TODO #362 struct instead of tuple
     BinaryOperation(
         BinaryOperator,
         Box<DatexExpression>,
@@ -446,7 +446,7 @@ where
 
     let binary = binary_operation(chain);
 
-    // FIXME WIP
+    // FIXME #363 WIP
     let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
@@ -564,7 +564,7 @@ pub fn parse(mut src: &str) -> Result<DatexExpression, Vec<ParseError>> {
                 let mut owned_error: ParseError = e.clone();
                 let mut index = owned_error.token_pos().unwrap();
                 if index >= spans.len() {
-                    // FIXME how to show file end?
+                    // FIXME #364 how to show file end?
                     index = spans.len() - 1;
                 }
                 let span = spans.get(index).unwrap();

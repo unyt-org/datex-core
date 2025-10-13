@@ -123,7 +123,7 @@ impl Memory {
         &self,
         pointer_id: CoreLibPointerId,
     ) -> TypeContainer {
-        // FIXME: Mark as unchecked
+        // FIXME #415: Mark as unchecked
         self.get_core_type(pointer_id)
             .expect("core type not found or cannot be used as a type")
     }

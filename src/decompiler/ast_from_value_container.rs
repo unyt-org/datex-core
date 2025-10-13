@@ -74,12 +74,12 @@ fn value_to_datex_expression(value: &Value) -> DatexExpression {
                     StructuralTypeDefinition::Integer(integer) => {
                         TypeExpression::Integer(integer.clone())
                     }
-                    _ => todo!(),
+                    _ => todo!("#416 Undescribed by author."),
                 },
-                _ => todo!(),
+                _ => todo!("#417 Undescribed by author."),
             })
         }
-        _ => todo!(),
+        _ => todo!("#418 Undescribed by author."),
     }
 }
 

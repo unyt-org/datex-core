@@ -143,7 +143,7 @@ impl Reference {
         memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
         self.handle_update(source_id, move || {
-            // TODO: ensure type compatibility with allowed_type
+            // TODO #306: ensure type compatibility with allowed_type
             let value_container = &value.into();
             self.with_value_unchecked(|core_value| {
                 // Set the value directly, ensuring it is a ValueContainer
@@ -159,7 +159,7 @@ impl Reference {
     /// Pushes a value to the reference if it is a list.
     pub fn try_push_value<T: Into<ValueContainer>>(
         &self,
-        // TODO move to end
+        // TODO #307 move to end
         source_id: TransceiverId,
         value: T,
         memory: &RefCell<Memory>,
@@ -170,7 +170,7 @@ impl Reference {
             self.with_value_unchecked(move |core_value| {
                 match &mut core_value.inner {
                     CoreValue::List(list) => {
-                        // TODO: Can we avoid the clone?
+                        // TODO #308: Can we avoid the clone?
                         list.push(value_container.clone());
                     }
                     _ => {

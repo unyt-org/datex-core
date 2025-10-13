@@ -74,7 +74,7 @@ pub fn deref_assignment<'a>(
                 }
             },
         )
-        // FIXME assignment instead of declaration
+        // FIXME #369 assignment instead of declaration
         .labelled(Pattern::Declaration)
         .as_context()
 }

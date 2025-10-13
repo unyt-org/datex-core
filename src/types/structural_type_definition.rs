@@ -19,8 +19,8 @@ pub enum StructuralTypeDefinition {
     TypedInteger(TypedInteger),
     Decimal(Decimal),
     TypedDecimal(TypedDecimal),
-    Text(Text),       // FIXME use String
-    Boolean(Boolean), // FIXME use bool
+    Text(Text),       // FIXME #373 use String
+    Boolean(Boolean), // FIXME #374 use bool
     Endpoint(Endpoint),
     Null,
     List(Vec<TypeContainer>),
@@ -144,7 +144,7 @@ impl StructuralTypeDefinition {
                 StructuralTypeDefinition::Map(field_types),
                 CoreValue::Map(map),
             ) => field_types.iter().all(|(field_name, field_type)| {
-                todo!("handle key matching")
+                todo!("#375 handle key matching")
                 // map.get(&field_name_value).is_some_and(|field_value| {
                 //     field_type.value_matches(field_value)
                 // })

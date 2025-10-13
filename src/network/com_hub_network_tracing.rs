@@ -393,7 +393,7 @@ impl ComHub {
         );
 
         // send trace back block
-        // TODO: handle error and resend error and stuff
+        // TODO #380: handle error and resend error and stuff
         let _ = self.send_own_block(trace_back_block);
 
         Some(())

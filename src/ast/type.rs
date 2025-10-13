@@ -344,7 +344,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 .map(Some),
         )));
 
-        // TODO: consider and update accordingly
+        // TODO #365: consider and update accordingly
         let postfix_array = just(Token::LeftBracket).ignore_then(choice((
             // Slice: []
             just(Token::RightBracket).to(None),

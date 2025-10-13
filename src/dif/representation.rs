@@ -123,7 +123,7 @@ impl DIFValueRepresentation {
                 }
             }
             _ => {
-                todo!("Other DIFRepresentationValue variants not supported yet")
+                todo!("#388 Other DIFRepresentationValue variants not supported yet")
             }
         })
     }
@@ -161,13 +161,13 @@ impl DIFValueRepresentation {
                         _ => self.to_default_value(memory)?,
                     }
                 } else {
-                    todo!("Handle non-core library type references")
+                    todo!("#389 Handle non-core library type references")
                 }
             }
             DIFTypeContainer::Type(dif_type) => {
                 match &dif_type.type_definition {
                     DIFTypeDefinition::Structural(s) => {
-                        todo!("Structural type conversion not supported yet")
+                        todo!("#390 Structural type conversion not supported yet")
                     }
                     DIFTypeDefinition::Unit => Value {
                         actual_type: Box::new(get_core_lib_type(
@@ -175,7 +175,7 @@ impl DIFValueRepresentation {
                         )),
                         inner: CoreValue::Null,
                     },
-                    _ => todo!("Other type definitions not supported yet"),
+                    _ => todo!("#391 Other type definitions not supported yet"),
                 }
             }
         })
@@ -200,7 +200,7 @@ impl DIFTypeRepresentation {
                 DIFTypeRepresentation::Boolean(b.as_bool())
             }
             StructuralTypeDefinition::Integer(i) => {
-                // FIXME: this can overflow
+                // FIXME #392: this can overflow
                 DIFTypeRepresentation::Number(i.as_i128().unwrap() as f64)
             }
             StructuralTypeDefinition::TypedInteger(i) => {

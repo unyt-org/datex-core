@@ -240,7 +240,7 @@ impl CoreValue {
         get_core_lib_type(CoreLibPointerId::from(self))
     }
 
-    // TODO: allow cast of any CoreValue to Type, as structural type can always be constructed?
+    // TODO #313: allow cast of any CoreValue to Type, as structural type can always be constructed?
     // This method may be not required, the cast should be performed on the ValueContainer level
     pub fn cast_to_type(&self) -> Option<&Type> {
         match self {
@@ -329,7 +329,7 @@ impl CoreValue {
         }
     }
 
-    // FIXME discuss here - shall we fit the integer in the minimum viable type?
+    // FIXME #314 discuss here - shall we fit the integer in the minimum viable type?
     pub fn _cast_to_integer_internal(&self) -> Option<TypedInteger> {
         match self {
             CoreValue::Text(text) => Integer::from_string(&text.to_string())
@@ -353,7 +353,7 @@ impl CoreValue {
         }
     }
 
-    // TODO improve conversion logic
+    // TODO #315 improve conversion logic
     pub fn cast_to_integer(&self) -> Option<Integer> {
         match self {
             CoreValue::Text(text) => {
@@ -362,7 +362,7 @@ impl CoreValue {
             CoreValue::TypedInteger(int) => Some(int.as_integer()),
             CoreValue::Integer(int) => Some(int.clone()),
             CoreValue::Decimal(decimal) => {
-                // FIXME currently bad as f64 can be infinity or nan
+                // FIXME #316 currently bad as f64 can be infinity or nan
                 // convert decimal directly to integer into_f64 is wrong here
                 Some(Integer::from(decimal.into_f64() as i128))
             }
@@ -484,7 +484,7 @@ impl Add for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    todo!("TypedInteger + Integer not implemented yet");
+                    todo!("#317 TypedInteger + Integer not implemented yet");
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() + rhs.clone()))
                 }
                 CoreValue::Decimal(_) => {
@@ -608,7 +608,7 @@ impl Sub for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    todo!("TypedInteger - Integer not implemented yet");
+                    todo!("#318 TypedInteger - Integer not implemented yet");
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() - rhs.clone()))
                 }
                 //     Ok(CoreValue::TypedInteger(

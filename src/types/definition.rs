@@ -13,7 +13,7 @@ pub enum TypeDefinition {
     // { x: integer, y: text }
     Structural(StructuralTypeDefinition),
 
-    // TODO: Rename to generic?
+    // TODO #371: Rename to generic?
     // e.g. [integer], [integer; 5], Map<string, integer>
     Collection(CollectionTypeDefinition),
 
@@ -30,7 +30,7 @@ pub enum TypeDefinition {
     Unit,
 
     Function {
-        // FIXME: Include error type definition
+        // FIXME #372: Include error type definition
         parameters: Vec<(String, TypeContainer)>,
         return_type: Box<TypeContainer>,
     },

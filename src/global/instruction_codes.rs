@@ -137,7 +137,7 @@ pub enum InstructionCode {
     UNARY_MINUS,
     BITWISE_NOT, // ~
 
-    UNION, // | // TODO: maybe create a union collection of multiple values, instead of using this as a binary operator?
+    UNION, // | // TODO #428: maybe create a union collection of multiple values, instead of using this as a binary operator?
 
     // assignment operators
     ASSIGN,          // =

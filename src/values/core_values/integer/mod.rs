@@ -194,7 +194,7 @@ impl Add for &Integer {
     type Output = Integer;
 
     fn add(self, rhs: Self) -> Self::Output {
-        // FIXME: Optimize to avoid cloning if possible
+        // FIXME #348: Optimize to avoid cloning if possible
         Integer::add(self.clone(), rhs.clone())
     }
 }
@@ -211,7 +211,7 @@ impl Sub for &Integer {
     type Output = Integer;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // FIXME: Optimize to avoid cloning if possible
+        // FIXME #349: Optimize to avoid cloning if possible
         Integer::sub(self.clone(), rhs.clone())
     }
 }

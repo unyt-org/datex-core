@@ -27,7 +27,7 @@ impl RuntimeInternal {
     ) -> Option<Reference> {
         self.memory.borrow().get_reference(address).cloned()
     }
-    // FIXME implement async resolution
+    // FIXME #398 implement async resolution
     async fn resolve_reference(
         &self,
         address: &PointerAddress,
@@ -156,7 +156,7 @@ impl DIFInterface for RuntimeInternal {
         let reference = self.resolve_in_memory_reference(&address);
         match reference {
             Some(ptr) => Ok(DIFReference::from_reference(&ptr, &self.memory)),
-            None => todo!("Implement async resolution of references"),
+            None => todo!("#399 Implement async resolution of references"),
         }
     }
 
@@ -176,7 +176,7 @@ impl DIFInterface for RuntimeInternal {
         callee: DIFValueContainer,
         value: DIFValueContainer,
     ) -> Result<DIFValueContainer, DIFApplyError> {
-        todo!()
+        todo!("#400 Undescribed by author.")
     }
 
     fn create_pointer(

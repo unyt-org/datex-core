@@ -27,7 +27,7 @@ pub struct VariableMetadata {
 #[derive(Default, Debug)]
 pub struct AstMetadata {
     pub variables: Vec<VariableMetadata>,
-    // TODO: move runtime somewhere else, not in AstMetadata?
+    // TODO #441: move runtime somewhere else, not in AstMetadata?
     pub runtime: Runtime,
 }
 
@@ -602,7 +602,7 @@ fn visit_expression(
                     ResolvedVariable::PointerAddress(pointer_address) => {
                         DatexExpression::GetReference(pointer_address)
                     }
-                    // FIXME is variable User/whatever allowed here, or
+                    // FIXME #442 is variable User/whatever allowed here, or
                     // will this always be a reference to the type?
                     _ => unreachable!(
                         "Variant access must resolve to a core library type"
@@ -731,7 +731,7 @@ fn visit_expression(
             parameters,
             return_type,
             body,
-        } => todo!(),
+        } => todo!("#443 Undescribed by author."),
 
         DatexExpression::Integer(_)
         | DatexExpression::Text(_)
@@ -796,7 +796,7 @@ fn resolve_variable(
         .runtime
         .memory()
         .borrow()
-        .get_reference(&CoreLibPointerId::Core.into()) // FIXME: don't use core struct here, but better access with one of our mappings already present
+        .get_reference(&CoreLibPointerId::Core.into()) // FIXME #444: don't use core struct here, but better access with one of our mappings already present
         && let Some(core_variable) = core
             .collapse_to_value()
             .borrow()
@@ -896,7 +896,7 @@ fn visit_type_expression(
             }
             Ok(())
         }
-        _ => todo!("Handle other type expressions in precompiler"),
+        _ => todo!("#445 Handle other type expressions in precompiler"),
     }
 }
 

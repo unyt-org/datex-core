@@ -138,11 +138,11 @@ impl DIFValue {
         let core_value = &value.inner;
 
         let dif_core_value = match core_value {
-            CoreValue::Type(ty) => todo!("Type value not supported in DIF"),
+            CoreValue::Type(ty) => todo!("#382 Type value not supported in DIF"),
             CoreValue::Null => DIFValueRepresentation::Null,
             CoreValue::Boolean(bool) => DIFValueRepresentation::Boolean(bool.0),
             CoreValue::Integer(integer) => {
-                // TODO: optimize this and pass as integer if in range
+                // TODO #383: optimize this and pass as integer if in range
                 DIFValueRepresentation::String(integer.to_string())
             }
             CoreValue::TypedInteger(integer) => {
@@ -184,7 +184,7 @@ impl DIFValue {
                 }
             }
             CoreValue::Decimal(decimal) => {
-                // TODO: optimize this and pass as decimal if in range
+                // TODO #384: optimize this and pass as decimal if in range
                 DIFValueRepresentation::String(decimal.to_string())
             }
             CoreValue::TypedDecimal(decimal) => match decimal {

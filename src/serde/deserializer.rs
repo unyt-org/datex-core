@@ -153,7 +153,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::Big(i) => {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
-                    e => todo!("Unsupported typed integer: {:?}", e),
+                    e => todo!("#393 Unsupported typed integer: {:?}", e),
                 },
                 CoreValue::Integer(i) => {
                     if let Some(v) = i.as_i8() {
@@ -168,7 +168,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                 }
-                CoreValue::Decimal(d) => todo!("Unsupported decimal: {:?}", d),
+                CoreValue::Decimal(d) => todo!("#394 Unsupported decimal: {:?}", d),
                 CoreValue::TypedDecimal(d) => match d {
                     TypedDecimal::F32(v) => visitor.visit_f32(v.0),
                     TypedDecimal::F64(v) => visitor.visit_f64(v.0),
@@ -251,7 +251,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
     where
         V: Visitor<'de>,
     {
-        // TODO: handle structurally typed maps and lists
+        // TODO #395: handle structurally typed maps and lists
         // if let ValueContainer::Value(Value {
         //     inner: CoreValue::Array(array),
         //     ..
@@ -443,7 +443,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     ))
                 }
             }
-            // TODO: handle structurally typed maps
+            // TODO #396: handle structurally typed maps
             // ValueContainer::Value(Value {
             //     inner: CoreValue::Struct(o),
             //     ..

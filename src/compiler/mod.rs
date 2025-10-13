@@ -482,7 +482,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpression::Map(map) => {
-            // TODO: Handle string keyed maps (structs)
+            // TODO #434: Handle string keyed maps (structs)
             compilation_context
                 .append_instruction_code(InstructionCode::MAP_START);
             for (key, value) in map {
@@ -743,7 +743,7 @@ fn compile_expression(
                 }
                 AssignmentOperator::AddAssign
                 | AssignmentOperator::SubtractAssign => {
-                    // TODO: handle mut type
+                    // TODO #435: handle mut type
                     // // if immutable reference, return error
                     // if mut_type == Some(ReferenceMutability::Immutable) {
                     //     return Err(
@@ -764,7 +764,7 @@ fn compile_expression(
                         InstructionCode::from(&operator),
                     );
                 }
-                op => todo!("Handle assignment operator: {op:?}"),
+                op => todo!("#436 Handle assignment operator: {op:?}"),
             }
 
             compilation_context.insert_virtual_slot_address(virtual_slot);
@@ -1411,7 +1411,7 @@ pub mod tests {
     #[test]
     fn empty_list() {
         init_logger_debug();
-        // TODO: support list constructor (apply on type)
+        // TODO #437: support list constructor (apply on type)
         let datex_script = "[]";
         // const x = mut 42;
         let result = compile_and_log(datex_script);
@@ -1426,7 +1426,7 @@ pub mod tests {
     #[test]
     fn single_element_list() {
         init_logger_debug();
-        // TODO: support list constructor (apply on type)
+        // TODO #438: support list constructor (apply on type)
         let datex_script = "[42]";
         let result = compile_and_log(datex_script);
         assert_eq!(

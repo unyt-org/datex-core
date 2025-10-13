@@ -174,7 +174,7 @@ pub fn load_core_lib(memory: &mut Memory) {
             })
             .collect::<Vec<(String, ValueContainer)>>();
 
-        // TODO: dont store variants as separate entries in core_struct (e.g., integer/u8, integer/i32, only keep integer)
+        // TODO #455: dont store variants as separate entries in core_struct (e.g., integer/u8, integer/i32, only keep integer)
         // Import variants directly by variant access operator from base type (e.g., integer -> integer/u8)
         let core_struct =
             Reference::from(ValueContainer::from(Map::from_iter(structure)));

@@ -80,7 +80,7 @@ impl Rational {
     }
 
     // TODO #128: support e-notation for large numbers
-    // FIXME: Improve this, pass args as reference and non mutable
+    // FIXME #341: Improve this, pass args as reference and non mutable
     pub(crate) fn finite_fraction_to_decimal_string(
         mut numerator: BigInt,
         denominator: BigInt,

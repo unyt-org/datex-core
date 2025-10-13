@@ -199,7 +199,7 @@ fn sum<'a>(product: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
         .boxed()
 }
 
-/// FIXME: Rethink syntax for bitwise operations, due to colission with type system syntax
+/// FIXME #354: Rethink syntax for bitwise operations, due to colission with type system syntax
 fn bitwise_and<'a>(
     sum: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
@@ -242,7 +242,7 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Logical(op) => InstructionCode::from(op),
             BinaryOperator::Bitwise(op) => InstructionCode::from(op),
             BinaryOperator::VariantAccess => {
-                todo!("VariantAccess not implemented for InstructionCode")
+                todo!("#355 VariantAccess not implemented for InstructionCode")
             }
             operator => todo!(
                 "Binary operator {:?} not implemented for InstructionCode",

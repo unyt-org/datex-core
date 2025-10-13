@@ -160,7 +160,7 @@ pub fn iterate_instructions<'a>(
                 let instruction_code = instruction_code.unwrap();
 
                 yield match instruction_code {
-                    // TODO: Refactor with macros to reduce code duplication
+                    // TODO #425: Refactor with macros to reduce code duplication
                     InstructionCode::UINT_8 => {
                         let data = UInt8Data::read(&mut reader);
                         if let Err(err) = data {
@@ -593,7 +593,7 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
                             ))
                         }
                     }
-                    _ => todo!(),
+                    _ => todo!("#426 Undescribed by author."),
                 }
             }
         },

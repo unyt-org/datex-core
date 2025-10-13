@@ -9,7 +9,7 @@ pub enum PointerAddress {
     // pointer with a remote endpoint as origin, contains the full pointers address
     Remote([u8; 26]),
     // globally unique internal pointer, e.g. for #core, #std
-    Internal([u8; 3]), // TODO shrink down to 2 bytes?
+    Internal([u8; 3]), // TODO #312 shrink down to 2 bytes?
 }
 impl TryFrom<String> for PointerAddress {
     type Error = &'static str;

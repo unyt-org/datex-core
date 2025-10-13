@@ -36,7 +36,7 @@ fn infer_expression_type(
         | DatexExpression::TypedInteger(_)
         | DatexExpression::TypedDecimal(_)
         | DatexExpression::Endpoint(_) => {
-            // TODO: this unwrap asserts that try_from succeeds in all cases, but this is not yet guaranteed and tested
+            // TODO #446: this unwrap asserts that try_from succeeds in all cases, but this is not yet guaranteed and tested
             let value = Type::try_from(ast as &_).unwrap();
             TypeContainer::Type(value)
         }
@@ -153,7 +153,7 @@ fn infer_expression_type(
                 init_type
             };
 
-            // TODO: Implement type broadened inference for example for maps
+            // TODO #447: Implement type broadened inference for example for maps
             // like var x = &mut {a: 4, y: 10} --> type Map<string, integer>
             // like var x = &mut {a: 4, y: 10} --> type {a: integer, y: integer}
             // like var x = &mut {} --> Map<unknown, unknown> -> we can set arbitrary props of any
@@ -195,7 +195,7 @@ fn infer_expression_type(
                     }
                     value_type
                 }
-                op => todo!("handle other assignment operators: {:?}", op),
+                op => todo!("#448 handle other assignment operators: {:?}", op),
             }
         }
         DatexExpression::Statements(statements) => {
@@ -325,7 +325,7 @@ fn infer_binary_expression_type(
             let integer = get_core_lib_type(CoreLibPointerId::Integer(None));
             let decimal = get_core_lib_type(CoreLibPointerId::Decimal(None));
 
-            // TODO: keep the type as specific as possible here? E.g. 1 + 2 -> 3, not integer
+            // TODO #449: keep the type as specific as possible here? E.g. 1 + 2 -> 3, not integer
             // lhs and rhs are both integer -> result is integer
             if lhs_base_type == integer && rhs_base_type == integer {
                 Ok(integer)
@@ -340,7 +340,7 @@ fn infer_binary_expression_type(
             }
         }
 
-        _ => todo!(),
+        _ => todo!("#450 Undescribed by author."),
     }
 }
 
@@ -662,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    // TODO resolve intersection and union types properly
+    // TODO #451 resolve intersection and union types properly
     // by merging the member types if one is base (one level higher) than the other
     fn infer_intersection_type_expression() {
         let inferred_type = infer_type_from_str("type X = integer/u8 & 42");

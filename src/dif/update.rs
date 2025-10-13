@@ -10,7 +10,7 @@ pub enum DIFProperty {
     /// a simple string property
     Text(String),
     /// an integer property (e.g. an array index)
-    // FIXME use usize or u32 u64
+    // FIXME #385 use usize or u32 u64
     Index(i64),
     /// any other property type
     Value(DIFValueContainer),
@@ -50,7 +50,7 @@ impl DIFUpdate {
     }
 }
 
-// TODO optimize structural representation by using integer values for enum variants
+// TODO #386 optimize structural representation by using integer values for enum variants
 // and shrink down keys (kind: 0, 1, 2 instead of "clear", "set", "remove", ...)
 
 /// Represents an update operation for a DIF value.

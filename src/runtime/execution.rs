@@ -238,7 +238,7 @@ pub fn execute_dxb_sync(
                     )?));
             }
             ExecutionStep::ResolveLocalPointer(address) => {
-                // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
+                // TODO #401: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(get_local_pointer_value(
                         &runtime_internal,
@@ -283,7 +283,7 @@ pub async fn execute_dxb(
                     )?));
             }
             ExecutionStep::ResolveLocalPointer(address) => {
-                // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
+                // TODO #402: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(get_local_pointer_value(
                         &runtime_internal,
@@ -1088,7 +1088,7 @@ fn get_result_value_from_instruction(
                 for output in
                     iterate_type_instructions(interrupt_provider, instructions)
                 {
-                    // TODO: handle type here
+                    // TODO #403: handle type here
                     yield output;
                 }
                 return;
@@ -1120,7 +1120,7 @@ fn iterate_type_instructions(
     gen move {
         for instruction in instructions {
             match instruction {
-                // TODO: Implement type instructions iteration
+                // TODO #404: Implement type instructions iteration
                 TypeInstruction::ListStart => {
                     interrupt_with_result!(
                         interrupt_provider,
@@ -1132,7 +1132,7 @@ fn iterate_type_instructions(
                         TypeContainer::Type(Type::structural(integer.0)),
                     )));
                 }
-                _ => todo!(),
+                _ => todo!("#405 Undescribed by author."),
             }
         }
     }
@@ -1366,7 +1366,7 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             inner: CoreValue::Map(map),
             ..
         }) => {
-            // TODO: Implement map collector for optimized structural maps
+            // TODO #406: Implement map collector for optimized structural maps
             panic!("append {:?}", value);
         }
         _ => {
@@ -1496,7 +1496,7 @@ fn handle_comparison_operation(
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Matches => {
-            // TODO: Fix matches, rhs will always be a type, so actual_type() call is wrong
+            // TODO #407: Fix matches, rhs will always be a type, so actual_type() call is wrong
             let v_type = value_container.actual_type(); // Type::try_from(value_container)?;
             let val = v_type.value_matches(active_value_container);
             Ok(ValueContainer::from(val))
@@ -1542,7 +1542,7 @@ fn handle_arithmetic_operation(
         //     Ok((active_value_container / &value_container)?)
         // }
         _ => {
-            todo!("Implement arithmetic operation for {:?}", operator);
+            todo!("#408 Implement arithmetic operation for {:?}", operator);
         }
     }
 }
@@ -1554,7 +1554,7 @@ fn handle_bitwise_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     {
-        todo!("Implement bitwise operation for {:?}", operator);
+        todo!("#409 Implement bitwise operation for {:?}", operator);
     }
 }
 
@@ -1565,7 +1565,7 @@ fn handle_logical_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     {
-        todo!("Implement logical operation for {:?}", operator);
+        todo!("#410 Implement logical operation for {:?}", operator);
     }
 }
 
@@ -1591,7 +1591,7 @@ fn handle_binary_operation(
             logical_op,
         ),
         BinaryOperator::VariantAccess => {
-            todo!("Implement variant access operation")
+            todo!("#411 Implement variant access operation")
         }
     }
 }
@@ -1932,7 +1932,7 @@ mod tests {
     #[test]
     fn val_assignment_inside_scope() {
         init_logger_debug();
-        // FIXME: This should be probably disallowed (we can not use x in this scope due to hoisting behavior)
+        // FIXME #412: This should be probably disallowed (we can not use x in this scope due to hoisting behavior)
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
         let expected = datex_list![
@@ -1972,7 +1972,7 @@ mod tests {
             "const x = &mut 42; *x += 1; x",
         );
 
-        // FIXME due to addition the resulting value container of the slot
+        // FIXME #413 due to addition the resulting value container of the slot
         // is no longer a reference but a value what is incorrect.
         // assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
@@ -1990,7 +1990,7 @@ mod tests {
             "const x = &mut 42; *x -= 1; x",
         );
 
-        // FIXME due to addition the resulting value container of the slot
+        // FIXME #414 due to addition the resulting value container of the slot
         // is no longer a reference but a value what is incorrect.
         // assert_matches!(result, ValueContainer::Reference(..));
         assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));

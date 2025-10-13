@@ -155,7 +155,7 @@ impl Decimal {
     }
 
     /// Creates a Decimal from a string representation.
-    /// TODO: Add error handling
+    /// TODO #333: Add error handling
     pub fn from_string(s: &str) -> Result<Self, NumberParseError> {
         // TODO #133 represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
@@ -259,7 +259,7 @@ impl Add for &Decimal {
     type Output = Decimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        // FIXME: Avoid cloning, as add should be applicable for refs only
+        // FIXME #334: Avoid cloning, as add should be applicable for refs only
         Decimal::add(self.clone(), rhs.clone())
     }
 }
@@ -276,7 +276,7 @@ impl Sub for &Decimal {
     type Output = Decimal;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // FIXME: Avoid cloning, as sub should be applicable for refs only
+        // FIXME #335: Avoid cloning, as sub should be applicable for refs only
         Decimal::sub(self.clone(), rhs.clone())
     }
 }
@@ -443,7 +443,7 @@ impl From<f32> for Decimal {
             Decimal::Zero
         } else {
             Decimal::Finite(Rational::from_big_rational(
-                // FIXME: We should be able to use unwrap_unchecked here
+                // FIXME #336: We should be able to use unwrap_unchecked here
                 // as we know that the f32 is finite
                 BigRational::from_f32(value).unwrap(),
             ))

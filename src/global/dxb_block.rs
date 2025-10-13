@@ -25,7 +25,7 @@ pub enum HeaderParsingError {
 
 // TODO #110: RawDXBBlock that is received in com_hub, only containing RoutingHeader, BlockHeader and raw bytes
 
-// TODO @Norbert
+// TODO #429 @Norbert
 // Add optional raw signature, and encrypted part
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default)]

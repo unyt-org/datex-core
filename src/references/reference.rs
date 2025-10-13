@@ -279,7 +279,7 @@ impl ValueEq for Reference {
     fn value_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Reference::TypeReference(a), Reference::TypeReference(b)) => {
-                // FIXME: Implement value_eq for type and use here instead (recursive)
+                // FIXME #281: Implement value_eq for type and use here instead (recursive)
                 a.borrow().type_value.structural_eq(&b.borrow().type_value)
             }
             (Reference::ValueReference(a), Reference::ValueReference(b)) => a
@@ -371,7 +371,7 @@ impl Reference {
         }
     }
 
-    // TODO: Mark as unsafe function
+    // TODO #282: Mark as unsafe function
     pub(crate) fn with_value_unchecked<R, F: FnOnce(&mut Value) -> R>(
         &self,
         f: F,
@@ -466,7 +466,7 @@ impl Reference {
         match self {
             Reference::ValueReference(vr) => vr.borrow().mutability.clone(),
 
-            // Fixme: should we use final instead of immutable here?
+            // Fixme #283: should we use final instead of immutable here?
             Reference::TypeReference(_) => ReferenceMutability::Immutable,
         }
     }
@@ -474,7 +474,7 @@ impl Reference {
     /// Checks if the reference is mutable.
     /// A reference is mutable if it is a mutable ValueReference and all references in the chain are mutable.
     /// TypeReferences are always immutable.
-    /// FIXME: Do we really need this? Probably we already collapse the ref and then change it's value and perform
+    /// FIXME #284: Do we really need this? Probably we already collapse the ref and then change it's value and perform
     /// the mutability check on the most inner ref.
     pub fn is_mutable(&self) -> bool {
         match self {
@@ -502,7 +502,7 @@ impl Reference {
         maybe_pointer_id: Option<PointerAddress>,
         mutability: ReferenceMutability,
     ) -> Result<Self, ReferenceCreationError> {
-        // FIXME implement type check
+        // FIXME #285 implement type check
         Ok(match value_container {
             ValueContainer::Reference(ref reference) => {
                 match reference {
@@ -510,7 +510,7 @@ impl Reference {
                         let allowed_type = allowed_type.unwrap_or_else(|| {
                             vr.borrow().allowed_type.clone()
                         });
-                        // TODO: make sure allowed type is superset of reference's allowed type
+                        // TODO #286: make sure allowed type is superset of reference's allowed type
                         Reference::ValueReference(Rc::new(RefCell::new(
                             ValueReference::new(
                                 value_container,
@@ -540,7 +540,7 @@ impl Reference {
                 match value.inner {
                     // create TypeReference if the value is a Type
                     CoreValue::Type(type_value) => {
-                        // TODO: allowed_type "Type" is also allowed
+                        // TODO #287: allowed_type "Type" is also allowed
                         if allowed_type.is_some() {
                             return Err(ReferenceCreationError::InvalidType);
                         }
@@ -629,7 +629,7 @@ impl Reference {
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
         match self {
-            // FIXME: Can we optimize this to avoid creating rc ref cells?
+            // FIXME #288: Can we optimize this to avoid creating rc ref cells?
             Reference::TypeReference(tr) => Reference::TypeReference(Rc::new(
                 RefCell::new(tr.borrow().collapse_reference_chain()),
             )),
@@ -661,14 +661,14 @@ impl Reference {
                     "Expected a ValueContainer::Value, but found a Reference"
                 ),
             },
-            // TODO: can we optimize this to avoid cloning the type value?
+            // TODO #289: can we optimize this to avoid cloning the type value?
             Reference::TypeReference(tr) => Rc::new(RefCell::new(Value::from(
                 CoreValue::Type(tr.borrow().type_value.clone()),
             ))),
         }
     }
 
-    // TODO: no clone?
+    // TODO #290: no clone?
     pub fn value_container(&self) -> ValueContainer {
         match self {
             Reference::ValueReference(vr) => {
@@ -687,11 +687,11 @@ impl Reference {
                 CoreValue::Map(map) => {
                     // Iterate over all properties and upgrade them to references
                     for (_, prop) in map.into_iter() {
-                        // TODO: no clone here, implement some sort of map
+                        // TODO #291: no clone here, implement some sort of map
                         *prop = self.bind_child(prop.clone());
                     }
                 }
-                // TODO: other combined value types should be added here
+                // TODO #292: other combined value types should be added here
                 _ => {
                     // If the value is not an map, we do not need to upgrade anything
                 }
@@ -709,7 +709,7 @@ impl Reference {
     pub fn allowed_type(&self) -> TypeContainer {
         match self {
             Reference::ValueReference(vr) => vr.borrow().allowed_type.clone(),
-            Reference::TypeReference(_) => todo!("type Type"),
+            Reference::TypeReference(_) => todo!("#293 type Type"),
         }
     }
 
@@ -722,7 +722,7 @@ impl Reference {
                 .borrow()
                 .actual_type()
                 .clone(),
-            Reference::TypeReference(tr) => todo!("type Type"),
+            Reference::TypeReference(tr) => todo!("#294 type Type"),
         }
     }
 
@@ -761,7 +761,7 @@ impl Reference {
             }
             Reference::ValueReference(vr) => {
                 if self.is_mutable() {
-                    // TODO: check type compatibility, handle observers
+                    // TODO #295: check type compatibility, handle observers
                     vr.borrow_mut().value_container = new_value_container;
                     Ok(())
                 } else {
@@ -774,7 +774,7 @@ impl Reference {
 /// Getter for references
 impl Reference {
     /// Gets a property on the value if applicable (e.g. for map and structs)
-    // FIXME make this return a reference to a value container
+    // FIXME #296 make this return a reference to a value container
     // Just for later as myRef.x += 1
     // key_ref = myRef.x // myRef.try_get_property("x".into())
     // key_val = &key_ref.value()
@@ -864,7 +864,7 @@ impl Apply for Reference {
         &self,
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        todo!()
+        todo!("#297 Undescribed by author.")
     }
 
     fn apply_single(
@@ -873,7 +873,7 @@ impl Apply for Reference {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
-            Reference::ValueReference(vr) => todo!(),
+            Reference::ValueReference(vr) => todo!("#298 Undescribed by author."),
         }
     }
 }
