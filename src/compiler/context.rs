@@ -67,11 +67,12 @@ impl VirtualSlot {
 }
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
-pub struct CompilationContext<'a> {
+pub struct CompilationContext {
     pub index: Cell<usize>,
     pub inserted_value_index: Cell<usize>,
     pub buffer: RefCell<Vec<u8>>,
-    pub inserted_values: RefCell<&'a [&'a ValueContainer]>,
+    // FIXME: use lifetimes and references here
+    pub inserted_values: RefCell<Vec<ValueContainer>>,
     /// this flag is set to true if any non-static value is encountered
     pub has_non_static_value: RefCell<bool>,
 
@@ -83,7 +84,7 @@ pub struct CompilationContext<'a> {
     slot_indices: RefCell<HashMap<VirtualSlot, Vec<u32>>>,
 }
 
-impl<'a> CompilationContext<'a> {
+impl CompilationContext {
     const MAX_INT_32: i64 = 2_147_483_647;
     const MIN_INT_32: i64 = -2_147_483_648;
 
@@ -106,7 +107,7 @@ impl<'a> CompilationContext<'a> {
 
     pub fn new(
         buffer: RefCell<Vec<u8>>,
-        inserted_values: &'a [&'a ValueContainer],
+        inserted_values: Vec<ValueContainer>,
         is_end_of_source_text: bool,
     ) -> Self {
         CompilationContext {

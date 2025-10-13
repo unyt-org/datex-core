@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Compilation functions for type expressions.
-impl<'a> CompilationContext<'a> {
+impl CompilationContext {
     pub fn append_type_instruction_code(&self, code: TypeSpaceInstructionCode) {
         self.append_u8(code as u8);
     }
