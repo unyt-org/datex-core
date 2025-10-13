@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use crate::stdlib::{future::Future, pin::Pin};
-
 pub trait CryptoTrait: Send + Sync {
     /// Creates a new UUID.
     fn create_uuid(&self) -> String;
@@ -72,7 +71,7 @@ pub trait CryptoTrait: Send + Sync {
     /// Derives a shared secret using X25519 given my private key and the peer's public key.
     fn derive_x25519<'a>(
         &'a self,
-        my_raw: &'a [u8; 48],
+        pri_key: &'a [u8; 48],
         peer_pub: &'a [u8; 44],
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 }

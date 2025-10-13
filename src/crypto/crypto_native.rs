@@ -205,13 +205,13 @@ impl CryptoTrait for CryptoNative {
     // Derive shared secret on x255109
     fn derive_x25519<'a>(
         &'a self,
-        my_raw: &'a [u8; 48],
+        pri_key: &'a [u8; 48],
         peer_pub: &'a [u8; 44],
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
         Box::pin(async move {
             let peer_pub = PKey::public_key_from_der(peer_pub)
                 .map_err(|_| CryptoError::KeyImportFailed)?;
-            let my_priv = PKey::private_key_from_pkcs8(my_raw)
+            let my_priv = PKey::private_key_from_pkcs8(pri_key)
                 .map_err(|_| CryptoError::KeyImportFailed)?;
 
             let mut deriver = Deriver::new(&my_priv)
