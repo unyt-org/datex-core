@@ -8,3 +8,4 @@ wasm-pack.log
 Cargo.lock
 .idea
 macros/target
+rustc-ice-*

@@ -1,6 +1,6 @@
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
-    get_mock_setup_and_socket, TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN,
+    TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN, get_mock_setup_and_socket,
 };
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::global::protocol_structures::block_header::{
@@ -8,11 +8,11 @@ use datex_core::global::protocol_structures::block_header::{
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::run_async;
+use futures_util::StreamExt;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
-use futures_util::StreamExt;
 
 #[tokio::test]
 async fn receive_single_block() {
@@ -35,13 +35,12 @@ async fn receive_single_block() {
                     .with_is_end_of_context(true),
                 ..BlockHeader::default()
             },
-            routing_header: RoutingHeader {
-                sender: TEST_ENDPOINT_A.clone(),
-                ..RoutingHeader::default()
-            },
+            routing_header: RoutingHeader::default()
+                .with_sender(TEST_ENDPOINT_A.clone())
+                .to_owned(),
             ..DXBBlock::default()
         };
-        block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+        block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
 
         let block_bytes = block.to_bytes().unwrap();
         let block_bytes_len = block_bytes.len();
@@ -98,10 +97,9 @@ async fn receive_multiple_blocks() {
                         .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
             DXBBlock {
@@ -114,17 +112,16 @@ async fn receive_multiple_blocks() {
                         .with_is_end_of_context(true),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
         ];
 
         // Set receiver for each block
         for block in &mut blocks {
-            block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+            block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         }
 
         // 1. Send first block
@@ -198,10 +195,9 @@ async fn receive_multiple_blocks_wrong_order() {
                         .with_is_end_of_context(true),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
             DXBBlock {
@@ -214,17 +210,16 @@ async fn receive_multiple_blocks_wrong_order() {
                         .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
         ];
 
         // Set receiver for each block
         for block in &mut blocks {
-            block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+            block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         }
 
         // 1. Send first block
@@ -300,10 +295,9 @@ async fn receive_multiple_sections() {
                         .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
             DXBBlock {
@@ -316,10 +310,9 @@ async fn receive_multiple_sections() {
                         .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
             DXBBlock {
@@ -332,10 +325,9 @@ async fn receive_multiple_sections() {
                         .with_is_end_of_context(false),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
             DXBBlock {
@@ -348,10 +340,9 @@ async fn receive_multiple_sections() {
                         .with_is_end_of_context(true),
                     ..BlockHeader::default()
                 },
-                routing_header: RoutingHeader {
-                    sender: TEST_ENDPOINT_A.clone(),
-                    ..RoutingHeader::default()
-                },
+                routing_header: RoutingHeader::default()
+                    .with_sender(TEST_ENDPOINT_A.clone())
+                    .to_owned(),
                 ..DXBBlock::default()
             },
         ];
@@ -359,7 +350,7 @@ async fn receive_multiple_sections() {
 
         // Set receiver for each block
         for block in &mut blocks {
-            block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+            block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         }
 
         // 1. Send first block
@@ -481,13 +472,10 @@ async fn await_response_block() {
                     .with_is_end_of_context(true),
                 ..BlockHeader::default()
             },
-            routing_header: RoutingHeader {
-                sender: TEST_ENDPOINT_A.clone(),
-                ..RoutingHeader::default()
-            },
+            routing_header: RoutingHeader::default().with_sender(TEST_ENDPOINT_A.clone()).to_owned(),
             ..DXBBlock::default()
         };
-        block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+        block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
 
         // set observer for the block
         let rx = com_hub.block_handler.register_incoming_block_observer(

@@ -19,7 +19,7 @@ pub struct BlockCollector {
     /**
      * The length of the current block as specified by the block header.
      */
-    current_block_specified_length: Option<u32>,
+    current_block_specified_length: Option<u16>,
 }
 
 impl Default for BlockCollector {
@@ -34,7 +34,7 @@ impl Default for BlockCollector {
 }
 
 impl BlockCollector {
-    pub fn new<'a>(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
+    pub fn new(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
         BlockCollector {
             receive_queue,
             ..Default::default()

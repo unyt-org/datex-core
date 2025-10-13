@@ -1,6 +1,11 @@
-use crate::global::dxb_block::{BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId, IncomingEndpointContextId, IncomingEndpointContextSectionId, IncomingSection, IncomingSectionIndex, OutgoingContextId, OutgoingSectionIndex};
+use crate::global::dxb_block::{
+    BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
+    IncomingEndpointContextId, IncomingEndpointContextSectionId,
+    IncomingSection, IncomingSectionIndex, OutgoingContextId,
+    OutgoingSectionIndex,
+};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::runtime::global_context::get_global_context;
+use crate::utils::time::Time;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use log::info;
@@ -32,11 +37,7 @@ impl Default for ScopeContext {
         ScopeContext {
             next_section_index: 0,
             next_block_number: 0,
-            keep_alive_timestamp: get_global_context()
-                .time
-                .lock()
-                .unwrap()
-                .now(),
+            keep_alive_timestamp: Time::now(),
             current_queue_sender: None,
             cached_blocks: BTreeMap::new(),
         }
@@ -147,7 +148,9 @@ impl BlockHandler {
             .block_type()
             .is_response();
 
-        info!("Received block (context={context_id}, section={section_index}, block_nr={block_number})");
+        info!(
+            "Received block (context={context_id}, section={section_index}, block_nr={block_number})"
+        );
 
         // handle observers if response block
         if is_response {
@@ -191,7 +194,9 @@ impl BlockHandler {
                 observer(section);
             } else {
                 // no observer for this scope id + block index
-                log::warn!("No observer for incoming response block (scope={endpoint_context_id:?}, block={section_index}), dropping block");
+                log::warn!(
+                    "No observer for incoming response block (scope={endpoint_context_id:?}, block={section_index}), dropping block"
+                );
             };
         }
     }
@@ -212,19 +217,24 @@ impl BlockHandler {
             sender: block.routing_header.sender.clone(),
             context_id: block.block_header.context_id,
         };
-        let section_context_id = IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index);
+        let section_context_id = IncomingEndpointContextSectionId::new(
+            endpoint_context_id.clone(),
+            section_index,
+        );
 
         // get scope context if it already exists
         let has_scope_context =
             self.block_cache.borrow().contains_key(&endpoint_context_id);
-
 
         // Case 1: shortcut if no scope context exists and the block is a single block
         if !has_scope_context
             && block_number == 0
             && (is_end_of_section || is_end_of_context)
         {
-            return vec![IncomingSection::SingleBlock((Some(block), section_context_id.clone()))];
+            return vec![IncomingSection::SingleBlock((
+                Some(block),
+                section_context_id.clone(),
+            ))];
         }
 
         // make sure a scope context exists from here on
@@ -251,24 +261,28 @@ impl BlockHandler {
             // loop over the input block and potential blocks from the cache until the next block cannot be found
             // or the end of the scope is reached
             loop {
-                if let Some(sender ) = &mut scope_context.current_queue_sender {
+                if let Some(sender) = &mut scope_context.current_queue_sender {
                     // send the next block to the section queue receiver
-                    sender.start_send(next_block)
-                        .expect("Failed to send block to current section queue");
-                }
-                else {
+                    sender.start_send(next_block).expect(
+                        "Failed to send block to current section queue",
+                    );
+                } else {
                     // create a new block queue for the current section
                     let (mut sender, receiver) = mpsc::unbounded();
 
                     // add the first block to the queue
                     new_blocks.push(IncomingSection::BlockStream((
                         Some(receiver),
-                        IncomingEndpointContextSectionId::new(endpoint_context_id.clone(), section_index),
+                        IncomingEndpointContextSectionId::new(
+                            endpoint_context_id.clone(),
+                            section_index,
+                        ),
                     )));
 
                     // send the next block to the section queue receiver
-                    sender.start_send(next_block)
-                        .expect("Failed to send first block to current section queue");
+                    sender.start_send(next_block).expect(
+                        "Failed to send first block to current section queue",
+                    );
 
                     scope_context.current_queue_sender = Some(sender);
                 }
@@ -287,7 +301,9 @@ impl BlockHandler {
                     // increment section index
                     scope_context.next_section_index += 1;
                     // close and remove the current section queue sender
-                    if let Some(sender) = scope_context.current_queue_sender.take() {
+                    if let Some(sender) =
+                        scope_context.current_queue_sender.take()
+                    {
                         sender.close_channel();
                     }
                 }

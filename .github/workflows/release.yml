@@ -1,33 +1,33 @@
 on:
     push:
-      branches:
-          - main
+        branches:
+            - main
 jobs:
     release:
         runs-on: ubuntu-latest
         name: Release
         steps:
             - uses: actions/checkout@v3
-        
+
             - name: Extract version from Cargo.toml
               id: get_version
               run: |
-                VERSION=$(grep -E '^version\s*=\s*".*"' Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
-                echo "Version found: $VERSION"
-                echo "version=$VERSION" >> $GITHUB_ENV
+                  VERSION=$(grep -E '^version\s*=\s*".*"' Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
+                  echo "Version found: $VERSION"
+                  echo "version=$VERSION" >> $GITHUB_ENV
 
             - name: Create Tag
               id: create_tag
               run: |
-                git config user.name "github-actions"
-                git config user.email "github-actions@github.com"
-                git tag "v${{ env.version }}"
-                git push origin "v${{ env.version }}"
+                  git config user.name "github-actions"
+                  git config user.email "github-actions@github.com"
+                  git tag "v${{ env.version }}"
+                  git push origin "v${{ env.version }}"
 
             - name: Generate Release Notes
               uses: ncipollo/release-action@v1
               with:
-                token: ${{ secrets.GITHUB_TOKEN }}
-                tag: "v${{ env.version }}"
-                generateReleaseNotes: true
-                draft: true
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  tag: "v${{ env.version }}"
+                  generateReleaseNotes: true
+                  draft: true

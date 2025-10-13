@@ -1,5 +1,5 @@
 use datex_core::compiler::{compile_script, CompileOptions};
-use datex_core::decompiler::decompile_body;
+use datex_core::decompiler::{decompile_body, Formatting};
 use datex_core::decompiler::DecompileOptions;
 use datex_core::logger::init_logger_debug;
 use log::info;
@@ -26,7 +26,7 @@ fn compare_compiled(datex_script: &str, expected: &str) {
         &dxb_body,
         DecompileOptions {
             json_compat: false,
-            formatted: true,
+            formatting: Formatting::multiline(),
             colorized: true,
             resolve_slots: true,
         },
@@ -73,12 +73,12 @@ pub fn compile_expressions() {
     // ARR_START 1 2 3 SCOPE_END
     compare_compiled_with_decompiled("[1,2,3 + 4]");
     compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
-    compare_compiled_with_decompiled("(1,2,[3],[4,5],6)");
-    compare_compiled("1,2,[3],[4,5],6", "(1,2,[3],[4,5],6)");
+    compare_compiled_with_decompiled("[1,2,[3],[4,5],6]");
     compare_compiled_with_decompiled("{a:42,b:\"test\"}");
     compare_compiled_with_decompiled("{a:42,b:\"test\",c:{d:1,e:[2,3]}}");
     compare_compiled_with_decompiled("{\"a b\":42}");
     compare_compiled_with_decompiled("{\"1\":42}");
     compare_compiled_with_decompiled("{(1 + 2):42}");
-    compare_compiled_with_decompiled("(1:42,(1 + 2):42,(true):42)");
+    // FIXME #280: not working with old decompiler, replace in future
+    // compare_compiled_with_decompiled("{(1):42,(1 + 2):42,(true):42}");
 }

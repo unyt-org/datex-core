@@ -7,7 +7,6 @@ impl CompileMetadata {
     pub fn outer() -> Self {
         CompileMetadata {
             is_outer_context: true,
-            ..CompileMetadata::default()
         }
     }
     pub fn is_outer_context(&self) -> bool {

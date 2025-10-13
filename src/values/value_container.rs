@@ -1,16 +1,20 @@
-use crate::values::traits::identity::Identity;
-use crate::values::traits::structural_eq::StructuralEq;
+use crate::traits::identity::Identity;
+use crate::traits::structural_eq::StructuralEq;
+use crate::types::type_container::TypeContainer;
 use std::cell::RefCell;
 
-use super::{reference::Reference, value::Value};
-use crate::values::traits::value_eq::ValueEq;
+use super::value::Value;
+use crate::compiler::compile_value;
+use crate::runtime::execution::ExecutionError;
+use crate::serde::deserializer::DatexDeserializer;
+use crate::traits::apply::Apply;
+use crate::traits::value_eq::ValueEq;
+use datex_core::references::reference::Reference;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Neg, Sub};
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
-use crate::compiler::compile_value;
-use crate::values::serde::deserializer::DatexDeserializer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -48,7 +52,10 @@ impl Serialize for ValueContainer {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_newtype_struct("value", &compile_value(self).unwrap())
+        serializer.serialize_newtype_struct(
+            "datex::value",
+            &compile_value(self).unwrap(),
+        )
     }
 }
 
@@ -60,11 +67,10 @@ impl<'a> Deserialize<'a> for ValueContainer {
         let deserializer: &DatexDeserializer = unsafe {
             &*(&deserializer as *const D as *const DatexDeserializer)
         };
-        
+
         Ok(deserializer.value.clone())
     }
 }
-
 
 impl Hash for ValueContainer {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -103,7 +109,7 @@ impl StructuralEq for ValueContainer {
             }
             (ValueContainer::Value(a), ValueContainer::Reference(b))
             | (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
-                a.structural_eq(&b.borrow().current_resolved_value().borrow())
+                a.structural_eq(&b.collapse_to_value().borrow())
             }
         }
     }
@@ -122,7 +128,7 @@ impl ValueEq for ValueContainer {
             }
             (ValueContainer::Value(a), ValueContainer::Reference(b))
             | (ValueContainer::Reference(b), ValueContainer::Value(a)) => {
-                a.value_eq(&b.borrow().current_resolved_value().borrow())
+                a.value_eq(&b.collapse_to_value().borrow())
             }
         }
     }
@@ -147,12 +153,8 @@ impl Display for ValueContainer {
         match self {
             ValueContainer::Value(value) => write!(f, "{value}"),
             // TODO #118: only simple temporary way to distinguish between Value and Pointer
-            ValueContainer::Reference(pointer) => {
-                write!(
-                    f,
-                    "$({})",
-                    pointer.borrow().current_resolved_value().borrow()
-                )
+            ValueContainer::Reference(reference) => {
+                write!(f, "&({})", reference.collapse_to_value().borrow())
             }
         }
     }
@@ -164,11 +166,114 @@ impl ValueContainer {
             ValueContainer::Value(value) => {
                 Rc::new(RefCell::new(value.clone()))
             }
-            ValueContainer::Reference(pointer) => {
-                let reference = pointer.0.clone();
+            ValueContainer::Reference(pointer) => pointer.collapse_to_value(),
+        }
+    }
 
-                reference.borrow().value_container.to_value()
+    pub fn is_type(&self) -> bool {
+        match self {
+            ValueContainer::Value(value) => value.is_type(),
+            ValueContainer::Reference(reference) => reference.is_type(),
+        }
+    }
+
+    /// Returns the allowed type of the value container
+    pub fn allowed_type(&self) -> TypeContainer {
+        match self {
+            // If it's a Value, return its actual type
+            ValueContainer::Value(value) => value.actual_type().clone(),
+            ValueContainer::Reference(reference) => {
+                reference.allowed_type().clone()
             }
+        }
+    }
+
+    /// Returns the actual type of the contained value, resolving references if necessary.
+    pub fn actual_type(&self) -> TypeContainer {
+        match self {
+            ValueContainer::Value(value) => value.actual_type().clone(),
+            ValueContainer::Reference(reference) => {
+                reference.actual_type().clone()
+            }
+        }
+    }
+
+    pub fn new_value<T: Into<Value>>(value: T) -> ValueContainer {
+        ValueContainer::Value(value.into())
+    }
+
+    pub fn new_reference<T: Into<Reference>>(value: T) -> ValueContainer {
+        ValueContainer::Reference(value.into())
+    }
+
+    /// Returns the contained Reference if it is a Reference, otherwise returns None.
+    pub fn maybe_reference(&self) -> Option<&Reference> {
+        if let ValueContainer::Reference(reference) = self {
+            Some(reference)
+        } else {
+            None
+        }
+    }
+
+    /// Runs a closure with the contained Reference if it is a Reference, otherwise returns None.
+    pub fn with_maybe_reference<F, R>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&Reference) -> R,
+    {
+        if let ValueContainer::Reference(reference) = self {
+            Some(f(reference))
+        } else {
+            None
+        }
+    }
+
+    /// Returns a reference to the contained Reference, panics if it is not a Reference.
+    pub fn reference_unchecked(&self) -> &Reference {
+        match self {
+            ValueContainer::Reference(reference) => reference,
+            _ => panic!("Cannot convert ValueContainer to Reference"),
+        }
+    }
+
+    /// Upgrades the ValueContainer to a ValueContainer::Reference if it is a ValueContainer::Value
+    /// and if the contained value is a combined value, not a primitive value like integer, text, etc.
+    pub fn upgrade_combined_value_to_reference(self) -> ValueContainer {
+        match &self {
+            // already a reference, no need to upgrade
+            ValueContainer::Reference(_) => self,
+            ValueContainer::Value(value) => {
+                if value.is_collection_value() {
+                    ValueContainer::new_reference(self)
+                }
+                // if the value is not a combined value, keep it as a ValueContainer::Value
+                else {
+                    self
+                }
+            }
+        }
+    }
+}
+
+impl Apply for ValueContainer {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self {
+            ValueContainer::Value(value) => todo!("#309 implement apply for Value"),
+            ValueContainer::Reference(reference) => reference.apply(args),
+        }
+    }
+
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self {
+            ValueContainer::Value(value) => {
+                todo!("#310 implement apply_single for Value")
+            }
+            ValueContainer::Reference(reference) => reference.apply_single(arg),
         }
     }
 }
@@ -176,6 +281,21 @@ impl ValueContainer {
 impl<T: Into<Value>> From<T> for ValueContainer {
     fn from(value: T) -> Self {
         ValueContainer::Value(value.into())
+    }
+}
+
+impl From<TypeContainer> for ValueContainer {
+    fn from(type_container: TypeContainer) -> Self {
+        match type_container {
+            TypeContainer::Type(type_value) => {
+                ValueContainer::Value(Value::from(type_value))
+            }
+            TypeContainer::TypeReference(type_reference) => {
+                ValueContainer::Reference(Reference::TypeReference(
+                    type_reference,
+                ))
+            }
+        }
     }
 }
 
@@ -191,20 +311,16 @@ impl Add<ValueContainer> for ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs).map(ValueContainer::Value)
             }
         }
@@ -223,20 +339,16 @@ impl Add<&ValueContainer> for &ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value + rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs + &rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (&lhs_value + rhs).map(ValueContainer::Value)
             }
         }
@@ -255,20 +367,16 @@ impl Sub<ValueContainer> for ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs).map(ValueContainer::Value)
             }
         }
@@ -287,21 +395,31 @@ impl Sub<&ValueContainer> for &ValueContainer {
                 ValueContainer::Reference(lhs),
                 ValueContainer::Reference(rhs),
             ) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs_value - rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Value(lhs), ValueContainer::Reference(rhs)) => {
-                let rhs_value =
-                    rhs.borrow().current_resolved_value().borrow().clone();
+                let rhs_value = rhs.collapse_to_value().borrow().clone();
                 (lhs - &rhs_value).map(ValueContainer::Value)
             }
             (ValueContainer::Reference(lhs), ValueContainer::Value(rhs)) => {
-                let lhs_value =
-                    lhs.borrow().current_resolved_value().borrow().clone();
+                let lhs_value = lhs.collapse_to_value().borrow().clone();
                 (&lhs_value - rhs).map(ValueContainer::Value)
+            }
+        }
+    }
+}
+
+impl Neg for ValueContainer {
+    type Output = Result<ValueContainer, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            ValueContainer::Value(value) => (-value).map(ValueContainer::Value),
+            ValueContainer::Reference(reference) => {
+                let value = reference.collapse_to_value().borrow().clone(); // FIXME #311: Avoid clone
+                (-value).map(ValueContainer::Value)
             }
         }
     }

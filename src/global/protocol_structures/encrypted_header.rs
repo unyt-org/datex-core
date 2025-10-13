@@ -4,13 +4,14 @@ use binrw::{BinRead, BinWrite};
 use modular_bitfield::{Specifier, bitfield};
 
 // 4 bit
+#[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Clone, Default, Specifier)]
-pub enum DeviceType {
+pub enum UserAgent {
     #[default]
     Unknown = 0,
-    Mobile = 1,
-    Desktop = 2,
-    Bot = 3,
+    Human = 1,
+    Bot = 2,
+    Service = 3,
 
     #[allow(unused)]
     Unused0 = 4,
@@ -43,16 +44,60 @@ pub enum DeviceType {
 #[derive(BinWrite, BinRead, Clone, Default, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
+
 pub struct Flags {
-    pub device_type: DeviceType,
+    pub user_agent: UserAgent,
     pub has_on_behalf_of: bool,
+
+    #[allow(unused)]
     unused_0: bool,
+    #[allow(unused)]
     unused_1: bool,
+    #[allow(unused)]
     unused_2: bool,
+}
+
+#[cfg(feature = "debug")]
+mod flags_serde {
+    use super::*;
+    use crate::global::protocol_structures::encrypted_header::Flags;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[derive(Serialize, Deserialize)]
+    struct FlagsHelper {
+        user_agent: UserAgent,
+        has_on_behalf_of: bool,
+    }
+
+    impl Serialize for Flags {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let helper = FlagsHelper {
+                user_agent: self.user_agent(),
+                has_on_behalf_of: self.has_on_behalf_of(),
+            };
+            helper.serialize(serializer)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Flags {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let helper = FlagsHelper::deserialize(deserializer)?;
+            Ok(Flags::new()
+                .with_user_agent(helper.user_agent)
+                .with_has_on_behalf_of(helper.has_on_behalf_of))
+        }
+    }
 }
 
 // min: 1 byte
 // max: 1 byte + 21 bytes = 22 bytes
+#[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct EncryptedHeader {

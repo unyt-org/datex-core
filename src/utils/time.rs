@@ -6,9 +6,7 @@ pub trait TimeTrait: Send + Sync {
 }
 pub struct Time;
 impl Time {
-    pub fn now(&self) -> u64 {
-        let time = get_global_context().time;
-        let time = time.lock().unwrap();
-        time.now()
+    pub fn now() -> u64 {
+        get_global_context().time.now()
     }
 }

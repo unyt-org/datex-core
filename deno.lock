@@ -1,26 +1,103 @@
 {
   "version": "4",
-  "redirects": {
-    "https://esm.sh/@types/cytoscape-fcose@~2.2.4/index.d.ts": "https://esm.sh/@types/cytoscape-fcose@2.2.4/index.d.ts",
-    "https://esm.sh/cose-base@^1.0.0?target=denonext": "https://esm.sh/cose-base@1.0.3?target=denonext",
-    "https://esm.sh/cose-base@^2.2.0?target=denonext": "https://esm.sh/cose-base@2.2.0?target=denonext",
-    "https://esm.sh/layout-base@^1.0.0?target=denonext": "https://esm.sh/layout-base@1.0.2?target=denonext",
-    "https://esm.sh/layout-base@^2.0.0?target=denonext": "https://esm.sh/layout-base@2.0.1?target=denonext"
+  "specifiers": {
+    "jsr:@opentf/obj-diff@0.11": "0.11.0",
+    "jsr:@opentf/std@0.12.0": "0.12.0",
+    "jsr:@unyt/speck@^0.0.10": "0.0.10",
+    "npm:github-slugger@2": "2.0.0",
+    "npm:tablemark@^4.1.0": "4.1.0"
+  },
+  "jsr": {
+    "@opentf/obj-diff@0.11.0": {
+      "integrity": "61f2d870b6b437fbf339ea020a0f9920ee889a1236a6618d81027dee73e90b2f",
+      "dependencies": [
+        "jsr:@opentf/std"
+      ]
+    },
+    "@opentf/std@0.12.0": {
+      "integrity": "a78ec5cee300c4379dda0e92458ae372a9e871daef7b2aa2a53cb2314a276980"
+    },
+    "@unyt/speck@0.0.10": {
+      "integrity": "78e7f5459e864b582fe3b6d81905c266789bf3d36b7b003da320b54ee3215711",
+      "dependencies": [
+        "npm:github-slugger",
+        "npm:tablemark"
+      ]
+    }
+  },
+  "npm": {
+    "ansi-regex@6.2.2": {
+      "integrity": "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="
+    },
+    "ansi-styles@6.2.3": {
+      "integrity": "sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg=="
+    },
+    "change-case@5.4.4": {
+      "integrity": "sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w=="
+    },
+    "emoji-regex@10.5.0": {
+      "integrity": "sha512-lb49vf1Xzfx080OKA0o6l8DQQpV+6Vg95zyCJX9VB/BqKYlhG7N4wgROUUHRA+ZPUefLnteQOad7z1kT2bV7bg=="
+    },
+    "get-east-asian-width@1.4.0": {
+      "integrity": "sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q=="
+    },
+    "github-slugger@2.0.0": {
+      "integrity": "sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw=="
+    },
+    "string-width@7.2.0": {
+      "integrity": "sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==",
+      "dependencies": [
+        "emoji-regex",
+        "get-east-asian-width",
+        "strip-ansi"
+      ]
+    },
+    "string-width@8.1.0": {
+      "integrity": "sha512-Kxl3KJGb/gxkaUMOjRsQ8IrXiGW75O4E3RPjFIINOVH8AMl2SQ/yWdTzWwF3FevIX9LcMAjJW+GRwAlAbTSXdg==",
+      "dependencies": [
+        "get-east-asian-width",
+        "strip-ansi"
+      ]
+    },
+    "strip-ansi@7.1.2": {
+      "integrity": "sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA==",
+      "dependencies": [
+        "ansi-regex"
+      ]
+    },
+    "tablemark@4.1.0": {
+      "integrity": "sha512-B3LDjbDo+ac+D5RwkBOPZZ6ua8716KdT+6NO3DKOCHJq0ezE6vV2r92rjrC1ci2H+ocuysl5ytf1T0QqV65yoA==",
+      "dependencies": [
+        "ansi-regex",
+        "change-case",
+        "string-width@8.1.0",
+        "wordwrapjs",
+        "wrap-ansi"
+      ]
+    },
+    "wordwrapjs@5.1.0": {
+      "integrity": "sha512-JNjcULU2e4KJwUNv6CHgI46UvDGitb6dGryHajXTDiLgg1/RiGoPSDw4kZfYnwGtEXf2ZMeIewDQgFGzkCB2Sg=="
+    },
+    "wrap-ansi@9.0.2": {
+      "integrity": "sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==",
+      "dependencies": [
+        "ansi-styles",
+        "string-width@7.2.0",
+        "strip-ansi"
+      ]
+    }
   },
   "remote": {
-    "https://esm.sh/cose-base@1.0.3/denonext/cose-base.mjs": "ede6e026ac176ff88825e93a42f07518d34760482e7e15b31f74f18f169108da",
-    "https://esm.sh/cose-base@1.0.3?target=denonext": "057886652775541b23c39fdf50ee426855e0ef2834249086e163b387bb38a35d",
-    "https://esm.sh/cose-base@2.2.0/denonext/cose-base.mjs": "ca97b62584fb2f8a19d3c26d892d1d9e2d1aa1e297e1f863e7ed4c8af9b63ada",
-    "https://esm.sh/cose-base@2.2.0?target=denonext": "dbfa7b440df04ecc7115ad7e288c9c230c9a5f97a284d3c9b8b03755a936e3bf",
-    "https://esm.sh/cytoscape-cose-bilkent@4.1.0": "b5821e738a91975e97ced4e63eb90a76bcac4547c806d5d387265877aec49773",
-    "https://esm.sh/cytoscape-cose-bilkent@4.1.0/denonext/cytoscape-cose-bilkent.mjs": "8b6eb6fb0990f1ac7d13c75c007a681af7b81ff79f260e369ca5074261e50ef4",
-    "https://esm.sh/cytoscape-fcose@2.2.0": "9dbe55512644e969d0ceec4eef249575abde8eb727e9af2ee5b9082d68b8e643",
-    "https://esm.sh/cytoscape-fcose@2.2.0/denonext/cytoscape-fcose.mjs": "a66065ab251658c2173730ba497c3b10ff86fe558a082a398fd02e224a7e12e6",
-    "https://esm.sh/cytoscape@3.32.0": "366857faa7370910ace367986b2ecebe8429794f3ebf66dcfa71f1133ed516fb",
-    "https://esm.sh/cytoscape@3.32.0/denonext/cytoscape.mjs": "8a916c48e76ab8809cf597ddb2121b51978e2fd3cd48cfa5aa7920b69e83cd12",
-    "https://esm.sh/layout-base@1.0.2/denonext/layout-base.mjs": "ef685af5af087080271c66164b9e978bbb98a3d0c46926d90ba0dabe32de2db8",
-    "https://esm.sh/layout-base@1.0.2?target=denonext": "c9a6855b1712976162fc03bdfeffbde2504932873bc312eb68fc3ae2400e8b37",
-    "https://esm.sh/layout-base@2.0.1/denonext/layout-base.mjs": "e779c7a5098bb79d3c6c78bc5b8f8eee0c795c6d39ce07fdf525aaf489f21654",
-    "https://esm.sh/layout-base@2.0.1?target=denonext": "6cae1fb18238190e3f037bc1b1f32ec25a9eac4e8588dd4f81f2fc2e55adb93f"
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json": "1c3d837b9a7356bbeaa6f432afa1f4582a650bfe45c03b8061ddb15bd71936c1",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "351c707f13745a267381593f88b0e0e04bd6fa363aca52523b57c810b38d4a29",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token=": "8baecc217a44d57aa3cf5dbb1f9d5f473dabf5a033b30b5264c49a6d648814b7",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=1": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5",
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=2": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@opentf/obj-diff@0.11",
+      "jsr:@unyt/speck@^0.0.10"
+    ]
   }
 }

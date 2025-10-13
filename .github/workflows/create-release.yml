@@ -1,54 +1,54 @@
 name: Create release
 
 on:
-  workflow_dispatch:
-    inputs:
-      bump_type:
-        description: 'Select the type'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+    workflow_dispatch:
+        inputs:
+            bump_type:
+                description: "Select the type"
+                required: true
+                default: "patch"
+                type: choice
+                options:
+                    - patch
+                    - minor
+                    - major
 
 jobs:
-  version_bump:
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    version_bump:
+        permissions:
+            contents: write
+            pull-requests: write
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
 
-      - name: Set up Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+            - name: Set up Deno
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
 
-      - name: Bump version using Deno
-        id: bump_version
-        run: deno run -A .github/tools/create-release.ts ${{ inputs.bump_type }}
+            - name: Bump version using Deno
+              id: bump_version
+              run: deno run -A .github/tools/create-release.ts ${{ inputs.bump_type }}
 
-      # - name: Configure Git
-      #   run: |
-      #     git config user.name "github-actions[bot]"
-      #     git config user.email "github-actions[bot]@users.noreply.github.com"
+            # - name: Configure Git
+            #   run: |
+            #     git config user.name "github-actions[bot]"
+            #     git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        env:
-            NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Bump version to ${{ env.NEW_VERSION }}"
-          title: "Release (${{ env.NEW_VERSION }})"
-          body: "This PR bumps the Cargo.toml version to ${{ env.NEW_VERSION }}."
-          draft: false
-          branch: "release/${{ env.NEW_VERSION }}"
-          delete-branch: true
-          labels: |
-            release
-          reviewers: jonasstrehle,benStre
+            - name: Create Pull Request
+              uses: peter-evans/create-pull-request@v5
+              env:
+                  NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  commit-message: "Bump version to ${{ env.NEW_VERSION }}"
+                  title: "Release (${{ env.NEW_VERSION }})"
+                  body: "This PR bumps the Cargo.toml version to ${{ env.NEW_VERSION }}."
+                  draft: false
+                  branch: "release/${{ env.NEW_VERSION }}"
+                  delete-branch: true
+                  labels: |
+                      release
+                  reviewers: jonasstrehle,benStre

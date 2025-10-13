@@ -1,178 +1,178 @@
 {
-	"nodes": [
-		{
-			"id": "46l6",
-			"label": "@46l6"
-		},
-		{
-			"id": "4pk8",
-			"label": "@4pk8"
-		},
-		{
-			"id": "82nq",
-			"label": "@82nq"
-		},
-		{
-			"id": "owyg",
-			"label": "@owyg"
-		},
-		{
-			"id": "7iyl",
-			"label": "@7iyl"
-		},
-		{
-			"id": "kz0l",
-			"label": "@kz0l"
-		},
-		{
-			"id": "xxif",
-			"label": "@xxif"
-		},
-		{
-			"id": "94ea",
-			"label": "@94ea"
-		},
-		{
-			"id": "d0o5",
-			"label": "@d0o5"
-		},
-		{
-			"id": "iq1a",
-			"label": "@iq1a"
-		}
-	],
-	"edges": [
-		{
-			"id": "mockup-46l6-4pk8",
-			"source": "46l6",
-			"target": "4pk8",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-7iyl-4pk8",
-			"source": "7iyl",
-			"target": "4pk8",
-			"type": "mockup",
-			"priority": 2
-		},
-		{
-			"id": "mockup-7iyl-kz0l",
-			"source": "7iyl",
-			"target": "kz0l",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-46l6-xxif",
-			"source": "46l6",
-			"target": "xxif",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-owyg-82nq",
-			"source": "owyg",
-			"target": "82nq",
-			"type": "mockup",
-			"priority": 0,
-			"endpoint": "@82nq"
-		},
-		{
-			"id": "mockup-owyg-4pk8",
-			"source": "owyg",
-			"target": "4pk8",
-			"type": "mockup",
-			"priority": 1
-		},
-		{
-			"id": "mockup-82nq-7iyl",
-			"source": "82nq",
-			"target": "7iyl",
-			"type": "mockup",
-			"priority": 0,
-			"endpoint": "@7iyl"
-		},
-		{
-			"id": "mockup-4pk8-94ea",
-			"source": "4pk8",
-			"target": "94ea",
-			"type": "mockup",
-			"priority": 0,
-			"endpoint": "@94ea"
-		},
-		{
-			"id": "mockup-46l6-d0o5",
-			"source": "46l6",
-			"target": "d0o5",
-			"type": "mockup",
-			"priority": -1,
-			"endpoint": "@d0o5"
-		},
-		{
-			"id": "mockup-xxif-46l6",
-			"source": "xxif",
-			"target": "46l6",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-d0o5-94ea",
-			"source": "d0o5",
-			"target": "94ea",
-			"type": "mockup",
-			"priority": 0,
-			"endpoint": "@94ea"
-		},
-		{
-			"id": "mockup-owyg-xxif",
-			"source": "owyg",
-			"target": "xxif",
-			"type": "mockup",
-			"priority": 2,
-			"endpoint": "@xxif"
-		},
-		{
-			"id": "mockup-kz0l-7iyl",
-			"source": "kz0l",
-			"target": "7iyl",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-4pk8-owyg",
-			"source": "4pk8",
-			"target": "owyg",
-			"type": "mockup",
-			"priority": 1
-		},
-		{
-			"id": "mockup-4pk8-46l6",
-			"source": "4pk8",
-			"target": "46l6",
-			"type": "mockup",
-			"priority": 3
-		},
-		{
-			"id": "mockup-kz0l-iq1a",
-			"source": "kz0l",
-			"target": "iq1a",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-iq1a-kz0l",
-			"source": "iq1a",
-			"target": "kz0l",
-			"type": "mockup",
-			"priority": 0
-		},
-		{
-			"id": "mockup-xxif-owyg",
-			"source": "xxif",
-			"target": "owyg",
-			"type": "mockup",
-			"priority": 0
-		}
-	]
+    "nodes": [
+        {
+            "id": "46l6",
+            "label": "@46l6"
+        },
+        {
+            "id": "4pk8",
+            "label": "@4pk8"
+        },
+        {
+            "id": "82nq",
+            "label": "@82nq"
+        },
+        {
+            "id": "owyg",
+            "label": "@owyg"
+        },
+        {
+            "id": "7iyl",
+            "label": "@7iyl"
+        },
+        {
+            "id": "kz0l",
+            "label": "@kz0l"
+        },
+        {
+            "id": "xxif",
+            "label": "@xxif"
+        },
+        {
+            "id": "94ea",
+            "label": "@94ea"
+        },
+        {
+            "id": "d0o5",
+            "label": "@d0o5"
+        },
+        {
+            "id": "iq1a",
+            "label": "@iq1a"
+        }
+    ],
+    "edges": [
+        {
+            "id": "mockup-46l6-4pk8",
+            "source": "46l6",
+            "target": "4pk8",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-7iyl-4pk8",
+            "source": "7iyl",
+            "target": "4pk8",
+            "type": "mockup",
+            "priority": 2
+        },
+        {
+            "id": "mockup-7iyl-kz0l",
+            "source": "7iyl",
+            "target": "kz0l",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-46l6-xxif",
+            "source": "46l6",
+            "target": "xxif",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-owyg-82nq",
+            "source": "owyg",
+            "target": "82nq",
+            "type": "mockup",
+            "priority": 0,
+            "endpoint": "@82nq"
+        },
+        {
+            "id": "mockup-owyg-4pk8",
+            "source": "owyg",
+            "target": "4pk8",
+            "type": "mockup",
+            "priority": 1
+        },
+        {
+            "id": "mockup-82nq-7iyl",
+            "source": "82nq",
+            "target": "7iyl",
+            "type": "mockup",
+            "priority": 0,
+            "endpoint": "@7iyl"
+        },
+        {
+            "id": "mockup-4pk8-94ea",
+            "source": "4pk8",
+            "target": "94ea",
+            "type": "mockup",
+            "priority": 0,
+            "endpoint": "@94ea"
+        },
+        {
+            "id": "mockup-46l6-d0o5",
+            "source": "46l6",
+            "target": "d0o5",
+            "type": "mockup",
+            "priority": -1,
+            "endpoint": "@d0o5"
+        },
+        {
+            "id": "mockup-xxif-46l6",
+            "source": "xxif",
+            "target": "46l6",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-d0o5-94ea",
+            "source": "d0o5",
+            "target": "94ea",
+            "type": "mockup",
+            "priority": 0,
+            "endpoint": "@94ea"
+        },
+        {
+            "id": "mockup-owyg-xxif",
+            "source": "owyg",
+            "target": "xxif",
+            "type": "mockup",
+            "priority": 2,
+            "endpoint": "@xxif"
+        },
+        {
+            "id": "mockup-kz0l-7iyl",
+            "source": "kz0l",
+            "target": "7iyl",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-4pk8-owyg",
+            "source": "4pk8",
+            "target": "owyg",
+            "type": "mockup",
+            "priority": 1
+        },
+        {
+            "id": "mockup-4pk8-46l6",
+            "source": "4pk8",
+            "target": "46l6",
+            "type": "mockup",
+            "priority": 3
+        },
+        {
+            "id": "mockup-kz0l-iq1a",
+            "source": "kz0l",
+            "target": "iq1a",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-iq1a-kz0l",
+            "source": "iq1a",
+            "target": "kz0l",
+            "type": "mockup",
+            "priority": 0
+        },
+        {
+            "id": "mockup-xxif-owyg",
+            "source": "xxif",
+            "target": "owyg",
+            "type": "mockup",
+            "priority": 0
+        }
+    ]
 }

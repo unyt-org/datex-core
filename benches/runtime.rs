@@ -1,5 +1,5 @@
-use log::info;
 use datex_core::runtime::Runtime;
+use log::info;
 
 // simple runtime initialization
 pub fn runtime_init() {

@@ -1,14 +1,15 @@
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{cell::RefCell, io::Bytes, rc::Rc, sync::Arc, time::Duration};
 
 use datex_core::{
     network::com_interfaces::{
         com_interface::ComInterface,
         com_interface_socket::ComInterfaceSocketUUID,
         default_com_interfaces::webrtc::{
-            webrtc_common_new::webrtc_trait::{
-                WebRTCTrait, WebRTCTraitInternal,
+            webrtc_common::{
+                media_tracks::{MediaKind, MediaTrack},
+                webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
             },
-            webrtc_native_interface::WebRTCNativeInterface,
+            webrtc_native_interface::{TrackLocal, WebRTCNativeInterface},
         },
         socket_provider::SingleSocketProvider,
     },
@@ -17,6 +18,14 @@ use datex_core::{
     utils::uuid::UUID,
 };
 use ntest_timeout::timeout;
+use webrtc::{
+    media::Sample,
+    rtp::{header::Header, packet::Packet},
+    track::track_local::{
+        TrackLocalWriter, track_local_static_rtp::TrackLocalStaticRTP,
+        track_local_static_sample::TrackLocalStaticSample,
+    },
+};
 
 use crate::{
     context::init_global_context,
@@ -119,5 +128,102 @@ pub async fn test_connect() {
         // Check if the messages are received correctly
         assert_eq!(receive_a, BLOCK_B_TO_A);
         assert_eq!(receive_b, BLOCK_A_TO_B);
+    }
+}
+
+#[tokio::test]
+#[timeout(10000)]
+pub async fn test_media_track() {
+    run_async! {
+        init_global_context();
+        // Create a WebRTCNativeInterface instance on each side (remote: @a)
+        let mut interface_a = WebRTCNativeInterface::new(
+            TEST_ENDPOINT_A.clone(),
+        );
+        interface_a.open().await.unwrap();
+
+
+        // Create a WebRTCNativeInterface instance on each side (remote: @b)
+        let mut interface_b = WebRTCNativeInterface::new(
+            TEST_ENDPOINT_B.clone(),
+        );
+        interface_b.open().await.unwrap();
+
+        let interface_a = Rc::new(RefCell::new(interface_a));
+        let interface_b = Rc::new(RefCell::new(interface_b));
+
+        let interface_a_clone = interface_a.clone();
+        let inteface_b_clone = interface_b.clone();
+
+        interface_a.clone().borrow().set_on_ice_candidate(Box::new(move |candidate| {
+            let interface_b = inteface_b_clone.clone();
+            spawn_local(async move {
+                interface_b.clone().borrow().add_ice_candidate(candidate).await.unwrap();
+            });
+        }));
+
+        interface_b.clone().borrow().set_on_ice_candidate(Box::new(move |candidate| {
+            let interface_a = interface_a_clone.clone();
+            spawn_local(async move {
+                interface_a.clone().borrow().add_ice_candidate(candidate).await.unwrap();
+            });
+        }));
+        let txTrack: Rc<RefCell<MediaTrack<Arc<TrackLocal>>>> = interface_a.borrow().create_media_track(
+            "dx".to_owned(),
+            MediaKind::Audio
+        ).await.unwrap();
+        println!("Has local media track: {:?}", txTrack.borrow().kind);
+
+        let offer = interface_a.clone().borrow().create_offer().await.unwrap();
+
+        let answer = interface_b.clone().borrow().create_answer(offer).await.unwrap();
+        interface_a.clone().borrow().set_answer(answer).await.unwrap();
+
+        interface_a.borrow().wait_for_connection().await.unwrap();
+        interface_b.borrow().wait_for_connection().await.unwrap();
+
+        spawn_local(
+            async move {
+                let binding = txTrack.borrow();
+                let track = binding.track.as_any().downcast_ref::<TrackLocalStaticSample>().unwrap();
+                track.write_sample(&webrtc::media::Sample {
+                    data: vec![0u8; 960].into(),
+                    duration: Duration::from_millis(20),
+                    ..Default::default()
+                }).await;
+
+
+                // let track = binding.track.as_any().downcast_ref::<TrackLocalStaticRTP>().unwrap();
+                // let mut sequence_number = 0u16;
+                // loop {
+                //     let packet = Packet {
+                //         header: Header {
+                //             version: 2,
+                //             sequence_number,
+                //             payload_type: 96,
+                //             ..Default::default()
+                //         },
+                //         payload: vec![0u8; 2].into(),
+                //     };
+                //     sequence_number = sequence_number.wrapping_add(1);
+                //     track
+                //         .write_rtp_with_extensions(&packet, &[])
+                //         .await
+                //         .unwrap();
+                // }
+            }
+        );
+        sleep(Duration::from_secs(2)).await;
+
+        let rx_track = &interface_b.borrow();
+        let tracks = &rx_track.provide_remote_media_tracks();
+        let tracks = &tracks.borrow();
+        let track = tracks.tracks.values().next().unwrap();
+        let track = track.borrow();
+        println!("Received track id: {:?}", track.id());
+        let mut buf = vec![0u8; 1600];
+        let n = track.track.read_rtp().await.unwrap().0.to_string();
+        println!("Read {} bytes from track", n);
+        println!("Tracks B: {:?}", track.kind());
     }
 }

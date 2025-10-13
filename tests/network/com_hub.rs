@@ -1,3 +1,4 @@
+use datex_core::serde::serializer::to_value_container;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::block_header::BlockHeader;
@@ -17,14 +18,15 @@ use std::io::Write;
 use std::str::FromStr;
 use std::sync::mpsc;
 // FIXME #217 no-std
+use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
-    add_socket, get_all_received_single_blocks_from_com_hub,
+    TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST_ENDPOINT_ORIGIN, add_socket,
+    get_all_received_single_blocks_from_com_hub,
     get_last_received_single_block_from_com_hub, get_mock_setup,
     get_mock_setup_and_socket, get_mock_setup_and_socket_for_priority,
     get_mock_setup_with_endpoint, register_socket_endpoint,
-    send_block_with_body, send_empty_block_and_update, TEST_ENDPOINT_A,
-    TEST_ENDPOINT_B, TEST_ENDPOINT_ORIGIN,
+    send_block_with_body, send_empty_block_and_update,
 };
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
@@ -33,8 +35,6 @@ use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
 };
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
-use datex_core::values::serde::serializer::to_value_container;
-use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 
 #[tokio::test]
 pub async fn test_add_and_remove() {
@@ -86,20 +86,24 @@ pub async fn test_multiple_add() {
             panic!("Error adding interface: {e:?}");
         });
 
-    assert!(com_hub
-        .open_and_add_interface(
-            mockup_interface1.clone(),
-            InterfacePriority::default()
-        )
-        .await
-        .is_err());
-    assert!(com_hub
-        .open_and_add_interface(
-            mockup_interface2.clone(),
-            InterfacePriority::default()
-        )
-        .await
-        .is_err());
+    assert!(
+        com_hub
+            .open_and_add_interface(
+                mockup_interface1.clone(),
+                InterfacePriority::default()
+            )
+            .await
+            .is_err()
+    );
+    assert!(
+        com_hub
+            .open_and_add_interface(
+                mockup_interface2.clone(),
+                InterfacePriority::default()
+            )
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -266,49 +270,16 @@ pub async fn default_interface_set_default_interface_first() {
         // Update to let the com_hub know about the socket and call the add_socket method
         // This will set the default interface and socket
         com_hub.update_async().await;
-        let _ =
-            send_empty_block_and_update(&[TEST_ENDPOINT_B.clone()], &com_hub)
-                .await;
+        let _ = send_empty_block_and_update(
+            std::slice::from_ref(&TEST_ENDPOINT_B),
+            &com_hub,
+        )
+        .await;
 
         let mockup_interface_out = com_interface.clone();
         let mockup_interface_out = mockup_interface_out.borrow();
         assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
     });
-}
-
-#[test]
-pub fn test_recalculate() {
-    init_global_context();
-
-    let mut block = DXBBlock {
-        body: vec![0x01, 0x02, 0x03],
-        encrypted_header: EncryptedHeader {
-            flags: encrypted_header::Flags::new()
-                .with_device_type(encrypted_header::DeviceType::Unused11),
-            ..Default::default()
-        },
-        routing_header: RoutingHeader {
-            block_size_u16: Some(420),
-            sender: Endpoint::from_str("@test").unwrap(),
-            ..Default::default()
-        },
-        ..DXBBlock::default()
-    };
-
-    {
-        // invalid block size
-        let block_bytes = block.to_bytes().unwrap();
-        let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
-        assert_ne!(block, block2);
-    }
-
-    {
-        // valid block size
-        block.recalculate_struct();
-        let block_bytes = block.to_bytes().unwrap();
-        let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
-        assert_eq!(block, block3);
-    }
 }
 
 #[tokio::test]
@@ -323,12 +294,12 @@ pub async fn test_receive() {
             body: vec![0x01, 0x02, 0x03],
             encrypted_header: EncryptedHeader {
                 flags: encrypted_header::Flags::new()
-                    .with_device_type(encrypted_header::DeviceType::Unused11),
+                    .with_user_agent(encrypted_header::UserAgent::Unused11),
                 ..Default::default()
             },
             ..DXBBlock::default()
         };
-        block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+        block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         block.recalculate_struct();
 
         let block_bytes = block.to_bytes().unwrap();
@@ -355,9 +326,7 @@ pub async fn test_receive_multiple() {
         // receive block
         let mut blocks = vec![
             DXBBlock {
-                routing_header: RoutingHeader {
-                    ..Default::default()
-                },
+                routing_header: RoutingHeader::default(),
                 block_header: BlockHeader {
                     section_index: 0,
                     ..Default::default()
@@ -365,9 +334,7 @@ pub async fn test_receive_multiple() {
                 ..Default::default()
             },
             DXBBlock {
-                routing_header: RoutingHeader {
-                    ..Default::default()
-                },
+                routing_header: RoutingHeader::default(),
                 block_header: BlockHeader {
                     section_index: 1,
                     ..Default::default()
@@ -375,9 +342,7 @@ pub async fn test_receive_multiple() {
                 ..Default::default()
             },
             DXBBlock {
-                routing_header: RoutingHeader {
-                    ..Default::default()
-                },
+                routing_header: RoutingHeader::default(),
                 block_header: BlockHeader {
                     section_index: 2,
                     ..Default::default()
@@ -388,7 +353,7 @@ pub async fn test_receive_multiple() {
 
         for block in &mut blocks {
             // set receiver to ORIGIN
-            block.set_receivers(&[TEST_ENDPOINT_ORIGIN.clone()]);
+            block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         }
 
         let block_bytes: Vec<Vec<u8>> = blocks
@@ -508,7 +473,7 @@ pub async fn register_factory() {
     run_async! {
         init_global_context();
         let mut com_hub = ComHub::default();
-        MockupInterface::register_on_com_hub(&mut com_hub);
+        MockupInterface::register_on_com_hub(&com_hub);
 
         assert_eq!(com_hub.interface_factories.borrow().len(), 1);
         assert!(com_hub

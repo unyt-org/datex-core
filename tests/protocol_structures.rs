@@ -1,17 +1,22 @@
 use binrw::{BinRead, BinWrite};
-use datex_core::values::core_values::endpoint::{
-    Endpoint, EndpointInstance, EndpointType,
-};
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{
-        block_header::BlockHeader,
+        block_header::{BlockHeader, BlockType},
         encrypted_header::{self, EncryptedHeader},
-        routing_header::{Flags, ReceiverFlags, Receivers, RoutingHeader},
+        routing_header::{EncryptionType, RoutingHeader},
         serializable::Serializable,
     },
 };
-use std::io::{Cursor, Seek, SeekFrom};
+use datex_core::values::core_values::endpoint::{
+    Endpoint, EndpointInstance, EndpointType,
+};
+use serde::Serialize;
+use serde_json::ser::{Formatter, PrettyFormatter};
+use std::{
+    io::{Cursor, Seek, SeekFrom},
+    str::FromStr,
+};
 // FIXME #214 no-std
 
 #[test]
@@ -58,27 +63,14 @@ pub fn parse_block_header() {
 
 #[test]
 pub fn parse_routing_header() {
-    let routing_header = RoutingHeader {
-        version: 2,
-        flags: Flags::new(),
-        block_size_u16: Some(0),
-        block_size_u32: None,
-        sender: Endpoint {
+    let routing_header = RoutingHeader::default()
+        .with_sender(Endpoint {
             type_: EndpointType::Person,
             identifier: [0; 18],
             instance: EndpointInstance::Any,
-        },
-        receivers: Receivers {
-            flags: ReceiverFlags::new()
-                .with_has_endpoints(false)
-                .with_has_pointer_id(false)
-                .with_has_endpoint_keys(false),
-            pointer_id: None,
-            endpoints: None,
-            endpoints_with_keys: None,
-        },
-        ..Default::default()
-    };
+        })
+        .to_owned();
+
     let mut writer = Cursor::new(Vec::new());
     routing_header.write(&mut writer).unwrap();
 
@@ -94,10 +86,7 @@ pub fn parse_routing_header() {
 #[test]
 pub fn parse_dxb_block() {
     let block = DXBBlock {
-        routing_header: RoutingHeader {
-            version: 42,
-            ..RoutingHeader::default()
-        },
+        routing_header: RoutingHeader::default(),
         ..DXBBlock::default()
     };
 
@@ -107,4 +96,78 @@ pub fn parse_dxb_block() {
     let new_bytes = new_block.to_bytes().unwrap();
 
     assert_eq!(bytes, new_bytes);
+}
+
+fn create_dxb_block_artifacts(block: &mut DXBBlock, name: &str) {
+    use std::fs;
+    use std::path::Path;
+    let dir_path = Path::new("tests").join("structs").join(name);
+    fs::create_dir_all(&dir_path).unwrap();
+    let bin_path = dir_path.join("block.bin");
+    let json_path = dir_path.join("block.json");
+
+    let adjusted_block = block.recalculate_struct();
+    fs::write(&bin_path, adjusted_block.to_bytes().unwrap()).unwrap();
+
+    let mut buf = Vec::new();
+    let mut ser = serde_json::Serializer::with_formatter(
+        &mut buf,
+        PrettyFormatter::with_indent(b"    "),
+    );
+    block.serialize(&mut ser).unwrap();
+
+    let output = String::from_utf8(buf).unwrap();
+    fs::write(&json_path, format!("{}\n", output)).unwrap();
+}
+
+#[test]
+#[ignore = "Only run to create artifacts"]
+pub fn dxb_blocks() {
+    {
+        const NAME: &str = "simple";
+        let mut block = DXBBlock::default();
+        block
+            .routing_header
+            .flags
+            .set_encryption_type(EncryptionType::Encrypted);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "receivers";
+        let mut block = DXBBlock::default();
+        block.set_receivers(vec![
+            Endpoint::from_str("@jonas").unwrap(),
+            Endpoint::from_str("@ben").unwrap(),
+        ]);
+        block.block_header.block_number = 42;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::TraceBack);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "receivers_with_keys";
+        let mut block = DXBBlock::default();
+        block.set_receivers(vec![
+            (Endpoint::from_str("@jonas").unwrap(), [1u8; 512]),
+            (Endpoint::from_str("@ben").unwrap(), [2u8; 512]),
+        ]);
+        block.block_header.block_number = 43;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::TraceBack);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
 }

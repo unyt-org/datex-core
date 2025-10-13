@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "datex-core"
-version = "0.0.5"
+version = "0.0.6"
 description = "The DATEX Core Rust implementation"
 authors = [
     "Benedikt Strehle <benedikt@unyt.org>",
@@ -14,8 +14,8 @@ license-file = "LICENSE"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
- [workspace]
- members = ["macros"]
+[workspace]
+members = ["macros"]
 
 [[bench]]
 name = "mod"
@@ -53,14 +53,13 @@ tokio = { version = "1.43.0", optional = true, features = [
     "time",
 ], default-features = false }
 
-datex_macros = { path = "./macros", version = "0.1.0" }
+datex_macros = { path = "./macros", version = "0.1.1" }
 
 # optional dependencies
 futures = { version = "0.3" }
 nostd = { version = "0.1.4", optional = true }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
-rsa = { version = "0.9.8", optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
@@ -85,6 +84,9 @@ ariadne = "0.5.1"
 logos = "0.15.0"
 async-stream = "0.3.6"
 futures-core = "0.3.31"
+internment = "0.8.6"
+serde-big-array = "0.5.1"
+
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
@@ -92,12 +94,22 @@ tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
 hyper = { version = "1", optional = true }
 futures-timer = { version = "3", features = ["wasm-bindgen"] }
 serialport = { version = "4.7.1", optional = true }
-tokio-tungstenite = { version = "0.21.0", optional = true, features = ["native-tls"] }
+tokio-tungstenite = { version = "0.21.0", optional = true, features = [
+    "native-tls",
+] }
 tungstenite = { version = "0.21.0", optional = true }
+openssl = { version = "0.10.73", optional = true }
+
+wasm-bindgen-futures = { optional = true, version = "0.4.29" }
+gloo-timers = { optional = true, version = "0.3.0", features = ["futures"] }
+tsify = { optional = true, version = "0.5.5" }
+wasm-bindgen = { optional = true, version = "=0.2.102" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen-futures = { optional = true, version = "0.4.29" }
+wasm-bindgen-futures = { version = "0.4.29" }
 gloo-timers = { version = "0.3.0", features = ["futures"] }
+tsify = "0.5.5"
+wasm-bindgen = "=0.2.102"
 
 [profile.release]
 opt-level = "z"
@@ -116,10 +128,6 @@ tokio = { version = "1.43.0", features = [
     "rt",
     "time",
 ], default-features = false }
-
-# see https://docs.rs/rsa/latest/rsa/
-[profile.dev.package.num-bigint-dig]
-opt-level = 3
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = ["html_reports"] }
@@ -142,6 +150,7 @@ default = [
     "wasm_webrtc",
     "flexi_logger",
     "tokio_runtime",
+    "serde",
     # "debug", # temporary to fix linting and allow tests to run
 ] # default to nostd
 
@@ -152,7 +161,7 @@ native_tcp = []                                         # use native tcp
 native_time = []                                        # use native time
 native_rand = ["rand"]                                  # use native websocket
 native_uuid = ["uuid"]                                  # use native uuid
-native_crypto = ["rsa"]                                 # use native crypto
+native_crypto = ["openssl"]                             # use native crypto
 native_serial = ["serialport"]                          # use native serial
 native_webrtc = ["webrtc"]                              # use webrtc
 
@@ -165,8 +174,14 @@ env_logger = []
 
 # runtime
 tokio_runtime = ["dep:tokio"]
-wasm_runtime = ["dep:wasm-bindgen-futures"]
+wasm_runtime = [
+    "dep:wasm-bindgen-futures",
+    "dep:gloo-timers",
+    "dep:tsify",
+    "dep:wasm-bindgen",
+]
 
 # utils
 std = []   # use std
 debug = []
+serde = []

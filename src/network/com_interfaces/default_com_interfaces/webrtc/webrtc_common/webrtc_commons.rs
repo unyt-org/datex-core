@@ -1,0 +1,59 @@
+use std::collections::VecDeque;
+
+use log::error;
+use serde::{Deserialize, Serialize};
+
+use crate::values::core_values::endpoint::Endpoint;
+
+use super::structures::{RTCIceCandidateInitDX, RTCIceServer};
+use crate::serde::serializer::to_bytes;
+
+pub struct WebRTCCommon {
+    pub endpoint: Endpoint,
+    pub ice_servers: Vec<RTCIceServer>,
+    pub candidates: VecDeque<Vec<u8>>,
+    pub is_remote_description_set: bool,
+    pub on_ice_candidate: Option<Box<dyn Fn(Vec<u8>)>>,
+    pub on_connect: Option<Box<dyn Fn()>>,
+}
+
+impl WebRTCCommon {
+    pub fn reset(&mut self) {
+        self.is_remote_description_set = false;
+        self.candidates.clear();
+        self.on_ice_candidate = None;
+    }
+    pub fn new(endpoint: impl Into<Endpoint>) -> Self {
+        WebRTCCommon {
+            endpoint: endpoint.into(),
+            candidates: VecDeque::new(),
+            is_remote_description_set: false,
+            on_ice_candidate: None,
+            on_connect: None,
+            ice_servers: vec![RTCIceServer {
+                urls: vec!["stun:stun.l.google.com:19302".to_string()],
+                username: None,
+                credential: None,
+            }],
+        }
+    }
+    pub fn on_ice_candidate(&self, candidate: RTCIceCandidateInitDX) {
+        if let Some(ref on_ice_candidate) = self.on_ice_candidate {
+            if let Ok(candidate) = to_bytes(&candidate) {
+                on_ice_candidate(candidate);
+            } else {
+                error!("Failed to serialize candidate");
+            }
+        } else {
+            error!("No on_ice_candidate callback set");
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
+pub struct WebRTCInterfaceSetupData {
+    #[cfg_attr(feature = "wasm_runtime", tsify(type = "string"))]
+    pub peer_endpoint: Endpoint,
+    pub ice_servers: Option<Vec<RTCIceServer>>,
+}

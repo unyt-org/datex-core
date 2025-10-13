@@ -20,7 +20,9 @@ for await (const entry of walk(inputDir, { exts: [".d2"] })) {
     const { code } = await process.output();
     if (code !== 0) {
         const { stderr } = await process.output();
-        console.error(`Error rendering ${inputFile}: ${new TextDecoder().decode(stderr)}`);
+        console.error(
+            `Error rendering ${inputFile}: ${new TextDecoder().decode(stderr)}`,
+        );
     } else {
         console.log(`Rendered: ${outputFile}`);
     }

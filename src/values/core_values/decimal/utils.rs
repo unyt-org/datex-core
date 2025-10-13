@@ -41,24 +41,24 @@ pub fn decimal_to_string<T: Float + Display + std::fmt::LowerExp>(
         )
     }
     // e notation for large or small numbers
-    else if value.abs() > T::from(1e20).unwrap() || value.abs() < T::from(1e-7).unwrap() {
+    else if value.abs() > T::from(1e20).unwrap()
+        || value.abs() < T::from(1e-7).unwrap()
+    {
         format!("{value:.e}")
-    }
-    else if value.fract() == T::zero() {
+    } else if value.fract() == T::zero() {
         format!("{value:.1}")
-    }
-    else {
+    } else {
         format!("{value}")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ordered_float::OrderedFloat;
     use super::*;
+    use ordered_float::OrderedFloat;
 
     #[test]
-    fn test_smallest_fitting_float() {
+    fn smallest_fitting() {
         assert_eq!(
             smallest_fitting_float(1.0),
             TypedDecimal::F32(OrderedFloat(1.0))
@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_e_notation() {
+    fn format_e_notation() {
         let value = 1e20;
         let formatted = decimal_to_string(value, false);
         assert_eq!(formatted, "100000000000000000000.0");

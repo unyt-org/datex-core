@@ -1,7 +1,11 @@
-use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
+use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::comparison_operation::ComparisonOperator;
+use crate::ast::unary_operation::UnaryOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;
+use datex_core::references::reference::Reference;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
@@ -15,6 +19,18 @@ pub enum Scope {
     Default,
     Collection,
     RemoteExecution,
+    Deref,
+    AssignToReference {
+        reference: Option<Reference>,
+        operator: AssignmentOperator,
+    },
+    ComparisonOperation {
+        operator: ComparisonOperator,
+    },
+    AssignmentOperation {
+        address: u32,
+        operator: AssignmentOperator,
+    },
     BinaryOperation {
         operator: BinaryOperator,
     },
@@ -25,6 +41,10 @@ pub enum Scope {
     SlotAssignment {
         address: u32,
     },
+    Apply {
+        arg_count: u16,
+        args: Vec<ValueContainer>,
+    }
 }
 
 impl ScopeContainer {

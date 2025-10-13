@@ -1,13 +1,11 @@
+use crate::values::value_container::{ValueContainer, ValueError};
+use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Not};
 
-use crate::values::{
-    traits::structural_eq::StructuralEq,
-    value_container::{ValueContainer, ValueError},
-};
-
 use super::super::core_value_trait::CoreValueTrait;
+use crate::traits::structural_eq::StructuralEq;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Boolean(pub bool);
 
 impl Boolean {
@@ -29,11 +27,7 @@ impl Boolean {
         self.0.to_string()
     }
     pub fn as_str(&self) -> &str {
-        if self.0 {
-            "true"
-        } else {
-            "false"
-        }
+        if self.0 { "true" } else { "false" }
     }
 }
 
