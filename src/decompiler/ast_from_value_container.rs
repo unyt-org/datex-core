@@ -1,4 +1,4 @@
-use crate::ast::{DatexExpressionData, TypeExpression};
+use crate::ast::tree::{DatexExpressionData, TypeExpression};
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -88,7 +88,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::DatexExpressionData;
+    use crate::ast::tree::DatexExpressionData;
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;

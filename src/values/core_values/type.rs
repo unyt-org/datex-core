@@ -1,4 +1,4 @@
-use crate::ast::DatexExpressionData;
+use crate::ast::tree::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
@@ -188,6 +188,8 @@ impl Type {
     /// integer matches 1 -> false
     /// integer matches integer -> true
     pub fn matches_type(&self, other: &Type) -> bool {
+        // TODO #324
+        // println!("Matching types: {} and {}", self, other);
         // TODO #324
         println!("Matching types: {} and {}", self, other);
 

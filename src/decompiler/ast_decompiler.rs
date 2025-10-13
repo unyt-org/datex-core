@@ -1,4 +1,4 @@
-use datex_core::ast::DatexExpression;
+use datex_core::ast::tree::DatexExpression;
 
 pub fn decompile_to_ast(
     dxb_body: &[u8],

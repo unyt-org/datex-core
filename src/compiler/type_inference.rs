@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::{DatexExpression, DatexExpressionData, TypeExpression};
+use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -350,7 +350,7 @@ mod tests {
 
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
-    use crate::ast::{VariableKind, parse};
+    use crate::ast::{parse};
     use crate::compiler::error::CompilerError;
     use crate::compiler::precompiler::{
         AstWithMetadata, PrecompilerScopeStack, precompile_ast,
@@ -371,6 +371,7 @@ mod tests {
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::Decimal;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult};
+    use crate::ast::tree::VariableKind;
 
     /// Helper to infer the type of an expression and return it directly as Type.
     /// Panics if type inference fails or if the inferred type is not a Type.

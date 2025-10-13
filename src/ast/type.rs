@@ -8,7 +8,7 @@ use chumsky::{
 use datex_core::ast::DatexExpression;
 use crate::{
     ast::{
-        DatexExpressionData, DatexParserTrait, TypeExpression,
+        DatexParserTrait,
         error::{
             error::{ErrorKind, ParseError},
             pattern::Pattern,
@@ -25,6 +25,7 @@ use crate::{
         integer::{Integer, typed_integer::TypedInteger},
     },
 };
+use crate::ast::tree::{DatexExpressionData, TypeExpression};
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     select! {
@@ -483,6 +484,7 @@ mod tests {
     use super::*;
     use std::{io, str::FromStr};
     use crate::ast::parse_result::{InvalidDatexParseResult, ValidDatexParseResult};
+    use crate::ast::tree::DatexExpressionData;
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();

@@ -1,7 +1,8 @@
 use crate::ast::lexer::Token;
-use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait, Slot};
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 use crate::values::pointer::PointerAddress;
 use chumsky::prelude::*;
+use crate::ast::tree::Slot;
 
 pub fn literal<'a>() -> impl DatexParserTrait<'a> {
     // TODO: avoid repeating the map_with

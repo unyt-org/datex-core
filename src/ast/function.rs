@@ -1,8 +1,9 @@
 use crate::ast::lexer::Token;
 use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpressionData, DatexParserTrait, TypeExpression};
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
+use crate::ast::tree::TypeExpression;
 
 fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
     just(Token::Arrow)

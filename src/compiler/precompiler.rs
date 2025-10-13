@@ -1,6 +1,5 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
-use crate::ast::{DatexExpression, DatexExpressionData, TypeExpression};
 use crate::compiler::error::CompilerError;
 use crate::libs::core::CoreLibPointerId;
 use crate::references::type_reference::{
@@ -14,17 +13,20 @@ use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 use std::ops::Range;
 use std::rc::Rc;
 use chumsky::prelude::SimpleSpan;
 use datex_core::ast::parse_result::ValidDatexParseResult;
+use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, VariableKind};
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
     original_realm_index: usize,
     pub is_cross_realm: bool,
-    pub kind: VariableKind,
+    pub shape: VariableShape,
     pub var_type: Option<TypeContainer>,
+    pub name: String,
 }
 
 #[derive(Default, Debug)]
@@ -75,9 +77,24 @@ impl PrecompilerScope {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VariableKind {
+pub enum VariableShape {
     Type,
-    Value,
+    Value(VariableKind)
+}
+
+impl From<VariableKind> for VariableShape {
+    fn from(value: VariableKind) -> Self {
+        VariableShape::Value(value)
+    }
+}
+
+impl Display for VariableShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VariableShape::Type => write!(f, "type"),
+            VariableShape::Value(kind) => write!(f, "{kind}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -125,15 +142,16 @@ impl PrecompilerScopeStack {
         &mut self,
         name: String,
         id: usize,
-        kind: VariableKind,
+        kind: VariableShape,
     ) -> VariableMetadata {
         let current_realm_index =
             self.scopes.last().map_or(0, |s| s.realm_index);
         let var_metadata = VariableMetadata {
             is_cross_realm: false,
             original_realm_index: current_realm_index,
-            kind,
+            shape: kind,
             var_type: None,
+            name: name.clone(),
         };
         self.set_variable(name, id);
         var_metadata
@@ -203,9 +221,9 @@ impl PrecompilerScopeStack {
         &self,
         name: &str,
         metadata: &AstMetadata,
-    ) -> Option<VariableKind> {
+    ) -> Option<VariableShape> {
         if let Some(var_id) = self.get_variable(name) {
-            metadata.variable_metadata(var_id).map(|v| v.kind)
+            metadata.variable_metadata(var_id).map(|v| v.shape)
         } else {
             None
         }
@@ -368,7 +386,7 @@ fn visit_expression(
             } else {
                 *id = Some(add_new_variable(
                     name.clone(),
-                    VariableKind::Type,
+                    VariableShape::Type,
                     metadata,
                     scope_stack,
                 ));
@@ -399,7 +417,7 @@ fn visit_expression(
             }
             *id = Some(add_new_variable(
                 name.clone(),
-                VariableKind::Value,
+                VariableShape::Value(kind.clone()),
                 metadata,
                 scope_stack,
             ));
@@ -566,7 +584,7 @@ fn visit_expression(
                         .variable_kind(lit_left.as_str(), metadata)
                         .unwrap()
                     {
-                        VariableKind::Type => {
+                        VariableShape::Type => {
                             // user defined type, continue to variant access
                             let resolved_variable = resolve_variable(
                                 &full_name,
@@ -591,7 +609,7 @@ fn visit_expression(
                                 ),
                             };
                         }
-                        VariableKind::Value => {
+                        VariableShape::Value(_) => {
                             // user defined value, this is a division
                             visit_expression(
                                 left,
@@ -706,7 +724,7 @@ fn visit_expression(
                     // register variable
                     let type_id = add_new_variable(
                         name.clone(),
-                        VariableKind::Type,
+                        VariableShape::Type,
                         metadata,
                         scope_stack,
                     );
@@ -808,7 +826,7 @@ fn visit_expression(
 
 fn add_new_variable(
     name: String,
-    kind: VariableKind,
+    kind: VariableShape,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
 ) -> usize {
@@ -955,7 +973,6 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{VariableKind};
     use crate::ast::{Statement, error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;

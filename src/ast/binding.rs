@@ -6,8 +6,10 @@ use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt, TypeExpression, VariableKind};
+use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt};
 use chumsky::prelude::*;
+use crate::ast::tree::{TypeExpression, VariableKind};
+
 pub type VariableId = usize;
 
 fn create_variable_declaration(

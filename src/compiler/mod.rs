@@ -6,7 +6,7 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::ast::{DatexExpressionData, DatexScriptParser, VariableKind, parse, DatexExpression};
+use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
 use crate::compiler::precompiler::{
@@ -20,16 +20,16 @@ use crate::libs::core::CoreLibPointerId;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::ast::parse_result::ValidDatexParseResult;
+use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, VariableKind};
 
 pub mod context;
 pub mod error;
 pub mod metadata;
-mod precompiler;
+pub mod precompiler;
 pub mod scope;
 mod type_compiler;
 mod type_inference;
