@@ -32,6 +32,10 @@ impl CompilerWorkspace {
             runtime
         }
     }
+    
+    pub fn files(&self) -> &HashMap<PathBuf, WorkspaceFile> {
+        &self.files
+    }
 
     /// Loads a file into the workspace, caching its content and AST.
     /// Returns a compiler error if parsing or precompilation fails.

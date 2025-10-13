@@ -8,7 +8,7 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
-use crate::ast::DatexExpressionData;
+use crate::ast::tree::DatexExpressionData;
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;
 use crate::global::protocol_structures::instructions::UInt8Data;

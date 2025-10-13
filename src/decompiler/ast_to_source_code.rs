@@ -1,7 +1,6 @@
-use crate::ast::{DatexExpression, TypeExpression};
+use crate::ast::tree::{DatexExpression, TypeExpression, DatexExpressionData};
 use crate::ast::chain::ApplyOperation;
 use crate::decompiler::DecompileOptions;
-use datex_core::ast::DatexExpressionData;
 use datex_core::decompiler::Formatting;
 
 #[derive(Clone, Default)]
