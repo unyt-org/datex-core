@@ -14,7 +14,9 @@ use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::ops::Range;
 use std::rc::Rc;
+use datex_core::ast::parse_result::ValidDatexParseResult;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -229,21 +231,22 @@ impl AstWithMetadata {
 }
 
 pub fn precompile_ast(
-    mut ast: DatexExpression,
+    mut parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
 ) -> Result<AstWithMetadata, CompilerError> {
     // visit all expressions recursively to collect metadata
     visit_expression(
-        &mut ast,
+        &mut parse_result.ast,
         &mut ast_metadata.borrow_mut(),
         scope_stack,
         NewScopeType::None,
+        &parse_result.spans,
     )?;
 
     Ok(AstWithMetadata {
         metadata: ast_metadata,
-        ast: Some(ast),
+        ast: Some(parse_result.ast),
     })
 }
 
@@ -261,6 +264,7 @@ fn visit_expression(
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
+    spans: &Vec<Range<usize>>
 ) -> Result<(), CompilerError> {
     match new_scope {
         NewScopeType::NewScopeWithNewRealm => {
@@ -295,6 +299,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::Conditional {
@@ -307,12 +312,14 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             visit_expression(
                 then_branch,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             if let Some(else_branch) = else_branch {
                 visit_expression(
@@ -320,6 +327,7 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
         }
@@ -335,6 +343,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             // already declared if hoisted
             if *hoisted {
@@ -363,6 +372,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             if let Some(type_annotation) = type_annotation {
                 visit_type_expression(
@@ -370,6 +380,7 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             *id = Some(add_new_variable(
@@ -397,6 +408,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             *id = Some(
                 scope_stack.get_variable_and_update_metadata(name, metadata)?,
@@ -413,12 +425,14 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             visit_expression(
                 assigned_expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::Deref(expr) => {
@@ -427,6 +441,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::ApplyChain(expr, applies) => {
@@ -435,6 +450,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             for apply in applies {
                 match apply {
@@ -446,6 +462,7 @@ fn visit_expression(
                             metadata,
                             scope_stack,
                             NewScopeType::NewScope,
+                            spans
                         )?;
                     }
                 }
@@ -458,6 +475,7 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
         }
@@ -468,12 +486,14 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
                 visit_expression(
                     val,
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
         }
@@ -483,12 +503,14 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScopeWithNewRealm,
+                spans
             )?;
         }
         DatexExpressionData::BinaryOperation(operator, left, right, _) => {
@@ -562,12 +584,14 @@ fn visit_expression(
                                 metadata,
                                 scope_stack,
                                 NewScopeType::NewScope,
+                                spans
                             )?;
                             visit_expression(
                                 right,
                                 metadata,
                                 scope_stack,
                                 NewScopeType::NewScope,
+                                spans
                             )?;
 
                             *expression = DatexExpressionData::BinaryOperation(
@@ -617,12 +641,14 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             visit_expression(
                 right,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::UnaryOperation(_operator, expr) => {
@@ -631,6 +657,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::SlotAssignment(_slot, expr) => {
@@ -639,6 +666,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::GetReference(_pointer_id) => {
@@ -694,6 +722,7 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::None,
+                    spans
                 )?
             }
         }
@@ -703,12 +732,14 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             visit_expression(
                 right,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::CreateRefMut(expr)
@@ -719,6 +750,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
         DatexExpressionData::Recover => {
@@ -829,6 +861,7 @@ fn visit_type_expression(
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
+    spans: &Vec<Range<usize>>
 ) -> Result<(), CompilerError> {
     match type_expr {
         TypeExpression::Literal(name) => {
@@ -860,6 +893,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -871,6 +905,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -882,6 +917,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -893,6 +929,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -904,25 +941,26 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::VariableKind;
+    use crate::ast::{VariableKind};
     use crate::ast::{Statement, error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use datex_core::values::core_values::integer::Integer;
     use std::assert_matches::assert_matches;
     use std::io;
+    use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
         let res = parse(src);
-        if let Err(errors) = res {
+        if let DatexParseResult::Invalid(InvalidDatexParseResult { errors, ..}) = res {
             errors.iter().for_each(|e| {
                 let cache = ariadne::sources(vec![(src_id, src)]);
                 e.clone().write(cache, io::stdout());
             });
             panic!("Parsing errors found");
         }
-        res.unwrap()
+        res.unwrap().ast
     }
     fn parse_and_precompile(
         src: &str,
@@ -930,7 +968,7 @@ mod tests {
         let runtime = Runtime::init_native(RuntimeConfig::default());
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::new(runtime)));
-        let expr = parse_unwrap(src);
+        let expr = parse(src).to_result()?;
         precompile_ast(expr, ast_metadata.clone(), &mut scope_stack)
     }
 

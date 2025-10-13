@@ -24,6 +24,7 @@ use datex_core::ast::Slot;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::ast::parse_result::ValidDatexParseResult;
 
 pub mod context;
 pub mod error;
@@ -236,8 +237,8 @@ pub fn compile_script<'a>(
 pub fn extract_static_value_from_script(
     datex_script: &str,
 ) -> Result<Option<ValueContainer>, CompilerError> {
-    let res = parse(datex_script)?;
-    extract_static_value_from_ast(res).map(Some)
+    let valid_parse_result = parse(datex_script).to_result()?;
+    extract_static_value_from_ast(valid_parse_result.ast).map(Some)
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -290,7 +291,7 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
         return Ok((result, options.compile_scope));
     }
 
-    let ast = parse(datex_script)?;
+    let valid_parse_result = parse(datex_script).to_result()?;
 
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_context = CompilationContext::new(
@@ -299,10 +300,10 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
         options.compile_scope.once,
     );
     let scope =
-        compile_ast(&compilation_context, ast.clone(), options.compile_scope)?;
+        compile_ast(&compilation_context, valid_parse_result.clone(), options.compile_scope)?;
     if return_static_value {
         if !*compilation_context.has_non_static_value.borrow() {
-            if let Ok(value) = ValueContainer::try_from(&ast.data) {
+            if let Ok(value) = ValueContainer::try_from(&valid_parse_result.ast.data) {
                 return Ok((
                     StaticValueOrDXB::StaticValue(Some(value.clone())),
                     scope,
@@ -380,7 +381,7 @@ macro_rules! compile {
 
 /// Precompiles a DATEX expression AST into an AST with metadata.
 pub fn precompile_to_ast_with_metadata(
-    ast: DatexExpression,
+    valid_parse_result: ValidDatexParseResult,
     scope: &mut CompilationScope,
 ) -> Result<AstWithMetadata, CompilerError> {
     // if once is set to true in already used, return error
@@ -395,13 +396,13 @@ pub fn precompile_to_ast_with_metadata(
         if let Some(precompiler_data) = &scope.precompiler_data {
             // precompile the AST, adding metadata for variables etc.
             precompile_ast(
-                ast,
+                valid_parse_result,
                 precompiler_data.ast_with_metadata.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
             )?
         } else {
             // if no precompiler data, just use the AST with default metadata
-            AstWithMetadata::new_without_metadata(ast)
+            AstWithMetadata::new_without_metadata(valid_parse_result.ast)
         };
 
     Ok(ast_with_metadata)
@@ -410,10 +411,10 @@ pub fn precompile_to_ast_with_metadata(
 /// Compiles a DATEX expression AST into a DXB body, using the provided compilation context and scope.
 pub fn compile_ast(
     compilation_context: &CompilationContext,
-    ast: DatexExpression,
+    valid_parse_result: ValidDatexParseResult,
     mut scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    let ast_with_metadata = precompile_to_ast_with_metadata(ast, &mut scope)?;
+    let ast_with_metadata = precompile_to_ast_with_metadata(valid_parse_result, &mut scope)?;
     compile_ast_with_metadata(compilation_context, ast_with_metadata, scope)
 }
 
@@ -1070,10 +1071,10 @@ pub mod tests {
 
     fn get_compilation_scope(script: &str) -> CompilationContext {
         let ast = parse(script);
-        let ast = ast.unwrap();
+        let valid_parse_result = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
         let compilation_scope = CompilationContext::new(buffer, &[], true);
-        compile_ast(&compilation_scope, ast, CompilationScope::default())
+        compile_ast(&compilation_scope, valid_parse_result, CompilationScope::default())
             .unwrap();
         compilation_scope
     }
