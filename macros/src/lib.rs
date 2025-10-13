@@ -3,6 +3,7 @@ use proc_macro::TokenStream;
 use syn::{ImplItemFn, ItemImpl, parse_macro_input};
 mod bitfield_macros;
 mod com_interface_macros;
+mod lib_types;
 mod value_macros;
 /// This macro is used to create an opener for a interface.
 /// ```ignore
@@ -47,4 +48,10 @@ pub fn from_core_value_derive(input: TokenStream) -> TokenStream {
 pub fn derive_bitfield_serde(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
     bitfield_macros::derive_bitfield_serde(input).into()
+}
+
+#[proc_macro_derive(LibTypeString)]
+pub fn derive_lib_type_string(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    lib_types::derive_lib_type_string(input).into()
 }

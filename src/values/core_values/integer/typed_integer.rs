@@ -20,6 +20,7 @@ use std::{
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
+use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 /// The integer type variants to be used as a inline
@@ -40,6 +41,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
     TryFromPrimitive,
     Serialize,
     Deserialize,
+    Display,
 )]
 #[repr(u8)]
 #[strum(serialize_all = "lowercase")]

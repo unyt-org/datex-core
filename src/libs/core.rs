@@ -11,6 +11,7 @@ use crate::values::core_values::r#type::Type;
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
+use datex_macros::LibTypeString;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::once;
@@ -21,7 +22,7 @@ thread_local! {
     pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, LibTypeString)]
 pub enum CoreLibPointerId {
     Core,                                // #core
     Type,                                // #core.type
@@ -311,7 +312,7 @@ mod tests {
 
     use super::*;
     use itertools::Itertools;
-    use std::assert_matches::assert_matches;
+    use std::{assert_matches::assert_matches, str::FromStr};
 
     #[test]
     fn core_lib() {
@@ -343,6 +344,53 @@ mod tests {
                 .unwrap()
                 .borrow()
                 .value_container
+        );
+    }
+
+    #[test]
+    fn core_lib_type_addresses() {
+        let integer_base = "integer";
+        let integer_u8 = "integer/u8";
+        let integer_i32 = "integer/i32";
+        let decimal_base = "decimal";
+        let decimal_f64 = "decimal/f64";
+
+        assert_eq!(
+            CoreLibPointerId::from_str(integer_base),
+            Ok(CoreLibPointerId::Integer(None))
+        );
+        assert_eq!(
+            CoreLibPointerId::from_str(integer_u8),
+            Ok(CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)))
+        );
+        assert_eq!(
+            CoreLibPointerId::from_str(integer_i32),
+            Ok(CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)))
+        );
+        assert_eq!(
+            CoreLibPointerId::from_str(decimal_base),
+            Ok(CoreLibPointerId::Decimal(None))
+        );
+        assert_eq!(
+            CoreLibPointerId::from_str(decimal_f64),
+            Ok(CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64)))
+        );
+
+        assert_eq!(CoreLibPointerId::Integer(None).to_string(), integer_base);
+        assert_eq!(
+            CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).to_string(),
+            integer_u8
+        );
+        assert_eq!(
+            CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32))
+                .to_string(),
+            integer_i32
+        );
+        assert_eq!(CoreLibPointerId::Decimal(None).to_string(), decimal_base);
+        assert_eq!(
+            CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64))
+                .to_string(),
+            decimal_f64
         );
     }
 

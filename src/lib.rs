@@ -25,7 +25,7 @@ pub mod decompiler;
 pub mod dif;
 pub mod generator;
 pub mod global;
-mod libs;
+pub mod libs;
 pub mod logger;
 pub mod network;
 pub mod parser;

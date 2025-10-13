@@ -15,6 +15,7 @@ use std::{
     fmt::Display,
     ops::{Add, AddAssign, Sub},
 };
+use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 /// The decimal type variants to be used as a inline
@@ -35,6 +36,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
     TryFromPrimitive,
     Serialize,
     Deserialize,
+    Display,
 )]
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]
