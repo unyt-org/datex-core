@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::rc::Rc;
+use chumsky::prelude::SimpleSpan;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 
 #[derive(Clone, Debug)]
@@ -276,6 +277,19 @@ fn visit_expression(
         }
         _ => {}
     }
+
+    // update span from token span -> source code span
+    let span_start = expression.span.start;
+    let span_end = expression.span.end;
+    // skip if both zero (default span used for testing)
+    // TODO: improve this
+    if span_start != 0 || span_end != 0 {
+        let start_token = spans.get(span_start).cloned().unwrap();
+        let end_token = spans.get(span_end - 1).cloned().unwrap();
+        let full_span = start_token.start..end_token.end;
+        expression.span = SimpleSpan::from(full_span);
+    }
+
 
     // Important: always make sure all expressions are visited recursively
     match &mut expression.data {
