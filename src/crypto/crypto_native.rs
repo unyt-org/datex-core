@@ -4,10 +4,8 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
-use crate::runtime::global_context::get_global_context;
 use uuid::Uuid;
 
-#[cfg(not(target_arch = "wasm32"))]
 use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
@@ -15,7 +13,6 @@ use openssl::{
     sign::{Signer, Verifier},
     symm::{Cipher, Crypter, Mode},
 };
-
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -59,20 +56,21 @@ impl CryptoTrait for CryptoNative {
     // EdDSA keygen
     fn gen_ed25519(
         &self,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>> + 'static>>
-    {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>
+                + 'static,
+        >,
+    > {
         Box::pin(async move {
-            let key = PKey::generate_ed25519().map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let key = PKey::generate_ed25519()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
 
             let public_key: Vec<u8> = key
                 .public_key_to_der()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?
-                .try_into()
                 .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-            let private_key: Vec<u8>= key
+            let private_key: Vec<u8> = key
                 .private_key_to_pkcs8()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?
-                .try_into()
                 .map_err(|_| CryptoError::KeyGeneratorFailed)?;
             Ok((public_key, private_key))
         })
@@ -81,17 +79,19 @@ impl CryptoTrait for CryptoNative {
     // EdDSA signature
     fn sig_ed25519<'a>(
         &'a self,
-        pri_key: &'a Vec<u8>,
-        data: &'a Vec<u8>,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+        pri_key: &'a [u8],
+        data: &'a [u8],
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a>> {
         Box::pin(async move {
             let sig_key = PKey::private_key_from_pkcs8(pri_key)
                 .map_err(|_| CryptoError::KeyImportFailed)?;
-            let mut signer =
-                Signer::new_without_digest(&sig_key).map_err(|_| CryptoError::SigningError)?;
+            let mut signer = Signer::new_without_digest(&sig_key)
+                .map_err(|_| CryptoError::SigningError)?;
             let signature = signer
                 .sign_oneshot_to_vec(data)
                 .map_err(|_| CryptoError::SigningError)?;
+            let signature: [u8; 64] =
+                signature.try_into().expect("Invalid signature length");
             Ok(signature)
         })
     }
@@ -99,18 +99,18 @@ impl CryptoTrait for CryptoNative {
     // EdDSA verification of signature
     fn ver_ed25519<'a>(
         &'a self,
-        pub_key: &'a Vec<u8>,
-        sig: &'a Vec<u8>,
-        data: &'a Vec<u8>,
+        pub_key: &'a [u8],
+        sig: &'a [u8],
+        data: &'a [u8],
     ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>> {
         Box::pin(async move {
             let public_key = PKey::public_key_from_der(pub_key)
                 .map_err(|_| CryptoError::KeyImportFailed)?;
             let mut verifier = Verifier::new_without_digest(&public_key)
                 .map_err(|_| CryptoError::KeyImportFailed)?;
-            Ok(verifier
-                .verify_oneshot(sig, &data)
-                .map_err(|_| CryptoError::VerificationError)?)
+            verifier
+                .verify_oneshot(sig, data)
+                .map_err(|_| CryptoError::VerificationError)
         })
     }
 
@@ -143,7 +143,7 @@ impl CryptoTrait for CryptoNative {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
         self.aes_ctr_encrypt(key, iv, ciphertext)
     }
-    
+
     // AES KW
     fn key_upwrap<'a>(
         &'a self,
@@ -173,18 +173,21 @@ impl CryptoTrait for CryptoNative {
             let kek = AesKey::new_decrypt(kek_bytes)
                 .map_err(|_| CryptoError::DecryptionError)?;
 
-            // Unwrap key 
+            // Unwrap key
             let mut unwrapped: [u8; 32] = [0u8; 32];
             let _length = unwrap_key(&kek, None, &mut unwrapped, cipher);
             Ok(unwrapped)
         })
     }
 
-
     // Generate encryption keypair
-    fn gen_x25519(&self) -> Pin<Box<dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>>>> {
+    fn gen_x25519(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>>>>
+    {
         Box::pin(async move {
-            let key = PKey::generate_x25519().map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let key = PKey::generate_x25519()
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
             let public_key: [u8; 44] = key
                 .public_key_to_der()
                 .map_err(|_| CryptoError::KeyGeneratorFailed)?
@@ -211,13 +214,14 @@ impl CryptoTrait for CryptoNative {
             let my_priv = PKey::private_key_from_pkcs8(my_raw)
                 .map_err(|_| CryptoError::KeyImportFailed)?;
 
-            let mut deriver = Deriver::new(&my_priv).map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            let mut deriver = Deriver::new(&my_priv)
+                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
             deriver
                 .set_peer(&peer_pub)
                 .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-            Ok(deriver
+            deriver
                 .derive_to_vec()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?)
+                .map_err(|_| CryptoError::KeyGeneratorFailed)
         })
     }
 }
@@ -234,13 +238,7 @@ mod tests {
 
         let (pub_key, pri_key) = CRYPTO.gen_ed25519().await.unwrap();
 
-        let sig: Vec<u8> = CRYPTO
-            .sig_ed25519(&pri_key, &data)
-            .await
-            .unwrap();
-
-        assert_eq!(sig.len(), 64);
-
+        let sig: [u8; 64] = CRYPTO.sig_ed25519(&pri_key, &data).await.unwrap();
         assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
     }
 
@@ -253,7 +251,8 @@ mod tests {
         let data = b"Some message to encrypt".to_vec();
 
         let ciphered = CRYPTO.aes_ctr_encrypt(&key, &iv, &data).await.unwrap();
-        let deciphered = CRYPTO.aes_ctr_decrypt(&key, &iv, &ciphered).await.unwrap();
+        let deciphered =
+            CRYPTO.aes_ctr_decrypt(&key, &iv, &ciphered).await.unwrap();
 
         assert_ne!(ciphered, data);
         assert_eq!(data, deciphered.to_vec());
@@ -262,42 +261,35 @@ mod tests {
     #[tokio::test]
     pub async fn test_keywrapping() {
         let kek_bytes = [1u8; 32];
-        let sym_key: [u8; 32] = CRYPTO.random_bytes(32_usize).try_into().unwrap();
-        let arand = CRYPTO.key_upwrap(&kek_bytes, &sym_key)
-            .await
-            .unwrap();
-        let brand = CRYPTO.key_unwrap(&kek_bytes, &arand)
-            .await
-            .unwrap();
+        let sym_key: [u8; 32] =
+            CRYPTO.random_bytes(32_usize).try_into().unwrap();
+        let arand = CRYPTO.key_upwrap(&kek_bytes, &sym_key).await.unwrap();
+        let brand = CRYPTO.key_unwrap(&kek_bytes, &arand).await.unwrap();
 
         assert_ne!(arand.to_vec(), brand.to_vec());
-        assert_eq!(arand.len() , brand.len() + 8);
+        assert_eq!(arand.len(), brand.len() + 8);
     }
 
     #[tokio::test]
     pub async fn test_keywrapping_more() {
         // Copy pasta from Web Crypto implementation
         let kek: [u8; 32] = [
-            176, 213,  29, 202, 131,  45, 220,
-            153, 250, 120, 219,  65, 177, 117,
-            244, 172,  38, 107, 221, 109, 160,
-            134,  15, 195,  23,  22, 143, 238,
-            242, 222,  38, 248
+            176, 213, 29, 202, 131, 45, 220, 153, 250, 120, 219, 65, 177, 117,
+            244, 172, 38, 107, 221, 109, 160, 134, 15, 195, 23, 22, 143, 238,
+            242, 222, 38, 248,
         ];
 
-
         let web_wrapped: [u8; 40] = [
-            140, 223, 207,  46,   9, 105, 205,  24, 174,
-            238, 109,   5,  96,   4,  51, 132,  54, 187,
-            251, 167, 105, 131, 109, 246, 123, 238, 160,
-            139, 180,  59, 185,   8, 191,  57, 139, 133,
-             19,  40,  15, 210
+            140, 223, 207, 46, 9, 105, 205, 24, 174, 238, 109, 5, 96, 4, 51,
+            132, 54, 187, 251, 167, 105, 131, 109, 246, 123, 238, 160, 139,
+            180, 59, 185, 8, 191, 57, 139, 133, 19, 40, 15, 210,
         ];
 
         let wrapped = CRYPTO.key_upwrap(&kek, &kek).await.unwrap();
 
         let unwrapped = CRYPTO.key_unwrap(&kek, &wrapped).await.unwrap();
-        let web_unwrapped = CRYPTO.key_unwrap(&kek, &web_wrapped).await.unwrap();
+        let web_unwrapped =
+            CRYPTO.key_unwrap(&kek, &web_wrapped).await.unwrap();
 
         assert_eq!(kek, unwrapped);
         assert_eq!(kek, web_unwrapped);
@@ -308,8 +300,10 @@ mod tests {
         let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
         let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
 
-        let cli_shared = CRYPTO.derive_x25519(&cli_pri, &ser_pub).await.unwrap();
-        let ser_shared = CRYPTO.derive_x25519(&ser_pri, &cli_pub).await.unwrap();
+        let cli_shared =
+            CRYPTO.derive_x25519(&cli_pri, &ser_pub).await.unwrap();
+        let ser_shared =
+            CRYPTO.derive_x25519(&ser_pri, &cli_pub).await.unwrap();
 
         assert_eq!(cli_shared, ser_shared);
         assert_eq!(cli_shared.len(), 32);
@@ -321,9 +315,7 @@ mod tests {
         let mut client_list = Vec::new();
 
         // Generate symmetric random key
-        let sym_key: [u8; 32] = CRYPTO.random_bytes(32)
-            .try_into()
-            .unwrap();
+        let sym_key: [u8; 32] = CRYPTO.random_bytes(32).try_into().unwrap();
 
         for _ in 0..10 {
             let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
@@ -333,19 +325,22 @@ mod tests {
         // Encrypt data with symmetric key
         let data = b"Some message to encrypt".to_vec();
         let iv = [0u8; 16];
-        let cipher = CRYPTO.aes_ctr_encrypt(&sym_key, &iv, &data).await.unwrap();
+        let cipher =
+            CRYPTO.aes_ctr_encrypt(&sym_key, &iv, &data).await.unwrap();
 
         // Sender (server)
         let mut payloads = Vec::new();
-        for i in 0..10 {
+        for (_, peer_pub) in client_list.iter().take(10) {
             let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
-            let ser_kek_bytes: [u8; 32] = CRYPTO.derive_x25519(&ser_pri, &client_list[i].1)
+            let ser_kek_bytes: [u8; 32] = CRYPTO
+                .derive_x25519(&ser_pri, peer_pub)
                 .await
-                .unwrap().try_into().unwrap();
-
-            let wrapped = CRYPTO.key_upwrap(&ser_kek_bytes, &sym_key)
-                .await
+                .unwrap()
+                .try_into()
                 .unwrap();
+
+            let wrapped =
+                CRYPTO.key_upwrap(&ser_kek_bytes, &sym_key).await.unwrap();
 
             payloads.push((ser_pub, wrapped));
         }
@@ -353,13 +348,20 @@ mod tests {
         // Receiver (client)
         for i in 0..10 {
             // Unwraps key and decrypts
-            let cli_kek_bytes: [u8; 32] = CRYPTO.derive_x25519(&client_list[i].0, &payloads[i].0)
+            let cli_kek_bytes: [u8; 32] = CRYPTO
+                .derive_x25519(&client_list[i].0, &payloads[i].0)
                 .await
-                .unwrap().try_into().unwrap();
-            let unwrapped = CRYPTO.key_unwrap(&cli_kek_bytes, &payloads[i].1)
+                .unwrap()
+                .try_into()
+                .unwrap();
+            let unwrapped = CRYPTO
+                .key_unwrap(&cli_kek_bytes, &payloads[i].1)
                 .await
                 .unwrap();
-            let plain = CRYPTO.aes_ctr_decrypt(&unwrapped, &iv, &cipher).await.unwrap();
+            let plain = CRYPTO
+                .aes_ctr_decrypt(&unwrapped, &iv, &cipher)
+                .await
+                .unwrap();
 
             // Check key wraps
             assert_ne!(payloads[i].1.to_vec(), unwrapped.to_vec());
@@ -371,32 +373,3 @@ mod tests {
         }
     }
 }
-// TODO #169: reenable
-/*#[cfg(test)]
-mod tests {
-    use super::*;
-    static CRYPTO: CryptoNative = CryptoNative {};
-
-    #[test]
-    fn uuid() {
-        let uuid = CRYPTO.create_uuid();
-        assert_eq!(uuid.len(), 36);
-
-        for _ in 0..100 {
-            assert_ne!(CRYPTO.create_uuid(), uuid);
-        }
-    }
-
-    #[test]
-    fn random_bytes() {
-        let random_bytes = CRYPTO.random_bytes(32);
-        assert_eq!(random_bytes.len(), 32);
-    }
-
-    #[tokio::test]
-    async fn test_enc_key_pair() {
-        let key_pair = CRYPTO.new_encryption_key_pair().await.unwrap();
-        assert_eq!(key_pair.0.len(), 550);
-        // assert_eq!(key_pair.1.len(), 2375);
-    }
-}*/
