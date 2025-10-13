@@ -1,8 +1,5 @@
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
-use std::{
-    cell::RefCell,
-    sync::{Arc, Mutex},
-}; // FIXME #106 no-std
+use std::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
 
 #[cfg(feature = "debug")]
 #[derive(Clone, Debug)]
@@ -22,8 +19,8 @@ impl Default for DebugFlags {
 
 #[derive(Clone)]
 pub struct GlobalContext {
-    pub crypto: Arc<Mutex<dyn CryptoTrait>>,
-    pub time: Arc<Mutex<dyn TimeTrait>>,
+    pub crypto: Arc<dyn CryptoTrait>,
+    pub time: Arc<dyn TimeTrait>,
 
     #[cfg(feature = "debug")]
     pub debug_flags: DebugFlags,
@@ -31,12 +28,25 @@ pub struct GlobalContext {
 
 impl GlobalContext {
     pub fn new(
-        crypto: Arc<Mutex<dyn CryptoTrait>>,
-        time: Arc<Mutex<dyn TimeTrait>>,
+        crypto: Arc<dyn CryptoTrait>,
+        time: Arc<dyn TimeTrait>,
     ) -> GlobalContext {
         GlobalContext {
             crypto,
             time,
+            #[cfg(feature = "debug")]
+            debug_flags: DebugFlags::default(),
+        }
+    }
+
+    #[cfg(all(feature = "native_crypto", feature = "native_time"))]
+    pub fn native() -> GlobalContext {
+        use crate::{
+            crypto::crypto_native::CryptoNative, utils::time_native::TimeNative,
+        };
+        GlobalContext {
+            crypto: Arc::new(CryptoNative),
+            time: Arc::new(TimeNative),
             #[cfg(feature = "debug")]
             debug_flags: DebugFlags::default(),
         }
@@ -47,9 +57,9 @@ thread_local! {
     pub static GLOBAL_CONTEXT: RefCell<Option<GlobalContext>> = const { RefCell::new(None) };
 }
 pub fn set_global_context(c: GlobalContext) {
-    GLOBAL_CONTEXT.replace(Some(c.clone()));
+    GLOBAL_CONTEXT.replace(Some(c));
 }
-pub fn get_global_context() -> GlobalContext {
+pub(crate) fn get_global_context() -> GlobalContext {
     match GLOBAL_CONTEXT.with(|c| c.borrow().clone()) {
         Some(c) => c,
         None => panic!(

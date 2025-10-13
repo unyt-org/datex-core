@@ -1,14 +1,14 @@
-use datex_core::compiler::ast_parser::DatexScriptParser;
+use datex_core::ast::DatexScriptParser;
 use datex_core::compiler::{
-    compile_script, compile_script_or_return_static_value, compile_value,
-    extract_static_value_from_script, CompileOptions, StaticValueOrDXB,
+    CompileOptions, StaticValueOrDXB, compile_script,
+    compile_script_or_return_static_value, compile_value,
+    extract_static_value_from_script,
 };
-use datex_core::values::datex_type::CoreValueType;
-use datex_core::values::value_container::ValueContainer;
-use datex_core::decompiler::{decompile_body, DecompileOptions};
+use datex_core::decompiler::{DecompileOptions, decompile_body};
 use datex_core::runtime::execution::{
-    execute_dxb_sync, ExecutionInput, ExecutionOptions,
+    ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
+use datex_core::values::value_container::ValueContainer;
 use json_syntax::Parse;
 use serde_json::Value;
 use std::io::Read;
@@ -76,11 +76,8 @@ pub fn json_to_runtime_value_datex<'a>(
         &dxb,
         ExecutionOptions::default(),
     );
-    let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
-    assert_eq!(
-        json_value.to_value().borrow().actual_type,
-        CoreValueType::Object
-    );
+    let val = execute_dxb_sync(exec_input).unwrap().unwrap();
+    assert!(val.to_value().borrow().is_map());
 }
 
 pub fn json_to_runtime_value_datex_auto_static_detection<'a>(
@@ -131,10 +128,7 @@ pub fn dxb_to_runtime_value(dxb: &[u8]) {
         ExecutionOptions::default(),
     );
     let json_value = execute_dxb_sync(exec_input).unwrap().unwrap();
-    assert_eq!(
-        json_value.to_value().borrow().actual_type,
-        CoreValueType::Object
-    );
+    assert!(json_value.to_value().borrow().is_map());
 }
 
 // value -> JSON

@@ -98,14 +98,14 @@ write functions: set value at specific index in byte vector, vector length must 
 append functions: appends the value at the end of the byte vector, automatically increases size
  */
 
-pub fn write_u8(buffer: &mut Vec<u8>, index: &mut usize, val: u8) {
+pub fn write_u8(buffer: &mut [u8], index: &mut usize, val: u8) {
     buffer[*index] = val;
     *index += 1;
 }
 pub fn append_u8(buffer: &mut Vec<u8>, val: u8) {
     buffer.extend_from_slice(&[val]);
 }
-pub fn write_i8(buffer: &mut Vec<u8>, index: &mut usize, val: i8) {
+pub fn write_i8(buffer: &mut [u8], index: &mut usize, val: i8) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
@@ -116,14 +116,14 @@ pub fn append_i8(buffer: &mut Vec<u8>, val: i8) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
 
-pub fn write_u16(buffer: &mut Vec<u8>, index: &mut usize, val: u16) {
+pub fn write_u16(buffer: &mut [u8], index: &mut usize, val: u16) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
         *index += 1;
     }
 }
-pub fn write_u32(buffer: &mut Vec<u8>, index: &mut usize, val: u32) {
+pub fn write_u32(buffer: &mut [u8], index: &mut usize, val: u32) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
@@ -131,17 +131,17 @@ pub fn write_u32(buffer: &mut Vec<u8>, index: &mut usize, val: u32) {
     }
 }
 
-pub fn set_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
+pub fn set_bit(buffer: &mut [u8], byte_index: usize, bit_position: u8) {
     buffer[byte_index] |= 1 << bit_position;
 }
 
-pub fn clear_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
+pub fn clear_bit(buffer: &mut [u8], byte_index: usize, bit_position: u8) {
     if byte_index < buffer.len() && bit_position < 8 {
         buffer[byte_index] &= !(1 << bit_position);
     }
 }
 
-pub fn toggle_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
+pub fn toggle_bit(buffer: &mut [u8], byte_index: usize, bit_position: u8) {
     if byte_index < buffer.len() && bit_position < 8 {
         buffer[byte_index] ^= 1 << bit_position;
     }
@@ -159,7 +159,7 @@ pub fn toggle_bit(buffer: &mut Vec<u8>, byte_index: usize, bit_position: u8) {
 pub fn append_u16(buffer: &mut Vec<u8>, val: u16) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
-pub fn write_i16(buffer: &mut Vec<u8>, index: &mut usize, val: i16) {
+pub fn write_i16(buffer: &mut [u8], index: &mut usize, val: i16) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
@@ -173,7 +173,7 @@ pub fn append_i16(buffer: &mut Vec<u8>, val: i16) {
 pub fn append_u32(buffer: &mut Vec<u8>, val: u32) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
-pub fn write_i32(buffer: &mut Vec<u8>, index: &mut usize, val: i32) {
+pub fn write_i32(buffer: &mut [u8], index: &mut usize, val: i32) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
@@ -184,7 +184,7 @@ pub fn append_i32(buffer: &mut Vec<u8>, val: i32) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
 
-pub fn write_u64(buffer: &mut Vec<u8>, index: &mut usize, val: u64) {
+pub fn write_u64(buffer: &mut [u8], index: &mut usize, val: u64) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
@@ -194,7 +194,7 @@ pub fn write_u64(buffer: &mut Vec<u8>, index: &mut usize, val: u64) {
 pub fn append_u64(buffer: &mut Vec<u8>, val: u64) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
-pub fn write_i64(buffer: &mut Vec<u8>, index: &mut usize, val: i64) {
+pub fn write_i64(buffer: &mut [u8], index: &mut usize, val: i64) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;
@@ -211,7 +211,7 @@ pub fn append_u128(buffer: &mut Vec<u8>, val: u128) {
     buffer.extend_from_slice(&val.to_le_bytes());
 }
 
-pub fn write_f64(buffer: &mut Vec<u8>, index: &mut usize, val: f64) {
+pub fn write_f64(buffer: &mut [u8], index: &mut usize, val: f64) {
     let bytes = val.to_le_bytes();
     for b in bytes {
         buffer[*index] = b;

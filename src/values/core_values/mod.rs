@@ -1,8 +1,9 @@
-pub mod array;
+pub mod list;
 pub mod boolean;
 pub mod decimal;
 pub mod endpoint;
+pub mod error;
 pub mod integer;
-pub mod object;
+pub mod map;
 pub mod text;
-pub mod tuple;
+pub mod r#type;

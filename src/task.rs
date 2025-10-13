@@ -6,13 +6,16 @@ use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
 
-thread_local! {
-    static LOCAL_PANIC_CHANNEL: Rc<RefCell<
+type LocalPanicChannel = Rc<
+    RefCell<
         Option<(
             Option<RefCell<mpsc::UnboundedSender<Signal>>>,
-            Option<mpsc::UnboundedReceiver<Signal>>
-        )>
-    >> = Rc::new(RefCell::new(None));
+            Option<mpsc::UnboundedReceiver<Signal>>,
+        )>,
+    >,
+>;
+thread_local! {
+    static LOCAL_PANIC_CHANNEL: LocalPanicChannel = Rc::new(RefCell::new(None));
 }
 
 enum Signal {
@@ -88,6 +91,7 @@ pub fn init_panic_notify() {
         .expect("Failed to initialize panic channel");
 }
 
+#[allow(clippy::await_holding_refcell_ref)]
 pub async fn close_panic_notify() {
     LOCAL_PANIC_CHANNEL
         .with(|channel| {
@@ -129,6 +133,8 @@ pub async fn unwind_local_spawn_panics() {
         }
     }
 }
+
+#[allow(clippy::await_holding_refcell_ref)]
 async fn send_panic(panic: String) {
     LOCAL_PANIC_CHANNEL
         .try_with(|channel| {

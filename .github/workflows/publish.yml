@@ -10,12 +10,12 @@ jobs:
 
             - name: Install libudev-dev and pkg-config
               run: |
-                sudo apt update
-                sudo apt install -y libudev-dev pkg-config
+                  sudo apt update
+                  sudo apt install -y libudev-dev pkg-config
 
             - uses: dtolnay/rust-toolchain@stable
               with:
-                toolchain: nightly
+                  toolchain: nightly
             - uses: katyo/publish-crates@v2
               with:
-                registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+                  registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

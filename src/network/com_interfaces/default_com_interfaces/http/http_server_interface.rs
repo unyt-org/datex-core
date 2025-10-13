@@ -16,16 +16,15 @@ use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 
 use axum::{
+    Router,
     extract::{Path, State},
     routing::get,
-    Router,
 };
 use datex_macros::{com_interface, create_opener};
 use log::{debug, error, info};
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{RwLock, broadcast, mpsc};
 use url::Url;
 
-use crate::values::core_values::endpoint::Endpoint;
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceState,
 };
@@ -39,6 +38,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::{delegate_com_interface_info, set_opener};
 
 use super::http_common::HTTPError;
@@ -105,20 +105,15 @@ pub struct HTTPServerNativeInterface {
     info: ComInterfaceInfo,
     socket_channel_mapping:
         Rc<RefCell<HashMap<String, ComInterfaceSocketUUID>>>,
-    channels: Arc<
-        RwLock<
-            HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>,
-        >,
-    >,
+    channels: Arc<RwLock<HTTPChannelMap>>,
 }
+
+type HTTPChannelMap =
+    HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>;
 
 #[derive(Clone)]
 struct HTTPServerState {
-    channels: Arc<
-        RwLock<
-            HashMap<String, (broadcast::Sender<Bytes>, mpsc::Sender<Bytes>)>,
-        >,
-    >,
+    channels: Arc<RwLock<HTTPChannelMap>>,
 }
 
 impl MultipleSocketProvider for HTTPServerNativeInterface {
@@ -191,7 +186,7 @@ impl HTTPServerNativeInterface {
         };
         self.remove_socket(&socket_uuid);
         let mut map = self.channels.write().await;
-        if let Some(sender) = map.get(route) {
+        if map.get(route).is_some() {
             map.remove(route);
         }
     }

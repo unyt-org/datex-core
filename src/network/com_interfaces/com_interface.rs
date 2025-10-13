@@ -4,13 +4,11 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::utils::uuid::UUID;
-use crate::{
-    values::core_values::endpoint::Endpoint, stdlib::fmt::Display,
-};
-use crate::{
-    network::com_hub::ComHub, runtime::global_context::get_global_context,
-};
+use crate::utils::{time::Time, uuid::UUID};
+use crate::serde::deserializer::from_value_container;
+use crate::values::value_container::ValueContainer;
+use crate::network::com_hub::ComHub;
+use crate::{stdlib::fmt::Display, values::core_values::endpoint::Endpoint};
 use crate::{
     stdlib::{
         cell::RefCell,
@@ -20,6 +18,7 @@ use crate::{
     task::spawn_with_panic_notify,
 };
 use log::{debug, error, warn};
+use serde::Deserialize;
 use std::{
     any::Any,
     cell::Cell,
@@ -30,9 +29,6 @@ use std::{
     future::Future,
     sync::{Arc, Mutex},
 };
-use serde::Deserialize;
-use crate::values::serde::deserializer::from_value_container;
-use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -343,7 +339,7 @@ where
             Err(e) => {
                 error!("Failed to deserialize setup data: {e}");
                 panic!("Invalid setup data for com interface factory")
-            },
+            }
         }
     }
 
@@ -477,7 +473,7 @@ pub trait ComInterface: Any {
             // Update the close timestamp for interfaces that support reconnect
             // This is used to determine when the interface shall be reopened
             if ok && self.get_properties().shall_reconnect() {
-                let time = get_global_context().time.lock().unwrap().now();
+                let time = Time::now();
                 let properties = self.get_properties_mut();
                 properties.close_timestamp = Some(time);
             }

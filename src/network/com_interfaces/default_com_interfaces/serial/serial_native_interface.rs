@@ -137,8 +137,15 @@ impl ComInterfaceFactory<SerialInterfaceSetupData> for SerialNativeInterface {
     fn create(
         setup_data: SerialInterfaceSetupData,
     ) -> Result<SerialNativeInterface, ComInterfaceError> {
-        SerialNativeInterface::new(&setup_data.port_name)
-            .map_err(|_| ComInterfaceError::InvalidSetupData)
+        if let Some(port) = setup_data.port_name {
+            if port.is_empty() {
+                return Err(ComInterfaceError::InvalidSetupData);
+            }
+            SerialNativeInterface::new(&port)
+                .map_err(|_| ComInterfaceError::InvalidSetupData)
+        } else {
+            Err(ComInterfaceError::InvalidSetupData)
+        }
     }
 
     fn get_default_properties() -> InterfaceProperties {

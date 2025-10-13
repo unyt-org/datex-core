@@ -1,34 +1,52 @@
 use super::stack::{Scope, ScopeStack};
-use crate::compiler::ast_parser::{BinaryOperator, UnaryOperator};
+
+use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::binary_operation::{
+    ArithmeticOperator, BinaryOperator, BitwiseOperator, LogicalOperator,
+};
+use crate::ast::comparison_operation::ComparisonOperator;
+use crate::ast::unary_operation::{
+    ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
+    ReferenceUnaryOperator, UnaryOperator,
+};
 use crate::compiler::compile_value;
 use crate::compiler::error::CompilerError;
-use crate::global::binary_codes::{InstructionCode, InternalSlot};
+use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::*;
+use crate::global::slots::InternalSlot;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::references::reference::{AssignmentError, ReferenceCreationError};
+use crate::runtime::RuntimeInternal;
+use crate::runtime::execution_context::RemoteExecutionContext;
+use crate::traits::apply::Apply;
+use crate::traits::identity::Identity;
+use crate::traits::structural_eq::StructuralEq;
+use crate::traits::value_eq::ValueEq;
+use crate::types::error::IllegalTypeError;
+use crate::types::type_container::TypeContainer;
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::array::Array;
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::values::core_values::integer::integer::Integer;
-use crate::values::core_values::object::Object;
-use crate::values::core_values::tuple::Tuple;
-use crate::values::reference::Reference;
-use crate::values::traits::identity::Identity;
-use crate::values::traits::structural_eq::StructuralEq;
-use crate::values::traits::value_eq::ValueEq;
+use crate::values::core_values::integer::Integer;
+use crate::values::core_values::list::List;
+use crate::values::core_values::map::Map;
+use crate::values::core_values::r#type::Type;
+use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
+use datex_core::decompiler::{DecompileOptions, decompile_value};
+use datex_core::references::reference::Reference;
+use itertools::Itertools;
+use log::info;
+use num_enum::TryFromPrimitive;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use log::info;
-use num_enum::TryFromPrimitive;
-use crate::runtime::execution_context::RemoteExecutionContext;
-use crate::runtime::RuntimeInternal;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -60,6 +78,29 @@ pub struct ExecutionInput<'a> {
 //         DatexProgram::Script(script)
 //     }
 // }
+
+pub struct MemoryDump {
+    pub slots: Vec<(u32, Option<ValueContainer>)>,
+}
+
+impl Display for MemoryDump {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (address, value) in &self.slots {
+            match value {
+                Some(vc) => {
+                    let decompiled =
+                        decompile_value(vc, DecompileOptions::colorized());
+                    writeln!(f, "#{address}: {decompiled}")?
+                }
+                None => writeln!(f, "#{address}: <uninitialized>")?,
+            }
+        }
+        if self.slots.is_empty() {
+            writeln!(f, "<no slots allocated>")?;
+        }
+        Ok(())
+    }
+}
 
 impl Default for ExecutionInput<'_> {
     fn default() -> Self {
@@ -97,7 +138,6 @@ pub struct RuntimeExecutionContext {
 }
 
 impl RuntimeExecutionContext {
-
     pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
         Self {
             runtime_internal: Some(runtime_internal),
@@ -112,7 +152,7 @@ impl RuntimeExecutionContext {
     pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
         &self.runtime_internal
     }
-    
+
     pub fn set_runtime_internal(
         &mut self,
         runtime_internal: Rc<RuntimeInternal>,
@@ -165,24 +205,58 @@ impl RuntimeExecutionContext {
             .ok_or(())
             .map_err(|_| ExecutionError::SlotNotAllocated(address))
     }
+
+    /// Returns a memory dump of the current slots and their values.
+    pub fn memory_dump(&self) -> MemoryDump {
+        MemoryDump {
+            slots: self
+                .slots
+                .borrow()
+                .iter()
+                .map(|(k, v)| (*k, v.clone()))
+                .sorted_by_key(|(k, _)| *k)
+                .collect(),
+        }
+    }
 }
 
 pub fn execute_dxb_sync(
     input: ExecutionInput,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
-    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+    let runtime_internal =
+        input.context.borrow_mut().runtime_internal().clone();
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(_pointer_id) => {
+            ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
+                    Some(InterruptProvider::Result(get_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
+            }
+            ExecutionStep::ResolveLocalPointer(address) => {
+                // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_local_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
+            }
+            ExecutionStep::ResolveInternalPointer(address) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(
+                        get_internal_pointer_value(address)?,
+                    ));
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
+                    Some(InterruptProvider::Result(get_internal_slot_value(
+                        &runtime_internal,
+                        slot,
+                    )?));
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -191,66 +265,138 @@ pub fn execute_dxb_sync(
     Err(ExecutionError::RequiresAsyncExecution)
 }
 
-fn get_internal_slot_value(runtime_internal: &Option<Rc<RuntimeInternal>>, slot: u32) -> Result<Option<ValueContainer>, ExecutionError> {
-    if let Some(runtime) = &runtime_internal {
-        // convert slot to InternalSlot enum
-        let slot = InternalSlot::try_from_primitive(slot).map_err(|_| {
-            ExecutionError::SlotNotAllocated(slot)
-        })?;
-        let res = match slot {
-            InternalSlot::ENDPOINT => {
-                Some(ValueContainer::from(runtime.endpoint.clone()))
-            }
-        };
-        Ok(res)
-    }
-    else {
-        Err(ExecutionError::RequiresRuntime)
-    }
-}
-
-pub async fn get_pointer_test() {}
-
 pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
-    let runtime_internal = input.context.borrow_mut().runtime_internal().clone();
+    let runtime_internal =
+        input.context.borrow_mut().runtime_internal().clone();
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
             ExecutionStep::Return(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(_pointer_id) => {
-                get_pointer_test().await;
+            ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(Some(ValueContainer::from(42))));
+                    Some(InterruptProvider::Result(get_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
+            }
+            ExecutionStep::ResolveLocalPointer(address) => {
+                // TODO: in the future, local pointer addresses should be relative to the block sender, not the local runtime
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(get_local_pointer_value(
+                        &runtime_internal,
+                        address,
+                    )?));
+            }
+            ExecutionStep::ResolveInternalPointer(address) => {
+                *interrupt_provider.borrow_mut() =
+                    Some(InterruptProvider::Result(
+                        get_internal_pointer_value(address)?,
+                    ));
             }
             ExecutionStep::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
                     // assert that receivers is a single endpoint
                     // TODO #230: support advanced receivers
-                    let receiver_endpoint = receivers.to_value().borrow().cast_to_endpoint().unwrap();
-                    let mut remote_execution_context = RemoteExecutionContext::new(
-                        receiver_endpoint,
-                        true
-                    );
-                    let res = RuntimeInternal::execute_remote(runtime.clone(), &mut remote_execution_context, body).await?;
+                    let receiver_endpoint = receivers
+                        .to_value()
+                        .borrow()
+                        .cast_to_endpoint()
+                        .unwrap();
+                    let mut remote_execution_context =
+                        RemoteExecutionContext::new(receiver_endpoint, true);
+                    let res = RuntimeInternal::execute_remote(
+                        runtime.clone(),
+                        &mut remote_execution_context,
+                        body,
+                    )
+                    .await?;
                     *interrupt_provider.borrow_mut() =
                         Some(InterruptProvider::Result(res));
-                }
-                else {
+                } else {
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_internal_slot_value(&runtime_internal, slot)?));
+                    Some(InterruptProvider::Result(get_internal_slot_value(
+                        &runtime_internal,
+                        slot,
+                    )?));
             }
             _ => todo!("#99 Undescribed by author."),
         }
     }
 
     unreachable!("Execution loop should always return a result");
+}
+
+fn get_internal_slot_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    slot: u32,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        let slot = InternalSlot::try_from_primitive(slot)
+            .map_err(|_| ExecutionError::SlotNotAllocated(slot))?;
+        let res = match slot {
+            InternalSlot::ENDPOINT => {
+                Some(ValueContainer::from(runtime.endpoint.clone()))
+            }
+        };
+        Ok(res)
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
+fn get_pointer_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    address: RawFullPointerAddress,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        let memory = runtime.memory.borrow();
+        let resolved_address =
+            memory.get_pointer_address_from_raw_full_address(address);
+        // convert slot to InternalSlot enum
+        Ok(memory
+            .get_reference(&resolved_address)
+            .map(|r| ValueContainer::Reference(r.clone())))
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
+
+fn get_internal_pointer_value(
+    address: RawInternalPointerAddress,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    let core_lib_id =
+        CoreLibPointerId::try_from(&PointerAddress::Internal(address.id));
+    core_lib_id
+        .map_err(|_| ExecutionError::ReferenceNotFound)
+        .map(|id| {
+            Some(ValueContainer::Reference(Reference::TypeReference(
+                get_core_lib_type_reference(id),
+            )))
+        })
+}
+
+fn get_local_pointer_value(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    address: RawLocalPointerAddress,
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    if let Some(runtime) = &runtime_internal {
+        // convert slot to InternalSlot enum
+        Ok(runtime
+            .memory
+            .borrow()
+            .get_reference(&PointerAddress::Local(address.id))
+            .map(|r| ValueContainer::Reference(r.clone())))
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -283,7 +429,7 @@ impl Display for InvalidProgramError {
 
 #[derive(Debug)]
 pub enum ExecutionError {
-    ParserError(DXBParserError),
+    DXBParserError(DXBParserError),
     ValueError(ValueError),
     InvalidProgram(InvalidProgramError),
     Unknown,
@@ -294,17 +440,34 @@ pub enum ExecutionError {
     RequiresRuntime,
     ResponseError(ResponseError),
     CompilerError(CompilerError),
+    IllegalTypeError(IllegalTypeError),
+    ReferenceNotFound,
+    DerefOfNonReference,
+    InvalidTypeCast,
+    AssignmentError(AssignmentError),
+    ReferenceFromValueContainerError(ReferenceCreationError),
+}
+impl From<ReferenceCreationError> for ExecutionError {
+    fn from(error: ReferenceCreationError) -> Self {
+        ExecutionError::ReferenceFromValueContainerError(error)
+    }
 }
 
 impl From<DXBParserError> for ExecutionError {
     fn from(error: DXBParserError) -> Self {
-        ExecutionError::ParserError(error)
+        ExecutionError::DXBParserError(error)
     }
 }
 
 impl From<ValueError> for ExecutionError {
     fn from(error: ValueError) -> Self {
         ExecutionError::ValueError(error)
+    }
+}
+
+impl From<IllegalTypeError> for ExecutionError {
+    fn from(error: IllegalTypeError) -> Self {
+        ExecutionError::IllegalTypeError(error)
     }
 }
 
@@ -326,13 +489,25 @@ impl From<CompilerError> for ExecutionError {
     }
 }
 
+impl From<AssignmentError> for ExecutionError {
+    fn from(error: AssignmentError) -> Self {
+        ExecutionError::AssignmentError(error)
+    }
+}
+
 impl Display for ExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ExecutionError::ReferenceFromValueContainerError(err) => {
+                write!(f, "Reference from value container error: {err}")
+            }
+            ExecutionError::ReferenceNotFound => {
+                write!(f, "Reference not found")
+            }
             ExecutionError::CompilerError(err) => {
                 write!(f, "Compiler error: {err}")
             }
-            ExecutionError::ParserError(err) => {
+            ExecutionError::DXBParserError(err) => {
                 write!(f, "Parser error: {err}")
             }
             ExecutionError::Unknown => write!(f, "Unknown execution error"),
@@ -364,6 +539,18 @@ impl Display for ExecutionError {
             ExecutionError::ResponseError(err) => {
                 write!(f, "Response error: {err}")
             }
+            ExecutionError::IllegalTypeError(err) => {
+                write!(f, "Illegal type: {err}")
+            }
+            ExecutionError::DerefOfNonReference => {
+                write!(f, "Tried to dereference a non-reference value")
+            }
+            ExecutionError::AssignmentError(err) => {
+                write!(f, "Assignment error: {err}")
+            }
+            ExecutionError::InvalidTypeCast => {
+                write!(f, "Invalid type cast")
+            }
         }
     }
 }
@@ -371,8 +558,11 @@ impl Display for ExecutionError {
 #[derive(Debug)]
 pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
+    InternalTypeReturn(Option<TypeContainer>),
     Return(Option<ValueContainer>),
-    ResolvePointer(u64),
+    ResolvePointer(RawFullPointerAddress),
+    ResolveLocalPointer(RawLocalPointerAddress),
+    ResolveInternalPointer(RawInternalPointerAddress),
     GetInternalSlot(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Pause,
@@ -443,6 +633,9 @@ pub fn execute_loop(
                 match yield_unwrap!(output) {
                     ExecutionStep::InternalReturn(result) => {
                         result_value = result;
+                    }
+                    ExecutionStep::InternalTypeReturn(result) => {
+                        result_value = result.map(ValueContainer::from);
                     }
                     step => {
                         *interrupt_provider.borrow_mut() =
@@ -527,8 +720,25 @@ fn get_result_value_from_instruction(
             }
 
             // unsigned integers
+            Instruction::UInt8(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
+            Instruction::UInt16(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
+            Instruction::UInt32(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
+            Instruction::UInt64(integer) => {
+                Some(Integer::from(integer.0).into())
+            }
             Instruction::UInt128(integer) => {
                 Some(Integer::from(integer.0).into())
+            }
+
+            // big integers
+            Instruction::BigInteger(IntegerData(integer)) => {
+                Some(integer.into())
             }
 
             // specific floats
@@ -560,19 +770,61 @@ fn get_result_value_from_instruction(
             Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
             Instruction::Text(TextData(text)) => Some(text.into()),
 
-            // operations
+            // binary operations
             Instruction::Add
             | Instruction::Subtract
             | Instruction::Multiply
-            | Instruction::Divide
-            | Instruction::Is
+            | Instruction::Divide => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::BinaryOperation {
+                        operator: BinaryOperator::from(instruction),
+                    },
+                );
+                None
+            }
+
+            // unary operations
+            Instruction::UnaryPlus => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Plus,
+                        ),
+                    },
+                );
+                None
+            }
+            Instruction::UnaryMinus => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Arithmetic(
+                            ArithmeticUnaryOperator::Minus,
+                        ),
+                    },
+                );
+                None
+            }
+            Instruction::BitwiseNot => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Bitwise(
+                            BitwiseUnaryOperator::Negation,
+                        ),
+                    },
+                );
+                None
+            }
+
+            // equality operations
+            Instruction::Is
+            | Instruction::Matches
             | Instruction::StructuralEqual
             | Instruction::Equal
             | Instruction::NotStructuralEqual
             | Instruction::NotEqual => {
                 context.borrow_mut().scope_stack.create_scope(
-                    Scope::BinaryOperation {
-                        operator: BinaryOperator::from(instruction),
+                    Scope::ComparisonOperation {
+                        operator: ComparisonOperator::from(instruction),
                     },
                 );
                 None
@@ -626,6 +878,14 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::Apply(ApplyData { arg_count }) => {
+                context.borrow_mut().scope_stack.create_scope(Scope::Apply {
+                    arg_count,
+                    args: vec![],
+                });
+                None
+            }
+
             Instruction::ScopeStart => {
                 context
                     .borrow_mut()
@@ -634,35 +894,24 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::ArrayStart => {
+            Instruction::ListStart => {
                 context
                     .borrow_mut()
                     .scope_stack
                     .create_scope_with_active_value(
                         Scope::Collection,
-                        Array::default().into(),
+                        List::default().into(),
                     );
                 None
             }
 
-            Instruction::ObjectStart => {
+            Instruction::MapStart => {
                 context
                     .borrow_mut()
                     .scope_stack
                     .create_scope_with_active_value(
                         Scope::Collection,
-                        Object::default().into(),
-                    );
-                None
-            }
-
-            Instruction::TupleStart => {
-                context
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope_with_active_value(
-                        Scope::Collection,
-                        Tuple::default().into(),
+                        Map::default().into(),
                     );
                 None
             }
@@ -701,7 +950,6 @@ fn get_result_value_from_instruction(
                 None
             }
             Instruction::GetSlot(SlotAddress(address)) => {
-
                 // if address is >= 0xffffff00, resolve internal slot
                 if address >= 0xffffff00 {
                     interrupt_with_result!(
@@ -709,7 +957,6 @@ fn get_result_value_from_instruction(
                         ExecutionStep::GetInternalSlot(address)
                     )
                 }
-
                 // else handle normal slot
                 else {
                     let res = context.borrow_mut().get_slot_value(address);
@@ -731,11 +978,91 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::AssignToReference(operator) => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignToReference {
+                        reference: None,
+                        operator,
+                    },
+                );
+                None
+            }
+
+            Instruction::Deref => {
+                context.borrow_mut().scope_stack.create_scope(Scope::Deref);
+                None
+            }
+
+            Instruction::GetRef(address) => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::ResolvePointer(address)
+                )
+            }
+
+            Instruction::GetLocalRef(address) => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::ResolveLocalPointer(address)
+                )
+            }
+
+            Instruction::GetInternalRef(address) => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::ResolveInternalPointer(address)
+                )
+            }
+
+            Instruction::AddAssign(SlotAddress(address)) => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignmentOperation {
+                        address,
+                        operator: AssignmentOperator::AddAssign,
+                    },
+                );
+                None
+            }
+
+            Instruction::SubtractAssign(SlotAddress(address)) => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::AssignmentOperation {
+                        address,
+                        operator: AssignmentOperator::SubtractAssign,
+                    },
+                );
+                None
+            }
+
             // refs
             Instruction::CreateRef => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
-                        operator: UnaryOperator::CreateRef,
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRef,
+                        ),
+                    },
+                );
+                None
+            }
+
+            Instruction::CreateRefMut => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRefMut,
+                        ),
+                    },
+                );
+                None
+            }
+
+            Instruction::CreateRefFinal => {
+                context.borrow_mut().scope_stack.create_scope(
+                    Scope::UnaryOperation {
+                        operator: UnaryOperator::Reference(
+                            ReferenceUnaryOperator::CreateRefFinal,
+                        ),
                     },
                 );
                 None
@@ -757,12 +1084,57 @@ fn get_result_value_from_instruction(
                 None
             }
 
+            Instruction::TypeInstructions(instructions) => {
+                for output in
+                    iterate_type_instructions(interrupt_provider, instructions)
+                {
+                    // TODO: handle type here
+                    yield output;
+                }
+                return;
+            }
+
+            // type(...)
+            Instruction::TypeExpression(instructions) => {
+                for output in
+                    iterate_type_instructions(interrupt_provider, instructions)
+                {
+                    yield output;
+                }
+                return;
+            }
+
             i => {
                 return yield Err(ExecutionError::NotImplemented(
                     format!("Instruction {i}").to_string(),
                 ));
             }
         }))
+    }
+}
+
+fn iterate_type_instructions(
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    instructions: Vec<TypeInstruction>,
+) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+    gen move {
+        for instruction in instructions {
+            match instruction {
+                // TODO: Implement type instructions iteration
+                TypeInstruction::ListStart => {
+                    interrupt_with_result!(
+                        interrupt_provider,
+                        ExecutionStep::Pause
+                    );
+                }
+                TypeInstruction::LiteralInteger(integer) => {
+                    yield Ok(ExecutionStep::InternalTypeReturn(Some(
+                        TypeContainer::Type(Type::structural(integer.0)),
+                    )));
+                }
+                _ => todo!(),
+            }
+        }
     }
 }
 
@@ -773,7 +1145,7 @@ fn handle_value(
 ) -> Result<(), ExecutionError> {
     let scope_container = context.scope_stack.get_current_scope_mut();
 
-    let result_value = match &scope_container.scope {
+    let result_value = match &mut scope_container.scope {
         Scope::KeyValuePair => {
             let key = &scope_container.active_value;
             match key {
@@ -808,10 +1180,94 @@ fn handle_value(
             Some(value_container)
         }
 
+        Scope::Deref => {
+            // set value for slot
+            if let ValueContainer::Reference(reference) = value_container {
+                Some(reference.value_container())
+            } else {
+                return Err(ExecutionError::DerefOfNonReference);
+            }
+        }
+
+        Scope::AssignToReference {
+            operator,
+            reference,
+        } => {
+            if (reference.is_none()) {
+                // set value for slot
+                if let ValueContainer::Reference(new_reference) =
+                    value_container
+                {
+                    reference.replace(new_reference);
+                    None
+                } else {
+                    return Err(ExecutionError::DerefOfNonReference);
+                }
+            } else {
+                let operator = *operator;
+                let reference = reference.as_ref().unwrap();
+                let lhs = reference.value_container();
+                let res = handle_assignment_operation(
+                    lhs,
+                    value_container,
+                    operator,
+                )?;
+                reference.set_value_container(res)?;
+                Some(ValueContainer::Reference(reference.clone()))
+            }
+        }
+
+        Scope::Apply { args, arg_count } => {
+            // collect callee as active value if not set yet and we have args to collect
+            if scope_container.active_value.is_none() {
+                // directly apply if no args to collect
+                if *arg_count == 0 {
+                    context.pop_next_scope = true;
+                    handle_apply(&value_container, args)?
+                }
+                // set callee as active value
+                else {
+                    Some(value_container)
+                }
+            } else {
+                let callee = scope_container.active_value.as_ref().unwrap();
+                // callee already exists, collect args
+                args.push(value_container);
+
+                // all args collected, apply function
+                if args.len() == *arg_count as usize {
+                    context.pop_next_scope = true;
+                    handle_apply(callee, args)?
+                } else {
+                    Some(callee.clone())
+                }
+            }
+        }
+
+        Scope::AssignmentOperation { operator, address } => {
+            let operator = *operator;
+            let address = *address;
+            let lhs = if let Ok(Some(val)) = context.get_slot_value(address) {
+                val
+            } else {
+                return Err(ExecutionError::SlotNotInitialized(address));
+            };
+            let res =
+                handle_assignment_operation(lhs, value_container, operator)?;
+            context.set_slot_value(address, res.clone())?;
+            Some(res)
+        }
+
         Scope::UnaryOperation { operator } => {
             let operator = *operator;
             context.pop_next_scope = true;
-            Some(handle_unary_operation(operator, value_container))
+            let result = handle_unary_operation(operator, value_container);
+            if let Ok(val) = result {
+                Some(val)
+            } else {
+                // handle error
+                return Err(result.unwrap_err());
+            }
         }
 
         Scope::BinaryOperation { operator } => {
@@ -819,6 +1275,28 @@ fn handle_value(
             match active_value {
                 Some(active_value_container) => {
                     let res = handle_binary_operation(
+                        active_value_container,
+                        value_container,
+                        *operator,
+                    );
+                    if let Ok(val) = res {
+                        // set val as active value
+                        context.pop_next_scope = true;
+                        Some(val)
+                    } else {
+                        // handle error
+                        return Err(res.unwrap_err());
+                    }
+                }
+                None => Some(value_container),
+            }
+        }
+
+        Scope::ComparisonOperation { operator } => {
+            let active_value = &scope_container.active_value;
+            match active_value {
+                Some(active_value_container) => {
+                    let res = handle_comparison_operation(
                         active_value_container,
                         value_container,
                         *operator,
@@ -862,28 +1340,37 @@ fn handle_value(
     Ok(())
 }
 
+fn handle_apply(
+    callee: &ValueContainer,
+    args: &[ValueContainer],
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    // callee is guaranteed to be Some here
+    // apply_single if one arg, apply otherwise
+    Ok(if args.len() == 1 {
+        callee.apply_single(&args[0])?
+    } else {
+        callee.apply(args)?
+    })
+}
+
 fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
     match collector {
         ValueContainer::Value(Value {
-            inner: CoreValue::Array(array),
+            inner: CoreValue::List(list),
             ..
         }) => {
-            // append value to array
-            array.push(value);
+            // append value to list
+            list.push(value);
         }
         ValueContainer::Value(Value {
-            inner: CoreValue::Tuple(tuple),
+            inner: CoreValue::Map(map),
             ..
         }) => {
-            // automatic tuple keys are always default integer values
-            let index = CoreValue::Integer(Integer::from(tuple.next_int_key()));
-            tuple.set(index, value);
+            // TODO: Implement map collector for optimized structural maps
+            panic!("append {:?}", value);
         }
         _ => {
-            unreachable!(
-                "Expected active value in array scope to be an array, but got: {}",
-                collector
-            );
+            unreachable!("Unsupported collector for collection scope");
         }
     }
 }
@@ -893,39 +1380,20 @@ fn handle_key_value_pair(
     key: ValueContainer,
     value: ValueContainer,
 ) -> Result<(), ExecutionError> {
-    // insert key value pair into active object/tuple
+    // insert key value pair into active map
     match active_container {
-        // object
+        // Map
         ValueContainer::Value(Value {
-            inner: CoreValue::Object(object),
+            inner: CoreValue::Map(map),
             ..
         }) => {
             // make sure key is a string
-            match key {
-                ValueContainer::Value(Value {
-                    inner: CoreValue::Text(key_str),
-                    ..
-                }) => {
-                    object.set(&key_str.0, value);
-                }
-                _ => {
-                    return Err(ExecutionError::InvalidProgram(
-                        InvalidProgramError::InvalidKeyValuePair,
-                    ));
-                }
-            }
-        }
-        // tuple
-        ValueContainer::Value(Value {
-            inner: CoreValue::Tuple(tuple),
-            ..
-        }) => {
-            // set key-value pair in tuple
-            tuple.set(key, value);
+            map.try_set(key, value)
+                .expect("Failed to set key-value pair in map");
         }
         _ => {
             unreachable!(
-                "Expected active value object or tuple to collect key value pairs, but got: {}",
+                "Expected active value that can collect key value pairs, but got: {}",
                 active_container
             );
         }
@@ -934,15 +1402,170 @@ fn handle_key_value_pair(
     Ok(())
 }
 
+fn handle_unary_reference_operation(
+    operator: ReferenceUnaryOperator,
+    value_container: ValueContainer,
+) -> Result<ValueContainer, ExecutionError> {
+    Ok(match operator {
+        ReferenceUnaryOperator::CreateRef => {
+            ValueContainer::Reference(Reference::from(value_container))
+        }
+        ReferenceUnaryOperator::CreateRefFinal => ValueContainer::Reference(
+            Reference::try_final_from(value_container)?,
+        ),
+        ReferenceUnaryOperator::CreateRefMut => {
+            ValueContainer::Reference(Reference::try_mut_from(value_container)?)
+        }
+        ReferenceUnaryOperator::Deref => {
+            if let ValueContainer::Reference(reference) = value_container {
+                reference.value_container()
+            } else {
+                return Err(ExecutionError::DerefOfNonReference);
+            }
+        }
+    })
+}
+fn handle_unary_logical_operation(
+    operator: LogicalUnaryOperator,
+    value_container: ValueContainer,
+) -> Result<ValueContainer, ExecutionError> {
+    unimplemented!(
+        "Logical unary operations are not implemented yet: {operator:?}"
+    )
+}
+fn handle_unary_arithmetic_operation(
+    operator: ArithmeticUnaryOperator,
+    value_container: ValueContainer,
+) -> Result<ValueContainer, ExecutionError> {
+    match operator {
+        ArithmeticUnaryOperator::Minus => Ok((-value_container)?),
+        ArithmeticUnaryOperator::Plus => Ok(value_container),
+        _ => unimplemented!(
+            "Arithmetic unary operations are not implemented yet: {operator:?}"
+        ),
+    }
+}
+
 fn handle_unary_operation(
     operator: UnaryOperator,
     value_container: ValueContainer,
-) -> ValueContainer {
+) -> Result<ValueContainer, ExecutionError> {
     match operator {
-        UnaryOperator::CreateRef => {
-            ValueContainer::Reference(Reference::from(value_container))
+        UnaryOperator::Reference(reference) => {
+            handle_unary_reference_operation(reference, value_container)
+        }
+        UnaryOperator::Logical(logical) => {
+            handle_unary_logical_operation(logical, value_container)
+        }
+        UnaryOperator::Arithmetic(arithmetic) => {
+            handle_unary_arithmetic_operation(arithmetic, value_container)
         }
         _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
+    }
+}
+
+fn handle_comparison_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: ComparisonOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        ComparisonOperator::StructuralEqual => {
+            let val = active_value_container.structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::Equal => {
+            let val = active_value_container.value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::NotStructuralEqual => {
+            let val = !active_value_container.structural_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::NotEqual => {
+            let val = !active_value_container.value_eq(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::Is => {
+            // TODO #103 we should throw a runtime error when one of lhs or rhs is a value
+            // instead of a ref. Identity checks using the is operator shall be only allowed
+            // for references.
+            // @benstre: or keep as always false ? - maybe a compiler check would be better
+            let val = active_value_container.identical(&value_container);
+            Ok(ValueContainer::from(val))
+        }
+        ComparisonOperator::Matches => {
+            // TODO: Fix matches, rhs will always be a type, so actual_type() call is wrong
+            let v_type = value_container.actual_type(); // Type::try_from(value_container)?;
+            let val = v_type.value_matches(active_value_container);
+            Ok(ValueContainer::from(val))
+        }
+        _ => {
+            unreachable!("Instruction {:?} is not a valid operation", operator);
+        }
+    }
+}
+
+fn handle_assignment_operation(
+    lhs: ValueContainer,
+    rhs: ValueContainer,
+    operator: AssignmentOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        AssignmentOperator::AddAssign => Ok((lhs + rhs)?),
+        AssignmentOperator::SubtractAssign => Ok((lhs - rhs)?),
+        _ => {
+            unreachable!("Instruction {:?} is not a valid operation", operator);
+        }
+    }
+}
+
+fn handle_arithmetic_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: ArithmeticOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    match operator {
+        ArithmeticOperator::Add => {
+            Ok((active_value_container + &value_container)?)
+        }
+        ArithmeticOperator::Subtract => {
+            Ok((active_value_container - &value_container)?)
+        }
+        // ArithmeticOperator::Multiply => {
+        //     Ok((active_value_container * &value_container)?)
+        // }
+        // ArithmeticOperator::Divide => {
+        //     Ok((active_value_container / &value_container)?)
+        // }
+        _ => {
+            todo!("Implement arithmetic operation for {:?}", operator);
+        }
+    }
+}
+
+fn handle_bitwise_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: BitwiseOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    {
+        todo!("Implement bitwise operation for {:?}", operator);
+    }
+}
+
+fn handle_logical_operation(
+    active_value_container: &ValueContainer,
+    value_container: ValueContainer,
+    operator: LogicalOperator,
+) -> Result<ValueContainer, ExecutionError> {
+    // apply operation to active value
+    {
+        todo!("Implement logical operation for {:?}", operator);
     }
 }
 
@@ -951,38 +1574,24 @@ fn handle_binary_operation(
     value_container: ValueContainer,
     operator: BinaryOperator,
 ) -> Result<ValueContainer, ExecutionError> {
-    // apply operation to active value
     match operator {
-        BinaryOperator::Add => Ok((active_value_container + &value_container)?),
-        BinaryOperator::Subtract => {
-            Ok((active_value_container - &value_container)?)
-        }
-        BinaryOperator::StructuralEqual => {
-            let val = active_value_container.structural_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::Equal => {
-            let val = active_value_container.value_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::NotStructuralEqual => {
-            let val = !active_value_container.structural_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::NotEqual => {
-            let val = !active_value_container.value_eq(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        BinaryOperator::Is => {
-            // TODO #103 we should throw a runtime error when one of lhs or rhs is a value
-            // instead of a ref. Identity checks using the is operator shall be only allowed
-            // for references.
-            // @benstre: or keep as always false ? - maybe a compiler check would be better
-            let val = active_value_container.identical(&value_container);
-            Ok(ValueContainer::from(val))
-        }
-        _ => {
-            unreachable!("Instruction {:?} is not a valid operation", operator);
+        BinaryOperator::Arithmetic(arith_op) => handle_arithmetic_operation(
+            active_value_container,
+            value_container,
+            arith_op,
+        ),
+        BinaryOperator::Bitwise(bitwise_op) => handle_bitwise_operation(
+            active_value_container,
+            value_container,
+            bitwise_op,
+        ),
+        BinaryOperator::Logical(logical_op) => handle_logical_operation(
+            active_value_container,
+            value_container,
+            logical_op,
+        ),
+        BinaryOperator::VariantAccess => {
+            todo!("Implement variant access operation")
         }
     }
 }
@@ -992,14 +1601,14 @@ mod tests {
     use std::assert_matches::assert_matches;
     use std::vec;
 
-    use log::debug;
-
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
-    use crate::global::binary_codes::InstructionCode;
+    use crate::global::instruction_codes::InstructionCode;
     use crate::logger::init_logger_debug;
-    use crate::values::traits::structural_eq::StructuralEq;
-    use crate::{assert_structural_eq, assert_value_eq, datex_array};
+    use crate::traits::structural_eq::StructuralEq;
+    use crate::{assert_structural_eq, assert_value_eq, datex_list};
+    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
+    use log::debug;
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -1044,37 +1653,37 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_script() {
+    fn empty_script() {
         assert_eq!(execute_datex_script_debug(""), None);
     }
 
     #[test]
-    fn test_empty_script_semicolon() {
+    fn empty_script_semicolon() {
         assert_eq!(execute_datex_script_debug(";;;"), None);
     }
 
     #[test]
-    fn test_single_value() {
+    fn single_value() {
         assert_eq!(
             execute_datex_script_debug_with_result("42"),
-            Integer::from(42).into()
+            Integer::from(42i8).into()
         );
     }
 
     #[test]
-    fn test_single_value_semicolon() {
+    fn single_value_semicolon() {
         assert_eq!(execute_datex_script_debug("42;"), None)
     }
 
     #[test]
-    fn test_is() {
+    fn is() {
         let result = execute_datex_script_debug_with_result("1 is 1");
         assert_eq!(result, false.into());
         assert_structural_eq!(result, ValueContainer::from(false));
     }
 
     #[test]
-    fn test_equality() {
+    fn equality() {
         let result = execute_datex_script_debug_with_result("1 == 1");
         assert_eq!(result, true.into());
         assert_structural_eq!(result, ValueContainer::from(true));
@@ -1104,27 +1713,27 @@ mod tests {
     }
 
     #[test]
-    fn test_single_value_scope() {
+    fn single_value_scope() {
         let result = execute_datex_script_debug_with_result("(42)");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
         assert_structural_eq!(result, ValueContainer::from(42_u128));
     }
 
     #[test]
-    fn test_add() {
+    fn add() {
         let result = execute_datex_script_debug_with_result("1 + 2");
-        assert_structural_eq!(result, ValueContainer::from(3_u128));
-        assert_eq!(result, Integer::from(3).into());
+        assert_eq!(result, Integer::from(3i8).into());
+        assert_structural_eq!(result, ValueContainer::from(3i8));
     }
 
     #[test]
-    fn test_nested_scope() {
+    fn nested_scope() {
         let result = execute_datex_script_debug_with_result("1 + (2 + 3)");
-        assert_eq!(result, Integer::from(6).into());
+        assert_eq!(result, Integer::from(6i8).into());
     }
 
     #[test]
-    fn test_invalid_scope_close() {
+    fn invalid_scope_close() {
         let result = execute_dxb_debug(&[
             InstructionCode::SCOPE_START.into(),
             InstructionCode::SCOPE_END.into(),
@@ -1139,32 +1748,38 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_array() {
+    fn empty_list() {
         let result = execute_datex_script_debug_with_result("[]");
-        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
-        assert_eq!(array.len(), 0);
+        let list: List = result.to_value().borrow().cast_to_list().unwrap();
+        assert_eq!(list.len(), 0);
         assert_eq!(result, Vec::<ValueContainer>::new().into());
         assert_eq!(result, ValueContainer::from(Vec::<ValueContainer>::new()));
     }
 
     #[test]
-    fn test_array() {
+    fn list() {
         let result = execute_datex_script_debug_with_result("[1, 2, 3]");
-        let array: Array = result.to_value().borrow().cast_to_array().unwrap();
-        let expected =
-            datex_array![Integer::from(1), Integer::from(2), Integer::from(3)];
-        assert_eq!(array.len(), 3);
+        let list: List = result.to_value().borrow().cast_to_list().unwrap();
+        let expected = datex_list![
+            Integer::from(1i8),
+            Integer::from(2i8),
+            Integer::from(3i8)
+        ];
+        assert_eq!(list.len(), 3);
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1, 2, 3]));
         assert_structural_eq!(result, ValueContainer::from(vec![1, 2, 3]));
     }
 
     #[test]
-    fn test_array_with_nested_scope() {
+    fn list_with_nested_scope() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
-        let expected =
-            datex_array![Integer::from(1), Integer::from(5), Integer::from(4)];
+        let expected = datex_list![
+            Integer::from(1i8),
+            Integer::from(5i8),
+            Integer::from(4i8)
+        ];
 
         assert_eq!(result, expected.into());
         assert_ne!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
@@ -1175,7 +1790,7 @@ mod tests {
     }
 
     #[test]
-    fn test_boolean() {
+    fn boolean() {
         let result = execute_datex_script_debug_with_result("true");
         assert_eq!(result, true.into());
         assert_structural_eq!(result, ValueContainer::from(true));
@@ -1186,30 +1801,74 @@ mod tests {
     }
 
     #[test]
-    fn test_decimal() {
+    fn decimal() {
         let result = execute_datex_script_debug_with_result("1.5");
-        assert_eq!(result, Decimal::from_string("1.5").into());
+        assert_eq!(result, Decimal::from_string("1.5").unwrap().into());
         assert_structural_eq!(result, ValueContainer::from(1.5));
     }
 
     #[test]
-    fn test_decimal_and_integer() {
+    fn decimal_and_integer() {
         let result = execute_datex_script_debug_with_result("-2341324.0");
-        assert_eq!(result, Decimal::from_string("-2341324").into());
+        assert_eq!(result, Decimal::from_string("-2341324").unwrap().into());
         assert!(!result.structural_eq(&ValueContainer::from(-2341324)));
     }
 
     #[test]
-    fn test_integer_2() {
+    fn integer() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("2");
         assert_eq!(result, Integer::from(2).into());
         assert_ne!(result, 2_u8.into());
-        assert_structural_eq!(result, ValueContainer::from(2_u8));
+        assert_structural_eq!(result, ValueContainer::from(2_i8));
     }
 
     #[test]
-    fn test_null() {
+    fn typed_integer() {
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result("-2i16");
+        assert_eq!(result, TypedInteger::from(-2i16).into());
+        assert_structural_eq!(result, ValueContainer::from(-2_i16));
+
+        let result = execute_datex_script_debug_with_result("2i32");
+        assert_eq!(result, TypedInteger::from(2i32).into());
+        assert_structural_eq!(result, ValueContainer::from(2_i32));
+
+        let result = execute_datex_script_debug_with_result("-2i64");
+        assert_eq!(result, TypedInteger::from(-2i64).into());
+        assert_structural_eq!(result, ValueContainer::from(-2_i64));
+
+        let result = execute_datex_script_debug_with_result("2i128");
+        assert_eq!(result, TypedInteger::from(2i128).into());
+        assert_structural_eq!(result, ValueContainer::from(2_i128));
+
+        let result = execute_datex_script_debug_with_result("2u8");
+        assert_eq!(result, TypedInteger::from(2_u8).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u8));
+
+        let result = execute_datex_script_debug_with_result("2u16");
+        assert_eq!(result, TypedInteger::from(2_u16).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u16));
+
+        let result = execute_datex_script_debug_with_result("2u32");
+        assert_eq!(result, TypedInteger::from(2_u32).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u32));
+
+        let result = execute_datex_script_debug_with_result("2u64");
+        assert_eq!(result, TypedInteger::from(2_u64).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u64));
+
+        let result = execute_datex_script_debug_with_result("2u128");
+        assert_eq!(result, TypedInteger::from(2_u128).into());
+        assert_structural_eq!(result, ValueContainer::from(2_u128));
+
+        let result = execute_datex_script_debug_with_result("2big");
+        assert_eq!(result, TypedInteger::Big(Integer::from(2)).into());
+        assert_structural_eq!(result, ValueContainer::from(2));
+    }
+
+    #[test]
+    fn null() {
         let result = execute_datex_script_debug_with_result("null");
         assert_eq!(result, ValueContainer::from(CoreValue::Null));
         assert_eq!(result, CoreValue::Null.into());
@@ -1217,124 +1876,168 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple() {
+    fn map() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("(x: 1, 2, 42)");
-        let tuple: CoreValue = result.clone().to_value().borrow().clone().inner;
-        let tuple: Tuple = tuple.try_into().unwrap();
+        let result =
+            execute_datex_script_debug_with_result("{x: 1, y: 2, z: 42}");
+        let map: CoreValue = result.clone().to_value().borrow().clone().inner;
+        let map: Map = map.try_into().unwrap();
 
         // form and size
-        assert_eq!(tuple.to_string(), "(\"x\": 1, 0: 2, 1: 42)");
-        assert_eq!(tuple.size(), 3);
+        assert_eq!(map.to_string(), "{\"x\": 1, \"y\": 2, \"z\": 42}");
+        assert_eq!(map.size(), 3);
+
+        info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(tuple.get(&"x".into()), Some(&Integer::from(1).into()));
-        assert_eq!(
-            tuple.get(&Integer::from(0_u32).into()),
-            Some(&Integer::from(2).into())
-        );
-        assert_eq!(
-            tuple.get(&Integer::from(1_u32).into()),
-            Some(&Integer::from(42).into())
-        );
+        assert_eq!(map.get(&"x".into()), Some(&Integer::from(1i8).into()));
+        assert_eq!(map.get(&"y".into()), Some(&Integer::from(2i8).into()));
+        assert_eq!(map.get(&"z".into()), Some(&Integer::from(42i8).into()));
 
         // structural equality checks
-        let expected_se: Tuple = Tuple::from(vec![
-            ("x".into(), 1.into()),
-            (0.into(), 2.into()),
-            (1.into(), 42.into()),
+        let expected_se: Map = Map::from(vec![
+            ("x".to_string(), 1.into()),
+            ("y".to_string(), 2.into()),
+            ("z".to_string(), 42.into()),
         ]);
-        assert_structural_eq!(tuple, expected_se);
+        assert_structural_eq!(map, expected_se);
 
         // strict equality checks
-        let expected_strict: Tuple = Tuple::from(vec![
-            ("x".into(), Integer::from(1_u32).into()),
-            (0_u32.into(), Integer::from(2_u32).into()),
-            (1_u32.into(), Integer::from(42_u32).into()),
+        let expected_strict: Map = Map::from(vec![
+            ("x".to_string(), Integer::from(1_u32).into()),
+            ("y".to_string(), Integer::from(2_u32).into()),
+            ("z".to_string(), Integer::from(42_u32).into()),
         ]);
-        debug!("Expected tuple: {expected_strict}");
-        debug!("Tuple result: {tuple}");
+        debug!("Expected map: {expected_strict}");
+        debug!("Map result: {map}");
         // FIXME #104 type information gets lost on compile
         // assert_eq!(result, expected.into());
     }
 
     #[test]
-    fn test_val_assignment() {
+    fn val_assignment() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("const x = 42; x");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
     }
 
     #[test]
-    fn test_val_assignment_with_addition() {
-        init_logger_debug();
-        let result = execute_datex_script_debug_with_result("const x = 1 + 2; x");
-        assert_eq!(result, Integer::from(3).into());
-    }
-
-    #[test]
-    fn test_val_assignment_inside_scope() {
+    fn val_assignment_with_addition() {
         init_logger_debug();
         let result =
+            execute_datex_script_debug_with_result("const x = 1 + 2; x");
+        assert_eq!(result, Integer::from(3i8).into());
+    }
+
+    #[test]
+    fn val_assignment_inside_scope() {
+        init_logger_debug();
+        // FIXME: This should be probably disallowed (we can not use x in this scope due to hoisting behavior)
+        let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
-        let expected = datex_array![
-            Integer::from(42),
-            Integer::from(2),
-            Integer::from(42)
+        let expected = datex_list![
+            Integer::from(42i8),
+            Integer::from(2i8),
+            Integer::from(42i8)
         ];
         assert_eq!(result, expected.into());
     }
 
     #[test]
-    fn test_ref_assignment() {
+    fn deref() {
         init_logger_debug();
-        let result = execute_datex_script_debug_with_result("const mut x = 42; x");
-        assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
+        let result =
+            execute_datex_script_debug_with_result("const x = &42; *x");
+        assert_eq!(result, ValueContainer::from(Integer::from(42i8)));
     }
 
     #[test]
-    fn test_endpoint_slot() {
+    fn ref_assignment() {
+        init_logger_debug();
+        let result =
+            execute_datex_script_debug_with_result("const x = &mut 42; x");
+        assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(42i8)));
+    }
+
+    #[test]
+    fn ref_add_assignment() {
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; *x += 1",
+        );
+        assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
+
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; *x += 1; x",
+        );
+
+        // FIXME due to addition the resulting value container of the slot
+        // is no longer a reference but a value what is incorrect.
+        // assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
+    }
+
+    #[test]
+    fn ref_sub_assignment() {
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; *x -= 1",
+        );
+        assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));
+
+        let result = execute_datex_script_debug_with_result(
+            "const x = &mut 42; *x -= 1; x",
+        );
+
+        // FIXME due to addition the resulting value container of the slot
+        // is no longer a reference but a value what is incorrect.
+        // assert_matches!(result, ValueContainer::Reference(..));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));
+    }
+
+    #[test]
+    fn endpoint_slot() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_error("#endpoint");
         assert_matches!(result.unwrap_err(), ExecutionError::RequiresRuntime);
     }
 
     #[test]
-    fn test_shebang() {
+    fn shebang() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("#!datex\n42");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
     }
 
     #[test]
-    fn test_single_line_comment() {
+    fn single_line_comment() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("// this is a comment\n42");
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result(
             "// this is a comment\n// another comment\n42",
         );
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
     }
 
     #[test]
-    fn test_multi_line_comment() {
+    fn multi_line_comment() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment */\n42",
         );
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment\n   with multiple lines */\n42",
         );
-        assert_eq!(result, Integer::from(42).into());
+        assert_eq!(result, Integer::from(42i8).into());
 
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
-        let expected = datex_array![Integer::from(1), Integer::from(3)];
+        let expected = datex_list![Integer::from(1i8), Integer::from(3i8)];
         assert_eq!(result, expected.into());
     }
 }

@@ -1,7 +1,12 @@
 use log::error;
 
-use crate::values::core_values::endpoint::Endpoint;
-use crate::network::com_interfaces::com_interface::{ComInterfaceError, ComInterfaceFactory, ComInterfaceInfo, ComInterfaceSockets};
+use super::super::com_interface::ComInterface;
+use crate::network::com_hub::ComHubError;
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::{
+    ComInterfaceError, ComInterfaceFactory, ComInterfaceInfo,
+    ComInterfaceSockets,
+};
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
@@ -9,15 +14,13 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::{delegate_com_interface_info, set_sync_opener};
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
-use super::super::com_interface::ComInterface;
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
-use crate::network::com_hub::{ComHubError};
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -133,15 +136,18 @@ impl BaseInterface {
         receiver_socket_uuid: ComInterfaceSocketUUID,
         data: Vec<u8>,
     ) -> Result<(), BaseInterfaceError> {
-        match self.get_socket_with_uuid(receiver_socket_uuid) { Some(socket) => {
-            let socket = socket.lock().unwrap();
-            let receive_queue = socket.get_receive_queue();
-            receive_queue.lock().unwrap().extend(data);
-            Ok(())
-        } _ => {
-            error!("Socket not found");
-            Err(BaseInterfaceError::SocketNotFound)
-        }}
+        match self.get_socket_with_uuid(receiver_socket_uuid) {
+            Some(socket) => {
+                let socket = socket.lock().unwrap();
+                let receive_queue = socket.get_receive_queue();
+                receive_queue.lock().unwrap().extend(data);
+                Ok(())
+            }
+            _ => {
+                error!("Socket not found");
+                Err(BaseInterfaceError::SocketNotFound)
+            }
+        }
     }
 }
 
@@ -179,8 +185,8 @@ impl ComInterface for BaseInterface {
     set_sync_opener!(open);
 }
 
-
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct BaseInterfaceSetupData(pub InterfaceProperties);
 
 impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {

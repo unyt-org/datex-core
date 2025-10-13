@@ -1,19 +1,18 @@
 use crate::crypto::random;
 use crate::stdlib::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
+use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
-use crate::values::traits::structural_eq::StructuralEq;
 use crate::values::value_container::{ValueContainer, ValueError};
 use binrw::{BinRead, BinWrite};
 use hex::decode;
 // FIXME #123 no-std
 use crate::stdlib::str;
+use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
-use strum::Display;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -132,7 +131,7 @@ impl TryFrom<CoreValue> for Endpoint {
     }
 }
 
-#[derive(PartialEq, Debug, Display)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
@@ -140,6 +139,31 @@ pub enum InvalidEndpointError {
     InvalidInstance,
     ReservedName,
 }
+impl Display for InvalidEndpointError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidEndpointError::InvalidCharacters => {
+                write!(f, "Endpoint contains invalid characters")
+            }
+            InvalidEndpointError::MaxLengthExceeded => {
+                write!(
+                    f,
+                    "Endpoint name exceeds maximum length of 18 characters"
+                )
+            }
+            InvalidEndpointError::MinLengthNotMet => {
+                write!(f, "Endpoint name must be at least 3 characters long")
+            }
+            InvalidEndpointError::InvalidInstance => {
+                write!(f, "Endpoint instance must be between 1 and 65534")
+            }
+            InvalidEndpointError::ReservedName => {
+                write!(f, "Endpoint name is reserved")
+            }
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct EndpointParsingError;
 
@@ -418,8 +442,7 @@ impl Endpoint {
                 continue;
             }
             // only allowed ranges 0-9, a-z, "_" and "-"
-            if !(*c >= 0x30 && *c <= 0x39) && // 0-9
-                !(*c >= 0x61 && *c <= 0x7A) && // a-z
+            if !(*c >= 0x30 && *c <= 0x39 || *c >= 0x61 && *c <= 0x7A) && // a-z
                 *c != 0x2D && // -
                 *c != 0x5F
             {
@@ -584,7 +607,8 @@ impl Serialize for Endpoint {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_newtype_struct("endpoint", &self.to_string())
+        serializer
+            .serialize_newtype_struct("datex::endpoint", &self.to_string())
     }
 }
 

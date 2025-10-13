@@ -1,24 +1,26 @@
-use crate::global::binary_codes::InstructionCode;
+use crate::global::instruction_codes::InstructionCode;
+use crate::libs::core::CoreLibPointerId;
+use crate::references::reference::ReferenceMutability;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_i32, append_i64,
     append_i128, append_u8, append_u32, append_u128,
 };
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::decimal::decimal::Decimal;
+use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::integer::Integer;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::integer::utils::smallest_fitting_signed;
+use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
 use itertools::Itertools;
 use std::cell::{Cell, RefCell};
+use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
-use log::info;
-use datex_core::decompiler::decompile_body;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -63,7 +65,6 @@ impl VirtualSlot {
         }
     }
 }
-
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct CompilationContext<'a> {
@@ -144,17 +145,10 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn remap_virtual_slots(&self) {
-        info!("remapping, bytes before: {:?}", self.buffer.borrow());
-        info!("decompiled: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
-            .expect("Failed to decompile body"));
-
-        info!("slot indices: {:#?}", self.slot_indices.borrow());
-
         let mut slot_address = 0;
 
         // parent slots
         for byte_indices in self.get_slot_byte_indices(true) {
-            info!("remapping slot address: {slot_address}, indices: {byte_indices:?}");
             for byte_index in byte_indices {
                 self.set_u32_at_index(slot_address, byte_index as usize);
             }
@@ -163,14 +157,11 @@ impl<'a> CompilationContext<'a> {
 
         // local slots
         for byte_indices in self.get_slot_byte_indices(false) {
-            info!("remapping local slot address: {slot_address}, indices: {byte_indices:?}");
             for byte_index in byte_indices {
                 self.set_u32_at_index(slot_address, byte_index as usize);
             }
             slot_address += 1;
         }
-        info!("decompiled after: {:?}", decompile_body(&self.buffer.borrow(), Default::default())
-            .expect("Failed to decompile body"));
     }
 
     // This method writes a placeholder value for the slot
@@ -191,92 +182,60 @@ impl<'a> CompilationContext<'a> {
             ValueContainer::Value(value) => self.insert_value(value),
             ValueContainer::Reference(reference) => {
                 // TODO #160: in this case, the ref might also be inserted by pointer id, depending on the compiler settings
-                // add CREATE_REF instruction
-                self.append_binary_code(InstructionCode::CREATE_REF);
-                self.insert_value(
-                    &reference.borrow().current_resolved_value().borrow(),
-                )
+                // add CREATE_REF/CREATE_REF_MUT instruction
+                if reference.mutability() == ReferenceMutability::Mutable {
+                    self.append_instruction_code(
+                        InstructionCode::CREATE_REF_MUT,
+                    );
+                } else {
+                    self.append_instruction_code(InstructionCode::CREATE_REF);
+                }
+                // insert pointer id + value or only id
+                // add pointer to memory if not there yet
+                self.insert_value(&reference.collapse_to_value().borrow())
             }
         }
     }
 
     pub fn insert_value(&self, value: &Value) {
         match &value.inner {
-            CoreValue::TypedInteger(val) | CoreValue::Integer(Integer(val)) => {
-                match val.to_smallest_fitting() {
-                    TypedInteger::I8(val) => {
-                        self.insert_i8(val);
-                    }
-                    TypedInteger::I16(val) => {
-                        self.insert_i16(val);
-                    }
-                    TypedInteger::I32(val) => {
-                        self.insert_i32(val);
-                    }
-                    TypedInteger::I64(val) => {
-                        self.insert_i64(val);
-                    }
-                    TypedInteger::I128(val) => {
-                        self.insert_i128(val);
-                    }
-                    TypedInteger::U8(val) => {
-                        self.insert_u8(val);
-                    }
-                    TypedInteger::U16(val) => {
-                        self.insert_u16(val);
-                    }
-                    TypedInteger::U32(val) => {
-                        self.insert_u32(val);
-                    }
-                    TypedInteger::U64(val) => {
-                        self.insert_u64(val);
-                    }
-                    TypedInteger::U128(val) => {
-                        self.insert_u128(val);
-                    }
-                }
+            CoreValue::Type(ty) => {
+                todo!("Type value not supported in CompilationContext");
             }
+            CoreValue::Integer(integer) => {
+                let integer = integer.to_smallest_fitting();
+                self.insert_encoded_integer(&integer);
+            }
+            CoreValue::TypedInteger(integer) => {
+                self.insert_typed_integer(integer);
+            }
+
             CoreValue::Endpoint(endpoint) => self.insert_endpoint(endpoint),
             CoreValue::Decimal(decimal) => self.insert_decimal(decimal),
             CoreValue::TypedDecimal(val) => self.insert_typed_decimal(val),
-            CoreValue::Bool(val) => self.insert_boolean(val.0),
-            CoreValue::Null => self.append_binary_code(InstructionCode::NULL),
+            CoreValue::Boolean(val) => self.insert_boolean(val.0),
+            CoreValue::Null => {
+                self.append_instruction_code(InstructionCode::NULL)
+            }
             CoreValue::Text(val) => {
                 self.insert_text(&val.0.clone());
             }
-            CoreValue::Array(val) => {
-                self.append_binary_code(InstructionCode::ARRAY_START);
+            CoreValue::List(val) => {
+                self.append_instruction_code(InstructionCode::LIST_START);
                 for item in val {
                     self.insert_value_container(item);
                 }
-                self.append_binary_code(InstructionCode::SCOPE_END);
+                self.append_instruction_code(InstructionCode::SCOPE_END);
             }
-            CoreValue::Object(val) => {
-                self.append_binary_code(InstructionCode::OBJECT_START);
-                // println!("Object: {val:?}");
+            CoreValue::Map(val) => {
+                self.append_instruction_code(InstructionCode::MAP_START);
                 for (key, value) in val {
-                    self.insert_key_string(key);
-                    self.insert_value_container(value);
+                    self.insert_key_value_pair(
+                        &ValueContainer::from(key),
+                        value,
+                    );
                 }
-                self.append_binary_code(InstructionCode::SCOPE_END);
-            }
-            CoreValue::Tuple(val) => {
-                self.append_binary_code(InstructionCode::TUPLE_START);
-                let mut next_expected_integer_key: i128 = 0;
-                for (key, value) in val {
-                    // if next expected integer key, ignore and just insert value
-                    if let ValueContainer::Value(key) = key
-                        && let CoreValue::Integer(Integer(integer)) = key.inner
-                        && let Some(int) = integer.as_i128()
-                        && int == next_expected_integer_key
-                    {
-                        next_expected_integer_key += 1;
-                        self.insert_value_container(value);
-                    } else {
-                        self.insert_key_value_pair(key, value);
-                    }
-                }
-                self.append_binary_code(InstructionCode::SCOPE_END);
+                self.append_instruction_code(InstructionCode::SCOPE_END);
             }
         }
     }
@@ -284,9 +243,9 @@ impl<'a> CompilationContext<'a> {
     // value insert functions
     pub fn insert_boolean(&self, boolean: bool) {
         if boolean {
-            self.append_binary_code(InstructionCode::TRUE);
+            self.append_instruction_code(InstructionCode::TRUE);
         } else {
-            self.append_binary_code(InstructionCode::FALSE);
+            self.append_instruction_code(InstructionCode::FALSE);
         }
     }
 
@@ -295,10 +254,10 @@ impl<'a> CompilationContext<'a> {
         let len = bytes.len();
 
         if len < 256 {
-            self.append_binary_code(InstructionCode::SHORT_TEXT);
+            self.append_instruction_code(InstructionCode::SHORT_TEXT);
             self.append_u8(len as u8);
         } else {
-            self.append_binary_code(InstructionCode::TEXT);
+            self.append_instruction_code(InstructionCode::TEXT);
             self.append_u32(len as u32);
         }
 
@@ -320,10 +279,23 @@ impl<'a> CompilationContext<'a> {
                 self.insert_key_string(&text.0);
             }
             _ => {
-                self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                self.append_instruction_code(
+                    InstructionCode::KEY_VALUE_DYNAMIC,
+                );
                 self.insert_value_container(key);
             }
         }
+        // insert value
+        self.insert_value_container(value);
+    }
+
+    pub fn insert_struct_key_value_pair(
+        &self,
+        key: String,
+        value: &ValueContainer,
+    ) {
+        // insert key
+        self.insert_key_string(&key);
         // insert value
         self.insert_value_container(value);
     }
@@ -333,17 +305,20 @@ impl<'a> CompilationContext<'a> {
         let len = bytes.len();
 
         if len < 256 {
-            self.append_binary_code(InstructionCode::KEY_VALUE_SHORT_TEXT);
+            self.append_instruction_code(InstructionCode::KEY_VALUE_SHORT_TEXT);
             self.append_u8(len as u8);
             self.append_buffer(bytes);
         } else {
-            self.append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+            self.append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             self.insert_text(key_string);
         }
     }
 
-    pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
-        fn insert_f32_or_f64(scope: &CompilationContext, decimal: &TypedDecimal) {
+    pub fn insert_encoded_decimal(&self, decimal: &TypedDecimal) {
+        fn insert_f32_or_f64(
+            scope: &CompilationContext,
+            decimal: &TypedDecimal,
+        ) {
             match decimal {
                 TypedDecimal::F32(val) => {
                     scope.insert_float32(val.into_inner());
@@ -377,22 +352,123 @@ impl<'a> CompilationContext<'a> {
         }
     }
 
+    pub fn insert_typed_decimal(&self, decimal: &TypedDecimal) {
+        self.append_instruction_code(InstructionCode::APPLY_SINGLE);
+        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(
+            decimal,
+        )));
+        self.insert_encoded_decimal(decimal);
+    }
+
     pub fn insert_float32(&self, float32: f32) {
-        self.append_binary_code(InstructionCode::DECIMAL_F32);
+        self.append_instruction_code(InstructionCode::DECIMAL_F32);
         self.append_f32(float32);
     }
     pub fn insert_float64(&self, float64: f64) {
-        self.append_binary_code(InstructionCode::DECIMAL_F64);
+        self.append_instruction_code(InstructionCode::DECIMAL_F64);
         self.append_f64(float64);
     }
 
     pub fn insert_endpoint(&self, endpoint: &Endpoint) {
-        self.append_binary_code(InstructionCode::ENDPOINT);
+        self.append_instruction_code(InstructionCode::ENDPOINT);
         self.append_buffer(&endpoint.to_binary());
     }
 
+    // TODO: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
+    // pub fn insert_union(&self, union: &Union) {
+    //     // insert values as nested UNION binary operations
+
+    //     self.append_binary_code(InstructionCode::UNION);
+    //     // insert first value
+    //     self.insert_value_container(&union.options[0]);
+
+    //     // insert rest of values recursively
+    //     self.insert_union_options(union.options[1..].to_vec());
+    // }
+
+    fn insert_union_options(&self, options: Vec<ValueContainer>) {
+        // directly insert value if only one option left
+        if options.len() == 1 {
+            self.insert_value_container(&options[0]);
+        } else {
+            self.append_instruction_code(InstructionCode::SCOPE_START);
+            self.append_instruction_code(InstructionCode::UNION);
+            // insert first value
+            self.insert_value_container(&options[0]);
+            // insert rest of values recursively
+            self.insert_union_options(options[1..].to_vec());
+            self.append_instruction_code(InstructionCode::SCOPE_END);
+        }
+    }
+
+    pub fn insert_big_integer(&self, integer: &Integer) {
+        // use BinWrite to write the integer to the buffer
+        // big_integer binrw write into buffer
+        let mut buffer = self.buffer.borrow_mut();
+        let original_length = buffer.len();
+        let mut buffer_writer = Cursor::new(&mut *buffer);
+        // set writer position to end
+        buffer_writer.set_position(original_length as u64);
+        integer
+            .write_le(&mut buffer_writer)
+            .expect("Failed to write big integer");
+        // get byte count of written data
+        let byte_count = buffer_writer.position() as usize;
+        // update index
+        self.index.update(|x| x + byte_count - original_length);
+    }
+
+    /// Inserts an encoded integer without explicit type casts
+    pub fn insert_encoded_integer(&self, integer: &TypedInteger) {
+        match integer {
+            TypedInteger::I8(val) => {
+                self.insert_i8(*val);
+            }
+            TypedInteger::I16(val) => {
+                self.insert_i16(*val);
+            }
+            TypedInteger::I32(val) => {
+                self.insert_i32(*val);
+            }
+            TypedInteger::I64(val) => {
+                self.insert_i64(*val);
+            }
+            TypedInteger::I128(val) => {
+                self.insert_i128(*val);
+            }
+            TypedInteger::U8(val) => {
+                self.insert_u8(*val);
+            }
+            TypedInteger::U16(val) => {
+                self.insert_u16(*val);
+            }
+            TypedInteger::U32(val) => {
+                self.insert_u32(*val);
+            }
+            TypedInteger::U64(val) => {
+                self.insert_u64(*val);
+            }
+            TypedInteger::U128(val) => {
+                self.insert_u128(*val);
+            }
+            TypedInteger::Big(val) => {
+                self.append_instruction_code(InstructionCode::INT_BIG);
+                self.insert_big_integer(val);
+            }
+        }
+    }
+
+    /// Inserts a typed integer with explicit type casts
+    pub fn insert_typed_integer(&self, integer: &TypedInteger) {
+        self.append_instruction_code(InstructionCode::APPLY_SINGLE);
+        self.insert_get_ref(PointerAddress::from(CoreLibPointerId::from(
+            integer,
+        )));
+        self.insert_encoded_integer(&integer.to_smallest_fitting());
+    }
+
     pub fn insert_decimal(&self, decimal: &Decimal) {
-        self.append_binary_code(InstructionCode::DECIMAL_BIG);
+        self.append_instruction_code(InstructionCode::DECIMAL_BIG);
         // big_decimal binrw write into buffer
         let mut buffer = self.buffer.borrow_mut();
         let original_length = buffer.len();
@@ -409,74 +485,63 @@ impl<'a> CompilationContext<'a> {
     }
 
     pub fn insert_float_as_i16(&self, int: i16) {
-        self.append_binary_code(InstructionCode::DECIMAL_AS_INT_16);
+        self.append_instruction_code(InstructionCode::DECIMAL_AS_INT_16);
         self.append_i16(int);
     }
     pub fn insert_float_as_i32(&self, int: i32) {
-        self.append_binary_code(InstructionCode::DECIMAL_AS_INT_32);
+        self.append_instruction_code(InstructionCode::DECIMAL_AS_INT_32);
         self.append_i32(int);
     }
-
-    pub fn insert_int(&self, int: i64) {
-        if (CompilationContext::MIN_INT_8..=CompilationContext::MAX_INT_8).contains(&int) {
-            self.insert_i8(int as i8)
-        } else if (CompilationContext::MIN_INT_16..=CompilationContext::MAX_INT_16).contains(&int) {
-            self.insert_i16(int as i16)
-        } else if (CompilationContext::MIN_INT_32..=CompilationContext::MAX_INT_32).contains(&int) {
-            self.insert_i32(int as i32)
-        } else {
-            self.insert_i64(int)
-        }
-    }
-
     pub fn insert_i8(&self, int8: i8) {
-        self.append_binary_code(InstructionCode::INT_8);
+        self.append_instruction_code(InstructionCode::INT_8);
         self.append_i8(int8);
     }
 
     pub fn insert_i16(&self, int16: i16) {
-        self.append_binary_code(InstructionCode::INT_16);
+        self.append_instruction_code(InstructionCode::INT_16);
         self.append_i16(int16);
     }
     pub fn insert_i32(&self, int32: i32) {
-        self.append_binary_code(InstructionCode::INT_32);
+        self.append_instruction_code(InstructionCode::INT_32);
         self.append_i32(int32);
     }
     pub fn insert_i64(&self, int64: i64) {
-        self.append_binary_code(InstructionCode::INT_64);
+        self.append_instruction_code(InstructionCode::INT_64);
         self.append_i64(int64);
     }
     pub fn insert_i128(&self, int128: i128) {
-        self.append_binary_code(InstructionCode::INT_128);
+        self.append_instruction_code(InstructionCode::INT_128);
         self.append_i128(int128);
     }
     pub fn insert_u8(&self, uint8: u8) {
-        self.append_binary_code(InstructionCode::INT_16);
+        self.append_instruction_code(InstructionCode::INT_16);
         self.append_i16(uint8 as i16);
     }
     pub fn insert_u16(&self, uint16: u16) {
-        self.append_binary_code(InstructionCode::INT_32);
+        self.append_instruction_code(InstructionCode::INT_32);
         self.append_i32(uint16 as i32);
     }
     pub fn insert_u32(&self, uint32: u32) {
-        self.append_binary_code(InstructionCode::INT_64);
+        self.append_instruction_code(InstructionCode::INT_64);
         self.append_i64(uint32 as i64);
     }
     pub fn insert_u64(&self, uint64: u64) {
-        self.append_binary_code(InstructionCode::INT_128);
+        self.append_instruction_code(InstructionCode::INT_128);
         self.append_i128(uint64 as i128);
     }
     pub fn insert_u128(&self, uint128: u128) {
-        self.append_binary_code(InstructionCode::UINT_128);
+        self.append_instruction_code(InstructionCode::UINT_128);
         self.append_i128(uint128 as i128);
     }
     pub fn append_u8(&self, u8: u8) {
         append_u8(self.buffer.borrow_mut().as_mut(), u8);
-        self.index.update(|x| x + CompilationContext::INT_8_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     pub fn append_u32(&self, u32: u32) {
         append_u32(self.buffer.borrow_mut().as_mut(), u32);
-        self.index.update(|x| x + CompilationContext::INT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     pub fn set_u32_at_index(&self, u32: u32, index: usize) {
         let mut buffer = self.buffer.borrow_mut();
@@ -485,37 +550,45 @@ impl<'a> CompilationContext<'a> {
     }
     pub fn append_i8(&self, i8: i8) {
         append_i8(self.buffer.borrow_mut().as_mut(), i8);
-        self.index.update(|x| x + CompilationContext::INT_8_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_8_BYTES as usize);
     }
     pub fn append_i16(&self, i16: i16) {
         append_i16(self.buffer.borrow_mut().as_mut(), i16);
-        self.index.update(|x| x + CompilationContext::INT_16_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_16_BYTES as usize);
     }
     pub fn append_i32(&self, i32: i32) {
         append_i32(self.buffer.borrow_mut().as_mut(), i32);
-        self.index.update(|x| x + CompilationContext::INT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_32_BYTES as usize);
     }
     pub fn append_i64(&self, i64: i64) {
         append_i64(self.buffer.borrow_mut().as_mut(), i64);
-        self.index.update(|x| x + CompilationContext::INT_64_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_64_BYTES as usize);
     }
     pub fn append_i128(&self, i128: i128) {
         append_i128(self.buffer.borrow_mut().as_mut(), i128);
-        self.index.update(|x| x + CompilationContext::INT_128_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     pub fn append_u128(&self, u128: u128) {
         append_u128(self.buffer.borrow_mut().as_mut(), u128);
-        self.index.update(|x| x + CompilationContext::INT_128_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::INT_128_BYTES as usize);
     }
 
     pub fn append_f32(&self, f32: f32) {
         append_f32(self.buffer.borrow_mut().as_mut(), f32);
-        self.index.update(|x| x + CompilationContext::FLOAT_32_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::FLOAT_32_BYTES as usize);
     }
     pub fn append_f64(&self, f64: f64) {
         append_f64(self.buffer.borrow_mut().as_mut(), f64);
-        self.index.update(|x| x + CompilationContext::FLOAT_64_BYTES as usize);
+        self.index
+            .update(|x| x + CompilationContext::FLOAT_64_BYTES as usize);
     }
     pub fn append_string_utf8(&self, string: &str) {
         let bytes = string.as_bytes();
@@ -527,11 +600,28 @@ impl<'a> CompilationContext<'a> {
         self.index.update(|x| x + buffer.len());
     }
 
+    pub fn insert_get_ref(&self, address: PointerAddress) {
+        match address {
+            PointerAddress::Internal(id) => {
+                self.append_instruction_code(InstructionCode::GET_INTERNAL_REF);
+                self.append_buffer(&id);
+            }
+            PointerAddress::Local(id) => {
+                self.append_instruction_code(InstructionCode::GET_LOCAL_REF);
+                self.append_buffer(&id);
+            }
+            PointerAddress::Remote(id) => {
+                self.append_instruction_code(InstructionCode::GET_REF);
+                self.append_buffer(&id);
+            }
+        }
+    }
+
     pub fn mark_has_non_static_value(&self) {
         self.has_non_static_value.replace(true);
     }
 
-    pub fn append_binary_code(&self, binary_code: InstructionCode) {
-        self.append_u8(binary_code as u8);
+    pub fn append_instruction_code(&self, code: InstructionCode) {
+        self.append_u8(code as u8);
     }
 }

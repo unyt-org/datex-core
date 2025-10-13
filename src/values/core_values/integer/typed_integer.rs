@@ -1,20 +1,67 @@
+use crate::values::{
+    core_value_trait::CoreValueTrait,
+    core_values::{
+        error::NumberParseError,
+        integer::{
+            Integer,
+            utils::{smallest_fitting_signed, smallest_fitting_unsigned},
+        },
+    },
+    value_container::{ValueContainer, ValueError},
+};
+
+use crate::libs::core::CoreLibPointerId;
+use crate::traits::structural_eq::StructuralEq;
+use core::panic;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
+use strum::Display;
+use strum_macros::{AsRefStr, EnumIter, EnumString};
 
-use crate::values::{
-    core_value_trait::CoreValueTrait,
-    core_values::integer::utils::{
-        smallest_fitting_signed, smallest_fitting_unsigned,
-    },
-    traits::structural_eq::StructuralEq,
-    value_container::{ValueContainer, ValueError},
-};
+/// The integer type variants to be used as a inline
+/// definition in DATEX (such as 42u32 or -42i64).
+/// Note that changing the enum variants will change
+/// the way integers are parsed in DATEX scripts.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    EnumString,
+    EnumIter,
+    AsRefStr,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Serialize,
+    Deserialize,
+    Display,
+)]
+#[repr(u8)]
+#[strum(serialize_all = "lowercase")]
+pub enum IntegerTypeVariant {
+    U8 = 1, // rationale: We need to start with 1 here, as the core lib pointer id for the base type is using OFFSET_X + variant as index
+    U16,
+    U32,
+    U64,
+    U128,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+    Big,
+}
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
+#[derive(Debug, Clone, Eq)]
 pub enum TypedInteger {
+    Big(Integer),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -27,33 +74,185 @@ pub enum TypedInteger {
     U128(u128),
 }
 
-impl TypedInteger {
-    pub fn to_smallest_fitting(&self) -> TypedInteger {
-        if self.is_unsigned() {
-            smallest_fitting_unsigned(self.as_u128())
-        } else {
-            smallest_fitting_signed(self.as_i128().unwrap())
-        }
-    }
-
-    fn subtype(&self) -> &'static str {
+impl Serialize for TypedInteger {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         match self {
-            TypedInteger::I8(_) => "/i8",
-            TypedInteger::I16(_) => "/i16",
-            TypedInteger::I32(_) => "/i32",
-            TypedInteger::I64(_) => "/i64",
-            TypedInteger::I128(_) => "/i128",
-            TypedInteger::U8(_) => "/u8",
-            TypedInteger::U16(_) => "/u16",
-            TypedInteger::U32(_) => "/u32",
-            TypedInteger::U64(_) => "/u64",
-            TypedInteger::U128(_) => "/u128",
+            TypedInteger::Big(v) => serializer.serialize_str(&v.to_string()),
+            TypedInteger::I8(v) => serializer.serialize_i8(*v),
+            TypedInteger::I16(v) => serializer.serialize_i16(*v),
+            TypedInteger::I32(v) => serializer.serialize_i32(*v),
+            TypedInteger::I64(v) => serializer.serialize_i64(*v),
+            TypedInteger::I128(v) => serializer.serialize_i128(*v),
+            TypedInteger::U8(v) => serializer.serialize_u8(*v),
+            TypedInteger::U16(v) => serializer.serialize_u16(*v),
+            TypedInteger::U32(v) => serializer.serialize_u32(*v),
+            TypedInteger::U64(v) => serializer.serialize_u64(*v),
+            TypedInteger::U128(v) => serializer.serialize_u128(*v),
+        }
+    }
+}
+
+impl From<&TypedInteger> for CoreLibPointerId {
+    fn from(value: &TypedInteger) -> Self {
+        CoreLibPointerId::Integer(Some(value.variant()))
+    }
+}
+
+impl<'de> Deserialize<'de> for TypedInteger {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        // Try to parse as Integer (big)
+        if let Ok(big_integer) = Integer::from_string(&s) {
+            return Ok(TypedInteger::Big(big_integer));
+        }
+
+        // Try to parse as i128
+        if let Ok(i128_value) = s.parse::<i128>() {
+            return Ok(smallest_fitting_signed(i128_value));
+        }
+
+        // Try to parse as u128
+        if let Ok(u128_value) = s.parse::<u128>() {
+            return Ok(smallest_fitting_unsigned(u128_value));
+        }
+
+        Err(serde::de::Error::custom(format!(
+            "Failed to parse '{}' as TypedInteger",
+            s
+        )))
+    }
+}
+
+impl Hash for TypedInteger {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            TypedInteger::Big(v) => v.hash(state),
+            TypedInteger::I8(v) => v.hash(state),
+            TypedInteger::I16(v) => v.hash(state),
+            TypedInteger::I32(v) => v.hash(state),
+            TypedInteger::I64(v) => v.hash(state),
+            TypedInteger::I128(v) => v.hash(state),
+            TypedInteger::U8(v) => v.hash(state),
+            TypedInteger::U16(v) => v.hash(state),
+            TypedInteger::U32(v) => v.hash(state),
+            TypedInteger::U64(v) => v.hash(state),
+            TypedInteger::U128(v) => v.hash(state),
+        }
+    }
+}
+
+impl TypedInteger {
+    // TODO: add from_integer_with_variant
+
+    /// Parses a string into a TypedInteger with the given variant.
+    /// If the string is not a valid integer, returns an error.
+    pub fn from_string_with_variant(
+        s: &str,
+        variant: IntegerTypeVariant,
+    ) -> Result<TypedInteger, NumberParseError> {
+        Self::from_string_radix_with_variant(s, 10, variant)
+    }
+
+    /// Parses a string into a TypedInteger with the given variant and radix.
+    /// If the string is not a valid integer, returns an error.
+    pub fn from_string_radix_with_variant(
+        s: &str,
+        radix: u32,
+        variant: IntegerTypeVariant,
+    ) -> Result<TypedInteger, NumberParseError> {
+        if matches!(variant, IntegerTypeVariant::Big) {
+            return Ok(TypedInteger::Big(Integer::from_string_radix(
+                s, radix,
+            )?));
+        }
+
+        match variant {
+            IntegerTypeVariant::U8 => {
+                u8::from_str_radix(s, radix).map(TypedInteger::U8)
+            }
+            IntegerTypeVariant::U16 => {
+                u16::from_str_radix(s, radix).map(TypedInteger::U16)
+            }
+            IntegerTypeVariant::U32 => {
+                u32::from_str_radix(s, radix).map(TypedInteger::U32)
+            }
+            IntegerTypeVariant::U64 => {
+                u64::from_str_radix(s, radix).map(TypedInteger::U64)
+            }
+            IntegerTypeVariant::U128 => {
+                u128::from_str_radix(s, radix).map(TypedInteger::U128)
+            }
+            IntegerTypeVariant::I8 => {
+                i8::from_str_radix(s, radix).map(TypedInteger::I8)
+            }
+            IntegerTypeVariant::I16 => {
+                i16::from_str_radix(s, radix).map(TypedInteger::I16)
+            }
+            IntegerTypeVariant::I32 => {
+                i32::from_str_radix(s, radix).map(TypedInteger::I32)
+            }
+            IntegerTypeVariant::I64 => {
+                i64::from_str_radix(s, radix).map(TypedInteger::I64)
+            }
+            IntegerTypeVariant::I128 => {
+                i128::from_str_radix(s, radix).map(TypedInteger::I128)
+            }
+            _ => unreachable!(""),
+        }
+        .map_err(|e| match e.kind() {
+            std::num::IntErrorKind::Zero
+            | std::num::IntErrorKind::Empty
+            | std::num::IntErrorKind::InvalidDigit => {
+                NumberParseError::InvalidFormat
+            }
+            std::num::IntErrorKind::PosOverflow
+            | std::num::IntErrorKind::NegOverflow => {
+                NumberParseError::OutOfRange
+            }
+            _ => panic!("Unhandled integer parse error: {:?}", e.kind()),
+        })
+    }
+
+    /// Converts the integer to the smallest fitting TypedInteger variant.
+    pub fn to_smallest_fitting(&self) -> TypedInteger {
+        if self.is_unsigned_variant()
+            && let Some(u128) = self.as_u128()
+        {
+            smallest_fitting_unsigned(u128)
+        } else if let Some(i128) = self.as_i128() {
+            smallest_fitting_signed(i128)
+        } else {
+            self.clone()
         }
     }
 
+    /// Converts the TypedInteger to an Integer (big).
+    pub fn as_integer(&self) -> Integer {
+        match self {
+            TypedInteger::Big(v) => v.clone(),
+            TypedInteger::I8(v) => Integer::from(*v),
+            TypedInteger::I16(v) => Integer::from(*v),
+            TypedInteger::I32(v) => Integer::from(*v),
+            TypedInteger::I64(v) => Integer::from(*v),
+            TypedInteger::I128(v) => Integer::from(*v),
+            TypedInteger::U8(v) => Integer::from(*v),
+            TypedInteger::U16(v) => Integer::from(*v),
+            TypedInteger::U32(v) => Integer::from(*v),
+            TypedInteger::U64(v) => Integer::from(*v),
+            TypedInteger::U128(v) => Integer::from(*v),
+        }
+    }
+
+    /// Converts the integer to an i8 if it fits, otherwise returns None.
     pub fn as_i8(&self) -> Option<i8> {
         match self {
-            TypedInteger::I8(v) => i8::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(*v),
             TypedInteger::I16(v) => i8::try_from(*v).ok(),
             TypedInteger::I32(v) => i8::try_from(*v).ok(),
             TypedInteger::I64(v) => i8::try_from(*v).ok(),
@@ -64,66 +263,79 @@ impl TypedInteger {
             TypedInteger::U32(v) => i8::try_from(*v).ok(),
             TypedInteger::U64(v) => i8::try_from(*v).ok(),
             TypedInteger::U128(v) => i8::try_from(*v).ok(),
+
+            TypedInteger::Big(v) => v.as_i8(),
         }
     }
+
+    /// Converts the integer to an i16 if it fits, otherwise returns None.
     pub fn as_i16(&self) -> Option<i16> {
         match self {
-            TypedInteger::I8(v) => i16::try_from(*v).ok(),
-            TypedInteger::I16(v) => i16::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(i16::from(*v)),
+            TypedInteger::I16(v) => Some(*v),
             TypedInteger::I32(v) => i16::try_from(*v).ok(),
             TypedInteger::I64(v) => i16::try_from(*v).ok(),
             TypedInteger::I128(v) => i16::try_from(*v).ok(),
 
-            TypedInteger::U8(v) => i16::try_from(*v).ok(),
+            TypedInteger::U8(v) => Some(i16::from(*v)),
             TypedInteger::U16(v) => i16::try_from(*v).ok(),
             TypedInteger::U32(v) => i16::try_from(*v).ok(),
             TypedInteger::U64(v) => i16::try_from(*v).ok(),
             TypedInteger::U128(v) => i16::try_from(*v).ok(),
+            TypedInteger::Big(v) => v.as_i16(),
         }
     }
+
+    /// Converts the integer to an i32 if it fits, otherwise returns None.
     pub fn as_i32(&self) -> Option<i32> {
         match self {
-            TypedInteger::I8(v) => i32::try_from(*v).ok(),
-            TypedInteger::I16(v) => i32::try_from(*v).ok(),
-            TypedInteger::I32(v) => i32::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(i32::from(*v)),
+            TypedInteger::I16(v) => Some(i32::from(*v)),
+            TypedInteger::I32(v) => Some(*v),
             TypedInteger::I64(v) => i32::try_from(*v).ok(),
             TypedInteger::I128(v) => i32::try_from(*v).ok(),
 
-            TypedInteger::U8(v) => i32::try_from(*v).ok(),
-            TypedInteger::U16(v) => i32::try_from(*v).ok(),
+            TypedInteger::U8(v) => Some(i32::from(*v)),
+            TypedInteger::U16(v) => Some(i32::from(*v)),
             TypedInteger::U32(v) => i32::try_from(*v).ok(),
             TypedInteger::U64(v) => i32::try_from(*v).ok(),
             TypedInteger::U128(v) => i32::try_from(*v).ok(),
+            TypedInteger::Big(v) => v.as_i32(),
         }
     }
+
+    /// Converts the integer to a i64 if it fits, otherwise returns None.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
-            TypedInteger::I8(v) => i64::try_from(*v).ok(),
-            TypedInteger::I16(v) => i64::try_from(*v).ok(),
-            TypedInteger::I32(v) => i64::try_from(*v).ok(),
-            TypedInteger::I64(v) => i64::try_from(*v).ok(),
+            TypedInteger::I8(v) => Some(i64::from(*v)),
+            TypedInteger::I16(v) => Some(i64::from(*v)),
+            TypedInteger::I32(v) => Some(i64::from(*v)),
+            TypedInteger::I64(v) => Some(*v),
             TypedInteger::I128(v) => i64::try_from(*v).ok(),
 
-            TypedInteger::U8(v) => i64::try_from(*v).ok(),
-            TypedInteger::U16(v) => i64::try_from(*v).ok(),
-            TypedInteger::U32(v) => i64::try_from(*v).ok(),
+            TypedInteger::U8(v) => Some(i64::from(*v)),
+            TypedInteger::U16(v) => Some(i64::from(*v)),
+            TypedInteger::U32(v) => Some(i64::from(*v)),
             TypedInteger::U64(v) => i64::try_from(*v).ok(),
             TypedInteger::U128(v) => i64::try_from(*v).ok(),
+            TypedInteger::Big(v) => v.as_i64(),
         }
     }
 
     // FIXME #125 we should probably allow casting to i128 from u128
-    pub fn as_u128(&self) -> u128 {
+    pub fn as_u128(&self) -> Option<u128> {
         match self {
-            TypedInteger::U8(v) => *v as u128,
-            TypedInteger::U16(v) => *v as u128,
-            TypedInteger::U32(v) => *v as u128,
-            TypedInteger::U64(v) => *v as u128,
-            TypedInteger::U128(v) => *v,
+            TypedInteger::U8(v) => Some(*v as u128),
+            TypedInteger::U16(v) => Some(*v as u128),
+            TypedInteger::U32(v) => Some(*v as u128),
+            TypedInteger::U64(v) => Some(*v as u128),
+            TypedInteger::U128(v) => Some(*v),
+            TypedInteger::Big(v) => v.as_u128(),
             _ => unreachable!("as_u128 called on a signed integer"),
         }
     }
 
+    /// Converts the integer to an i128 if it fits, otherwise returns None.
     pub fn as_i128(&self) -> Option<i128> {
         match self {
             TypedInteger::I8(v) => Some(*v as i128),
@@ -136,9 +348,20 @@ impl TypedInteger {
             TypedInteger::U32(v) => Some(*v as i128),
             TypedInteger::U64(v) => Some(*v as i128),
             TypedInteger::U128(v) => Some(i128::try_from(*v).ok()?),
+            TypedInteger::Big(v) => v.as_i128(),
         }
     }
-    pub fn is_signed(&self) -> bool {
+
+    /// Converts the integer to a usize if it fits, otherwise returns None.
+    pub fn as_usize(&self) -> Option<usize> {
+        self.as_u128().and_then(|v| usize::try_from(v).ok())
+    }
+
+    /// Returns true if the integer is of a signed type.
+    pub fn is_signed_variant(&self) -> bool {
+        if let TypedInteger::Big(_) = self {
+            return true;
+        }
         matches!(
             self,
             TypedInteger::I8(_)
@@ -148,8 +371,78 @@ impl TypedInteger {
                 | TypedInteger::I128(_)
         )
     }
-    pub fn is_unsigned(&self) -> bool {
-        !self.is_signed()
+
+    pub fn is_zero(&self) -> bool {
+        match self {
+            TypedInteger::Big(v) => v.is_zero(),
+            TypedInteger::I8(v) => *v == 0,
+            TypedInteger::I16(v) => *v == 0,
+            TypedInteger::I32(v) => *v == 0,
+            TypedInteger::I64(v) => *v == 0,
+            TypedInteger::I128(v) => *v == 0,
+            TypedInteger::U8(v) => *v == 0,
+            TypedInteger::U16(v) => *v == 0,
+            TypedInteger::U32(v) => *v == 0,
+            TypedInteger::U64(v) => *v == 0,
+            TypedInteger::U128(v) => *v == 0,
+        }
+    }
+
+    /// Returns true if the integer is of an unsigned type.
+    pub fn is_unsigned_variant(&self) -> bool {
+        !self.is_signed_variant()
+    }
+
+    /// Returns true if the integer is positive.
+    /// Zero is not considered positive.
+    pub fn is_positive(&self) -> bool {
+        if let TypedInteger::Big(v) = self {
+            return v.is_positive();
+        }
+        let v = self.as_i128().unwrap();
+        v > 0
+    }
+
+    /// Returns true if the integer is negative.
+    /// Zero is not considered negative.
+    pub fn is_negative(&self) -> bool {
+        if let TypedInteger::Big(v) = self {
+            return v.is_negative();
+        }
+        let v = self.as_i128().unwrap();
+        v < 0
+    }
+
+    pub fn variant(&self) -> IntegerTypeVariant {
+        match self {
+            TypedInteger::Big(_) => IntegerTypeVariant::Big,
+            TypedInteger::I8(_) => IntegerTypeVariant::I8,
+            TypedInteger::I16(_) => IntegerTypeVariant::I16,
+            TypedInteger::I32(_) => IntegerTypeVariant::I32,
+            TypedInteger::I64(_) => IntegerTypeVariant::I64,
+            TypedInteger::I128(_) => IntegerTypeVariant::I128,
+            TypedInteger::U8(_) => IntegerTypeVariant::U8,
+            TypedInteger::U16(_) => IntegerTypeVariant::U16,
+            TypedInteger::U32(_) => IntegerTypeVariant::U32,
+            TypedInteger::U64(_) => IntegerTypeVariant::U64,
+            TypedInteger::U128(_) => IntegerTypeVariant::U128,
+        }
+    }
+
+    pub fn to_string_with_suffix(&self) -> String {
+        match self {
+            TypedInteger::I8(v) => format!("{v}i8"),
+            TypedInteger::I16(v) => format!("{v}i16"),
+            TypedInteger::I32(v) => format!("{v}i32"),
+            TypedInteger::I64(v) => format!("{v}i64"),
+            TypedInteger::I128(v) => format!("{v}i128"),
+            TypedInteger::U8(v) => format!("{v}u8"),
+            TypedInteger::U16(v) => format!("{v}u16"),
+            TypedInteger::U32(v) => format!("{v}u32"),
+            TypedInteger::U64(v) => format!("{v}u64"),
+            TypedInteger::U128(v) => format!("{v}u128"),
+            TypedInteger::Big(v) => format!("{v}big"),
+        }
     }
 }
 
@@ -166,18 +459,47 @@ impl Display for TypedInteger {
             TypedInteger::U32(v) => write!(f, "{v}"),
             TypedInteger::U64(v) => write!(f, "{v}"),
             TypedInteger::U128(v) => write!(f, "{v}"),
+            TypedInteger::Big(v) => write!(f, "{v}"),
         }
     }
 }
 
 impl CoreValueTrait for TypedInteger {}
-
+// FIXME discuss on structural vs partial equality for integers
 impl StructuralEq for TypedInteger {
     fn structural_eq(&self, other: &Self) -> bool {
-        if self.is_unsigned() && other.is_unsigned() {
-            self.as_u128() == other.as_u128()
-        } else {
-            self.as_i128() == other.as_i128()
+        match (self, other) {
+            (TypedInteger::I8(v1), TypedInteger::I8(v2)) => v1 == v2,
+            (TypedInteger::I16(v1), TypedInteger::I16(v2)) => v1 == v2,
+            (TypedInteger::I32(v1), TypedInteger::I32(v2)) => v1 == v2,
+            (TypedInteger::I64(v1), TypedInteger::I64(v2)) => v1 == v2,
+            (TypedInteger::I128(v1), TypedInteger::I128(v2)) => v1 == v2,
+            (TypedInteger::U8(v1), TypedInteger::U8(v2)) => v1 == v2,
+            (TypedInteger::U16(v1), TypedInteger::U16(v2)) => v1 == v2,
+            (TypedInteger::U32(v1), TypedInteger::U32(v2)) => v1 == v2,
+            (TypedInteger::U64(v1), TypedInteger::U64(v2)) => v1 == v2,
+            (TypedInteger::U128(v1), TypedInteger::U128(v2)) => v1 == v2,
+            (TypedInteger::Big(i1), TypedInteger::Big(i2)) => i1 == i2,
+            (a, b) => a.as_integer() == b.as_integer(),
+        }
+    }
+}
+
+impl PartialEq for TypedInteger {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TypedInteger::I8(v1), TypedInteger::I8(v2)) => v1 == v2,
+            (TypedInteger::I16(v1), TypedInteger::I16(v2)) => v1 == v2,
+            (TypedInteger::I32(v1), TypedInteger::I32(v2)) => v1 == v2,
+            (TypedInteger::I64(v1), TypedInteger::I64(v2)) => v1 == v2,
+            (TypedInteger::I128(v1), TypedInteger::I128(v2)) => v1 == v2,
+            (TypedInteger::U8(v1), TypedInteger::U8(v2)) => v1 == v2,
+            (TypedInteger::U16(v1), TypedInteger::U16(v2)) => v1 == v2,
+            (TypedInteger::U32(v1), TypedInteger::U32(v2)) => v1 == v2,
+            (TypedInteger::U64(v1), TypedInteger::U64(v2)) => v1 == v2,
+            (TypedInteger::U128(v1), TypedInteger::U128(v2)) => v1 == v2,
+            (TypedInteger::Big(i1), TypedInteger::Big(i2)) => i1 == i2,
+            _ => false,
         }
     }
 }
@@ -187,6 +509,7 @@ impl Add for TypedInteger {
 
     fn add(self, rhs: Self) -> Self::Output {
         Some(match self {
+            TypedInteger::Big(v1) => TypedInteger::Big(v1 + Integer::from(rhs)),
             TypedInteger::I8(v1) => TypedInteger::I8(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2)?,
                 TypedInteger::I16(v2) => {
@@ -217,6 +540,7 @@ impl Add for TypedInteger {
                     i8::try_from((v1 as i128).checked_add(v2.try_into().ok()?)?)
                         .ok()?
                 }
+                TypedInteger::Big(v2) => (v1).checked_add(v2.as_i8()?)?,
             }),
             TypedInteger::I16(v1) => TypedInteger::I16(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i16)?,
@@ -230,9 +554,7 @@ impl Add for TypedInteger {
                 TypedInteger::I128(v2) => {
                     i16::try_from((v1 as i128).checked_add(v2)?).ok()?
                 }
-                TypedInteger::U8(v2) => {
-                    i16::try_from(v1.checked_add(v2 as i16)?).ok()?
-                }
+                TypedInteger::U8(v2) => v1.checked_add(v2 as i16)?,
                 TypedInteger::U16(v2) => {
                     i16::try_from((v1 as i32).checked_add(v2 as i32)?).ok()?
                 }
@@ -246,6 +568,7 @@ impl Add for TypedInteger {
                     (v1 as i128).checked_add(v2.try_into().ok()?)?,
                 )
                 .ok()?,
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i16()?)?,
             }),
             TypedInteger::I32(v1) => TypedInteger::I32(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i32)?,
@@ -269,6 +592,7 @@ impl Add for TypedInteger {
                     (v1 as i128).checked_add(v2.try_into().ok()?)?,
                 )
                 .ok()?,
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i32()?)?,
             }),
             TypedInteger::I64(v1) => TypedInteger::I64(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i64)?,
@@ -279,14 +603,12 @@ impl Add for TypedInteger {
                     i64::try_from((v1 as i128).checked_add(v2)?).ok()?
                 }
                 TypedInteger::U8(v2) => {
-                    i64::try_from((v1 as i16).checked_add(v2 as i16)?).ok()?
+                    i64::from((v1 as i16).checked_add(v2 as i16)?)
                 }
                 TypedInteger::U16(v2) => {
-                    i64::try_from((v1 as i32).checked_add(v2 as i32)?).ok()?
+                    i64::from((v1 as i32).checked_add(v2 as i32)?)
                 }
-                TypedInteger::U32(v2) => {
-                    i64::try_from(v1.checked_add(v2 as i64)?).ok()?
-                }
+                TypedInteger::U32(v2) => v1.checked_add(v2 as i64)?,
                 TypedInteger::U64(v2) => {
                     i64::try_from((v1 as i128).checked_add(v2 as i128)?).ok()?
                 }
@@ -294,6 +616,7 @@ impl Add for TypedInteger {
                     (v1 as i128).checked_add(v2.try_into().ok()?)?,
                 )
                 .ok()?,
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i64()?)?,
             }),
             TypedInteger::I128(v1) => TypedInteger::I128(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2 as i128)?,
@@ -308,6 +631,7 @@ impl Add for TypedInteger {
                 TypedInteger::U128(v2) => {
                     v1.checked_add(v2.try_into().ok()?)?
                 }
+                TypedInteger::Big(v2) => v1.checked_add(v2.as_i128()?)?,
             }),
             TypedInteger::U8(v1) => TypedInteger::U8(match rhs {
                 TypedInteger::I8(v2) => {
@@ -338,6 +662,9 @@ impl Add for TypedInteger {
                 TypedInteger::U128(v2) => {
                     u8::try_from((v1 as u128).checked_add(v2)?).ok()?
                 }
+                TypedInteger::Big(v2) => {
+                    u8::try_from((v1 as u16).checked_add(v2.as_u16()?)?).ok()?
+                }
             }),
             TypedInteger::U16(v1) => TypedInteger::U16(match rhs {
                 TypedInteger::I8(v2) => {
@@ -366,6 +693,10 @@ impl Add for TypedInteger {
                 TypedInteger::U128(v2) => {
                     u16::try_from((v1 as u128).checked_add(v2)?).ok()?
                 }
+                TypedInteger::Big(v2) => {
+                    u16::try_from((v1 as u32).checked_add(v2.as_u32()?)?)
+                        .ok()?
+                }
             }),
 
             TypedInteger::U32(v1) => TypedInteger::U32(match rhs {
@@ -393,6 +724,10 @@ impl Add for TypedInteger {
                 TypedInteger::U128(v2) => {
                     u32::try_from((v1 as u128).checked_add(v2)?).ok()?
                 }
+                TypedInteger::Big(v2) => {
+                    u32::try_from((v1 as u64).checked_add(v2.as_u64()?)?)
+                        .ok()?
+                }
             }),
             TypedInteger::U64(v1) => TypedInteger::U64(match rhs {
                 TypedInteger::I8(v2) => {
@@ -417,6 +752,10 @@ impl Add for TypedInteger {
                 TypedInteger::U128(v2) => {
                     u64::try_from((v1 as u128).checked_add(v2)?).ok()?
                 }
+                TypedInteger::Big(v2) => {
+                    u64::try_from((v1 as u128).checked_add(v2.as_u128()?)?)
+                        .ok()?
+                }
             }),
             TypedInteger::U128(v1) => TypedInteger::U128(match rhs {
                 TypedInteger::I8(v2) => {
@@ -439,6 +778,10 @@ impl Add for TypedInteger {
                 TypedInteger::U32(v2) => v1.checked_add(v2 as u128)?,
                 TypedInteger::U64(v2) => v1.checked_add(v2 as u128)?,
                 TypedInteger::U128(v2) => v1.checked_add(v2)?,
+                TypedInteger::Big(v2) => {
+                    u128::try_from((v1 as i128).checked_add(v2.as_i128()?)?)
+                        .ok()?
+                }
             }),
         })
     }
@@ -448,26 +791,15 @@ impl Add for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        TypedInteger::add(*self, *rhs)
+        // FIXME optimize to avoid cloning
+        TypedInteger::add(self.clone(), rhs.clone())
     }
 }
 
 impl AddAssign for TypedInteger {
-    // FIXME #126 add try_add_assign
+    // FIXME error handling / wrapping if out of bounds
     fn add_assign(&mut self, rhs: Self) {
-        let res = (*self + rhs).unwrap();
-        match res {
-            TypedInteger::I8(v) => *self = TypedInteger::I8(v),
-            TypedInteger::I16(v) => *self = TypedInteger::I16(v),
-            TypedInteger::I32(v) => *self = TypedInteger::I32(v),
-            TypedInteger::I64(v) => *self = TypedInteger::I64(v),
-            TypedInteger::I128(v) => *self = TypedInteger::I128(v),
-            TypedInteger::U8(v) => *self = TypedInteger::U8(v),
-            TypedInteger::U16(v) => *self = TypedInteger::U16(v),
-            TypedInteger::U32(v) => *self = TypedInteger::U32(v),
-            TypedInteger::U64(v) => *self = TypedInteger::U64(v),
-            TypedInteger::U128(v) => *self = TypedInteger::U128(v),
-        }
+        *self = TypedInteger::add(self.clone(), rhs).expect("Failed to add");
     }
 }
 
@@ -488,8 +820,9 @@ impl Sub for TypedInteger {
             TypedInteger::U128(v) => {
                 TypedInteger::I128((i128::try_from(v).ok()?).neg())
             }
+            TypedInteger::Big(v) => TypedInteger::Big(v.neg()),
         };
-        self + neg_rhs
+        self.add(neg_rhs)
     }
 }
 
@@ -497,7 +830,8 @@ impl Sub for &TypedInteger {
     type Output = Option<TypedInteger>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        TypedInteger::sub(*self, *rhs)
+        // Fixme optimize to avoid cloning
+        TypedInteger::sub(self.clone(), rhs.clone())
     }
 }
 
@@ -562,10 +896,137 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for TypedInteger {
                 integer
                     .to_value()
                     .borrow()
-                    .cast_to_integer()
+                    ._cast_to_integer_internal()
                     .ok_or(ValueError::TypeConversionError)
             }
             None => Err(ValueError::IsVoid),
         }
+    }
+}
+
+// FIXME shall we allow negation of unsigned integers and wrap around?
+impl Neg for TypedInteger {
+    type Output = Result<TypedInteger, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            TypedInteger::I8(v) => Ok(TypedInteger::I8(v.neg())),
+            TypedInteger::I16(v) => Ok(TypedInteger::I16(v.neg())),
+            TypedInteger::I32(v) => Ok(TypedInteger::I32(v.neg())),
+            TypedInteger::I64(v) => Ok(TypedInteger::I64(v.neg())),
+            TypedInteger::I128(v) => Ok(TypedInteger::I128(v.neg())),
+            TypedInteger::Big(v) => Ok(TypedInteger::Big(v.neg())),
+            _ => Err(ValueError::InvalidOperation),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_integer_addition() {
+        let a = TypedInteger::I8(10);
+        let b = TypedInteger::I8(20);
+
+        let result = a.clone() + b;
+        assert_eq!(result, Some(TypedInteger::I8(30)));
+
+        let c = TypedInteger::U8(10);
+        let result = a.clone() + c.clone();
+        assert_eq!(result, Some(TypedInteger::I8(20)));
+
+        let result = c + a;
+        assert_eq!(result, Some(TypedInteger::U8(20)));
+
+        // out of bounds
+        let d = TypedInteger::I8(100);
+        let e = TypedInteger::I8(50);
+        let result = d + e;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn typed_integer_subtraction() {
+        let a = TypedInteger::I8(30);
+        let b = TypedInteger::I8(20);
+        let result = a - b;
+        assert_eq!(result, Some(TypedInteger::I8(10)));
+
+        // negative result
+        let c = TypedInteger::I8(20);
+        let d = TypedInteger::I8(30);
+        let result = c - d;
+        assert_eq!(result, Some(TypedInteger::I8(-10)));
+
+        // out of bounds
+        let e = TypedInteger::I8(-100);
+        let f = TypedInteger::I8(50);
+        let result = e - f;
+        assert_eq!(result, None);
+
+        let g = TypedInteger::U8(30);
+        let h = TypedInteger::I8(30);
+        let result = g - h;
+        assert_eq!(result, Some(TypedInteger::U8(0)));
+
+        let h = TypedInteger::U8(30);
+        let i = TypedInteger::I8(31);
+
+        let result = h - i;
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn integer_addition() {
+        let a = TypedInteger::from(10_i8);
+        let b = TypedInteger::from(20_i8);
+        let result = a + b;
+        assert_eq!(result, Some(TypedInteger::I8(30_i8)));
+    }
+
+    #[test]
+    fn integer() {
+        let a = TypedInteger::from(1_i8);
+        assert_eq!(a, TypedInteger::I8(1));
+
+        let b = TypedInteger::from(1_u8);
+        assert_eq!(b, TypedInteger::U8(1));
+
+        let c = TypedInteger::from(1_i16);
+        assert_eq!(c, TypedInteger::I16(1));
+
+        let d = TypedInteger::from(1_u16);
+        assert_eq!(d, TypedInteger::U16(1));
+
+        let e = TypedInteger::from(1_i32);
+        assert_eq!(e, TypedInteger::I32(1));
+
+        let f = TypedInteger::from(1_u32);
+        assert_eq!(f, TypedInteger::U32(1));
+
+        let g = TypedInteger::from(1_i64);
+        assert_eq!(g, TypedInteger::I64(1));
+
+        let h = TypedInteger::from(1_u64);
+        assert_eq!(h, TypedInteger::U64(1));
+
+        let i = TypedInteger::from(1_i128);
+        assert_eq!(i, TypedInteger::I128(1));
+
+        let j = TypedInteger::from(1_u128);
+        assert_eq!(j, TypedInteger::U128(1));
+
+        assert_eq!(a.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(b.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(c.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(d.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(e.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(f.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(g.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(h.to_smallest_fitting(), TypedInteger::U8(1));
+        assert_eq!(i.to_smallest_fitting(), TypedInteger::I8(1));
+        assert_eq!(j.to_smallest_fitting(), TypedInteger::U8(1));
     }
 }

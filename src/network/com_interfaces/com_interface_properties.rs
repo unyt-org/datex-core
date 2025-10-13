@@ -1,11 +1,12 @@
-use crate::runtime::global_context::get_global_context;
 use crate::stdlib::time::Duration;
+use crate::utils::time::Time;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::{DurationMilliSeconds, DurationSeconds};
 use strum::EnumString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 
 pub enum InterfaceDirection {
     In,
@@ -15,6 +16,7 @@ pub enum InterfaceDirection {
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct InterfaceProperties {
     /// the type of the interface, by which it is identified
     /// e.g. "tcp-client", "websocket-server",
@@ -37,6 +39,7 @@ pub struct InterfaceProperties {
     /// Estimated mean latency for this interface type in milliseconds (round trip time).
     /// Lower latency interfaces are preferred over higher latency channels
     #[serde_as(as = "DurationMilliSeconds<f64>")]
+    #[cfg_attr(feature = "wasm_runtime", tsify(type = "number"))]
     pub round_trip_time: Duration,
 
     /// Bandwidth in bytes per second
@@ -73,6 +76,7 @@ pub struct InterfaceProperties {
 
 #[serde_as]
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub enum ReconnectionConfig {
     #[default]
     NoReconnect,
@@ -97,7 +101,7 @@ impl ReconnectionConfig {
             Some(ts) => ts,
             None => return false,
         };
-        let now = get_global_context().time.lock().unwrap().now();
+        let now = Time::now();
         let elapsed = Duration::from_millis(now - close_timestamp);
         if elapsed < *timeout {
             return false;
@@ -142,10 +146,7 @@ impl InterfaceProperties {
     }
 
     pub fn shall_reconnect(&self) -> bool {
-        match self.reconnection_config {
-            ReconnectionConfig::NoReconnect => false,
-            _ => true,
-        }
+        !matches!(self.reconnection_config, ReconnectionConfig::NoReconnect)
     }
 
     pub fn can_receive(&self) -> bool {

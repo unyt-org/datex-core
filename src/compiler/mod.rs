@@ -1,31 +1,37 @@
+use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::binding::VariableId;
 use crate::compiler::error::CompilerError;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
-use crate::global::protocol_structures::routing_header;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::compiler::ast_parser::{DatexExpression, DatexScriptParser, TupleEntry, VariableType, parse, VariableMutType, VariableId};
+use crate::ast::{DatexExpression, DatexScriptParser, VariableKind, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
+use crate::compiler::precompiler::{
+    AstMetadata, AstWithMetadata, VariableMetadata, precompile_ast,
+};
 use crate::compiler::scope::CompilationScope;
-use crate::global::binary_codes::{InstructionCode, InternalSlot};
-use crate::values::core_values::decimal::decimal::Decimal;
-use crate::values::core_values::endpoint::Endpoint;
+use crate::compiler::type_compiler::compile_type_expression;
+use crate::global::instruction_codes::InstructionCode;
+use crate::global::slots::InternalSlot;
+use crate::libs::core::CoreLibPointerId;
+use crate::values::core_values::decimal::Decimal;
+use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
+use datex_core::ast::Slot;
+use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
-use log::info;
-use datex_core::compiler::ast_parser::Slot;
-use crate::compiler::precompiler::{precompile_ast, AstMetadata, AstWithMetadata, VariableMetadata};
 
-pub mod ast_parser;
 pub mod context;
 pub mod error;
-mod lexer;
 pub mod metadata;
-pub mod scope;
 mod precompiler;
+pub mod scope;
+mod type_compiler;
+mod type_inference;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -54,7 +60,6 @@ impl From<Vec<u8>> for StaticValueOrDXB {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum VariableModel {
     /// A variable that is declared once and never reassigned afterward
@@ -73,28 +78,35 @@ impl From<VariableRepresentation> for VariableModel {
     fn from(value: VariableRepresentation) -> Self {
         match value {
             VariableRepresentation::Constant(_) => VariableModel::Constant,
-            VariableRepresentation::VariableSlot(_) => VariableModel::VariableSlot,
-            VariableRepresentation::VariableReference { .. } => VariableModel::VariableReference,
+            VariableRepresentation::VariableSlot(_) => {
+                VariableModel::VariableSlot
+            }
+            VariableRepresentation::VariableReference { .. } => {
+                VariableModel::VariableReference
+            }
         }
     }
 }
 
 impl VariableModel {
-    /// Determines the variable model based on the variable type and metadata.
+    /// Determines the variable model based on the variable kind and metadata.
     pub fn infer(
-        variable_type: VariableType,
+        variable_kind: VariableKind,
         variable_metadata: Option<VariableMetadata>,
         is_end_of_source_text: bool,
     ) -> Self {
         // const variables are always constant
-        if variable_type == VariableType::Const {
+        if variable_kind == VariableKind::Const {
             VariableModel::Constant
         }
         // for cross-realm variables, we always use VariableReference
         // if we don't know the full source text yet (e.g. in a repl), we
         // must fall back to VariableReference, because we cannot determine if
         // the variable will be transferred across realms later
-        else if variable_metadata.is_none() || variable_metadata.unwrap().is_cross_realm || !is_end_of_source_text {
+        else if variable_metadata.is_none()
+            || variable_metadata.unwrap().is_cross_realm
+            || !is_end_of_source_text
+        {
             VariableModel::VariableReference
         }
         // otherwise, we use VariableSlot (default for `var` variables)
@@ -106,16 +118,18 @@ impl VariableModel {
     pub fn infer_from_ast_metadata_and_type(
         ast_metadata: &AstMetadata,
         variable_id: Option<VariableId>,
-        variable_type: VariableType,
+        variable_kind: VariableKind,
         is_end_of_source_text: bool,
     ) -> Self {
-        let variable_metadata = variable_id.and_then(|id| {
-            ast_metadata.variable_metadata(id)
-        });
-        Self::infer(variable_type, variable_metadata.cloned(), is_end_of_source_text)
+        let variable_metadata =
+            variable_id.and_then(|id| ast_metadata.variable_metadata(id));
+        Self::infer(
+            variable_kind,
+            variable_metadata.cloned(),
+            is_end_of_source_text,
+        )
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum VariableRepresentation {
@@ -129,57 +143,44 @@ pub enum VariableRepresentation {
     },
 }
 
-
 /// Represents a variable in the DATEX script.
 #[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
-    pub var_type: VariableType,
-    pub mut_type: VariableMutType,
+    pub kind: VariableKind,
     pub representation: VariableRepresentation,
 }
 
-
 impl Variable {
-    pub fn new_const(
-        name: String,
-        var_type: VariableType,
-        mut_type: VariableMutType,
-        slot: VirtualSlot,
-    ) -> Self {
+    pub fn new_const(name: String, slot: VirtualSlot) -> Self {
         Variable {
             name,
-            var_type,
-            mut_type,
+            kind: VariableKind::Const,
             representation: VariableRepresentation::Constant(slot),
         }
     }
 
     pub fn new_variable_slot(
         name: String,
-        var_type: VariableType,
-        mut_type: VariableMutType,
+        kind: VariableKind,
         slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
-            var_type,
-            mut_type,
+            kind,
             representation: VariableRepresentation::VariableSlot(slot),
         }
     }
 
     pub fn new_variable_reference(
         name: String,
-        var_type: VariableType,
-        mut_type: VariableMutType,
+        kind: VariableKind,
         variable_slot: VirtualSlot,
         container_slot: VirtualSlot,
     ) -> Self {
         Variable {
             name,
-            var_type,
-            mut_type,
+            kind,
             representation: VariableRepresentation::VariableReference {
                 variable_slot,
                 container_slot,
@@ -201,30 +202,12 @@ impl Variable {
     }
 }
 
-
-
 /// Compiles a DATEX script text into a single DXB block including routing and block headers.
 /// This function is used to create a block that can be sent over the network.
 pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
     let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
-    let routing_header = RoutingHeader {
-        version: 2,
-        flags: routing_header::Flags::new(),
-        block_size_u16: Some(0),
-        block_size_u32: None,
-        sender: Endpoint::LOCAL,
-        receivers: routing_header::Receivers {
-            flags: routing_header::ReceiverFlags::new()
-                .with_has_endpoints(false)
-                .with_has_pointer_id(false)
-                .with_has_endpoint_keys(false),
-            pointer_id: None,
-            endpoints: None,
-            endpoints_with_keys: None,
-        },
-        ..RoutingHeader::default()
-    };
+    let routing_header = RoutingHeader::default();
 
     let block_header = BlockHeader::default();
     let encrypted_header = EncryptedHeader::default();
@@ -309,17 +292,16 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
     let ast = parse(datex_script)?;
 
     let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_context = CompilationContext::new(buffer, inserted_values, options.compile_scope.once);
-
+    let compilation_context = CompilationContext::new(
+        buffer,
+        inserted_values,
+        options.compile_scope.once,
+    );
+    let scope =
+        compile_ast(&compilation_context, ast.clone(), options.compile_scope)?;
     if return_static_value {
-        let scope = compile_ast(
-            &compilation_context,
-            ast.clone(),
-            options.compile_scope,
-        )?;
-
         if !*compilation_context.has_non_static_value.borrow() {
-            if let Ok(value) = ValueContainer::try_from(ast) {
+            if let Ok(value) = ValueContainer::try_from(&ast) {
                 return Ok((
                     StaticValueOrDXB::StaticValue(Some(value.clone())),
                     scope,
@@ -334,8 +316,6 @@ pub fn compile_template_or_return_static_value_with_refs<'a>(
             ))
         }
     } else {
-        let scope =
-            compile_ast(&compilation_context, ast, options.compile_scope)?;
         // return DXB body
         Ok((
             StaticValueOrDXB::Dxb(compilation_context.buffer.take()),
@@ -375,7 +355,7 @@ fn extract_static_value_from_ast(
     if let DatexExpression::Placeholder = ast {
         return Err(CompilerError::NonStaticValue);
     }
-    ValueContainer::try_from(ast).map_err(|_| CompilerError::NonStaticValue)
+    ValueContainer::try_from(&ast).map_err(|_| CompilerError::NonStaticValue)
 }
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
@@ -410,24 +390,20 @@ pub fn compile_ast(
         // set was_used to true
         scope.was_used = true;
     }
-    let ast_with_metadata = if let Some(precompiler_data) = &scope.precompiler_data {
-        // precompile the AST, adding metadata for variables etc.
-        precompile_ast(
-            ast,
-            precompiler_data.ast_metadata.clone(),
-            &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
-        )?
-    }
-    else {
-        // if no precompiler data, just use the AST with default metadata
-        AstWithMetadata::new_without_metadata(ast)
-    };
+    let ast_with_metadata =
+        if let Some(precompiler_data) = &scope.precompiler_data {
+            // precompile the AST, adding metadata for variables etc.
+            precompile_ast(
+                ast,
+                precompiler_data.ast_metadata.clone(),
+                &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
+            )?
+        } else {
+            // if no precompiler data, just use the AST with default metadata
+            AstWithMetadata::new_without_metadata(ast)
+        };
 
-    compile_ast_with_metadata(
-        compilation_context,
-        ast_with_metadata,
-        scope,
-    )
+    compile_ast_with_metadata(compilation_context, ast_with_metadata, scope)
 }
 
 pub fn compile_ast_with_metadata(
@@ -456,7 +432,11 @@ fn compile_expression(
     let metadata = ast_with_metadata.metadata;
     match ast_with_metadata.ast {
         DatexExpression::Integer(int) => {
-            compilation_context.insert_int(int.0.as_i64().unwrap());
+            compilation_context
+                .insert_encoded_integer(&int.to_smallest_fitting());
+        }
+        DatexExpression::TypedInteger(typed_int) => {
+            compilation_context.insert_typed_integer(&typed_int);
         }
         DatexExpression::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
@@ -472,6 +452,9 @@ fn compile_expression(
                 compilation_context.insert_decimal(&decimal);
             }
         },
+        DatexExpression::TypedDecimal(typed_decimal) => {
+            compilation_context.insert_typed_decimal(&typed_decimal);
+        }
         DatexExpression::Text(text) => {
             compilation_context.insert_text(&text);
         }
@@ -482,12 +465,12 @@ fn compile_expression(
             compilation_context.insert_endpoint(&endpoint);
         }
         DatexExpression::Null => {
-            compilation_context.append_binary_code(InstructionCode::NULL);
+            compilation_context.append_instruction_code(InstructionCode::NULL);
         }
-        DatexExpression::Array(array) => {
+        DatexExpression::List(list) => {
             compilation_context
-                .append_binary_code(InstructionCode::ARRAY_START);
-            for item in array {
+                .append_instruction_code(InstructionCode::LIST_START);
+            for item in list {
                 scope = compile_expression(
                     compilation_context,
                     AstWithMetadata::new(item, &metadata),
@@ -495,39 +478,14 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
-        }
-        DatexExpression::Tuple(tuple) => {
             compilation_context
-                .append_binary_code(InstructionCode::TUPLE_START);
-            for entry in tuple {
-                match entry {
-                    TupleEntry::KeyValue(key, value) => {
-                        scope = compile_key_value_entry(
-                            compilation_context,
-                            key,
-                            value,
-                            &metadata,
-                            scope,
-                        )?;
-                    }
-                    TupleEntry::Value(value) => {
-                        scope = compile_expression(
-                            compilation_context,
-                            AstWithMetadata::new(value, &metadata),
-                            CompileMetadata::default(),
-                            scope,
-                        )?;
-                    }
-                }
-            }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
-        DatexExpression::Object(object) => {
+        DatexExpression::Map(map) => {
+            // TODO: Handle string keyed maps (structs)
             compilation_context
-                .append_binary_code(InstructionCode::OBJECT_START);
-            for (key, value) in object {
-                // compile key and value
+                .append_instruction_code(InstructionCode::MAP_START);
+            for (key, value) in map {
                 scope = compile_key_value_entry(
                     compilation_context,
                     key,
@@ -536,9 +494,9 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
-
         DatexExpression::Placeholder => {
             compilation_context.insert_value_container(
                 compilation_context
@@ -559,7 +517,7 @@ fn compile_expression(
                     compilation_context,
                     AstWithMetadata::new(
                         statements.remove(0).expression,
-                        &metadata
+                        &metadata,
                     ),
                     CompileMetadata::default(),
                     scope,
@@ -568,7 +526,7 @@ fn compile_expression(
                 // if not outer context, new scope
                 let mut child_scope = if !meta.is_outer_context() {
                     compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_START);
+                        .append_instruction_code(InstructionCode::SCOPE_START);
                     scope.push()
                 } else {
                     scope
@@ -582,7 +540,7 @@ fn compile_expression(
                     )?;
                     // if statement is terminated, append close and store
                     if statement.is_terminated {
-                        compilation_context.append_binary_code(
+                        compilation_context.append_instruction_code(
                             InstructionCode::CLOSE_AND_STORE,
                         );
                     }
@@ -594,26 +552,59 @@ fn compile_expression(
                     scope = scope_data.0; // set parent scope
                     // drop all slot addresses that were allocated in this scope
                     for slot_address in scope_data.1 {
-                        compilation_context
-                            .append_binary_code(InstructionCode::DROP_SLOT);
+                        compilation_context.append_instruction_code(
+                            InstructionCode::DROP_SLOT,
+                        );
                         // insert virtual slot address for dropping
                         compilation_context
                             .insert_virtual_slot_address(slot_address);
                     }
                     compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_END);
+                        .append_instruction_code(InstructionCode::SCOPE_END);
                 } else {
                     scope = child_scope;
                 }
             }
         }
 
+        // unary operations (negation, not, etc.)
+        DatexExpression::UnaryOperation(operator, expr) => {
+            compilation_context
+                .append_instruction_code(InstructionCode::from(&operator));
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expr, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
         // operations (add, subtract, multiply, divide, etc.)
-        DatexExpression::BinaryOperation(operator, a, b) => {
+        DatexExpression::BinaryOperation(operator, a, b, _) => {
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
-                .append_binary_code(InstructionCode::from(&operator));
+                .append_instruction_code(InstructionCode::from(&operator));
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*a, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*b, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
+        // comparisons (e.g., equal, not equal, greater than, etc.)
+        DatexExpression::ComparisonOperation(operator, a, b) => {
+            compilation_context.mark_has_non_static_value();
+            // append binary code for operation if not already current binary operator
+            compilation_context
+                .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
                 AstWithMetadata::new(*a, &metadata),
@@ -636,35 +627,37 @@ fn compile_expression(
 
         // variables
         // declaration
-        DatexExpression::VariableDeclaration(id, var_type, mut_type, name, expression) => {
+        DatexExpression::VariableDeclaration {
+            id,
+            name,
+            kind,
+            type_annotation,
+            init_expression: value,
+        } => {
             compilation_context.mark_has_non_static_value();
 
             // allocate new slot for variable
             let virtual_slot_addr = scope.get_next_virtual_slot();
             compilation_context
-                .append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                .append_instruction_code(InstructionCode::ALLOCATE_SLOT);
             compilation_context.insert_virtual_slot_address(
                 VirtualSlot::local(virtual_slot_addr),
             );
-            // create reference if internally mutable
-            if mut_type == VariableMutType::Mutable {
-                compilation_context
-                    .append_binary_code(InstructionCode::CREATE_REF);
-            }
             // compile expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                AstWithMetadata::new(*value, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
 
-            let variable_model = VariableModel::infer_from_ast_metadata_and_type(
-                &metadata.borrow(),
-                id,
-                var_type,
-                compilation_context.is_end_of_source_text,
-            );
+            let variable_model =
+                VariableModel::infer_from_ast_metadata_and_type(
+                    &metadata.borrow(),
+                    id,
+                    kind,
+                    compilation_context.is_end_of_source_text,
+                );
             info!("variable model for {name}: {variable_model:?}");
 
             // create new variable depending on the model
@@ -672,74 +665,108 @@ fn compile_expression(
                 VariableModel::VariableReference => {
                     // scope end
                     compilation_context
-                        .append_binary_code(InstructionCode::SCOPE_END);
+                        .append_instruction_code(InstructionCode::SCOPE_END);
                     // allocate an additional slot with a reference to the variable
-                    let virtual_slot_addr_for_var = scope.get_next_virtual_slot();
-                    compilation_context
-                        .append_binary_code(InstructionCode::ALLOCATE_SLOT);
+                    let virtual_slot_addr_for_var =
+                        scope.get_next_virtual_slot();
+                    compilation_context.append_instruction_code(
+                        InstructionCode::ALLOCATE_SLOT,
+                    );
                     compilation_context.insert_virtual_slot_address(
                         VirtualSlot::local(virtual_slot_addr_for_var),
                     );
                     // indirect reference to the variable
                     compilation_context
-                        .append_binary_code(InstructionCode::CREATE_REF);
+                        .append_instruction_code(InstructionCode::CREATE_REF);
                     // append binary code to load variable
                     compilation_context
-                        .append_binary_code(InstructionCode::GET_SLOT);
+                        .append_instruction_code(InstructionCode::GET_SLOT);
                     compilation_context.insert_virtual_slot_address(
                         VirtualSlot::local(virtual_slot_addr),
                     );
 
                     Variable::new_variable_reference(
                         name.clone(),
-                        var_type,
-                        mut_type,
+                        kind,
                         VirtualSlot::local(virtual_slot_addr_for_var),
                         VirtualSlot::local(virtual_slot_addr),
                     )
                 }
-                VariableModel::Constant => {
-                    Variable::new_const(
-                        name.clone(),
-                        var_type,
-                        mut_type,
-                        VirtualSlot::local(virtual_slot_addr),
-                    )
-                }
-                VariableModel::VariableSlot => {
-                    Variable::new_variable_slot(
-                        name.clone(),
-                        var_type,
-                        mut_type,
-                        VirtualSlot::local(virtual_slot_addr),
-                    )
-                }
+                VariableModel::Constant => Variable::new_const(
+                    name.clone(),
+                    VirtualSlot::local(virtual_slot_addr),
+                ),
+                VariableModel::VariableSlot => Variable::new_variable_slot(
+                    name.clone(),
+                    kind,
+                    VirtualSlot::local(virtual_slot_addr),
+                ),
             };
 
             scope.register_variable_slot(variable);
 
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
+        }
+
+        DatexExpression::GetReference(address) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context.insert_get_ref(address);
         }
 
         // assignment
-        DatexExpression::VariableAssignment(id, name, expression) => {
+        DatexExpression::VariableAssignment(operator, id, name, expression) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
-            let (virtual_slot, var_type, mut_type) = scope
+            let (virtual_slot, kind) = scope
                 .resolve_variable_name_to_virtual_slot(&name)
                 .ok_or_else(|| {
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
 
             // if const, return error
-            if var_type == VariableType::Const {
+            if kind == VariableKind::Const {
                 return Err(CompilerError::AssignmentToConst(name.clone()));
             }
 
-            // append binary code to load variable
-            info!("append variable virtual slot: {virtual_slot:?}, name: {name}");
-            compilation_context
-                .append_binary_code(InstructionCode::SET_SLOT);
+            match operator {
+                AssignmentOperator::Assign => {
+                    // append binary code to load variable
+                    info!(
+                        "append variable virtual slot: {virtual_slot:?}, name: {name}"
+                    );
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SET_SLOT);
+                    // compilation_context.append_instruction_code(
+                    //     InstructionCode::from(&operator),
+                    // );
+                }
+                AssignmentOperator::AddAssign
+                | AssignmentOperator::SubtractAssign => {
+                    // TODO: handle mut type
+                    // // if immutable reference, return error
+                    // if mut_type == Some(ReferenceMutability::Immutable) {
+                    //     return Err(
+                    //         CompilerError::AssignmentToImmutableReference(
+                    //             name.clone(),
+                    //         ),
+                    //     );
+                    // }
+                    // // if immutable value, return error
+                    // else if mut_type == None {
+                    //     return Err(CompilerError::AssignmentToImmutableValue(
+                    //         name.clone(),
+                    //     ));
+                    // }
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SET_SLOT);
+                    compilation_context.append_instruction_code(
+                        InstructionCode::from(&operator),
+                    );
+                }
+                op => todo!("Handle assignment operator: {op:?}"),
+            }
+
             compilation_context.insert_virtual_slot_address(virtual_slot);
             // compile expression
             scope = compile_expression(
@@ -749,7 +776,54 @@ fn compile_expression(
                 scope,
             )?;
             // close assignment scope
-            compilation_context.append_binary_code(InstructionCode::SCOPE_END);
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
+        }
+
+        DatexExpression::DerefAssignment {
+            operator,
+            deref_count,
+            deref_expression,
+            assigned_expression,
+        } => {
+            compilation_context.mark_has_non_static_value();
+
+            compilation_context
+                .append_instruction_code(InstructionCode::ASSIGN_TO_REF);
+
+            compilation_context
+                .append_instruction_code(InstructionCode::from(&operator));
+
+            // "*x" must not be dereferenced, x is already the relevant reference that is modified
+            for _ in 0..deref_count - 1 {
+                compilation_context
+                    .append_instruction_code(InstructionCode::DEREF);
+            }
+
+            // compile deref expression
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*deref_expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+
+            for _ in 0..deref_count - 1 {
+                compilation_context
+                    .append_instruction_code(InstructionCode::SCOPE_END);
+            }
+
+            // compile assigned expression
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*assigned_expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+
+            // close assignment scope
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
@@ -762,7 +836,8 @@ fn compile_expression(
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
             // append binary code to load variable
-            compilation_context.append_binary_code(InstructionCode::GET_SLOT);
+            compilation_context
+                .append_instruction_code(InstructionCode::GET_SLOT);
             compilation_context.insert_virtual_slot_address(virtual_slot);
         }
 
@@ -772,7 +847,7 @@ fn compile_expression(
 
             // insert remote execution code
             compilation_context
-                .append_binary_code(InstructionCode::REMOTE_EXECUTION);
+                .append_instruction_code(InstructionCode::REMOTE_EXECUTION);
             // insert compiled caller expression
             scope = compile_expression(
                 compilation_context,
@@ -782,25 +857,25 @@ fn compile_expression(
             )?;
 
             // compile remote execution block
-            let execution_block_ctx =
-                CompilationContext::new(RefCell::new(Vec::with_capacity(256)), &[], true);
+            let execution_block_ctx = CompilationContext::new(
+                RefCell::new(Vec::with_capacity(256)),
+                &[],
+                true,
+            );
             let external_scope = compile_ast_with_metadata(
                 &execution_block_ctx,
-                AstWithMetadata::new(
-                    *script,
-                    &metadata,
-                ),
+                AstWithMetadata::new(*script, &metadata),
                 CompilationScope::new_with_external_parent_scope(scope),
             )?;
             // reset to current scope
-            scope = external_scope.pop_external().ok_or_else(|| {
-                CompilerError::ScopePopError
-            })?;
+            scope = external_scope
+                .pop_external()
+                .ok_or_else(|| CompilerError::ScopePopError)?;
 
             let external_slots = execution_block_ctx.external_slots();
             // start block
             compilation_context
-                .append_binary_code(InstructionCode::EXECUTION_BLOCK);
+                .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
             // set block size (len of compilation_context.buffer)
             compilation_context
                 .append_u32(execution_block_ctx.buffer.borrow().len() as u32);
@@ -811,20 +886,22 @@ fn compile_expression(
             }
 
             // insert block body (compilation_context.buffer)
-            compilation_context.append_buffer(
-                &execution_block_ctx.buffer.borrow(),
-            )
+            compilation_context
+                .append_buffer(&execution_block_ctx.buffer.borrow())
         }
 
         // named slot
         DatexExpression::Slot(Slot::Named(name)) => {
             match name.as_str() {
                 "endpoint" => {
-                    compilation_context.append_binary_code(
-                        InstructionCode::GET_SLOT,
-                    );
-                    compilation_context.append_u32(InternalSlot::ENDPOINT as u32);
+                    compilation_context
+                        .append_instruction_code(InstructionCode::GET_SLOT);
+                    compilation_context
+                        .append_u32(InternalSlot::ENDPOINT as u32);
                 }
+                "core" => compilation_context.insert_get_ref(
+                    PointerAddress::from(CoreLibPointerId::Core),
+                ),
                 _ => {
                     // invalid slot name
                     return Err(CompilerError::InvalidSlotName(name.clone()));
@@ -832,7 +909,75 @@ fn compile_expression(
             }
         }
 
-        _ => return Err(CompilerError::UnexpectedTerm(ast_with_metadata.ast)),
+        // pointer address
+        DatexExpression::PointerAddress(address) => {
+            compilation_context.insert_get_ref(address);
+        }
+
+        // refs
+        DatexExpression::CreateRef(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_instruction_code(InstructionCode::CREATE_REF);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+        DatexExpression::CreateRefMut(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_instruction_code(InstructionCode::CREATE_REF_MUT);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+        DatexExpression::CreateRefFinal(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context
+                .append_instruction_code(InstructionCode::CREATE_REF_FINAL);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
+        DatexExpression::Type(type_expression) => {
+            compilation_context
+                .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
+            scope = compile_type_expression(
+                compilation_context,
+                &type_expression,
+                metadata,
+                scope,
+            )?;
+        }
+
+        DatexExpression::Deref(expression) => {
+            compilation_context.mark_has_non_static_value();
+            compilation_context.append_instruction_code(InstructionCode::DEREF);
+            scope = compile_expression(
+                compilation_context,
+                AstWithMetadata::new(*expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            compilation_context
+                .append_instruction_code(InstructionCode::SCOPE_END);
+        }
+
+        _ => {
+            return Err(CompilerError::UnexpectedTerm(Box::new(
+                ast_with_metadata.ast,
+            )));
+        }
     }
 
     Ok(scope)
@@ -853,7 +998,7 @@ fn compile_key_value_entry(
         // other -> insert key as dynamic
         _ => {
             compilation_scope
-                .append_binary_code(InstructionCode::KEY_VALUE_DYNAMIC);
+                .append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
                 compilation_scope,
                 AstWithMetadata::new(key, metadata),
@@ -874,21 +1019,26 @@ fn compile_key_value_entry(
 
 #[cfg(test)]
 pub mod tests {
-    use std::assert_matches::assert_matches;
     use super::{
-        CompileOptions, CompilationContext, CompilationScope, StaticValueOrDXB, compile_ast,
-        compile_script, compile_script_or_return_static_value,
+        CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB,
+        compile_ast, compile_script, compile_script_or_return_static_value,
         compile_template,
     };
+    use std::assert_matches::assert_matches;
     use std::cell::RefCell;
     use std::io::Read;
     use std::vec;
 
-    use crate::{global::binary_codes::InstructionCode, logger::init_logger_debug};
-    use log::*;
+    use crate::ast::parse;
+    use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+    use crate::libs::core::CoreLibPointerId;
+    use crate::values::core_values::integer::Integer;
+    use crate::values::pointer::PointerAddress;
+    use crate::{
+        global::instruction_codes::InstructionCode, logger::init_logger_debug,
+    };
     use datex_core::compiler::error::CompilerError;
-    use crate::compiler::ast_parser::parse;
-    use crate::values::core_values::integer::integer::Integer;
+    use log::*;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
@@ -910,12 +1060,13 @@ pub mod tests {
         let ast = ast.unwrap();
         let buffer = RefCell::new(Vec::with_capacity(256));
         let compilation_scope = CompilationContext::new(buffer, &[], true);
-        compile_ast(&compilation_scope, ast, CompilationScope::default()).unwrap();
+        compile_ast(&compilation_scope, ast, CompilationScope::default())
+            .unwrap();
         compilation_scope
     }
 
     #[test]
-    fn test_simple_multiplication() {
+    fn simple_multiplication() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -935,7 +1086,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_simple_multiplication_close() {
+    fn simple_multiplication_close() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -956,7 +1107,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_is_operator() {
+    fn is_operator() {
         init_logger_debug();
 
         // TODO #151: compare refs
@@ -973,7 +1124,8 @@ pub mod tests {
             ]
         );
 
-        let datex_script = "const mut a = 42; const mut b = 69; a is b".to_string(); // a is b
+        let datex_script =
+            "const a = &mut 42; const b = &mut 69; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -984,7 +1136,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CREATE_REF.into(),
+                InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -995,7 +1147,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CREATE_REF.into(),
+                InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 69,
                 InstructionCode::SCOPE_END.into(),
@@ -1017,7 +1169,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_equality_operator() {
+    fn equality_operator() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -1075,7 +1227,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_simple_addition() {
+    fn simple_addition() {
         init_logger_debug();
 
         let lhs: u8 = 1;
@@ -1109,7 +1261,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_multi_addition() {
+    fn multi_addition() {
         init_logger_debug();
 
         let op1: u8 = 1;
@@ -1138,7 +1290,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_mixed_calculation() {
+    fn mixed_calculation() {
         init_logger_debug();
 
         let op1: u8 = 1;
@@ -1167,7 +1319,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_complex_addition() {
+    fn complex_addition() {
         init_logger_debug();
 
         let a: u8 = 1;
@@ -1195,7 +1347,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_complex_addition_and_subtraction() {
+    fn complex_addition_and_subtraction() {
         init_logger_debug();
 
         let a: u8 = 1;
@@ -1218,11 +1370,10 @@ pub mod tests {
         );
     }
 
-    // Test for integer/u8
     #[test]
-    fn test_integer_u8() {
+    fn integer_u8() {
         init_logger_debug();
-        let val: u8 = 42;
+        let val = 42;
         let datex_script = format!("{val}"); // 42
         let result = compile_and_log(&datex_script);
         assert_eq!(result, vec![InstructionCode::INT_8.into(), val,]);
@@ -1230,7 +1381,7 @@ pub mod tests {
 
     // Test for decimal
     #[test]
-    fn test_decimal() {
+    fn decimal() {
         init_logger_debug();
         let datex_script = "42.0";
         let result = compile_and_log(datex_script);
@@ -1245,10 +1396,10 @@ pub mod tests {
 
     /// Test for test that is less than 256 characters
     #[test]
-    fn test_short_text() {
+    fn short_text() {
         init_logger_debug();
         let val = "unyt";
-        let datex_script = format!("\"{val}\""); // "42"
+        let datex_script = format!("\"{val}\""); // "unyt"
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> =
             vec![InstructionCode::SHORT_TEXT.into(), val.len() as u8];
@@ -1256,29 +1407,32 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // Test empty array
+    // Test empty list
     #[test]
-    fn test_empty_array() {
+    fn empty_list() {
         init_logger_debug();
+        // TODO: support list constructor (apply on type)
         let datex_script = "[]";
+        // const x = mut 42;
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::ARRAY_START.into(),
+            InstructionCode::LIST_START.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
 
-    // Test array with single element
+    // Test list with single element
     #[test]
-    fn test_single_element_array() {
+    fn single_element_list() {
         init_logger_debug();
+        // TODO: support list constructor (apply on type)
         let datex_script = "[42]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1286,16 +1440,16 @@ pub mod tests {
         );
     }
 
-    // Test array with multiple elements
+    // Test list with multiple elements
     #[test]
-    fn test_multi_element_array() {
+    fn multi_element_list() {
         init_logger_debug();
         let datex_script = "[1, 2, 3]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1305,43 +1459,35 @@ pub mod tests {
                 InstructionCode::SCOPE_END.into(),
             ]
         );
-    }
 
-    // Test nested arrays
-    #[test]
-    fn test_nested_arrays() {
-        init_logger_debug();
-        let datex_script = "[1, [2, 3], 4]";
+        // trailing comma
+        let datex_script = "[1, 2, 3,]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::ARRAY_START.into(),
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
                 3,
                 InstructionCode::SCOPE_END.into(),
-                InstructionCode::INT_8.into(),
-                4,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
 
-    // Test array with expressions inside
+    // Test list with expressions inside
     #[test]
-    fn test_array_with_expressions() {
+    fn list_with_expressions() {
         init_logger_debug();
         let datex_script = "[1 + 2, 3 * 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 1,
@@ -1357,64 +1503,19 @@ pub mod tests {
         );
     }
 
-    // Test array with mixed expressions
+    // Nested lists
     #[test]
-    fn test_array_with_mixed_expressions() {
+    fn nested_lists() {
         init_logger_debug();
-        let datex_script = "[1, 2, 3 + 4]";
+        let datex_script = "[1, [2, 3], 4]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::ARRAY_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::INT_8.into(),
-                4,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
-    // Test tuple
-    #[test]
-    fn test_tuple() {
-        init_logger_debug();
-        let datex_script = "(1, 2, 3)";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::TUPLE_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
-    // Nested tuple
-    #[test]
-    fn test_nested_tuple() {
-        init_logger_debug();
-        let datex_script = "(1, (2, 3), 4)";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::TUPLE_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::TUPLE_START.into(),
+                InstructionCode::LIST_START.into(),
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
@@ -1427,35 +1528,14 @@ pub mod tests {
         );
     }
 
-    // Tuple without parentheses
+    // map with text key
     #[test]
-    fn test_tuple_without_parentheses() {
+    fn map_with_text_key() {
         init_logger_debug();
-        let datex_script = "1, 2, 3";
-        let result = compile_and_log(datex_script);
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::TUPLE_START.into(),
-                InstructionCode::INT_8.into(),
-                1,
-                InstructionCode::INT_8.into(),
-                2,
-                InstructionCode::INT_8.into(),
-                3,
-                InstructionCode::SCOPE_END.into(),
-            ]
-        );
-    }
-
-    // key-value pair
-    #[test]
-    fn test_key_value_tuple() {
-        init_logger_debug();
-        let datex_script = "key: 42";
+        let datex_script = "{\"key\": 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1468,34 +1548,14 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // key-value pair with string key
+    // map with integer key
     #[test]
-    fn test_key_value_string() {
+    fn map_integer_key() {
         init_logger_debug();
-        let datex_script = "\"key\": 42";
+        let datex_script = "{(10): 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // key-value pair with integer key
-    #[test]
-    fn test_key_value_integer() {
-        init_logger_debug();
-        let datex_script = "10: 42";
-        let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::INT_8.into(),
             10,
@@ -1506,15 +1566,15 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // key-value pair with long text key (>255 bytes)
+    // map with long text key (>255 bytes)
     #[test]
-    fn test_key_value_long_text() {
+    fn map_with_long_text_key() {
         init_logger_debug();
         let long_key = "a".repeat(300);
-        let datex_script = format!("\"{long_key}\": 42");
+        let datex_script = format!("{{\"{long_key}\": 42}}");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::TEXT.into(),
         ];
@@ -1528,14 +1588,14 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // dynamic key-value pair
+    // map with dynamic key (expression)
     #[test]
-    fn test_dynamic_key_value() {
+    fn map_with_dynamic_key() {
         init_logger_debug();
-        let datex_script = "(1 + 2): 42";
+        let datex_script = "{(1 + 2): 42}";
         let result = compile_and_log(datex_script);
         let expected = [
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
@@ -1549,14 +1609,14 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // multiple key-value pairs
+    // map with multiple keys (text, integer, expression)
     #[test]
-    fn test_multiple_key_value_pairs() {
+    fn map_with_multiple_keys() {
         init_logger_debug();
-        let datex_script = "key: 42, 4: 43, (1 + 2): 44";
+        let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::TUPLE_START.into(),
+            InstructionCode::MAP_START.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1582,98 +1642,21 @@ pub mod tests {
         assert_eq!(result, expected);
     }
 
-    // key value pair with parentheses
+    // empty map
     #[test]
-    fn test_key_value_with_parentheses() {
-        init_logger_debug();
-        let datex_script = "(key: 42)";
-        let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::TUPLE_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // empty object
-    #[test]
-    fn test_empty_object() {
+    fn empty_map() {
         init_logger_debug();
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::OBJECT_START.into(),
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // object with single key-value pair
-    #[test]
-    fn test_single_key_value_object() {
-        init_logger_debug();
-        let datex_script = "{key: 42}";
-        let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::OBJECT_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            3, // length of "key"
-            b'k',
-            b'e',
-            b'y',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    // object with multiple key-value pairs
-    #[test]
-    fn test_multi_key_value_object() {
-        init_logger_debug();
-        let datex_script = "{key1: 42, \"key2\": 43, 'key3': 44}";
-        let result = compile_and_log(datex_script);
-        let expected = vec![
-            InstructionCode::OBJECT_START.into(),
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key1"
-            b'k',
-            b'e',
-            b'y',
-            b'1',
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key2"
-            b'k',
-            b'e',
-            b'y',
-            b'2',
-            InstructionCode::INT_8.into(),
-            43,
-            InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
-            4, // length of "key3"
-            b'k',
-            b'e',
-            b'y',
-            b'3',
-            InstructionCode::INT_8.into(),
-            44,
+            InstructionCode::MAP_START.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
 
     #[test]
-    fn test_allocate_slot() {
+    fn allocate_slot() {
         init_logger_debug();
         let script = "const a = 42";
         let result = compile_and_log(script);
@@ -1694,7 +1677,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_slot_with_value() {
+    fn allocate_slot_with_value() {
         init_logger_debug();
         let script = "const a = 42; a + 1";
         let result = compile_and_log(script);
@@ -1725,7 +1708,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_scoped_slots() {
+    fn allocate_scoped_slots() {
         init_logger_debug();
         let script = "const a = 42; (const a = 43; a); a";
         let result = compile_and_log(script);
@@ -1774,7 +1757,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_scoped_slots_with_parent_variables() {
+    fn allocate_scoped_slots_with_parent_variables() {
         init_logger_debug();
         let script = "const a = 42; const b = 41; (const a = 43; a; b); a";
         let result = compile_and_log(script);
@@ -1838,9 +1821,9 @@ pub mod tests {
     }
 
     #[test]
-    fn test_allocate_ref() {
+    fn allocate_ref() {
         init_logger_debug();
-        let script = "const mut a = 42";
+        let script = "const a = &mut 42";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1851,7 +1834,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CREATE_REF.into(),
+                InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1860,9 +1843,9 @@ pub mod tests {
     }
 
     #[test]
-    fn test_read_ref() {
+    fn read_ref() {
         init_logger_debug();
-        let script = "const mut a = 42; a";
+        let script = "const a = &mut 42; a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1873,7 +1856,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CREATE_REF.into(),
+                InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1889,11 +1872,11 @@ pub mod tests {
     }
 
     #[test]
-    fn test_compile() {
+    fn compile() {
         init_logger_debug();
         let result = compile_template(
             "? + ?",
-            &[1.into(), 2.into()],
+            &[Integer::from(1).into(), Integer::from(2).into()],
             CompileOptions::default(),
         );
         assert_eq!(
@@ -1909,17 +1892,17 @@ pub mod tests {
     }
 
     #[test]
-    fn test_compile_macro() {
+    fn compile_macro() {
         init_logger_debug();
-        let a = 1;
+        let a = Integer::from(1);
         let result = compile!("?", a);
         assert_eq!(result.unwrap().0, vec![InstructionCode::INT_8.into(), 1,]);
     }
 
     #[test]
-    fn test_compile_macro_multi() {
+    fn compile_macro_multi() {
         init_logger_debug();
-        let result = compile!("? + ?", 1, 2);
+        let result = compile!("? + ?", Integer::from(1), Integer::from(2));
         assert_eq!(
             result.unwrap().0,
             vec![
@@ -1947,16 +1930,14 @@ pub mod tests {
     }
 
     #[test]
-    fn test_json_to_dxb_large_file() {
+    fn json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
-        println!("JSON file read");
-        let (dxb, _) = compile_script(&json, CompileOptions::default())
+        let _ = compile_script(&json, CompileOptions::default())
             .expect("Failed to parse JSON string");
-        println!("DXB: {:?}", dxb.len());
     }
 
     #[test]
-    fn test_static_value_detection() {
+    fn static_value_detection() {
         init_logger_debug();
 
         // non-static
@@ -1996,10 +1977,15 @@ pub mod tests {
         let script = "{a: 2}";
         let compilation_scope = get_compilation_scope(script);
         assert!(!*compilation_scope.has_non_static_value.borrow());
+
+        // because of unary - 42
+        let script = "-42";
+        let compilation_scope = get_compilation_scope(script);
+        assert!(!*compilation_scope.has_non_static_value.borrow());
     }
 
     #[test]
-    fn test_compile_auto_static_value_detection() {
+    fn compile_auto_static_value_detection() {
         let script = "1";
         let (res, _) = compile_script_or_return_static_value(
             script,
@@ -2030,7 +2016,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution() {
+    fn remote_execution() {
         let script = "42 :: 43";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2061,7 +2047,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_expression() {
+    fn remote_execution_expression() {
         let script = "42 :: 1 + 2";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2095,7 +2081,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_const() {
+    fn remote_execution_injected_const() {
         init_logger_debug();
         let script = "const x = 42; 1 :: x";
         let (res, _) =
@@ -2146,7 +2132,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_var() {
+    fn remote_execution_injected_var() {
         init_logger_debug();
         // var x only refers to a value, not a ref, but since it is transferred to a
         // remote context, its state is synced via a ref (VariableReference model)
@@ -2228,7 +2214,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_injected_consts() {
+    fn remote_execution_injected_consts() {
         let script = "const x = 42; const y = 69; 1 :: x + y";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2300,7 +2286,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_shadow_const() {
+    fn remote_execution_shadow_const() {
         let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2378,7 +2364,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_nested() {
+    fn remote_execution_nested() {
         let script = "const x = 42; (1 :: (2 :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2450,7 +2436,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_remote_execution_nested2() {
+    fn remote_execution_nested2() {
         let script = "const x = 42; (1 :: (x :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2525,29 +2511,95 @@ pub mod tests {
     }
 
     #[test]
-    fn test_assignment_to_const() {
+    fn assignment_to_const() {
         init_logger_debug();
         let script = "const a = 42; a = 43";
         let result = compile_script(script, CompileOptions::default());
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToConst { .. })
-        );
+        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
     #[test]
-    fn test_assignment_to_const_mut() {
+    fn assignment_to_const_mut() {
         init_logger_debug();
-        let script = "const mut a = 42; a = 43";
+        let script = "const a = &mut 42; a = 43";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
+    }
+
+    #[test]
+    fn internal_assignment_to_const_mut() {
+        init_logger_debug();
+        let script = "const a = &mut 42; *a = 43";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Ok(_));
+    }
+
+    #[test]
+    fn addition_to_const_mut_ref() {
+        init_logger_debug();
+        let script = "const a = &mut 42; *a += 1;";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Ok(_));
+    }
+
+    #[test]
+    fn addition_to_const_variable() {
+        init_logger_debug();
+        let script = "const a = 42; a += 1";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
+    }
+
+    #[ignore = "implement type inference (precompiler)"]
+    #[test]
+    fn mutation_of_immutable_value() {
+        init_logger_debug();
+        let script = "const a = {x: 10}; a.x = 20;";
         let result = compile_script(script, CompileOptions::default());
         assert_matches!(
             result,
-            Err(CompilerError::AssignmentToConst { .. })
+            Err(CompilerError::AssignmentToImmutableValue { .. })
+        );
+    }
+
+    #[ignore = "implement type inference (precompiler)"]
+    #[test]
+    fn mutation_of_mutable_value() {
+        init_logger_debug();
+        let script = "const a = mut {x: 10}; a.x = 20;";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToImmutableValue { .. })
+        );
+    }
+
+    /**
+     * var a = 10;
+     * a = 40;
+     * a += 10; // a = a + 10;
+     * var a = &mut 42;;
+     * a = &mut 43; // valid, new ref pointer
+     * *a = 2; // internal deref assignment
+     * *a += 1; // internal deref assignment with addition
+     * a += 1; a = a + 1; // invalid
+     * var obj = &mut {key: 42};
+     * obj.key = 43; // valid, internal deref assignment
+     */
+    #[ignore = "implement type inference (precompiler)"]
+    #[test]
+    fn addition_to_immutable_ref() {
+        init_logger_debug();
+        let script = "const a = &42; *a += 1;";
+        let result = compile_script(script, CompileOptions::default());
+        assert_matches!(
+            result,
+            Err(CompilerError::AssignmentToImmutableReference { .. })
         );
     }
 
     #[test]
-    fn test_slot_endpoint() {
+    fn slot_endpoint() {
         let script = "#endpoint";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
@@ -2556,8 +2608,66 @@ pub mod tests {
             vec![
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
-                0, 0xff, 0xff, 0xff
+                0,
+                0xff,
+                0xff,
+                0xff
             ]
         );
+    }
+
+    // this is not a valid Datex script, just testing the compiler
+    #[test]
+    fn deref() {
+        let script = "*10";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::DEREF.into(),
+                InstructionCode::INT_8.into(),
+                // integer as u8
+                10,
+                InstructionCode::SCOPE_END.into(),
+            ]
+        );
+    }
+
+    #[test]
+    fn type_literal_integer() {
+        let script = "type(1)";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                InstructionCode::TYPE_EXPRESSION.into(),
+                TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER.into(),
+                // slot index as u32
+                2,
+                1,
+                0,
+                0,
+                0,
+                1
+            ]
+        );
+    }
+
+    #[test]
+    fn type_core_type_integer() {
+        let script = "integer";
+        let (res, _) =
+            compile_script(script, CompileOptions::default()).unwrap();
+        let mut instructions: Vec<u8> =
+            vec![InstructionCode::GET_INTERNAL_REF.into()];
+        // pointer id
+        instructions.append(
+            &mut PointerAddress::from(CoreLibPointerId::Integer(None))
+                .bytes()
+                .to_vec(),
+        );
+        assert_eq!(res, instructions);
     }
 }

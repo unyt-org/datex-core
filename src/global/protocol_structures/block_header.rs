@@ -6,6 +6,8 @@ use strum_macros::Display;
 
 // 4 bit
 #[derive(Debug, Display, PartialEq, Clone, Copy, Default, Specifier)]
+#[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
+#[bits = 4]
 pub enum BlockType {
     #[default]
     Request = 0,
@@ -13,47 +15,26 @@ pub enum BlockType {
     Hello = 2,
     Trace = 3,
     TraceBack = 4,
-    #[allow(unused)]
-    Unused3,
-    #[allow(unused)]
-    Unused4,
-    #[allow(unused)]
-    Unused5,
-    #[allow(unused)]
-    Unused6,
-    #[allow(unused)]
-    Unused7,
-    #[allow(unused)]
-    Unused8,
-    #[allow(unused)]
-    Unused9,
-    #[allow(unused)]
-    Unused10,
-    #[allow(unused)]
-    Unused11,
-    #[allow(unused)]
-    Unused12,
-    #[allow(unused)]
-    Unused13,
 }
 
 impl BlockType {
     pub fn is_response(&self) -> bool {
-        match self {
-            BlockType::Response | BlockType::TraceBack => true,
-            _ => false,
-        }
+        matches!(self, BlockType::Response | BlockType::TraceBack)
     }
 }
 
 // 21 bit + 43 bit = 64 bit
+/// has_side_effects: If set, the block can have side effects that change external state. Default is true
+/// has_only_data: If set, the block does only contain data and no executable instructions. Default is false
 #[bitfield]
 #[derive(BinWrite, BinRead, Clone, Copy, Debug, PartialEq)]
 #[bw(map = |&x| Self::into_bytes(x))]
 #[br(map = Self::from_bytes)]
+#[brw(little)]
 pub struct FlagsAndTimestamp {
     pub block_type: BlockType,
-    pub allow_execution: bool,
+    pub has_side_effects: bool,
+    pub has_only_data: bool,
     pub is_end_of_section: bool,
     pub is_end_of_context: bool,
     pub has_lifetime: bool,
@@ -78,17 +59,83 @@ pub struct FlagsAndTimestamp {
     unused_6: bool,
     #[allow(unused)]
     unused_7: bool,
-    #[allow(unused)]
-    unused_8: bool,
 
     pub creation_timestamp: B43,
+}
+
+#[cfg(feature = "debug")]
+mod flags_and_timestamp_serde {
+    use super::*;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[derive(Serialize, Deserialize)]
+    struct FlagsHelper {
+        block_type: BlockType,
+        has_side_effects: bool,
+        has_only_data: bool,
+        is_end_of_section: bool,
+        is_end_of_context: bool,
+        has_lifetime: bool,
+        has_represented_by: bool,
+        has_iv: bool,
+        is_compressed: bool,
+        is_signature_in_last_subblock: bool,
+        creation_timestamp: u64,
+    }
+
+    impl Serialize for FlagsAndTimestamp {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let helper = FlagsHelper {
+                block_type: self.block_type(),
+                has_side_effects: self.has_side_effects(),
+                has_only_data: self.has_only_data(),
+                is_end_of_section: self.is_end_of_section(),
+                is_end_of_context: self.is_end_of_context(),
+                has_lifetime: self.has_lifetime(),
+                has_represented_by: self.has_represented_by(),
+                has_iv: self.has_iv(),
+                is_compressed: self.is_compressed(),
+                is_signature_in_last_subblock: self
+                    .is_signature_in_last_subblock(),
+                creation_timestamp: self.creation_timestamp(),
+            };
+            helper.serialize(serializer)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for FlagsAndTimestamp {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let helper = FlagsHelper::deserialize(deserializer)?;
+            Ok(FlagsAndTimestamp::new()
+                .with_block_type(helper.block_type)
+                .with_has_side_effects(helper.has_side_effects)
+                .with_has_only_data(helper.has_only_data)
+                .with_is_end_of_section(helper.is_end_of_section)
+                .with_is_end_of_context(helper.is_end_of_context)
+                .with_has_lifetime(helper.has_lifetime)
+                .with_has_represented_by(helper.has_represented_by)
+                .with_has_iv(helper.has_iv)
+                .with_is_compressed(helper.is_compressed)
+                .with_is_signature_in_last_subblock(
+                    helper.is_signature_in_last_subblock,
+                )
+                .with_creation_timestamp(helper.creation_timestamp))
+        }
+    }
 }
 
 impl Default for FlagsAndTimestamp {
     fn default() -> Self {
         FlagsAndTimestamp::new()
             .with_block_type(BlockType::Request)
-            .with_allow_execution(false)
+            .with_has_side_effects(true)
+            .with_has_only_data(false)
             .with_is_end_of_section(true)
             .with_is_end_of_context(true)
             .with_has_lifetime(false)
@@ -101,6 +148,7 @@ impl Default for FlagsAndTimestamp {
 
 // min: 16 byte
 // max 8 + 8 byte + 4 byte + 21 byte + 16 byte = 57 byte
+#[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
 #[brw(little)]
 pub struct BlockHeader {
@@ -127,7 +175,7 @@ pub struct BlockHeader {
     pub represented_by: Option<Endpoint>,
 
     #[brw(if(flags_and_timestamp.has_iv()))]
-    pub iv: [u8; 16],
+    pub iv: Option<[u8; 16]>,
 }
 
 impl Serializable for BlockHeader {}
