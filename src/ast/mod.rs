@@ -339,7 +339,8 @@ mod tests {
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };
-    use crate::ast::tree::{DatexExpressionData, Slot, TypeExpression, UnaryOperation, VariableKind};
+    use datex_core::ast::tree::VariableAssignment;
+    use crate::ast::tree::{DatexExpressionData, Slot, TypeExpression, UnaryOperation, VariableDeclaration, VariableKind};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -452,10 +453,10 @@ mod tests {
         let src = "var a = type(1,2,3)";
         let result = parse_print_error(src);
         let expr = result.unwrap().data;
-        if let DatexExpressionData::VariableDeclaration {
+        if let DatexExpressionData::VariableDeclaration(VariableDeclaration {
             init_expression: value,
             ..
-        } = expr
+        }) = expr
         {
             assert_matches!(
                 *value,
@@ -787,7 +788,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(
@@ -797,14 +798,14 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
 
         let src = "var x: integer/u8 = 42";
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::Literal(
@@ -814,7 +815,7 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
     }
 
@@ -1173,7 +1174,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::Literal(
@@ -1183,14 +1184,14 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
 
         let src = "var x: User = 42";
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::Literal(
@@ -1200,14 +1201,14 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
 
         let src = "var x: integer/u8 = 42";
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::Literal(
@@ -1217,7 +1218,7 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
     }
 
@@ -1227,7 +1228,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::Union(vec![
@@ -1238,7 +1239,7 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
     }
 
@@ -1248,7 +1249,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::Intersection(vec![
@@ -1259,7 +1260,7 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
     }
 
@@ -1269,7 +1270,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(TypeExpression::SliceList(Box::new(
@@ -1279,7 +1280,7 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(42)
                 ).with_default_span())
-            }
+            })
         );
     }
 
@@ -2383,7 +2384,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpressionData::Statements(Statements::new_terminated(vec![
-                DatexExpressionData::VariableDeclaration {
+                DatexExpressionData::VariableDeclaration(VariableDeclaration {
                     id: None,
                     kind: VariableKind::Const,
                     type_annotation: None,
@@ -2391,7 +2392,7 @@ mod tests {
                     init_expression: Box::new(DatexExpressionData::Integer(
                         Integer::from(42)
                     ).with_default_span()),
-                }.with_default_span()
+                }).with_default_span()
             ]))
         );
     }
@@ -2402,7 +2403,7 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: None,
@@ -2413,7 +2414,7 @@ mod tests {
                     Box::new(DatexExpressionData::Integer(Integer::from(2)).with_default_span()),
                     None
                 ).with_default_span())
-            }
+            })
         );
     }
 
@@ -2423,12 +2424,12 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableAssignment(
-                AssignmentOperator::Assign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
-            )
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator: AssignmentOperator::Assign,
+                name: "x".to_string(),
+                expression: Box::new(DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
+            })
         );
     }
 
@@ -2438,17 +2439,17 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableAssignment(
-                AssignmentOperator::Assign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpressionData::VariableAssignment(
-                    AssignmentOperator::Assign,
-                    None,
-                    "y".to_string(),
-                    Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
-                ).with_default_span()),
-            )
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator: AssignmentOperator::Assign,
+                name: "x".to_string(),
+                expression: Box::new(DatexExpressionData::VariableAssignment(VariableAssignment {
+                    id: None,
+                    operator: AssignmentOperator::Assign,
+                    name: "y".to_string(),
+                    expression: Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
+                }).with_default_span()),
+            })
         );
     }
 
@@ -2458,12 +2459,12 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::List(vec![DatexExpressionData::VariableAssignment(
-                AssignmentOperator::Assign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
-            ).with_default_span()])
+            DatexExpressionData::List(vec![DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator: AssignmentOperator::Assign,
+                name: "x".to_string(),
+                expression: Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
+            }).with_default_span()])
         );
     }
 
@@ -2594,7 +2595,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpressionData::Statements(Statements::new_terminated(vec![
-                DatexExpressionData::VariableDeclaration {
+                DatexExpressionData::VariableDeclaration(VariableDeclaration {
                         id: None,
                         kind: VariableKind::Var,
                         name: "x".to_string(),
@@ -2602,12 +2603,12 @@ mod tests {
                             Integer::from(42)
                         ).with_default_span()),
                         type_annotation: None
-                    }.with_default_span(),
-                DatexExpressionData::VariableAssignment(
-                    AssignmentOperator::Assign,
-                    None,
-                    "x".to_string(),
-                    Box::new(DatexExpressionData::BinaryOperation(
+                    }).with_default_span(),
+                DatexExpressionData::VariableAssignment(VariableAssignment {
+                    id: None,
+                    operator: AssignmentOperator::Assign,
+                    name: "x".to_string(),
+                    expression: Box::new(DatexExpressionData::BinaryOperation(
                         BinaryOperator::Arithmetic(
                             ArithmeticOperator::Multiply
                         ),
@@ -2619,7 +2620,7 @@ mod tests {
                         )).with_default_span()),
                         None
                     ).with_default_span()),
-                ).with_default_span()
+                }).with_default_span()
             ]))
         );
     }
@@ -3027,12 +3028,12 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableAssignment(
-                AssignmentOperator::AddAssign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
-            )
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator: AssignmentOperator::AddAssign,
+                name: "x".to_string(),
+                expression: Box::new(DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
+            })
         );
     }
 
@@ -3042,12 +3043,12 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableAssignment(
-                AssignmentOperator::SubtractAssign,
-                None,
-                "x".to_string(),
-                Box::new(DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
-            )
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator: AssignmentOperator::SubtractAssign,
+                name: "x".to_string(),
+                expression: Box::new(DatexExpressionData::Integer(Integer::from(42)).with_default_span()),
+            })
         );
     }
 
@@ -3057,7 +3058,7 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Const,
                 name: "x".to_string(),
@@ -3069,7 +3070,7 @@ mod tests {
                         DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
                     ]).with_default_span())
                 ).with_default_span()),
-            }
+            })
         );
     }
 
@@ -3079,7 +3080,7 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Const,
                 name: "x".to_string(),
@@ -3091,7 +3092,7 @@ mod tests {
                         DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
                     ]).with_default_span())
                 ).with_default_span()),
-            }
+            })
         );
     }
     #[test]
@@ -3100,7 +3101,7 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Const,
                 name: "x".to_string(),
@@ -3108,7 +3109,7 @@ mod tests {
                 init_expression: Box::new(DatexExpressionData::Integer(
                     Integer::from(1)
                 ).with_default_span()),
-            }
+            })
         );
     }
 
