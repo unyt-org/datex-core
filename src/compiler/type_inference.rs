@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression};
+use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, VariableAccess, VariableAssignment, VariableDeclaration};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -111,7 +111,7 @@ pub fn infer_expression_type(
 
             type_def
         }
-        DatexExpressionData::Variable(id, _) => {
+        DatexExpressionData::VariableAccess(VariableAccess {id, ..}) => {
             let var_id = *id;
             let metadata = metadata.borrow();
             metadata
@@ -121,13 +121,13 @@ pub fn infer_expression_type(
                 .clone()
                 .expect("Variable type should have been inferred already")
         }
-        DatexExpressionData::VariableDeclaration {
+        DatexExpressionData::VariableDeclaration(VariableDeclaration {
             id,
             kind: _,
             name: _,
             type_annotation,
             init_expression: value,
-        } => {
+        }) => {
             // infer the type of the value expression
             let init_type = infer_expression_type(value, metadata.clone())?;
 
@@ -169,7 +169,12 @@ pub fn infer_expression_type(
 
             variable_kind
         }
-        DatexExpressionData::VariableAssignment(operator, id, _, value) => {
+        DatexExpressionData::VariableAssignment(VariableAssignment {
+            operator,
+            id,
+            expression,
+            ..
+        }) => {
             let var_id = id.unwrap();
             let metadata_borrowed = metadata.borrow();
             let var_metadata = metadata_borrowed
@@ -182,7 +187,7 @@ pub fn infer_expression_type(
                 .clone();
             drop(metadata_borrowed);
 
-            let value_type = infer_expression_type(value, metadata.clone())?;
+            let value_type = infer_expression_type(expression, metadata.clone())?;
 
             match operator {
                 AssignmentOperator::Assign => {
@@ -890,7 +895,7 @@ mod tests {
         /*
         const x = 10
         */
-        let expr = DatexExpressionData::VariableDeclaration {
+        let expr = DatexExpressionData::VariableDeclaration(VariableDeclaration {
             id: None,
             kind: VariableKind::Const,
             name: "x".to_string(),
@@ -898,7 +903,7 @@ mod tests {
             init_expression: Box::new(DatexExpressionData::Integer(Integer::from(
                 10,
             )).with_default_span()),
-        }.with_default_span();
+        }).with_default_span();
 
         let ast_with_metadata = precompile_ast(
             ValidDatexParseResult {

@@ -24,7 +24,7 @@ use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::ast::parse_result::ValidDatexParseResult;
-use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, Statements, UnaryOperation, VariableKind};
+use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, Statements, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariableKind};
 
 pub mod context;
 pub mod error;
@@ -612,13 +612,13 @@ fn compile_expression(
 
         // variables
         // declaration
-        DatexExpressionData::VariableDeclaration {
-            id,
-            name,
-            kind,
-            type_annotation,
-            init_expression: value,
-        } => {
+        DatexExpressionData::VariableDeclaration(VariableDeclaration {
+             id,
+             name,
+             kind,
+             type_annotation,
+             init_expression: value, 
+        }) => {
             compilation_context.mark_has_non_static_value();
 
             // allocate new slot for variable
@@ -700,7 +700,11 @@ fn compile_expression(
         }
 
         // assignment
-        DatexExpressionData::VariableAssignment(operator, id, name, expression) => {
+        DatexExpressionData::VariableAssignment(VariableAssignment { 
+            operator,
+            name, 
+            expression, .. 
+        }) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, kind) = scope
@@ -812,7 +816,7 @@ fn compile_expression(
         }
 
         // variable access
-        DatexExpressionData::Variable(id, name) => {
+        DatexExpressionData::VariableAccess(VariableAccess { name, .. }) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, ..) = scope

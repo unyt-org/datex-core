@@ -8,7 +8,8 @@ use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt};
 use chumsky::prelude::*;
-use crate::ast::tree::{TypeExpression, VariableKind};
+use datex_core::ast::tree::VariableDeclaration;
+use crate::ast::tree::{TypeExpression, VariableAssignment, VariableKind};
 
 pub type VariableId = usize;
 
@@ -18,13 +19,13 @@ fn create_variable_declaration(
     type_annotation: Option<TypeExpression>,
     kind: VariableKind,
 ) -> DatexExpressionData {
-    DatexExpressionData::VariableDeclaration {
+    DatexExpressionData::VariableDeclaration(VariableDeclaration {
         id: None,
         kind,
         name,
         type_annotation,
         init_expression: Box::new(value),
-    }
+    })
 }
 
 /// A variable assignment (e.g. `x = 42` or `y += 1`)
@@ -36,13 +37,13 @@ pub fn variable_assignment<'a>(
     select! { Token::Identifier(name) => name }
         .then(assignment_op)
         .then(expression)
-        .map_with(|((var_name, op), expr), e| {
-            DatexExpressionData::VariableAssignment(
-                op,
-                None,
-                var_name.to_string(),
-                Box::new(expr),
-            ).with_span(e.span())
+        .map_with(|((var_name, operator), expr), e| {
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator,
+                name: var_name.to_string(),
+                expression: Box::new(expr),
+            }).with_span(e.span())
         })
         .labelled(Pattern::Declaration)
         .as_context()

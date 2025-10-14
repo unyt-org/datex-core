@@ -18,7 +18,8 @@ use std::ops::Range;
 use std::rc::Rc;
 use chumsky::prelude::SimpleSpan;
 use datex_core::ast::parse_result::ValidDatexParseResult;
-use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableKind};
+use datex_core::ast::tree::VariableAccess;
+use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -392,13 +393,13 @@ fn visit_expression(
                 ));
             }
         }
-        DatexExpressionData::VariableDeclaration {
+        DatexExpressionData::VariableDeclaration(VariableDeclaration {
             id,
             kind,
             name,
             init_expression: value,
             type_annotation,
-        } => {
+        }) => {
             visit_expression(
                 value,
                 metadata,
@@ -427,16 +428,18 @@ fn visit_expression(
                 resolve_variable(name, metadata, scope_stack)?;
             *expression = match resolved_variable {
                 ResolvedVariable::VariableId(id) => {
-                    DatexExpressionData::Variable(id, name.clone()).with_span(expression.span)
+                    DatexExpressionData::VariableAccess(VariableAccess {id, name: name.clone()}).with_span(expression.span)
                 }
                 ResolvedVariable::PointerAddress(pointer_address) => {
                     DatexExpressionData::GetReference(pointer_address).with_span(expression.span)
                 }
             };
         }
-        DatexExpressionData::VariableAssignment(_, id, name, expr) => {
+        DatexExpressionData::VariableAssignment(VariableAssignment {
+            id, name, expression, ..
+        }) => {
             visit_expression(
-                expr,
+                expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
@@ -599,10 +602,10 @@ fn visit_expression(
                             })?;
                             *expression = match resolved_variable {
                                 ResolvedVariable::VariableId(id) => {
-                                    DatexExpressionData::Variable(
+                                    DatexExpressionData::VariableAccess(VariableAccess {
                                         id,
-                                        full_name.to_string(),
-                                    ).with_span(expression.span)
+                                        name: full_name.to_string(),
+                                    }).with_span(expression.span)
                                 }
                                 _ => unreachable!(
                                     "Variant access must resolve to a core library type"
@@ -788,7 +791,7 @@ fn visit_expression(
         DatexExpressionData::Recover => {
             unreachable!("Expression should have been caught during parsing")
         }
-        DatexExpressionData::Variable(_, _) => unreachable!(
+        DatexExpressionData::VariableAccess(_) => unreachable!(
             "Variable expressions should have been replaced with their IDs during precompilation"
         ),
         DatexExpressionData::FunctionDeclaration {
@@ -888,6 +891,7 @@ fn resolve_variable(
     }
 }
 
+// FIXME: use tree visitor once fully implemented instead of custom visit function
 fn visit_type_expression(
     type_expr: &mut TypeExpression,
     metadata: &mut AstMetadata,
@@ -1097,10 +1101,10 @@ mod tests {
                     value: TypeExpression::StructuralMap(vec![]),
                     hoisted: true,
                 }.with_default_span(),
-                DatexExpressionData::Variable(
-                    1,
-                    "User/admin".to_string()
-                ).with_default_span()
+                DatexExpressionData::VariableAccess(VariableAccess {
+                    id: 1,
+                    name: "User/admin".to_string()
+                }).with_default_span()
             ])).with_default_span())
         );
 
@@ -1117,8 +1121,8 @@ mod tests {
             *statements.statements.get(2).unwrap(),
             DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(DatexExpressionData::Variable(0, "a".to_string()).with_default_span()),
-                Box::new(DatexExpressionData::Variable(1, "b".to_string()).with_default_span()),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 0, name: "a".to_string()}).with_default_span()),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 1, name: "b".to_string()}).with_default_span()),
                 None
             ).with_default_span()
         );
@@ -1136,8 +1140,8 @@ mod tests {
             *statements.statements.get(2).unwrap(),
             DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(DatexExpressionData::Variable(1, "a".to_string()).with_default_span()),
-                Box::new(DatexExpressionData::Variable(0, "b".to_string()).with_default_span()),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 1, name: "a".to_string()}).with_default_span()),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 0, name: "b".to_string()}).with_default_span()),
                 None
             ).with_default_span()
         );
@@ -1157,17 +1161,17 @@ mod tests {
                     value: TypeExpression::Integer(Integer::from(1)),
                     hoisted: true,
                 }.with_default_span(),
-                DatexExpressionData::VariableDeclaration {
+                DatexExpressionData::VariableDeclaration(VariableDeclaration {
                     id: Some(1),
                     kind: VariableKind::Var,
                     name: "x".to_string(),
                     // must refer to variable id 0
-                    init_expression: Box::new(DatexExpressionData::Variable(
-                        0,
-                        "MyInt".to_string()
-                    ).with_default_span()),
+                    init_expression: Box::new(DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "MyInt".to_string()
+                    }).with_default_span()),
                     type_annotation: None,
-                }.with_default_span(),
+                }).with_default_span(),
             ])).with_default_span())
         )
     }
@@ -1180,17 +1184,17 @@ mod tests {
         assert_eq!(
             ast_with_metadata.ast,
             Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
-                DatexExpressionData::VariableDeclaration {
+                DatexExpressionData::VariableDeclaration(VariableDeclaration {
                     id: Some(1),
                     kind: VariableKind::Var,
                     name: "x".to_string(),
                     // must refer to variable id 0
-                    init_expression: Box::new(DatexExpressionData::Variable(
-                        0,
-                        "MyInt".to_string()
-                    ).with_default_span()),
+                    init_expression: Box::new(DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "MyInt".to_string()
+                    }).with_default_span()),
                     type_annotation: None,
-                }.with_default_span(),
+                }).with_default_span(),
                 DatexExpressionData::TypeDeclaration {
                     id: Some(0),
                     name: "MyInt".to_string(),
