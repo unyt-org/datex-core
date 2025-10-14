@@ -128,7 +128,7 @@ impl Display for CompilerError {
                 write!(f, "Cannot assign to immutable reference: {name}")
             }
             CompilerError::TypeError(err) => {
-                write!(f, "Type error: {:?}", err)
+                write!(f, "Type error: {:#?}", err)
             }
             CompilerError::Spanned(err, span) => {
                 write!(f, "{} at {:?}", err, span)
