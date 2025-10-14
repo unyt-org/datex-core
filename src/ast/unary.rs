@@ -5,6 +5,7 @@ use crate::ast::unary_operation::{
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
+use crate::ast::tree::UnaryOperation;
 
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     recursive(|unary| {
@@ -44,7 +45,7 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
 
         // apply prefix operators repeatedly (e.g. --x or !-x)
         let prefixes = prefix_op.then(unary.clone()).map_with(|(op, expr), e| {
-            DatexExpressionData::UnaryOperation(op, Box::new(expr)).with_span(e.span())
+            DatexExpressionData::UnaryOperation(UnaryOperation {operator: op, expression: Box::new(expr)}).with_span(e.span())
         });
 
         // try prefix forms first, fall back to atom

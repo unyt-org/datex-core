@@ -18,8 +18,8 @@ pub fn is_identifier(expr: &DatexExpression) -> bool {
 pub fn unwrap_single_statement(expr: DatexExpression) -> DatexExpression {
     match expr.data {
         DatexExpressionData::Statements(mut stmts) => {
-            if stmts.len() == 1 && stmts[0].is_terminated {
-                stmts.remove(0).expression
+            if stmts.statements.len() == 1 && !stmts.is_terminated {
+                stmts.statements.remove(0)
             } else {
                 DatexExpressionData::Statements(stmts).with_span(expr.span)
             }

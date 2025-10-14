@@ -55,7 +55,7 @@ use std::ops::Neg;
 use std::ops::Range;
 use chumsky::span::Span;
 use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult};
-use crate::ast::tree::{DatexExpression, DatexExpressionData};
+use crate::ast::tree::{DatexExpression, DatexExpressionData, Statements};
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
@@ -64,11 +64,6 @@ pub trait DatexParserTrait<'a, T = DatexExpression> =
 pub type DatexScriptParser<'a> =
     Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<ParseError>>;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Statement {
-    pub expression: DatexExpression,
-    pub is_terminated: bool,
-}
 pub trait ParserRecoverExt<'a, I>:
     DatexParserTrait<'a, Result<DatexExpression, I>>
 where
@@ -130,28 +125,21 @@ pub fn create_parser<'a>()
                 .then(just(Token::Semicolon).padded_by(whitespace()).or_not())
                 .or_not(), // Final expression with optional semicolon
         )
-        .map_with(|(exprs, last), e| {
+        .map_with(|(statements, last), e| {
             // Convert expressions with mandatory semicolon
-            let mut statements: Vec<Statement> = exprs
-                .into_iter()
-                .map(|expr| Statement {
-                    expression: expr,
-                    is_terminated: true,
-                })
-                .collect();
+            let mut statements: Vec<DatexExpression> = statements;
+            let mut is_terminated = true;
 
-            if let Some((last_expr, last_semi)) = last {
-                // If there's a last expression, add it as a statement
-                statements.push(Statement {
-                    expression: last_expr,
-                    is_terminated: last_semi.is_some(),
-                });
+            if let Some((last_statement, last_semi)) = last {
+                // add last_expr to statements
+                statements.push(last_statement);
+                is_terminated = last_semi.is_some();
             }
             // if single statement without semicolon, treat it as a single expression
-            if statements.len() == 1 && !statements[0].is_terminated {
-                statements.remove(0).expression
+            if statements.len() == 1 && !is_terminated {
+                statements.remove(0)
             } else {
-                DatexExpressionData::Statements(statements).with_span(e.span())
+                DatexExpressionData::Statements(Statements {statements, is_terminated}).with_span(e.span())
             }
         })
         .boxed()
@@ -270,7 +258,7 @@ pub fn create_parser<'a>()
             .repeated()
             .at_least(1)
             .padded_by(whitespace())
-            .map_with(|_, e| DatexExpressionData::Statements(vec![]).with_span(e.span())),
+            .map_with(|_, e| DatexExpressionData::Statements(Statements::empty()).with_span(e.span())),
         // statements
         statements,
     ))
@@ -351,7 +339,7 @@ mod tests {
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };
-    use crate::ast::tree::{DatexExpressionData, Slot, TypeExpression, VariableKind};
+    use crate::ast::tree::{DatexExpressionData, Slot, TypeExpression, UnaryOperation, VariableKind};
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -756,15 +744,14 @@ mod tests {
                     )
                 ],
                 return_type: None,
-                body: Box::new(DatexExpressionData::Statements(vec![Statement {
-                    expression: DatexExpressionData::BinaryOperation(
+                body: Box::new(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                    DatexExpressionData::BinaryOperation(
                         BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                         Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
                         Box::new(DatexExpressionData::Integer(Integer::from(2)).with_default_span()),
                         None
-                    ).with_default_span(),
-                    is_terminated: true
-                }]).with_default_span()),
+                    ).with_default_span()
+                ])).with_default_span()),
             }
         );
     }
@@ -1099,7 +1086,7 @@ mod tests {
                 "4"
             ) else if x == 'hello' (
                 "42" 
-            ) else null;
+            ) else null
         "#;
 
         let val = parse_unwrap_data(src);
@@ -1133,50 +1120,50 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
-                Box::new(DatexExpressionData::ApplyChain(
-                    Box::new(DatexExpressionData::Identifier("User".to_string()).with_default_span()),
-                    vec![ApplyOperation::FunctionCall(DatexExpressionData::Map(
-                        vec![]
-                    ).with_default_span())]
-                ).with_default_span()),
-            )
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator : UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
+                expression: Box::new(
+                    DatexExpressionData::ApplyChain(
+                        Box::new(DatexExpressionData::Identifier("User".to_string()).with_default_span()),
+                        vec![ApplyOperation::FunctionCall(DatexExpressionData::Map(vec![]).with_default_span())]
+                    ).with_default_span()
+                ),
+            })
         );
 
         let src = "-(5)";
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
-                Box::new(DatexExpressionData::Integer(Integer::from(5)).with_default_span())
-            )
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                expression: Box::new(DatexExpressionData::Integer(Integer::from(5)).with_default_span())
+            })
         );
 
         let src = "+-+-myVal";
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
-                Box::new(DatexExpressionData::UnaryOperation(
-                    UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
-                    Box::new(DatexExpressionData::UnaryOperation(
-                        UnaryOperator::Arithmetic(
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
+                expression: Box::new(DatexExpressionData::UnaryOperation(UnaryOperation {
+                    operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                    expression: Box::new(DatexExpressionData::UnaryOperation(UnaryOperation {
+                        operator: UnaryOperator::Arithmetic(
                             ArithmeticUnaryOperator::Plus
                         ),
-                        Box::new(DatexExpressionData::UnaryOperation(
-                            UnaryOperator::Arithmetic(
+                        expression: Box::new(DatexExpressionData::UnaryOperation(UnaryOperation {
+                            operator: UnaryOperator::Arithmetic(
                                 ArithmeticUnaryOperator::Minus
                             ),
-                            Box::new(DatexExpressionData::Identifier(
+                            expression: Box::new(DatexExpressionData::Identifier(
                                 "myVal".to_string()
                             ).with_default_span())
-                        ).with_default_span())
-                    ).with_default_span())
-                ).with_default_span())
-            )
+                        }).with_default_span())
+                    }).with_default_span())
+                }).with_default_span())
+            })
         );
     }
 
@@ -1414,12 +1401,12 @@ mod tests {
         let num = parse_unwrap_data(src);
         assert_eq!(
             num,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
-                Box::new(DatexExpressionData::Integer(
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                expression: Box::new(DatexExpressionData::Integer(
                     Integer::from_string("123456789123456789").unwrap()
                 ).with_default_span())
-            )
+            })
         );
     }
 
@@ -1522,12 +1509,12 @@ mod tests {
         let num = parse_unwrap_data(src);
         assert_eq!(
             num,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
-                Box::new(DatexExpressionData::Decimal(
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                expression: Box::new(DatexExpressionData::Decimal(
                     Decimal::from_string("123.4").unwrap()
                 ).with_default_span())
-            )
+            })
         );
     }
 
@@ -1986,16 +1973,10 @@ mod tests {
             DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Add),
                 Box::new(DatexExpressionData::Integer(Integer::from(1)).with_default_span()),
-                Box::new(DatexExpressionData::Statements(vec![
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                        is_terminated: true,
-                    },
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
-                        is_terminated: false,
-                    },
-                ]).with_default_span()),
+                Box::new(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                    DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
+                ])).with_default_span()),
                 None
             )
         );
@@ -2010,16 +1991,10 @@ mod tests {
             expr,
             DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-                Box::new(DatexExpressionData::Statements(vec![
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                        is_terminated: true,
-                    },
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                        is_terminated: false,
-                    },
-                ]).with_default_span()),
+                Box::new(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                    DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                ])).with_default_span()),
                 Box::new(DatexExpressionData::Integer(Integer::from(3)).with_default_span()),
                 None
             )
@@ -2047,16 +2022,10 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                    is_terminated: false,
-                },
-            ])
+            DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+            ]))
         );
     }
 
@@ -2066,20 +2035,11 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
-                    is_terminated: false,
-                },
-            ])
+            DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
+            ]))
         );
     }
     #[test]
@@ -2088,20 +2048,11 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
-                    is_terminated: true,
-                },
-            ])
+            DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
+            ]))
         );
     }
 
@@ -2113,20 +2064,11 @@ mod tests {
             expr,
             DatexExpressionData::Map(vec![(
                 DatexExpressionData::Text("key".to_string()).with_default_span(),
-                DatexExpressionData::Statements(vec![
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                        is_terminated: true,
-                    },
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                        is_terminated: true,
-                    },
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
-                        is_terminated: false,
-                    },
-                ]).with_default_span()
+                DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                    DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
+                ])).with_default_span()
             ),])
         );
     }
@@ -2137,10 +2079,9 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![Statement {
-                expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                is_terminated: true,
-            },])
+            DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span()
+            ]))
         );
     }
 
@@ -2148,14 +2089,14 @@ mod tests {
     fn empty_statement() {
         let src = ";";
         let expr = parse_unwrap_data(src);
-        assert_eq!(expr, DatexExpressionData::Statements(vec![]));
+        assert_eq!(expr, DatexExpressionData::Statements(Statements::empty()));
     }
 
     #[test]
     fn empty_statement_multiple() {
         let src = ";;;";
         let expr = parse_unwrap_data(src);
-        assert_eq!(expr, DatexExpressionData::Statements(vec![]));
+        assert_eq!(expr, DatexExpressionData::Statements(Statements::empty()));
     }
 
     #[test]
@@ -2308,20 +2249,14 @@ mod tests {
                         ).with_default_span()
                     ),
                     ApplyOperation::PropertyAccess(
-                        DatexExpressionData::Statements(vec![
-                            Statement {
-                                expression: DatexExpressionData::Identifier(
+                        DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                            DatexExpressionData::Identifier(
                                     "x".to_string()
                                 ).with_default_span(),
-                                is_terminated: true,
-                            },
-                            Statement {
-                                expression: DatexExpressionData::Identifier(
-                                    "y".to_string()
-                                ).with_default_span(),
-                                is_terminated: false,
-                            },
-                        ]).with_default_span()
+                            DatexExpressionData::Identifier(
+                                "y".to_string()
+                            ).with_default_span(),
+                        ])).with_default_span()
                     ),
                 ],
             )
@@ -2402,8 +2337,8 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![Statement {
-                expression: DatexExpressionData::TypeDeclaration {
+            DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::TypeDeclaration {
                     id: None,
                     name: "User".to_string(),
                     value: TypeExpression::StructuralMap(vec![
@@ -2417,9 +2352,8 @@ mod tests {
                         ),
                     ]),
                     hoisted: false,
-                }.with_default_span(),
-                is_terminated: true,
-            },])
+                }.with_default_span()
+            ]))
         );
 
         // make sure { type: 42, name: "John" } is not parsed as type declaration
@@ -2427,8 +2361,8 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![Statement {
-                expression: DatexExpressionData::Map(vec![
+            DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::Map(vec![
                     (
                         DatexExpressionData::Text("type".to_string()).with_default_span(),
                         DatexExpressionData::Integer(Integer::from(42)).with_default_span()
@@ -2437,9 +2371,8 @@ mod tests {
                         DatexExpressionData::Text("name".to_string()).with_default_span(),
                         DatexExpressionData::Text("John".to_string()).with_default_span()
                     ),
-                ]).with_default_span(),
-                is_terminated: true,
-            },])
+                ]).with_default_span()
+            ]))
         );
     }
 
@@ -2449,8 +2382,8 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![Statement {
-                expression: DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::VariableDeclaration {
                     id: None,
                     kind: VariableKind::Const,
                     type_annotation: None,
@@ -2458,9 +2391,8 @@ mod tests {
                     init_expression: Box::new(DatexExpressionData::Integer(
                         Integer::from(42)
                     ).with_default_span()),
-                }.with_default_span(),
-                is_terminated: true,
-            },])
+                }.with_default_span()
+            ]))
         );
     }
 
@@ -2661,9 +2593,8 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::VariableDeclaration {
+            DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::VariableDeclaration {
                         id: None,
                         kind: VariableKind::Var,
                         name: "x".to_string(),
@@ -2672,29 +2603,24 @@ mod tests {
                         ).with_default_span()),
                         type_annotation: None
                     }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::VariableAssignment(
-                        AssignmentOperator::Assign,
-                        None,
-                        "x".to_string(),
-                        Box::new(DatexExpressionData::BinaryOperation(
-                            BinaryOperator::Arithmetic(
-                                ArithmeticOperator::Multiply
-                            ),
-                            Box::new(DatexExpressionData::Integer(Integer::from(
-                                100
-                            )).with_default_span()),
-                            Box::new(DatexExpressionData::Integer(Integer::from(
-                                10
-                            )).with_default_span()),
-                            None
-                        ).with_default_span()),
-                    ).with_default_span(),
-                    is_terminated: true,
-                },
-            ])
+                DatexExpressionData::VariableAssignment(
+                    AssignmentOperator::Assign,
+                    None,
+                    "x".to_string(),
+                    Box::new(DatexExpressionData::BinaryOperation(
+                        BinaryOperator::Arithmetic(
+                            ArithmeticOperator::Multiply
+                        ),
+                        Box::new(DatexExpressionData::Integer(Integer::from(
+                            100
+                        )).with_default_span()),
+                        Box::new(DatexExpressionData::Integer(Integer::from(
+                            10
+                        )).with_default_span()),
+                        None
+                    ).with_default_span()),
+                ).with_default_span()
+            ]))
         );
     }
 
@@ -2979,19 +2905,13 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::RemoteExecution(
+            DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::RemoteExecution(
                         Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
                         Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span())
                     ).with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                    is_terminated: false,
-                },
-            ])
+                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+            ]))
         );
     }
 
@@ -3003,25 +2923,19 @@ mod tests {
             expr,
             DatexExpressionData::RemoteExecution(
                 Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
-                Box::new(DatexExpressionData::Statements(vec![
-                    Statement {
-                        expression: DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                        is_terminated: true,
-                    },
-                    Statement {
-                        expression: DatexExpressionData::BinaryOperation(
-                            BinaryOperator::Arithmetic(ArithmeticOperator::Add),
-                            Box::new(DatexExpressionData::Integer(Integer::from(
-                                2
-                            )).with_default_span()),
-                            Box::new(DatexExpressionData::Integer(Integer::from(
-                                3
-                            )).with_default_span()),
-                            None
-                        ).with_default_span(),
-                        is_terminated: false,
-                    },
-                ]).with_default_span()),
+                Box::new(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                    DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
+                    DatexExpressionData::BinaryOperation(
+                        BinaryOperator::Arithmetic(ArithmeticOperator::Add),
+                        Box::new(DatexExpressionData::Integer(Integer::from(
+                            2
+                        )).with_default_span()),
+                        Box::new(DatexExpressionData::Integer(Integer::from(
+                            3
+                        )).with_default_span()),
+                        None
+                    ).with_default_span(),
+                ])).with_default_span()),
             )
         );
     }
@@ -3204,37 +3118,37 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Logical(LogicalUnaryOperator::Not),
-                Box::new(DatexExpressionData::Identifier("x".to_string()).with_default_span())
-            )
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Logical(LogicalUnaryOperator::Not),
+                expression: Box::new(DatexExpressionData::Identifier("x".to_string()).with_default_span())
+            })
         );
 
         let src = "!true";
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Logical(LogicalUnaryOperator::Not),
-                Box::new(DatexExpressionData::Boolean(true).with_default_span())
-            )
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Logical(LogicalUnaryOperator::Not),
+                expression: Box::new(DatexExpressionData::Boolean(true).with_default_span())
+            })
         );
 
         let src = "!![1, 2]";
         let expr = parse_unwrap_data(src);
         assert_matches!(
             expr,
-            DatexExpressionData::UnaryOperation(
-                UnaryOperator::Logical(LogicalUnaryOperator::Not),
-                box DatexExpression {
-                    data: DatexExpressionData::UnaryOperation(
-                        UnaryOperator::Logical(LogicalUnaryOperator::Not),
-                        box DatexExpression {
+            DatexExpressionData::UnaryOperation(UnaryOperation {
+                operator: UnaryOperator::Logical(LogicalUnaryOperator::Not),
+                expression: box DatexExpression {
+                    data: DatexExpressionData::UnaryOperation(UnaryOperation {
+                        operator: UnaryOperator::Logical(LogicalUnaryOperator::Not),
+                        expression: box DatexExpression {
                             data: DatexExpressionData::List(_), ..
                         },
-                    ), ..
+                    }), ..
                 },
-            )
+            })
         );
     }
 

@@ -18,7 +18,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use chumsky::prelude::SimpleSpan;
 use datex_core::ast::parse_result::ValidDatexParseResult;
-use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, VariableKind};
+use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableKind};
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -683,9 +683,9 @@ fn visit_expression(
                 spans
             )?;
         }
-        DatexExpressionData::UnaryOperation(_operator, expr) => {
+        DatexExpressionData::UnaryOperation(UnaryOperation {operator: _, expression}) => {
             visit_expression(
-                expr,
+                expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
@@ -707,10 +707,10 @@ fn visit_expression(
         DatexExpressionData::Statements(stmts) => {
             // hoist type declarations first
             let mut registered_names = HashSet::new();
-            for stmt in stmts.iter_mut() {
+            for stmt in stmts.statements.iter_mut() {
                 if let DatexExpressionData::TypeDeclaration {
                     name, hoisted, ..
-                } = &mut stmt.expression.data
+                } = &mut stmt.data
                 {
                     // set hoisted to true
                     *hoisted = true;
@@ -748,9 +748,9 @@ fn visit_expression(
                     }
                 }
             }
-            for stmt in stmts {
+            for stmt in &mut stmts.statements {
                 visit_expression(
-                    &mut stmt.expression,
+                    stmt,
                     metadata,
                     scope_stack,
                     NewScopeType::None,
@@ -973,13 +973,14 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{Statement, error::src::SrcId, parse};
+    use crate::ast::{error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use datex_core::values::core_values::integer::Integer;
     use std::assert_matches::assert_matches;
     use std::io;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
+    use crate::ast::tree::Statements;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
@@ -1083,33 +1084,24 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            Some(DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(0),
-                        name: "User".to_string(),
-                        value: TypeExpression::StructuralMap(vec![]),
-                        hoisted: true,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(1),
-                        name: "User/admin".to_string(),
-                        value: TypeExpression::StructuralMap(vec![]),
-                        hoisted: true,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Variable(
-                        1,
-                        "User/admin".to_string()
-                    ).with_default_span(),
-                    is_terminated: false,
-                }
-            ]).with_default_span())
+            Some(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "User".to_string(),
+                    value: TypeExpression::StructuralMap(vec![]),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(1),
+                    name: "User/admin".to_string(),
+                    value: TypeExpression::StructuralMap(vec![]),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::Variable(
+                    1,
+                    "User/admin".to_string()
+                ).with_default_span()
+            ])).with_default_span())
         );
 
         // value shall be interpreted as division
@@ -1122,7 +1114,7 @@ mod tests {
                 panic!("Expected statements");
             };
         assert_eq!(
-            statements.get(2).unwrap().expression,
+            *statements.statements.get(2).unwrap(),
             DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpressionData::Variable(0, "a".to_string()).with_default_span()),
@@ -1141,7 +1133,7 @@ mod tests {
                 panic!("Expected statements");
             };
         assert_eq!(
-            statements.get(2).unwrap().expression,
+            *statements.statements.get(2).unwrap(),
             DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
                 Box::new(DatexExpressionData::Variable(1, "a".to_string()).with_default_span()),
@@ -1158,31 +1150,25 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            Some(DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(0),
-                        name: "MyInt".to_string(),
-                        value: TypeExpression::Integer(Integer::from(1)),
-                        hoisted: true,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::VariableDeclaration {
-                        id: Some(1),
-                        kind: VariableKind::Var,
-                        name: "x".to_string(),
-                        // must refer to variable id 0
-                        init_expression: Box::new(DatexExpressionData::Variable(
-                            0,
-                            "MyInt".to_string()
-                        ).with_default_span()),
-                        type_annotation: None,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-            ]).with_default_span())
+            Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "MyInt".to_string(),
+                    value: TypeExpression::Integer(Integer::from(1)),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::VariableDeclaration {
+                    id: Some(1),
+                    kind: VariableKind::Var,
+                    name: "x".to_string(),
+                    // must refer to variable id 0
+                    init_expression: Box::new(DatexExpressionData::Variable(
+                        0,
+                        "MyInt".to_string()
+                    ).with_default_span()),
+                    type_annotation: None,
+                }.with_default_span(),
+            ])).with_default_span())
         )
     }
 
@@ -1193,31 +1179,25 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            Some(DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::VariableDeclaration {
-                        id: Some(1),
-                        kind: VariableKind::Var,
-                        name: "x".to_string(),
-                        // must refer to variable id 0
-                        init_expression: Box::new(DatexExpressionData::Variable(
-                            0,
-                            "MyInt".to_string()
-                        ).with_default_span()),
-                        type_annotation: None,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(0),
-                        name: "MyInt".to_string(),
-                        value: TypeExpression::Integer(Integer::from(1)),
-                        hoisted: true,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-            ]).with_default_span())
+            Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::VariableDeclaration {
+                    id: Some(1),
+                    kind: VariableKind::Var,
+                    name: "x".to_string(),
+                    // must refer to variable id 0
+                    init_expression: Box::new(DatexExpressionData::Variable(
+                        0,
+                        "MyInt".to_string()
+                    ).with_default_span()),
+                    type_annotation: None,
+                }.with_default_span(),
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "MyInt".to_string(),
+                    value: TypeExpression::Integer(Integer::from(1)),
+                    hoisted: true,
+                }.with_default_span(),
+            ])).with_default_span())
         )
     }
 
@@ -1228,26 +1208,20 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            Some(DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(0),
-                        name: "x".to_string(),
-                        value: TypeExpression::Variable(1, "MyInt".to_string()),
-                        hoisted: true,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(1),
-                        name: "MyInt".to_string(),
-                        value: TypeExpression::Variable(0, "x".to_string()),
-                        hoisted: true,
-                    }.with_default_span(),
-                    is_terminated: true,
-                },
-            ]).with_default_span())
+            Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "x".to_string(),
+                    value: TypeExpression::Variable(1, "MyInt".to_string()),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(1),
+                    name: "MyInt".to_string(),
+                    value: TypeExpression::Variable(0, "x".to_string()),
+                    hoisted: true,
+                }.with_default_span(),
+            ])).with_default_span())
         )
     }
 
@@ -1267,42 +1241,30 @@ mod tests {
         let ast_with_metadata = result.unwrap();
         assert_eq!(
             ast_with_metadata.ast,
-            Some(DatexExpressionData::Statements(vec![
-                Statement {
-                    expression: DatexExpressionData::TypeDeclaration {
-                        id: Some(0),
-                        name: "x".to_string(),
-                        value: TypeExpression::Integer(
-                            Integer::from(10).into()
+            Some(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "x".to_string(),
+                    value: TypeExpression::Integer(
+                        Integer::from(10).into()
+                    ),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::Statements(Statements::new_terminated(vec![
+                    DatexExpressionData::Integer(
+                        Integer::from(1)
+                    ).with_default_span(),
+                    DatexExpressionData::TypeDeclaration {
+                        id: Some(1),
+                        name: "NestedVar".to_string(),
+                        value: TypeExpression::Variable(
+                            0,
+                            "x".to_string()
                         ),
                         hoisted: true,
                     }.with_default_span(),
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpressionData::Statements(vec![
-                        Statement {
-                            expression: DatexExpressionData::Integer(
-                                Integer::from(1)
-                            ).with_default_span(),
-                            is_terminated: true,
-                        },
-                        Statement {
-                            expression: DatexExpressionData::TypeDeclaration {
-                                id: Some(1),
-                                name: "NestedVar".to_string(),
-                                value: TypeExpression::Variable(
-                                    0,
-                                    "x".to_string()
-                                ),
-                                hoisted: true,
-                            }.with_default_span(),
-                            is_terminated: true,
-                        },
-                    ]).with_default_span(),
-                    is_terminated: false,
-                }
-            ]).with_default_span())
+                ])).with_default_span()
+            ])).with_default_span())
         )
     }
 
