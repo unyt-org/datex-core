@@ -425,7 +425,7 @@ fn visit_expression(
         }
         DatexExpressionData::Identifier(name) => {
             let resolved_variable =
-                resolve_variable(name, metadata, scope_stack)?;
+                resolve_variable(name, metadata, scope_stack).map_err(|e| e.spanned(expression.span))?;
             *expression = match resolved_variable {
                 ResolvedVariable::VariableId(id) => {
                     DatexExpressionData::VariableAccess(VariableAccess {id, name: name.clone()}).with_span(expression.span)

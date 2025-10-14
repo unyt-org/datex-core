@@ -137,10 +137,10 @@ pub fn infer_expression_type(
                     type_annotation,
                     metadata.clone(),
                 )?;
-                println!(
-                    "Matching annotated type {} against inferred type {}",
-                    annotated_type, init_type
-                );
+                // println!(
+                //     "Matching annotated type {} against inferred type {}",
+                //     annotated_type, init_type
+                // );
                 if !annotated_type.matches_type(&init_type) {
                     return Err(TypeError::AssignmentTypeMismatch {
                         annotated_type,

@@ -1,6 +1,5 @@
 use std::fmt::Display;
 use std::ops::Neg;
-use chumsky::prelude::SimpleSpan;
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::binding::VariableId;
@@ -19,6 +18,13 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+
+pub use chumsky::prelude::SimpleSpan as SimpleSpan;
+use crate::values::core_values::boolean::Boolean;
+
+pub trait Visitable {
+    fn visit_children_with(&self, visitor: &mut impl Visit);
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum VariableKind {
@@ -102,10 +108,28 @@ pub struct DatexExpression {
     pub span: SimpleSpan
 }
 
-impl DatexExpression {
-    pub fn visit_children_with(&self, visitor: &impl Visit) {
+impl Visitable for DatexExpression {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
         match &self.data {
-            DatexExpressionData::UnaryOperation(op) => op.visit_children_with(visitor),
+            DatexExpressionData::UnaryOperation(op) => visitor.visit_unary_operation(op, self.span),
+            DatexExpressionData::Statements(stmts) => visitor.visit_statements(stmts, self.span),
+            DatexExpressionData::VariableDeclaration(var_decl) => {
+                visitor.visit_variable_declaration(var_decl, self.span)
+            }
+            DatexExpressionData::VariableAssignment(var_assign) => {
+                visitor.visit_variable_assignment(var_assign, self.span)
+            }
+            DatexExpressionData::VariableAccess(var_access) => {
+                visitor.visit_variable_access(var_access, self.span)
+            }
+            DatexExpressionData::Integer(i) => visitor.visit_integer(i, self.span),
+            DatexExpressionData::TypedInteger(ti) => visitor.visit_typed_integer(ti, self.span),
+            DatexExpressionData::Decimal(d) => visitor.visit_decimal(d, self.span),
+            DatexExpressionData::TypedDecimal(td) => visitor.visit_typed_decimal(td, self.span),
+            DatexExpressionData::Text(s) => visitor.visit_text(s, self.span),
+            DatexExpressionData::Boolean(b) => visitor.visit_boolean(*b, self.span),
+            DatexExpressionData::Endpoint(e) => visitor.visit_endpoint(e, self.span),
+            DatexExpressionData::Null => visitor.visit_null(self.span),
             _ => {}
         }
     }
@@ -244,9 +268,6 @@ pub enum DatexExpressionData {
 }
 
 // Expressions with visit methods
-pub trait Visitable {
-    fn visit_children_with(&self, visitor: &impl Visit);
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnaryOperation {
@@ -254,7 +275,7 @@ pub struct UnaryOperation {
     pub expression: Box<DatexExpression>,
 }
 impl Visitable for UnaryOperation {
-    fn visit_children_with(&self, visitor: &impl Visit) {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
         visitor.visit_expression(&self.expression);
     }
 }
@@ -276,7 +297,7 @@ impl Statements {
     }
 }
 impl Visitable for Statements {
-    fn visit_children_with(&self, visitor: &impl Visit) {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
         for stmt in &self.statements {
             visitor.visit_expression(&stmt);
         }
@@ -294,7 +315,7 @@ pub struct VariableDeclaration {
 
 // TODO: visitor for type expressions
 impl Visitable for VariableDeclaration {
-    fn visit_children_with(&self, visitor: &impl Visit) {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
         visitor.visit_expression(&self.init_expression);
     }
 }
@@ -308,7 +329,7 @@ pub struct VariableAssignment {
 }
 
 impl Visitable for VariableAssignment {
-    fn visit_children_with(&self, visitor: &impl Visit) {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
         visitor.visit_expression(&self.expression);
     }
 }
@@ -391,20 +412,28 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
 /// Implement the `Visit` trait and override the methods for the nodes you want to visit.
 /// The default implementation visits all child nodes and traverses the entire tree.
 pub trait Visit: Sized {
-    fn visit_expression(&self, expr: &DatexExpression) {
+    fn visit_expression(&mut self, expr: &DatexExpression) {
         expr.visit_children_with(self);
     }
-    fn visit_statements(&self, stmts: &Statements) {
+    fn visit_statements(&mut self, stmts: &Statements, span: SimpleSpan) {
         stmts.visit_children_with(self);
     }
-    fn visit_unary_operation(&self, op: &UnaryOperation) {
+    fn visit_unary_operation(&mut self, op: &UnaryOperation, span: SimpleSpan) {
         op.visit_children_with(self);
     }
-    fn visit_variable_declaration(&self, var_decl: &VariableDeclaration) {
+    fn visit_variable_declaration(&mut self, var_decl: &VariableDeclaration, span: SimpleSpan) {
         var_decl.visit_children_with(self);
     }
-    fn visit_variable_assignment(&self, var_assign: &VariableAssignment) {
+    fn visit_variable_assignment(&mut self, var_assign: &VariableAssignment, span: SimpleSpan) {
         var_assign.visit_children_with(self);
     }
-    fn visit_variable_access(&self, _var_access: &VariableAccess) {}
+    fn visit_variable_access(&mut self, var_access: &VariableAccess, span: SimpleSpan) {}
+    fn visit_integer(&mut self, value: &Integer, span: SimpleSpan) {}
+    fn visit_typed_integer(&mut self, value: &TypedInteger, span: SimpleSpan) {}
+    fn visit_decimal(&mut self, value: &Decimal, span: SimpleSpan) {}
+    fn visit_typed_decimal(&mut self, value: &TypedDecimal, span: SimpleSpan) {}
+    fn visit_text(&mut self, value: &String, span: SimpleSpan) {}
+    fn visit_boolean(&mut self, value: bool, span: SimpleSpan) {}
+    fn visit_endpoint(&mut self, value: &Endpoint, span: SimpleSpan) {}
+    fn visit_null(&mut self, span: SimpleSpan) {}
 }
