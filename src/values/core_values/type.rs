@@ -190,8 +190,6 @@ impl Type {
     pub fn matches_type(&self, other: &Type) -> bool {
         // TODO #324
         // println!("Matching types: {} and {}", self, other);
-        // TODO #324
-        println!("Matching types: {} and {}", self, other);
 
         let other_base_type =
             other.base_type().expect("other type has no base type");

@@ -1,6 +1,7 @@
 use crate::ast::error::error::ParseError;
 use crate::ast::tree::DatexExpression;
 use std::fmt::Display;
+use chumsky::span::SimpleSpan;
 use crate::compiler::type_inference::TypeError;
 
 #[derive(Debug)]
@@ -21,8 +22,37 @@ pub enum CompilerError {
     AssignmentToImmutableReference(String),
     AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
-    TypeError(TypeError)
+    TypeError(TypeError),
+    Spanned(Box<CompilerError>, SimpleSpan),
+    Multiple(Vec<CompilerError>),
 }
+
+impl CompilerError {
+    /// Wraps the error in a CompilerError::Spanned with the given span
+    pub fn spanned(self, span: SimpleSpan) -> Self {
+        CompilerError::Spanned(Box::new(self), span)
+    }
+
+    /// Creates a CompilerError::Multiple from a vector of errors
+    pub fn multiple(errors: Vec<CompilerError>) -> Self {
+        CompilerError::Multiple(errors)
+    }
+
+    /// Appends multiple errors into one CompilerError::Multiple
+    pub fn append(self, mut other: Vec<CompilerError>) -> Self {
+        match self {
+            CompilerError::Multiple(mut errs) => {
+                errs.append(&mut other);
+                CompilerError::Multiple(errs)
+            }
+            err => {
+                other.insert(0, err);
+                CompilerError::Multiple(other)
+            }
+        }
+    }
+}
+
 impl From<Vec<ParseError>> for CompilerError {
     fn from(value: Vec<ParseError>) -> Self {
         CompilerError::ParseErrors(value)
@@ -69,7 +99,7 @@ impl Display for CompilerError {
                 write!(f, "Encountered non-static value")
             }
             CompilerError::UndeclaredVariable(var) => {
-                write!(f, "Use of undeclared variable: {var}")
+                write!(f, "Undeclared variable: {var}")
             }
             CompilerError::ScopePopError => {
                 write!(f, "Could not pop scope, stack is empty")
@@ -94,6 +124,15 @@ impl Display for CompilerError {
             }
             CompilerError::TypeError(err) => {
                 write!(f, "Type error: {:?}", err)
+            }
+            CompilerError::Spanned(err, span) => {
+                write!(f, "{} at {:?}", err, span)
+            }
+            CompilerError::Multiple(errors) => {
+                for err in errors {
+                    writeln!(f, "{}", err)?;
+                }
+                Ok(())
             }
         }
     }

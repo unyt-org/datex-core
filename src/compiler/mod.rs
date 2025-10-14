@@ -617,7 +617,7 @@ fn compile_expression(
              name,
              kind,
              type_annotation,
-             init_expression: value, 
+             init_expression: value,
         }) => {
             compilation_context.mark_has_non_static_value();
 
@@ -700,10 +700,10 @@ fn compile_expression(
         }
 
         // assignment
-        DatexExpressionData::VariableAssignment(VariableAssignment { 
+        DatexExpressionData::VariableAssignment(VariableAssignment {
             operator,
-            name, 
-            expression, .. 
+            name,
+            expression, ..
         }) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
