@@ -484,7 +484,7 @@ mod tests {
     use super::*;
     use std::{io, str::FromStr};
     use crate::ast::parse_result::{InvalidDatexParseResult, ValidDatexParseResult};
-    use crate::ast::tree::DatexExpressionData;
+    use crate::ast::tree::{DatexExpressionData, Statements};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();
@@ -504,14 +504,14 @@ mod tests {
         let value = parse_unwrap(format!("type T = {}", src).as_str());
         if let DatexExpressionData::TypeDeclaration { value, .. } = value {
             value
-        } else if let DatexExpressionData::Statements(statements) = &value
+        } else if let DatexExpressionData::Statements(Statements {statements, ..}) = &value
             && statements.len() == 1
         {
-            match &statements[0].expression.data {
+            match &statements[0].data {
                 DatexExpressionData::TypeDeclaration { value, .. } => value.clone(),
                 _ => panic!(
                     "Expected TypeDeclaration, got {:?}",
-                    statements[0].expression
+                    statements[0]
                 ),
             }
         } else {

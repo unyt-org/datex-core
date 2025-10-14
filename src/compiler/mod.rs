@@ -24,7 +24,7 @@ use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::ast::parse_result::ValidDatexParseResult;
-use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, VariableKind};
+use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, Statements, UnaryOperation, VariableKind};
 
 pub mod context;
 pub mod error;
@@ -493,14 +493,14 @@ fn compile_expression(
         }
 
         // statements
-        DatexExpressionData::Statements(mut statements) => {
+        DatexExpressionData::Statements(Statements {mut statements, is_terminated}) => {
             compilation_context.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
-            if statements.len() == 1 && !statements[0].is_terminated {
+            if statements.len() == 1 && !is_terminated {
                 scope = compile_expression(
                     compilation_context,
                     AstWithMetadata::new(
-                        statements.remove(0).expression,
+                        statements.remove(0),
                         &metadata,
                     ),
                     CompileMetadata::default(),
@@ -515,15 +515,16 @@ fn compile_expression(
                 } else {
                     scope
                 };
-                for statement in statements {
+                let len = statements.len();
+                for (i, statement) in statements.into_iter().enumerate() {
                     child_scope = compile_expression(
                         compilation_context,
-                        AstWithMetadata::new(statement.expression, &metadata),
+                        AstWithMetadata::new(statement, &metadata),
                         CompileMetadata::default(),
                         child_scope,
                     )?;
-                    // if statement is terminated, append close and store
-                    if statement.is_terminated {
+                    // if not last statement or is terminated, append close and store
+                    if i < len - 1 || is_terminated {
                         compilation_context.append_instruction_code(
                             InstructionCode::CLOSE_AND_STORE,
                         );
@@ -552,12 +553,12 @@ fn compile_expression(
         }
 
         // unary operations (negation, not, etc.)
-        DatexExpressionData::UnaryOperation(operator, expr) => {
+        DatexExpressionData::UnaryOperation(UnaryOperation {operator, expression}) => {
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expr, &metadata),
+                AstWithMetadata::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;

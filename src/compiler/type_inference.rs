@@ -199,8 +199,8 @@ pub fn infer_expression_type(
             }
         }
         DatexExpressionData::Statements(statements) => {
-            for stmt in statements.iter_mut() {
-                infer_expression_type(&mut stmt.expression, metadata.clone())?;
+            for stmt in statements.statements.iter_mut() {
+                infer_expression_type(stmt, metadata.clone())?;
             }
             get_core_lib_type(CoreLibPointerId::Unit)
         }
