@@ -1,6 +1,7 @@
 use crate::ast::error::error::ParseError;
 use crate::ast::tree::DatexExpression;
 use std::fmt::Display;
+use std::ops::Range;
 use chumsky::span::SimpleSpan;
 use crate::compiler::type_inference::TypeError;
 
@@ -23,14 +24,18 @@ pub enum CompilerError {
     AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
     TypeError(TypeError),
-    Spanned(Box<CompilerError>, SimpleSpan),
+    Spanned(Box<CompilerError>, Range<usize>),
     Multiple(Vec<CompilerError>),
 }
 
 impl CompilerError {
     /// Wraps the error in a CompilerError::Spanned with the given span
-    pub fn spanned(self, span: SimpleSpan) -> Self {
-        CompilerError::Spanned(Box::new(self), span)
+    pub fn spanned_from_simple_span(self, span: SimpleSpan) -> Self {
+        CompilerError::Spanned(Box::new(self), span.start..span.end)
+    }
+    /// Wraps the error in a CompilerError::Spanned with the given range
+    pub fn spanned(self, range: Range<usize>) -> Self {
+        CompilerError::Spanned(Box::new(self), range)
     }
 
     /// Creates a CompilerError::Multiple from a vector of errors

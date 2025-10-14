@@ -425,7 +425,7 @@ fn visit_expression(
         }
         DatexExpressionData::Identifier(name) => {
             let resolved_variable =
-                resolve_variable(name, metadata, scope_stack).map_err(|e| e.spanned(expression.span))?;
+                resolve_variable(name, metadata, scope_stack).map_err(|e| e.spanned_from_simple_span(expression.span))?;
             *expression = match resolved_variable {
                 ResolvedVariable::VariableId(id) => {
                     DatexExpressionData::VariableAccess(VariableAccess {id, name: name.clone()}).with_span(expression.span)
@@ -1012,7 +1012,11 @@ mod tests {
     fn undeclared_variable() {
         let result = parse_and_precompile("x + 42");
         assert!(result.is_err());
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "x");
+        assert_matches!(
+            result, 
+            Err(CompilerError::Spanned(box CompilerError::UndeclaredVariable(var_name), range)) 
+            if var_name == "x" && range == (0..1)
+        );
     }
 
     #[test]
