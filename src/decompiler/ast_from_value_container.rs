@@ -16,17 +16,26 @@ impl From<&ValueContainer> for DatexExpressionData {
                 match reference.mutability() {
                     ReferenceMutability::Mutable => {
                         DatexExpressionData::CreateRefMut(Box::new(
-                            DatexExpressionData::from(&reference.value_container()).with_default_span(),
+                            DatexExpressionData::from(
+                                &reference.value_container(),
+                            )
+                            .with_default_span(),
                         ))
                     }
                     ReferenceMutability::Immutable => {
                         DatexExpressionData::CreateRef(Box::new(
-                            DatexExpressionData::from(&reference.value_container()).with_default_span(),
+                            DatexExpressionData::from(
+                                &reference.value_container(),
+                            )
+                            .with_default_span(),
                         ))
                     }
                     ReferenceMutability::Final => {
                         DatexExpressionData::CreateRefFinal(Box::new(
-                            DatexExpressionData::from(&reference.value_container()).with_default_span(),
+                            DatexExpressionData::from(
+                                &reference.value_container(),
+                            )
+                            .with_default_span(),
                         ))
                     }
                 }
@@ -65,14 +74,15 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
             map.into_iter()
                 .map(|(key, value)| {
                     (
-                        DatexExpressionData::from(&ValueContainer::from(key)).with_default_span(),
+                        DatexExpressionData::from(&ValueContainer::from(key))
+                            .with_default_span(),
                         DatexExpressionData::from(value).with_default_span(),
                     )
                 })
                 .collect(),
         ),
-        CoreValue::Type(type_value) => {
-            DatexExpressionData::TypeExpression(match &type_value.type_definition {
+        CoreValue::Type(type_value) => DatexExpressionData::TypeExpression(
+            match &type_value.type_definition {
                 TypeDefinition::Structural(struct_type) => match struct_type {
                     StructuralTypeDefinition::Integer(integer) => {
                         TypeExpression::Integer(integer.clone())
@@ -80,9 +90,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                     _ => todo!("#416 Undescribed by author."),
                 },
                 _ => todo!("#417 Undescribed by author."),
-            })
-        }
-        _ => todo!("#418 Undescribed by author."),
+            },
+        ),
     }
 }
 
@@ -162,9 +171,12 @@ mod tests {
         assert_eq!(
             ast,
             DatexExpressionData::List(vec![
-                DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
-                DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
-                DatexExpressionData::Integer(Integer::from(3)).with_default_span(),
+                DatexExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+                DatexExpressionData::Integer(Integer::from(2))
+                    .with_default_span(),
+                DatexExpressionData::Integer(Integer::from(3))
+                    .with_default_span(),
             ])
         );
     }
