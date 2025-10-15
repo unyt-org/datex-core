@@ -43,7 +43,6 @@ use crate::ast::parse_result::{
 use crate::ast::tree::{DatexExpression, DatexExpressionData, Statements};
 use chumsky::extra::Err;
 use chumsky::prelude::*;
-use chumsky::span::Span;
 use lexer::Token;
 use logos::Logos;
 use std::ops::Range;
@@ -329,8 +328,23 @@ pub fn parse(mut src: &str) -> DatexParseResult {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-        values::core_values::endpoint::InvalidEndpointError,
+        ast::{
+            assignment_operation::AssignmentOperator,
+            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
+            unary_operation::{
+                ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
+            },
+        },
+        values::{
+            core_values::{
+                decimal::Decimal,
+                endpoint::{Endpoint, InvalidEndpointError},
+                integer::{Integer, typed_integer::TypedInteger},
+                map::Map,
+            },
+            pointer::PointerAddress,
+            value_container::ValueContainer,
+        },
     };
 
     use super::*;
