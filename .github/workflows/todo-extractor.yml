@@ -20,7 +20,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout own repo
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
 
             - name: Run datex_tractor
               uses: unyt-org/datex-tractor@r0.0.3
