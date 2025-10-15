@@ -17,7 +17,6 @@ impl From<&UnaryOperator> for InstructionCode {
             UnaryOperator::Reference(op) => InstructionCode::from(op),
             UnaryOperator::Logical(op) => InstructionCode::from(op),
             UnaryOperator::Bitwise(op) => InstructionCode::from(op),
-            UnaryOperator::Reference(op) => InstructionCode::from(op),
         }
     }
 }
