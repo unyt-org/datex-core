@@ -302,7 +302,7 @@ pub fn compile_template<'a>(
     let compilation_context = CompilationContext::new(
         RefCell::new(Vec::with_capacity(256)),
         // TODO: no clone here
-        inserted_values.iter().cloned().collect::<Vec<_>>(),
+        inserted_values.to_vec(),
         options.compile_scope.once,
     );
     compile_ast(ast, &compilation_context, options)

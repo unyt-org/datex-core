@@ -1,7 +1,7 @@
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
 use crate::ast::lexer::{DecimalLiteral, Token};
-use crate::ast::{DatexExpression, DatexExpressionData};
+use crate::ast::DatexExpressionData;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use chumsky::prelude::*;

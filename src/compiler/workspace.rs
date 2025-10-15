@@ -61,7 +61,7 @@ impl CompilerWorkspace {
     fn get_ast_with_metadata_for_file(&self, path: &PathBuf, content: String) -> Result<(AstWithMetadata, TypeContainer), CompilerError> {
         let mut options = CompileOptions::default();
         let mut ast_with_metadata = parse_datex_script_to_ast(&content, &mut options)?;
-        let return_type = infer_expression_type(&mut ast_with_metadata.ast.as_mut().unwrap(), ast_with_metadata.metadata.clone())?;
+        let return_type = infer_expression_type(ast_with_metadata.ast.as_mut().unwrap(), ast_with_metadata.metadata.clone())?;
         Ok((
             ast_with_metadata,
             return_type
