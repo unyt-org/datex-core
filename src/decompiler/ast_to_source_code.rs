@@ -43,6 +43,8 @@ pub fn ast_to_source_code(
     ast: &DatexExpression,
     decompile_options: &DecompileOptions,
 ) -> String {
+    return "ZES".to_string();
+    /*
     let formatter = Formatter::new(decompile_options.formatting.clone());
 
     match &ast.data {
@@ -301,7 +303,7 @@ pub fn ast_to_source_code(
                 ast_to_source_code(datex_expression1, decompile_options)
             )
         }
-    }
+    } */
 }
 
 fn type_expression_to_source_code(
@@ -436,6 +438,8 @@ fn join_elements(
     formatting: &Formatting,
     brace_style: BraceStyle,
 ) -> String {
+    return "ZES".to_string();
+    /*
     let formatter = Formatter::new(formatting.clone());
     match formatting {
         // no spaces or newlines for compact formatting
@@ -464,7 +468,7 @@ fn join_elements(
                 )
             }
         }
-    }
+    } */
 }
 
 fn is_alphanumeric_identifier(s: &str) -> bool {
