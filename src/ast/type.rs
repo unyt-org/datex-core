@@ -5,7 +5,6 @@ use chumsky::{
     prelude::{choice, just, recursive},
     select,
 };
-use datex_core::ast::DatexExpression;
 use crate::{
     ast::{
         DatexParserTrait,

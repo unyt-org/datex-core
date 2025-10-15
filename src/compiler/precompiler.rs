@@ -418,7 +418,7 @@ fn visit_expression(
             }
             *id = Some(add_new_variable(
                 name.clone(),
-                VariableShape::Value(kind.clone()),
+                VariableShape::Value(*kind),
                 metadata,
                 scope_stack,
             ));

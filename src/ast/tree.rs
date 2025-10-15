@@ -321,7 +321,7 @@ impl Statements {
 impl Visitable for Statements {
     fn visit_children_with(&self, visitor: &mut impl Visit) {
         for stmt in &self.statements {
-            visitor.visit_expression(&stmt);
+            visitor.visit_expression(stmt);
         }
     }
 }

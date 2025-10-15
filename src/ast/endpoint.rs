@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::ast::{DatexExpression, DatexExpressionData};
+use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
 use crate::ast::error::error::ParseError;

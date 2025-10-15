@@ -22,7 +22,6 @@ pub mod unary;
 pub mod unary_operation;
 pub mod utils;
 
-use crate::ast::assignment_operation::*;
 use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
 use crate::ast::binding::*;
@@ -36,26 +35,17 @@ use crate::ast::list::*;
 use crate::ast::map::*;
 use crate::ast::r#type::type_expression;
 use crate::ast::unary::*;
-use crate::ast::unary_operation::*;
 use crate::ast::utils::*;
 
 use crate::ast::parse_result::{
     DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
 };
 use crate::ast::tree::{DatexExpression, DatexExpressionData, Statements};
-use crate::values::core_values::decimal::Decimal;
-use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::Integer;
-use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::map::Map;
-use crate::values::pointer::PointerAddress;
-use crate::values::value_container::ValueContainer;
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use chumsky::span::Span;
 use lexer::Token;
 use logos::Logos;
-use std::ops::Neg;
 use std::ops::Range;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
@@ -318,7 +308,6 @@ pub fn parse(mut src: &str) -> DatexParseResult {
         DatexParseResult::Invalid(InvalidDatexParseResult {
             errors: result
                 .errors()
-                .into_iter()
                 .map(|e| {
                     let mut owned_error: ParseError = e.clone();
                     let mut index = owned_error.token_pos().unwrap();
