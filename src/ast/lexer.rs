@@ -110,9 +110,8 @@ pub enum Token {
     #[regex(r"\$(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{10}|[0-9a-fA-F]{52})", allocated_string)] PointerAddress(String),
 
     // decimal literals (infinity, nan)
-    // FIXME #366 remove +- from lexing and let it be handled by unary operators as for other numbers
-    #[regex(r"[+-]?[Ii]nfinity", allocated_string)] Infinity(String),
-    #[regex(r"[+-]?(?:nan|NaN)")] Nan,
+    #[regex(r"[Ii]nfinity")] Infinity,
+    #[regex(r"(?:nan|NaN)")] Nan,
 
     // Value literals
     // decimal
@@ -256,7 +255,7 @@ impl Token {
             Token::Function => Some("function"),
             Token::Whitespace => Some(" "),
             Token::Error => Some("error"),
-            Token::Infinity(_) => Some("infinity"),
+            Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
             Token::Star => Some("*"),
             Token::Exclamation => Some("!"),
@@ -450,28 +449,21 @@ mod tests {
     #[test]
     fn infinity() {
         let mut lexer = Token::lexer("Infinity");
-        assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::Infinity("Infinity".to_string()))
-        );
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Infinity));
 
         let mut lexer = Token::lexer("infinity");
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Infinity));
+
+        let lexer = Token::lexer("-Infinity");
         assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::Infinity("infinity".to_string()))
+            lexer.map(Result::unwrap).collect::<Vec<_>>(),
+            vec![Token::Minus, Token::Infinity]
         );
 
-        // FIXME #368, this is not ideal, should be handled by unary minus
-        let mut lexer = Token::lexer("-Infinity");
+        let lexer = Token::lexer("+Infinity");
         assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::Infinity("-Infinity".to_string()))
-        );
-
-        let mut lexer = Token::lexer("+Infinity");
-        assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::Infinity("+Infinity".to_string()))
+            lexer.map(Result::unwrap).collect::<Vec<_>>(),
+            vec![Token::Plus, Token::Infinity]
         );
     }
 
@@ -483,11 +475,17 @@ mod tests {
         let mut lexer = Token::lexer("nan");
         assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
 
-        let mut lexer = Token::lexer("-NaN");
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
+        let lexer = Token::lexer("-NaN");
+        assert_eq!(
+            lexer.map(Result::unwrap).collect::<Vec<_>>(),
+            vec![Token::Minus, Token::Nan]
+        );
 
-        let mut lexer = Token::lexer("+NaN");
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Nan));
+        let lexer = Token::lexer("+NaN");
+        assert_eq!(
+            lexer.map(Result::unwrap).collect::<Vec<_>>(),
+            vec![Token::Plus, Token::Nan]
+        );
     }
 
     #[test]
