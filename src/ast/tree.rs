@@ -45,6 +45,15 @@ pub enum Slot {
     Addressed(u32),
     Named(String),
 }
+impl Display for Slot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#")?;
+        match self {
+            Slot::Addressed(addr) => write!(f, "{}", addr),
+            Slot::Named(name) => write!(f, "{}", name),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeExpression {

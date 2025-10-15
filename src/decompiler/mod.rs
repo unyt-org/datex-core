@@ -1,7 +1,8 @@
 mod ast_decompiler;
 mod ast_from_value_container;
 mod ast_to_source_code;
-
+#[macro_use]
+mod formatter;
 use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
