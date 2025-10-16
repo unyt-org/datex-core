@@ -1,8 +1,7 @@
 mod ast_decompiler;
 mod ast_from_value_container;
 mod ast_to_source_code;
-#[macro_use]
-mod formatter;
+
 use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
 use std::fmt::Write;
@@ -10,6 +9,7 @@ use std::io::Cursor;
 // FIXME #223 no-std
 
 use crate::ast::tree::DatexExpressionData;
+use crate::decompiler::ast_to_source_code::AstToSourceCodeFormatter;
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;
 use crate::global::protocol_structures::instructions::UInt8Data;
@@ -60,8 +60,15 @@ pub fn decompile_value(
     options: DecompileOptions,
 ) -> String {
     let ast = DatexExpressionData::from(value).with_default_span();
-    let source_code = ast_to_source_code::ast_to_source_code(&ast, &options);
+    let source_code = AstToSourceCodeFormatter::new(
+        options.formatting_mode,
+        options.json_compat,
+        options.colorized,
+    )
+    .format(&ast);
     // add syntax highlighting
+
+    // FIXME remove colorization here
     if options.colorized {
         apply_syntax_highlighting(source_code).unwrap()
     } else {
@@ -102,6 +109,15 @@ pub enum Formatting {
     },
 }
 
+#[derive(Debug, Clone, Default)]
+pub enum FormattingMode {
+    /// compact formatting, no unnecessary spaces or newlines
+    Compact,
+    /// pretty formatting with indentation and newlines
+    #[default]
+    Pretty,
+}
+
 impl Formatting {
     /// Default multiline formatting with 4 spaces indentation
     pub fn multiline() -> Self {
@@ -111,6 +127,8 @@ impl Formatting {
 
 #[derive(Debug, Clone, Default)]
 pub struct DecompileOptions {
+    pub formatting_mode: FormattingMode,
+    // TODO: remov
     pub formatting: Formatting,
     pub colorized: bool,
     /// display slots with generated variable names

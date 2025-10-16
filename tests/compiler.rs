@@ -1,6 +1,6 @@
-use datex_core::compiler::{compile_script, CompileOptions};
-use datex_core::decompiler::{decompile_body, Formatting};
+use datex_core::compiler::{CompileOptions, compile_script};
 use datex_core::decompiler::DecompileOptions;
+use datex_core::decompiler::{Formatting, decompile_body};
 use datex_core::logger::init_logger_debug;
 use log::info;
 
@@ -29,6 +29,7 @@ fn compare_compiled(datex_script: &str, expected: &str) {
             formatting: Formatting::multiline(),
             colorized: true,
             resolve_slots: true,
+            ..Default::default()
         },
     )
     .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
