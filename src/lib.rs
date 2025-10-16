@@ -24,6 +24,7 @@ pub mod compiler;
 pub mod crypto;
 pub mod decompiler;
 pub mod dif;
+pub mod fmt;
 pub mod generator;
 pub mod global;
 pub mod libs;
