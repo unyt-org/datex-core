@@ -319,21 +319,21 @@ impl AstToSourceCodeFormatter {
         }
     }
 
-    pub fn wrap_map_elements(&self, elements: Vec<String>) -> String {
+    fn wrap_map_elements(&self, elements: Vec<String>) -> String {
         self.wrap_elements(elements, BraceStyle::Curly, Some(","))
     }
-    pub fn wrap_list_elements(&self, elements: Vec<String>) -> String {
+    fn wrap_list_elements(&self, elements: Vec<String>) -> String {
         self.wrap_elements(elements, BraceStyle::Square, Some(","))
     }
-    pub fn wrap_union_elements(&self, elements: Vec<String>) -> String {
+    fn wrap_union_elements(&self, elements: Vec<String>) -> String {
         self.wrap_elements(elements, BraceStyle::None, Some("|"))
     }
-    pub fn wrap_intersection_elements(&self, elements: Vec<String>) -> String {
+    fn wrap_intersection_elements(&self, elements: Vec<String>) -> String {
         self.wrap_elements(elements, BraceStyle::None, Some("&"))
     }
 
     /// Wrap elements with commas and appropriate braces, handling pretty/compact modes
-    pub fn wrap_elements(
+    fn wrap_elements(
         &self,
         elements: Vec<String>,
         brace_style: BraceStyle,
