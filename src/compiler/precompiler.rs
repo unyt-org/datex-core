@@ -20,6 +20,7 @@ use chumsky::prelude::SimpleSpan;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 use datex_core::ast::tree::VariableAccess;
 use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
+use crate::serde::error::{DetailedCompilerErrorsWithRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -294,45 +295,6 @@ pub fn precompile_ast_detailed_error(
     })
 }
 
-#[derive(Debug)]
-pub struct DetailedCompilerErrorsWithRichAst {
-    pub errors: DetailedCompilerErrors,
-    pub ast: RichAst
-}
-
-#[derive(Debug)]
-pub struct DetailedCompilerErrorsWithMaybeRichAst {
-    pub errors: DetailedCompilerErrors,
-    pub ast: Option<RichAst>
-}
-
-impl From<DetailedCompilerErrorsWithRichAst> for DetailedCompilerErrorsWithMaybeRichAst {
-    fn from(value: DetailedCompilerErrorsWithRichAst) -> Self {
-        DetailedCompilerErrorsWithMaybeRichAst {
-            errors: value.errors,
-            ast: Some(value.ast)
-        }
-    }
-}
-
-/// Extended SimpleOrDetailedCompilerError type
-/// that includes RichAst for the Detailed variant
-#[derive(Debug)]
-pub enum SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
-    /// DetailedCompilerError with additional RichAst
-    Detailed(DetailedCompilerErrorsWithRichAst),
-    /// simple SpannedCompilerError
-    Simple(SpannedCompilerError)
-}
-
-impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> for SimpleOrDetailedCompilerError {
-    fn from(value: SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst) -> Self {
-        match value {
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => SimpleOrDetailedCompilerError::Simple(error),
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error_with_ast) => SimpleOrDetailedCompilerError::Detailed(error_with_ast.errors)
-        }
-    }
-}
 
 pub (crate) fn precompile_ast(
     mut parse_result: ValidDatexParseResult,
