@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::{PathBuf};
 use datex_core::compiler::precompiler::AstWithMetadata;
-use crate::compiler::error::CompilerError;
+use crate::compiler::error::{CompilerError, DetailedOrSimpleCompilerError};
 use crate::compiler::{parse_datex_script_to_ast, CompileOptions};
 use crate::compiler::type_inference::infer_expression_type;
 use crate::runtime::Runtime;
@@ -39,7 +39,7 @@ impl CompilerWorkspace {
 
     /// Loads a file into the workspace, caching its content and AST.
     /// Returns a compiler error if parsing or precompilation fails.
-    pub fn load_file(&mut self, path: PathBuf, content: String) -> Result<&WorkspaceFile, CompilerError> {
+    pub fn load_file(&mut self, path: PathBuf, content: String) -> Result<&WorkspaceFile, DetailedOrSimpleCompilerError> {
         let (ast_with_metadata, return_type) = self.get_ast_with_metadata_for_file(&path, content.clone())?;
         let workspace_file = WorkspaceFile {
             path: path.clone(),
@@ -58,7 +58,7 @@ impl CompilerWorkspace {
 
     /// Retrieves the AST with metadata for a given file path and content after parsing and compilation.
     /// Returns a compiler error if parsing or compilation fails.
-    fn get_ast_with_metadata_for_file(&self, path: &PathBuf, content: String) -> Result<(AstWithMetadata, TypeContainer), CompilerError> {
+    fn get_ast_with_metadata_for_file(&self, path: &PathBuf, content: String) -> Result<(AstWithMetadata, TypeContainer), DetailedOrSimpleCompilerError> {
         let mut options = CompileOptions::default();
         let mut ast_with_metadata = parse_datex_script_to_ast(&content, &mut options)?;
         let return_type = infer_expression_type(ast_with_metadata.ast.as_mut().unwrap(), ast_with_metadata.metadata.clone())?;

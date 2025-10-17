@@ -1,8 +1,8 @@
-use crate::ast::error::error::ParseError;
+use crate::ast::error::error::{ParseError, SpanOrToken};
 use crate::ast::tree::DatexExpression;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use chumsky::span::SimpleSpan;
+use chumsky::prelude::SimpleSpan;
 use crate::compiler::type_inference::TypeError;
 
 #[derive(Debug)]
@@ -26,41 +26,102 @@ pub enum CompilerError {
     TypeError(TypeError),
     Spanned(Box<CompilerError>, Range<usize>),
     Multiple(Vec<CompilerError>),
+    ParseError(ParseError),
 }
 
-impl CompilerError {
-    /// Wraps the error in a CompilerError::Spanned with the given span
-    pub fn spanned_from_simple_span(self, span: SimpleSpan) -> Self {
-        CompilerError::Spanned(Box::new(self), span.start..span.end)
-    }
-    /// Wraps the error in a CompilerError::Spanned with the given range
-    pub fn spanned(self, range: Range<usize>) -> Self {
-        CompilerError::Spanned(Box::new(self), range)
-    }
+/// A compiler error that can be linked to a specific span in the source code
+#[derive(Debug)]
+pub struct SpannedCompilerError {
+    pub error: CompilerError,
+    pub span: Option<Range<usize>>
+}
 
-    /// Creates a CompilerError::Multiple from a vector of errors
-    pub fn multiple(errors: Vec<CompilerError>) -> Self {
-        CompilerError::Multiple(errors)
-    }
-
-    /// Appends multiple errors into one CompilerError::Multiple
-    pub fn append(self, mut other: Vec<CompilerError>) -> Self {
-        match self {
-            CompilerError::Multiple(mut errs) => {
-                errs.append(&mut other);
-                CompilerError::Multiple(errs)
-            }
-            err => {
-                other.insert(0, err);
-                CompilerError::Multiple(other)
-            }
+impl SpannedCompilerError {
+    pub fn new_with_simple_span(error: CompilerError, span: SimpleSpan) -> SpannedCompilerError {
+        SpannedCompilerError {
+            error,
+            span: Some(span.start..span.end)
         }
     }
 }
 
-impl From<Vec<ParseError>> for CompilerError {
+impl Display for SpannedCompilerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({})", self.error, self.span.as_ref().map(|s|format!("{}..{}", s.start, s.end)).unwrap_or("?".to_string()))
+    }
+}
+
+impl From<ParseError> for SpannedCompilerError {
+    fn from(value: ParseError) -> Self {
+        SpannedCompilerError {
+            span: match &value.span {
+                SpanOrToken::Span(range) => Some(range.clone()),
+                _ => panic!("expected byte range, got token span")
+            },
+            error: CompilerError::ParseError(value),
+        }
+    }
+}
+
+impl From<CompilerError> for SpannedCompilerError {
+    fn from(value: CompilerError) -> Self {
+        SpannedCompilerError {
+            error: value,
+            span: None
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct DetailedCompilerError {
+    pub errors: Vec<SpannedCompilerError>
+}
+
+impl DetailedCompilerError {
+    pub fn record_error_with_span(&mut self, error: CompilerError, span: Range<usize>) {
+        self.errors.push(SpannedCompilerError { error, span: Some(span) });
+    }
+    pub fn record_error(&mut self, error: SpannedCompilerError) {
+        self.errors.push(error);
+    }
+}
+
+#[derive(Debug)]
+pub enum DetailedOrSimpleCompilerError {
+    Detailed(DetailedCompilerError),
+    Simple(SpannedCompilerError),
+}
+
+impl From<CompilerError> for DetailedOrSimpleCompilerError {
+    fn from(value: CompilerError) -> Self {
+        DetailedOrSimpleCompilerError::Simple(SpannedCompilerError::from(value))
+    }
+}
+
+impl From<SpannedCompilerError> for DetailedOrSimpleCompilerError {
+    fn from(value: SpannedCompilerError) -> Self {
+        DetailedOrSimpleCompilerError::Simple(value)
+    }
+}
+
+
+impl From<Vec<ParseError>> for DetailedOrSimpleCompilerError {
     fn from(value: Vec<ParseError>) -> Self {
-        CompilerError::ParseErrors(value)
+        DetailedOrSimpleCompilerError::Detailed(
+            DetailedCompilerError {
+                errors: value
+                    .into_iter()
+                    .map(SpannedCompilerError::from)
+                    .collect()
+            }
+        )
+    }
+}
+
+impl From<TypeError> for DetailedOrSimpleCompilerError {
+    fn from(value: TypeError) -> Self {
+        // TODO: also store and map span from type error
+        DetailedOrSimpleCompilerError::Simple(SpannedCompilerError::from(CompilerError::from(value)))
     }
 }
 
@@ -138,6 +199,9 @@ impl Display for CompilerError {
                     writeln!(f, "{}", err)?;
                 }
                 Ok(())
+            }
+            CompilerError::ParseError(err) => {
+                write!(f, "{:?}", err)
             }
         }
     }

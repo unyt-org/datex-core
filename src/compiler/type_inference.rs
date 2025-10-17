@@ -357,10 +357,8 @@ mod tests {
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
     use crate::ast::{parse};
-    use crate::compiler::error::CompilerError;
-    use crate::compiler::precompiler::{
-        AstWithMetadata, PrecompilerScopeStack, precompile_ast,
-    };
+    use crate::compiler::error::{CompilerError, SpannedCompilerError};
+    use crate::compiler::precompiler::{precompile_ast_simple_error, AstWithMetadata, PrecompilerScopeStack};
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
@@ -393,13 +391,13 @@ mod tests {
     /// Parses the given source code into an AST with metadata, returning a Result.
     fn parse_and_precompile(
         src: &str,
-    ) -> Result<AstWithMetadata, CompilerError> {
+    ) -> Result<AstWithMetadata, SpannedCompilerError> {
         let parse_result = parse(src);
         match parse_result {
             DatexParseResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
                 panic!("Parsing failed: {:?}", errors)
             }
-            DatexParseResult::Valid(valid_parse_result) => precompile_ast(
+            DatexParseResult::Valid(valid_parse_result) => precompile_ast_simple_error(
                 valid_parse_result,
                 Rc::new(RefCell::new(AstMetadata::default())),
                 &mut PrecompilerScopeStack::default(),
@@ -413,6 +411,12 @@ mod tests {
         parse_and_precompile(src).unwrap()
     }
 
+    fn parse_and_precompile_map_compiler_error(src: &str) -> Result<AstWithMetadata, CompilerError> {
+        parse_and_precompile(src)
+            .map_err(|e| e.error)
+    }
+
+
     /// Parses the given source code into an AST with metadata and infers types for all expressions.
     /// Returns the metadata with all inferred types.
     /// Panics if parsing, precompilation, or type inference fails.
@@ -420,7 +424,7 @@ mod tests {
         let cell = Rc::new(RefCell::new(AstMetadata::default()));
         {
             let valid_parse_result = parse(src).unwrap();
-            let ast_with_metadata = precompile_ast(
+            let ast_with_metadata = precompile_ast_simple_error(
                 valid_parse_result,
                 cell.clone(),
                 &mut PrecompilerScopeStack::default(),
@@ -494,7 +498,7 @@ mod tests {
         type A = integer;
         type A = text; // redeclaration error
         "#;
-        let result = parse_and_precompile(src);
+        let result = parse_and_precompile_map_compiler_error(src);
         assert!(result.is_err());
         assert_matches!(
             result,
@@ -906,7 +910,7 @@ mod tests {
             )).with_default_span()),
         }).with_default_span();
 
-        let ast_with_metadata = precompile_ast(
+        let ast_with_metadata = precompile_ast_simple_error(
             ValidDatexParseResult {
                 ast: expr,
                 spans: vec![0..1]

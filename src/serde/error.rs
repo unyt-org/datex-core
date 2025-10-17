@@ -5,7 +5,7 @@ use serde::ser::{self};
 use std::fmt::Display;
 use std::io;
 
-use crate::compiler::error::CompilerError;
+use crate::compiler::error::{CompilerError, SpannedCompilerError};
 use crate::runtime::execution::ExecutionError;
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ pub enum DeserializationError {
     CanNotDeserialize(String),
     ExecutionError(ExecutionError),
     CanNotReadFile(String),
-    CompilerError(CompilerError),
+    CompilerError(SpannedCompilerError),
     NoStaticValueFound,
 }
 impl ser::Error for DeserializationError {
@@ -82,8 +82,9 @@ impl From<ExecutionError> for DeserializationError {
         DeserializationError::ExecutionError(e)
     }
 }
-impl From<CompilerError> for DeserializationError {
-    fn from(e: CompilerError) -> Self {
+
+impl From<SpannedCompilerError> for DeserializationError {
+    fn from(e: SpannedCompilerError) -> Self {
         DeserializationError::CompilerError(e)
     }
 }

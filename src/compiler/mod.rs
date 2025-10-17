@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binding::VariableId;
-use crate::compiler::error::CompilerError;
+use crate::compiler::error::{CompilerError, DetailedOrSimpleCompilerError, SpannedCompilerError};
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -9,9 +9,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::precompiler::{
-    AstMetadata, AstWithMetadata, VariableMetadata, precompile_ast,
-};
+use crate::compiler::precompiler::{AstMetadata, AstWithMetadata, VariableMetadata, PrecompilerOptions, precompile_ast_simple_error};
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
@@ -206,7 +204,7 @@ impl Variable {
 
 /// Compiles a DATEX script text into a single DXB block including routing and block headers.
 /// This function is used to create a block that can be sent over the network.
-pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
+pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, DetailedOrSimpleCompilerError> {
     let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
     let routing_header = RoutingHeader::default();
@@ -227,7 +225,7 @@ pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, CompilerError> {
 pub fn compile_script<'a>(
     datex_script: &'a str,
     options: CompileOptions<'a>,
-) -> Result<(Vec<u8>, CompilationScope), CompilerError> {
+) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     compile_template(datex_script, &[], options)
 }
 
@@ -236,9 +234,12 @@ pub fn compile_script<'a>(
 /// All JSON-files can be compiled to static values, but not all DATEX scripts.
 pub fn extract_static_value_from_script(
     datex_script: &str,
-) -> Result<Option<ValueContainer>, CompilerError> {
-    let valid_parse_result = parse(datex_script).to_result()?;
-    extract_static_value_from_ast(&valid_parse_result.ast).map(Some)
+) -> Result<Option<ValueContainer>, SpannedCompilerError> {
+    let valid_parse_result = parse(datex_script).to_result()
+        .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
+    extract_static_value_from_ast(&valid_parse_result.ast)
+        .map(Some)
+        .map_err(SpannedCompilerError::from)
 }
 
 
@@ -248,7 +249,7 @@ pub fn extract_static_value_from_script(
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
     mut options: CompileOptions<'a>,
-) -> Result<(StaticValueOrDXB, CompilationScope), CompilerError> {
+) -> Result<(StaticValueOrDXB, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_ast(
         datex_script,
         &mut options,
@@ -266,14 +267,16 @@ pub fn compile_script_or_return_static_value<'a>(
         // try to extract static value from AST
         extract_static_value_from_ast(ast.ast.as_ref().unwrap())
             .map(|value| (StaticValueOrDXB::StaticValue(Some(value)), scope))
+            .map_err(SpannedCompilerError::from)
     }
 }
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
+/// Currently only returns the first occuring error (can be changed if needed in the future)
 pub fn parse_datex_script_to_ast<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
-) -> Result<AstWithMetadata, CompilerError> {
+) -> Result<AstWithMetadata, SpannedCompilerError> {
     // TODO: do this (somewhere else)
     // // shortcut if datex_script is "?" - call compile_value directly
     // if datex_script == "?" {
@@ -285,8 +288,9 @@ pub fn parse_datex_script_to_ast<'a>(
     //     return Ok((result, options.compile_scope));
     // }
 
-    let valid_parse_result = parse(datex_script).to_result()?;
-    precompile_to_ast_with_metadata(valid_parse_result, &mut options.compile_scope)
+    let valid_parse_result = parse(datex_script).to_result()
+        .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
+    precompile_to_ast_with_metadata_simple_error(valid_parse_result, &mut options.compile_scope)
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -294,7 +298,7 @@ pub fn compile_template<'a>(
     datex_script: &'a str,
     inserted_values: &[ValueContainer],
     mut options: CompileOptions<'a>,
-) -> Result<(Vec<u8>, CompilationScope), CompilerError> {
+) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_ast(
         datex_script,
         &mut options,
@@ -307,6 +311,7 @@ pub fn compile_template<'a>(
     );
     compile_ast(ast, &compilation_context, options)
         .map(|scope| (compilation_context.buffer.take(), scope))
+        .map_err(SpannedCompilerError::from)
 }
 
 /// Compiles a precompiled DATEX AST, returning the compilation context and scope
@@ -360,14 +365,15 @@ macro_rules! compile {
 }
 
 /// Precompiles a DATEX expression AST into an AST with metadata.
-pub fn precompile_to_ast_with_metadata(
+/// Always returns the first error if one occurs
+pub fn precompile_to_ast_with_metadata_simple_error(
     valid_parse_result: ValidDatexParseResult,
     scope: &mut CompilationScope,
-) -> Result<AstWithMetadata, CompilerError> {
+) -> Result<AstWithMetadata, SpannedCompilerError> {
     // if once is set to true in already used, return error
     if scope.once {
         if scope.was_used {
-            return Err(CompilerError::OnceScopeUsedMultipleTimes);
+            return Err(CompilerError::OnceScopeUsedMultipleTimes.into());
         }
         // set was_used to true
         scope.was_used = true;
@@ -375,7 +381,7 @@ pub fn precompile_to_ast_with_metadata(
     let ast_with_metadata =
         if let Some(precompiler_data) = &scope.precompiler_data {
             // precompile the AST, adding metadata for variables etc.
-            precompile_ast(
+            precompile_ast_simple_error(
                 valid_parse_result,
                 precompiler_data.ast_with_metadata.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
@@ -2503,7 +2509,8 @@ pub mod tests {
     fn assignment_to_const() {
         init_logger_debug();
         let script = "const a = 42; a = 43";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default())
+            .map_err(|e| e.error);
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
@@ -2511,7 +2518,8 @@ pub mod tests {
     fn assignment_to_const_mut() {
         init_logger_debug();
         let script = "const a = &mut 42; a = 43";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default())
+            .map_err(|e| e.error);
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
@@ -2535,7 +2543,8 @@ pub mod tests {
     fn addition_to_const_variable() {
         init_logger_debug();
         let script = "const a = 42; a += 1";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default())
+            .map_err(|e| e.error);
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
@@ -2544,7 +2553,8 @@ pub mod tests {
     fn mutation_of_immutable_value() {
         init_logger_debug();
         let script = "const a = {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default())
+            .map_err(|e| e.error);
         assert_matches!(
             result,
             Err(CompilerError::AssignmentToImmutableValue { .. })
@@ -2556,7 +2566,8 @@ pub mod tests {
     fn mutation_of_mutable_value() {
         init_logger_debug();
         let script = "const a = mut {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default())
+            .map_err(|e| e.error);
         assert_matches!(
             result,
             Err(CompilerError::AssignmentToImmutableValue { .. })
@@ -2580,7 +2591,8 @@ pub mod tests {
     fn addition_to_immutable_ref() {
         init_logger_debug();
         let script = "const a = &42; *a += 1;";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default())
+            .map_err(|e| e.error);
         assert_matches!(
             result,
             Err(CompilerError::AssignmentToImmutableReference { .. })
