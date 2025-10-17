@@ -504,7 +504,7 @@ fn visit_expression(
             }
         }
         DatexExpressionData::List(exprs) => {
-            for expr in exprs {
+            for expr in &mut exprs.items {
                 visit_expression(
                     expr,
                     metadata,

@@ -10,7 +10,6 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
@@ -153,6 +152,7 @@ impl Visitable for DatexExpression {
                 visitor.visit_endpoint(e, self.span)
             }
             DatexExpressionData::Null => visitor.visit_null(self.span),
+            DatexExpressionData::List(list) => visitor.visit_list(list, self.span),
             _ => {}
         }
     }
@@ -195,7 +195,7 @@ pub enum DatexExpressionData {
     /// Endpoint, e.g. @test_a or @test_b
     Endpoint(Endpoint),
     /// List, e.g  `[1, 2, 3, "text"]`
-    List(Vec<DatexExpression>),
+    List(List),
     /// Map, e.g {"xy": 2, (3): 4, xy: "xy"}
     Map(Vec<(DatexExpression, DatexExpression)>),
     /// One or more statements, e.g (1; 2; 3)
@@ -365,10 +365,29 @@ impl Visitable for VariableAssignment {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VariableAccess {
     pub id: VariableId,
     pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct List {
+    pub items: Vec<DatexExpression>,
+}
+
+impl List {
+    pub fn new(items: Vec<DatexExpression>) -> Self {
+        List { items }
+    }
+}
+
+impl Visitable for List {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for item in &self.items {
+            visitor.visit_expression(item);
+        }
+    }
 }
 
 // TODO: implement Visitable for all expressions with children
@@ -419,12 +438,13 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
             DatexExpressionData::Decimal(d) => ValueContainer::from(d.clone()),
             DatexExpressionData::Integer(i) => ValueContainer::from(i.clone()),
             DatexExpressionData::Endpoint(e) => ValueContainer::from(e.clone()),
-            DatexExpressionData::List(arr) => {
-                let entries = arr
+            DatexExpressionData::List(list) => {
+                let entries = list
+                    .items
                     .iter()
                     .map(|e| ValueContainer::try_from(&e.data))
                     .collect::<Result<Vec<ValueContainer>, ()>>()?;
-                ValueContainer::from(List::from(entries))
+                ValueContainer::from(datex_core::values::core_values::list::List::from(entries))
             }
             DatexExpressionData::Map(pairs) => {
                 let entries = pairs
@@ -473,7 +493,9 @@ pub trait Visit: Sized {
         &mut self,
         var_access: &VariableAccess,
         span: SimpleSpan,
-    ) {
+    ) {}
+    fn visit_list(&mut self, list: &List, span: SimpleSpan) {
+        list.visit_children_with(self);
     }
     fn visit_integer(&mut self, value: &Integer, span: SimpleSpan) {}
     fn visit_typed_integer(&mut self, value: &TypedInteger, span: SimpleSpan) {}

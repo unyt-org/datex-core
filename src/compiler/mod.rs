@@ -454,7 +454,7 @@ fn compile_expression(
         DatexExpressionData::List(list) => {
             compilation_context
                 .append_instruction_code(InstructionCode::LIST_START);
-            for item in list {
+            for item in list.items {
                 scope = compile_expression(
                     compilation_context,
                     AstWithMetadata::new(item, &metadata),

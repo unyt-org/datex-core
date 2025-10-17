@@ -10,6 +10,7 @@ use crate::{
     },
     decompiler::FormattingMode,
 };
+use crate::ast::tree::List;
 
 #[derive(Clone, Default)]
 pub enum BraceStyle {
@@ -424,9 +425,9 @@ impl AstToSourceCodeFormatter {
     }
 
     /// Convert a list/array to source code.
-    fn list_to_source_code(&self, list: &[DatexExpression]) -> String {
+    fn list_to_source_code(&self, list: &List) -> String {
         let elements: Vec<String> =
-            list.iter().map(|v| self.format(v)).collect();
+            list.items.iter().map(|v| self.format(v)).collect();
         self.wrap_list_elements(elements)
     }
 
@@ -454,8 +455,8 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::Null => "null".to_string(),
             DatexExpressionData::Identifier(l) => l.to_string(),
             DatexExpressionData::Map(map) => self.map_to_source_code(map),
-            DatexExpressionData::List(elements) => {
-                self.list_to_source_code(elements)
+            DatexExpressionData::List(list) => {
+                self.list_to_source_code(list)
             }
             DatexExpressionData::CreateRef(expr) => {
                 format!("&{}", self.format(expr))
@@ -814,15 +815,15 @@ mod tests {
 
     #[test]
     fn test_list() {
-        let list_ast = DatexExpressionData::List(vec![
+        let list_ast = DatexExpressionData::List(List::new(vec![
             DatexExpressionData::Integer(1.into()).with_default_span(),
             DatexExpressionData::Integer(2.into()).with_default_span(),
             DatexExpressionData::Integer(3.into()).with_default_span(),
-        ]);
+        ]));
         assert_eq!(compact().format(&list_ast.with_default_span()), "[1,2,3]");
 
         // long list should be multi-line
-        let long_list_ast = DatexExpressionData::List(vec![
+        let long_list_ast = DatexExpressionData::List(List::new(vec![
             DatexExpressionData::Text("This is a long string".to_string())
                 .with_default_span(),
             DatexExpressionData::Text("Another long string".to_string())
@@ -837,7 +838,7 @@ mod tests {
                 "Final long string in the list".to_string(),
             )
             .with_default_span(),
-        ]);
+        ]));
 
         assert_eq!(
             pretty().format(&long_list_ast.with_default_span()),
