@@ -20,7 +20,7 @@ use chumsky::prelude::SimpleSpan;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 use datex_core::ast::tree::VariableAccess;
 use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
-use crate::serde::error::{DetailedCompilerErrorsWithRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
+use crate::compiler::error::{DetailedCompilerErrorsWithRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {

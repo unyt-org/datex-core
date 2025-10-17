@@ -3,7 +3,9 @@ use crate::ast::tree::DatexExpression;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use chumsky::prelude::SimpleSpan;
+use crate::compiler::precompiler::RichAst;
 use crate::compiler::type_inference::TypeError;
+use crate::serde::error::DeserializationError;
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
@@ -73,6 +75,13 @@ impl From<CompilerError> for SpannedCompilerError {
     }
 }
 
+impl From<SpannedCompilerError> for DeserializationError {
+    fn from(e: SpannedCompilerError) -> Self {
+        DeserializationError::CompilerError(e)
+    }
+}
+
+
 #[derive(Debug, Default)]
 pub struct DetailedCompilerErrors {
     pub errors: Vec<SpannedCompilerError>
@@ -117,6 +126,48 @@ impl From<CompilerError> for SimpleOrDetailedCompilerError {
 impl From<SpannedCompilerError> for SimpleOrDetailedCompilerError {
     fn from(value: SpannedCompilerError) -> Self {
         SimpleOrDetailedCompilerError::Simple(value)
+    }
+}
+
+
+
+#[derive(Debug)]
+pub struct DetailedCompilerErrorsWithRichAst {
+    pub errors: DetailedCompilerErrors,
+    pub ast: RichAst
+}
+
+#[derive(Debug)]
+pub struct DetailedCompilerErrorsWithMaybeRichAst {
+    pub errors: DetailedCompilerErrors,
+    pub ast: Option<RichAst>
+}
+
+impl From<DetailedCompilerErrorsWithRichAst> for DetailedCompilerErrorsWithMaybeRichAst {
+    fn from(value: DetailedCompilerErrorsWithRichAst) -> Self {
+        DetailedCompilerErrorsWithMaybeRichAst {
+            errors: value.errors,
+            ast: Some(value.ast)
+        }
+    }
+}
+
+/// Extended SimpleOrDetailedCompilerError type
+/// that includes RichAst for the Detailed variant
+#[derive(Debug)]
+pub enum SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+    /// DetailedCompilerError with additional RichAst
+    Detailed(DetailedCompilerErrorsWithRichAst),
+    /// simple SpannedCompilerError
+    Simple(SpannedCompilerError)
+}
+
+impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> for SimpleOrDetailedCompilerError {
+    fn from(value: SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst) -> Self {
+        match value {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => SimpleOrDetailedCompilerError::Simple(error),
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error_with_ast) => SimpleOrDetailedCompilerError::Detailed(error_with_ast.errors)
+        }
     }
 }
 
