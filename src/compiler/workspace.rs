@@ -12,8 +12,9 @@ use crate::types::type_container::TypeContainer;
 pub struct WorkspaceFile {
     pub path: PathBuf,
     pub content: String,
-    pub rich_ast: RichAst,
-    pub return_type: TypeContainer
+    pub rich_ast: Option<RichAst>,
+    pub return_type: Option<TypeContainer>,
+    pub errors: Option<DetailedCompilerErrors>,
 }
 
 
@@ -40,16 +41,26 @@ impl CompilerWorkspace {
 
     /// Loads a file into the workspace, caching its content and AST.
     /// Returns a compiler error if parsing or precompilation fails.
-    pub fn load_file(&mut self, path: PathBuf, content: String) -> Result<&WorkspaceFile, DetailedCompilerErrorsWithMaybeRichAst> {
-        let (rich_ast, return_type) = self.get_rich_ast_for_file(&path, content.clone())?;
-        let workspace_file = WorkspaceFile {
-            path: path.clone(),
-            content,
-            rich_ast,
-            return_type
+    pub fn load_file(&mut self, path: PathBuf, content: String) -> &WorkspaceFile {
+        let result = self.get_rich_ast_for_file(&path, content.clone());
+        let workspace_file = match result {
+            Ok((rich_ast, return_type)) => WorkspaceFile {
+                path: path.clone(),
+                content,
+                rich_ast: Some(rich_ast),
+                return_type: Some(return_type),
+                errors: None,
+            },
+            Err(error) => WorkspaceFile {
+                path: path.clone(),
+                content,
+                rich_ast: error.ast,
+                return_type: None,
+                errors: Some(error.errors),
+            },
         };
         self.files.insert(path.clone(), workspace_file);
-        Ok(self.files.get(&path).unwrap())
+        self.files.get(&path).unwrap()
     }
 
     /// Retrieves a reference to a workspace file by its path.
