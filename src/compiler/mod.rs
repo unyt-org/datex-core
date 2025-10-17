@@ -23,7 +23,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, Statements, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariableKind};
-use crate::serde::error::{DetailedCompilerErrorsWithMaybeRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
+use crate::compiler::error::{DetailedCompilerErrorsWithMaybeRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
 
 pub mod context;
 pub mod error;
