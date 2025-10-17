@@ -1,6 +1,6 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
-use crate::compiler::error::{CompilerError, DetailedCompilerError, DetailedOrSimpleCompilerError, SpannedCompilerError};
+use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError, SpannedCompilerError};
 use crate::libs::core::CoreLibPointerId;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
@@ -57,7 +57,7 @@ impl AstMetadata {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AstWithMetadata {
+pub struct RichAst {
     pub ast: Option<DatexExpression>,
     pub metadata: Rc<RefCell<AstMetadata>>,
 }
@@ -231,19 +231,19 @@ impl PrecompilerScopeStack {
     }
 }
 
-impl AstWithMetadata {
+impl RichAst {
     pub fn new(
         ast: DatexExpression,
         metadata: &Rc<RefCell<AstMetadata>>,
     ) -> Self {
-        AstWithMetadata {
+        RichAst {
             ast: Some(ast),
             metadata: metadata.clone(),
         }
     }
 
     pub fn new_without_metadata(ast: DatexExpression) -> Self {
-        AstWithMetadata {
+        RichAst {
             ast: Some(ast),
             metadata: Rc::new(RefCell::new(AstMetadata::default())),
         }
@@ -252,8 +252,8 @@ impl AstWithMetadata {
 
 #[derive(Debug, Clone, Default)]
 pub struct PrecompilerOptions {
-    /// If enabled, all collected errors as well as the AstWithMetadata are
-    /// returned if one or multiple errors occurred.
+    /// If enabled, all collected errors as well as the RichAst
+    /// are returned if one or multiple errors occurred.
     /// Otherwise, only the first error is returned (fast failing)
     pub detailed_errors: bool,
 }
@@ -262,7 +262,7 @@ pub fn precompile_ast_simple_error(
     parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
-) -> Result<AstWithMetadata, SpannedCompilerError> {
+) -> Result<RichAst, SpannedCompilerError> {
     precompile_ast(
         parse_result,
         ast_metadata,
@@ -270,7 +270,7 @@ pub fn precompile_ast_simple_error(
         PrecompilerOptions { detailed_errors: false }
     ).map_err(|e| {
         match e {
-            DetailedOrSimpleCompilerError::Simple(error) => error,
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => error,
             _ => unreachable!() // because detailed_errors: false
         }
     })
@@ -280,7 +280,7 @@ pub fn precompile_ast_detailed_error(
     parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
-) -> Result<AstWithMetadata, DetailedCompilerError> {
+) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
     precompile_ast(
         parse_result,
         ast_metadata,
@@ -288,10 +288,50 @@ pub fn precompile_ast_detailed_error(
         PrecompilerOptions { detailed_errors: true }
     ).map_err(|e| {
         match e {
-            DetailedOrSimpleCompilerError::Detailed(error) => error,
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error) => error,
             _ => unreachable!() // because detailed_errors: true
         }
     })
+}
+
+#[derive(Debug)]
+pub struct DetailedCompilerErrorsWithRichAst {
+    pub errors: DetailedCompilerErrors,
+    pub ast: RichAst
+}
+
+#[derive(Debug)]
+pub struct DetailedCompilerErrorsWithMaybeRichAst {
+    pub errors: DetailedCompilerErrors,
+    pub ast: Option<RichAst>
+}
+
+impl From<DetailedCompilerErrorsWithRichAst> for DetailedCompilerErrorsWithMaybeRichAst {
+    fn from(value: DetailedCompilerErrorsWithRichAst) -> Self {
+        DetailedCompilerErrorsWithMaybeRichAst {
+            errors: value.errors,
+            ast: Some(value.ast)
+        }
+    }
+}
+
+/// Extended SimpleOrDetailedCompilerError type
+/// that includes RichAst for the Detailed variant
+#[derive(Debug)]
+pub enum SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+    /// DetailedCompilerError with additional RichAst
+    Detailed(DetailedCompilerErrorsWithRichAst),
+    /// simple SpannedCompilerError
+    Simple(SpannedCompilerError)
+}
+
+impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> for SimpleOrDetailedCompilerError {
+    fn from(value: SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst) -> Self {
+        match value {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => SimpleOrDetailedCompilerError::Simple(error),
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error_with_ast) => SimpleOrDetailedCompilerError::Detailed(error_with_ast.errors)
+        }
+    }
 }
 
 pub (crate) fn precompile_ast(
@@ -299,10 +339,10 @@ pub (crate) fn precompile_ast(
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
     options: PrecompilerOptions
-) -> Result<AstWithMetadata, DetailedOrSimpleCompilerError> {
+) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     // visit all expressions recursively to collect metadata
     let collected_errors = if options.detailed_errors {
-        &mut Some(DetailedCompilerError::default())
+        &mut Some(DetailedCompilerErrors::default())
     }
     else {&mut None};
     visit_expression(
@@ -312,18 +352,26 @@ pub (crate) fn precompile_ast(
         NewScopeType::None,
         &parse_result.spans,
         collected_errors,
-    )?;
+    )
+        // no detailed error collection, return no RichAst
+        // TODO: make sure Err result is actually only returned when detailed_errors is set to false
+        .map_err(|e| SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e))?;
+
+    let rich_ast = RichAst {
+        metadata: ast_metadata,
+        ast: Some(parse_result.ast),
+    };
 
     // if collecting detailed errors and an error occurred, return
     if let Some(errors) = collected_errors.take() {
-        Err(DetailedOrSimpleCompilerError::Detailed(errors))
+        Err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(DetailedCompilerErrorsWithRichAst {
+            errors,
+            ast: rich_ast
+        }))
     }
 
     else {
-        Ok(AstWithMetadata {
-            metadata: ast_metadata,
-            ast: Some(parse_result.ast),
-        })
+        Ok(rich_ast)
     }
 }
 
@@ -351,7 +399,7 @@ enum MaybeAction<T> {
 /// and an Ok(MaybeAction::Skip) is returned
 /// If result is Error() and collected_errors is None, the error is directly returned
 fn collect_or_pass_error<T>(
-    collected_errors: &mut Option<DetailedCompilerError>,
+    collected_errors: &mut Option<DetailedCompilerErrors>,
     result: Result<T, SpannedCompilerError>,
 ) -> Result<MaybeAction<T>, SpannedCompilerError> {
     if let Ok(result) = result {
@@ -375,7 +423,7 @@ fn visit_expression(
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
     spans: &Vec<Range<usize>>,
-    collected_errors: &mut Option<DetailedCompilerError>,
+    collected_errors: &mut Option<DetailedCompilerErrors>,
 ) -> Result<(), SpannedCompilerError> {
     match new_scope {
         NewScopeType::NewScopeWithNewRealm => {
@@ -1139,7 +1187,7 @@ mod tests {
 
     fn parse_and_precompile_spanned_result(
         src: &str,
-    ) -> Result<AstWithMetadata, SpannedCompilerError> {
+    ) -> Result<RichAst, SpannedCompilerError> {
         let runtime = Runtime::init_native(RuntimeConfig::default());
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::new(runtime)));
@@ -1149,14 +1197,14 @@ mod tests {
             })?;
         precompile_ast(expr, ast_metadata.clone(), &mut scope_stack, PrecompilerOptions {detailed_errors: false})
             .map_err(|e| match e {
-                DetailedOrSimpleCompilerError::Simple(error) => error,
+                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => error,
                 _ => unreachable!(), // because detailed_errors: false
             })
     }
 
     fn parse_and_precompile(
         src: &str,
-    ) -> Result<AstWithMetadata, CompilerError> {
+    ) -> Result<RichAst, CompilerError> {
         parse_and_precompile_spanned_result(src)
             .map_err(|e| e.error)
     }
@@ -1178,7 +1226,7 @@ mod tests {
         assert_matches!(
             result,
             Ok(
-                AstWithMetadata {
+                RichAst {
                     ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
                     ..
                 }
@@ -1188,7 +1236,7 @@ mod tests {
         assert_matches!(
             result,
             Ok(
-                AstWithMetadata {
+                RichAst {
                     ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
                     ..
                 }
@@ -1199,7 +1247,7 @@ mod tests {
         assert_matches!(
             result,
             Ok(
-                AstWithMetadata {
+                RichAst {
                     ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
                     ..
                 }
@@ -1242,9 +1290,9 @@ mod tests {
             "type User = {}; type User/admin = {}; User/admin",
         );
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
+            rich_ast.ast,
             Some(DatexExpressionData::Statements(Statements::new_unterminated(vec![
                 DatexExpressionData::TypeDeclaration {
                     id: Some(0),
@@ -1308,9 +1356,9 @@ mod tests {
     fn test_type_declaration_assigment() {
         let result = parse_and_precompile("type MyInt = 1; var x = MyInt;");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
+            rich_ast.ast,
             Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
                 DatexExpressionData::TypeDeclaration {
                     id: Some(0),
@@ -1337,9 +1385,9 @@ mod tests {
     fn test_type_declaration_hoisted_assigment() {
         let result = parse_and_precompile("var x = MyInt; type MyInt = 1;");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
+            rich_ast.ast,
             Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
                 DatexExpressionData::VariableDeclaration(VariableDeclaration {
                     id: Some(1),
@@ -1366,9 +1414,9 @@ mod tests {
     fn test_type_declaration_hoisted_cross_assigment() {
         let result = parse_and_precompile("type x = MyInt; type MyInt = x;");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
+            rich_ast.ast,
             Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
                 DatexExpressionData::TypeDeclaration {
                     id: Some(0),
@@ -1399,9 +1447,9 @@ mod tests {
         let result =
             parse_and_precompile("type x = 10; (1; type NestedVar = x;)");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
+            rich_ast.ast,
             Some(DatexExpressionData::Statements(Statements::new_unterminated(vec![
                 DatexExpressionData::TypeDeclaration {
                     id: Some(0),
@@ -1433,9 +1481,9 @@ mod tests {
     fn test_core_reference_type() {
         let result = parse_and_precompile("type x = integer");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
+            rich_ast.ast,
             Some(DatexExpressionData::TypeDeclaration {
                 id: Some(0),
                 name: "x".to_string(),

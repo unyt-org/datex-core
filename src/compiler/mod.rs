@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binding::VariableId;
-use crate::compiler::error::{CompilerError, DetailedCompilerError, DetailedOrSimpleCompilerError, SpannedCompilerError};
+use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError, SpannedCompilerError};
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -9,7 +9,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::precompiler::{AstMetadata, AstWithMetadata, VariableMetadata, PrecompilerOptions, precompile_ast_simple_error, precompile_ast};
+use crate::compiler::precompiler::{AstMetadata, RichAst, VariableMetadata, PrecompilerOptions, precompile_ast_simple_error, precompile_ast, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst, DetailedCompilerErrorsWithRichAst, DetailedCompilerErrorsWithMaybeRichAst};
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
@@ -204,7 +204,7 @@ impl Variable {
 
 /// Compiles a DATEX script text into a single DXB block including routing and block headers.
 /// This function is used to create a block that can be sent over the network.
-pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, DetailedOrSimpleCompilerError> {
+pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, SimpleOrDetailedCompilerError> {
     let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
     let routing_header = RoutingHeader::default();
@@ -250,7 +250,7 @@ pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
     mut options: CompileOptions<'a>,
 ) -> Result<(StaticValueOrDXB, CompilationScope), SpannedCompilerError> {
-    let ast = parse_datex_script_to_ast_simple_error(
+    let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
         &mut options,
     )?;
@@ -272,11 +272,11 @@ pub fn compile_script_or_return_static_value<'a>(
 }
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
-/// Only returns the first occuring error
-pub fn parse_datex_script_to_ast_simple_error<'a>(
+/// Only returns the first occurring error
+pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
-) -> Result<AstWithMetadata, SpannedCompilerError> {
+) -> Result<RichAst, SpannedCompilerError> {
     // TODO: do this (somewhere else)
     // // shortcut if datex_script is "?" - call compile_value directly
     // if datex_script == "?" {
@@ -290,9 +290,9 @@ pub fn parse_datex_script_to_ast_simple_error<'a>(
 
     let valid_parse_result = parse(datex_script).to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
-    precompile_to_ast_with_metadata(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: false})
-        .map_err(|e| match e {
-            DetailedOrSimpleCompilerError::Simple(e) => e,
+    precompile_to_rich_ast(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: false})
+        .map_err(|e | match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
             _ => unreachable!(), // because detailed_errors: false
         })
 }
@@ -300,15 +300,15 @@ pub fn parse_datex_script_to_ast_simple_error<'a>(
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Returns all occurring errors and the AST if one or more errors orccur.
-pub fn parse_datex_scripxt_to_ast_detailed_error<'a>(
+pub fn parse_datex_script_to_rich_ast_detailed_error<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
-) -> Result<AstWithMetadata, DetailedCompilerError> {
+) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
     let valid_parse_result = parse(datex_script).to_result()
-        .map_err(|errs| DetailedCompilerError::from(errs))?;
-    precompile_to_ast_with_metadata(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: true})
-        .map_err(|e| match e {
-            DetailedOrSimpleCompilerError::Detailed(e) => e,
+        .map_err(|errs| DetailedCompilerErrorsWithMaybeRichAst {errors: DetailedCompilerErrors::from(errs), ast: None})?;
+    precompile_to_rich_ast(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: true})
+        .map_err(|e | match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(e)=> e.into(),
             _ => unreachable!(), // because detailed_errors: true
         })
 }
@@ -319,7 +319,7 @@ pub fn compile_template<'a>(
     inserted_values: &[ValueContainer],
     mut options: CompileOptions<'a>,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
-    let ast = parse_datex_script_to_ast_simple_error(
+    let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
         &mut options,
     )?;
@@ -336,11 +336,11 @@ pub fn compile_template<'a>(
 
 /// Compiles a precompiled DATEX AST, returning the compilation context and scope
 fn compile_ast<'a>(
-    ast: AstWithMetadata,
+    ast: RichAst,
     compilation_context: &CompilationContext,
     options: CompileOptions<'a>,
 ) -> Result<CompilationScope, CompilerError> {
-    let compilation_scope = compile_ast_with_metadata(compilation_context, ast, options.compile_scope)?;
+    let compilation_scope = compile_rich_ast(compilation_context, ast, options.compile_scope)?;
     Ok(compilation_scope)
 }
 
@@ -385,46 +385,47 @@ macro_rules! compile {
 }
 
 /// Precompiles a DATEX expression AST into an AST with metadata.
-/// Always returns the first error if one occurs
-fn precompile_to_ast_with_metadata(
+fn precompile_to_rich_ast(
     valid_parse_result: ValidDatexParseResult,
     scope: &mut CompilationScope,
     precompiler_options: PrecompilerOptions,
-) -> Result<AstWithMetadata, DetailedOrSimpleCompilerError> {
+) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     // if once is set to true in already used, return error
     if scope.once {
         if scope.was_used {
-            return Err(CompilerError::OnceScopeUsedMultipleTimes.into());
+            return Err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+                SpannedCompilerError::from(CompilerError::OnceScopeUsedMultipleTimes)
+            ));
         }
         // set was_used to true
         scope.was_used = true;
     }
-    let ast_with_metadata =
+    let rich_ast =
         if let Some(precompiler_data) = &scope.precompiler_data {
             // precompile the AST, adding metadata for variables etc.
             precompile_ast(
                 valid_parse_result,
-                precompiler_data.ast_with_metadata.metadata.clone(),
+                precompiler_data.rich_ast.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
                 precompiler_options
             )?
         } else {
             // if no precompiler data, just use the AST with default metadata
-            AstWithMetadata::new_without_metadata(valid_parse_result.ast)
+            RichAst::new_without_metadata(valid_parse_result.ast)
         };
 
-    Ok(ast_with_metadata)
+    Ok(rich_ast)
 }
 
 
-pub fn compile_ast_with_metadata(
+pub fn compile_rich_ast(
     compilation_context: &CompilationContext,
-    ast_with_metadata: AstWithMetadata,
+    rich_ast: RichAst,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
     let scope = compile_expression(
         compilation_context,
-        ast_with_metadata,
+        rich_ast,
         CompileMetadata::outer(),
         scope,
     )?;
@@ -436,13 +437,13 @@ pub fn compile_ast_with_metadata(
 
 fn compile_expression(
     compilation_context: &CompilationContext,
-    ast_with_metadata: AstWithMetadata,
+    rich_ast: RichAst,
     meta: CompileMetadata,
     mut scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    let metadata = ast_with_metadata.metadata;
+    let metadata = rich_ast.metadata;
     // TODO: no clone
-    match ast_with_metadata.ast.as_ref().unwrap().clone().data {
+    match rich_ast.ast.as_ref().unwrap().clone().data {
         DatexExpressionData::Integer(int) => {
             compilation_context
                 .insert_encoded_integer(&int.to_smallest_fitting());
@@ -485,7 +486,7 @@ fn compile_expression(
             for item in list.items {
                 scope = compile_expression(
                     compilation_context,
-                    AstWithMetadata::new(item, &metadata),
+                    RichAst::new(item, &metadata),
                     CompileMetadata::default(),
                     scope,
                 )?;
@@ -527,7 +528,7 @@ fn compile_expression(
             if statements.len() == 1 && !is_terminated {
                 scope = compile_expression(
                     compilation_context,
-                    AstWithMetadata::new(
+                    RichAst::new(
                         statements.remove(0),
                         &metadata,
                     ),
@@ -547,7 +548,7 @@ fn compile_expression(
                 for (i, statement) in statements.into_iter().enumerate() {
                     child_scope = compile_expression(
                         compilation_context,
-                        AstWithMetadata::new(statement, &metadata),
+                        RichAst::new(statement, &metadata),
                         CompileMetadata::default(),
                         child_scope,
                     )?;
@@ -586,7 +587,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                RichAst::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -600,13 +601,13 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*a, &metadata),
+                RichAst::new(*a, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*b, &metadata),
+                RichAst::new(*b, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -620,13 +621,13 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*a, &metadata),
+                RichAst::new(*a, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*b, &metadata),
+                RichAst::new(*b, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -659,7 +660,7 @@ fn compile_expression(
             // compile expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*value, &metadata),
+                RichAst::new(*value, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -788,7 +789,7 @@ fn compile_expression(
             // compile expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                RichAst::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -820,7 +821,7 @@ fn compile_expression(
             // compile deref expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*deref_expression, &metadata),
+                RichAst::new(*deref_expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -833,7 +834,7 @@ fn compile_expression(
             // compile assigned expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*assigned_expression, &metadata),
+                RichAst::new(*assigned_expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -868,7 +869,7 @@ fn compile_expression(
             // insert compiled caller expression
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*caller, &metadata),
+                RichAst::new(*caller, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -879,9 +880,9 @@ fn compile_expression(
                 vec![],
                 true,
             );
-            let external_scope = compile_ast_with_metadata(
+            let external_scope = compile_rich_ast(
                 &execution_block_ctx,
-                AstWithMetadata::new(*script, &metadata),
+                RichAst::new(*script, &metadata),
                 CompilationScope::new_with_external_parent_scope(scope),
             )?;
             // reset to current scope
@@ -938,7 +939,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::CREATE_REF);
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                RichAst::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -949,7 +950,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::CREATE_REF_MUT);
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                RichAst::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -960,7 +961,7 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::CREATE_REF_FINAL);
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                RichAst::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -982,7 +983,7 @@ fn compile_expression(
             compilation_context.append_instruction_code(InstructionCode::DEREF);
             scope = compile_expression(
                 compilation_context,
-                AstWithMetadata::new(*expression, &metadata),
+                RichAst::new(*expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -992,7 +993,7 @@ fn compile_expression(
 
         _ => {
             return Err(CompilerError::UnexpectedTerm(Box::new(
-                ast_with_metadata.ast.unwrap(),
+                rich_ast.ast.unwrap(),
             )));
         }
     }
@@ -1018,7 +1019,7 @@ fn compile_key_value_entry(
                 .append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
                 compilation_scope,
-                AstWithMetadata::new(key, metadata),
+                RichAst::new(key, metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -1027,7 +1028,7 @@ fn compile_key_value_entry(
     // insert value
     scope = compile_expression(
         compilation_scope,
-        AstWithMetadata::new(value, metadata),
+        RichAst::new(value, metadata),
         CompileMetadata::default(),
         scope,
     )?;
@@ -1036,7 +1037,7 @@ fn compile_key_value_entry(
 
 #[cfg(test)]
 pub mod tests {
-    use super::{CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB, compile_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_ast_simple_error};
+    use super::{CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB, compile_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_rich_ast_simple_error};
     use std::assert_matches::assert_matches;
     use std::cell::RefCell;
     use std::io::Read;
@@ -1070,7 +1071,7 @@ pub mod tests {
 
     fn get_compilation_context(script: &str) -> CompilationContext {
         let mut options = CompileOptions::default();
-        let ast = parse_datex_script_to_ast_simple_error(script, &mut options).unwrap();
+        let ast = parse_datex_script_to_rich_ast_simple_error(script, &mut options).unwrap();
 
         let compilation_context = CompilationContext::new(
             RefCell::new(Vec::with_capacity(256)),

@@ -3,13 +3,13 @@ use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use datex_core::compiler::precompiler::AstWithMetadata;
+use datex_core::compiler::precompiler::RichAst;
 use crate::ast::tree::VariableKind;
 
 #[derive(Debug, Default, Clone)]
 pub struct PrecompilerData {
     // precompiler ast metadata
-    pub ast_with_metadata: AstWithMetadata,
+    pub rich_ast: RichAst,
     // precompiler scope stack
     pub precompiler_scope_stack: RefCell<PrecompilerScopeStack>,
 }
