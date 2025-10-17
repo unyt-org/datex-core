@@ -218,7 +218,7 @@ pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, SimpleOrDetailedComp
 
     let bytes = block
         .to_bytes()
-        .map_err(CompilerError::SerializationError)?;
+        .map_err(|e| CompilerError::SerializationError)?;
     Ok(bytes)
 }
 
