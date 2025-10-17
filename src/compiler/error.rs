@@ -77,6 +77,15 @@ pub struct DetailedCompilerError {
     pub errors: Vec<SpannedCompilerError>
 }
 
+impl Display for DetailedCompilerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for error in self.errors.iter() {
+            write!(f, "{}\n", error)?;
+        }
+        Ok(())
+    }
+}
+
 impl DetailedCompilerError {
     pub fn record_error_with_span(&mut self, error: CompilerError, span: Range<usize>) {
         self.errors.push(SpannedCompilerError { error, span: Some(span) });
