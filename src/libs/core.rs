@@ -239,11 +239,11 @@ pub fn unit() -> CoreLibTypeDefinition {
 }
 
 pub fn never() -> CoreLibTypeDefinition {
-    create_core_type("never", None, None, CoreLibPointerId::Unit)
+    create_core_type("never", None, None, CoreLibPointerId::Never)
 }
 
 pub fn unknown() -> CoreLibTypeDefinition {
-    create_core_type("unknown", None, None, CoreLibPointerId::Unit)
+    create_core_type("unknown", None, None, CoreLibPointerId::Unknown)
 }
 
 pub fn boolean() -> CoreLibTypeDefinition {
