@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{PathBuf};
+use std::rc::Rc;
 use datex_core::compiler::precompiler::{RichAst};
 use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SpannedCompilerError};
-use crate::compiler::{parse_datex_script_to_rich_ast_detailed_error, CompileOptions};
+use crate::compiler::{parse_datex_script_to_rich_ast_detailed_errors, CompileOptions};
 use crate::compiler::type_inference::infer_expression_type;
 use crate::runtime::Runtime;
 use crate::serde::error::{DetailedCompilerErrorsWithMaybeRichAst, DetailedCompilerErrorsWithRichAst};
@@ -72,11 +74,12 @@ impl CompilerWorkspace {
     /// Returns a compiler error if parsing or compilation fails.
     fn get_rich_ast_for_file(&self, path: &PathBuf, content: String) -> Result<(RichAst, TypeContainer), DetailedCompilerErrorsWithMaybeRichAst> {
         let mut options = CompileOptions::default();
-        let mut rich_ast = parse_datex_script_to_rich_ast_detailed_error(&content, &mut options)?;
+        let mut rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
         let return_type = infer_expression_type(rich_ast.ast.as_mut().unwrap(), rich_ast.metadata.clone())
             // TOOD: detailed type errors
             .map_err(|e| DetailedCompilerErrorsWithRichAst {
                 errors: DetailedCompilerErrors {errors: vec![SpannedCompilerError::from(CompilerError::TypeError(e))]},
+                // TODO: only temorary fake ast
                 ast: rich_ast.clone()
             })?;
         Ok((

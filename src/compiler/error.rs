@@ -78,6 +78,12 @@ pub struct DetailedCompilerErrors {
     pub errors: Vec<SpannedCompilerError>
 }
 
+impl DetailedCompilerErrors {
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+}
+
 impl Display for DetailedCompilerErrors {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for error in self.errors.iter() {

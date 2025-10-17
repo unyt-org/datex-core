@@ -104,6 +104,12 @@ impl TypeContainer {
     pub fn null() -> Self {
         get_core_lib_type(CoreLibPointerId::Null)
     }
+    pub fn never() -> Self {
+        get_core_lib_type(CoreLibPointerId::Never)
+    }
+    pub fn unknown() -> Self {
+        get_core_lib_type(CoreLibPointerId::Unknown)
+    }
     pub fn text() -> Self {
         get_core_lib_type(CoreLibPointerId::Text)
     }
