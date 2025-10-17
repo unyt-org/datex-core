@@ -358,7 +358,7 @@ mod tests {
     use crate::ast::binary_operation::ArithmeticOperator;
     use crate::ast::{parse};
     use crate::compiler::error::{CompilerError, SpannedCompilerError};
-    use crate::compiler::precompiler::{precompile_ast_simple_error, AstWithMetadata, PrecompilerScopeStack};
+    use crate::compiler::precompiler::{precompile_ast_simple_error, RichAst, PrecompilerScopeStack};
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
@@ -391,7 +391,7 @@ mod tests {
     /// Parses the given source code into an AST with metadata, returning a Result.
     fn parse_and_precompile(
         src: &str,
-    ) -> Result<AstWithMetadata, SpannedCompilerError> {
+    ) -> Result<RichAst, SpannedCompilerError> {
         let parse_result = parse(src);
         match parse_result {
             DatexParseResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
@@ -407,11 +407,11 @@ mod tests {
     }
 
     /// Parses the given source code into an AST with metadata.
-    fn parse_and_precompile_unwrap(src: &str) -> AstWithMetadata {
+    fn parse_and_precompile_unwrap(src: &str) -> RichAst {
         parse_and_precompile(src).unwrap()
     }
 
-    fn parse_and_precompile_map_compiler_error(src: &str) -> Result<AstWithMetadata, CompilerError> {
+    fn parse_and_precompile_map_compiler_error(src: &str) -> Result<RichAst, CompilerError> {
         parse_and_precompile(src)
             .map_err(|e| e.error)
     }
@@ -424,17 +424,17 @@ mod tests {
         let cell = Rc::new(RefCell::new(AstMetadata::default()));
         {
             let valid_parse_result = parse(src).unwrap();
-            let ast_with_metadata = precompile_ast_simple_error(
+            let rich_ast = precompile_ast_simple_error(
                 valid_parse_result,
                 cell.clone(),
                 &mut PrecompilerScopeStack::default(),
             )
             .unwrap();
 
-            let mut expr = ast_with_metadata.ast;
+            let mut expr = rich_ast.ast;
             infer_expression_type(
                 &mut expr.as_mut().unwrap(),
-                ast_with_metadata.metadata.clone(),
+                rich_ast.metadata.clone(),
             )
             .unwrap();
         }
@@ -447,14 +447,14 @@ mod tests {
     /// The source code should be a type expression, e.g. "integer/u8".
     /// The function asserts that the expression is indeed a type declaration.
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
-        let ast_with_metadata = parse_and_precompile_unwrap(src);
-        let mut expr = ast_with_metadata.ast;
+        let rich_ast = parse_and_precompile_unwrap(src);
+        let mut expr = rich_ast.ast;
         resolve_type_expression_type(
             match &mut expr.unwrap().data {
                 DatexExpressionData::TypeDeclaration { value, .. } => value,
                 _ => unreachable!(),
             },
-            ast_with_metadata.metadata,
+            rich_ast.metadata,
         )
         .expect("Type inference failed")
     }
@@ -597,11 +597,11 @@ mod tests {
         var a: integer = 42;
         a = "hello"; // type error
         "#;
-        let ast_with_metadata = parse_and_precompile_unwrap(&src);
-        let mut expr = ast_with_metadata.ast;
+        let rich_ast = parse_and_precompile_unwrap(&src);
+        let mut expr = rich_ast.ast;
         let result = infer_expression_type(
             &mut expr.as_mut().unwrap(),
-            ast_with_metadata.metadata.clone(),
+            rich_ast.metadata.clone(),
         );
         assert_matches!(
             result,
@@ -910,7 +910,7 @@ mod tests {
             )).with_default_span()),
         }).with_default_span();
 
-        let ast_with_metadata = precompile_ast_simple_error(
+        let rich_ast = precompile_ast_simple_error(
             ValidDatexParseResult {
                 ast: expr,
                 spans: vec![0..1]
@@ -919,8 +919,8 @@ mod tests {
             &mut PrecompilerScopeStack::default(),
         )
         .unwrap();
-        let metadata = ast_with_metadata.metadata;
-        let mut expr = ast_with_metadata.ast;
+        let metadata = rich_ast.metadata;
+        let mut expr = rich_ast.ast;
 
         // check that the expression type is inferred correctly
         assert_eq!(
