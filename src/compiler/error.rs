@@ -105,16 +105,14 @@ impl From<SpannedCompilerError> for DetailedOrSimpleCompilerError {
 }
 
 
-impl From<Vec<ParseError>> for DetailedOrSimpleCompilerError {
+impl From<Vec<ParseError>> for DetailedCompilerError {
     fn from(value: Vec<ParseError>) -> Self {
-        DetailedOrSimpleCompilerError::Detailed(
-            DetailedCompilerError {
-                errors: value
-                    .into_iter()
-                    .map(SpannedCompilerError::from)
-                    .collect()
-            }
-        )
+        DetailedCompilerError {
+            errors: value
+                .into_iter()
+                .map(SpannedCompilerError::from)
+                .collect()
+        }
     }
 }
 
