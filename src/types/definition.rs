@@ -29,6 +29,10 @@ pub enum TypeDefinition {
     // ()
     Unit,
 
+    Never,
+
+    Unknown,
+
     Function {
         // FIXME #372: Include error type definition
         parameters: Vec<(String, TypeContainer)>,
@@ -48,7 +52,11 @@ impl Hash for TypeDefinition {
             TypeDefinition::Reference(reference) => {
                 reference.borrow().hash(state);
             }
+
             TypeDefinition::Unit => 0_u8.hash(state),
+            TypeDefinition::Unknown => 1_u8.hash(state),
+            TypeDefinition::Never => 2_u8.hash(state),
+
             TypeDefinition::Union(types) => {
                 for ty in types {
                     ty.hash(state);
@@ -82,6 +90,9 @@ impl Display for TypeDefinition {
                 write!(f, "{}", reference.borrow())
             }
             TypeDefinition::Unit => write!(f, "()"),
+            TypeDefinition::Unknown => write!(f, "unknown"),
+            TypeDefinition::Never => write!(f, "never"),
+
             TypeDefinition::Union(types) => {
                 let is_level_zero = types.iter().all(|t| {
                     matches!(

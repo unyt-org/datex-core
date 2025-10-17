@@ -27,6 +27,10 @@ pub enum DIFTypeDefinition {
     // ()
     Unit,
 
+    Never,
+
+    Unknown,
+
     Function {
         parameters: Vec<(String, DIFTypeContainer)>,
         return_type: Box<DIFTypeContainer>,
@@ -95,6 +99,8 @@ impl DIFTypeDefinition {
                     .collect(),
             ),
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
+            TypeDefinition::Never => DIFTypeDefinition::Never,
+            TypeDefinition::Unknown => DIFTypeDefinition::Unknown,
             TypeDefinition::Function {
                 parameters,
                 return_type,

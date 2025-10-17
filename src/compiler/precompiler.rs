@@ -325,7 +325,7 @@ pub (crate) fn precompile_ast(
     };
 
     // if collecting detailed errors and an error occurred, return
-    if let Some(errors) = collected_errors.take() {
+    if let Some(errors) = collected_errors.take() && errors.has_errors() {
         Err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(DetailedCompilerErrorsWithRichAst {
             errors,
             ast: rich_ast
@@ -1234,8 +1234,8 @@ mod tests {
         assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "integer" && variant == "invalid");
 
         // unknown type should error
-        let result = parse_and_precompile("unknown/u8");
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "unknown");
+        let result = parse_and_precompile("invalid/u8");
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "invalid");
 
         // declared type with invalid subvariant shall throw
         let result = parse_and_precompile("type User = {}; User/u8");
