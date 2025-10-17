@@ -5,11 +5,12 @@ use std::ops::Range;
 use chumsky::prelude::SimpleSpan;
 use crate::compiler::type_inference::TypeError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CompilerError {
     UnexpectedTerm(Box<DatexExpression>),
     ParseErrors(Vec<ParseError>),
-    SerializationError(binrw::Error),
+    SerializationError,
+    // TODO: SerializationError(binrw::Error),? has no clone
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount,
@@ -156,8 +157,8 @@ impl Display for CompilerError {
             CompilerError::SubvariantNotFound(name, variant) => {
                 write!(f, "Subvariant {variant} does not exist for {name}")
             }
-            CompilerError::SerializationError(error) => {
-                write!(f, "Serialization error: {error}")
+            CompilerError::SerializationError => {
+                write!(f, "Serialization error")
             }
             CompilerError::BigDecimalOutOfBoundsError => {
                 write!(f, "BigDecimal out of bounds error")

@@ -10,7 +10,7 @@ use crate::values::pointer::PointerAddress;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TypeError {
     MismatchedOperands(TypeContainer, TypeContainer),
 
