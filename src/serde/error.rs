@@ -5,7 +5,8 @@ use serde::ser::{self};
 use std::fmt::Display;
 use std::io;
 
-use crate::compiler::error::{CompilerError, SpannedCompilerError};
+use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError, SpannedCompilerError};
+use crate::compiler::precompiler::RichAst;
 use crate::runtime::execution::ExecutionError;
 
 #[derive(Debug)]
@@ -88,6 +89,48 @@ impl From<SpannedCompilerError> for DeserializationError {
         DeserializationError::CompilerError(e)
     }
 }
+
+
+#[derive(Debug)]
+pub struct DetailedCompilerErrorsWithRichAst {
+    pub errors: DetailedCompilerErrors,
+    pub ast: RichAst
+}
+
+#[derive(Debug)]
+pub struct DetailedCompilerErrorsWithMaybeRichAst {
+    pub errors: DetailedCompilerErrors,
+    pub ast: Option<RichAst>
+}
+
+impl From<DetailedCompilerErrorsWithRichAst> for DetailedCompilerErrorsWithMaybeRichAst {
+    fn from(value: DetailedCompilerErrorsWithRichAst) -> Self {
+        DetailedCompilerErrorsWithMaybeRichAst {
+            errors: value.errors,
+            ast: Some(value.ast)
+        }
+    }
+}
+
+/// Extended SimpleOrDetailedCompilerError type
+/// that includes RichAst for the Detailed variant
+#[derive(Debug)]
+pub enum SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+    /// DetailedCompilerError with additional RichAst
+    Detailed(DetailedCompilerErrorsWithRichAst),
+    /// simple SpannedCompilerError
+    Simple(SpannedCompilerError)
+}
+
+impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> for SimpleOrDetailedCompilerError {
+    fn from(value: SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst) -> Self {
+        match value {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => SimpleOrDetailedCompilerError::Simple(error),
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error_with_ast) => SimpleOrDetailedCompilerError::Detailed(error_with_ast.errors)
+        }
+    }
+}
+
 impl StdError for DeserializationError {}
 impl Display for DeserializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
