@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binding::VariableId;
-use crate::compiler::error::{CompilerError, DetailedOrSimpleCompilerError, SpannedCompilerError};
+use crate::compiler::error::{CompilerError, DetailedCompilerError, DetailedOrSimpleCompilerError, SpannedCompilerError};
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -9,7 +9,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::precompiler::{AstMetadata, AstWithMetadata, VariableMetadata, PrecompilerOptions, precompile_ast_simple_error};
+use crate::compiler::precompiler::{AstMetadata, AstWithMetadata, VariableMetadata, PrecompilerOptions, precompile_ast_simple_error, precompile_ast};
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
@@ -250,7 +250,7 @@ pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
     mut options: CompileOptions<'a>,
 ) -> Result<(StaticValueOrDXB, CompilationScope), SpannedCompilerError> {
-    let ast = parse_datex_script_to_ast(
+    let ast = parse_datex_script_to_ast_simple_error(
         datex_script,
         &mut options,
     )?;
@@ -272,8 +272,8 @@ pub fn compile_script_or_return_static_value<'a>(
 }
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
-/// Currently only returns the first occuring error (can be changed if needed in the future)
-pub fn parse_datex_script_to_ast<'a>(
+/// Only returns the first occuring error
+pub fn parse_datex_script_to_ast_simple_error<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
 ) -> Result<AstWithMetadata, SpannedCompilerError> {
@@ -290,7 +290,27 @@ pub fn parse_datex_script_to_ast<'a>(
 
     let valid_parse_result = parse(datex_script).to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
-    precompile_to_ast_with_metadata_simple_error(valid_parse_result, &mut options.compile_scope)
+    precompile_to_ast_with_metadata(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: false})
+        .map_err(|e| match e {
+            DetailedOrSimpleCompilerError::Simple(e) => e,
+            _ => unreachable!(), // because detailed_errors: false
+        })
+}
+
+
+/// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
+/// Returns all occurring errors and the AST if one or more errors orccur.
+pub fn parse_datex_scripxt_to_ast_detailed_error<'a>(
+    datex_script: &'a str,
+    options: &mut CompileOptions<'a>,
+) -> Result<AstWithMetadata, DetailedCompilerError> {
+    let valid_parse_result = parse(datex_script).to_result()
+        .map_err(|errs| DetailedCompilerError::from(errs))?;
+    precompile_to_ast_with_metadata(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: true})
+        .map_err(|e| match e {
+            DetailedOrSimpleCompilerError::Detailed(e) => e,
+            _ => unreachable!(), // because detailed_errors: true
+        })
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -299,7 +319,7 @@ pub fn compile_template<'a>(
     inserted_values: &[ValueContainer],
     mut options: CompileOptions<'a>,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
-    let ast = parse_datex_script_to_ast(
+    let ast = parse_datex_script_to_ast_simple_error(
         datex_script,
         &mut options,
     )?;
@@ -366,10 +386,11 @@ macro_rules! compile {
 
 /// Precompiles a DATEX expression AST into an AST with metadata.
 /// Always returns the first error if one occurs
-pub fn precompile_to_ast_with_metadata_simple_error(
+fn precompile_to_ast_with_metadata(
     valid_parse_result: ValidDatexParseResult,
     scope: &mut CompilationScope,
-) -> Result<AstWithMetadata, SpannedCompilerError> {
+    precompiler_options: PrecompilerOptions,
+) -> Result<AstWithMetadata, DetailedOrSimpleCompilerError> {
     // if once is set to true in already used, return error
     if scope.once {
         if scope.was_used {
@@ -381,10 +402,11 @@ pub fn precompile_to_ast_with_metadata_simple_error(
     let ast_with_metadata =
         if let Some(precompiler_data) = &scope.precompiler_data {
             // precompile the AST, adding metadata for variables etc.
-            precompile_ast_simple_error(
+            precompile_ast(
                 valid_parse_result,
                 precompiler_data.ast_with_metadata.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
+                precompiler_options
             )?
         } else {
             // if no precompiler data, just use the AST with default metadata
@@ -1014,7 +1036,7 @@ fn compile_key_value_entry(
 
 #[cfg(test)]
 pub mod tests {
-    use super::{CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB, compile_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_ast};
+    use super::{CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB, compile_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_ast_simple_error};
     use std::assert_matches::assert_matches;
     use std::cell::RefCell;
     use std::io::Read;
@@ -1048,7 +1070,7 @@ pub mod tests {
 
     fn get_compilation_context(script: &str) -> CompilationContext {
         let mut options = CompileOptions::default();
-        let ast = parse_datex_script_to_ast(script, &mut options).unwrap();
+        let ast = parse_datex_script_to_ast_simple_error(script, &mut options).unwrap();
 
         let compilation_context = CompilationContext::new(
             RefCell::new(Vec::with_capacity(256)),

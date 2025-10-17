@@ -294,7 +294,7 @@ pub fn precompile_ast_detailed_error(
     })
 }
 
-fn precompile_ast(
+pub (crate) fn precompile_ast(
     mut parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
