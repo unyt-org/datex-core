@@ -1,4 +1,4 @@
-use crate::ast::tree::{DatexExpressionData, TypeExpression};
+use crate::ast::tree::{DatexExpressionData, List, TypeExpression};
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -64,12 +64,12 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
             DatexExpressionData::Endpoint(endpoint.clone())
         }
         CoreValue::Null => DatexExpressionData::Null,
-        CoreValue::List(list) => DatexExpressionData::List(
+        CoreValue::List(list) => DatexExpressionData::List(List::new(
             list.into_iter()
                 .map(DatexExpressionData::from)
                 .map(|data| data.with_default_span())
                 .collect(),
-        ),
+        )),
         CoreValue::Map(map) => DatexExpressionData::Map(
             map.into_iter()
                 .map(|(key, value)| {
@@ -97,7 +97,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::tree::DatexExpressionData;
+    use crate::ast::tree::{DatexExpressionData, List};
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;
@@ -170,14 +170,14 @@ mod tests {
         let ast = DatexExpressionData::from(&value);
         assert_eq!(
             ast,
-            DatexExpressionData::List(vec![
+            DatexExpressionData::List(List::new(vec![
                 DatexExpressionData::Integer(Integer::from(1))
                     .with_default_span(),
                 DatexExpressionData::Integer(Integer::from(2))
                     .with_default_span(),
                 DatexExpressionData::Integer(Integer::from(3))
                     .with_default_span(),
-            ])
+            ]))
         );
     }
 }

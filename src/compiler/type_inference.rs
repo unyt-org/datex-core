@@ -56,6 +56,7 @@ pub fn infer_expression_type(
         }
         DatexExpressionData::List(list) => {
             let entries = list
+                .items
                 .iter_mut()
                 .map(|v| infer_expression_type(v, metadata.clone()).unwrap())
                 .collect::<Vec<_>>();
@@ -376,7 +377,7 @@ mod tests {
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::Decimal;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult};
-    use crate::ast::tree::VariableKind;
+    use crate::ast::tree::{List, VariableKind};
 
     /// Helper to infer the type of an expression and return it directly as Type.
     /// Panics if type inference fails or if the inferred type is not a Type.
@@ -801,11 +802,11 @@ mod tests {
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpressionData::List(vec![
+            infer_get_type(&mut DatexExpressionData::List(List::new(vec![
                 DatexExpressionData::Integer(Integer::from(1)).with_default_span(),
                 DatexExpressionData::Integer(Integer::from(2)).with_default_span(),
                 DatexExpressionData::Integer(Integer::from(3)).with_default_span()
-            ]).with_default_span()),
+            ])).with_default_span()),
             Type::structural(StructuralTypeDefinition::List(vec![
                 TypeContainer::Type(Type::from(CoreValue::from(
                     Integer::from(1)

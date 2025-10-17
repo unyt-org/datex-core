@@ -3,6 +3,7 @@ use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
+use datex_core::ast::tree::List;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApplyOperation {
@@ -78,7 +79,7 @@ pub fn indexed_parameters<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
-        .map_with(|vec, e| DatexExpressionData::List(vec).with_span(e.span()))
+        .map_with(|vec, e| DatexExpressionData::List(List::new(vec)).with_span(e.span()))
 }
 
 pub fn chain<'a>(
