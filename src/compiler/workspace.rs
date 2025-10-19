@@ -5,7 +5,7 @@ use std::rc::Rc;
 use datex_core::compiler::precompiler::{RichAst};
 use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SpannedCompilerError};
 use crate::compiler::{parse_datex_script_to_rich_ast_detailed_errors, CompileOptions};
-use crate::compiler::type_inference::infer_expression_type;
+use crate::compiler::type_inference::infer_expression_type_inner;
 use crate::runtime::Runtime;
 use crate::compiler::error::{DetailedCompilerErrorsWithMaybeRichAst, DetailedCompilerErrorsWithRichAst};
 use crate::types::type_container::TypeContainer;
@@ -75,7 +75,7 @@ impl CompilerWorkspace {
     fn get_rich_ast_for_file(&self, path: &PathBuf, content: String) -> Result<(RichAst, TypeContainer), DetailedCompilerErrorsWithMaybeRichAst> {
         let mut options = CompileOptions::default();
         let mut rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
-        let return_type = infer_expression_type(rich_ast.ast.as_mut().unwrap(), rich_ast.metadata.clone())
+        let return_type = infer_expression_type_inner(rich_ast.ast.as_mut().unwrap(), rich_ast.metadata.clone())
             // TOOD: detailed type errors
             .map_err(|e| DetailedCompilerErrorsWithRichAst {
                 errors: DetailedCompilerErrors {errors: vec![SpannedCompilerError::from(CompilerError::TypeError(e))]},
