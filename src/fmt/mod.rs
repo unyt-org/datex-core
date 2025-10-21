@@ -205,6 +205,12 @@ impl Formatter {
                     + self.operator_with_spaces(a.text("="))
                     + self.format_datex_expression(init_expression)
             }
+            DatexExpressionData::Type(type_expr) => {
+                let a = &self.alloc;
+                let inner = self.format_type_expression(type_expr);
+                (a.text("type(") + a.line_() + inner + a.line_() + a.text(")"))
+                    .group()
+            }
             e => panic!("Formatter not implemented for {:?}", e),
         }
     }
@@ -263,19 +269,18 @@ impl Formatter {
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            // TODO: add later
-            TypeExpression::FixedSizeList(_, _) => {
-                a.text("/* fixed size list TODO */")
-            }
-            TypeExpression::SliceList(_) => a.text("/* slice list TODO */"),
+            TypeExpression::FixedSizeList(_, _) => todo!(),
+            TypeExpression::SliceList(_) => todo!(),
 
             // Intersection: `A & B & C`
             TypeExpression::Intersection(items) => {
-                self.wrap_binary_like(items, "&")
+                self.wrap_type_collection(items, "&")
             }
 
             // Union: `A | B | C`
-            TypeExpression::Union(items) => self.wrap_binary_like(items, "|"),
+            TypeExpression::Union(items) => {
+                self.wrap_type_collection(items, "|")
+            }
 
             TypeExpression::Generic(_, _) => a.text("/* generic TODO */"),
 
@@ -289,12 +294,9 @@ impl Formatter {
                         + self.type_declaration_colon()
                         + self.format_type_expression(ty)
                 });
-
                 let params_doc =
                     RcDoc::intersperse(params, a.text(",") + a.space());
-
                 let arrow = self.operator_with_spaces(a.text("->"));
-
                 (a.text("(")
                     + params_doc
                     + a.text(")")
@@ -303,7 +305,6 @@ impl Formatter {
                 .group()
             }
 
-            // Map / struct: `{ key: value, ... }`
             TypeExpression::StructuralMap(items) => {
                 let pairs = items.iter().map(|(k, v)| {
                     let key_doc = self.format_type_expression(k);
@@ -316,7 +317,7 @@ impl Formatter {
         }
     }
 
-    fn wrap_binary_like<'a>(
+    fn wrap_type_collection<'a>(
         &'a self,
         list: &'a [TypeExpression],
         op: &'a str,
@@ -325,8 +326,7 @@ impl Formatter {
 
         // Operator doc with configurable spacing or line breaks
         let op_doc = if self.options.spaces_around_operators {
-            // `line_()` = soft line that becomes space when grouped
-            a.line_() + a.text(op) + a.line_()
+            a.softline() + a.text(op) + a.softline()
         } else {
             a.text(op)
         };
@@ -416,6 +416,25 @@ mod tests {
     use indoc::indoc;
 
     #[test]
+    fn type_declarations() {
+        let expr = to_expression("type(&mut integer/u8)");
+        assert_eq!(
+            to_string(&expr, FormattingOptions::default()),
+            "type(&mut integer/u8)"
+        );
+
+        let expr = to_expression("type(text | integer/u16 | decimal/f32)");
+        assert_eq!(
+            to_string(&expr, FormattingOptions::default()),
+            "type(text | integer/u16 | decimal/f32)"
+        );
+        assert_eq!(
+            to_string(&expr, FormattingOptions::compact()),
+            "type(text|integer/u16|decimal/f32)"
+        );
+    }
+
+    #[test]
     fn variable_declaration() {
         let expr = to_expression("var x: &mut integer/u8 = 42;");
         assert_eq!(
@@ -436,7 +455,6 @@ mod tests {
             to_string(&expr, FormattingOptions::default()),
             "1 + 2 * 3 - 4 / 5"
         );
-
         assert_eq!(to_string(&expr, FormattingOptions::compact()), "1+2*3-4/5");
     }
 
