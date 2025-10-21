@@ -128,7 +128,6 @@ impl Formatting {
 #[derive(Debug, Clone, Default)]
 pub struct DecompileOptions {
     pub formatting_mode: FormattingMode,
-    // TODO: remov
     pub formatting: Formatting,
     pub colorized: bool,
     /// display slots with generated variable names
