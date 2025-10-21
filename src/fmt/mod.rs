@@ -1,7 +1,12 @@
+use chumsky::span::SimpleSpan;
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 
-use crate::ast::tree::{
-    DatexExpression, DatexExpressionData, TypeExpression, VariableDeclaration,
+use crate::{
+    ast::tree::{
+        DatexExpression, DatexExpressionData, TypeExpression,
+        VariableDeclaration,
+    },
+    values::core_values::integer::{Integer, typed_integer::TypedInteger},
 };
 
 type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
@@ -12,10 +17,6 @@ pub struct FormattingOptions {
 
     /// Maximum line width before wrapping occurs.
     pub max_width: usize,
-
-    /// Whether to add type variant suffixes to typed integers and decimals.
-    /// E.g., `42u8` instead of `42`.
-    pub add_variant_suffix: bool,
 
     /// Whether to add trailing commas in collections like lists and maps.
     /// E.g., `[1, 2, 3,]` instead of `[1, 2, 3]`.
@@ -36,6 +37,29 @@ pub struct FormattingOptions {
     /// Formatting style for type declarations.
     /// Determines how type annotations are spaced and aligned.
     pub type_declaration_formatting: TypeDeclarationFormatting,
+
+    /// Whether to add newlines between statements.
+    pub statement_formatting: StatementFormatting,
+
+    /// Formatting style for type variant suffixes.
+    pub variant_formatting: VariantFormatting,
+}
+
+/// Formatting styles for enum variants.
+pub enum VariantFormatting {
+    /// Keep the original formatting.
+    Keep,
+    /// Use variant suffixes.
+    WithSuffix,
+    /// Do not use variant suffixes.
+    WithoutSuffix,
+}
+
+/// Formatting styles for statements.
+pub enum StatementFormatting {
+    NewlineBetween,
+    SpaceBetween,
+    Compact,
 }
 
 /// Formatting styles for type declarations.
@@ -50,13 +74,14 @@ impl Default for FormattingOptions {
         FormattingOptions {
             indent: 4,
             max_width: 40,
-            add_variant_suffix: false,
+            variant_formatting: VariantFormatting::Keep,
             trailing_comma: true,
             spaced_collections: false,
             space_in_collection: true,
             spaces_around_operators: true,
             type_declaration_formatting:
                 TypeDeclarationFormatting::SpaceAfterColon,
+            statement_formatting: StatementFormatting::NewlineBetween,
         }
     }
 }
@@ -65,26 +90,34 @@ impl FormattingOptions {
         FormattingOptions {
             indent: 2,
             max_width: 40,
-            add_variant_suffix: false,
+            variant_formatting: VariantFormatting::WithoutSuffix,
             trailing_comma: false,
             spaced_collections: false,
             space_in_collection: false,
             spaces_around_operators: false,
             type_declaration_formatting: TypeDeclarationFormatting::Compact,
+            statement_formatting: StatementFormatting::Compact,
         }
     }
 }
-struct Formatter {
+pub struct Formatter {
     options: FormattingOptions,
     alloc: RcAllocator,
 }
 
 impl Formatter {
-    fn new(options: FormattingOptions) -> Self {
+    pub fn new(options: FormattingOptions) -> Self {
         Self {
             options,
             alloc: RcAllocator,
         }
+    }
+
+    /// Renders a DatexExpression into a source code string.
+    pub fn render(&self, expr: &DatexExpression) -> String {
+        self.format_datex_expression(expr)
+            .pretty(self.options.max_width)
+            .to_string()
     }
 
     /// Formats a list into source code representation.
@@ -123,6 +156,22 @@ impl Formatter {
         self.options.indent as isize
     }
 
+    fn typed_integer_to_source_code<'a>(
+        &'a self,
+        ti: &'a TypedInteger,
+        span: &'a SimpleSpan,
+    ) -> Format<'a> {
+        let a = &self.alloc;
+        match self.options.variant_formatting {
+            VariantFormatting::Keep => {
+                println!("TODO span: {:?}", span);
+                todo!("TODO")
+            }
+            VariantFormatting::WithSuffix => a.text(ti.to_string_with_suffix()),
+            VariantFormatting::WithoutSuffix => a.text(ti.to_string()),
+        }
+    }
+
     /// Formats a DatexExpression into a DocBuilder for pretty printing.
     fn format_datex_expression<'a>(
         &'a self,
@@ -133,19 +182,11 @@ impl Formatter {
         match &expr.data {
             DatexExpressionData::Integer(i) => a.as_string(i),
             DatexExpressionData::TypedInteger(ti) => {
-                if self.options.add_variant_suffix {
-                    a.text(ti.to_string_with_suffix())
-                } else {
-                    a.text(ti.to_string())
-                }
+                self.typed_integer_to_source_code(ti, &expr.span)
             }
             DatexExpressionData::Decimal(d) => a.as_string(d),
             DatexExpressionData::TypedDecimal(td) => {
-                if self.options.add_variant_suffix {
-                    a.text(td.to_string_with_suffix())
-                } else {
-                    a.text(td.to_string())
-                }
+                todo!("")
             }
             DatexExpressionData::Boolean(b) => a.as_string(b),
             DatexExpressionData::Text(t) => self.text_to_source_code(t),
@@ -181,7 +222,14 @@ impl Formatter {
                     })
                     .collect();
 
-                let joined = a.intersperse(docs, a.line_());
+                let joined = a.intersperse(
+                    docs,
+                    match self.options.statement_formatting {
+                        StatementFormatting::NewlineBetween => a.hardline(),
+                        StatementFormatting::SpaceBetween => a.space(),
+                        StatementFormatting::Compact => a.nil(),
+                    },
+                );
                 joined.group()
             }
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
@@ -246,20 +294,12 @@ impl Formatter {
             TypeExpression::GetReference(ptr) => a.text(ptr.to_string()),
 
             TypeExpression::TypedInteger(typed_integer) => {
-                let txt = if self.options.add_variant_suffix {
-                    typed_integer.to_string_with_suffix()
-                } else {
-                    typed_integer.to_string()
-                };
-                a.text(txt)
+                a.text(typed_integer.to_string())
+                // TODO: handle variant formatting
             }
             TypeExpression::TypedDecimal(typed_decimal) => {
-                let txt = if self.options.add_variant_suffix {
-                    typed_decimal.to_string_with_suffix()
-                } else {
-                    typed_decimal.to_string()
-                };
-                a.text(txt)
+                a.text(typed_decimal.to_string())
+                // TODO: handle variant formatting
             }
 
             // Lists — `[T, U, V]` or multiline depending on settings
@@ -363,13 +403,7 @@ impl Formatter {
         }
     }
 
-    /// Renders a DatexExpression into a source code string.
-    pub fn render(&self, expr: &DatexExpression) -> String {
-        self.format_datex_expression(expr)
-            .pretty(self.options.max_width)
-            .to_string()
-    }
-
+    /// Wraps a collection of DocBuilders with specified brackets and separator.
     fn wrap_collection<'a>(
         &'a self,
         list: impl Iterator<Item = DocBuilder<'a, RcAllocator, ()>> + 'a,
@@ -414,6 +448,58 @@ mod tests {
     use super::*;
     use crate::ast::parse;
     use indoc::indoc;
+
+    #[test]
+    fn variant_formatting() {
+        let expr = to_expression("42u8");
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    variant_formatting: VariantFormatting::WithoutSuffix,
+                    ..Default::default()
+                }
+            ),
+            "42"
+        );
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    variant_formatting: VariantFormatting::WithSuffix,
+                    ..Default::default()
+                }
+            ),
+            "42u8"
+        );
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    variant_formatting: VariantFormatting::Keep,
+                    ..Default::default()
+                }
+            ),
+            "42u8"
+        );
+    }
+
+    #[test]
+    fn statements() {
+        let expr = to_expression("1 + 2; var x: integer/u8 = 42; x * 10;");
+        assert_eq!(
+            to_string(&expr, FormattingOptions::default()),
+            indoc! {"
+            1 + 2;
+            var x: integer/u8 = 42;
+            x * 10;"
+            }
+        );
+        assert_eq!(
+            to_string(&expr, FormattingOptions::compact()),
+            "1+2;var x:integer/u8=42;x*10;"
+        );
+    }
 
     #[test]
     fn type_declarations() {
