@@ -300,7 +300,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
 
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
-/// Returns all occurring errors and the AST if one or more errors orccur.
+/// Returns all occurring errors and the AST if one or more errors occur.
 pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
