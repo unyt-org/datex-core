@@ -4,12 +4,56 @@ use crate::ast::tree::{
     DatexExpression, DatexExpressionData, VariableDeclaration,
 };
 
+type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
+
 pub struct FormattingOptions {
+    /// Number of spaces to use for indentation.
     pub indent: usize,
+
+    /// Maximum line width before wrapping occurs.
     pub max_width: usize,
+
+    /// Whether to add type variant suffixes to typed integers and decimals.
+    /// E.g., `42u8` instead of `42`.
     pub add_variant_suffix: bool,
+
+    /// Whether to add trailing commas in collections like lists and maps.
+    /// E.g., `[1, 2, 3,]` instead of `[1, 2, 3]`.
+    pub trailing_comma: bool,
+
+    /// Whether to add spaces inside collections like lists and maps.
+    /// E.g., `[ 1,2,3 ]` instead of `[1,2,3]`.
+    pub spaced_collections: bool,
+
+    /// Whether to add spaces inside collections like lists and maps.
+    /// E.g., `[1, 2, 3]` instead of `[1,2,3]`.
+    pub space_in_collection: bool,
 }
 
+impl Default for FormattingOptions {
+    fn default() -> Self {
+        FormattingOptions {
+            indent: 4,
+            max_width: 40,
+            add_variant_suffix: false,
+            trailing_comma: true,
+            spaced_collections: false,
+            space_in_collection: true,
+        }
+    }
+}
+impl FormattingOptions {
+    pub fn compact() -> Self {
+        FormattingOptions {
+            indent: 2,
+            max_width: 40,
+            add_variant_suffix: false,
+            trailing_comma: false,
+            spaced_collections: false,
+            space_in_collection: false,
+        }
+    }
+}
 struct Formatter {
     options: FormattingOptions,
     alloc: RcAllocator,
@@ -23,72 +67,44 @@ impl Formatter {
         }
     }
 
-    pub fn text_to_source_code<'a>(
-        &'a self,
-        s: &'a str,
-    ) -> DocBuilder<'a, RcAllocator, ()> {
-        self.alloc.text(format!("{:?}", s)) // quoted string
-    }
-
     pub fn list_to_source_code<'a>(
         &'a self,
         elements: &'a [DatexExpression],
-    ) -> DocBuilder<'a, RcAllocator, ()> {
-        let a = &self.alloc;
-
-        if elements.is_empty() {
-            return a.text("[]");
-        }
-
-        let docs: Vec<_> = elements
-            .iter()
-            .map(|e| self.format_datex_expression(e))
-            .collect();
-        let joined = RcDoc::intersperse(docs, a.text(",") + a.line());
-
-        (a.text("[")
-            + (a.line() + joined).nest(self.ident())
-            + a.line()
-            + a.text("]"))
-        .group()
+    ) -> Format<'a> {
+        self.wrap_collection(
+            elements.iter().map(|e| self.format_datex_expression(e)),
+            ("[", "]"),
+            ",",
+        )
     }
 
-    fn ident(&self) -> isize {
-        self.options.indent as isize
+    fn text_to_source_code<'a>(&'a self, s: &'a str) -> Format<'a> {
+        self.alloc.text(format!("{:?}", s)) // quoted string
     }
 
-    pub fn map_to_source_code<'a>(
+    fn map_to_source_code<'a>(
         &'a self,
         map: &'a [(DatexExpression, DatexExpression)],
-    ) -> DocBuilder<'a, RcAllocator, ()> {
+    ) -> Format<'a> {
         let a = &self.alloc;
 
-        if map.is_empty() {
-            return a.text("{}");
-        }
+        let entries = map.iter().map(|(key, value)| {
+            self.format_datex_expression(key)
+                + a.text(": ")
+                + self.format_datex_expression(value)
+        });
 
-        let entries: Vec<_> = map
-            .iter()
-            .map(|(k, v)| {
-                self.format_datex_expression(k)
-                    + a.text(": ")
-                    + self.format_datex_expression(v)
-            })
-            .collect();
+        self.wrap_collection(entries, ("{", "}"), ",")
+    }
 
-        let joined = RcDoc::intersperse(entries, a.text(",") + a.line());
-
-        (a.text("{")
-            + (a.line() + joined).nest(self.ident())
-            + a.line()
-            + a.text("}"))
-        .group()
+    fn indent(&self) -> isize {
+        self.options.indent as isize
     }
 
     pub fn format_datex_expression<'a>(
         &'a self,
         expr: &'a DatexExpression,
-    ) -> DocBuilder<'a, RcAllocator, ()> {
+    ) -> Format<'a> {
         let a = &self.alloc;
 
         match &expr.data {
@@ -178,10 +194,134 @@ impl Formatter {
             .pretty(self.options.max_width)
             .to_string()
     }
+
+    fn wrap_collection<'a>(
+        &'a self,
+        list: impl Iterator<Item = DocBuilder<'a, RcAllocator, ()>> + 'a,
+        brackets: (&'a str, &'a str),
+        sep: &'a str,
+    ) -> DocBuilder<'a, RcAllocator, ()> {
+        let a = &self.alloc;
+        let sep_doc = a.text(sep);
+
+        // Optional spacing inside brackets
+        let padding = if self.options.spaced_collections {
+            a.line()
+        } else {
+            a.line_()
+        };
+
+        // Build joined elements
+        let separator = if self.options.space_in_collection {
+            sep_doc + a.line()
+        } else {
+            sep_doc + a.line_()
+        };
+
+        let joined = RcDoc::intersperse(list, separator).append(
+            if self.options.trailing_comma {
+                a.text(sep)
+            } else {
+                a.nil()
+            },
+        );
+
+        a.text(brackets.0)
+            .append((padding.clone() + joined).nest(self.indent()))
+            .append(padding)
+            .append(a.text(brackets.1))
+            .group()
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn lists() {
+        // simple list
+        let expr = to_expression("[1,2,3,4,5,6,7]");
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    max_width: 40,
+                    space_in_collection: false,
+                    trailing_comma: false,
+                    spaced_collections: false,
+                    ..Default::default()
+                }
+            ),
+            "[1,2,3,4,5,6,7]"
+        );
+
+        // spaced list
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    max_width: 40,
+                    space_in_collection: true,
+                    trailing_comma: false,
+                    spaced_collections: false,
+                    ..Default::default()
+                }
+            ),
+            "[1, 2, 3, 4, 5, 6, 7]"
+        );
+
+        // spaced list with trailing comma
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    max_width: 40,
+                    space_in_collection: true,
+                    trailing_comma: true,
+                    spaced_collections: true,
+                    ..Default::default()
+                }
+            ),
+            "[ 1, 2, 3, 4, 5, 6, 7, ]"
+        );
+
+        // wrapped list
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    indent: 4,
+                    max_width: 10,
+                    space_in_collection: true,
+                    trailing_comma: true,
+                    spaced_collections: true,
+                    ..Default::default()
+                }
+            ),
+            indoc! {"
+            [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+            ]"}
+        );
+    }
+
+    #[test]
+    fn test_format_integer() {
+        let expr = to_expression(
+            "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x",
+        );
+        print(&expr, FormattingOptions::default());
+        print(&expr, FormattingOptions::compact());
+
+        let expr = to_expression("const x = [1,2,3,4,5,6,7]");
+        print(&expr, FormattingOptions::default());
+    }
     use indoc::indoc;
 
     use super::*;
@@ -196,17 +336,12 @@ mod tests {
         parse(s).unwrap().ast
     }
 
-    #[test]
-    fn test_format_integer() {
-        let expr = to_expression(
-            "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x",
-        );
-        let formatter = Formatter::new(FormattingOptions {
-            indent: 4,
-            max_width: 80,
-            add_variant_suffix: false,
-        });
-        let formatted = formatter.render(&expr);
-        println!("{}", formatted);
+    fn to_string(expr: &DatexExpression, options: FormattingOptions) -> String {
+        let formatter = Formatter::new(options);
+        formatter.render(expr)
+    }
+
+    fn print(expr: &DatexExpression, options: FormattingOptions) {
+        println!("{}", to_string(expr, options));
     }
 }
