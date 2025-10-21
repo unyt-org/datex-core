@@ -79,7 +79,7 @@ impl CompilerWorkspace {
             // TOOD: detailed type errors
             .map_err(|e| DetailedCompilerErrorsWithRichAst {
                 errors: DetailedCompilerErrors {errors: vec![SpannedCompilerError::from(CompilerError::TypeError(e))]},
-                // TODO: only temorary fake ast
+                // TODO: only temporary fake ast
                 ast: rich_ast.clone()
             })?;
         Ok((
