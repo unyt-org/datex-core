@@ -76,7 +76,7 @@ impl CompilerWorkspace {
         let mut options = CompileOptions::default();
         let mut rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
         let return_type = infer_expression_type_inner(rich_ast.ast.as_mut().unwrap(), rich_ast.metadata.clone())
-            // TOOD: detailed type errors
+            // TODO: detailed type errors
             .map_err(|e| DetailedCompilerErrorsWithRichAst {
                 errors: DetailedCompilerErrors {errors: vec![SpannedCompilerError::from(CompilerError::TypeError(e))]},
                 // TODO: only temporary fake ast
