@@ -743,6 +743,7 @@ fn compile_expression(
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
 
+            // TODO: check not needed, is already handled in precompiler - can we guarantee this?
             // if const, return error
             if kind == VariableKind::Const {
                 return Err(CompilerError::AssignmentToConst(name.clone()));

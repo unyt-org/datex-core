@@ -531,19 +531,36 @@ fn visit_expression(
             }
         }
         DatexExpressionData::VariableAssignment(VariableAssignment {
-            id, name, expression, ..
+            id, name, expression: inner_expression, ..
         }) => {
             visit_expression(
-                expression,
+                inner_expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
                 spans,
                 collected_errors
             )?;
-            *id = Some(
-                scope_stack.get_variable_and_update_metadata(name, metadata)?,
-            );
+            let new_id = scope_stack.get_variable_and_update_metadata(name, metadata)?;
+            // check if variable is const
+            let var_metadata = metadata
+                .variable_metadata(new_id)
+                .expect("Variable must have metadata");
+            if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
+                let error = SpannedCompilerError::new_with_simple_span(
+                    CompilerError::AssignmentToConst(
+                        name.clone(),
+                    ),
+                    expression.span,
+                );
+                match collected_errors {
+                    Some(collected_errors) => {
+                        collected_errors.record_error(error);
+                    }
+                    None => return Err(error)
+                }
+            }
+            *id = Some(new_id);
         }
         DatexExpressionData::DerefAssignment {
             operator: _,
