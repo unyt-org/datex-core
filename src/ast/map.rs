@@ -4,6 +4,7 @@ use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 
 use chumsky::prelude::*;
+use crate::ast::tree::Map;
 
 pub fn map<'a>(
     key: impl DatexParserTrait<'a>,
@@ -18,7 +19,7 @@ pub fn map<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
         .map_with(|entries, e| {
-            DatexExpressionData::Map(entries).with_span(e.span())
+            DatexExpressionData::Map(Map::new(entries)).with_span(e.span())
         })
         .labelled(Pattern::Custom("map"))
         .as_context()

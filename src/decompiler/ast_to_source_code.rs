@@ -10,7 +10,7 @@ use crate::{
     },
     decompiler::FormattingMode,
 };
-use crate::ast::tree::List;
+use crate::ast::tree::{List, Map};
 
 #[derive(Clone, Default)]
 pub enum BraceStyle {
@@ -403,9 +403,10 @@ impl AstToSourceCodeFormatter {
     /// Convert a map (key/value pairs) to source code using join_elements.
     fn map_to_source_code(
         &self,
-        map: &[(DatexExpression, DatexExpression)],
+        map: &Map,
     ) -> String {
         let elements: Vec<String> = map
+            .entries
             .iter()
             .map(|(k, v)| {
                 // key -> source, colon, optional space (handled via self.space()), then formatted value
@@ -855,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_map() {
-        let map_ast = DatexExpressionData::Map(vec![
+        let map_ast = DatexExpressionData::Map(Map::new(vec![
             (
                 DatexExpressionData::Text("key1".to_string())
                     .with_default_span(),
@@ -876,7 +877,7 @@ mod tests {
                     .with_default_span(),
                 DatexExpressionData::Integer(42.into()).with_default_span(),
             ),
-        ])
+        ]))
         .with_default_span();
         assert_eq!(
             compact().format(&map_ast),

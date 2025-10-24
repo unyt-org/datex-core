@@ -1,4 +1,4 @@
-use crate::ast::tree::{DatexExpressionData, List, TypeExpression};
+use crate::ast::tree::{DatexExpressionData, List, Map, TypeExpression};
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -70,7 +70,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                 .map(|data| data.with_default_span())
                 .collect(),
         )),
-        CoreValue::Map(map) => DatexExpressionData::Map(
+        CoreValue::Map(map) => DatexExpressionData::Map(Map::new(
             map.into_iter()
                 .map(|(key, value)| {
                     (
@@ -80,7 +80,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                     )
                 })
                 .collect(),
-        ),
+        )),
         CoreValue::Type(type_value) => DatexExpressionData::TypeExpression(
             match &type_value.type_definition {
                 TypeDefinition::Structural(struct_type) => match struct_type {
