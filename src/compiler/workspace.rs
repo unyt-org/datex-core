@@ -70,7 +70,7 @@ impl CompilerWorkspace {
     /// Returns a compiler error if parsing or compilation fails.
     fn get_rich_ast_for_file(&self, path: &PathBuf, content: String) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
         let mut options = CompileOptions::default();
-        let rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
+        let rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options, &Some(self.runtime.clone()))?;
         Ok(rich_ast)
     }
 }

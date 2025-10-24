@@ -19,6 +19,7 @@ use crate::{
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use std::path::PathBuf;
+use crate::runtime::Runtime;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -61,11 +62,11 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DX file path
     /// This will read the file, compile it to DXB, execute it and extract the
-    pub fn from_dx_file(path: PathBuf) -> Result<Self, DeserializationError> {
+    pub fn from_dx_file(path: PathBuf, maybe_runtime: &Option<Runtime>) -> Result<Self, DeserializationError> {
         let input = std::fs::read_to_string(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;
-        DatexDeserializer::from_script(&input)
+        DatexDeserializer::from_script(&input, maybe_runtime)
     }
 
     /// Create a deserializer from a DXB file path
@@ -79,8 +80,8 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DX script string
     /// This will compile the script to DXB, execute it and extract the resulting value for deserialization
-    pub fn from_script(script: &'de str) -> Result<Self, DeserializationError> {
-        let (dxb, _) = compile_script(script, CompileOptions::default())
+    pub fn from_script(script: &'de str, maybe_runtime: &Option<Runtime>) -> Result<Self, DeserializationError> {
+        let (dxb, _) = compile_script(script, CompileOptions::default(), maybe_runtime)
             .map_err(|err| {
                 DeserializationError::CanNotReadFile(err.to_string())
             })?;
@@ -571,6 +572,7 @@ mod tests {
     use crate::serde::serializer::to_bytes;
     use crate::{logger::init_logger, values::core_values::endpoint::Endpoint};
     use serde::{Deserialize, Serialize};
+    use datex_core::runtime::RuntimeConfig;
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct TestStruct {
@@ -611,6 +613,7 @@ mod tests {
 
     #[test]
     fn nested_struct_serde() {
+        let runtime = Runtime::init_native(RuntimeConfig::default());
         let script = r#"
             {
                 nested: {
@@ -619,7 +622,7 @@ mod tests {
                 }
             }
         "#;
-        let deserializer = DatexDeserializer::from_script(script).unwrap();
+        let deserializer = DatexDeserializer::from_script(script, &None).unwrap();
         let result: TestNestedStruct =
             Deserialize::deserialize(deserializer).unwrap();
         assert_eq!(
@@ -653,7 +656,7 @@ mod tests {
                 field2: 42 + 5 // This will be evaluated to 47
             }
         "#;
-        let deserializer = DatexDeserializer::from_script(script).unwrap();
+        let deserializer = DatexDeserializer::from_script(script, &None).unwrap();
         let result: TestStruct =
             Deserialize::deserialize(deserializer).unwrap();
         assert!(!result.field1.is_empty());
@@ -677,7 +680,7 @@ mod tests {
     #[test]
     fn enum_1() {
         let script = r#""Variant1""#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -690,7 +693,7 @@ mod tests {
     #[test]
     fn enum_2() {
         let script = r#""Variant2""#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -707,7 +710,7 @@ mod tests {
                 test_enum: "Variant1"
             }
         "#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -724,7 +727,7 @@ mod tests {
                 endpoint: @jonas
             }
         "#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -742,7 +745,7 @@ mod tests {
                 optional_field: "Optional Value"
             }
         "#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -761,7 +764,7 @@ mod tests {
                 optional_field: null
             }
         "#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -779,7 +782,7 @@ mod tests {
                 endpoint: @jonas
             }
         "#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -800,7 +803,7 @@ mod tests {
     #[test]
     fn map() {
         let script = "{Variant1: \"Hello\"}";
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)
@@ -810,7 +813,7 @@ mod tests {
         assert!(matches!(result, ExampleEnum::Variant1(_)));
 
         let script = r#"{"Variant2": 42}"#;
-        let dxb = compile_script(script, CompileOptions::default())
+        let dxb = compile_script(script, CompileOptions::default(), &None)
             .expect("Failed to compile script")
             .0;
         let deserializer = DatexDeserializer::from_bytes(&dxb)

@@ -3,7 +3,7 @@ use crate::compiler::scope::CompilationScope;
 use crate::compiler::{CompileOptions, compile_template};
 use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::OutgoingContextId;
-use crate::runtime::RuntimeInternal;
+use crate::runtime::{Runtime, RuntimeInternal};
 use crate::runtime::execution::{
     ExecutionError, ExecutionInput, ExecutionOptions, MemoryDump,
     RuntimeExecutionContext, execute_dxb, execute_dxb_sync,
@@ -226,6 +226,7 @@ impl ExecutionContext {
         &mut self,
         script: &str,
         inserted_values: &[ValueContainer],
+        maybe_runtime: &Option<Runtime>,
     ) -> Result<Vec<u8>, SpannedCompilerError> {
         let compile_scope = self.compile_scope();
         // TODO #107: don't clone compile_scope if possible
@@ -233,6 +234,7 @@ impl ExecutionContext {
             script,
             inserted_values,
             CompileOptions::new_with_scope(compile_scope.clone()),
+            maybe_runtime,
         );
         match res {
             Ok((bytes, compile_scope)) => {
@@ -313,8 +315,9 @@ impl ExecutionContext {
         &mut self,
         script: &str,
         inserted_values: &[ValueContainer],
+        maybe_runtime: &Option<Runtime>,
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
-        let dxb = self.compile(script, inserted_values)?;
+        let dxb = self.compile(script, inserted_values, maybe_runtime)?;
         self.execute_dxb_sync(&dxb, true)
             .map_err(ScriptExecutionError::from)
     }
@@ -341,8 +344,9 @@ impl ExecutionContext {
         &mut self,
         script: &str,
         inserted_values: &[ValueContainer],
+        maybe_runtime: &Option<Runtime>,
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
-        let dxb = self.compile(script, inserted_values)?;
+        let dxb = self.compile(script, inserted_values, maybe_runtime)?;
         self.execute_dxb(&dxb, true)
             .await
             .map_err(ScriptExecutionError::from)

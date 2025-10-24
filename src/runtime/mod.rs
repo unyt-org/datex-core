@@ -44,6 +44,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone)]
 pub struct Runtime {
+    // TODO: also store version inside RuntimeInternal
     pub version: String,
     pub internal: Rc<RuntimeInternal>,
 }
@@ -122,7 +123,10 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
-        let dxb = execution_context.compile(script, inserted_values)?;
+        let dxb = execution_context.compile(script, inserted_values, &Some(Runtime {
+            version: VERSION.to_string(),
+            internal: self_rc.clone(),
+        }))?;
         RuntimeInternal::execute_dxb(
             self_rc,
             dxb,
@@ -141,7 +145,10 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
-        let dxb = execution_context.compile(script, inserted_values)?;
+        let dxb = execution_context.compile(script, inserted_values, &Some(Runtime {
+            version: VERSION.to_string(),
+            internal: self_rc.clone(),
+        }))?;
         RuntimeInternal::execute_dxb_sync(
             self_rc,
             &dxb,

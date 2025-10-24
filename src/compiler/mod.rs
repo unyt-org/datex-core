@@ -207,8 +207,8 @@ impl Variable {
 
 /// Compiles a DATEX script text into a single DXB block including routing and block headers.
 /// This function is used to create a block that can be sent over the network.
-pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, SimpleOrDetailedCompilerError> {
-    let (body, _) = compile_script(datex_script, CompileOptions::default())?;
+pub fn compile_block(datex_script: &str, maybe_runtime: &Option<Runtime>) -> Result<Vec<u8>, SimpleOrDetailedCompilerError> {
+    let (body, _) = compile_script(datex_script, CompileOptions::default(), maybe_runtime)?;
 
     let routing_header = RoutingHeader::default();
 
@@ -228,8 +228,9 @@ pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, SimpleOrDetailedComp
 pub fn compile_script<'a>(
     datex_script: &'a str,
     options: CompileOptions<'a>,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
-    compile_template(datex_script, &[], options)
+    compile_template(datex_script, &[], options, maybe_runtime)
 }
 
 /// Directly extracts a static value from a DATEX script as a `ValueContainer`.
@@ -252,10 +253,12 @@ pub fn extract_static_value_from_script(
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
     mut options: CompileOptions<'a>,
+    maybe_runtime: &Option<Runtime>
 ) -> Result<(StaticValueOrDXB, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
         &mut options,
+        maybe_runtime,
     )?;
     let compilation_context = CompilationContext::new(
         RefCell::new(Vec::with_capacity(256)),
@@ -279,6 +282,7 @@ pub fn compile_script_or_return_static_value<'a>(
 pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<RichAst, SpannedCompilerError> {
     // TODO: do this (somewhere else)
     // // shortcut if datex_script is "?" - call compile_value directly
@@ -293,7 +297,12 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
 
     let valid_parse_result = parse(datex_script).to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
-    precompile_to_rich_ast(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: false})
+    precompile_to_rich_ast(
+        valid_parse_result,
+        &mut options.compile_scope,
+        PrecompilerOptions { detailed_errors: false},
+        maybe_runtime,
+    )
         .map_err(|e | match e {
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
             _ => unreachable!(), // because detailed_errors: false
@@ -306,10 +315,16 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
 pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
     let valid_parse_result = parse(datex_script).to_result()
         .map_err(|errs| DetailedCompilerErrorsWithMaybeRichAst {errors: DetailedCompilerErrors::from(errs), ast: None})?;
-    precompile_to_rich_ast(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: true})
+    precompile_to_rich_ast(
+        valid_parse_result,
+        &mut options.compile_scope,
+        PrecompilerOptions { detailed_errors: true},
+        maybe_runtime,
+    )
         .map_err(|e | match e {
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(e)=> e.into(),
             _ => unreachable!(), // because detailed_errors: true
@@ -321,10 +336,12 @@ pub fn compile_template<'a>(
     datex_script: &'a str,
     inserted_values: &[ValueContainer],
     mut options: CompileOptions<'a>,
+    runtime: &Option<Runtime>
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
         &mut options,
+        runtime,
     )?;
     let compilation_context = CompilationContext::new(
         RefCell::new(Vec::with_capacity(256)),
@@ -382,7 +399,7 @@ macro_rules! compile {
             let script: &str = $fmt.into();
             let values: &[$crate::values::value_container::ValueContainer] = &[$($arg.into()),*];
 
-            $crate::compiler::compile_template(&script, values, $crate::compiler::CompileOptions::default())
+            $crate::compiler::compile_template(&script, values, $crate::compiler::CompileOptions::default(), &None)
         }
     }
 }
@@ -392,6 +409,7 @@ fn precompile_to_rich_ast(
     valid_parse_result: ValidDatexParseResult,
     scope: &mut CompilationScope,
     precompiler_options: PrecompilerOptions,
+    maybe_runtime: &Option<Runtime>
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     // if once is set to true in already used, return error
     if scope.once {
@@ -411,7 +429,7 @@ fn precompile_to_rich_ast(
                 precompiler_data.rich_ast.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
                 precompiler_options,
-                &Runtime::init_native(RuntimeConfig::default()),
+                maybe_runtime
             )?
         } else {
             // if no precompiler data, just use the AST with default metadata
@@ -1058,11 +1076,13 @@ pub mod tests {
     };
     use datex_core::compiler::error::CompilerError;
     use log::*;
+    use datex_core::runtime::RuntimeConfig;
+    use crate::runtime::Runtime;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
         let (result, _) =
-            compile_script(datex_script, CompileOptions::default()).unwrap();
+            compile_script(datex_script, CompileOptions::default(), &None).unwrap();
         info!(
             "{:?}",
             result
@@ -1076,7 +1096,7 @@ pub mod tests {
 
     fn get_compilation_context(script: &str) -> CompilationContext {
         let mut options = CompileOptions::default();
-        let ast = parse_datex_script_to_rich_ast_simple_error(script, &mut options).unwrap();
+        let ast = parse_datex_script_to_rich_ast_simple_error(script, &mut options, &None).unwrap();
 
         let compilation_context = CompilationContext::new(
             RefCell::new(Vec::with_capacity(256)),
@@ -1901,6 +1921,7 @@ pub mod tests {
             "? + ?",
             &[Integer::from(1).into(), Integer::from(2).into()],
             CompileOptions::default(),
+            &None
         );
         assert_eq!(
             result.unwrap().0,
@@ -1925,6 +1946,7 @@ pub mod tests {
     #[test]
     fn compile_macro_multi() {
         init_logger_debug();
+        let runtime = Runtime::init_native(RuntimeConfig::default());
         let result = compile!("? + ?", Integer::from(1), Integer::from(2));
         assert_eq!(
             result.unwrap().0,
@@ -1955,7 +1977,7 @@ pub mod tests {
     #[test]
     fn json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
-        let _ = compile_script(&json, CompileOptions::default())
+        let _ = compile_script(&json, CompileOptions::default(), &None)
             .expect("Failed to parse JSON string");
     }
 
@@ -2013,6 +2035,7 @@ pub mod tests {
         let (res, _) = compile_script_or_return_static_value(
             script,
             CompileOptions::default(),
+            &None
         )
         .unwrap();
         assert_matches!(
@@ -2024,6 +2047,7 @@ pub mod tests {
         let (res, _) = compile_script_or_return_static_value(
             script,
             CompileOptions::default(),
+            &None
         )
         .unwrap();
         assert_matches!(
@@ -2042,7 +2066,7 @@ pub mod tests {
     fn remote_execution() {
         let script = "42 :: 43";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2073,7 +2097,7 @@ pub mod tests {
     fn remote_execution_expression() {
         let script = "42 :: 1 + 2";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2108,7 +2132,7 @@ pub mod tests {
         init_logger_debug();
         let script = "const x = 42; 1 :: x";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2161,7 +2185,7 @@ pub mod tests {
         // remote context, its state is synced via a ref (VariableReference model)
         let script = "var x = 42; 1 :: x; x = 43;";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2240,7 +2264,7 @@ pub mod tests {
     fn remote_execution_injected_consts() {
         let script = "const x = 42; const y = 69; 1 :: x + y";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2312,7 +2336,7 @@ pub mod tests {
     fn remote_execution_shadow_const() {
         let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2390,7 +2414,7 @@ pub mod tests {
     fn remote_execution_nested() {
         let script = "const x = 42; (1 :: (2 :: x))";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
 
         assert_eq!(
             res,
@@ -2462,7 +2486,7 @@ pub mod tests {
     fn remote_execution_nested2() {
         let script = "const x = 42; (1 :: (x :: x))";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
 
         assert_eq!(
             res,
@@ -2537,7 +2561,7 @@ pub mod tests {
     fn assignment_to_const() {
         init_logger_debug();
         let script = "const a = 42; a = 43";
-        let result = compile_script(script, CompileOptions::default())
+        let result = compile_script(script, CompileOptions::default(), &None)
             .map_err(|e| e.error);
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
@@ -2546,7 +2570,7 @@ pub mod tests {
     fn assignment_to_const_mut() {
         init_logger_debug();
         let script = "const a = &mut 42; a = 43";
-        let result = compile_script(script, CompileOptions::default())
+        let result = compile_script(script, CompileOptions::default(), &None)
             .map_err(|e| e.error);
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
@@ -2555,7 +2579,7 @@ pub mod tests {
     fn internal_assignment_to_const_mut() {
         init_logger_debug();
         let script = "const a = &mut 42; *a = 43";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default(), &None);
         assert_matches!(result, Ok(_));
     }
 
@@ -2563,7 +2587,7 @@ pub mod tests {
     fn addition_to_const_mut_ref() {
         init_logger_debug();
         let script = "const a = &mut 42; *a += 1;";
-        let result = compile_script(script, CompileOptions::default());
+        let result = compile_script(script, CompileOptions::default(), &None);
         assert_matches!(result, Ok(_));
     }
 
@@ -2571,7 +2595,7 @@ pub mod tests {
     fn addition_to_const_variable() {
         init_logger_debug();
         let script = "const a = 42; a += 1";
-        let result = compile_script(script, CompileOptions::default())
+        let result = compile_script(script, CompileOptions::default(), &None)
             .map_err(|e| e.error);
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
@@ -2581,7 +2605,7 @@ pub mod tests {
     fn mutation_of_immutable_value() {
         init_logger_debug();
         let script = "const a = {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default())
+        let result = compile_script(script, CompileOptions::default(), &None)
             .map_err(|e| e.error);
         assert_matches!(
             result,
@@ -2594,7 +2618,7 @@ pub mod tests {
     fn mutation_of_mutable_value() {
         init_logger_debug();
         let script = "const a = mut {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default())
+        let result = compile_script(script, CompileOptions::default(), &None)
             .map_err(|e| e.error);
         assert_matches!(
             result,
@@ -2619,7 +2643,7 @@ pub mod tests {
     fn addition_to_immutable_ref() {
         init_logger_debug();
         let script = "const a = &42; *a += 1;";
-        let result = compile_script(script, CompileOptions::default())
+        let result = compile_script(script, CompileOptions::default(), &None)
             .map_err(|e| e.error);
         assert_matches!(
             result,
@@ -2631,7 +2655,7 @@ pub mod tests {
     fn slot_endpoint() {
         let script = "#endpoint";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2650,7 +2674,7 @@ pub mod tests {
     fn deref() {
         let script = "*10";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2667,7 +2691,7 @@ pub mod tests {
     fn type_literal_integer() {
         let script = "type(1)";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &None).unwrap();
         assert_eq!(
             res,
             vec![
@@ -2688,7 +2712,7 @@ pub mod tests {
     fn type_core_type_integer() {
         let script = "integer";
         let (res, _) =
-            compile_script(script, CompileOptions::default()).unwrap();
+            compile_script(script, CompileOptions::default(), &Some(Runtime::init_native(RuntimeConfig::default()))).unwrap();
         let mut instructions: Vec<u8> =
             vec![InstructionCode::GET_INTERNAL_REF.into()];
         // pointer id

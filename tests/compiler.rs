@@ -3,10 +3,11 @@ use datex_core::decompiler::DecompileOptions;
 use datex_core::decompiler::{Formatting, decompile_body};
 use datex_core::logger::init_logger_debug;
 use log::info;
+use datex_core::runtime::{Runtime, RuntimeConfig};
 
 fn compare_compiled_with_decompiled(datex_script: &str) {
     let (dxb_body, _) =
-        compile_script(datex_script, CompileOptions::default()).unwrap();
+        compile_script(datex_script, CompileOptions::default(), &None).unwrap();
 
     let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
         .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
@@ -20,7 +21,7 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 
 fn compare_compiled(datex_script: &str, expected: &str) {
     let (dxb_body, _) =
-        compile_script(datex_script, CompileOptions::default()).unwrap();
+        compile_script(datex_script, CompileOptions::default(), &None).unwrap();
 
     let decompiled_color = decompile_body(
         &dxb_body,

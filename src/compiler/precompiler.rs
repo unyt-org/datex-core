@@ -261,14 +261,14 @@ pub fn precompile_ast_simple_error(
     parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
-    runtime: &Runtime,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<RichAst, SpannedCompilerError> {
     precompile_ast(
         parse_result,
         ast_metadata,
         scope_stack,
         PrecompilerOptions { detailed_errors: false },
-        runtime
+        maybe_runtime
     ).map_err(|e| {
         match e {
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => error,
@@ -281,14 +281,14 @@ pub fn precompile_ast_detailed_error(
     parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
-    runtime: &Runtime
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
     precompile_ast(
         parse_result,
         ast_metadata,
         scope_stack,
         PrecompilerOptions { detailed_errors: true },
-        runtime
+        maybe_runtime
     ).map_err(|e| {
         match e {
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error) => error,
@@ -303,7 +303,7 @@ pub (crate) fn precompile_ast(
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
     options: PrecompilerOptions,
-    runtime: &Runtime,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     // visit all expressions recursively to collect metadata
     let collected_errors = if options.detailed_errors {
@@ -317,7 +317,7 @@ pub (crate) fn precompile_ast(
         NewScopeType::None,
         &parse_result.spans,
         collected_errors,
-        runtime
+        maybe_runtime
     )
         // no detailed error collection, return no RichAst
         // TODO: make sure Err result is actually only returned when detailed_errors is set to false
@@ -374,7 +374,7 @@ fn visit_expression(
     new_scope: NewScopeType,
     spans: &Vec<Range<usize>>,
     collected_errors: &mut Option<DetailedCompilerErrors>,
-    runtime: &Runtime,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<(), SpannedCompilerError> {
     match new_scope {
         NewScopeType::NewScopeWithNewRealm => {
@@ -423,7 +423,7 @@ fn visit_expression(
                 scope_stack,
                 NewScopeType::NewScope,
                 spans,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::Conditional {
@@ -438,7 +438,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             visit_expression(
                 then_branch,
@@ -447,7 +447,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             if let Some(else_branch) = else_branch {
                 visit_expression(
@@ -457,7 +457,7 @@ fn visit_expression(
                     NewScopeType::NewScope,
                     spans,
                     collected_errors,
-                    runtime
+                    maybe_runtime
                 )?;
             }
         }
@@ -474,7 +474,7 @@ fn visit_expression(
                 scope_stack,
                 NewScopeType::NewScope,
                 spans,
-                runtime
+                maybe_runtime
             )?;
             // already declared if hoisted
             if *hoisted {
@@ -505,7 +505,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             if let Some(type_annotation) = type_annotation {
                 visit_type_expression(
@@ -514,7 +514,7 @@ fn visit_expression(
                     scope_stack,
                     NewScopeType::NewScope,
                     spans,
-                    runtime
+                    maybe_runtime
                 )?;
             }
             *id = Some(add_new_variable(
@@ -527,7 +527,7 @@ fn visit_expression(
         DatexExpressionData::Identifier(name) => {
             let action = collect_or_pass_error(
                 collected_errors,
-                resolve_variable(name, metadata, scope_stack, runtime)
+                resolve_variable(name, metadata, scope_stack, maybe_runtime)
                     .map_err(|error| SpannedCompilerError::new_with_simple_span(error, expression.span)),
             )?;
             if let MaybeAction::Do(resolved_variable) = action {
@@ -551,7 +551,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             let new_id = scope_stack.get_variable_and_update_metadata(name, metadata)?;
             // check if variable is const
@@ -587,7 +587,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             visit_expression(
                 assigned_expression,
@@ -596,7 +596,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::Deref(expr) => {
@@ -607,7 +607,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::ApplyChain(expr, applies) => {
@@ -618,7 +618,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             for apply in applies {
                 match apply {
@@ -632,7 +632,7 @@ fn visit_expression(
                             NewScopeType::NewScope,
                             spans,
                             collected_errors,
-                            runtime
+                            maybe_runtime
                         )?;
                     }
                 }
@@ -647,7 +647,7 @@ fn visit_expression(
                     NewScopeType::NewScope,
                     spans,
                     collected_errors,
-                    runtime
+                    maybe_runtime
                 )?;
             }
         }
@@ -660,7 +660,7 @@ fn visit_expression(
                     NewScopeType::NewScope,
                     spans,
                     collected_errors,
-                    runtime
+                    maybe_runtime
                 )?;
                 visit_expression(
                     val,
@@ -669,7 +669,7 @@ fn visit_expression(
                     NewScopeType::NewScope,
                     spans,
                     collected_errors,
-                    runtime
+                    maybe_runtime
                 )?;
             }
         }
@@ -681,7 +681,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             visit_expression(
                 expr,
@@ -690,7 +690,7 @@ fn visit_expression(
                 NewScopeType::NewScopeWithNewRealm,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::BinaryOperation(operator, left, right, _) => {
@@ -738,7 +738,7 @@ fn visit_expression(
                                 &full_name,
                                 metadata,
                                 scope_stack,
-                                runtime
+                                maybe_runtime
                             )
                             .map_err(|_| {
                                 CompilerError::SubvariantNotFound(
@@ -767,7 +767,7 @@ fn visit_expression(
                                 NewScopeType::NewScope,
                                 spans,
                                 collected_errors,
-                                runtime
+                                maybe_runtime
                             )?;
                             visit_expression(
                                 right,
@@ -776,7 +776,7 @@ fn visit_expression(
                                 NewScopeType::NewScope,
                                 spans,
                                 collected_errors,
-                                runtime
+                                maybe_runtime
                             )?;
 
                             *expression = DatexExpressionData::BinaryOperation(
@@ -795,13 +795,13 @@ fn visit_expression(
 
                 // check if left part is a core value / type
                 // otherwise throw the error
-                resolve_variable(lit_left.as_str(), metadata, scope_stack, runtime)?;
+                resolve_variable(lit_left.as_str(), metadata, scope_stack, maybe_runtime)?;
 
                 let resolved_variable = resolve_variable(
                     format!("{lit_left}/{lit_right}").as_str(),
                     metadata,
                     scope_stack,
-                    runtime
+                    maybe_runtime
                 ).map_err(|error| {
                     SpannedCompilerError::new_with_simple_span(
                         CompilerError::SubvariantNotFound(
@@ -837,7 +837,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             visit_expression(
                 right,
@@ -846,7 +846,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::UnaryOperation(UnaryOperation {operator: _, expression}) => {
@@ -857,7 +857,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::SlotAssignment(_slot, expr) => {
@@ -868,7 +868,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::GetReference(_pointer_id) => {
@@ -935,7 +935,7 @@ fn visit_expression(
                     NewScopeType::NewScope,
                     spans,
                     collected_errors,
-                    runtime
+                    maybe_runtime
                 )?
             }
         }
@@ -947,7 +947,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
             visit_expression(
                 right,
@@ -956,7 +956,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::CreateRefMut(expr)
@@ -969,7 +969,7 @@ fn visit_expression(
                 NewScopeType::NewScope,
                 spans,
                 collected_errors,
-                runtime
+                maybe_runtime
             )?;
         }
         DatexExpressionData::Recover => {
@@ -1036,7 +1036,7 @@ fn resolve_variable(
     name: &str,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
-    runtime: &Runtime
+    maybe_runtime: &Option<Runtime>
 ) -> Result<ResolvedVariable, CompilerError> {
     // If variable exist
     if let Ok(id) = scope_stack.get_variable_and_update_metadata(name, metadata)
@@ -1045,7 +1045,8 @@ fn resolve_variable(
         Ok(ResolvedVariable::VariableId(id))
     }
     // try to resolve core variable
-    else if let Some(core) = runtime
+    // FIXME: this should probably also work without a runtime
+    else if let Some(runtime) = maybe_runtime && let Some(core) = runtime
         .memory()
         .borrow()
         .get_reference(&CoreLibPointerId::Core.into()) // FIXME #444: don't use core struct here, but better access with one of our mappings already present
@@ -1082,12 +1083,12 @@ fn visit_type_expression(
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
     spans: &Vec<Range<usize>>,
-    runtime: &Runtime,
+    maybe_runtime: &Option<Runtime>,
 ) -> Result<(), CompilerError> {
     match type_expr {
         TypeExpression::Literal(name) => {
             let resolved_variable =
-                resolve_variable(name, metadata, scope_stack, runtime)?;
+                resolve_variable(name, metadata, scope_stack, maybe_runtime)?;
             *type_expr = match resolved_variable {
                 ResolvedVariable::VariableId(id) => {
                     TypeExpression::Variable(id, name.clone())
@@ -1115,7 +1116,7 @@ fn visit_type_expression(
                     scope_stack,
                     NewScopeType::NewScope,
                     spans,
-                    runtime
+                    maybe_runtime
                 )?;
             }
             Ok(())
@@ -1128,7 +1129,7 @@ fn visit_type_expression(
                     scope_stack,
                     NewScopeType::NewScope,
                     spans,
-                    runtime
+                    maybe_runtime
                 )?;
             }
             Ok(())
@@ -1141,7 +1142,7 @@ fn visit_type_expression(
                     scope_stack,
                     NewScopeType::NewScope,
                     spans,
-                    runtime
+                    maybe_runtime
                 )?;
             }
             Ok(())
@@ -1154,7 +1155,7 @@ fn visit_type_expression(
                     scope_stack,
                     NewScopeType::NewScope,
                     spans,
-                    runtime
+                    maybe_runtime
                 )?;
             }
             Ok(())
@@ -1191,14 +1192,19 @@ mod tests {
     fn parse_and_precompile_spanned_result(
         src: &str,
     ) -> Result<RichAst, SpannedCompilerError> {
-        let runtime = Runtime::init_native(RuntimeConfig::default());
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::new()));
         let expr = parse(src).to_result()
             .map_err(|mut e| {
                 SpannedCompilerError::from(e.remove(0))
             })?;
-        precompile_ast(expr, ast_metadata.clone(), &mut scope_stack, PrecompilerOptions {detailed_errors: false}, &runtime)
+        precompile_ast(
+            expr, 
+            ast_metadata.clone(), 
+            &mut scope_stack, 
+            PrecompilerOptions {detailed_errors: false}, 
+            &Some(Runtime::init_native(RuntimeConfig::default())),
+        )
             .map_err(|e| match e {
                 SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => error,
                 _ => unreachable!(), // because detailed_errors: false

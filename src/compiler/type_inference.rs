@@ -619,7 +619,7 @@ mod tests {
                 valid_parse_result,
                 Rc::new(RefCell::new(AstMetadata::default())),
                 &mut PrecompilerScopeStack::default(),
-                &Runtime::init_native(RuntimeConfig::default()),
+                &Some(Runtime::init_native(RuntimeConfig::default())),
             ),
         }
 
@@ -647,7 +647,7 @@ mod tests {
                 valid_parse_result,
                 cell.clone(),
                 &mut PrecompilerScopeStack::default(),
-                &Runtime::init_native(RuntimeConfig::default()),
+                &Some(Runtime::init_native(RuntimeConfig::default()))
             )
             .unwrap();
 
@@ -1138,7 +1138,7 @@ mod tests {
             },
             Rc::new(RefCell::new(AstMetadata::default())),
             &mut PrecompilerScopeStack::default(),
-            &Runtime::init_native(RuntimeConfig::default()),
+            &None,
         )
         .unwrap();
         let metadata = rich_ast.metadata;

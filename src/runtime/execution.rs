@@ -1609,12 +1609,13 @@ mod tests {
     use crate::{assert_structural_eq, assert_value_eq, datex_list};
     use datex_core::values::core_values::integer::typed_integer::TypedInteger;
     use log::debug;
+    use crate::runtime::{Runtime, RuntimeConfig};
 
     fn execute_datex_script_debug(
         datex_script: &str,
     ) -> Option<ValueContainer> {
         let (dxb, _) =
-            compile_script(datex_script, CompileOptions::default()).unwrap();
+            compile_script(datex_script, CompileOptions::default(), &None).unwrap();
         let context = ExecutionInput::new_with_dxb_and_options(
             &dxb,
             ExecutionOptions { verbose: true },
@@ -1628,7 +1629,7 @@ mod tests {
         datex_script: &str,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         let (dxb, _) =
-            compile_script(datex_script, CompileOptions::default()).unwrap();
+            compile_script(datex_script, CompileOptions::default(), &None).unwrap();
         let context = ExecutionInput::new_with_dxb_and_options(
             &dxb,
             ExecutionOptions { verbose: true },
