@@ -1,5 +1,5 @@
 use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::BinaryOperator;
+use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, VariableAccess, VariableAssignment, VariableDeclaration};
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
@@ -8,6 +8,7 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::ops::Range;
 use std::rc::Rc;
 use chumsky::prelude::SimpleSpan;
@@ -15,13 +16,26 @@ use crate::compiler::error::{CompilerError, DetailedCompilerErrors, ErrorCollect
 
 #[derive(Debug, Clone)]
 pub enum TypeError {
-    MismatchedOperands(TypeContainer, TypeContainer),
+    MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),
 
     // can not assign value to variable of different type
     AssignmentTypeMismatch {
         annotated_type: TypeContainer,
         assigned_type: TypeContainer,
     },
+}
+
+impl Display for TypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeError::MismatchedOperands(op, lhs, rhs) => {
+                write!(f, "Cannot perform \"{}\" operation on {} and {}", op, lhs, rhs)
+            }
+            TypeError::AssignmentTypeMismatch { annotated_type, assigned_type } => {
+                write!(f, "Cannot assign {} to {}", assigned_type, annotated_type)
+            }
+        }
+    }
 }
 
 
@@ -138,6 +152,8 @@ fn infer_expression_type(
 
 /// Infers the type of an expression as precisely as possible.
 /// Uses cached type information if available.
+/// This method must hold the contract that it always returns an Ok()
+/// result if collected_errors is Some, and only returns Err() if collected_errors is None.
 pub fn infer_expression_type_inner(
     ast: &mut DatexExpression,
     metadata: Rc<RefCell<AstMetadata>>,
@@ -345,7 +361,10 @@ pub fn infer_expression_type_inner(
             }
             get_core_lib_type(CoreLibPointerId::Unit)
         }
-        e => panic!("Type inference not implemented for expression: {:?}", e),
+        // not yet implemented
+        e => {
+            get_core_lib_type(CoreLibPointerId::Unknown)
+        }
     })
 }
 
@@ -480,10 +499,17 @@ fn infer_binary_expression_type(
             }
             // otherwise, return type error
             else {
-                Err(SpannedTypeError::new_with_simple_span(
-                    TypeError::MismatchedOperands(lhs_type, rhs_type),
+                let error = SpannedTypeError::new_with_simple_span(
+                    TypeError::MismatchedOperands(op.clone(), lhs_type, rhs_type),
                     span
-                ).into())
+                );
+                if let Some(collected_errors) = collected_errors {
+                    collected_errors.record_error(error);
+                    Ok(get_core_lib_type(CoreLibPointerId::Never))
+                }
+                else {
+                    Err(error)
+                }
             }
         }
 
@@ -1033,7 +1059,7 @@ mod tests {
                 &mut expr,
                 Rc::new(RefCell::new(AstMetadata::default()))
             ).map_err(|e|e.error),
-            Err(TypeError::MismatchedOperands(_, _))
+            Err(TypeError::MismatchedOperands(_, _, _))
         ));
     }
 

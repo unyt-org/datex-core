@@ -282,7 +282,7 @@ impl Display for CompilerError {
                 write!(f, "Cannot assign to immutable reference: {name}")
             }
             CompilerError::TypeError(err) => {
-                write!(f, "Type error: {:#?}", err)
+                write!(f, "{}", err)
             }
             CompilerError::ParseError(err) => {
                 write!(f, "{:?}", err)
