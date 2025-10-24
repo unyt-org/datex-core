@@ -10,6 +10,8 @@ use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use crate::values::core_values::r#type::Type;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def", rename_all = "lowercase")]
 pub enum DIFTypeDefinition {
@@ -17,6 +19,7 @@ pub enum DIFTypeDefinition {
     Structural(Box<DIFStructuralTypeDefinition>),
 
     Reference(PointerAddress),
+    Type(Box<DIFType>),
 
     // e.g. A & B & C
     Intersection(Vec<DIFTypeContainer>),
@@ -81,6 +84,9 @@ impl DIFTypeDefinition {
                 DIFTypeDefinition::Reference(
                     type_ref.borrow().pointer_address.clone().unwrap(),
                 )
+            }
+            TypeDefinition::Type(type_val) => {
+                DIFTypeDefinition::Type(Box::new(DIFType::from_type(type_val.as_ref(), memory)))
             }
             TypeDefinition::Intersection(types) => {
                 DIFTypeDefinition::Intersection(
@@ -151,6 +157,17 @@ impl DIFType {
     pub fn as_container(self) -> DIFTypeContainer {
         DIFTypeContainer::Type(self)
     }
+
+    fn from_type(ty: &Type, memory: &RefCell<Memory>) -> Self {
+        DIFType {
+            name: None,
+            mutability: ty.reference_mutability.clone(),
+            type_definition: DIFTypeDefinition::from_type_definition(
+                &ty.type_definition,
+                memory,
+            ),
+        }
+    }
 }
 
 impl From<DIFTypeRepresentation> for DIFType {
@@ -174,14 +191,7 @@ impl DIFTypeContainer {
         memory: &RefCell<Memory>,
     ) -> Self {
         match type_container {
-            TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType {
-                name: None,
-                mutability: ty.reference_mutability.clone(),
-                type_definition: DIFTypeDefinition::from_type_definition(
-                    &ty.type_definition,
-                    memory,
-                ),
-            }),
+            TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType::from_type(ty, memory)),
             TypeContainer::TypeReference(type_ref) => {
                 let type_ref_borrow = type_ref.borrow();
                 let address = if let Some(ref address) =

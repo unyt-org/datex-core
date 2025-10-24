@@ -8,6 +8,8 @@ use crate::{
 };
 use datex_core::references::type_reference::TypeReference;
 use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
+use crate::values::core_values::r#type::Type;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
     // { x: integer, y: text }
@@ -19,6 +21,8 @@ pub enum TypeDefinition {
 
     // type A = B
     Reference(Rc<RefCell<TypeReference>>),
+    
+    Type(Box<Type>),
 
     // A & B & C
     Intersection(Vec<TypeContainer>),
@@ -51,6 +55,9 @@ impl Hash for TypeDefinition {
             }
             TypeDefinition::Reference(reference) => {
                 reference.borrow().hash(state);
+            }
+            TypeDefinition::Type(value) => {
+                value.hash(state);
             }
 
             TypeDefinition::Unit => 0_u8.hash(state),
@@ -89,6 +96,7 @@ impl Display for TypeDefinition {
             TypeDefinition::Reference(reference) => {
                 write!(f, "{}", reference.borrow())
             }
+            TypeDefinition::Type(value) => write!(f, "{}", value),
             TypeDefinition::Unit => write!(f, "()"),
             TypeDefinition::Unknown => write!(f, "unknown"),
             TypeDefinition::Never => write!(f, "never"),

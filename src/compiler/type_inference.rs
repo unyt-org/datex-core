@@ -13,6 +13,8 @@ use std::ops::Range;
 use std::rc::Rc;
 use chumsky::prelude::SimpleSpan;
 use crate::compiler::error::{CompilerError, DetailedCompilerErrors, ErrorCollector, SpannedCompilerError};
+use crate::references::reference::ReferenceMutability;
+use crate::types::definition::TypeDefinition;
 
 #[derive(Debug, Clone)]
 pub enum TypeError {
@@ -368,6 +370,46 @@ pub fn infer_expression_type_inner(
             // last value returned
             else {
                 last_type
+            }
+        }
+        DatexExpressionData::CreateRef(expr) => {
+            let mut inner_type = infer_expression_type_inner(expr, metadata, collected_errors)?;
+            match &mut inner_type {
+                TypeContainer::Type(t) => {
+                    TypeContainer::Type(Type {
+                        type_definition: TypeDefinition::Type(Box::new(t.clone())),
+                        reference_mutability: Some(ReferenceMutability::Immutable),
+                        base_type: None,
+                    })
+                },
+                // TODO: check if defined mutability of type reference matches
+                TypeContainer::TypeReference(r) => {
+                    TypeContainer::Type(Type {
+                        type_definition: TypeDefinition::Reference(r.clone()),
+                        reference_mutability: Some(ReferenceMutability::Immutable),
+                        base_type: None,
+                    })
+                },
+            }
+        }
+        DatexExpressionData::CreateRefMut(expr) => {
+            let mut inner_type = infer_expression_type_inner(expr, metadata, collected_errors)?;
+            match &mut inner_type {
+                TypeContainer::Type(t) => {
+                    TypeContainer::Type(Type {
+                        type_definition: TypeDefinition::Type(Box::new(t.clone())),
+                        reference_mutability: Some(ReferenceMutability::Mutable),
+                        base_type: None,
+                    })
+                },
+                // TODO: check if defined mutability of type reference matches
+                TypeContainer::TypeReference(r) => {
+                    TypeContainer::Type(Type {
+                        type_definition: TypeDefinition::Reference(r.clone()),
+                        reference_mutability: Some(ReferenceMutability::Mutable),
+                        base_type: None,
+                    })
+                },
             }
         }
         // not yet implemented

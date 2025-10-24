@@ -259,6 +259,10 @@ impl Type {
                 todo!("#327 handle reference type matching");
                 //reference.value_matches(value)
             }
+            TypeDefinition::Type(inner_type) => {
+                // TODO: also check mutability of current type?
+                inner_type.value_matches(value)
+            }
             TypeDefinition::Function {
                 parameters,
                 return_type,
