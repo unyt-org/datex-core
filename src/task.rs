@@ -299,12 +299,12 @@ cfg_if! {
 #[derive(Clone)]
 pub struct AsyncContext {
     #[cfg(feature = "embassy_runtime")]
-    pub embassy_spawner: embassy::executor::Spawner,
+    pub embassy_spawner: embassy_executor::Spawner,
 }
 
 impl AsyncContext {
     #[cfg(feature = "embassy_runtime")]
-    pub fn new(spawner: embassy::executor::Spawner) -> Self {
+    pub fn new(spawner: embassy_executor::Spawner) -> Self {
         Self {
             embassy_spawner: spawner,
         }
