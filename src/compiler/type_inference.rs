@@ -357,10 +357,18 @@ pub fn infer_expression_type_inner(
             }
         }
         DatexExpressionData::Statements(statements) => {
+            let mut last_type = get_core_lib_type(CoreLibPointerId::Unit);
             for stmt in statements.statements.iter_mut() {
-                infer_expression_type_inner(stmt, metadata.clone(), collected_errors)?;
+                last_type = infer_expression_type_inner(stmt, metadata.clone(), collected_errors)?;
             }
-            get_core_lib_type(CoreLibPointerId::Unit)
+            // closing semicolon, nothing returned
+            if statements.is_terminated {
+                get_core_lib_type(CoreLibPointerId::Unit)
+            }
+            // last value returned
+            else {
+                last_type
+            }
         }
         // not yet implemented
         e => {
