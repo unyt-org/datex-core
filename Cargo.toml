@@ -63,6 +63,10 @@ uuid = { version = "1.15.1", features = ["v4"], optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
 esp-idf-svc = { version = "0.51.0", optional = true }
+embassy-executor = { version = "0.9.1", optional = true }
+embassy-time = { version = "0.4", optional = true }
+embassy-sync = { version = "0.7.2", optional = true }
+
 futures-timer = { version = "3" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 serde = "1.0.219"
@@ -180,6 +184,11 @@ wasm_runtime = [
     "dep:gloo-timers",
     "dep:tsify",
     "dep:wasm-bindgen",
+]
+embassy_runtime = [
+    "dep:embassy-executor",
+    "dep:embassy-time",
+    "dep:embassy-sync",
 ]
 
 # utils

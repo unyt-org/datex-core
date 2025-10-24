@@ -204,7 +204,52 @@ cfg_if! {
             tokio::time::sleep(dur).await;
         }
 
-    } else if #[cfg(feature = "wasm_runtime")] {
+    } 
+    else if #[cfg(feature = "embassy_runtime")] {
+        use embassy_time::{Duration as EmbassyDuration, Timer};
+
+        pub async fn timeout<F, T>(
+            duration: std::time::Duration,
+            fut: F,
+        ) -> Result<T, &'static str>
+        where
+            F: std::future::Future<Output = T>,
+        {
+            let timeout_fut = sleep(duration);
+            futures::pin_mut!(fut);
+            futures::pin_mut!(timeout_fut);
+
+            match futures::future::select(fut, timeout_fut).await {
+                futures::future::Either::Left((res, _)) => Ok(res),
+                futures::future::Either::Right(_) => Err("timed out"),
+            }
+        }
+
+        pub async fn sleep(dur: std::time::Duration) {
+            Timer::after(EmbassyDuration::from_millis(dur.as_millis() as u64)).await;
+        }
+
+        pub fn spawn_local<F>(fut: F)
+        where
+            F: std::future::Future<Output = ()> + 'static,
+        {
+            embassy_executor::spawn(fut);
+        }
+        pub fn spawn<F>(fut: F)
+        where
+            F: std::future::Future<Output = ()> + 'static,
+        {
+            embassy_executor::spawn(fut);
+        }
+        pub fn spawn_blocking<F>(_fut: F) -> !
+        where
+            F: std::future::Future + 'static,
+        {
+            panic!("`spawn_blocking` is not supported in the embassy runtime.");
+        }
+
+    }
+    else if #[cfg(feature = "wasm_runtime")] {
         use futures::future;
 
         pub async fn timeout<F, T>(
