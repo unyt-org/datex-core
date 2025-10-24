@@ -175,6 +175,7 @@ pub fn infer_expression_type_inner(
         // composite values
         DatexExpressionData::Map(map) => {
             let entries = map
+                .entries
                 .iter_mut()
                 .map(|(k, v)| {
                     let key = infer_expression_type_inner(k, metadata.clone(), collected_errors)?;
@@ -542,7 +543,7 @@ mod tests {
     use datex_core::values::core_values::boolean::Boolean;
     use datex_core::values::core_values::decimal::Decimal;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult};
-    use crate::ast::tree::{List, VariableKind};
+    use crate::ast::tree::{List, Map, VariableKind};
 
     /// Helper to infer the type of an expression and return it directly as Type.
     /// Panics if type inference fails or if the inferred type is not a Type.
@@ -993,10 +994,10 @@ mod tests {
         );
 
         assert_eq!(
-            infer_get_type(&mut DatexExpressionData::Map(vec![(
+            infer_get_type(&mut DatexExpressionData::Map(Map::new(vec![(
                 DatexExpressionData::Text("a".to_string()).with_default_span(),
                 DatexExpressionData::Integer(Integer::from(1)).with_default_span()
-            )]).with_default_span()),
+            )])).with_default_span()),
             Type::structural(StructuralTypeDefinition::Map(vec![(
                 Type::structural(StructuralTypeDefinition::Text(
                     "a".to_string().into()

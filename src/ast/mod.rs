@@ -340,7 +340,6 @@ mod tests {
                 decimal::Decimal,
                 endpoint::{Endpoint, InvalidEndpointError},
                 integer::{Integer, typed_integer::TypedInteger},
-                map::Map,
             },
             pointer::PointerAddress,
             value_container::ValueContainer,
@@ -348,7 +347,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::tree::{DatexExpressionData, List, Slot, TypeExpression, UnaryOperation, VariableDeclaration, VariableKind};
+    use crate::ast::tree::{DatexExpressionData, List, Map, Slot, TypeExpression, UnaryOperation, VariableDeclaration, VariableKind};
     use datex_core::ast::tree::VariableAssignment;
     use std::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
@@ -431,7 +430,7 @@ mod tests {
 
         assert_eq!(
             json,
-            DatexExpressionData::Map(vec![
+            DatexExpressionData::Map(Map::new(vec![
                 (
                     DatexExpressionData::Text("name".to_string())
                         .with_default_span(),
@@ -469,7 +468,7 @@ mod tests {
                 (
                     DatexExpressionData::Text("nested".to_string())
                         .with_default_span(),
-                    DatexExpressionData::Map(
+                    DatexExpressionData::Map(Map::new(
                         vec![(
                             DatexExpressionData::Text("key".to_string())
                                 .with_default_span(),
@@ -478,10 +477,10 @@ mod tests {
                         )]
                         .into_iter()
                         .collect()
-                    )
+                    ))
                     .with_default_span()
                 ),
-            ])
+            ]))
         );
     }
 
@@ -1146,7 +1145,7 @@ mod tests {
                     .with_default_span(),
                 ),
                 ApplyOperation::FunctionCall(
-                    DatexExpressionData::Map(vec![]).with_default_span(),
+                    DatexExpressionData::Map(Map::new(vec![])).with_default_span(),
                 ),
             ],
         );
@@ -1398,7 +1397,7 @@ mod tests {
                                 .with_default_span()
                         ),
                         vec![ApplyOperation::FunctionCall(
-                            DatexExpressionData::Map(vec![])
+                            DatexExpressionData::Map(Map::new(vec![]))
                                 .with_default_span()
                         )]
                     )
@@ -2041,7 +2040,7 @@ mod tests {
         let src = "{}";
         let obj = parse_unwrap_data(src);
 
-        assert_eq!(obj, DatexExpressionData::Map(vec![]));
+        assert_eq!(obj, DatexExpressionData::Map(Map::new(vec![])));
     }
 
     #[test]
@@ -2076,11 +2075,11 @@ mod tests {
         let map = parse_unwrap_data(src);
         assert_eq!(
             map,
-            DatexExpressionData::Map(vec![(
+            DatexExpressionData::Map(Map::new(vec![(
                 DatexExpressionData::Text("x".to_string()).with_default_span(),
                 DatexExpressionData::Integer(Integer::from(1))
                     .with_default_span()
-            )])
+            )]))
         );
     }
 
@@ -2116,7 +2115,7 @@ mod tests {
 
         assert_eq!(
             obj,
-            DatexExpressionData::Map(vec![
+            DatexExpressionData::Map(Map::new(vec![
                 (
                     DatexExpressionData::Text("key1".to_string())
                         .with_default_span(),
@@ -2134,7 +2133,7 @@ mod tests {
                         .with_default_span(),
                     DatexExpressionData::Boolean(true).with_default_span()
                 ),
-            ])
+            ]))
         );
     }
 
@@ -2144,7 +2143,7 @@ mod tests {
         let obj = parse_unwrap_data(src);
         assert_eq!(
             obj,
-            DatexExpressionData::Map(vec![
+            DatexExpressionData::Map(Map::new(vec![
                 (
                     DatexExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
@@ -2162,7 +2161,7 @@ mod tests {
                         .with_default_span(),
                     DatexExpressionData::Boolean(true).with_default_span()
                 ),
-            ])
+            ]))
         );
     }
 
@@ -2606,7 +2605,7 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Map(vec![(
+            DatexExpressionData::Map(Map::new(vec![(
                 DatexExpressionData::Text("key".to_string())
                     .with_default_span(),
                 DatexExpressionData::Statements(Statements::new_unterminated(
@@ -2620,7 +2619,7 @@ mod tests {
                     ]
                 ))
                 .with_default_span()
-            ),])
+            ),]))
         );
     }
 
@@ -2717,7 +2716,7 @@ mod tests {
                         .with_default_span()
                 ),
                 vec![ApplyOperation::FunctionCall(
-                    DatexExpressionData::Map(vec![]).with_default_span()
+                    DatexExpressionData::Map(Map::new(vec![])).with_default_span()
                 )],
             )
         );
@@ -3002,7 +3001,7 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpressionData::Statements(Statements::new_terminated(vec![
-                DatexExpressionData::Map(vec![
+                DatexExpressionData::Map(Map::new(vec![
                     (
                         DatexExpressionData::Text("type".to_string())
                             .with_default_span(),
@@ -3015,7 +3014,7 @@ mod tests {
                         DatexExpressionData::Text("John".to_string())
                             .with_default_span()
                     ),
-                ])
+                ]))
                 .with_default_span()
             ]))
         );
@@ -3421,13 +3420,13 @@ mod tests {
             Decimal::from_string("0.5").unwrap().into(),
         ];
         let value_container_inner_map: ValueContainer =
-            ValueContainer::from(Map::from(
+            ValueContainer::from(crate::values::core_values::map::Map::from(
                 vec![("key".to_string(), "value".to_string().into())]
                     .into_iter()
                     .collect::<HashMap<String, ValueContainer>>(),
             ));
         let value_container_map: ValueContainer =
-            ValueContainer::from(Map::from(
+            ValueContainer::from(crate::values::core_values::map::Map::from(
                 vec![
                     ("name".to_string(), "Test".to_string().into()),
                     ("value".to_string(), Integer::from(42).into()),

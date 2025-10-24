@@ -617,7 +617,7 @@ fn visit_expression(
             }
         }
         DatexExpressionData::Map(properties) => {
-            for (key, val) in properties {
+            for (key, val) in &mut properties.entries {
                 visit_expression(
                     key,
                     metadata,

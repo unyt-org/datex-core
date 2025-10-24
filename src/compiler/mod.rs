@@ -499,7 +499,7 @@ fn compile_expression(
             // TODO #434: Handle string keyed maps (structs)
             compilation_context
                 .append_instruction_code(InstructionCode::MAP_START);
-            for (key, value) in map {
+            for (key, value) in map.entries {
                 scope = compile_key_value_entry(
                     compilation_context,
                     key,

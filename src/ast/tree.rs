@@ -10,7 +10,6 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
@@ -153,6 +152,7 @@ impl Visitable for DatexExpression {
             }
             DatexExpressionData::Null => visitor.visit_null(self.span),
             DatexExpressionData::List(list) => visitor.visit_list(list, self.span),
+            DatexExpressionData::Map(map) => visitor.visit_map(map, self.span),
             _ => {}
         }
     }
@@ -197,7 +197,7 @@ pub enum DatexExpressionData {
     /// List, e.g  `[1, 2, 3, "text"]`
     List(List),
     /// Map, e.g {"xy": 2, (3): 4, xy: "xy"}
-    Map(Vec<(DatexExpression, DatexExpression)>),
+    Map(Map),
     /// One or more statements, e.g (1; 2; 3)
     Statements(Statements),
     /// reference access, e.g. &<ABCDEF>
@@ -390,6 +390,26 @@ impl Visitable for List {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Map {
+    pub entries: Vec<(DatexExpression, DatexExpression)>,
+}
+
+impl Map {
+    pub fn new(entries: Vec<(DatexExpression, DatexExpression)>) -> Self {
+        Map { entries }
+    }
+}
+
+impl Visitable for Map {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for (key, value) in &self.entries {
+            visitor.visit_expression(key);
+            visitor.visit_expression(value);
+        }
+    }
+}
+
 // TODO: implement Visitable for all expressions with children
 
 impl DatexExpressionData {
@@ -448,6 +468,7 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
             }
             DatexExpressionData::Map(pairs) => {
                 let entries = pairs
+                    .entries
                     .iter()
                     .map(|(k, v)| {
                         let key = ValueContainer::try_from(&k.data)?;
@@ -455,7 +476,7 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                         Ok((key, value))
                     })
                     .collect::<Result<Vec<(ValueContainer, ValueContainer)>, ()>>()?;
-                ValueContainer::from(Map::from(entries))
+                ValueContainer::from(crate::values::core_values::map::Map::from(entries))
             }
             _ => Err(())?,
         })
@@ -496,6 +517,9 @@ pub trait Visit: Sized {
     ) {}
     fn visit_list(&mut self, list: &List, span: SimpleSpan) {
         list.visit_children_with(self);
+    }
+    fn visit_map(&mut self, map: &Map, span: SimpleSpan) {
+        map.visit_children_with(self);
     }
     fn visit_integer(&mut self, value: &Integer, span: SimpleSpan) {}
     fn visit_typed_integer(&mut self, value: &TypedInteger, span: SimpleSpan) {}
