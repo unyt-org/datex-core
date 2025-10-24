@@ -181,6 +181,10 @@ impl Apply for TypeReference {
 impl Display for TypeReference {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(nominal) = &self.nominal_type_declaration {
+            // special exception: for Unit, display "()"
+            if self.pointer_address == Some(PointerAddress::from(CoreLibPointerId::Unit)) {
+                return write!(f, "()");
+            }
             write!(f, "{}", nominal)
         } else {
             write!(f, "{}", self.type_value)
