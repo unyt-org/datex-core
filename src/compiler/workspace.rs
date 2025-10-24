@@ -5,7 +5,7 @@ use std::rc::Rc;
 use datex_core::compiler::precompiler::{RichAst};
 use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SpannedCompilerError};
 use crate::compiler::{parse_datex_script_to_rich_ast_detailed_errors, CompileOptions};
-use crate::compiler::type_inference::infer_expression_type_inner;
+use crate::compiler::type_inference::{infer_expression_type_detailed_errors, infer_expression_type_inner};
 use crate::runtime::Runtime;
 use crate::compiler::error::{DetailedCompilerErrorsWithMaybeRichAst, DetailedCompilerErrorsWithRichAst};
 use crate::types::type_container::TypeContainer;
@@ -46,11 +46,11 @@ impl CompilerWorkspace {
     pub fn load_file(&mut self, path: PathBuf, content: String) -> &WorkspaceFile {
         let result = self.get_rich_ast_for_file(&path, content.clone());
         let workspace_file = match result {
-            Ok((rich_ast, return_type)) => WorkspaceFile {
+            Ok(rich_ast) => WorkspaceFile {
                 path: path.clone(),
                 content,
                 rich_ast: Some(rich_ast),
-                return_type: Some(return_type),
+                return_type: None,
                 errors: None,
             },
             Err(error) => WorkspaceFile {
@@ -72,19 +72,9 @@ impl CompilerWorkspace {
 
     /// Retrieves the AST with metadata for a given file path and content after parsing and compilation.
     /// Returns a compiler error if parsing or compilation fails.
-    fn get_rich_ast_for_file(&self, path: &PathBuf, content: String) -> Result<(RichAst, TypeContainer), DetailedCompilerErrorsWithMaybeRichAst> {
+    fn get_rich_ast_for_file(&self, path: &PathBuf, content: String) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
         let mut options = CompileOptions::default();
-        let mut rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
-        let return_type = infer_expression_type_inner(rich_ast.ast.as_mut().unwrap(), rich_ast.metadata.clone())
-            // TODO: detailed type errors
-            .map_err(|e| DetailedCompilerErrorsWithRichAst {
-                errors: DetailedCompilerErrors {errors: vec![SpannedCompilerError::from(CompilerError::TypeError(e))]},
-                // TODO: only temporary fake ast
-                ast: rich_ast.clone()
-            })?;
-        Ok((
-            rich_ast,
-            return_type
-        ))
+        let rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
+        Ok(rich_ast)
     }
 }

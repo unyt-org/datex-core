@@ -27,8 +27,8 @@ pub enum TypeError {
 
 #[derive(Debug)]
 pub struct SpannedTypeError {
-    error: TypeError,
-    span: Option<Range<usize>>
+    pub error: TypeError,
+    pub span: Option<Range<usize>>
 }
 
 impl SpannedTypeError {
@@ -39,6 +39,7 @@ impl SpannedTypeError {
         }
     }
 }
+
 
 impl From<TypeError> for SpannedTypeError {
     fn from(value: TypeError) -> Self {
@@ -97,7 +98,7 @@ pub fn infer_expression_type_simple_error(
         })
 }
 
-pub fn infer_expression_type_simple_errors(
+pub fn infer_expression_type_detailed_errors(
     ast: &mut DatexExpression,
     metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<TypeContainer, DetailedTypeErrors> {
@@ -126,7 +127,7 @@ fn infer_expression_type(
         collected_errors
     );
 
-    if let Some(collected_errors) = collected_errors.take() {
+    if let Some(collected_errors) = collected_errors.take() && collected_errors.has_errors() {
         Err(SimpleOrDetailedTypeError::Detailed(collected_errors))
     }
     else {
@@ -141,7 +142,7 @@ pub fn infer_expression_type_inner(
     ast: &mut DatexExpression,
     metadata: Rc<RefCell<AstMetadata>>,
     collected_errors: &mut Option<DetailedTypeErrors>,
-) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
+) -> Result<TypeContainer, SpannedTypeError> {
     Ok(match &mut ast.data {
         DatexExpressionData::Null
         | DatexExpressionData::Boolean(_)
@@ -164,7 +165,7 @@ pub fn infer_expression_type_inner(
                     let value = infer_expression_type_inner(v, metadata.clone(), collected_errors)?;
                     Ok((key, value))
                 })
-                .collect::<Result<Vec<(_, _)>, SimpleOrDetailedTypeError>>()?;
+                .collect::<Result<Vec<(_, _)>, SpannedTypeError>>()?;
             TypeContainer::Type(Type::structural(
                 StructuralTypeDefinition::Map(entries),
             ))
@@ -184,13 +185,7 @@ pub fn infer_expression_type_inner(
             infer_binary_expression_type(operator, ast.span, lhs, rhs, metadata, collected_errors)?
         }
         DatexExpressionData::TypeExpression(type_expr) => {
-            resolve_type_expression_type(type_expr, metadata)
-                .map_err(|e| SimpleOrDetailedTypeError::Simple(
-                    SpannedTypeError::new_with_simple_span(
-                        e,
-                        ast.span
-                    )
-                ))?
+            resolve_type_expression_type(type_expr, metadata, collected_errors)?
         }
         DatexExpressionData::TypeDeclaration {
             id,
@@ -216,7 +211,7 @@ pub fn infer_expression_type_inner(
             };
 
             let inferred_type_def =
-                resolve_type_expression_type(value, metadata.clone())?;
+                resolve_type_expression_type(value, metadata.clone(), collected_errors)?;
 
             println!("Inferring type declaration id {:#?}", reference);
             // let inner_ref = reference.borrow();
@@ -258,6 +253,7 @@ pub fn infer_expression_type_inner(
                 let annotated_type = resolve_type_expression_type(
                     type_annotation,
                     metadata.clone(),
+                    collected_errors
                 )?;
                 // println!(
                 //     "Matching annotated type {} against inferred type {}",
@@ -359,7 +355,8 @@ pub fn infer_expression_type_inner(
 fn resolve_type_expression_type(
     ast: &mut TypeExpression,
     metadata: Rc<RefCell<AstMetadata>>,
-) -> Result<TypeContainer, TypeError> {
+    collected_errors: &mut Option<DetailedTypeErrors>,
+) -> Result<TypeContainer, SpannedTypeError> {
     // First, try to directly match the type expression to a structural type definition.
     // This covers literals and composite types like maps and lists.
     // If that fails, handle more complex type expressions like variables, unions, and intersections.
@@ -389,19 +386,19 @@ fn resolve_type_expression_type(
                 .iter_mut()
                 .map(|(k, v)| {
                     let value =
-                        resolve_type_expression_type(v, metadata.clone())?;
+                        resolve_type_expression_type(v, metadata.clone(), collected_errors)?;
                     let key =
-                        resolve_type_expression_type(k, metadata.clone())?;
+                        resolve_type_expression_type(k, metadata.clone(), collected_errors)?;
                     Ok((key, value))
                 })
-                .collect::<Result<Vec<(_, _)>, TypeError>>()?;
+                .collect::<Result<Vec<(_, _)>, SpannedTypeError>>()?;
             Some(StructuralTypeDefinition::Map(entries))
         }
         TypeExpression::StructuralList(members) => {
             let member_types = members
                 .iter_mut()
-                .map(|m| resolve_type_expression_type(m, metadata.clone()))
-                .collect::<Result<Vec<_>, TypeError>>()?;
+                .map(|m| resolve_type_expression_type(m, metadata.clone(), collected_errors))
+                .collect::<Result<Vec<_>, SpannedTypeError>>()?;
             Some(StructuralTypeDefinition::List(member_types))
         }
         _ => None,
@@ -434,15 +431,15 @@ fn resolve_type_expression_type(
         TypeExpression::Union(members) => {
             let member_types = members
                 .iter_mut()
-                .map(|m| resolve_type_expression_type(m, metadata.clone()))
-                .collect::<Result<Vec<_>, TypeError>>()?;
+                .map(|m| resolve_type_expression_type(m, metadata.clone(), collected_errors))
+                .collect::<Result<Vec<_>, SpannedTypeError>>()?;
             Type::union(member_types).as_type_container()
         }
         TypeExpression::Intersection(members) => {
             let member_types = members
                 .iter_mut()
-                .map(|m| resolve_type_expression_type(m, metadata.clone()))
-                .collect::<Result<Vec<_>, TypeError>>()?;
+                .map(|m| resolve_type_expression_type(m, metadata.clone(), collected_errors))
+                .collect::<Result<Vec<_>, SpannedTypeError>>()?;
             Type::intersection(member_types).as_type_container()
         }
         _ => panic!(
@@ -459,7 +456,7 @@ fn infer_binary_expression_type(
     rhs: &mut Box<DatexExpression>,
     metadata: Rc<RefCell<AstMetadata>>,
     collected_errors: &mut Option<DetailedTypeErrors>
-) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
+) -> Result<TypeContainer, SpannedTypeError> {
     let lhs_type = infer_expression_type_inner(lhs, metadata.clone(), collected_errors)?;
     let rhs_type = infer_expression_type_inner(rhs, metadata, collected_errors)?;
 
@@ -524,7 +521,7 @@ mod tests {
     /// Helper to infer the type of an expression and return it directly as Type.
     /// Panics if type inference fails or if the inferred type is not a Type.
     fn infer_get_type(expr: &mut DatexExpression) -> Type {
-        infer_expression_type_simple_errors(
+        infer_expression_type_detailed_errors(
             expr,
             Rc::new(RefCell::new(AstMetadata::default())),
         )
@@ -576,7 +573,7 @@ mod tests {
             .unwrap();
 
             let mut expr = rich_ast.ast;
-            infer_expression_type_simple_errors(
+            infer_expression_type_detailed_errors(
                 &mut expr.as_mut().unwrap(),
                 rich_ast.metadata.clone()
             )
@@ -599,6 +596,7 @@ mod tests {
                 _ => unreachable!(),
             },
             rich_ast.metadata,
+            &mut None
         )
         .expect("Type inference failed")
     }
@@ -743,10 +741,10 @@ mod tests {
         "#;
         let rich_ast = parse_and_precompile_unwrap(&src);
         let mut expr = rich_ast.ast;
-        let result = infer_expression_type_simple_errors(
+        let result = infer_expression_type_simple_error(
             &mut expr.as_mut().unwrap(),
             rich_ast.metadata.clone()
-        );
+        ).map_err(|e|e.error);
         assert_matches!(
             result,
             Err(TypeError::AssignmentTypeMismatch {
@@ -999,7 +997,7 @@ mod tests {
         ).with_default_span();
 
         assert_eq!(
-            infer_expression_type_simple_errors(
+            infer_expression_type_detailed_errors(
                 &mut expr,
                 Rc::new(RefCell::new(AstMetadata::default()))
             )
@@ -1015,7 +1013,7 @@ mod tests {
             None,
         ).with_default_span();
         assert_eq!(
-            infer_expression_type_simple_errors(
+            infer_expression_type_detailed_errors(
                 &mut expr,
                 Rc::new(RefCell::new(AstMetadata::default()))
             )
@@ -1031,10 +1029,10 @@ mod tests {
             None,
         ).with_default_span();
         assert!(matches!(
-            infer_expression_type_simple_errors(
+            infer_expression_type_simple_error(
                 &mut expr,
                 Rc::new(RefCell::new(AstMetadata::default()))
-            ),
+            ).map_err(|e|e.error),
             Err(TypeError::MismatchedOperands(_, _))
         ));
     }
@@ -1068,7 +1066,7 @@ mod tests {
 
         // check that the expression type is inferred correctly
         assert_eq!(
-            infer_expression_type_simple_errors(&mut expr.as_mut().unwrap(), metadata.clone()).unwrap(),
+            infer_expression_type_detailed_errors(&mut expr.as_mut().unwrap(), metadata.clone()).unwrap(),
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
                 10
             )))

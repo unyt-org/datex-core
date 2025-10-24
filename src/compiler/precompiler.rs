@@ -21,6 +21,7 @@ use datex_core::ast::parse_result::ValidDatexParseResult;
 use datex_core::ast::tree::VariableAccess;
 use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
 use crate::compiler::error::{DetailedCompilerErrorsWithRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
+use crate::compiler::type_inference::infer_expression_type_detailed_errors;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -319,10 +320,25 @@ pub (crate) fn precompile_ast(
         // TODO: make sure Err result is actually only returned when detailed_errors is set to false
         .map_err(|e| SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e))?;
 
-    let rich_ast = RichAst {
+    let mut rich_ast = RichAst {
         metadata: ast_metadata,
         ast: Some(parse_result.ast),
     };
+    
+    // type inference - currently only if detailed errors are enabled
+    // FIXME: always do type inference here, not only for detailed errors
+    if options.detailed_errors {
+        let type_res = infer_expression_type_detailed_errors(
+            rich_ast.ast.as_mut().unwrap(),
+            rich_ast.metadata.clone(),
+        );
+
+        // append type errors to collected_errors if any
+        if let Some(collected_errors) = collected_errors &&
+            let Err(type_errors) = type_res {
+            collected_errors.append(type_errors.into());
+        }
+    }
 
     // if collecting detailed errors and an error occurred, return
     if let Some(errors) = collected_errors.take() && errors.has_errors() {
