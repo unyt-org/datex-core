@@ -885,7 +885,7 @@ fn visit_expression(
                     stmt,
                     metadata,
                     scope_stack,
-                    NewScopeType::None,
+                    NewScopeType::NewScope,
                     spans,
                     collected_errors
                 )?
@@ -1164,6 +1164,17 @@ mod tests {
             result,
             Err(SpannedCompilerError{ error: CompilerError::UndeclaredVariable(var_name), span })
             if var_name == "x" && span == Some((0..1))
+        );
+    }
+
+    #[test]
+    fn scoped_variable() {
+        let result = parse_and_precompile("(var z = 42;z); z");
+        assert!(result.is_err());
+        assert_matches!(
+            result,
+            Err(CompilerError::UndeclaredVariable(var_name))
+            if var_name == "z"
         );
     }
 
