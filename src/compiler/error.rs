@@ -3,8 +3,9 @@ use crate::ast::tree::DatexExpression;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use chumsky::prelude::SimpleSpan;
+use datex_core::compiler::type_inference::SpannedTypeError;
 use crate::compiler::precompiler::RichAst;
-use crate::compiler::type_inference::TypeError;
+use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
 use crate::serde::error::DeserializationError;
 
 #[derive(Debug, Clone)]
@@ -27,8 +28,6 @@ pub enum CompilerError {
     AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
     TypeError(TypeError),
-    Spanned(Box<CompilerError>, Range<usize>),
-    Multiple(Vec<CompilerError>),
     ParseError(ParseError),
 }
 
@@ -51,6 +50,15 @@ impl SpannedCompilerError {
 impl Display for SpannedCompilerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} ({})", self.error, self.span.as_ref().map(|s|format!("{}..{}", s.start, s.end)).unwrap_or("?".to_string()))
+    }
+}
+
+impl From<SpannedTypeError> for SpannedCompilerError {
+    fn from(value: SpannedTypeError) -> Self {
+        SpannedCompilerError {
+            span: value.span,
+            error: value.error.into(),
+        }
     }
 }
 
@@ -91,6 +99,10 @@ impl DetailedCompilerErrors {
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
+
+    pub fn append(&mut self, mut errors: DetailedCompilerErrors) {
+        self.errors.append(&mut errors.errors);
+    }
 }
 
 impl Display for DetailedCompilerErrors {
@@ -105,6 +117,18 @@ impl Display for DetailedCompilerErrors {
 impl DetailedCompilerErrors {
     pub fn record_error_with_span(&mut self, error: CompilerError, span: Range<usize>) {
         self.record_error(SpannedCompilerError { error, span: Some(span) });
+    }
+}
+
+impl From<DetailedTypeErrors> for DetailedCompilerErrors {
+    fn from(value: DetailedTypeErrors) -> Self {
+        DetailedCompilerErrors {
+            errors: value
+                .errors
+                .into_iter()
+                .map(SpannedCompilerError::from)
+                .collect()
+        }
     }
 }
 
@@ -259,15 +283,6 @@ impl Display for CompilerError {
             }
             CompilerError::TypeError(err) => {
                 write!(f, "Type error: {:#?}", err)
-            }
-            CompilerError::Spanned(err, span) => {
-                write!(f, "{} at {:?}", err, span)
-            }
-            CompilerError::Multiple(errors) => {
-                for err in errors {
-                    writeln!(f, "{}", err)?;
-                }
-                Ok(())
             }
             CompilerError::ParseError(err) => {
                 write!(f, "{:?}", err)
