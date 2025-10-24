@@ -35,11 +35,12 @@ use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
 };
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
+use datex_core::task::AsyncContext;
 
 #[tokio::test]
 pub async fn test_add_and_remove() {
     init_global_context();
-    let com_hub = Rc::new(ComHub::default());
+    let com_hub = Rc::new(ComHub::default_with_async_context(AsyncContext::new()));
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));
@@ -62,7 +63,7 @@ pub async fn test_add_and_remove() {
 pub async fn test_multiple_add() {
     init_global_context();
 
-    let com_hub = ComHub::default();
+    let com_hub = ComHub::default_with_async_context(AsyncContext::new());
 
     let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
     let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
@@ -472,7 +473,7 @@ pub async fn test_basic_routing() {
 pub async fn register_factory() {
     run_async! {
         init_global_context();
-        let mut com_hub = ComHub::default();
+        let mut com_hub = ComHub::default_with_async_context(AsyncContext::new());
         MockupInterface::register_on_com_hub(&com_hub);
 
         assert_eq!(com_hub.interface_factories.borrow().len(), 1);
@@ -506,7 +507,7 @@ pub async fn register_factory() {
 pub async fn test_reconnect() {
     run_async! {
         init_global_context();
-        let com_hub = ComHub::default();
+        let com_hub = ComHub::default_with_async_context(AsyncContext::new());
 
         // create a new interface, open it and add it to the com_hub
         let mut base_interface =

@@ -1,7 +1,7 @@
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{self, sleep, spawn_with_panic_notify};
+use crate::task::{self, sleep, spawn_with_panic_notify, AsyncContext};
 use crate::utils::time::Time;
 
 use futures::channel::oneshot::Sender;
@@ -112,6 +112,7 @@ pub struct ComHub {
     update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     pub block_handler: BlockHandler,
+    pub async_context: AsyncContext,
 }
 
 impl Debug for ComHub {
@@ -137,8 +138,8 @@ struct EndpointIterateOptions<'a> {
     pub exclude_sockets: &'a [ComInterfaceSocketUUID],
 }
 
-impl Default for ComHub {
-    fn default() -> Self {
+impl ComHub {
+    pub fn default_with_async_context(async_context: AsyncContext) -> Self {
         ComHub {
             endpoint: Endpoint::default(),
             options: ComHubOptions::default(),
@@ -151,6 +152,7 @@ impl Default for ComHub {
             endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
+            async_context
         }
     }
 }
@@ -193,11 +195,25 @@ pub enum SocketEndpointRegistrationError {
     SocketEndpointAlreadyRegistered,
 }
 
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn update_loop_task(self_rc: Rc<ComHub>) {
+    while *self_rc.update_loop_running.borrow() {
+        self_rc.update();
+        sleep(Duration::from_millis(1)).await;
+    }
+    if let Some(sender) =
+        self_rc.update_loop_stop_sender.borrow_mut().take()
+    {
+        sender.send(()).expect("Failed to send stop signal");
+    }
+}
+
+
 impl ComHub {
-    pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
+    pub fn new(endpoint: impl Into<Endpoint>, async_context: AsyncContext) -> ComHub {
         ComHub {
             endpoint: endpoint.into(),
-            ..ComHub::default()
+            ..ComHub::default_with_async_context(async_context)
         }
     }
 
@@ -1257,17 +1273,10 @@ impl ComHub {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(async move {
-            while *self_rc.update_loop_running.borrow() {
-                self_rc.update();
-                sleep(Duration::from_millis(1)).await;
-            }
-            if let Some(sender) =
-                self_rc.update_loop_stop_sender.borrow_mut().take()
-            {
-                sender.send(()).expect("Failed to send stop signal");
-            }
-        });
+        #[cfg(feature = "embassy_runtime")]
+        self_rc.async_context.embassy_spawner.spawn(update_loop_task(self_rc.clone()));
+        #[cfg(not(feature = "embassy_runtime"))]
+        spawn_with_panic_notify(update_loop_task(self_rc.clone()));
     }
 
     /// Update all sockets and interfaces,

@@ -19,6 +19,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
+use datex_core::task::AsyncContext;
 
 pub struct InterfaceConnection {
     interface_type: String,
@@ -613,6 +614,7 @@ impl Network {
         for endpoint in self.endpoints.iter_mut() {
             let runtime = Rc::new(Runtime::new(
                 RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone()),
+                AsyncContext::new()
             ));
 
             // register factories

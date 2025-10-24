@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
 use std::sync::Arc;
+use crate::task::AsyncContext;
 
 pub mod dif_interface;
 pub mod execution;
@@ -55,11 +56,11 @@ impl Debug for Runtime {
     }
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
+impl Runtime {
+    pub fn default_with_async_context(async_context: AsyncContext) -> Self {
         Runtime {
             version: VERSION.to_string(),
-            internal: Rc::new(RuntimeInternal::default()),
+            internal: Rc::new(RuntimeInternal::default_with_async_context(async_context)),
         }
     }
 }
@@ -80,13 +81,13 @@ pub struct RuntimeInternal {
         RefCell<HashMap<IncomingEndpointContextSectionId, ExecutionContext>>,
 }
 
-impl Default for RuntimeInternal {
-    fn default() -> Self {
+impl RuntimeInternal {
+    fn default_with_async_context(async_context: AsyncContext) -> Self {
         RuntimeInternal {
             endpoint: Endpoint::default(),
             config: RuntimeConfig::default(),
             memory: RefCell::new(Memory::new(Endpoint::default())),
-            com_hub: ComHub::default(),
+            com_hub: ComHub::default_with_async_context(async_context),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
             execution_contexts: RefCell::new(HashMap::new()),
@@ -379,9 +380,9 @@ impl RuntimeConfig {
 /// publicly exposed wrapper impl for the Runtime
 /// around RuntimeInternal
 impl Runtime {
-    pub fn new(config: RuntimeConfig) -> Runtime {
+    pub fn new(config: RuntimeConfig, async_context: AsyncContext) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
-        let com_hub = ComHub::new(endpoint.clone());
+        let com_hub = ComHub::new(endpoint.clone(), async_context.clone());
         let memory = RefCell::new(Memory::new(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
@@ -390,7 +391,7 @@ impl Runtime {
                 memory,
                 config,
                 com_hub,
-                ..RuntimeInternal::default()
+                ..RuntimeInternal::default_with_async_context(async_context)
             }),
         }
     }
@@ -398,6 +399,7 @@ impl Runtime {
     pub fn init(
         config: RuntimeConfig,
         global_context: GlobalContext,
+        async_context: AsyncContext,
     ) -> Runtime {
         set_global_context(global_context);
         if let Some(debug) = config.debug
@@ -411,7 +413,7 @@ impl Runtime {
             "Runtime initialized - Version {VERSION} Time: {}",
             Time::now()
         );
-        Self::new(config)
+        Self::new(config, async_context)
     }
 
     pub fn com_hub(&self) -> &ComHub {
@@ -429,13 +431,14 @@ impl Runtime {
         &self.internal.memory
     }
 
-    #[cfg(feature = "native_crypto")]
+    #[cfg(all(feature = "native_crypto", not(feature = "embassy_runtime")))]
     pub fn init_native(config: RuntimeConfig) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
         Self::init(
             config,
             GlobalContext::new(Arc::new(CryptoNative), Arc::new(TimeNative)),
+            AsyncContext::new()
         )
     }
 
@@ -482,8 +485,9 @@ impl Runtime {
     pub async fn create(
         config: RuntimeConfig,
         global_context: GlobalContext,
+        async_context: AsyncContext,
     ) -> Runtime {
-        let runtime = Self::init(config, global_context);
+        let runtime = Self::init(config, global_context, async_context);
         runtime.start().await;
         runtime
     }

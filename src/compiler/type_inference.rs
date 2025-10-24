@@ -571,7 +571,7 @@ fn infer_binary_expression_type(
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-
+    use datex_core::runtime::{Runtime, RuntimeConfig};
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
     use crate::ast::{parse};
@@ -619,6 +619,7 @@ mod tests {
                 valid_parse_result,
                 Rc::new(RefCell::new(AstMetadata::default())),
                 &mut PrecompilerScopeStack::default(),
+                &Runtime::init_native(RuntimeConfig::default()),
             ),
         }
 
@@ -646,6 +647,7 @@ mod tests {
                 valid_parse_result,
                 cell.clone(),
                 &mut PrecompilerScopeStack::default(),
+                &Runtime::init_native(RuntimeConfig::default()),
             )
             .unwrap();
 
@@ -1136,6 +1138,7 @@ mod tests {
             },
             Rc::new(RefCell::new(AstMetadata::default())),
             &mut PrecompilerScopeStack::default(),
+            &Runtime::init_native(RuntimeConfig::default()),
         )
         .unwrap();
         let metadata = rich_ast.metadata;

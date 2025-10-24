@@ -204,7 +204,7 @@ cfg_if! {
             tokio::time::sleep(dur).await;
         }
 
-    } 
+    }
     else if #[cfg(feature = "embassy_runtime")] {
         use embassy_time::{Duration as EmbassyDuration, Timer};
 
@@ -233,13 +233,13 @@ cfg_if! {
         where
             F: std::future::Future<Output = ()> + 'static,
         {
-            embassy_executor::spawn(fut);
+            panic!("`spawn_local` is not supported in the embassy runtime.");
         }
         pub fn spawn<F>(fut: F)
         where
             F: std::future::Future<Output = ()> + 'static,
         {
-            embassy_executor::spawn(fut);
+            panic!("`spawn` is not supported in the embassy runtime.");
         }
         pub fn spawn_blocking<F>(_fut: F) -> !
         where
@@ -292,5 +292,26 @@ cfg_if! {
         }
     } else {
         compile_error!("Unsupported runtime. Please enable either 'tokio_runtime' or 'wasm_runtime' feature.");
+    }
+}
+
+
+#[derive(Clone)]
+pub struct AsyncContext {
+    #[cfg(feature = "embassy_runtime")]
+    pub embassy_spawner: embassy::executor::Spawner,
+}
+
+impl AsyncContext {
+    #[cfg(feature = "embassy_runtime")]
+    pub fn new(spawner: embassy::executor::Spawner) -> Self {
+        Self {
+            embassy_spawner: spawner,
+        }
+    }
+
+    #[cfg(not(feature = "embassy_runtime"))]
+    pub fn new() -> Self {
+        Self {}
     }
 }

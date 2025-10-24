@@ -21,9 +21,11 @@ use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
+use datex_core::runtime::RuntimeConfig;
 use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, Statements, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariableKind};
 use crate::compiler::error::{DetailedCompilerErrorsWithMaybeRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
+use crate::runtime::Runtime;
 
 pub mod context;
 pub mod error;
@@ -408,7 +410,8 @@ fn precompile_to_rich_ast(
                 valid_parse_result,
                 precompiler_data.rich_ast.metadata.clone(),
                 &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
-                precompiler_options
+                precompiler_options,
+                &Runtime::init_native(RuntimeConfig::default()),
             )?
         } else {
             // if no precompiler data, just use the AST with default metadata
