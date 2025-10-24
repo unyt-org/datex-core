@@ -267,7 +267,7 @@ impl Display for CompilerError {
                 write!(f, "Slot #{name} does not exist")
             }
             CompilerError::AssignmentToConst(name) => {
-                write!(f, "Cannot assign to immutable variable: {name}")
+                write!(f, "Cannot assign new value to const {name}")
             }
             CompilerError::OnceScopeUsedMultipleTimes => {
                 write!(
