@@ -362,6 +362,8 @@ enum NewScopeType {
     NewScopeWithNewRealm,
 }
 
+/// This method must hold the contract that it always returns an Ok()
+/// result if collected_errors is Some, and only returns Err() if collected_errors is None.
 fn visit_expression(
     expression: &mut DatexExpression,
     metadata: &mut AstMetadata,
