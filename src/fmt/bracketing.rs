@@ -4,10 +4,7 @@ use crate::{
             ArithmeticOperator, BinaryOperator, LogicalOperator,
         },
         comparison_operation::ComparisonOperator,
-        tree::{
-            DatexExpression, DatexExpressionData,
-            UnaryOperation,
-        },
+        tree::{DatexExpression, DatexExpressionData, UnaryOperation},
         unary_operation::{LogicalUnaryOperator, UnaryOperator},
     },
     fmt::{
@@ -17,6 +14,7 @@ use crate::{
 };
 
 impl<'a> Formatter<'a> {
+    /// Handles bracketing of an expression based on the current formatting options.
     pub fn handle_bracketing(
         &'a self,
         expression: &'a DatexExpression,
@@ -63,6 +61,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Decides whether to wrap an expression in parentheses based on its parent context.
     pub fn maybe_wrap_by_parent(
         &'a self,
         expression: &'a DatexExpression,
@@ -238,5 +237,252 @@ impl<'a> Formatter<'a> {
                 true
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::fmt::options::{
+        BracketStyle, FormattingOptions, VariantFormatting,
+    };
+
+    use super::*;
+
+    fn to_string(script: &str, options: FormattingOptions) -> String {
+        let formatter = Formatter::new(script, options);
+        formatter.render()
+    }
+
+    #[test]
+    fn bracketing() {
+        let expr = "((42))";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::KeepAll,
+                    ..Default::default()
+                }
+            ),
+            "((42))"
+        );
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::RemoveDuplicate,
+                    ..Default::default()
+                }
+            ),
+            "(42)"
+        );
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "42"
+        );
+    }
+
+    #[test]
+    fn binary_operations_wrapped() {
+        // (1 + 2) * 3 requires parentheses around (1 + 2)
+        let expr = "(1 + 2) * 3 - 4 / 5";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "(1 + 2) * 3 - 4 / 5"
+        );
+
+        // 1 + (2 * 3) doesn't require parentheses
+        let expr = "1 + (2 * 3) - 4 / 5";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 + 2 * 3 - 4 / 5"
+        );
+    }
+
+    #[test]
+    fn associative_operations_no_parens_needed() {
+        // (1 + 2) + 3  ->  1 + 2 + 3
+        let expr = "(1 + 2) + 3";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 + 2 + 3"
+        );
+
+        // 1 + (2 + 3)  ->  1 + 2 + 3
+        let expr = "1 + (2 + 3)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 + 2 + 3"
+        );
+    }
+
+    #[test]
+    fn non_associative_operations_keep_parens() {
+        // 1 - (2 - 3) must keep parentheses
+        let expr = "1 - (2 - 3)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 - (2 - 3)"
+        );
+
+        // (1 - 2) - 3 may drop parentheses
+        let expr = "(1 - 2) - 3";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 - 2 - 3"
+        );
+    }
+
+    #[test]
+    fn power_operator_right_associative() {
+        // Power is right-associative: 2 ^ (3 ^ 4) -> no parens needed
+        let expr = "2 ^ (3 ^ 4)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "2 ^ 3 ^ 4"
+        );
+
+        // (2 ^ 3) ^ 4 -> needs parens to preserve grouping
+        let expr = "(2 ^ 3) ^ 4";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "(2 ^ 3) ^ 4"
+        );
+    }
+
+    #[test]
+    fn logical_and_or_precedence() {
+        // (a && b) || c -> we don't need parentheses
+        let expr = "(true && false) || true";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "true && false || true"
+        );
+
+        // a && (b || c) -> parentheses required
+        let expr = "true && (false || true)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "true && (false || true)"
+        );
+    }
+
+    #[test]
+    fn remove_duplicate_brackets() {
+        // (((1 + 2))) -> (1 + 2)
+        let expr = "(((1 + 2)))";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::RemoveDuplicate,
+                    ..Default::default()
+                }
+            ),
+            "(1 + 2)"
+        );
+    }
+
+    #[test]
+    fn keep_all_brackets_exactly() {
+        // Keep exactly what the user wrote
+        let expr = "(((1 + 2)))";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::KeepAll,
+                    ..Default::default()
+                }
+            ),
+            "(((1 + 2)))"
+        );
+    }
+
+    #[test]
+    fn minimal_vs_keepall_equivalence_for_simple() {
+        let expr = "1 + 2 * 3";
+        let minimal = to_string(
+            expr,
+            FormattingOptions {
+                bracket_style: BracketStyle::Minimal,
+                ..Default::default()
+            },
+        );
+        let keep_all = to_string(
+            expr,
+            FormattingOptions {
+                bracket_style: BracketStyle::KeepAll,
+                ..Default::default()
+            },
+        );
+        assert_eq!(minimal, keep_all);
+        assert_eq!(minimal, "1 + 2 * 3");
     }
 }
