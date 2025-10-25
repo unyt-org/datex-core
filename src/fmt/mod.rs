@@ -3,8 +3,7 @@ use crate::{
         binary_operation::BinaryOperator,
         comparison_operation::ComparisonOperator,
         tree::{
-            DatexExpression, DatexExpressionData, TypeExpression,
-            VariableAccess, VariableDeclaration,
+            DatexExpression, TypeExpression,
         },
         unary_operation::UnaryOperator,
     },
@@ -13,7 +12,7 @@ use crate::{
         precompiler::RichAst,
     },
     fmt::options::{
-        FormattingOptions, StatementFormatting, TypeDeclarationFormatting,
+        FormattingOptions, TypeDeclarationFormatting,
     },
     libs::core::CoreLibPointerId,
 };
