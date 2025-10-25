@@ -5,8 +5,7 @@ use serde::ser::{self};
 use std::fmt::Display;
 use std::io;
 
-use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError, SpannedCompilerError};
-use crate::compiler::precompiler::RichAst;
+use crate::compiler::error::{CompilerError, SpannedCompilerError};
 use crate::runtime::execution::ExecutionError;
 
 #[derive(Debug)]

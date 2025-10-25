@@ -12,7 +12,7 @@ use std::fmt::Display;
 use std::ops::Range;
 use std::rc::Rc;
 use chumsky::prelude::SimpleSpan;
-use crate::compiler::error::{CompilerError, DetailedCompilerErrors, ErrorCollector, SpannedCompilerError};
+use crate::compiler::error::ErrorCollector;
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 
@@ -290,7 +290,7 @@ pub fn infer_expression_type_inner(
                         collected_errors.record_error(error);
                     }
                     else {
-                        return Err(error.into());
+                        return Err(error);
                     }
                 }
                 annotated_type
@@ -350,7 +350,7 @@ pub fn infer_expression_type_inner(
                             collected_errors.record_error(error);
                         }
                         else {
-                            return Err(error.into());
+                            return Err(error);
                         }
                     }
                     value_type
@@ -551,7 +551,7 @@ fn infer_binary_expression_type(
             // otherwise, return type error
             else {
                 let error = SpannedTypeError::new_with_simple_span(
-                    TypeError::MismatchedOperands(op.clone(), lhs_type, rhs_type),
+                    TypeError::MismatchedOperands(*op, lhs_type, rhs_type),
                     span
                 );
                 if let Some(collected_errors) = collected_errors {
