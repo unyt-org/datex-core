@@ -1,8 +1,8 @@
-use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
 use crate::ast::utils::is_identifier;
 use crate::ast::utils::operation;
+use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
@@ -90,8 +90,8 @@ impl Display for LogicalOperator {
             f,
             "{}",
             match self {
-                LogicalOperator::And => "and",
-                LogicalOperator::Or => "or",
+                LogicalOperator::And => "&&",
+                LogicalOperator::Or => "||",
             }
         )
     }
@@ -151,36 +151,34 @@ impl Display for BinaryOperator {
     }
 }
 
-fn binary_op(
-    op: BinaryOperator,
-) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
-{
-    move |lhs, rhs| {
-        let start = lhs.span.start.min(rhs.span.start);
-        let end = lhs.span.end.max(rhs.span.end);
-        let combined_span = start..end;
-        DatexExpressionData::BinaryOperation(op, lhs, rhs, None).with_span(SimpleSpan::from(combined_span))
-    }
-}
+/// Generic helper for left-associative infix chains
+fn infix_left_chain<'a>(
+    lower: impl DatexParserTrait<'a>,
+    ops: Vec<(Token, BinaryOperator)>,
+) -> impl DatexParserTrait<'a> {
+    let base = lower.clone();
 
-fn product<'a>(chain: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
-    chain
-        .clone()
+    // Build a choice of operators
+    let choices = choice(
+        ops.into_iter()
+            .map(|(tok, op)| operation(tok).to(op))
+            .collect::<Vec<_>>(),
+    );
+
+    base.clone()
         .foldl(
-            choice((
-                operation(Token::Star).to(ArithmeticOperator::Multiply),
-                operation(Token::Slash).to(ArithmeticOperator::Divide),
-            ))
-            .then(chain)
-            .repeated(),
-            |lhs, (op, rhs)| {
-                let effective_op = if matches!(op, ArithmeticOperator::Divide)
-                    && is_identifier(&lhs)
-                    && is_identifier(&rhs)
-                {
-                    BinaryOperator::VariantAccess
-                } else {
-                    op.into()
+            choices.then(base.clone()).repeated(),
+            move |lhs, (op, rhs)| {
+                // Special handling for division between identifiers
+                let effective_op = match op {
+                    BinaryOperator::Arithmetic(ArithmeticOperator::Divide) => {
+                        if is_identifier(&lhs) && is_identifier(&rhs) {
+                            BinaryOperator::VariantAccess
+                        } else {
+                            op
+                        }
+                    }
+                    _ => op,
                 };
 
                 binary_op(effective_op)(Box::new(lhs), Box::new(rhs))
@@ -189,55 +187,75 @@ fn product<'a>(chain: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
         .boxed()
 }
 
-fn sum<'a>(product: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
-    product
-        .clone()
-        .foldl(
-            choice((
-                operation(Token::Plus).to(ArithmeticOperator::Add),
-                operation(Token::Minus).to(ArithmeticOperator::Subtract),
-            ))
-            .then(product)
-            .repeated(),
-            |lhs, (op, rhs)| binary_op(op.into())(Box::new(lhs), Box::new(rhs)),
-        )
-        .boxed()
+fn binary_op(
+    op: BinaryOperator,
+) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
+{
+    move |lhs, rhs| {
+        let start = lhs.span.start.min(rhs.span.start);
+        let end = lhs.span.end.max(rhs.span.end);
+        let combined_span = start..end;
+        DatexExpressionData::BinaryOperation(op, lhs, rhs, None)
+            .with_span(SimpleSpan::from(combined_span))
+    }
+}
+fn product<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
+    infix_left_chain(
+        atom,
+        vec![
+            (Token::Star, ArithmeticOperator::Multiply.into()),
+            (Token::Slash, ArithmeticOperator::Divide.into()),
+        ],
+    )
 }
 
-/// FIXME #354: Rethink syntax for bitwise operations, due to colission with type system syntax
+fn sum<'a>(prod: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
+    infix_left_chain(
+        prod,
+        vec![
+            (Token::Plus, ArithmeticOperator::Add.into()),
+            (Token::Minus, ArithmeticOperator::Subtract.into()),
+        ],
+    )
+}
+
 fn bitwise_and<'a>(
     sum: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    sum.clone()
-        .foldl(
-            operation(Token::Ampersand)
-                .to(binary_op(BitwiseOperator::And.into()))
-                .then(sum.clone())
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        )
-        .boxed()
+    infix_left_chain(sum, vec![(Token::Ampersand, BitwiseOperator::And.into())])
 }
 
 fn bitwise_or<'a>(
-    intersection: impl DatexParserTrait<'a>,
+    bitwise_and: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    intersection
-        .clone()
-        .foldl(
-            operation(Token::Pipe)
-                .to(binary_op(BitwiseOperator::Or.into()))
-                .then(intersection.clone())
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        )
-        .boxed()
+    infix_left_chain(
+        bitwise_and,
+        vec![(Token::Pipe, BitwiseOperator::Or.into())],
+    )
+}
+
+fn logical_and<'a>(
+    bitwise_or: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    infix_left_chain(
+        bitwise_or,
+        vec![(Token::DoubleAnd, LogicalOperator::And.into())],
+    )
+}
+
+fn logical_or<'a>(
+    logical_and: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    infix_left_chain(
+        logical_and,
+        vec![(Token::DoublePipe, LogicalOperator::Or.into())],
+    )
 }
 
 pub fn binary_operation<'a>(
-    chain: impl DatexParserTrait<'a>,
+    atom: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    bitwise_or(bitwise_and(sum(product(chain))))
+    logical_or(logical_and(bitwise_or(bitwise_and(sum(product(atom))))))
 }
 
 impl From<&BinaryOperator> for InstructionCode {
