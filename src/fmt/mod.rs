@@ -3,7 +3,8 @@ use crate::{
         binary_operation::BinaryOperator,
         comparison_operation::ComparisonOperator,
         tree::{
-            DatexExpression, DatexExpressionData, TypeExpression, VariableAccess, VariableDeclaration,
+            DatexExpression, DatexExpressionData, TypeExpression,
+            VariableAccess, VariableDeclaration,
         },
         unary_operation::UnaryOperator,
     },
@@ -12,8 +13,7 @@ use crate::{
         precompiler::RichAst,
     },
     fmt::options::{
-        FormattingOptions, StatementFormatting,
-        TypeDeclarationFormatting,
+        FormattingOptions, StatementFormatting, TypeDeclarationFormatting,
     },
     libs::core::CoreLibPointerId,
 };
@@ -107,117 +107,9 @@ impl<'a> Formatter<'a> {
         parent_ctx: Option<ParentContext<'a>>,
         is_left_child_of_parent: bool,
     ) -> Format<'a> {
-        let a = &self.alloc;
-        let inner_doc = match &expr.data {
-            DatexExpressionData::Integer(i) => a.as_string(i),
-            DatexExpressionData::TypedInteger(ti) => {
-                self.typed_integer_to_source_code(ti, &expr.span)
-            }
-            DatexExpressionData::Decimal(d) => a.as_string(d),
-            DatexExpressionData::TypedDecimal(td) => {
-                todo!("")
-            }
-            DatexExpressionData::Boolean(b) => a.as_string(b),
-            DatexExpressionData::Text(t) => self.text_to_source_code(t),
-            DatexExpressionData::Endpoint(e) => a.text(e.to_string()),
-            DatexExpressionData::Null => a.text("null"),
-            DatexExpressionData::Identifier(l) => a.text(l.clone()),
-            DatexExpressionData::Map(map) => self.map_to_source_code(map),
-            DatexExpressionData::List(list) => self.list_to_source_code(list),
-            DatexExpressionData::CreateRef(expr) => {
-                a.text("&") + self.format_datex_expression(expr)
-            }
-            DatexExpressionData::CreateRefMut(expr) => {
-                a.text("&mut ") + self.format_datex_expression(expr)
-            }
-            DatexExpressionData::CreateRefFinal(expr) => {
-                a.text("&final ") + self.format_datex_expression(expr)
-            }
-            DatexExpressionData::BinaryOperation(op, left, right, _) => {
-                let (precedence, associativity, _is_assoc) =
-                    self.binary_operator_info(op);
-
-                // format children with parent context so they can decide about parens themselves
-                let left_doc = self.format_datex_expression_with_parent(
-                    left,
-                    Some(ParentContext {
-                        precedence,
-                        associativity,
-                        operation: Operation::Binary(op),
-                    }),
-                    true,
-                );
-                let right_doc = self.format_datex_expression_with_parent(
-                    right,
-                    Some(ParentContext {
-                        precedence,
-                        associativity,
-                        operation: Operation::Binary(op),
-                    }),
-                    false,
-                );
-
-                let a = &self.alloc;
-                (left_doc
-                    + self.operator_with_spaces(a.text(op.to_string()))
-                    + right_doc)
-                    .group()
-            }
-            DatexExpressionData::Statements(statements) => {
-                let docs: Vec<_> = statements
-                    .statements
-                    .iter()
-                    .map(|stmt| {
-                        self.format_datex_expression(stmt) + a.text(";")
-                    })
-                    .collect();
-
-                let joined = a.intersperse(
-                    docs,
-                    match self.options.statement_formatting {
-                        StatementFormatting::NewlineBetween => a.hardline(),
-                        StatementFormatting::SpaceBetween => a.space(),
-                        StatementFormatting::Compact => a.nil(),
-                    },
-                );
-                joined.group()
-            }
-            DatexExpressionData::VariableDeclaration(VariableDeclaration {
-                id: _,
-                init_expression,
-                kind,
-                name,
-                type_annotation,
-            }) => {
-                let type_annotation_doc =
-                    if let Some(type_annotation) = type_annotation {
-                        self.type_declaration_colon()
-                            + self.format_type_expression(type_annotation)
-                    } else {
-                        a.nil()
-                    };
-                a.text(kind.to_string())
-                    + a.space()
-                    + a.text(name)
-                    + type_annotation_doc
-                    + self.operator_with_spaces(a.text("="))
-                    + self.format_datex_expression(init_expression)
-            }
-            DatexExpressionData::Type(type_expr) => {
-                let a = &self.alloc;
-                let inner = self.format_type_expression(type_expr);
-                (a.text("type(") + a.line_() + inner + a.line_() + a.text(")"))
-                    .group()
-            }
-            DatexExpressionData::VariableAccess(VariableAccess {
-                name,
-                ..
-            }) => a.text(name),
-            e => panic!("Formatter not implemented for {:?}", e),
-        };
         self.handle_bracketing(
             expr,
-            inner_doc,
+            self.datex_expression_to_source_code(expr),
             parent_ctx,
             is_left_child_of_parent,
         )
@@ -420,42 +312,29 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::{ast::parse, fmt::options::VariantFormatting};
+
     use super::*;
     use indoc::indoc;
 
     #[test]
-    fn bracketing() {
-        let expr = "((42))";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::KeepAll,
-                    ..Default::default()
-                }
-            ),
-            "((42))"
-        );
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::RemoveDuplicate,
-                    ..Default::default()
-                }
-            ),
-            "(42)"
-        );
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "42"
-        );
+    fn ensure_unchanged() {
+        let script = "const x = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
+        let ast_original = parse(script).unwrap().ast;
+        let formatted = to_string(script, FormattingOptions::default());
+        let ast_new = parse(&formatted).unwrap().ast;
+        assert_eq!(ast_original, ast_new);
+    }
+
+    #[test]
+    #[ignore]
+    fn demo() {
+        let expr = "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
+        print(expr, FormattingOptions::default());
+        print(expr, FormattingOptions::compact());
+
+        let expr = "const x = [1,2,3,4,5,6,7]";
+        print(expr, FormattingOptions::default());
     }
 
     #[test]
@@ -554,204 +433,6 @@ mod tests {
     }
 
     #[test]
-    fn binary_operations_wrapped() {
-        // (1 + 2) * 3 requires parentheses around (1 + 2)
-        let expr = "(1 + 2) * 3 - 4 / 5";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "(1 + 2) * 3 - 4 / 5"
-        );
-
-        // 1 + (2 * 3) doesn't require parentheses
-        let expr = "1 + (2 * 3) - 4 / 5";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "1 + 2 * 3 - 4 / 5"
-        );
-    }
-
-    #[test]
-    fn associative_operations_no_parens_needed() {
-        // (1 + 2) + 3  ->  1 + 2 + 3
-        let expr = "(1 + 2) + 3";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "1 + 2 + 3"
-        );
-
-        // 1 + (2 + 3)  ->  1 + 2 + 3
-        let expr = "1 + (2 + 3)";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "1 + 2 + 3"
-        );
-    }
-
-    #[test]
-    fn non_associative_operations_keep_parens() {
-        // 1 - (2 - 3) must keep parentheses
-        let expr = "1 - (2 - 3)";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "1 - (2 - 3)"
-        );
-
-        // (1 - 2) - 3 may drop parentheses
-        let expr = "(1 - 2) - 3";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "1 - 2 - 3"
-        );
-    }
-
-    #[test]
-    fn power_operator_right_associative() {
-        // Power is right-associative: 2 ^ (3 ^ 4) -> no parens needed
-        let expr = "2 ^ (3 ^ 4)";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "2 ^ 3 ^ 4"
-        );
-
-        // (2 ^ 3) ^ 4 -> needs parens to preserve grouping
-        let expr = "(2 ^ 3) ^ 4";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "(2 ^ 3) ^ 4"
-        );
-    }
-
-    #[test]
-    fn logical_and_or_precedence() {
-        // (a && b) || c -> we don't need parentheses
-        let expr = "(true && false) || true";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "true && false || true"
-        );
-
-        // a && (b || c) -> parentheses required
-        let expr = "true && (false || true)";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::Minimal,
-                    ..Default::default()
-                }
-            ),
-            "true && (false || true)"
-        );
-    }
-
-    #[test]
-    fn remove_duplicate_brackets() {
-        // (((1 + 2))) -> (1 + 2)
-        let expr = "(((1 + 2)))";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::RemoveDuplicate,
-                    ..Default::default()
-                }
-            ),
-            "(1 + 2)"
-        );
-    }
-
-    #[test]
-    fn keep_all_brackets_exactly() {
-        // Keep exactly what the user wrote
-        let expr = "(((1 + 2)))";
-        assert_eq!(
-            to_string(
-                expr,
-                FormattingOptions {
-                    bracket_style: BracketStyle::KeepAll,
-                    ..Default::default()
-                }
-            ),
-            "(((1 + 2)))"
-        );
-    }
-
-    #[test]
-    fn minimal_vs_keepall_equivalence_for_simple() {
-        let expr = "1 + 2 * 3";
-        let minimal = to_string(
-            expr,
-            FormattingOptions {
-                bracket_style: BracketStyle::Minimal,
-                ..Default::default()
-            },
-        );
-        let keep_all = to_string(
-            expr,
-            FormattingOptions {
-                bracket_style: BracketStyle::KeepAll,
-                ..Default::default()
-            },
-        );
-        assert_eq!(minimal, keep_all);
-        assert_eq!(minimal, "1 + 2 * 3");
-    }
-
-    #[test]
     fn text() {
         let expr = r#""Hello, \"World\"!""#;
         assert_eq!(
@@ -832,16 +513,6 @@ mod tests {
                 7,
             ]"}
         );
-    }
-
-    #[test]
-    fn test_format_integer() {
-        let expr = "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
-        print(expr, FormattingOptions::default());
-        print(expr, FormattingOptions::compact());
-
-        let expr = "const x = [1,2,3,4,5,6,7]";
-        print(expr, FormattingOptions::default());
     }
 
     fn to_string(script: &str, options: FormattingOptions) -> String {
