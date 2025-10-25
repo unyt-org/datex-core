@@ -208,6 +208,12 @@ fn product<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
         ],
     )
 }
+fn power<'a>(product: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
+    infix_left_chain(
+        product,
+        vec![(Token::Caret, ArithmeticOperator::Power.into())],
+    )
+}
 
 fn sum<'a>(prod: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     infix_left_chain(
@@ -255,7 +261,9 @@ fn logical_or<'a>(
 pub fn binary_operation<'a>(
     atom: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    logical_or(logical_and(bitwise_or(bitwise_and(sum(product(atom))))))
+    logical_or(logical_and(bitwise_or(bitwise_and(sum(product(power(
+        atom,
+    )))))))
 }
 
 impl From<&BinaryOperator> for InstructionCode {
