@@ -1,28 +1,21 @@
 use crate::{
     ast::{
-        binary_operation::{
-            ArithmeticOperator, BinaryOperator, LogicalOperator,
-        },
+        binary_operation::BinaryOperator,
         comparison_operation::ComparisonOperator,
         tree::{
-            DatexExpression, DatexExpressionData, List, Map, TypeExpression,
-            UnaryOperation, VariableAccess, VariableDeclaration,
+            DatexExpression, DatexExpressionData, TypeExpression, VariableAccess, VariableDeclaration,
         },
-        unary_operation::{LogicalUnaryOperator, UnaryOperator},
+        unary_operation::UnaryOperator,
     },
     compiler::{
         CompileOptions, parse_datex_script_to_rich_ast_simple_error,
         precompiler::RichAst,
     },
     fmt::options::{
-        BracketStyle, FormattingOptions, StatementFormatting,
-        TypeDeclarationFormatting, VariantFormatting,
+        FormattingOptions, StatementFormatting,
+        TypeDeclarationFormatting,
     },
     libs::core::CoreLibPointerId,
-    values::{
-        core_values::integer::{Integer, typed_integer::TypedInteger},
-        pointer::PointerAddress,
-    },
 };
 use chumsky::span::SimpleSpan;
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
@@ -81,7 +74,7 @@ impl<'a> Formatter<'a> {
 
     pub fn render(&self) -> String {
         if let Some(ast) = &self.ast.ast {
-            self.render_expression(&ast)
+            self.render_expression(ast)
         } else {
             "".to_string()
         }

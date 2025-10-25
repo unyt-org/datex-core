@@ -5,23 +5,14 @@ use crate::{
         },
         comparison_operation::ComparisonOperator,
         tree::{
-            DatexExpression, DatexExpressionData, List, Map, TypeExpression,
-            UnaryOperation, VariableAccess, VariableDeclaration,
+            DatexExpression, DatexExpressionData,
+            UnaryOperation,
         },
         unary_operation::{LogicalUnaryOperator, UnaryOperator},
     },
-    compiler::{
-        CompileOptions, parse_datex_script_to_rich_ast_simple_error,
-        precompiler::RichAst,
-    },
     fmt::{
         Assoc, Format, Formatter, Operation, ParentContext,
-        options::{BracketStyle, FormattingOptions},
-    },
-    libs::core::CoreLibPointerId,
-    values::{
-        core_values::integer::{Integer, typed_integer::TypedInteger},
-        pointer::PointerAddress,
+        options::BracketStyle,
     },
 };
 

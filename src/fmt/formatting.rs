@@ -2,30 +2,14 @@ use chumsky::span::SimpleSpan;
 use pretty::DocAllocator;
 
 use crate::{
-    ast::{
-        binary_operation::{
-            ArithmeticOperator, BinaryOperator, LogicalOperator,
+    ast::tree::{
+            List, Map,
         },
-        comparison_operation::ComparisonOperator,
-        tree::{
-            DatexExpression, DatexExpressionData, List, Map, TypeExpression,
-            UnaryOperation, VariableAccess, VariableDeclaration,
-        },
-        unary_operation::{LogicalUnaryOperator, UnaryOperator},
-    },
-    compiler::{
-        CompileOptions, parse_datex_script_to_rich_ast_simple_error,
-        precompiler::RichAst,
-    },
     fmt::{
-        Assoc, Format, Formatter, Operation, ParentContext,
-        options::{BracketStyle, FormattingOptions, VariantFormatting},
+        Format, Formatter,
+        options::VariantFormatting,
     },
-    libs::core::CoreLibPointerId,
-    values::{
-        core_values::integer::{Integer, typed_integer::TypedInteger},
-        pointer::PointerAddress,
-    },
+    values::core_values::integer::typed_integer::TypedInteger,
 };
 
 impl<'a> Formatter<'a> {
