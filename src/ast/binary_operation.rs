@@ -1,5 +1,6 @@
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
+use crate::ast::tree::BinaryOperation;
 use crate::ast::utils::is_identifier;
 use crate::ast::utils::operation;
 use crate::ast::{DatexExpression, DatexExpressionData};
@@ -195,8 +196,13 @@ fn binary_op(
         let start = lhs.span.start.min(rhs.span.start);
         let end = lhs.span.end.max(rhs.span.end);
         let combined_span = start..end;
-        DatexExpressionData::BinaryOperation(op, lhs, rhs, None)
-            .with_span(SimpleSpan::from(combined_span))
+        DatexExpressionData::BinaryOperation(BinaryOperation {
+            operator: op,
+            left: lhs,
+            right: rhs,
+            r#type: None,
+        })
+        .with_span(SimpleSpan::from(combined_span))
     }
 }
 fn product<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {

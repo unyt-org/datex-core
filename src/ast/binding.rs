@@ -4,12 +4,16 @@ use crate::ast::assignment_operation::{
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
+use crate::ast::tree::{
+    DerefAssignment, TypeExpression, VariableAssignment, VariableKind,
+};
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt};
+use crate::ast::{
+    DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt,
+};
 use chumsky::prelude::*;
 use datex_core::ast::tree::VariableDeclaration;
-use crate::ast::tree::{TypeExpression, VariableAssignment, VariableKind};
 
 pub type VariableId = usize;
 
@@ -43,7 +47,8 @@ pub fn variable_assignment<'a>(
                 operator,
                 name: var_name.to_string(),
                 expression: Box::new(expr),
-            }).with_span(e.span())
+            })
+            .with_span(e.span())
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -65,13 +70,15 @@ pub fn deref_assignment<'a>(
             |(
                 ((deref_count, deref_expression), operator),
                 assigned_expression,
-            ), e| {
-                DatexExpressionData::DerefAssignment {
+            ),
+             e| {
+                DatexExpressionData::DerefAssignment(DerefAssignment {
                     operator,
                     deref_count,
                     deref_expression: Box::new(deref_expression),
                     assigned_expression: Box::new(assigned_expression),
-                }.with_span(e.span())
+                })
+                .with_span(e.span())
             },
         )
         // FIXME #369 assignment instead of declaration
@@ -113,7 +120,8 @@ pub fn variable_declaration<'a>(
                 expr,
                 annotation,
                 kind,
-            ).with_span(e.span()))
+            )
+            .with_span(e.span()))
         })
         .recover_invalid()
         .labelled(Pattern::Declaration)
