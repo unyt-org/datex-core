@@ -4,7 +4,10 @@ use crate::{
             ArithmeticOperator, BinaryOperator, LogicalOperator,
         },
         comparison_operation::ComparisonOperator,
-        tree::{DatexExpression, DatexExpressionData, UnaryOperation},
+        tree::{
+            BinaryOperation, ComparisonOperation, DatexExpression,
+            DatexExpressionData, UnaryOperation,
+        },
         unary_operation::{LogicalUnaryOperator, UnaryOperator},
     },
     fmt::{
@@ -142,12 +145,18 @@ impl<'a> Formatter<'a> {
     // precedence of an expression (used for children that are not binary/comparison)
     fn expression_precedence(&self, expression: &DatexExpression) -> u8 {
         match &expression.data {
-            DatexExpressionData::BinaryOperation(op, _, _, _) => {
-                let (prec, _, _) = self.binary_operator_info(op);
+            DatexExpressionData::BinaryOperation(BinaryOperation {
+                operator,
+                ..
+            }) => {
+                let (prec, _, _) = self.binary_operator_info(operator);
                 prec
             }
-            DatexExpressionData::ComparisonOperation(op, _, _) => {
-                let (prec, _, _) = self.comparison_operator_info(op);
+            DatexExpressionData::ComparisonOperation(ComparisonOperation {
+                operator,
+                ..
+            }) => {
+                let (prec, _, _) = self.comparison_operator_info(operator);
                 prec
             }
             DatexExpressionData::UnaryOperation(UnaryOperation {
@@ -190,29 +199,35 @@ impl<'a> Formatter<'a> {
         // check if same operator and is associative
         let same_op_and_assoc = match (&child.data, &parent_context.operation) {
             (
-                DatexExpressionData::BinaryOperation(child_op, _, _, _),
+                DatexExpressionData::BinaryOperation(BinaryOperation {
+                    operator,
+                    ..
+                }),
                 Operation::Binary(parent_op),
             ) => {
-                let (_, _, c_is_assoc) = self.binary_operator_info(child_op);
-                child_op == *parent_op && c_is_assoc
+                let (_, _, c_is_assoc) = self.binary_operator_info(operator);
+                operator == *parent_op && c_is_assoc
             }
             (
-                DatexExpressionData::ComparisonOperation(child_op, _, _),
+                DatexExpressionData::ComparisonOperation(ComparisonOperation {
+                    operator,
+                    ..
+                }),
                 Operation::Comparison(parent_op),
             ) => {
                 let (_, _, c_is_assoc) =
-                    self.comparison_operator_info(child_op);
-                child_op == *parent_op && c_is_assoc
+                    self.comparison_operator_info(operator);
+                operator == *parent_op && c_is_assoc
             }
             (
                 DatexExpressionData::UnaryOperation(UnaryOperation {
-                    operator: child_op,
+                    operator,
                     ..
                 }),
                 Operation::Unary(parent_op),
             ) => {
-                let (_, _, c_is_assoc) = self.unary_operator_info(child_op);
-                child_op == *parent_op && c_is_assoc
+                let (_, _, c_is_assoc) = self.unary_operator_info(operator);
+                operator == *parent_op && c_is_assoc
             }
             _ => false,
         };

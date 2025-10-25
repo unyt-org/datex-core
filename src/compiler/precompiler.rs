@@ -1,8 +1,9 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tree::{
-    DatexExpression, DatexExpressionData, FunctionDeclaration, TypeExpression,
-    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
+    BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
+    DerefAssignment, FunctionDeclaration, TypeExpression, UnaryOperation,
+    VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -600,12 +601,11 @@ fn visit_expression(
             }
             *id = Some(new_id);
         }
-        DatexExpressionData::DerefAssignment {
-            operator: _,
-            deref_count: _,
+        DatexExpressionData::DerefAssignment(DerefAssignment {
             deref_expression,
             assigned_expression,
-        } => {
+            ..
+        }) => {
             visit_expression(
                 deref_expression,
                 metadata,
@@ -709,7 +709,12 @@ fn visit_expression(
                 collected_errors,
             )?;
         }
-        DatexExpressionData::BinaryOperation(operator, left, right, _) => {
+        DatexExpressionData::BinaryOperation(BinaryOperation {
+            operator,
+            left,
+            right,
+            ..
+        }) => {
             if matches!(operator, BinaryOperator::VariantAccess) {
                 let lit_left =
                     if let DatexExpressionData::Identifier(name) = &left.data {
@@ -797,12 +802,14 @@ fn visit_expression(
                             )?;
 
                             *expression = DatexExpressionData::BinaryOperation(
-                                BinaryOperator::Arithmetic(
-                                    ArithmeticOperator::Divide,
-                                ),
-                                left.to_owned(),
-                                right.to_owned(),
-                                None,
+                                BinaryOperation {
+                                    operator: BinaryOperator::Arithmetic(
+                                        ArithmeticOperator::Divide,
+                                    ),
+                                    left: left.to_owned(),
+                                    right: right.to_owned(),
+                                    r#type: None,
+                                },
                             )
                             .with_span(expression.span);
                         }
@@ -951,7 +958,11 @@ fn visit_expression(
                 )?
             }
         }
-        DatexExpressionData::ComparisonOperation(op, left, right) => {
+        DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left,
+            right,
+            ..
+        }) => {
             visit_expression(
                 left,
                 metadata,
@@ -1380,24 +1391,26 @@ mod tests {
         };
         assert_eq!(
             *statements.statements.get(2).unwrap(),
-            DatexExpressionData::BinaryOperation(
-                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(
+            DatexExpressionData::BinaryOperation(BinaryOperation {
+                operator: BinaryOperator::Arithmetic(
+                    ArithmeticOperator::Divide
+                ),
+                left: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 0,
                         name: "a".to_string()
                     })
                     .with_default_span()
                 ),
-                Box::new(
+                right: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 1,
                         name: "b".to_string()
                     })
                     .with_default_span()
                 ),
-                None
-            )
+                r#type: None
+            })
             .with_default_span()
         );
 
@@ -1413,24 +1426,26 @@ mod tests {
         };
         assert_eq!(
             *statements.statements.get(2).unwrap(),
-            DatexExpressionData::BinaryOperation(
-                BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(
+            DatexExpressionData::BinaryOperation(BinaryOperation {
+                operator: BinaryOperator::Arithmetic(
+                    ArithmeticOperator::Divide
+                ),
+                left: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 1,
                         name: "a".to_string()
                     })
                     .with_default_span()
                 ),
-                Box::new(
+                right: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 0,
                         name: "b".to_string()
                     })
                     .with_default_span()
                 ),
-                None
-            )
+                r#type: None
+            })
             .with_default_span()
         );
     }

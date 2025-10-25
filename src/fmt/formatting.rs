@@ -3,8 +3,8 @@ use pretty::DocAllocator;
 
 use crate::{
     ast::tree::{
-        DatexExpression, DatexExpressionData, List, Map, VariableAccess,
-        VariableDeclaration,
+        BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
+        VariableAccess, VariableDeclaration,
     },
     fmt::{
         Format, Formatter, Operation, ParentContext,
@@ -49,9 +49,14 @@ impl<'a> Formatter<'a> {
             DatexExpressionData::CreateRefFinal(expr) => {
                 a.text("&final ") + self.format_datex_expression(expr)
             }
-            DatexExpressionData::BinaryOperation(op, left, right, _) => {
+            DatexExpressionData::BinaryOperation(BinaryOperation {
+                operator,
+                left,
+                right,
+                ..
+            }) => {
                 let (precedence, associativity, _is_assoc) =
-                    self.binary_operator_info(op);
+                    self.binary_operator_info(operator);
 
                 // format children with parent context so they can decide about parens themselves
                 let left_doc = self.format_datex_expression_with_parent(
@@ -59,7 +64,7 @@ impl<'a> Formatter<'a> {
                     Some(ParentContext {
                         precedence,
                         associativity,
-                        operation: Operation::Binary(op),
+                        operation: Operation::Binary(operator),
                     }),
                     true,
                 );
@@ -68,14 +73,14 @@ impl<'a> Formatter<'a> {
                     Some(ParentContext {
                         precedence,
                         associativity,
-                        operation: Operation::Binary(op),
+                        operation: Operation::Binary(operator),
                     }),
                     false,
                 );
 
                 let a = &self.alloc;
                 (left_doc
-                    + self.operator_with_spaces(a.text(op.to_string()))
+                    + self.operator_with_spaces(a.text(operator.to_string()))
                     + right_doc)
                     .group()
             }

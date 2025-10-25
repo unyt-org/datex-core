@@ -169,6 +169,29 @@ impl PartialEq for DatexExpression {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct BinaryOperation {
+    pub operator: BinaryOperator,
+    pub left: Box<DatexExpression>,
+    pub right: Box<DatexExpression>,
+    pub r#type: Option<Type>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ComparisonOperation {
+    pub operator: ComparisonOperator,
+    pub left: Box<DatexExpression>,
+    pub right: Box<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DerefAssignment {
+    pub operator: AssignmentOperator,
+    pub deref_count: usize,
+    pub deref_expression: Box<DatexExpression>,
+    pub assigned_expression: Box<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpressionData {
     /// This is a marker for recovery from parse errors.
     /// We should never use this manually.
@@ -254,37 +277,32 @@ pub enum DatexExpressionData {
 
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),
+
     /// Slot assignment
     SlotAssignment(Slot, Box<DatexExpression>),
 
+    /// Pointer address $<identifier>
     PointerAddress(PointerAddress),
 
-    // TODO #468 struct instead of tuple
-    BinaryOperation(
-        BinaryOperator,
-        Box<DatexExpression>,
-        Box<DatexExpression>,
-        Option<Type>,
-    ),
-    ComparisonOperation(
-        ComparisonOperator,
-        Box<DatexExpression>,
-        Box<DatexExpression>,
-    ),
-    DerefAssignment {
-        operator: AssignmentOperator,
-        deref_count: usize,
-        deref_expression: Box<DatexExpression>,
-        assigned_expression: Box<DatexExpression>,
-    },
+    /// Binary operation, e.g. x + y
+    BinaryOperation(BinaryOperation),
+
+    /// Comparison operation, e.g. x < y
+    ComparisonOperation(ComparisonOperation),
+
+    /// Deref assignment, e.g. *x = y, **x += y
+    DerefAssignment(DerefAssignment),
+
+    /// Unary operation, e.g. -x, !x
     UnaryOperation(UnaryOperation),
 
-    // apply (e.g. x (1)) or property access
+    /// apply (e.g. x (1)) or property access
     ApplyChain(Box<DatexExpression>, Vec<ApplyOperation>),
 
-    // ?
+    /// The '?' placeholder expression
     Placeholder,
-    // @xy :: z
+
+    /// Remote execution, e.g. @example :: 41 + 1
     RemoteExecution(Box<DatexExpression>, Box<DatexExpression>),
 }
 

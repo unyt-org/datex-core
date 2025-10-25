@@ -1,6 +1,8 @@
 use std::fmt::{self};
 
-use crate::ast::tree::{List, Map};
+use crate::ast::tree::{
+    BinaryOperation, ComparisonOperation, DerefAssignment, List, Map,
+};
 use crate::{
     ast::{
         chain::ApplyOperation,
@@ -464,12 +466,12 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::CreateRefFinal(expr) => {
                 format!("&final {}", self.format(expr))
             }
-            DatexExpressionData::BinaryOperation(
+            DatexExpressionData::BinaryOperation(BinaryOperation {
                 operator,
                 left,
                 right,
-                _type,
-            ) => {
+                ..
+            }) => {
                 let left_code = self.key_expression_to_source_code(left);
                 let right_code = self.key_expression_to_source_code(right);
                 ast_fmt!(&self, "{}%s{}%s{}", left_code, operator, right_code)
@@ -629,24 +631,24 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::PointerAddress(pointer_address) => {
                 pointer_address.to_string()
             }
-            DatexExpressionData::ComparisonOperation(
-                comparison_operator,
-                datex_expression,
-                datex_expression1,
-            ) => {
+            DatexExpressionData::ComparisonOperation(ComparisonOperation {
+                operator,
+                left,
+                right,
+            }) => {
                 ast_fmt!(
                     &self,
-                    "{}%s{comparison_operator}%s{}",
-                    self.format(datex_expression),
-                    self.format(datex_expression1)
+                    "{}%s{operator}%s{}",
+                    self.format(left),
+                    self.format(right)
                 )
             }
-            DatexExpressionData::DerefAssignment {
+            DatexExpressionData::DerefAssignment(DerefAssignment {
                 operator,
                 deref_count,
                 deref_expression,
                 assigned_expression,
-            } => {
+            }) => {
                 let deref_prefix = "*".repeat(*deref_count);
                 ast_fmt!(
                     &self,
@@ -905,20 +907,21 @@ mod tests {
 
     #[test]
     fn test_deref_assignment() {
-        let deref_assign_ast = DatexExpressionData::DerefAssignment {
-            operator: AssignmentOperator::Assign,
-            deref_count: 2,
-            deref_expression: Box::new(
-                DatexExpressionData::VariableAccess(VariableAccess {
-                    id: 0,
-                    name: "ptr".to_string(),
-                })
-                .with_default_span(),
-            ),
-            assigned_expression: Box::new(
-                DatexExpressionData::Integer(42.into()).with_default_span(),
-            ),
-        };
+        let deref_assign_ast =
+            DatexExpressionData::DerefAssignment(DerefAssignment {
+                operator: AssignmentOperator::Assign,
+                deref_count: 2,
+                deref_expression: Box::new(
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "ptr".to_string(),
+                    })
+                    .with_default_span(),
+                ),
+                assigned_expression: Box::new(
+                    DatexExpressionData::Integer(42.into()).with_default_span(),
+                ),
+            });
         assert_eq!(
             compact().format(&deref_assign_ast.with_default_span()),
             "**ptr=42"
