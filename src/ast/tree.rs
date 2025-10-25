@@ -111,6 +111,7 @@ pub enum TypeExpression {
 pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: SimpleSpan,
+    pub wrapped: Option<usize>, // number of wrapping parentheses
 }
 
 impl Visitable for DatexExpression {
@@ -151,7 +152,9 @@ impl Visitable for DatexExpression {
                 visitor.visit_endpoint(e, self.span)
             }
             DatexExpressionData::Null => visitor.visit_null(self.span),
-            DatexExpressionData::List(list) => visitor.visit_list(list, self.span),
+            DatexExpressionData::List(list) => {
+                visitor.visit_list(list, self.span)
+            }
             DatexExpressionData::Map(map) => visitor.visit_map(map, self.span),
             _ => {}
         }
@@ -414,13 +417,18 @@ impl Visitable for Map {
 
 impl DatexExpressionData {
     pub(crate) fn with_span(self, span: SimpleSpan) -> DatexExpression {
-        DatexExpression { data: self, span }
+        DatexExpression {
+            data: self,
+            span,
+            wrapped: None,
+        }
     }
 
     pub(crate) fn with_default_span(self) -> DatexExpression {
         DatexExpression {
             data: self,
             span: SimpleSpan::from(0..0),
+            wrapped: None,
         }
     }
 }
@@ -464,7 +472,9 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                     .iter()
                     .map(|e| ValueContainer::try_from(&e.data))
                     .collect::<Result<Vec<ValueContainer>, ()>>()?;
-                ValueContainer::from(datex_core::values::core_values::list::List::from(entries))
+                ValueContainer::from(
+                    datex_core::values::core_values::list::List::from(entries),
+                )
             }
             DatexExpressionData::Map(pairs) => {
                 let entries = pairs
@@ -476,7 +486,9 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                         Ok((key, value))
                     })
                     .collect::<Result<Vec<(ValueContainer, ValueContainer)>, ()>>()?;
-                ValueContainer::from(crate::values::core_values::map::Map::from(entries))
+                ValueContainer::from(
+                    crate::values::core_values::map::Map::from(entries),
+                )
             }
             _ => Err(())?,
         })
@@ -514,7 +526,8 @@ pub trait Visit: Sized {
         &mut self,
         var_access: &VariableAccess,
         span: SimpleSpan,
-    ) {}
+    ) {
+    }
     fn visit_list(&mut self, list: &List, span: SimpleSpan) {
         list.visit_children_with(self);
     }

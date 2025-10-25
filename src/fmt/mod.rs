@@ -11,6 +11,7 @@ use crate::{
 
 type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FormattingOptions {
     /// Number of spaces to use for indentation.
     pub indent: usize,
@@ -43,12 +44,31 @@ pub struct FormattingOptions {
 
     /// Formatting style for type variant suffixes.
     pub variant_formatting: VariantFormatting,
+
+    /// Bracketing style for expressions.
+    pub bracket_style: BracketStyle,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BracketStyle {
+    /// Keep all brackets exactly as written by the user.
+    KeepAll,
+
+    /// Remove only redundant or duplicate outer brackets, e.g. `((42))` → `(42)`.
+    RemoveDuplicate,
+
+    /// Remove all unnecessary brackets based purely on operator precedence.
+    Minimal,
+
+    /// Don’t use brackets at all unless absolutely required for syntactic validity.
+    None,
 }
 
 /// Formatting styles for enum variants.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VariantFormatting {
     /// Keep the original formatting.
-    Keep,
+    KeepAll,
     /// Use variant suffixes.
     WithSuffix,
     /// Do not use variant suffixes.
@@ -56,6 +76,7 @@ pub enum VariantFormatting {
 }
 
 /// Formatting styles for statements.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StatementFormatting {
     NewlineBetween,
     SpaceBetween,
@@ -63,6 +84,7 @@ pub enum StatementFormatting {
 }
 
 /// Formatting styles for type declarations.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeDeclarationFormatting {
     Compact,
     SpaceAroundColon,
@@ -74,7 +96,7 @@ impl Default for FormattingOptions {
         FormattingOptions {
             indent: 4,
             max_width: 40,
-            variant_formatting: VariantFormatting::Keep,
+            variant_formatting: VariantFormatting::KeepAll,
             trailing_comma: true,
             spaced_collections: false,
             space_in_collection: true,
@@ -82,6 +104,7 @@ impl Default for FormattingOptions {
             type_declaration_formatting:
                 TypeDeclarationFormatting::SpaceAfterColon,
             statement_formatting: StatementFormatting::NewlineBetween,
+            bracket_style: BracketStyle::Minimal,
         }
     }
 }
@@ -97,6 +120,7 @@ impl FormattingOptions {
             spaces_around_operators: false,
             type_declaration_formatting: TypeDeclarationFormatting::Compact,
             statement_formatting: StatementFormatting::Compact,
+            bracket_style: BracketStyle::None,
         }
     }
 }
@@ -160,7 +184,7 @@ impl Formatter {
     ) -> Format<'a> {
         let a = &self.alloc;
         match self.options.variant_formatting {
-            VariantFormatting::Keep => {
+            VariantFormatting::KeepAll => {
                 println!("TODO span: {:?}", span);
                 todo!("TODO")
             }
@@ -176,7 +200,7 @@ impl Formatter {
     ) -> Format<'a> {
         let a = &self.alloc;
 
-        match &expr.data {
+        let mut inner = match &expr.data {
             DatexExpressionData::Integer(i) => a.as_string(i),
             DatexExpressionData::TypedInteger(ti) => {
                 self.typed_integer_to_source_code(ti, &expr.span)
@@ -255,7 +279,33 @@ impl Formatter {
                     .group()
             }
             e => panic!("Formatter not implemented for {:?}", e),
+        };
+        // Handle bracketing based on options
+        match self.options.bracket_style {
+            BracketStyle::RemoveDuplicate | BracketStyle::Minimal => {
+                if let Some(wrapping) = expr.wrapped {
+                    self.wrap_in_parens(inner)
+                } else {
+                    inner
+                }
+            }
+            BracketStyle::KeepAll => {
+                if let Some(wrapping) = expr.wrapped {
+                    for _ in 0..wrapping {
+                        inner = self.wrap_in_parens(inner);
+                    }
+                    inner
+                } else {
+                    inner
+                }
+            }
+            BracketStyle::None => inner,
         }
+    }
+
+    fn wrap_in_parens<'a>(&'a self, doc: Format<'a>) -> Format<'a> {
+        let a = &self.alloc;
+        (a.text("(") + a.line_() + doc + a.line_() + a.text(")")).group()
     }
 
     fn format_type_expression<'a>(
@@ -443,6 +493,41 @@ mod tests {
     use super::*;
     use crate::ast::parse;
     use indoc::indoc;
+
+    #[test]
+    fn bracketing() {
+        let expr = to_expression("((42))");
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::KeepAll,
+                    ..Default::default()
+                }
+            ),
+            "((42))"
+        );
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::RemoveDuplicate,
+                    ..Default::default()
+                }
+            ),
+            "(42)"
+        );
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::None,
+                    ..Default::default()
+                }
+            ),
+            "42"
+        );
+    }
 
     #[test]
     fn variant_formatting() {

@@ -140,9 +140,13 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     // expression wrapped in parentheses
     let wrapped_expression = statements
         .clone()
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
-    //.labelled(Pattern::Custom("wrapped"))
-    //.as_context();
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+        .map_with(|inner, e| {
+            let span = e.span();
+            let mut expr = inner;
+            expr.wrapped = Some(expr.wrapped.unwrap_or(0).saturating_add(1));
+            expr
+        });
 
     // a valid map/list key
     /// abc, a, "1", "test", (1 + 2), ...
@@ -347,7 +351,10 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::tree::{DatexExpressionData, List, Map, Slot, TypeExpression, UnaryOperation, VariableDeclaration, VariableKind};
+    use crate::ast::tree::{
+        DatexExpressionData, List, Map, Slot, TypeExpression, UnaryOperation,
+        VariableDeclaration, VariableKind,
+    };
     use datex_core::ast::tree::VariableAssignment;
     use std::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
@@ -1145,7 +1152,8 @@ mod tests {
                     .with_default_span(),
                 ),
                 ApplyOperation::FunctionCall(
-                    DatexExpressionData::Map(Map::new(vec![])).with_default_span(),
+                    DatexExpressionData::Map(Map::new(vec![]))
+                        .with_default_span(),
                 ),
             ],
         );
@@ -2716,7 +2724,8 @@ mod tests {
                         .with_default_span()
                 ),
                 vec![ApplyOperation::FunctionCall(
-                    DatexExpressionData::Map(Map::new(vec![])).with_default_span()
+                    DatexExpressionData::Map(Map::new(vec![]))
+                        .with_default_span()
                 )],
             )
         );
