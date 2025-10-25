@@ -1,6 +1,3 @@
-use chumsky::span::SimpleSpan;
-use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
-
 use crate::{
     ast::{
         binary_operation::{
@@ -17,152 +14,49 @@ use crate::{
         CompileOptions, parse_datex_script_to_rich_ast_simple_error,
         precompiler::RichAst,
     },
+    fmt::options::{
+        BracketStyle, FormattingOptions, StatementFormatting,
+        TypeDeclarationFormatting, VariantFormatting,
+    },
     libs::core::CoreLibPointerId,
     values::{
         core_values::integer::{Integer, typed_integer::TypedInteger},
         pointer::PointerAddress,
     },
 };
+use chumsky::span::SimpleSpan;
+use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
+mod bracketing;
+pub mod options;
 
-type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FormattingOptions {
-    /// Number of spaces to use for indentation.
-    pub indent: usize,
-
-    /// Maximum line width before wrapping occurs.
-    pub max_width: usize,
-
-    /// Whether to add trailing commas in collections like lists and maps.
-    /// E.g., `[1, 2, 3,]` instead of `[1, 2, 3]`.
-    pub trailing_comma: bool,
-
-    /// Whether to add spaces inside collections like lists and maps.
-    /// E.g., `[ 1,2,3 ]` instead of `[1,2,3]`.
-    pub spaced_collections: bool,
-
-    /// Whether to add spaces inside collections like lists and maps.
-    /// E.g., `[1, 2, 3]` instead of `[1,2,3]`.
-    pub space_in_collection: bool,
-
-    /// Whether to add spaces around operators.
-    /// E.g., `1 + 2` instead of `1+2`.
-    pub spaces_around_operators: bool,
-
-    /// Formatting style for type declarations.
-    /// Determines how type annotations are spaced and aligned.
-    pub type_declaration_formatting: TypeDeclarationFormatting,
-
-    /// Whether to add newlines between statements.
-    pub statement_formatting: StatementFormatting,
-
-    /// Formatting style for type variant suffixes.
-    pub variant_formatting: VariantFormatting,
-
-    /// Bracketing style for expressions.
-    pub bracket_style: BracketStyle,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum BracketStyle {
-    /// Keep original bracketing as is.
-    KeepAll,
-
-    /// Remove only redundant or duplicate outer brackets, e.g. `((42))` -> `(42)`.
-    RemoveDuplicate,
-
-    /// Remove all unnecessary brackets based purely on operator precedence.
-    Minimal,
-}
-
-/// Formatting styles for enum variants.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum VariantFormatting {
-    /// Keep the original formatting.
-    KeepAll,
-    /// Use variant suffixes.
-    WithSuffix,
-    /// Do not use variant suffixes.
-    WithoutSuffix,
-}
-
-/// Formatting styles for statements.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum StatementFormatting {
-    /// Add a newline between statements.
-    NewlineBetween,
-    /// Add a space between statements.
-    SpaceBetween,
-    /// Compact formatting without extra spaces or newlines.
-    Compact,
-}
-
-/// Formatting styles for type declarations.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TypeDeclarationFormatting {
-    /// Compact formatting without extra spaces.
-    Compact,
-    /// Spaces around the colon in type declarations.
-    SpaceAroundColon,
-    /// Space after the colon in type declarations.
-    SpaceAfterColon,
-}
-
-impl Default for FormattingOptions {
-    fn default() -> Self {
-        FormattingOptions {
-            indent: 4,
-            max_width: 40,
-            variant_formatting: VariantFormatting::KeepAll,
-            trailing_comma: true,
-            spaced_collections: false,
-            space_in_collection: true,
-            spaces_around_operators: true,
-            type_declaration_formatting:
-                TypeDeclarationFormatting::SpaceAfterColon,
-            statement_formatting: StatementFormatting::NewlineBetween,
-            bracket_style: BracketStyle::Minimal,
-        }
-    }
-}
-impl FormattingOptions {
-    pub fn compact() -> Self {
-        FormattingOptions {
-            indent: 2,
-            max_width: 40,
-            variant_formatting: VariantFormatting::WithoutSuffix,
-            trailing_comma: false,
-            spaced_collections: false,
-            space_in_collection: false,
-            spaces_around_operators: false,
-            type_declaration_formatting: TypeDeclarationFormatting::Compact,
-            statement_formatting: StatementFormatting::Compact,
-            bracket_style: BracketStyle::Minimal,
-        }
-    }
-}
-
-#[derive(Debug)]
-/// Represents a parent operation for formatting decisions.
-enum Operation<'a> {
-    Binary(&'a BinaryOperator),
-    Comparison(&'a ComparisonOperator),
-    Unary(&'a UnaryOperator),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Assoc {
-    Left,
-    Right,
-    None,
-}
+pub type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
 
 pub struct Formatter<'a> {
     ast: RichAst,
     script: &'a str,
     options: FormattingOptions,
     alloc: RcAllocator,
+}
+
+#[derive(Debug)]
+/// Represents a parent operation for formatting decisions.
+pub enum Operation<'a> {
+    Binary(&'a BinaryOperator),
+    Comparison(&'a ComparisonOperator),
+    Unary(&'a UnaryOperator),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Assoc {
+    Left,
+    Right,
+    None,
+}
+
+pub struct ParentContext<'a> {
+    precedence: u8,
+    associativity: Assoc,
+    operation: Operation<'a>,
 }
 
 impl<'a> Formatter<'a> {
@@ -246,186 +140,6 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn maybe_wrap_by_parent(
-        &'a self,
-        expression: &'a DatexExpression,
-        inner: Format<'a>,
-        parent_ctx: Option<(u8, Assoc, Operation<'a>)>,
-        is_left_child_of_parent: bool,
-    ) -> Format<'a> {
-        // If there's no parent context, nothing forces parentheses.
-        if parent_ctx.is_none() {
-            return inner;
-        }
-
-        let (parent_prec, parent_assoc, parent_op) = parent_ctx.unwrap();
-
-        let need = self.needs_parens_for_child_expr(
-            expression,
-            parent_prec,
-            parent_assoc,
-            is_left_child_of_parent,
-            &parent_op,
-        );
-
-        if need {
-            self.wrap_in_parens(inner)
-        } else {
-            inner
-        }
-    }
-
-    /// Returns information about a binary operator: (precedence, associativity, is_associative)
-    fn binary_operator_info(&self, op: &BinaryOperator) -> (u8, Assoc, bool) {
-        match op {
-            BinaryOperator::Arithmetic(aop) => match aop {
-                ArithmeticOperator::Multiply
-                | ArithmeticOperator::Divide
-                | ArithmeticOperator::Modulo => (20, Assoc::Left, false),
-                ArithmeticOperator::Add => (10, Assoc::Left, true), // + is associative
-                ArithmeticOperator::Subtract => (10, Assoc::Left, false), // - is not associative
-                ArithmeticOperator::Power => (30, Assoc::Right, false),
-                _ => (10, Assoc::Left, false),
-            },
-            BinaryOperator::Logical(lop) => match lop {
-                LogicalOperator::And => (5, Assoc::Left, false),
-                LogicalOperator::Or => (4, Assoc::Left, false),
-            },
-            // fallback
-            _ => (1, Assoc::None, false),
-        }
-    }
-
-    /// Returns information about a comparison operator: (precedence, associativity, is_associative)
-    fn comparison_operator_info(
-        &self,
-        op: &ComparisonOperator,
-    ) -> (u8, Assoc, bool) {
-        match op {
-            ComparisonOperator::Equal
-            | ComparisonOperator::NotEqual
-            | ComparisonOperator::LessThan
-            | ComparisonOperator::LessThanOrEqual
-            | ComparisonOperator::GreaterThan
-            | ComparisonOperator::GreaterThanOrEqual => (7, Assoc::None, false),
-            _ => (7, Assoc::None, false),
-        }
-    }
-
-    /// Returns information about a unary operator: (precedence, associativity, is_associative)
-    fn unary_operator_info(&self, op: &UnaryOperator) -> (u8, Assoc, bool) {
-        match op {
-            UnaryOperator::Arithmetic(_) => (35, Assoc::Right, false),
-            UnaryOperator::Logical(LogicalUnaryOperator::Not) => {
-                (35, Assoc::Right, false)
-            }
-            UnaryOperator::Reference(_) => (40, Assoc::Right, false),
-            UnaryOperator::Bitwise(_) => (35, Assoc::Right, false),
-        }
-    }
-
-    // precedence of an expression (used for children that are not binary/comparison)
-    fn expression_precedence(&self, expression: &DatexExpression) -> u8 {
-        match &expression.data {
-            DatexExpressionData::BinaryOperation(op, _, _, _) => {
-                let (prec, _, _) = self.binary_operator_info(op);
-                prec
-            }
-            DatexExpressionData::ComparisonOperation(op, _, _) => {
-                let (prec, _, _) = self.comparison_operator_info(op);
-                prec
-            }
-            DatexExpressionData::UnaryOperation(UnaryOperation {
-                operator: op,
-                ..
-            }) => {
-                let (prec, _, _) = self.unary_operator_info(op);
-                prec
-            }
-            DatexExpressionData::CreateRef(_)
-            | DatexExpressionData::CreateRefMut(_)
-            | DatexExpressionData::CreateRefFinal(_) => 40,
-            _ => 255, // never need parens
-        }
-    }
-
-    /// Decide if a child binary expression needs parentheses when placed under a parent operator.
-    /// `parent_prec` is precedence of parent operator, `parent_assoc` its associativity.
-    /// `is_left_child` indicates whether the child is the left operand.
-    fn needs_parens_for_child_expr(
-        &self,
-        child: &DatexExpression,
-        parent_prec: u8,
-        parent_assoc: Assoc,
-        is_left_child: bool,
-        parent_op: &Operation<'_>,
-    ) -> bool {
-        // compute child's precedence (based on its expression kind)
-        let child_prec = self.expression_precedence(child);
-
-        if child_prec < parent_prec {
-            return true; // child binds weaker -> parens required
-        }
-        if child_prec > parent_prec {
-            return false; // child binds stronger -> safe without parens
-        }
-
-        // equal precedence, need to inspect operator identity & associativity
-        // If both child and parent are binary/comparison/unary, we can check operator identity
-        // and whether that operator is associative (so we can drop parens for same-op associative cases).
-
-        // check if same operator and is associative
-        let same_op_and_assoc = match (&child.data, parent_op) {
-            (
-                DatexExpressionData::BinaryOperation(child_op, _, _, _),
-                Operation::Binary(parent_op),
-            ) => {
-                let (_, _, c_is_assoc) = self.binary_operator_info(child_op);
-                child_op == *parent_op && c_is_assoc
-            }
-            (
-                DatexExpressionData::ComparisonOperation(child_op, _, _),
-                Operation::Comparison(parent_op),
-            ) => {
-                let (_, _, c_is_assoc) =
-                    self.comparison_operator_info(child_op);
-                child_op == *parent_op && c_is_assoc
-            }
-            (
-                DatexExpressionData::UnaryOperation(UnaryOperation {
-                    operator: child_op,
-                    ..
-                }),
-                Operation::Unary(parent_op),
-            ) => {
-                let (_, _, c_is_assoc) = self.unary_operator_info(child_op);
-                child_op == *parent_op && c_is_assoc
-            }
-            _ => false,
-        };
-
-        if same_op_and_assoc {
-            // associative same op and precedence -> safe without parens
-            return false;
-        }
-
-        // fallback to parent associativity + which side the child is on
-        match parent_assoc {
-            Assoc::Left => {
-                // left-assoc: right child with equal precedence needs parens
-                !is_left_child
-            }
-            Assoc::Right => {
-                // right-assoc: left child with equal precedence needs parens
-                is_left_child
-            }
-            Assoc::None => {
-                // non-associative -> always need parens for equal-precedence children
-                true
-            }
-        }
-    }
-
     // Formats a DatexExpression into a DocBuilder for pretty printing.
     pub fn format_datex_expression(
         &'a self,
@@ -438,7 +152,7 @@ impl<'a> Formatter<'a> {
     fn format_datex_expression_with_parent(
         &'a self,
         expr: &'a DatexExpression,
-        parent_ctx: Option<(u8, Assoc, Operation<'a>)>,
+        parent_ctx: Option<ParentContext<'a>>,
         is_left_child_of_parent: bool,
     ) -> Format<'a> {
         let a = &self.alloc;
@@ -468,17 +182,26 @@ impl<'a> Formatter<'a> {
                 a.text("&final ") + self.format_datex_expression(expr)
             }
             DatexExpressionData::BinaryOperation(op, left, right, _) => {
-                let (prec, assoc, _is_assoc) = self.binary_operator_info(op);
+                let (precedence, associativity, _is_assoc) =
+                    self.binary_operator_info(op);
 
                 // format children with parent context so they can decide about parens themselves
                 let left_doc = self.format_datex_expression_with_parent(
                     left,
-                    Some((prec, assoc, Operation::Binary(op))),
+                    Some(ParentContext {
+                        precedence,
+                        associativity,
+                        operation: Operation::Binary(op),
+                    }),
                     true,
                 );
                 let right_doc = self.format_datex_expression_with_parent(
                     right,
-                    Some((prec, assoc, Operation::Binary(op))),
+                    Some(ParentContext {
+                        precedence,
+                        associativity,
+                        operation: Operation::Binary(op),
+                    }),
                     false,
                 );
 
