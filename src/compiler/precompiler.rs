@@ -1,8 +1,8 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tree::{
-    DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation,
-    VariableAssignment, VariableDeclaration, VariableKind,
+    DatexExpression, DatexExpressionData, FunctionDeclaration, TypeExpression,
+    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -987,12 +987,12 @@ fn visit_expression(
         DatexExpressionData::VariableAccess(_) => unreachable!(
             "Variable expressions should have been replaced with their IDs during precompilation"
         ),
-        DatexExpressionData::FunctionDeclaration {
+        DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
             name,
             parameters,
             return_type,
             body,
-        } => todo!("#443 Undescribed by author."),
+        }) => todo!("#443 Undescribed by author."),
 
         DatexExpressionData::Integer(_)
         | DatexExpressionData::Text(_)

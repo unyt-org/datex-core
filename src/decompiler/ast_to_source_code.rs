@@ -1,16 +1,17 @@
 use std::fmt::{self};
 
+use crate::ast::tree::{List, Map};
 use crate::{
     ast::{
         chain::ApplyOperation,
         tree::{
-            DatexExpression, DatexExpressionData, TypeExpression,
-            VariableAccess, VariableAssignment, VariableDeclaration,
+            DatexExpression, DatexExpressionData, FunctionDeclaration,
+            TypeExpression, VariableAccess, VariableAssignment,
+            VariableDeclaration,
         },
     },
     decompiler::FormattingMode,
 };
-use crate::ast::tree::{List, Map};
 
 #[derive(Clone, Default)]
 pub enum BraceStyle {
@@ -401,10 +402,7 @@ impl AstToSourceCodeFormatter {
     }
 
     /// Convert a map (key/value pairs) to source code using join_elements.
-    fn map_to_source_code(
-        &self,
-        map: &Map,
-    ) -> String {
+    fn map_to_source_code(&self, map: &Map) -> String {
         let elements: Vec<String> = map
             .entries
             .iter()
@@ -456,9 +454,7 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::Null => "null".to_string(),
             DatexExpressionData::Identifier(l) => l.to_string(),
             DatexExpressionData::Map(map) => self.map_to_source_code(map),
-            DatexExpressionData::List(list) => {
-                self.list_to_source_code(list)
-            }
+            DatexExpressionData::List(list) => self.list_to_source_code(list),
             DatexExpressionData::CreateRef(expr) => {
                 format!("&{}", self.format(expr))
             }
@@ -587,12 +583,12 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::Type(type_expression) => {
                 self.type_expression_to_source_code(type_expression)
             }
-            DatexExpressionData::FunctionDeclaration {
+            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
                 name,
                 parameters,
                 return_type,
                 body,
-            } => {
+            }) => {
                 let params_code: Vec<String> = parameters
                     .iter()
                     .map(|(param_name, param_type)| {

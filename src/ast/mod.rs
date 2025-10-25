@@ -334,6 +334,7 @@ mod tests {
         ast::{
             assignment_operation::AssignmentOperator,
             error::{error::ErrorKind, pattern::Pattern, src::SrcId},
+            tree::FunctionDeclaration,
             unary_operation::{
                 ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
             },
@@ -747,7 +748,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration {
+            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
                 name: "myFunction".to_string(),
                 parameters: Vec::new(),
                 return_type: None,
@@ -755,7 +756,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(42))
                         .with_default_span()
                 ),
-            }
+            })
         );
     }
 
@@ -769,7 +770,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration {
+            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
                 name: "myFunction".to_string(),
                 parameters: vec![(
                     "x".to_string(),
@@ -780,7 +781,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(42))
                         .with_default_span()
                 ),
-            }
+            })
         );
 
         let src = r#"
@@ -791,7 +792,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration {
+            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
                 name: "myFunction".to_string(),
                 parameters: vec![
                     (
@@ -830,7 +831,7 @@ mod tests {
                     )
                     .with_default_span()
                 ),
-            }
+            })
         );
     }
 
@@ -844,7 +845,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration {
+            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
                 name: "myFunction".to_string(),
                 parameters: vec![(
                     "x".to_string(),
@@ -858,7 +859,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(42))
                         .with_default_span()
                 ),
-            }
+            })
         );
     }
 

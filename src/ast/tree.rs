@@ -238,12 +238,8 @@ pub enum DatexExpressionData {
     /// Type keyword, e.g. type(...)
     Type(TypeExpression),
 
-    FunctionDeclaration {
-        name: String,
-        parameters: Vec<(String, TypeExpression)>,
-        return_type: Option<TypeExpression>,
-        body: Box<DatexExpression>,
-    },
+    /// Function declaration, e.g. fn my_function() -> type ( ... )
+    FunctionDeclaration(FunctionDeclaration),
 
     // TODO #467 combine
     /// Reference, e.g. &x
@@ -372,6 +368,20 @@ impl Visitable for VariableAssignment {
 pub struct VariableAccess {
     pub id: VariableId,
     pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FunctionDeclaration {
+    pub name: String,
+    pub parameters: Vec<(String, TypeExpression)>,
+    pub return_type: Option<TypeExpression>,
+    pub body: Box<DatexExpression>,
+}
+
+impl Visitable for FunctionDeclaration {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.body);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -507,6 +517,13 @@ pub trait Visit: Sized {
     }
     fn visit_unary_operation(&mut self, op: &UnaryOperation, span: SimpleSpan) {
         op.visit_children_with(self);
+    }
+    fn visit_function_declaration(
+        &mut self,
+        func_decl: &FunctionDeclaration,
+        span: SimpleSpan,
+    ) {
+        func_decl.visit_children_with(self);
     }
     fn visit_variable_declaration(
         &mut self,
