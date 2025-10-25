@@ -1,9 +1,10 @@
 use std::fmt::Display;
 
-use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
+use crate::ast::tree::ComparisonOperation;
 use crate::ast::utils::operation;
+use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
@@ -51,7 +52,12 @@ fn comparison_op(
         let start = lhs.span.start.min(rhs.span.start);
         let end = lhs.span.end.max(rhs.span.end);
         let combined_span = start..end;
-        DatexExpressionData::ComparisonOperation(op, lhs, rhs).with_span(SimpleSpan::from(combined_span))
+        DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            operator: op,
+            left: lhs,
+            right: rhs,
+        })
+        .with_span(SimpleSpan::from(combined_span))
     }
 }
 
