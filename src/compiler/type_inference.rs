@@ -1,8 +1,9 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::tree::{
-    BinaryOperation, DatexExpression, DatexExpressionData, TypeExpression,
-    VariableAccess, VariableAssignment, VariableDeclaration,
+    BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
+    TypeExpressionData, VariableAccess, VariableAssignment,
+    VariableDeclaration,
 };
 use crate::compiler::error::ErrorCollector;
 use crate::compiler::precompiler::AstMetadata;
@@ -258,12 +259,12 @@ pub fn infer_expression_type_inner(
         DatexExpressionData::TypeExpression(type_expr) => {
             resolve_type_expression_type(type_expr, metadata, collected_errors)?
         }
-        DatexExpressionData::TypeDeclaration {
+        DatexExpressionData::TypeDeclaration(TypeDeclaration {
             id,
             name: _,
             value,
             hoisted: _,
-        } => {
+        }) => {
             let type_id = id.expect("TypeDeclaration should have an id assigned during precompilation");
             let type_def = {
                 let metadata = metadata.borrow();
@@ -480,7 +481,7 @@ pub fn infer_expression_type_inner(
 /// This is used in type declarations and type annotations.
 /// e.g. `integer/u8`, `{ a: integer, b: decimal }`, `integer | decimal`, etc.
 fn resolve_type_expression_type(
-    ast: &mut TypeExpression,
+    ast: &mut TypeExpressionData,
     metadata: Rc<RefCell<AstMetadata>>,
     collected_errors: &mut Option<DetailedTypeErrors>,
 ) -> Result<TypeContainer, SpannedTypeError> {
@@ -488,27 +489,27 @@ fn resolve_type_expression_type(
     // This covers literals and composite types like maps and lists.
     // If that fails, handle more complex type expressions like variables, unions, and intersections.
     if let Some(res) = match ast {
-        TypeExpression::Integer(value) => {
+        TypeExpressionData::Integer(value) => {
             Some(StructuralTypeDefinition::Integer(value.clone()))
         }
-        TypeExpression::TypedInteger(value) => {
+        TypeExpressionData::TypedInteger(value) => {
             Some(StructuralTypeDefinition::TypedInteger(value.clone()))
         }
-        TypeExpression::Decimal(value) => {
+        TypeExpressionData::Decimal(value) => {
             Some(StructuralTypeDefinition::Decimal(value.clone()))
         }
-        TypeExpression::TypedDecimal(value) => {
+        TypeExpressionData::TypedDecimal(value) => {
             Some(StructuralTypeDefinition::TypedDecimal(value.clone()))
         }
-        TypeExpression::Boolean(value) => {
+        TypeExpressionData::Boolean(value) => {
             Some(StructuralTypeDefinition::Boolean((*value).into()))
         }
-        TypeExpression::Text(value) => Some(value.clone().into()),
-        TypeExpression::Null => Some(StructuralTypeDefinition::Null),
-        TypeExpression::Endpoint(value) => {
+        TypeExpressionData::Text(value) => Some(value.clone().into()),
+        TypeExpressionData::Null => Some(StructuralTypeDefinition::Null),
+        TypeExpressionData::Endpoint(value) => {
             Some(StructuralTypeDefinition::Endpoint(value.clone()))
         }
-        TypeExpression::StructuralMap(fields) => {
+        TypeExpressionData::StructuralMap(fields) => {
             let entries = fields
                 .iter_mut()
                 .map(|(k, v)| {
@@ -527,7 +528,7 @@ fn resolve_type_expression_type(
                 .collect::<Result<Vec<(_, _)>, SpannedTypeError>>()?;
             Some(StructuralTypeDefinition::Map(entries))
         }
-        TypeExpression::StructuralList(members) => {
+        TypeExpressionData::StructuralList(members) => {
             let member_types = members
                 .iter_mut()
                 .map(|m| {
@@ -547,7 +548,7 @@ fn resolve_type_expression_type(
 
     // handle more complex type expressions
     Ok(match ast {
-        TypeExpression::Variable(id, _) => {
+        TypeExpressionData::Variable(id, _) => {
             let var_id = *id;
             let metadata = metadata.borrow();
             metadata
@@ -557,7 +558,7 @@ fn resolve_type_expression_type(
                 .clone()
                 .expect("Type variable type should have been inferred already")
         }
-        TypeExpression::GetReference(pointer_address) => {
+        TypeExpressionData::GetReference(pointer_address) => {
             if matches!(pointer_address, PointerAddress::Internal(_)) {
                 get_core_lib_type(
                     CoreLibPointerId::try_from(&pointer_address.to_owned())
@@ -567,7 +568,7 @@ fn resolve_type_expression_type(
                 panic!("GetReference not supported yet")
             }
         }
-        TypeExpression::Union(members) => {
+        TypeExpressionData::Union(members) => {
             let member_types = members
                 .iter_mut()
                 .map(|m| {
@@ -580,7 +581,7 @@ fn resolve_type_expression_type(
                 .collect::<Result<Vec<_>, SpannedTypeError>>()?;
             Type::union(member_types).as_type_container()
         }
-        TypeExpression::Intersection(members) => {
+        TypeExpressionData::Intersection(members) => {
             let member_types = members
                 .iter_mut()
                 .map(|m| {
@@ -759,7 +760,10 @@ mod tests {
         let mut expr = rich_ast.ast;
         resolve_type_expression_type(
             match &mut expr.unwrap().data {
-                DatexExpressionData::TypeDeclaration { value, .. } => value,
+                DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                    value,
+                    ..
+                }) => value,
                 _ => unreachable!(),
             },
             rich_ast.metadata,

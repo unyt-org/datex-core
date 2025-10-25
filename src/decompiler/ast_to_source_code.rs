@@ -2,14 +2,14 @@ use std::fmt::{self};
 
 use crate::ast::tree::{
     BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
-    Map,
+    Map, TypeDeclaration,
 };
 use crate::{
     ast::{
         chain::ApplyOperation,
         tree::{
             DatexExpression, DatexExpressionData, FunctionDeclaration,
-            TypeExpression, VariableAccess, VariableAssignment,
+            TypeExpressionData, VariableAccess, VariableAssignment,
             VariableDeclaration,
         },
     },
@@ -193,12 +193,12 @@ impl AstToSourceCodeFormatter {
     }
     fn key_type_expression_to_source_code(
         &self,
-        key: &TypeExpression,
+        key: &TypeExpressionData,
     ) -> String {
         match key {
-            TypeExpression::Text(t) => self.key_to_string(t),
-            TypeExpression::Integer(i) => i.to_string(),
-            TypeExpression::TypedInteger(ti) => {
+            TypeExpressionData::Text(t) => self.key_to_string(t),
+            TypeExpressionData::Integer(i) => i.to_string(),
+            TypeExpressionData::TypedInteger(ti) => {
                 if self.add_variant_suffix() {
                     ti.to_string_with_suffix()
                 } else {
@@ -212,71 +212,71 @@ impl AstToSourceCodeFormatter {
     /// Convert a TypeExpression to source code
     fn type_expression_to_source_code(
         &self,
-        type_expr: &TypeExpression,
+        type_expr: &TypeExpressionData,
     ) -> String {
         match type_expr {
-            TypeExpression::Integer(ti) => ti.to_string(),
-            TypeExpression::Decimal(td) => td.to_string(),
-            TypeExpression::Boolean(boolean) => boolean.to_string(),
-            TypeExpression::Text(text) => text.to_string(),
-            TypeExpression::Endpoint(endpoint) => endpoint.to_string(),
-            TypeExpression::Null => "null".to_string(),
-            TypeExpression::Ref(inner) => {
+            TypeExpressionData::Integer(ti) => ti.to_string(),
+            TypeExpressionData::Decimal(td) => td.to_string(),
+            TypeExpressionData::Boolean(boolean) => boolean.to_string(),
+            TypeExpressionData::Text(text) => text.to_string(),
+            TypeExpressionData::Endpoint(endpoint) => endpoint.to_string(),
+            TypeExpressionData::Null => "null".to_string(),
+            TypeExpressionData::Ref(inner) => {
                 format!("&{}", self.type_expression_to_source_code(inner,))
             }
-            TypeExpression::RefMut(inner) => {
+            TypeExpressionData::RefMut(inner) => {
                 format!("&mut {}", self.type_expression_to_source_code(inner,))
             }
-            TypeExpression::RefFinal(inner) => {
+            TypeExpressionData::RefFinal(inner) => {
                 format!(
                     "&final {}",
                     self.type_expression_to_source_code(inner,)
                 )
             }
-            TypeExpression::Literal(literal) => literal.to_string(),
-            TypeExpression::Variable(_, name) => name.to_string(),
-            TypeExpression::GetReference(pointer_address) => {
+            TypeExpressionData::Literal(literal) => literal.to_string(),
+            TypeExpressionData::Variable(_, name) => name.to_string(),
+            TypeExpressionData::GetReference(pointer_address) => {
                 format!("{}", pointer_address) // FIXME #471
             }
-            TypeExpression::TypedInteger(typed_integer) => {
+            TypeExpressionData::TypedInteger(typed_integer) => {
                 if self.add_variant_suffix() {
                     typed_integer.to_string_with_suffix()
                 } else {
                     typed_integer.to_string()
                 }
             }
-            TypeExpression::TypedDecimal(typed_decimal) => {
+            TypeExpressionData::TypedDecimal(typed_decimal) => {
                 if self.add_variant_suffix() {
                     typed_decimal.to_string_with_suffix()
                 } else {
                     typed_decimal.to_string()
                 }
             }
-            TypeExpression::StructuralList(type_expressions) => {
+            TypeExpressionData::StructuralList(type_expressions) => {
                 let elements: Vec<String> = type_expressions
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_list_elements(elements)
             }
-            TypeExpression::FixedSizeList(type_expression, _) => todo!("#472 Undescribed by author."),
-            TypeExpression::SliceList(type_expression) => todo!("#473 Undescribed by author."),
-            TypeExpression::Intersection(type_expressions) => {
+            TypeExpressionData::FixedSizeList(type_expression, _) => todo!("#472 Undescribed by author."),
+            TypeExpressionData::SliceList(type_expression) => todo!("#473 Undescribed by author."),
+            TypeExpressionData::Intersection(type_expressions) => {
                 let elements: Vec<String> = type_expressions
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_intersection_elements(elements)
             }
-            TypeExpression::Union(type_expressions) => {
+            TypeExpressionData::Union(type_expressions) => {
                 let elements: Vec<String> = type_expressions
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpression::Generic(_, type_expressions) => todo!("#474 Undescribed by author."),
-            TypeExpression::Function {
+            TypeExpressionData::Generic(_, type_expressions) => todo!("#474 Undescribed by author."),
+            TypeExpressionData::Function {
                 parameters,
                 return_type,
             } => {
@@ -303,7 +303,7 @@ impl AstToSourceCodeFormatter {
                     return_type_code
                 )
             }
-            TypeExpression::StructuralMap(items) => {
+            TypeExpressionData::StructuralMap(items) => {
                 let elements: Vec<String> = items
                     .iter()
                     .map(|(k, v)| {
@@ -570,12 +570,12 @@ impl AstToSourceCodeFormatter {
                 name,
                 ..
             }) => name.to_string(),
-            DatexExpressionData::TypeDeclaration {
+            DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: _,
                 name,
                 value,
                 hoisted: _,
-            } => {
+            }) => {
                 ast_fmt!(
                     &self,
                     "type {}%s=%s{}",
@@ -940,8 +940,8 @@ mod tests {
                     DatexExpressionData::TypedInteger(10u8.into())
                         .with_default_span(),
                 ),
-                type_annotation: Some(TypeExpression::RefMut(Box::new(
-                    TypeExpression::Literal("integer/u8".to_owned()),
+                type_annotation: Some(TypeExpressionData::RefMut(Box::new(
+                    TypeExpressionData::Literal("integer/u8".to_owned()),
                 ))),
             })
             .with_default_span();

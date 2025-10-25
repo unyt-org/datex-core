@@ -6,7 +6,7 @@ use crate::values::core_values::integer::Integer;
 use datex_core::compiler::precompiler::AstMetadata;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::ast::tree::TypeExpression;
+use crate::ast::tree::TypeExpressionData;
 
 /// Compilation functions for type expressions.
 impl CompilationContext {
@@ -26,12 +26,12 @@ impl CompilationContext {
 
 pub fn compile_type_expression(
     ctx: &CompilationContext,
-    expr: &TypeExpression,
+    expr: &TypeExpressionData,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
     match expr {
-        TypeExpression::Integer(integer) => {
+        TypeExpressionData::Integer(integer) => {
             ctx.insert_type_literal_integer(integer);
         }
         _ => todo!("#453 Undescribed by author."),

@@ -1,11 +1,11 @@
 use crate::ast::lexer::Token;
-use crate::ast::tree::{FunctionDeclaration, TypeExpression};
+use crate::ast::tree::{FunctionDeclaration, TypeExpressionData};
 use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 
-fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
+fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpressionData>> {
     just(Token::Arrow)
         .padded_by(whitespace())
         .ignore_then(r#type().padded_by(whitespace()))
@@ -21,7 +21,7 @@ fn body<'a>(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
 }
 
-fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
+fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpressionData)> {
     select! { Token::Identifier(name) => name }
         .then(
             just(Token::Colon)
@@ -31,7 +31,7 @@ fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
         .map(|(name, ty)| (name, ty))
 }
 
-fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>>
+fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpressionData)>>
 {
     parameter()
         .padded_by(whitespace())

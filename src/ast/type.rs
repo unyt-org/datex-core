@@ -1,10 +1,6 @@
 use std::{str::FromStr, vec};
 
-use chumsky::{
-    IterParser, Parser,
-    prelude::{choice, just, recursive},
-    select,
-};
+use crate::ast::tree::{DatexExpressionData, TypeExpressionData};
 use crate::{
     ast::{
         DatexParserTrait,
@@ -15,6 +11,7 @@ use crate::{
         lexer::{DecimalLiteral, IntegerLiteral, Token},
         literal::literal,
         text::unescape_text,
+        tree::TypeDeclaration,
         utils::whitespace,
     },
     references::reference::ReferenceMutability,
@@ -24,40 +21,44 @@ use crate::{
         integer::{Integer, typed_integer::TypedInteger},
     },
 };
-use crate::ast::tree::{DatexExpressionData, TypeExpression};
+use chumsky::{
+    IterParser, Parser,
+    prelude::{choice, just, recursive},
+    select,
+};
 
-pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
+pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
         Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_with_variant(&value, var)
-                    .map(TypeExpression::TypedInteger),
+                    .map(TypeExpressionData::TypedInteger),
                 None => Integer::from_string(&value)
-                    .map(TypeExpression::Integer),
+                    .map(TypeExpressionData::Integer),
             }
         },
         Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
-                    .map(TypeExpression::TypedInteger),
+                    .map(TypeExpressionData::TypedInteger),
                 None => Integer::from_string_radix(&value[2..], 2)
-                    .map(TypeExpression::Integer),
+                    .map(TypeExpressionData::Integer),
             }
         },
         Token::HexadecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 16, var)
-                    .map(TypeExpression::TypedInteger),
+                    .map(TypeExpressionData::TypedInteger),
                 None => Integer::from_string_radix(&value[2..], 16)
-                    .map(TypeExpression::Integer),
+                    .map(TypeExpressionData::Integer),
             }
         },
         Token::OctalIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 8, var)
-                    .map(TypeExpression::TypedInteger),
+                    .map(TypeExpressionData::TypedInteger),
                 None => Integer::from_string_radix(&value[2..], 8)
-                    .map(TypeExpression::Integer),
+                    .map(TypeExpressionData::Integer),
             }
         },
     }.try_map(|res, _| {
@@ -65,29 +66,29 @@ pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 	})
 }
 
-pub fn integer_to_usize(i: &TypeExpression) -> Option<usize> {
+pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
     match i {
-        TypeExpression::Integer(v) => v.as_usize(),
-        TypeExpression::TypedInteger(v) => v.as_usize(),
+        TypeExpressionData::Integer(v) => v.as_usize(),
+        TypeExpressionData::TypedInteger(v) => v.as_usize(),
         _ => None,
     }
 }
 
-pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
+pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
         Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
             match variant {
-                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpression::TypedDecimal),
-                None => Decimal::from_string(&value).map(TypeExpression::Decimal)
+                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpressionData::TypedDecimal),
+                None => Decimal::from_string(&value).map(TypeExpressionData::Decimal)
             }
         },
-        Token::FractionLiteral(s) => Decimal::from_string(&s).map(TypeExpression::Decimal),
+        Token::FractionLiteral(s) => Decimal::from_string(&s).map(TypeExpressionData::Decimal),
     }.try_map(|res, _| {
 		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
 	})
 }
 
-pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
+pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
             just(Token::LeftParen).padded_by(whitespace()),
@@ -104,30 +105,30 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 )
                 .map(|(base, sub): (String, Option<String>)| {
                     match sub.as_deref() {
-                        None => TypeExpression::Literal(base),
-                        Some(variant) => TypeExpression::Literal(format!(
+                        None => TypeExpressionData::Literal(base),
+                        Some(variant) => TypeExpressionData::Literal(format!(
                             "{}/{}",
                             base, variant
                         )),
                     }
                 }),
-            just(Token::Null).map(|_| TypeExpression::Null),
+            just(Token::Null).map(|_| TypeExpressionData::Null),
         ));
 
         let literal =
             choice((
 				select! {
-					Token::StringLiteral(s) => TypeExpression::Text(unescape_text(&s)),
+					Token::StringLiteral(s) => TypeExpressionData::Text(unescape_text(&s)),
 				},
 				select! {
-					Token::True => TypeExpression::Boolean(true),
-					Token::False => TypeExpression::Boolean(false),
+					Token::True => TypeExpressionData::Boolean(true),
+					Token::False => TypeExpressionData::Boolean(false),
 				},
 				select! {
 					Token::Endpoint(s) =>
 						Endpoint::from_str(s.as_str())
 				}.try_map(|res, _| {
-					res.map(TypeExpression::Endpoint)
+					res.map(TypeExpressionData::Endpoint)
 						.map_err(|e| ParseError::new(ErrorKind::InvalidEndpoint(e)))
 				}),
 				integer(),
@@ -145,8 +146,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 just(Token::LeftBracket).padded_by(whitespace()),
                 just(Token::RightBracket).padded_by(whitespace()),
             )
-            .map(|elems: Vec<TypeExpression>| {
-                TypeExpression::StructuralList(elems)
+            .map(|elems: Vec<TypeExpressionData>| {
+                TypeExpressionData::StructuralList(elems)
             });
 
         let list_fixed_inline = ty
@@ -161,7 +162,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 if let Some(n) = integer_to_usize(&size)
                     && n > 0
                 {
-                    Ok(TypeExpression::FixedSizeList(Box::new(t), n))
+                    Ok(TypeExpressionData::FixedSizeList(Box::new(t), n))
                 } else {
                     Err(ParseError::new(ErrorKind::InvalidListSize(format!(
                         "{size:?}"
@@ -188,15 +189,15 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         //         Type::r#struct(fields).as_type_container()
         //     });
         let struct_field = select! {
-           Token::Identifier(k) => TypeExpression::Text(k),
-           Token::StringLiteral(k) => TypeExpression::Text(unescape_text(&k)),
+           Token::Identifier(k) => TypeExpressionData::Text(k),
+           Token::StringLiteral(k) => TypeExpressionData::Text(unescape_text(&k)),
         }
         .then(just(Token::Placeholder).or_not())
         .then_ignore(just(Token::Colon).padded_by(whitespace()))
         .then(ty.clone())
         .map(|((name, opt), typ)| {
             if opt.is_some() {
-                (name, TypeExpression::Union(vec![typ, TypeExpression::Null]))
+                (name, TypeExpressionData::Union(vec![typ, TypeExpressionData::Null]))
             } else {
                 (name, typ)
             }
@@ -210,8 +211,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 just(Token::LeftCurly).padded_by(whitespace()),
                 just(Token::RightCurly).padded_by(whitespace()),
             )
-            .map(|fields: Vec<(TypeExpression, TypeExpression)>| {
-                TypeExpression::StructuralMap(fields)
+            .map(|fields: Vec<(TypeExpressionData, TypeExpressionData)>| {
+                TypeExpressionData::StructuralMap(fields)
             });
 
         let generic = select! { Token::Identifier(name) => name }
@@ -226,8 +227,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                         just(Token::RightAngle),
                     ),
             )
-            .map(|(name, args): (String, Vec<TypeExpression>)| {
-                TypeExpression::Generic(name.to_owned(), args)
+            .map(|(name, args): (String, Vec<TypeExpressionData>)| {
+                TypeExpressionData::Generic(name.to_owned(), args)
             });
 
         let func = key_ident
@@ -244,10 +245,10 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .then(ty.clone())
             .map(
                 |(params, ret): (
-                    Vec<(String, TypeExpression)>,
-                    TypeExpression,
+                    Vec<(String, TypeExpressionData)>,
+                    TypeExpressionData,
                 )| {
-                    TypeExpression::Function {
+                    TypeExpressionData::Function {
                         parameters: params,
                         return_type: Box::new(ret),
                     }
@@ -258,7 +259,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .ignore_then(just(Token::Mutable).or(just(Token::Final)).or_not())
             .then_ignore(whitespace())
             .then(ty.clone())
-            .map(|(maybe_mut, inner): (Option<Token>, TypeExpression)| {
+            .map(|(maybe_mut, inner): (Option<Token>, TypeExpressionData)| {
                 let mutability = match maybe_mut {
                     Some(Token::Mutable) => ReferenceMutability::Mutable,
                     Some(Token::Final) => ReferenceMutability::Final,
@@ -267,13 +268,13 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                 };
                 match mutability {
                     ReferenceMutability::Mutable => {
-                        TypeExpression::RefMut(Box::new(inner))
+                        TypeExpressionData::RefMut(Box::new(inner))
                     }
                     ReferenceMutability::Immutable => {
-                        TypeExpression::Ref(Box::new(inner))
+                        TypeExpressionData::Ref(Box::new(inner))
                     }
                     ReferenceMutability::Final => {
-                        TypeExpression::RefFinal(Box::new(inner))
+                        TypeExpressionData::RefFinal(Box::new(inner))
                     }
                 }
             });
@@ -357,10 +358,13 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .try_map(|(mut t, arrs), _| {
                 for arr in arrs {
                     t = match arr {
-                        None => TypeExpression::SliceList(Box::new(t)),
+                        None => TypeExpressionData::SliceList(Box::new(t)),
                         Some(n) => match integer_to_usize(&n) {
                             Some(size) if size > 0 => {
-                                TypeExpression::FixedSizeList(Box::new(t), size)
+                                TypeExpressionData::FixedSizeList(
+                                    Box::new(t),
+                                    size,
+                                )
                             }
                             _ => {
                                 return Err(ParseError::new(
@@ -385,13 +389,18 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     .repeated()
                     .collect(),
             )
-            .map(|(first, mut rest): (TypeExpression, Vec<TypeExpression>)| {
-                if rest.is_empty() {
-                    return first;
-                }
-                rest.insert(0, first);
-                TypeExpression::Intersection(rest)
-            });
+            .map(
+                |(first, mut rest): (
+                    TypeExpressionData,
+                    Vec<TypeExpressionData>,
+                )| {
+                    if rest.is_empty() {
+                        return first;
+                    }
+                    rest.insert(0, first);
+                    TypeExpressionData::Intersection(rest)
+                },
+            );
 
         intersection
             .clone()
@@ -402,13 +411,18 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     .repeated()
                     .collect(),
             )
-            .map(|(first, mut rest): (TypeExpression, Vec<TypeExpression>)| {
-                if rest.is_empty() {
-                    return first;
-                }
-                rest.insert(0, first);
-                TypeExpression::Union(rest)
-            })
+            .map(
+                |(first, mut rest): (
+                    TypeExpressionData,
+                    Vec<TypeExpressionData>,
+                )| {
+                    if rest.is_empty() {
+                        return first;
+                    }
+                    rest.insert(0, first);
+                    TypeExpressionData::Union(rest)
+                },
+            )
     })
 }
 
@@ -436,12 +450,15 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
         .padded_by(whitespace())
-        .map_with(|((name, generic), expr), e| DatexExpressionData::TypeDeclaration {
-            id: None,
-            name: name.to_string(),
-            value: expr,
-            hoisted: false,
-        }.with_span(e.span()))
+        .map_with(|((name, generic), expr), e| {
+            DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                id: None,
+                name: name.to_string(),
+                value: expr,
+                hoisted: false,
+            })
+            .with_span(e.span())
+        })
         .labelled(Pattern::Declaration)
         .as_context()
 }
@@ -451,12 +468,15 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
         .ignore_then(select! { Token::Identifier(name) => name })
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
         .then(r#type())
-        .map_with(|(name, expr), e| DatexExpressionData::TypeDeclaration {
-            id: None,
-            name: name.to_string(),
-            value: expr,
-            hoisted: false,
-        }.with_span(e.span()))
+        .map_with(|(name, expr), e| {
+            DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                id: None,
+                name: name.to_string(),
+                value: expr,
+                hoisted: false,
+            })
+            .with_span(e.span())
+        })
         .labelled(Pattern::Declaration)
         .as_context()
 }
@@ -478,40 +498,56 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{error::src::SrcId, parse, DatexParseResult};
+    use crate::ast::{DatexParseResult, error::src::SrcId, parse};
 
     use super::*;
-    use std::{io, str::FromStr};
-    use crate::ast::parse_result::{InvalidDatexParseResult, ValidDatexParseResult};
+    use crate::ast::parse_result::{
+        InvalidDatexParseResult, ValidDatexParseResult,
+    };
     use crate::ast::tree::{DatexExpressionData, Statements};
+    use std::{io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();
         let res = parse(src);
         match res {
-            DatexParseResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
+            DatexParseResult::Invalid(InvalidDatexParseResult {
+                errors,
+                ..
+            }) => {
                 errors.iter().for_each(|e| {
                     let cache = ariadne::sources(vec![(src_id, src)]);
                     e.clone().write(cache, io::stdout());
                 });
                 panic!("Parsing errors found");
-            },
-            DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => ast.data
+            }
+            DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => {
+                ast.data
+            }
         }
     }
-    fn parse_type_unwrap(src: &str) -> TypeExpression {
+    fn parse_type_unwrap(src: &str) -> TypeExpressionData {
         let value = parse_unwrap(format!("type T = {}", src).as_str());
-        if let DatexExpressionData::TypeDeclaration { value, .. } = value {
+        if let DatexExpressionData::TypeDeclaration(TypeDeclaration {
+            value,
+            ..
+        }) = value
+        {
             value
-        } else if let DatexExpressionData::Statements(Statements {statements, ..}) = &value
+        } else if let DatexExpressionData::Statements(Statements {
+            statements,
+            ..
+        }) = &value
             && statements.len() == 1
         {
             match &statements[0].data {
-                DatexExpressionData::TypeDeclaration { value, .. } => value.clone(),
-                _ => panic!(
-                    "Expected TypeDeclaration, got {:?}",
-                    statements[0]
-                ),
+                DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                    value,
+                    ..
+                }) => value.clone(),
+                _ => {
+                    panic!("Expected TypeDeclaration, got {:?}", statements[0])
+                }
             }
         } else {
             panic!("Expected TypeDeclaration, got {:?}", value);
@@ -522,7 +558,7 @@ mod tests {
     fn literal() {
         let src = "integer/u16";
         let val = parse_type_unwrap(src);
-        assert_eq!(val, TypeExpression::Literal("integer/u16".to_owned()));
+        assert_eq!(val, TypeExpressionData::Literal("integer/u16".to_owned()));
     }
 
     #[test]
@@ -536,19 +572,19 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(vec![
                 (
-                    TypeExpression::Text("name".to_string()),
-                    TypeExpression::Union(vec![
-                        TypeExpression::Literal("text".to_owned()),
-                        TypeExpression::Null
+                    TypeExpressionData::Text("name".to_string()),
+                    TypeExpressionData::Union(vec![
+                        TypeExpressionData::Literal("text".to_owned()),
+                        TypeExpressionData::Null
                     ])
                 ),
                 (
-                    TypeExpression::Text("age".to_string()),
-                    TypeExpression::Union(vec![
-                        TypeExpression::Literal("integer".to_owned()),
-                        TypeExpression::Literal("text".to_owned())
+                    TypeExpressionData::Text("age".to_string()),
+                    TypeExpressionData::Union(vec![
+                        TypeExpressionData::Literal("integer".to_owned()),
+                        TypeExpressionData::Literal("text".to_owned())
                     ])
                 )
             ])
@@ -563,20 +599,20 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(vec![
                 (
-                    TypeExpression::Text("name".to_string()),
-                    TypeExpression::Union(vec![
-                        TypeExpression::Literal("text".to_owned()),
-                        TypeExpression::Null
+                    TypeExpressionData::Text("name".to_string()),
+                    TypeExpressionData::Union(vec![
+                        TypeExpressionData::Literal("text".to_owned()),
+                        TypeExpressionData::Null
                     ])
                 ),
                 (
-                    TypeExpression::Text("friends".to_string()),
-                    TypeExpression::Generic(
+                    TypeExpressionData::Text("friends".to_string()),
+                    TypeExpressionData::Generic(
                         "List".to_owned(),
-                        vec![TypeExpression::Ref(Box::new(
-                            TypeExpression::Literal("text".to_owned())
+                        vec![TypeExpressionData::Ref(Box::new(
+                            TypeExpressionData::Literal("text".to_owned())
                         ))]
                     )
                 ),
@@ -592,17 +628,17 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(vec![
                 (
-                    TypeExpression::Text("name".to_string()),
-                    TypeExpression::Literal("text".to_owned())
+                    TypeExpressionData::Text("name".to_string()),
+                    TypeExpressionData::Literal("text".to_owned())
                 ),
                 (
-                    TypeExpression::Text("friends".to_string()),
-                    TypeExpression::Generic(
+                    TypeExpressionData::Text("friends".to_string()),
+                    TypeExpressionData::Generic(
                         "List".to_owned(),
-                        vec![TypeExpression::Ref(Box::new(
-                            TypeExpression::Literal("text".to_owned())
+                        vec![TypeExpressionData::Ref(Box::new(
+                            TypeExpressionData::Literal("text".to_owned())
                         ))]
                     )
                 ),
@@ -618,16 +654,16 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(vec![
                 (
-                    TypeExpression::Text("name".to_string()),
-                    TypeExpression::Literal("text".to_owned())
+                    TypeExpressionData::Text("name".to_string()),
+                    TypeExpressionData::Literal("text".to_owned())
                 ),
                 (
-                    TypeExpression::Text("age".to_string()),
-                    TypeExpression::RefMut(Box::new(TypeExpression::Literal(
-                        "text".to_owned()
-                    )))
+                    TypeExpressionData::Text("age".to_string()),
+                    TypeExpressionData::RefMut(Box::new(
+                        TypeExpressionData::Literal("text".to_owned())
+                    ))
                 ),
             ])
         );
@@ -639,9 +675,9 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Union(vec![
-                TypeExpression::Text("hello world".to_owned()),
-                TypeExpression::Integer(Integer::from(42)),
+            TypeExpressionData::Union(vec![
+                TypeExpressionData::Text("hello world".to_owned()),
+                TypeExpressionData::Integer(Integer::from(42)),
             ])
         );
 
@@ -649,11 +685,11 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Union(vec![
-                TypeExpression::Integer(Integer::from(1)),
-                TypeExpression::Integer(Integer::from(2)),
-                TypeExpression::Integer(Integer::from(3)),
-                TypeExpression::Integer(Integer::from(4)),
+            TypeExpressionData::Union(vec![
+                TypeExpressionData::Integer(Integer::from(1)),
+                TypeExpressionData::Integer(Integer::from(2)),
+                TypeExpressionData::Integer(Integer::from(3)),
+                TypeExpressionData::Integer(Integer::from(4)),
             ])
         );
 
@@ -661,9 +697,13 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Union(vec![
-                TypeExpression::Endpoint(Endpoint::from_str("@jonas").unwrap()),
-                TypeExpression::Endpoint(Endpoint::from_str("@bene").unwrap()),
+            TypeExpressionData::Union(vec![
+                TypeExpressionData::Endpoint(
+                    Endpoint::from_str("@jonas").unwrap()
+                ),
+                TypeExpressionData::Endpoint(
+                    Endpoint::from_str("@bene").unwrap()
+                ),
             ])
         );
     }
@@ -674,13 +714,13 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Union(vec![
-                TypeExpression::Union(vec![
-                    TypeExpression::Integer(Integer::from(1)),
-                    TypeExpression::Integer(Integer::from(2)),
+            TypeExpressionData::Union(vec![
+                TypeExpressionData::Union(vec![
+                    TypeExpressionData::Integer(Integer::from(1)),
+                    TypeExpressionData::Integer(Integer::from(2)),
                 ]),
-                TypeExpression::Integer(Integer::from(3)),
-                TypeExpression::Integer(Integer::from(4)),
+                TypeExpressionData::Integer(Integer::from(3)),
+                TypeExpressionData::Integer(Integer::from(4)),
             ])
         );
     }
@@ -691,13 +731,13 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Union(vec![
-                TypeExpression::Integer(Integer::from(1)),
-                TypeExpression::Intersection(vec![
-                    TypeExpression::Integer(Integer::from(2)),
-                    TypeExpression::Integer(Integer::from(3)),
+            TypeExpressionData::Union(vec![
+                TypeExpressionData::Integer(Integer::from(1)),
+                TypeExpressionData::Intersection(vec![
+                    TypeExpressionData::Integer(Integer::from(2)),
+                    TypeExpressionData::Integer(Integer::from(3)),
                 ]),
-                TypeExpression::Integer(Integer::from(4)),
+                TypeExpressionData::Integer(Integer::from(4)),
             ])
         );
 
@@ -705,13 +745,13 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Intersection(vec![
-                TypeExpression::Union(vec![
-                    TypeExpression::Integer(Integer::from(1)),
-                    TypeExpression::Integer(Integer::from(2)),
+            TypeExpressionData::Intersection(vec![
+                TypeExpressionData::Union(vec![
+                    TypeExpressionData::Integer(Integer::from(1)),
+                    TypeExpressionData::Integer(Integer::from(2)),
                 ]),
-                TypeExpression::Integer(Integer::from(3)),
-                TypeExpression::Integer(Integer::from(4)),
+                TypeExpressionData::Integer(Integer::from(3)),
+                TypeExpressionData::Integer(Integer::from(4)),
             ])
         );
     }
@@ -722,11 +762,11 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralList(vec![
-                TypeExpression::Integer(Integer::from(1)),
-                TypeExpression::Integer(Integer::from(2)),
-                TypeExpression::Integer(Integer::from(3)),
-                TypeExpression::Integer(Integer::from(4)),
+            TypeExpressionData::StructuralList(vec![
+                TypeExpressionData::Integer(Integer::from(1)),
+                TypeExpressionData::Integer(Integer::from(2)),
+                TypeExpressionData::Integer(Integer::from(3)),
+                TypeExpressionData::Integer(Integer::from(4)),
             ])
         );
 
@@ -734,10 +774,10 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralList(vec![
-                TypeExpression::Integer(Integer::from(1)),
-                TypeExpression::Integer(Integer::from(2)),
-                TypeExpression::Literal("text".to_owned()),
+            TypeExpressionData::StructuralList(vec![
+                TypeExpressionData::Integer(Integer::from(1)),
+                TypeExpressionData::Integer(Integer::from(2)),
+                TypeExpressionData::Literal("text".to_owned()),
             ])
         );
 
@@ -745,10 +785,12 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::StructuralList(vec![TypeExpression::Union(vec![
-                TypeExpression::Literal("integer".to_owned()),
-                TypeExpression::Literal("text".to_owned()),
-            ])])
+            TypeExpressionData::StructuralList(vec![
+                TypeExpressionData::Union(vec![
+                    TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned()),
+                ])
+            ])
         );
     }
 
@@ -758,8 +800,8 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeList(
-                Box::new(TypeExpression::Literal("integer".to_owned())),
+            TypeExpressionData::FixedSizeList(
+                Box::new(TypeExpressionData::Literal("integer".to_owned())),
                 10
             )
         );
@@ -768,10 +810,10 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeList(
-                Box::new(TypeExpression::Union(vec![
-                    TypeExpression::Literal("integer".to_owned()),
-                    TypeExpression::Literal("string".to_owned()),
+            TypeExpressionData::FixedSizeList(
+                Box::new(TypeExpressionData::Union(vec![
+                    TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("string".to_owned()),
                 ])),
                 10
             )
@@ -784,8 +826,8 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeList(
-                Box::new(TypeExpression::Literal("text".to_owned())),
+            TypeExpressionData::FixedSizeList(
+                Box::new(TypeExpressionData::Literal("text".to_owned())),
                 4
             )
         );
@@ -794,8 +836,8 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeList(
-                Box::new(TypeExpression::Literal("text".to_owned())),
+            TypeExpressionData::FixedSizeList(
+                Box::new(TypeExpressionData::Literal("text".to_owned())),
                 42
             )
         );
@@ -804,8 +846,8 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::FixedSizeList(
-                Box::new(TypeExpression::Literal("text".to_owned())),
+            TypeExpressionData::FixedSizeList(
+                Box::new(TypeExpressionData::Literal("text".to_owned())),
                 10
             )
         );
@@ -817,20 +859,22 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::SliceList(Box::new(TypeExpression::Literal(
-                "text".to_owned()
-            )))
+            TypeExpressionData::SliceList(Box::new(
+                TypeExpressionData::Literal("text".to_owned())
+            ))
         );
 
         let src = "integer[][][]";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::SliceList(Box::new(TypeExpression::SliceList(
-                Box::new(TypeExpression::SliceList(Box::new(
-                    TypeExpression::Literal("integer".to_owned())
-                )))
-            )))
+            TypeExpressionData::SliceList(Box::new(
+                TypeExpressionData::SliceList(Box::new(
+                    TypeExpressionData::SliceList(Box::new(
+                        TypeExpressionData::Literal("integer".to_owned())
+                    ))
+                ))
+            ))
         );
     }
 
@@ -840,9 +884,9 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Generic(
+            TypeExpressionData::Generic(
                 "List".to_owned(),
-                vec![TypeExpression::Literal("integer".to_owned())],
+                vec![TypeExpressionData::Literal("integer".to_owned())],
             )
         );
 
@@ -850,11 +894,11 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Generic(
+            TypeExpressionData::Generic(
                 "List".to_owned(),
-                vec![TypeExpression::Union(vec![
-                    TypeExpression::Literal("integer".to_owned()),
-                    TypeExpression::Literal("text".to_owned()),
+                vec![TypeExpressionData::Union(vec![
+                    TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned()),
                 ]),],
             )
         );
@@ -866,11 +910,11 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Generic(
+            TypeExpressionData::Generic(
                 "Map".to_owned(),
                 vec![
-                    TypeExpression::Literal("text".to_owned()),
-                    TypeExpression::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Literal("integer".to_owned()),
                 ],
             )
         );
@@ -882,11 +926,11 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Generic(
+            TypeExpressionData::Generic(
                 "User".to_owned(),
                 vec![
-                    TypeExpression::Literal("text".to_owned()),
-                    TypeExpression::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Literal("integer".to_owned()),
                 ],
             )
         );
@@ -895,11 +939,11 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Generic(
+            TypeExpressionData::Generic(
                 "User".to_owned(),
-                vec![TypeExpression::Union(vec![
-                    TypeExpression::Literal("text".to_owned()),
-                    TypeExpression::Literal("integer".to_owned()),
+                vec![TypeExpressionData::Union(vec![
+                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Literal("integer".to_owned()),
                 ]),],
             )
         );
@@ -911,25 +955,25 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Function {
+            TypeExpressionData::Function {
                 parameters: vec![
                     (
                         "x".to_string(),
-                        TypeExpression::Literal("text".to_owned())
+                        TypeExpressionData::Literal("text".to_owned())
                     ),
                     (
                         "y".to_string(),
-                        TypeExpression::Union(vec![
-                            TypeExpression::Literal("text".to_owned()),
-                            TypeExpression::Decimal(
+                        TypeExpressionData::Union(vec![
+                            TypeExpressionData::Literal("text".to_owned()),
+                            TypeExpressionData::Decimal(
                                 Decimal::from_string("4.5").unwrap()
                             )
                         ])
                     )
                 ],
-                return_type: Box::new(TypeExpression::Union(vec![
-                    TypeExpression::Literal("text".to_owned()),
-                    TypeExpression::Integer(Integer::from(52))
+                return_type: Box::new(TypeExpressionData::Union(vec![
+                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Integer(Integer::from(52))
                 ])),
             }
         );
@@ -938,27 +982,27 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Function {
+            TypeExpressionData::Function {
                 parameters: vec![
                     (
                         "x".to_string(),
-                        TypeExpression::RefMut(Box::new(
-                            TypeExpression::Literal("text".to_owned())
+                        TypeExpressionData::RefMut(Box::new(
+                            TypeExpressionData::Literal("text".to_owned())
                         ))
                     ),
                     (
                         "y".to_string(),
-                        TypeExpression::Union(vec![
-                            TypeExpression::Literal("text".to_owned()),
-                            TypeExpression::Decimal(
+                        TypeExpressionData::Union(vec![
+                            TypeExpressionData::Literal("text".to_owned()),
+                            TypeExpressionData::Decimal(
                                 Decimal::from_string("4.5").unwrap()
                             )
                         ])
                     )
                 ],
-                return_type: Box::new(TypeExpression::Union(vec![
-                    TypeExpression::Literal("text".to_owned()),
-                    TypeExpression::Integer(Integer::from(52))
+                return_type: Box::new(TypeExpressionData::Union(vec![
+                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Integer(Integer::from(52))
                 ])),
             }
         );
@@ -970,16 +1014,16 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpression::Ref(Box::new(TypeExpression::StructuralList(
-                vec![
-                    TypeExpression::RefMut(Box::new(TypeExpression::Literal(
-                        "text".to_owned()
-                    ))),
-                    TypeExpression::RefMut(Box::new(TypeExpression::Literal(
-                        "integer/u8".to_owned()
-                    ))),
-                ]
-            )))
+            TypeExpressionData::Ref(Box::new(
+                TypeExpressionData::StructuralList(vec![
+                    TypeExpressionData::RefMut(Box::new(
+                        TypeExpressionData::Literal("text".to_owned())
+                    )),
+                    TypeExpressionData::RefMut(Box::new(
+                        TypeExpressionData::Literal("integer/u8".to_owned())
+                    )),
+                ])
+            ))
         );
     }
 }

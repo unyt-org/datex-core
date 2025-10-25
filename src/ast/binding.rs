@@ -5,7 +5,7 @@ use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::tree::{
-    DerefAssignment, TypeExpression, VariableAssignment, VariableKind,
+    DerefAssignment, TypeExpressionData, VariableAssignment, VariableKind,
 };
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
@@ -20,7 +20,7 @@ pub type VariableId = usize;
 fn create_variable_declaration(
     name: String,
     value: DatexExpression,
-    type_annotation: Option<TypeExpression>,
+    type_annotation: Option<TypeExpressionData>,
     kind: VariableKind,
 ) -> DatexExpressionData {
     DatexExpressionData::VariableDeclaration(VariableDeclaration {

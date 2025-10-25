@@ -54,7 +54,18 @@ impl Display for Slot {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum TypeExpression {
+pub struct SlotAssignment {
+    pub slot: Slot,
+    pub expression: Box<DatexExpression>,
+}
+impl Visitable for SlotAssignment {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.expression);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum TypeExpressionData {
     Null,
     // a type name or variable, e.g. integer, string, User, MyType, T
     Literal(String),
@@ -73,38 +84,62 @@ pub enum TypeExpression {
 
     // [integer, text, endpoint]
     // size known to compile time, arbitrary types
-    StructuralList(Vec<TypeExpression>),
+    StructuralList(Vec<TypeExpressionData>),
 
     // [text; 3], integer[10]
     // fixed size and known to compile time, only one type
-    FixedSizeList(Box<TypeExpression>, usize),
+    FixedSizeList(Box<TypeExpressionData>, usize),
 
     // text[], integer[]
     // size not known to compile time, only one type
-    SliceList(Box<TypeExpression>),
+    SliceList(Box<TypeExpressionData>),
 
     // text & "test"
-    Intersection(Vec<TypeExpression>),
+    Intersection(Vec<TypeExpressionData>),
 
     // text | integer
-    Union(Vec<TypeExpression>),
+    Union(Vec<TypeExpressionData>),
 
     // User<text, integer>
-    Generic(String, Vec<TypeExpression>),
+    Generic(String, Vec<TypeExpressionData>),
 
     // (x: text) -> text
     Function {
-        parameters: Vec<(String, TypeExpression)>,
-        return_type: Box<TypeExpression>,
+        parameters: Vec<(String, TypeExpressionData)>,
+        return_type: Box<TypeExpressionData>,
     },
 
     // structurally typed map, e.g. { x: integer, y: text }
-    StructuralMap(Vec<(TypeExpression, TypeExpression)>),
+    StructuralMap(Vec<(TypeExpressionData, TypeExpressionData)>),
 
     // modifiers
-    Ref(Box<TypeExpression>),
-    RefMut(Box<TypeExpression>),
-    RefFinal(Box<TypeExpression>),
+    Ref(Box<TypeExpressionData>),
+    RefMut(Box<TypeExpressionData>),
+    RefFinal(Box<TypeExpressionData>),
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeExpression {
+    pub data: TypeExpressionData,
+    pub span: SimpleSpan,
+    pub wrapped: Option<usize>, // number of wrapping parentheses
+}
+
+impl Visitable for TypeExpression {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        match &self.data {
+            TypeExpressionData::GetReference(pointer_address) => {
+                visitor.visit_get_reference(pointer_address, self.span)
+            }
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl PartialEq for TypeExpression {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -156,7 +191,61 @@ impl Visitable for DatexExpression {
                 visitor.visit_list(list, self.span)
             }
             DatexExpressionData::Map(map) => visitor.visit_map(map, self.span),
-            _ => {}
+            DatexExpressionData::GetReference(pointer_address) => {
+                visitor.visit_get_reference(pointer_address, self.span)
+            }
+            DatexExpressionData::Conditional(conditional) => {
+                visitor.visit_conditional(conditional, self.span)
+            }
+            DatexExpressionData::TypeDeclaration(type_declaration) => {
+                visitor.visit_type_declaration(type_declaration, self.span)
+            }
+            DatexExpressionData::TypeExpression(type_expression_data) => {
+                todo!()
+            }
+            DatexExpressionData::Type(type_expression_data) => todo!(),
+            DatexExpressionData::FunctionDeclaration(function_declaration) => {
+                visitor
+                    .visit_function_declaration(function_declaration, self.span)
+            }
+            DatexExpressionData::CreateRef(datex_expression) => {
+                visitor.visit_create_ref(datex_expression, self.span)
+            }
+            DatexExpressionData::CreateRefMut(datex_expression) => {
+                visitor.visit_create_mut(datex_expression, self.span)
+            }
+            DatexExpressionData::CreateRefFinal(datex_expression) => todo!(),
+            DatexExpressionData::Deref(datex_expression) => {
+                visitor.visit_deref(datex_expression, self.span)
+            }
+            DatexExpressionData::Slot(slot) => {
+                visitor.visit_slot(slot, self.span)
+            }
+            DatexExpressionData::SlotAssignment(slot_assignment) => {
+                visitor.visit_slot_assignment(slot_assignment, self.span)
+            }
+            DatexExpressionData::PointerAddress(pointer_address) => {
+                visitor.visit_pointer_address(pointer_address, self.span)
+            }
+            DatexExpressionData::BinaryOperation(binary_operation) => {
+                visitor.visit_binary_operation(binary_operation, self.span)
+            }
+            DatexExpressionData::ComparisonOperation(comparison_operation) => {
+                visitor
+                    .visit_comparison_operation(comparison_operation, self.span)
+            }
+            DatexExpressionData::DerefAssignment(deref_assignment) => {
+                visitor.visit_deref_assignment(deref_assignment, self.span)
+            }
+            DatexExpressionData::ApplyChain(apply_chain) => {
+                visitor.visit_apply_chain(apply_chain, self.span)
+            }
+            DatexExpressionData::RemoteExecution(remote_execution) => {
+                visitor.visit_remote_execution(remote_execution, self.span)
+            }
+            DatexExpressionData::Placeholder
+            | DatexExpressionData::Recover
+            | DatexExpressionData::Identifier(_) => {}
         }
     }
 }
@@ -229,6 +318,19 @@ impl Visitable for Conditional {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct TypeDeclaration {
+    pub id: Option<VariableId>,
+    pub name: String,
+    pub value: TypeExpressionData,
+    pub hoisted: bool,
+}
+impl Visitable for TypeDeclaration {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        todo!()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum DatexExpressionData {
     /// This is a marker for recovery from parse errors.
     /// We should never use this manually.
@@ -281,18 +383,13 @@ pub enum DatexExpressionData {
     // This would remove the ability to have recursive type
     // definitions.
     /// Type declaration, e.g. type MyType = { x: 42, y: "John" };
-    TypeDeclaration {
-        id: Option<VariableId>,
-        name: String,
-        value: TypeExpression, // Type
-        hoisted: bool,
-    },
+    TypeDeclaration(TypeDeclaration),
 
     /// Type expression, e.g. { x: 42, y: "John" }
-    TypeExpression(TypeExpression),
+    TypeExpression(TypeExpressionData),
 
     /// Type keyword, e.g. type(...)
-    Type(TypeExpression),
+    Type(TypeExpressionData),
 
     /// Function declaration, e.g. fn my_function() -> type ( ... )
     FunctionDeclaration(FunctionDeclaration),
@@ -312,7 +409,7 @@ pub enum DatexExpressionData {
     Slot(Slot),
 
     /// Slot assignment
-    SlotAssignment(Slot, Box<DatexExpression>),
+    SlotAssignment(SlotAssignment),
 
     /// Pointer address $<identifier>
     PointerAddress(PointerAddress),
@@ -330,13 +427,13 @@ pub enum DatexExpressionData {
     UnaryOperation(UnaryOperation),
 
     /// apply (e.g. x (1)) or property access
-    ApplyChain(Box<DatexExpression>, Vec<ApplyOperation>),
+    ApplyChain(ApplyChain),
 
     /// The '?' placeholder expression
     Placeholder,
 
     /// Remote execution, e.g. @example :: 41 + 1
-    RemoteExecution(Box<DatexExpression>, Box<DatexExpression>),
+    RemoteExecution(RemoteExecution),
 }
 
 // Expressions with visit methods
@@ -349,6 +446,42 @@ pub struct UnaryOperation {
 impl Visitable for UnaryOperation {
     fn visit_children_with(&self, visitor: &mut impl Visit) {
         visitor.visit_expression(&self.expression);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ApplyChain {
+    pub base: Box<DatexExpression>,
+    pub operations: Vec<ApplyOperation>,
+}
+impl Visitable for ApplyChain {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.base);
+        for op in &self.operations {
+            match op {
+                ApplyOperation::FunctionCall(expression) => {
+                    visitor.visit_expression(expression);
+                }
+                ApplyOperation::PropertyAccess(property) => {
+                    visitor.visit_expression(property);
+                }
+                ApplyOperation::GenericAccess(access) => {
+                    visitor.visit_expression(access);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RemoteExecution {
+    pub left: Box<DatexExpression>,
+    pub right: Box<DatexExpression>,
+}
+impl Visitable for RemoteExecution {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.left);
+        visitor.visit_expression(&self.right);
     }
 }
 
@@ -390,7 +523,7 @@ pub struct VariableDeclaration {
     pub id: Option<VariableId>,
     pub kind: VariableKind,
     pub name: String,
-    pub type_annotation: Option<TypeExpression>,
+    pub type_annotation: Option<TypeExpressionData>,
     pub init_expression: Box<DatexExpression>,
 }
 
@@ -424,8 +557,8 @@ pub struct VariableAccess {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionDeclaration {
     pub name: String,
-    pub parameters: Vec<(String, TypeExpression)>,
-    pub return_type: Option<TypeExpression>,
+    pub parameters: Vec<(String, TypeExpressionData)>,
+    pub return_type: Option<TypeExpressionData>,
     pub body: Box<DatexExpression>,
 }
 
@@ -563,6 +696,9 @@ pub trait Visit: Sized {
     fn visit_expression(&mut self, expr: &DatexExpression) {
         expr.visit_children_with(self);
     }
+    fn visit_type_expression(&mut self, type_expr: &TypeExpression) {
+        type_expr.visit_children_with(self);
+    }
     fn visit_statements(&mut self, stmts: &Statements, span: SimpleSpan) {
         stmts.visit_children_with(self);
     }
@@ -571,6 +707,13 @@ pub trait Visit: Sized {
     }
     fn visit_conditional(&mut self, cond: &Conditional, span: SimpleSpan) {
         cond.visit_children_with(self);
+    }
+    fn visit_type_declaration(
+        &mut self,
+        type_decl: &TypeDeclaration,
+        span: SimpleSpan,
+    ) {
+        type_decl.visit_children_with(self);
     }
     fn visit_binary_operation(
         &mut self,
@@ -593,12 +736,33 @@ pub trait Visit: Sized {
     ) {
         deref_assign.visit_children_with(self);
     }
+    fn visit_apply_chain(
+        &mut self,
+        apply_chain: &ApplyChain,
+        span: SimpleSpan,
+    ) {
+        apply_chain.visit_children_with(self);
+    }
+    fn visit_remote_execution(
+        &mut self,
+        remote_execution: &RemoteExecution,
+        span: SimpleSpan,
+    ) {
+        remote_execution.visit_children_with(self);
+    }
     fn visit_function_declaration(
         &mut self,
         func_decl: &FunctionDeclaration,
         span: SimpleSpan,
     ) {
         func_decl.visit_children_with(self);
+    }
+    fn visit_slot_assignment(
+        &mut self,
+        slot_assign: &SlotAssignment,
+        span: SimpleSpan,
+    ) {
+        slot_assign.visit_children_with(self);
     }
     fn visit_variable_declaration(
         &mut self,
@@ -620,6 +784,27 @@ pub trait Visit: Sized {
         span: SimpleSpan,
     ) {
     }
+    fn visit_create_ref(
+        &mut self,
+        datex_expression: &DatexExpression,
+        span: SimpleSpan,
+    ) {
+        datex_expression.visit_children_with(self);
+    }
+    fn visit_create_mut(
+        &mut self,
+        datex_expression: &DatexExpression,
+        span: SimpleSpan,
+    ) {
+        datex_expression.visit_children_with(self);
+    }
+    fn visit_deref(
+        &mut self,
+        datex_expression: &DatexExpression,
+        span: SimpleSpan,
+    ) {
+        datex_expression.visit_children_with(self);
+    }
     fn visit_list(&mut self, list: &List, span: SimpleSpan) {
         list.visit_children_with(self);
     }
@@ -631,7 +816,20 @@ pub trait Visit: Sized {
     fn visit_decimal(&mut self, value: &Decimal, span: SimpleSpan) {}
     fn visit_typed_decimal(&mut self, value: &TypedDecimal, span: SimpleSpan) {}
     fn visit_text(&mut self, value: &String, span: SimpleSpan) {}
+    fn visit_get_reference(
+        &mut self,
+        pointer_address: &PointerAddress,
+        span: SimpleSpan,
+    ) {
+    }
     fn visit_boolean(&mut self, value: bool, span: SimpleSpan) {}
     fn visit_endpoint(&mut self, value: &Endpoint, span: SimpleSpan) {}
     fn visit_null(&mut self, span: SimpleSpan) {}
+    fn visit_pointer_address(
+        &mut self,
+        pointer_address: &PointerAddress,
+        span: SimpleSpan,
+    ) {
+    }
+    fn visit_slot(&mut self, slot: &Slot, span: SimpleSpan) {}
 }

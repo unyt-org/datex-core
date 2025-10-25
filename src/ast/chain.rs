@@ -1,10 +1,10 @@
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
+use crate::ast::tree::{ApplyChain, Map};
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 use datex_core::ast::tree::List;
-use crate::ast::tree::Map;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApplyOperation {
@@ -47,7 +47,11 @@ pub fn chain_without_whitespace_apply<'a>(
             if args.is_empty() {
                 val
             } else {
-                DatexExpressionData::ApplyChain(Box::new(val), args).with_span(e.span())
+                DatexExpressionData::ApplyChain(ApplyChain {
+                    base: Box::new(val),
+                    operations: args,
+                })
+                .with_span(e.span())
             }
         })
 }
@@ -65,7 +69,9 @@ pub fn keyed_parameters<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
-        .map_with(|vec, e| DatexExpressionData::Map(Map::new(vec)).with_span(e.span()))
+        .map_with(|vec, e| {
+            DatexExpressionData::Map(Map::new(vec)).with_span(e.span())
+        })
 }
 
 pub fn indexed_parameters<'a>(
@@ -80,7 +86,9 @@ pub fn indexed_parameters<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
-        .map_with(|vec, e| DatexExpressionData::List(List::new(vec)).with_span(e.span()))
+        .map_with(|vec, e| {
+            DatexExpressionData::List(List::new(vec)).with_span(e.span())
+        })
 }
 
 pub fn chain<'a>(
@@ -136,7 +144,11 @@ pub fn chain<'a>(
             if args.is_empty() {
                 val
             } else {
-                DatexExpressionData::ApplyChain(Box::new(val), args).with_span(e.span())
+                DatexExpressionData::ApplyChain(ApplyChain {
+                    base: Box::new(val),
+                    operations: args,
+                })
+                .with_span(e.span())
             }
         })
 }

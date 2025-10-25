@@ -1,4 +1,4 @@
-use crate::ast::tree::{DatexExpressionData, List, Map, TypeExpression};
+use crate::ast::tree::{DatexExpressionData, List, Map, TypeExpressionData};
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -85,7 +85,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
             match &type_value.type_definition {
                 TypeDefinition::Structural(struct_type) => match struct_type {
                     StructuralTypeDefinition::Integer(integer) => {
-                        TypeExpression::Integer(integer.clone())
+                        TypeExpressionData::Integer(integer.clone())
                     }
                     _ => todo!("#416 Undescribed by author."),
                 },

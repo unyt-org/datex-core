@@ -2,18 +2,14 @@ use crate::{
     ast::{
         binary_operation::BinaryOperator,
         comparison_operation::ComparisonOperator,
-        tree::{
-            DatexExpression, TypeExpression,
-        },
+        tree::{DatexExpression, TypeExpressionData},
         unary_operation::UnaryOperator,
     },
     compiler::{
         CompileOptions, parse_datex_script_to_rich_ast_simple_error,
         precompiler::RichAst,
     },
-    fmt::options::{
-        FormattingOptions, TypeDeclarationFormatting,
-    },
+    fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     libs::core::CoreLibPointerId,
 };
 use chumsky::span::SimpleSpan;
@@ -123,33 +119,33 @@ impl<'a> Formatter<'a> {
     /// Formats a TypeExpression into a DocBuilder for pretty printing.
     fn format_type_expression(
         &'a self,
-        type_expr: &'a TypeExpression,
+        type_expr: &'a TypeExpressionData,
     ) -> Format<'a> {
         let a = &self.alloc;
         match type_expr {
-            TypeExpression::Integer(ti) => a.text(ti.to_string()),
-            TypeExpression::Decimal(td) => a.text(td.to_string()),
-            TypeExpression::Boolean(b) => a.text(b.to_string()),
-            TypeExpression::Text(t) => a.text(format!("{:?}", t)),
-            TypeExpression::Endpoint(ep) => a.text(ep.to_string()),
-            TypeExpression::Null => a.text("null"),
+            TypeExpressionData::Integer(ti) => a.text(ti.to_string()),
+            TypeExpressionData::Decimal(td) => a.text(td.to_string()),
+            TypeExpressionData::Boolean(b) => a.text(b.to_string()),
+            TypeExpressionData::Text(t) => a.text(format!("{:?}", t)),
+            TypeExpressionData::Endpoint(ep) => a.text(ep.to_string()),
+            TypeExpressionData::Null => a.text("null"),
 
-            TypeExpression::Ref(inner) => {
+            TypeExpressionData::Ref(inner) => {
                 a.text("&") + self.format_type_expression(inner)
             }
-            TypeExpression::RefMut(inner) => {
+            TypeExpressionData::RefMut(inner) => {
                 a.text("&mut") + a.space() + self.format_type_expression(inner)
             }
-            TypeExpression::RefFinal(inner) => {
+            TypeExpressionData::RefFinal(inner) => {
                 a.text("&final")
                     + a.space()
                     + self.format_type_expression(inner)
             }
 
-            TypeExpression::Literal(lit) => a.text(lit.to_string()),
-            TypeExpression::Variable(_, name) => a.text(name.clone()),
+            TypeExpressionData::Literal(lit) => a.text(lit.to_string()),
+            TypeExpressionData::Variable(_, name) => a.text(name.clone()),
 
-            TypeExpression::GetReference(ptr) => {
+            TypeExpressionData::GetReference(ptr) => {
                 if let Ok(core_lib) = CoreLibPointerId::try_from(ptr) {
                     a.text(core_lib.to_string())
                 } else {
@@ -157,39 +153,39 @@ impl<'a> Formatter<'a> {
                 }
             }
 
-            TypeExpression::TypedInteger(typed_integer) => {
+            TypeExpressionData::TypedInteger(typed_integer) => {
                 a.text(typed_integer.to_string())
                 // TODO: handle variant formatting
             }
-            TypeExpression::TypedDecimal(typed_decimal) => {
+            TypeExpressionData::TypedDecimal(typed_decimal) => {
                 a.text(typed_decimal.to_string())
                 // TODO: handle variant formatting
             }
 
             // Lists — `[T, U, V]` or multiline depending on settings
-            TypeExpression::StructuralList(elements) => {
+            TypeExpressionData::StructuralList(elements) => {
                 let docs =
                     elements.iter().map(|e| self.format_type_expression(e));
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            TypeExpression::FixedSizeList(_, _) => todo!(),
-            TypeExpression::SliceList(_) => todo!(),
+            TypeExpressionData::FixedSizeList(_, _) => todo!(),
+            TypeExpressionData::SliceList(_) => todo!(),
 
             // Intersection: `A & B & C`
-            TypeExpression::Intersection(items) => {
+            TypeExpressionData::Intersection(items) => {
                 self.wrap_type_collection(items, "&")
             }
 
             // Union: `A | B | C`
-            TypeExpression::Union(items) => {
+            TypeExpressionData::Union(items) => {
                 self.wrap_type_collection(items, "|")
             }
 
-            TypeExpression::Generic(_, _) => a.text("/* generic TODO */"),
+            TypeExpressionData::Generic(_, _) => a.text("/* generic TODO */"),
 
             // Function type: `(x: Int, y: Text) -> Bool`
-            TypeExpression::Function {
+            TypeExpressionData::Function {
                 parameters,
                 return_type,
             } => {
@@ -209,7 +205,7 @@ impl<'a> Formatter<'a> {
                 .group()
             }
 
-            TypeExpression::StructuralMap(items) => {
+            TypeExpressionData::StructuralMap(items) => {
                 let pairs = items.iter().map(|(k, v)| {
                     let key_doc = self.format_type_expression(k);
                     key_doc
@@ -224,7 +220,7 @@ impl<'a> Formatter<'a> {
     /// Wraps a collection of type expressions with a specified operator.
     fn wrap_type_collection(
         &'a self,
-        list: &'a [TypeExpression],
+        list: &'a [TypeExpressionData],
         op: &'a str,
     ) -> Format<'a> {
         let a = &self.alloc;

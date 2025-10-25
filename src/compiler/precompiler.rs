@@ -2,8 +2,9 @@ use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tree::{
     BinaryOperation, ComparisonOperation, Conditional, DatexExpression,
-    DatexExpressionData, DerefAssignment, FunctionDeclaration, TypeExpression,
-    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
+    DatexExpressionData, DerefAssignment, FunctionDeclaration, TypeDeclaration,
+    TypeExpressionData, UnaryOperation, VariableAssignment,
+    VariableDeclaration, VariableKind,
 };
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -477,13 +478,13 @@ fn visit_expression(
                 )?;
             }
         }
-        DatexExpressionData::TypeDeclaration {
+        DatexExpressionData::TypeDeclaration(TypeDeclaration {
             id,
             // generic: generic_parameters,
             name,
             value,
             hoisted,
-        } => {
+        }) => {
             visit_type_expression(
                 value,
                 metadata,
@@ -898,11 +899,11 @@ fn visit_expression(
             // hoist type declarations first
             let mut registered_names = HashSet::new();
             for stmt in stmts.statements.iter_mut() {
-                if let DatexExpressionData::TypeDeclaration {
+                if let DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     name,
                     hoisted,
                     ..
-                } = &mut stmt.data
+                }) = &mut stmt.data
                 {
                     // set hoisted to true
                     *hoisted = true;
@@ -1097,36 +1098,36 @@ fn resolve_variable(
 
 // FIXME #489: use tree visitor once fully implemented instead of custom visit function
 fn visit_type_expression(
-    type_expr: &mut TypeExpression,
+    type_expr: &mut TypeExpressionData,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
     spans: &Vec<Range<usize>>,
 ) -> Result<(), CompilerError> {
     match type_expr {
-        TypeExpression::Literal(name) => {
+        TypeExpressionData::Literal(name) => {
             let resolved_variable =
                 resolve_variable(name, metadata, scope_stack)?;
             *type_expr = match resolved_variable {
                 ResolvedVariable::VariableId(id) => {
-                    TypeExpression::Variable(id, name.clone())
+                    TypeExpressionData::Variable(id, name.clone())
                 }
                 ResolvedVariable::PointerAddress(pointer_address) => {
-                    TypeExpression::GetReference(pointer_address)
+                    TypeExpressionData::GetReference(pointer_address)
                 }
             };
             Ok(())
         }
-        TypeExpression::Integer(_)
-        | TypeExpression::Text(_)
-        | TypeExpression::Boolean(_)
-        | TypeExpression::Null
-        | TypeExpression::Decimal(_)
-        | TypeExpression::Endpoint(_)
-        | TypeExpression::TypedDecimal(_)
-        | TypeExpression::TypedInteger(_)
-        | TypeExpression::GetReference(_) => Ok(()),
-        TypeExpression::StructuralList(inner_type) => {
+        TypeExpressionData::Integer(_)
+        | TypeExpressionData::Text(_)
+        | TypeExpressionData::Boolean(_)
+        | TypeExpressionData::Null
+        | TypeExpressionData::Decimal(_)
+        | TypeExpressionData::Endpoint(_)
+        | TypeExpressionData::TypedDecimal(_)
+        | TypeExpressionData::TypedInteger(_)
+        | TypeExpressionData::GetReference(_) => Ok(()),
+        TypeExpressionData::StructuralList(inner_type) => {
             for ty in inner_type {
                 visit_type_expression(
                     ty,
@@ -1138,7 +1139,7 @@ fn visit_type_expression(
             }
             Ok(())
         }
-        TypeExpression::StructuralMap(properties) => {
+        TypeExpressionData::StructuralMap(properties) => {
             for (_, ty) in properties {
                 visit_type_expression(
                     ty,
@@ -1150,7 +1151,7 @@ fn visit_type_expression(
             }
             Ok(())
         }
-        TypeExpression::Union(types) => {
+        TypeExpressionData::Union(types) => {
             for ty in types {
                 visit_type_expression(
                     ty,
@@ -1162,7 +1163,7 @@ fn visit_type_expression(
             }
             Ok(())
         }
-        TypeExpression::Intersection(types) => {
+        TypeExpressionData::Intersection(types) => {
             for ty in types {
                 visit_type_expression(
                     ty,
@@ -1174,7 +1175,7 @@ fn visit_type_expression(
             }
             Ok(())
         }
-        TypeExpression::RefMut(inner) | TypeExpression::Ref(inner) => {
+        TypeExpressionData::RefMut(inner) | TypeExpressionData::Ref(inner) => {
             visit_type_expression(
                 inner,
                 metadata,
@@ -1354,19 +1355,19 @@ mod tests {
             Some(
                 DatexExpressionData::Statements(Statements::new_unterminated(
                     vec![
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "User".to_string(),
-                            value: TypeExpression::StructuralMap(vec![]),
+                            value: TypeExpressionData::StructuralMap(vec![]),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(1),
                             name: "User/admin".to_string(),
-                            value: TypeExpression::StructuralMap(vec![]),
+                            value: TypeExpressionData::StructuralMap(vec![]),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
                         DatexExpressionData::VariableAccess(VariableAccess {
                             id: 1,
@@ -1460,12 +1461,14 @@ mod tests {
             Some(
                 DatexExpressionData::Statements(Statements::new_terminated(
                     vec![
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "MyInt".to_string(),
-                            value: TypeExpression::Integer(Integer::from(1)),
+                            value: TypeExpressionData::Integer(Integer::from(
+                                1
+                            )),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
                         DatexExpressionData::VariableDeclaration(
                             VariableDeclaration {
@@ -1522,12 +1525,14 @@ mod tests {
                             }
                         )
                         .with_default_span(),
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "MyInt".to_string(),
-                            value: TypeExpression::Integer(Integer::from(1)),
+                            value: TypeExpressionData::Integer(Integer::from(
+                                1
+                            )),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
                     ]
                 ))
@@ -1546,22 +1551,25 @@ mod tests {
             Some(
                 DatexExpressionData::Statements(Statements::new_terminated(
                     vec![
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "x".to_string(),
-                            value: TypeExpression::Variable(
+                            value: TypeExpressionData::Variable(
                                 1,
                                 "MyInt".to_string()
                             ),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(1),
                             name: "MyInt".to_string(),
-                            value: TypeExpression::Variable(0, "x".to_string()),
+                            value: TypeExpressionData::Variable(
+                                0,
+                                "x".to_string()
+                            ),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
                     ]
                 ))
@@ -1589,28 +1597,30 @@ mod tests {
             Some(
                 DatexExpressionData::Statements(Statements::new_unterminated(
                     vec![
-                        DatexExpressionData::TypeDeclaration {
+                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "x".to_string(),
-                            value: TypeExpression::Integer(
+                            value: TypeExpressionData::Integer(
                                 Integer::from(10).into()
                             ),
                             hoisted: true,
-                        }
+                        })
                         .with_default_span(),
                         DatexExpressionData::Statements(
                             Statements::new_terminated(vec![
                                 DatexExpressionData::Integer(Integer::from(1))
                                     .with_default_span(),
-                                DatexExpressionData::TypeDeclaration {
-                                    id: Some(1),
-                                    name: "NestedVar".to_string(),
-                                    value: TypeExpression::Variable(
-                                        0,
-                                        "x".to_string()
-                                    ),
-                                    hoisted: true,
-                                }
+                                DatexExpressionData::TypeDeclaration(
+                                    TypeDeclaration {
+                                        id: Some(1),
+                                        name: "NestedVar".to_string(),
+                                        value: TypeExpressionData::Variable(
+                                            0,
+                                            "x".to_string()
+                                        ),
+                                        hoisted: true,
+                                    }
+                                )
                                 .with_default_span(),
                             ])
                         )
@@ -1630,14 +1640,14 @@ mod tests {
         assert_eq!(
             rich_ast.ast,
             Some(
-                DatexExpressionData::TypeDeclaration {
+                DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "x".to_string(),
-                    value: TypeExpression::GetReference(PointerAddress::from(
-                        CoreLibPointerId::Integer(None)
-                    )),
+                    value: TypeExpressionData::GetReference(
+                        PointerAddress::from(CoreLibPointerId::Integer(None))
+                    ),
                     hoisted: false,
-                }
+                })
                 .with_default_span()
             )
         );
