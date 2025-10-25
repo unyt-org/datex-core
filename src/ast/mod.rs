@@ -141,15 +141,14 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let wrapped_expression = statements
         .clone()
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-        .map_with(|inner, e| {
-            let span = e.span();
+        .map_with(|inner, _| {
             let mut expr = inner;
             expr.wrapped = Some(expr.wrapped.unwrap_or(0).saturating_add(1));
             expr
         });
 
     // a valid map/list key
-    /// abc, a, "1", "test", (1 + 2), ...
+    // abc, a, "1", "test", (1 + 2), ...
     let key = key(wrapped_expression.clone()).labelled(Pattern::Custom("key"));
 
     // list

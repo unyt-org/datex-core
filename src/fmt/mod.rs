@@ -6,6 +6,7 @@ use crate::{
         DatexExpression, DatexExpressionData, List, Map, TypeExpression,
         VariableDeclaration,
     },
+    compiler::precompiler::RichAst,
     values::core_values::integer::{Integer, typed_integer::TypedInteger},
 };
 
@@ -51,7 +52,7 @@ pub struct FormattingOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BracketStyle {
-    /// Keep all brackets exactly as written by the user.
+    /// Keep original bracketing as is.
     KeepAll,
 
     /// Remove only redundant or duplicate outer brackets, e.g. `((42))` → `(42)`.
@@ -78,16 +79,22 @@ pub enum VariantFormatting {
 /// Formatting styles for statements.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StatementFormatting {
+    /// Add a newline between statements.
     NewlineBetween,
+    /// Add a space between statements.
     SpaceBetween,
+    /// Compact formatting without extra spaces or newlines.
     Compact,
 }
 
 /// Formatting styles for type declarations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeDeclarationFormatting {
+    /// Compact formatting without extra spaces.
     Compact,
+    /// Spaces around the colon in type declarations.
     SpaceAroundColon,
+    /// Space after the colon in type declarations.
     SpaceAfterColon,
 }
 
@@ -124,28 +131,38 @@ impl FormattingOptions {
         }
     }
 }
-pub struct Formatter {
+pub struct Formatter<'a> {
+    ast: &'a RichAst,
     options: FormattingOptions,
     alloc: RcAllocator,
 }
 
-impl Formatter {
-    pub fn new(options: FormattingOptions) -> Self {
+impl<'a> Formatter<'a> {
+    pub fn new(ast: &'a RichAst, options: FormattingOptions) -> Self {
         Self {
+            ast,
             options,
             alloc: RcAllocator,
         }
     }
 
+    pub fn render(&self) -> String {
+        if let Some(ast) = &self.ast.ast {
+            self.render_expression(&ast)
+        } else {
+            "".to_string()
+        }
+    }
+
     /// Renders a DatexExpression into a source code string.
-    pub fn render(&self, expr: &DatexExpression) -> String {
+    pub fn render_expression(&self, expr: &DatexExpression) -> String {
         self.format_datex_expression(expr)
             .pretty(self.options.max_width)
             .to_string()
     }
 
     /// Formats a list into source code representation.
-    fn list_to_source_code<'a>(&'a self, elements: &'a List) -> Format<'a> {
+    fn list_to_source_code(&'a self, elements: &'a List) -> Format<'a> {
         self.wrap_collection(
             elements
                 .items
@@ -157,12 +174,12 @@ impl Formatter {
     }
 
     /// Formats a string into source code representation.
-    fn text_to_source_code<'a>(&'a self, s: &'a str) -> Format<'a> {
+    fn text_to_source_code(&'a self, s: &'a str) -> Format<'a> {
         self.alloc.text(format!("{:?}", s)) // quoted string
     }
 
     /// Formats a map into source code representation.
-    fn map_to_source_code<'a>(&'a self, map: &'a Map) -> Format<'a> {
+    fn map_to_source_code(&'a self, map: &'a Map) -> Format<'a> {
         let a = &self.alloc;
         let entries = map.entries.iter().map(|(key, value)| {
             self.format_datex_expression(key)
@@ -177,7 +194,7 @@ impl Formatter {
         self.options.indent as isize
     }
 
-    fn typed_integer_to_source_code<'a>(
+    fn typed_integer_to_source_code(
         &'a self,
         ti: &'a TypedInteger,
         span: &'a SimpleSpan,
@@ -194,7 +211,7 @@ impl Formatter {
     }
 
     /// Formats a DatexExpression into a DocBuilder for pretty printing.
-    fn format_datex_expression<'a>(
+    fn format_datex_expression(
         &'a self,
         expr: &'a DatexExpression,
     ) -> Format<'a> {
@@ -303,12 +320,12 @@ impl Formatter {
         }
     }
 
-    fn wrap_in_parens<'a>(&'a self, doc: Format<'a>) -> Format<'a> {
+    fn wrap_in_parens(&'a self, doc: Format<'a>) -> Format<'a> {
         let a = &self.alloc;
         (a.text("(") + a.line_() + doc + a.line_() + a.text(")")).group()
     }
 
-    fn format_type_expression<'a>(
+    fn format_type_expression(
         &'a self,
         type_expr: &'a TypeExpression,
     ) -> Format<'a> {
@@ -402,7 +419,7 @@ impl Formatter {
         }
     }
 
-    fn wrap_type_collection<'a>(
+    fn wrap_type_collection(
         &'a self,
         list: &'a [TypeExpression],
         op: &'a str,
@@ -425,7 +442,7 @@ impl Formatter {
         )
     }
 
-    fn type_declaration_colon<'a>(&'a self) -> Format<'a> {
+    fn type_declaration_colon(&'a self) -> Format<'a> {
         let a = &self.alloc;
         match self.options.type_declaration_formatting {
             TypeDeclarationFormatting::Compact => a.text(":"),
@@ -439,7 +456,7 @@ impl Formatter {
     }
 
     /// Returns an operator DocBuilder with optional spaces around it.
-    fn operator_with_spaces<'a>(&'a self, text: Format<'a>) -> Format<'a> {
+    fn operator_with_spaces(&'a self, text: Format<'a>) -> Format<'a> {
         let a = &self.alloc;
         if self.options.spaces_around_operators {
             a.space() + text + a.space()
@@ -449,7 +466,7 @@ impl Formatter {
     }
 
     /// Wraps a collection of DocBuilders with specified brackets and separator.
-    fn wrap_collection<'a>(
+    fn wrap_collection(
         &'a self,
         list: impl Iterator<Item = DocBuilder<'a, RcAllocator, ()>> + 'a,
         brackets: (&'a str, &'a str),
@@ -491,12 +508,18 @@ impl Formatter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::parse;
+    use crate::{
+        ast::parse,
+        compiler::{
+            CompileOptions, parse_datex_script_to_rich_ast_simple_error,
+            precompiler::RichAst,
+        },
+    };
     use indoc::indoc;
 
     #[test]
     fn bracketing() {
-        let expr = to_expression("((42))");
+        let expr = to_ast("((42))");
         assert_eq!(
             to_string(
                 &expr,
@@ -531,7 +554,7 @@ mod tests {
 
     #[test]
     fn variant_formatting() {
-        let expr = to_expression("42u8");
+        let expr = to_ast("42u8");
         assert_eq!(
             to_string(
                 &expr,
@@ -552,21 +575,21 @@ mod tests {
             ),
             "42u8"
         );
-        // assert_eq!(
-        //     to_string(
-        //         &expr,
-        //         FormattingOptions {
-        //             variant_formatting: VariantFormatting::Keep,
-        //             ..Default::default()
-        //         }
-        //     ),
-        //     "42u8"
-        // );
+        assert_eq!(
+            to_string(
+                &expr,
+                FormattingOptions {
+                    variant_formatting: VariantFormatting::KeepAll,
+                    ..Default::default()
+                }
+            ),
+            "42u8"
+        );
     }
 
     #[test]
     fn statements() {
-        let expr = to_expression("1 + 2; var x: integer/u8 = 42; x * 10;");
+        let expr = to_ast("1 + 2; var x: integer/u8 = 42; x * 10;");
         assert_eq!(
             to_string(&expr, FormattingOptions::default()),
             indoc! {"
@@ -583,13 +606,13 @@ mod tests {
 
     #[test]
     fn type_declarations() {
-        let expr = to_expression("type(&mut integer/u8)");
+        let expr = to_ast("type(&mut integer/u8)");
         assert_eq!(
             to_string(&expr, FormattingOptions::default()),
             "type(&mut integer/u8)"
         );
 
-        let expr = to_expression("type(text | integer/u16 | decimal/f32)");
+        let expr = to_ast("type(text | integer/u16 | decimal/f32)");
         assert_eq!(
             to_string(&expr, FormattingOptions::default()),
             "type(text | integer/u16 | decimal/f32)"
@@ -602,7 +625,7 @@ mod tests {
 
     #[test]
     fn variable_declaration() {
-        let expr = to_expression("var x: &mut integer/u8 = 42;");
+        let expr = to_ast("var x: &mut integer/u8 = 42;");
         assert_eq!(
             to_string(&expr, FormattingOptions::default()),
             "var x: &mut integer/u8 = 42;"
@@ -616,7 +639,7 @@ mod tests {
 
     #[test]
     fn binary_operations() {
-        let expr = to_expression("1 + 2 * 3 - 4 / 5");
+        let expr = to_ast("1 + 2 * 3 - 4 / 5");
         assert_eq!(
             to_string(&expr, FormattingOptions::default()),
             "1 + 2 * 3 - 4 / 5"
@@ -626,7 +649,7 @@ mod tests {
 
     #[test]
     fn strings() {
-        let expr = to_expression(r#""Hello, \"World\"!""#);
+        let expr = to_ast(r#""Hello, \"World\"!""#);
         assert_eq!(
             to_string(&expr, FormattingOptions::default()),
             r#""Hello, \"World\"!""#
@@ -636,7 +659,7 @@ mod tests {
     #[test]
     fn lists() {
         // simple list
-        let expr = to_expression("[1,2,3,4,5,6,7]");
+        let expr = to_ast("[1,2,3,4,5,6,7]");
         assert_eq!(
             to_string(
                 &expr,
@@ -709,26 +732,35 @@ mod tests {
 
     #[test]
     fn test_format_integer() {
-        let expr = to_expression(
+        let expr = to_ast(
             "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x",
         );
         print(&expr, FormattingOptions::default());
         print(&expr, FormattingOptions::compact());
 
-        let expr = to_expression("const x = [1,2,3,4,5,6,7]");
+        let expr = to_ast("const x = [1,2,3,4,5,6,7]");
         print(&expr, FormattingOptions::default());
     }
 
-    fn to_expression(s: &str) -> DatexExpression {
-        parse(s).unwrap().ast
+    // fn to_expression(s: &str) -> DatexExpression {
+    //     parse(s).unwrap().ast
+    // }
+    fn to_ast(s: &str) -> RichAst {
+        let mut opts = CompileOptions::default();
+        parse_datex_script_to_rich_ast_simple_error(s, &mut opts)
+            .expect("Failed to parse Datex script")
     }
 
-    fn to_string(expr: &DatexExpression, options: FormattingOptions) -> String {
-        let formatter = Formatter::new(options);
-        formatter.render(expr)
+    // fn to_string(expr: &DatexExpression, options: FormattingOptions) -> String {
+    //     let formatter = Formatter::new(options);
+    //     formatter.render(expr)
+    // }
+    fn to_string(ast: &RichAst, options: FormattingOptions) -> String {
+        let formatter = Formatter::new(ast, options);
+        formatter.render()
     }
 
-    fn print(expr: &DatexExpression, options: FormattingOptions) {
+    fn print(expr: &RichAst, options: FormattingOptions) {
         println!("{}", to_string(expr, options));
     }
 }
