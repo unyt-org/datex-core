@@ -53,6 +53,7 @@ pub enum Token {
     #[token("+")] Plus,
     #[token("-")] Minus,
     #[token("*")] Star,
+    #[token("^")] Caret,
     #[token("/")] Slash,
     #[token(":")] Colon,
     #[token("::")] DoubleColon,
@@ -259,6 +260,7 @@ impl Token {
             Token::Nan => Some("nan"),
             Token::Star => Some("*"),
             Token::Exclamation => Some("!"),
+            Token::Caret => Some("^"),
             _ => None,
         };
         if let Some(token) = literal_token {
