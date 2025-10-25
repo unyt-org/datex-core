@@ -27,6 +27,7 @@ use crate::{
 use chumsky::span::SimpleSpan;
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;
+mod formatting;
 pub mod options;
 
 pub type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
@@ -93,55 +94,13 @@ impl<'a> Formatter<'a> {
             .to_string()
     }
 
-    /// Formats a list into source code representation.
-    fn list_to_source_code(&'a self, elements: &'a List) -> Format<'a> {
-        self.wrap_collection(
-            elements
-                .items
-                .iter()
-                .map(|e| self.format_datex_expression(e)),
-            ("[", "]"),
-            ",",
-        )
-    }
-
-    /// Formats a string into source code representation.
-    fn text_to_source_code(&'a self, s: &'a str) -> Format<'a> {
-        self.alloc.text(format!("{:?}", s)) // quoted string
-    }
-
-    /// Formats a map into source code representation.
-    fn map_to_source_code(&'a self, map: &'a Map) -> Format<'a> {
-        let a = &self.alloc;
-        let entries = map.entries.iter().map(|(key, value)| {
-            self.format_datex_expression(key)
-                + a.text(": ")
-                + self.format_datex_expression(value)
-        });
-        self.wrap_collection(entries, ("{", "}"), ",")
-    }
-
     /// Returns the indentation level
     fn indent(&self) -> isize {
         self.options.indent as isize
     }
 
-    /// Formats a typed integer into source code representation based on variant formatting options.
-    fn typed_integer_to_source_code(
-        &'a self,
-        ti: &'a TypedInteger,
-        span: &'a SimpleSpan,
-    ) -> Format<'a> {
-        let a = &self.alloc;
-        match self.options.variant_formatting {
-            VariantFormatting::KeepAll => a.text(self.tokens_at(span)),
-            VariantFormatting::WithSuffix => a.text(ti.to_string_with_suffix()),
-            VariantFormatting::WithoutSuffix => a.text(ti.to_string()),
-        }
-    }
-
     // Formats a DatexExpression into a DocBuilder for pretty printing.
-    pub fn format_datex_expression(
+    fn format_datex_expression(
         &'a self,
         expr: &'a DatexExpression,
     ) -> Format<'a> {
@@ -263,43 +222,12 @@ impl<'a> Formatter<'a> {
             }) => a.text(name),
             e => panic!("Formatter not implemented for {:?}", e),
         };
-        // Handle bracketing based on options
-        match self.options.bracket_style {
-            BracketStyle::KeepAll => {
-                let wraps = expr.wrapped.unwrap_or(0);
-                let mut doc = inner_doc;
-                for _ in 0..wraps {
-                    doc = self.wrap_in_parens(doc);
-                }
-                doc
-            }
-
-            BracketStyle::Minimal => {
-                // only wrap if required by precedence
-                self.maybe_wrap_by_parent(
-                    expr,
-                    inner_doc,
-                    parent_ctx,
-                    is_left_child_of_parent,
-                )
-            }
-
-            BracketStyle::RemoveDuplicate => {
-                // keep at most one original wrap if the user had any, but still don't violate precedence:
-                let doc = self.maybe_wrap_by_parent(
-                    expr,
-                    inner_doc,
-                    parent_ctx,
-                    is_left_child_of_parent,
-                );
-                if expr.wrapped.unwrap_or(0) > 0 {
-                    // FIXME: this may double-wrap in some cases; a more precise check would be needed
-                    self.wrap_in_parens(doc)
-                } else {
-                    doc
-                }
-            }
-        }
+        self.handle_bracketing(
+            expr,
+            inner_doc,
+            parent_ctx,
+            is_left_child_of_parent,
+        )
     }
 
     /// Wraps a DocBuilder in parentheses with proper line breaks.

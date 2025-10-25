@@ -16,7 +16,7 @@ use crate::{
     },
     fmt::{
         Assoc, Format, Formatter, Operation, ParentContext,
-        options::FormattingOptions,
+        options::{BracketStyle, FormattingOptions},
     },
     libs::core::CoreLibPointerId,
     values::{
@@ -26,6 +26,52 @@ use crate::{
 };
 
 impl<'a> Formatter<'a> {
+    pub fn handle_bracketing(
+        &'a self,
+        expression: &'a DatexExpression,
+        doc: Format<'a>,
+        parent_ctx: Option<ParentContext<'a>>,
+        is_left_child_of_parent: bool,
+    ) -> Format<'a> {
+        // Handle bracketing based on options
+        match self.options.bracket_style {
+            BracketStyle::KeepAll => {
+                let wraps = expression.wrapped.unwrap_or(0);
+                let mut doc = doc;
+                for _ in 0..wraps {
+                    doc = self.wrap_in_parens(doc);
+                }
+                doc
+            }
+
+            BracketStyle::Minimal => {
+                // only wrap if required by precedence
+                self.maybe_wrap_by_parent(
+                    expression,
+                    doc,
+                    parent_ctx,
+                    is_left_child_of_parent,
+                )
+            }
+
+            BracketStyle::RemoveDuplicate => {
+                // keep at most one original wrap if the user had any, but still don't violate precedence:
+                let doc = self.maybe_wrap_by_parent(
+                    expression,
+                    doc,
+                    parent_ctx,
+                    is_left_child_of_parent,
+                );
+                if expression.wrapped.unwrap_or(0) > 0 {
+                    // FIXME: this may double-wrap in some cases; a more precise check would be needed
+                    self.wrap_in_parens(doc)
+                } else {
+                    doc
+                }
+            }
+        }
+    }
+
     pub fn maybe_wrap_by_parent(
         &'a self,
         expression: &'a DatexExpression,
