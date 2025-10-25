@@ -1,6 +1,6 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
-use crate::compiler::error::{collect_or_pass_error, CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction, SimpleOrDetailedCompilerError, SpannedCompilerError};
+use crate::compiler::error::{collect_or_pass_error, CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction, SpannedCompilerError};
 use crate::libs::core::CoreLibPointerId;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
@@ -318,7 +318,7 @@ pub (crate) fn precompile_ast(
     )
         // no detailed error collection, return no RichAst
         // TODO: make sure Err result is actually only returned when detailed_errors is set to false
-        .map_err(|e| SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e))?;
+        .map_err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple)?;
 
     let mut rich_ast = RichAst {
         metadata: ast_metadata,

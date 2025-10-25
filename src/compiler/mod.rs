@@ -9,7 +9,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::precompiler::{AstMetadata, RichAst, VariableMetadata, PrecompilerOptions, precompile_ast_simple_error, precompile_ast};
+use crate::compiler::precompiler::{AstMetadata, RichAst, VariableMetadata, PrecompilerOptions, precompile_ast};
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;

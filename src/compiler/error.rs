@@ -108,7 +108,7 @@ impl DetailedCompilerErrors {
 impl Display for DetailedCompilerErrors {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for error in self.errors.iter() {
-            write!(f, "{}\n", error)?;
+            writeln!(f, "{}", error)?;
         }
         Ok(())
     }

@@ -1,13 +1,10 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{PathBuf};
-use std::rc::Rc;
 use datex_core::compiler::precompiler::{RichAst};
-use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SpannedCompilerError};
+use crate::compiler::error::DetailedCompilerErrors;
 use crate::compiler::{parse_datex_script_to_rich_ast_detailed_errors, CompileOptions};
-use crate::compiler::type_inference::{infer_expression_type_detailed_errors, infer_expression_type_inner};
 use crate::runtime::Runtime;
-use crate::compiler::error::{DetailedCompilerErrorsWithMaybeRichAst, DetailedCompilerErrorsWithRichAst};
+use crate::compiler::error::DetailedCompilerErrorsWithMaybeRichAst;
 use crate::types::type_container::TypeContainer;
 
 /// Represents a file in the compiler workspace with its path, cached content and AST.

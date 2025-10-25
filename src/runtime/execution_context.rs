@@ -1,4 +1,4 @@
-use crate::compiler::error::{CompilerError, SpannedCompilerError};
+use crate::compiler::error::SpannedCompilerError;
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::{CompileOptions, compile_template};
 use crate::decompiler::{DecompileOptions, decompile_body};
